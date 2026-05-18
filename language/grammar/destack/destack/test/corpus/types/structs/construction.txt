@@ -1,0 +1,370 @@
+==================================================================
+types / structs / construction / tagged literals construct structs
+==================================================================
+
+struct Counter {
+    value: int32;
+
+    increment(): Counter {
+        Counter { value: this.value + 1 }
+    }
+}
+
+const counter = Counter { value: 1 };
+const next = counter.increment();
+next satisfies Counter;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (binary_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (number))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================
+types / structs / construction / tagged literals expose methods
+===============================================================
+
+struct Counter {
+    value: int32;
+
+    increment(): Counter {
+        Counter { value: this.value + 1 }
+    }
+}
+
+const value = (Counter { value: 1 }).increment().value;
+value satisfies int32;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (binary_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (number))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (call_expression
+          (member_expression
+            (parenthesized_expression
+              (struct_literal_expression
+                (identifier)
+                (object
+                  (pair
+                    (property_identifier)
+                    (number)))))
+            (property_identifier))
+          (arguments))
+        (property_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================
+types / structs / construction / tagged literals require fields
+===============================================================
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1 };
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number)))))))
+
+====================================================================
+types / structs / construction / tagged literals reject extra fields
+====================================================================
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1, y: 2, z: 3 };
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number)))))))
+
+===================================================
+types / structs / construction / structs reject new
+===================================================
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = new Point(1, 2);
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number)
+            (number)))))))
+
+=================================================================
+types / structs / construction / struct methods can mutate fields
+=================================================================
+
+struct Counter {
+    value: int32;
+
+    increment(): int32 {
+        this.value = this.value + 1;
+        this.value
+    }
+}
+
+let counter = Counter { value: 1 };
+const next = counter.increment();
+next satisfies int32;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (binary_expression
+                (member_expression
+                  (this)
+                  (property_identifier))
+                (number))))
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=========================================================================
+types / structs / construction / object literals do not construct structs
+=========================================================================
+
+struct Counter {
+    value: int32;
+}
+
+const counter: Counter = { value: 1 };
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))))))
+
+====================================================
+types / structs / construction / structs embed fields
+====================================================
+
+struct Derived {
+    ...Base;
+    extra: int32;
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (struct_embedding_member
+        (type_identifier))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))))))

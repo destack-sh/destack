@@ -1,0 +1,287 @@
+=============================================================
+expressions / switch / cases / switch selects a matching case
+=============================================================
+
+function describe(day: int32): string {
+    let label: string = "unknown";
+    switch (day) {
+        case 0:
+            label = "sun";
+            break;
+        default:
+            label = "other";
+    }
+    label
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (predefined_type))
+          (string
+            (string_fragment))))
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (number)
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (string
+                  (string_fragment))))
+            (break_statement))
+          (switch_default
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (string
+                  (string_fragment)))))))
+      (expression_statement
+        (identifier)))))
+
+=================================================================
+expressions / switch / cases / switch falls through without break
+=================================================================
+
+function classify(day: int32): int32 {
+    let result: int32 = 0;
+    switch (day) {
+        case 0:
+        case 6:
+            result = 1;
+            break;
+        case 1:
+        case 2:
+            result = 2;
+            break;
+        default:
+            result = 3;
+    }
+    result
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (number)))
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (number))
+          (switch_case
+            (number)
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (number)))
+            (break_statement))
+          (switch_case
+            (number))
+          (switch_case
+            (number)
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (number)))
+            (break_statement))
+          (switch_default
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (number))))))
+      (expression_statement
+        (identifier)))))
+
+==========================================================
+expressions / switch / cases / switch rejects break values
+==========================================================
+
+function invalidBreak(day: int32): int32 {
+    switch (day) {
+        case 0:
+            break 1;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (number)
+            (break_statement
+              (number)))
+          (switch_default
+            (break_statement))))
+      (expression_statement
+        (number)))))
+
+===========================================================
+expressions / switch / cases / switch cases use expressions
+===========================================================
+
+function invalidCase(value: int32): int32 {
+    switch (value) {
+        case (1, 2):
+            break;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (parenthesized_expression
+              (sequence_expression
+                (number)
+                (number)))
+            (break_statement))
+          (switch_default
+            (break_statement))))
+      (expression_statement
+        (number)))))
+
+===================================================================
+expressions / switch / cases / switch cases do not accept wildcards
+===================================================================
+
+function invalidWildcard(value: int32): int32 {
+    switch (value) {
+        case _:
+            break;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (identifier)
+            (break_statement))
+          (switch_default
+            (break_statement))))
+      (expression_statement
+        (number)))))
+
+=================================================================
+expressions / switch / cases / switch cases match the switch type
+=================================================================
+
+function invalidCaseType(value: int32): int32 {
+    switch (value) {
+        case "hi":
+            break;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (string
+              (string_fragment))
+            (break_statement))
+          (switch_default
+            (break_statement))))
+      (expression_statement
+        (number)))))

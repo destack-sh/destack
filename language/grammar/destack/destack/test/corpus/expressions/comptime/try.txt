@@ -1,0 +1,385 @@
+====================================================================
+expressions / comptime / try / comptime try catch joins branch types
+====================================================================
+
+const value = comptime {
+    try {
+        1
+    } catch (error) {
+        error satisfies unknown;
+        "fallback"
+    }
+};
+
+value satisfies int | string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (statement_block
+          (expression_statement
+            (try_expression
+              (try_expression
+                (statement_block
+                  (expression_statement
+                    (number)))
+                (catch_clause
+                  (identifier)
+                  (statement_block
+                    (expression_statement
+                      (satisfies_expression
+                        (identifier)
+                        (satisfies_type
+                          (predefined_type))))
+                    (expression_statement
+                      (string
+                        (string_fragment))))))))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (type_identifier)))
+      (identifier))))
+
+=======================================================================
+expressions / comptime / try / comptime try finally keeps the body type
+=======================================================================
+
+const value = comptime {
+    try {
+        1
+    } finally {
+        2
+    }
+};
+
+value satisfies int;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (statement_block
+          (expression_statement
+            (try_expression
+              (try_expression
+                (statement_block
+                  (expression_statement
+                    (number)))
+                (finally_clause
+                  (statement_block
+                    (expression_statement
+                      (number)))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=========================================================================
+expressions / comptime / try / comptime try can catch propagated failures
+=========================================================================
+
+function parse(value: int): Result<int, string> {
+    if (value > 0) {
+        Result.ok(value)
+    } else {
+        Result.err("bad")
+    }
+}
+
+const value = comptime {
+    try {
+        parse(0)?
+    } catch (error) {
+        error satisfies string;
+        1
+    }
+};
+
+value satisfies int;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (if_expression
+          (binary_expression
+            (identifier)
+            (number))
+          (statement_block
+            (expression_statement
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments
+                  (identifier)))))
+          (else_clause
+            (statement_block
+              (expression_statement
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (property_identifier))
+                  (arguments
+                    (string
+                      (string_fragment)))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (statement_block
+          (expression_statement
+            (try_expression
+              (try_expression
+                (statement_block
+                  (expression_statement
+                    (try_propagation_expression
+                      (call_expression
+                        (identifier)
+                        (arguments
+                          (number))))))
+                (catch_clause
+                  (identifier)
+                  (statement_block
+                    (expression_statement
+                      (satisfies_expression
+                        (identifier)
+                        (satisfies_type
+                          (predefined_type))))
+                    (expression_statement
+                      (number)))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================================
+expressions / comptime / try / comptime values enter runtime try propagation
+============================================================================
+
+function parse(value: int): Result<int, string> {
+    Result.ok(value)
+}
+
+function compute(value: int): Result<int, string> {
+    const current = comptime {
+        1
+    };
+
+    const parsed = parse(current)?;
+    Result.ok(parsed + value)
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (comptime_expression
+            (statement_block
+              (expression_statement
+                (number))))))
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (try_propagation_expression
+            (call_expression
+              (identifier)
+              (arguments
+                (identifier))))))
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (binary_expression
+              (identifier)
+              (identifier))))))))
+
+==============================================================================
+expressions / comptime / try / comptime try propagation rejects runtime inputs
+==============================================================================
+
+function parse(value: int): Result<int, string> {
+    Result.ok(value)
+}
+
+function compute(value: int): int {
+    const result = comptime {
+        parse(value)?
+    };
+
+    result
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (comptime_expression
+            (statement_block
+              (expression_statement
+                (try_propagation_expression
+                  (call_expression
+                    (identifier)
+                    (arguments
+                      (identifier)))))))))
+      (expression_statement
+        (identifier)))))
+
+==========================================================================
+expressions / comptime / try / comptime try propagation needs an exit path
+==========================================================================
+
+function parse(value: int): Result<int, string> {
+    Result.ok(value)
+}
+
+const value = comptime {
+    parse(1)?
+};
+
+value satisfies int;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (statement_block
+          (expression_statement
+            (try_propagation_expression
+              (call_expression
+                (identifier)
+                (arguments
+                  (number)))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))

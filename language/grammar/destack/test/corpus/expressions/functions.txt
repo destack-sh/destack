@@ -1,0 +1,554 @@
+==================================
+Generic calls
+:language(typescript)
+==================================
+
+f<T>(x)
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments
+        (identifier)))))
+
+==================================
+Instantiation expressions
+:language(typescript)
+==================================
+
+const makeHammerBox = makeBox<Hammer>;
+const makeStringBox = makeBox<string>;
+const ErrorMap = Map<string, Error>;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (predefined_type)
+          (type_identifier))))))
+
+==================================
+Functions with typed parameters
+:language(typescript)
+==================================
+
+function greeter(person: string) {
+  return "Hello, " + person;
+}
+
+function foo<T>(x: T): T {
+
+}
+
+function foo<T, U>(a: T[], f: (x: T) => U): U[] {
+
+}
+
+function foo<T, U>(this: T[]): U[] {
+  return []
+}
+
+function foo<const T, const U extends string>(x: T, y: U) {
+
+}
+
+---
+
+(program
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (predefined_type))))
+    body: (statement_block
+      (return_statement
+        (binary_expression
+          left: (string
+            (string_fragment))
+          right: (identifier)))))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (type_identifier))))
+    return_type: (type_annotation
+      (type_identifier))
+    body: (statement_block))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (array_type
+            (type_identifier))))
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (function_type
+            parameters: (formal_parameters
+              (required_parameter
+                pattern: (identifier)
+                type: (type_annotation
+                  (type_identifier))))
+            return_type: (type_identifier)))))
+    return_type: (type_annotation
+      (array_type
+        (type_identifier)))
+    body: (statement_block))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (this)
+        type: (type_annotation
+          (array_type
+            (type_identifier)))))
+    return_type: (type_annotation
+      (array_type
+        (type_identifier)))
+    body: (statement_block
+      (return_statement
+        (array))))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)
+        constraint: (constraint
+          (predefined_type))))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (type_identifier)))
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (type_identifier))))
+    body: (statement_block)))
+
+==================================
+New object with type arguments
+:language(typescript)
+==================================
+
+const lines = new Array<DiffLine>()
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (identifier)
+        (type_arguments
+          (type_identifier))
+        (arguments)))))
+
+===================================================
+Function calls with array and tuple type arguments
+:language(typescript)
+===================================================
+
+a.b<[C]>();
+a<C.D[]>();
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      function: (member_expression
+        object: (identifier)
+        property: (property_identifier))
+      type_arguments: (type_arguments
+        (tuple_type
+          (type_identifier)))
+      arguments: (arguments)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      type_arguments: (type_arguments
+        (array_type
+          (nested_type_identifier
+            module: (identifier)
+            name: (type_identifier))))
+      arguments: (arguments))))
+
+=========================================================
+Function calls with optional chaining and type arguments
+:language(typescript)
+=========================================================
+
+A?.<B>();
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      (identifier)
+      (optional_chain)
+      (type_arguments
+        (type_identifier))
+      (arguments))))
+
+==================================
+Arrow functions and generators with call signatures
+:language(typescript)
+==================================
+
+<A>(amount, interestRate, duration): number => 2
+
+function* foo<A>(amount, interestRate, duration): number {
+	yield amount * interestRate * duration / 12
+}
+
+(module: any): number => 2
+
+---
+
+(program
+  (expression_statement
+    (arrow_function
+      type_parameters: (type_parameters
+        (type_parameter
+          name: (type_identifier)))
+      parameters: (formal_parameters
+        (required_parameter
+          pattern: (identifier))
+        (required_parameter
+          pattern: (identifier))
+        (required_parameter
+          pattern: (identifier)))
+      return_type: (type_annotation
+        (predefined_type))
+      body: (number)))
+  (generator_function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier))
+      (required_parameter
+        pattern: (identifier))
+      (required_parameter
+        pattern: (identifier)))
+    return_type: (type_annotation
+      (predefined_type))
+    body: (statement_block
+      (expression_statement
+        (yield_expression
+          (binary_expression
+            left: (binary_expression
+              left: (binary_expression
+                left: (identifier)
+                right: (identifier))
+              right: (identifier))
+            right: (number))))))
+  (expression_statement
+    (arrow_function
+      parameters: (formal_parameters
+        (required_parameter
+          pattern: (identifier)
+          type: (type_annotation
+            (predefined_type))))
+      return_type: (type_annotation
+        (predefined_type))
+      body: (number))))
+
+==================================
+Arrow function with parameter named async
+:language(typescript)
+==================================
+
+const x = async => async;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (arrow_function
+        (identifier)
+        (identifier)))))
+
+==================
+Function signature
+:language(typescript)
+==================
+
+export default function foo(): bar
+
+---
+
+(program
+  (export_statement
+    (function_signature
+      (identifier)
+      (formal_parameters)
+      (type_annotation
+        (type_identifier)))))
+
+=============================================================
+Ambiguity between function signature and function declaration
+:language(typescript)
+=============================================================
+
+function foo()
+{}
+
+function foo(bar)
+function foo(bar): baz;
+function foo(bar)
+
+function foo(): () => { [key: foo]: bar }
+function foo(): () => { [key: foo]: bar } {}
+
+---
+
+(program
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (statement_block))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier))))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)))
+    return_type: (type_annotation
+      (type_identifier)))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier))))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters)
+    return_type: (type_annotation
+      (function_type
+        parameters: (formal_parameters)
+        return_type: (object_type
+          (index_signature
+            name: (identifier)
+            index_type: (type_identifier)
+            type: (type_annotation
+              (type_identifier)))))))
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    return_type: (type_annotation
+      (function_type
+        parameters: (formal_parameters)
+        return_type: (object_type
+          (index_signature
+            name: (identifier)
+            index_type: (type_identifier)
+            type: (type_annotation
+              (type_identifier))))))
+    body: (statement_block)))
+
+====================================================================================
+Ambiguity between function signature and function declaration: comments and newlines
+:language(typescript)
+====================================================================================
+
+function foo()
+  // above is a signature
+foo();
+
+function bar()
+  // above is a function declaration
+{}
+
+function foo()
+  : number;
+
+---
+
+(program
+  (function_signature
+    (identifier)
+    (formal_parameters))
+  (comment)
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments)))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (comment)
+    (statement_block))
+  (function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))))
+
+======================================
+Functions with destructured parameters
+:language(typescript)
+======================================
+
+let foo: ({a}: Foo) => number
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (object_pattern
+                (shorthand_property_identifier_pattern))
+              (type_annotation
+                (type_identifier))))
+          (predefined_type))))))
+
+=======================================
+Assertion functions checking a value
+:language(typescript)
+=======================================
+
+function f(x: any): asserts x {
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (asserts_annotation
+      (asserts
+        (identifier)))
+    (statement_block)))
+
+=======================================
+Assertion functions checking a type
+:language(typescript)
+=======================================
+
+function f(x: any): asserts x is number {
+}
+
+class Foo<T> {
+  test(): this is T {}
+}
+
+function isT(t: T): t is T {
+  return true
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (asserts_annotation
+      (asserts
+        (type_predicate
+          (identifier)
+          (predefined_type))))
+    (statement_block))
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_predicate_annotation
+          (type_predicate
+            (this)
+            (type_identifier)))
+        (statement_block))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_predicate_annotation
+      (type_predicate
+        (identifier)
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (true)))))

@@ -1,0 +1,13 @@
+=======================================
+Global namespace declarations
+:language(typescript)
+=======================================
+
+declare global {
+}
+
+---
+
+(program
+  (ambient_declaration
+    (statement_block)))

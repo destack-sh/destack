@@ -1,0 +1,152 @@
+============================================
+types / primitives / never / never to number
+============================================
+
+function fail(): never {
+    panic("error");
+}
+const x: number = fail();
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+============================================
+types / primitives / never / never to string
+============================================
+
+function fail(): never {
+    panic("error");
+}
+const x: string = fail();
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+========================================================
+types / primitives / never / number to never is rejected
+========================================================
+
+const x: never = 1;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (number))))
+
+========================================================
+types / primitives / never / string to never is rejected
+========================================================
+
+const x: never = "no";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string
+        (string_fragment)))))
+
+============================================================================
+types / primitives / never / union with never simplifies to the other member
+============================================================================
+
+type Value = never | string;
+
+const x: Value = "ok";
+x satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (predefined_type)
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+================================================================================
+types / primitives / never / intersection with never rejects all concrete values
+================================================================================
+
+type Value = never & string;
+
+const x: Value = "ok";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (predefined_type)
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))

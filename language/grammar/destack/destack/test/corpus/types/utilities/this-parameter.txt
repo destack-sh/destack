@@ -1,0 +1,124 @@
+=============================================================================
+types / utilities / this parameter / ThisParameterType extracts explicit this
+=============================================================================
+
+type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
+
+const ok: Receiver = { id: "u1" };
+ok.id satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (this)
+              (type_annotation
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+==================================================================================
+types / utilities / this parameter / ThisParameterType rejects unrelated receivers
+==================================================================================
+
+type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
+
+const bad: Receiver = { name: "Ada" };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (this)
+              (type_annotation
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+===================================================================================
+types / utilities / this parameter / ThisParameterType returns unknown without this
+===================================================================================
+
+type Receiver = ThisParameterType<(value: number) => void>;
+
+const ok: Receiver = { anything: true };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (true))))))

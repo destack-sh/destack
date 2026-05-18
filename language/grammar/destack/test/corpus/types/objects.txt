@@ -1,0 +1,287 @@
+==================================
+Property signatures with accessibility modifiers
+:language(typescript)
+==================================
+
+export interface IAppState {
+  public readonly users: ReadonlyArray<User>
+}
+
+export class CloningRepository {
+  public readonly id = CloningRepositoryID++
+}
+
+
+---
+
+(program
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (property_signature
+          (accessibility_modifier)
+          (property_identifier)
+          (type_annotation
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (type_identifier))))))))
+  (export_statement
+    (class_declaration
+      (type_identifier)
+      (class_body
+        (public_field_definition
+          (accessibility_modifier)
+          (property_identifier)
+          (update_expression
+            (identifier)))))))
+
+=================================
+Accessibility modifiers as pair keywords
+:language(typescript)
+=================================
+
+x = { name, description, private: private_ }
+
+---
+
+(program
+  (expression_statement
+    (assignment_expression
+      (identifier)
+      (object
+        (shorthand_property_identifier)
+        (shorthand_property_identifier)
+        (pair
+          (property_identifier)
+          (identifier))))))
+
+=======================================
+Object types
+:language(typescript)
+=======================================
+
+let person: {name: string, age: number};
+let thing: { [type: string]: string };
+type T = { [K in keyof T]-?: any }
+type T = { [K in keyof T]?: any }
+type T = { -readonly [K in keyof T]: any }
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (index_signature
+            (identifier)
+            (predefined_type)
+            (type_annotation
+              (predefined_type)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (index_signature
+        (mapped_type_clause
+          (type_identifier)
+          (index_type_query
+            (type_identifier)))
+        (omitting_type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (index_signature
+        (mapped_type_clause
+          (type_identifier)
+          (index_type_query
+            (type_identifier)))
+        (opting_type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (index_signature
+        (mapped_type_clause
+          (type_identifier)
+          (index_type_query
+            (type_identifier)))
+        (type_annotation
+          (predefined_type))))))
+
+=======================================
+Object types with call signatures
+:language(typescript)
+=======================================
+
+let MyFunction: {
+  (string): string,
+  length: number
+};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (call_signature
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (type_annotation
+              (predefined_type)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type))))))))
+
+====================================================
+Index signatures
+:language(typescript)
+====================================================
+
+type Foo = {
+  [b: string]: any;
+  readonly [c: number]: string;
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type)))
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type))))))
+
+====================================================
+Object types with automatic semicolon insertion
+:language(typescript)
+====================================================
+
+type Something = {
+  length: number
+  (string): string
+  [index:string] : number
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (call_signature
+        (formal_parameters
+          (required_parameter
+            (identifier)))
+        (type_annotation
+          (predefined_type)))
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type))))))
+
+==========================================================
+Automatic semicolon disabled before return type
+:language(typescript)
+==========================================================
+
+function f(): any {
+  'a';
+  'b';
+}
+
+function
+f
+()
+ :
+ any {
+  'a'
+  'b'
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (string
+          (string_fragment)))
+      (expression_statement
+        (string
+          (string_fragment)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (string
+          (string_fragment)))
+      (expression_statement
+        (string
+          (string_fragment))))))
+
+=======================================
+Flow exact object types
+:language(typescript)
+=======================================
+
+type BrowserStats = {|
+  url: string,
+  ms: number
+|}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))

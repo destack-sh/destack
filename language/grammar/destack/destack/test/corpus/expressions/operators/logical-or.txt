@@ -1,0 +1,74 @@
+=============================================================================
+expressions / operators / logical or / logical or yields boolean for booleans
+=============================================================================
+
+let value: boolean = true || false;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (binary_expression
+        (true)
+        (false)))))
+
+======================================================================================
+expressions / operators / logical or / logical or assignment accepts assignable values
+======================================================================================
+
+let value: string | undefined = undefined;
+
+value ||= "fallback";
+value satisfies string | undefined;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (undefined))))
+      (undefined)))
+  (expression_statement
+    (augmented_assignment_expression
+      (identifier)
+      (string
+        (string_fragment))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (undefined))))
+
+==========================================================================================
+expressions / operators / logical or / logical or assignment rejects incompatible operands
+==========================================================================================
+
+let value: string = "ok";
+
+value ||= 1;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (augmented_assignment_expression
+      (identifier)
+      (number))))

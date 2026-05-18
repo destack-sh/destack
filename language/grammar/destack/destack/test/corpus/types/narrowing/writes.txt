@@ -1,0 +1,409 @@
+=============================================================================
+types / narrowing / writes / assignment invalidates a prior null check narrow
+=============================================================================
+
+let value: string | null = "ok";
+
+if (value != null) {
+    value satisfies string;
+    value = null;
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (identifier)
+        (null))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (assignment_expression
+            (identifier)
+            (null)))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))))))
+
+====================================================================================
+types / narrowing / writes / assignment invalidates discriminant member availability
+====================================================================================
+
+type Ready = { kind: "ready"; payload: string };
+type Idle = { kind: "idle" };
+
+let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
+
+if (box.state.kind == "ready") {
+    box.state.payload satisfies string;
+    box.state = { kind: "idle" };
+}
+
+box.state.payload;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (union_type
+                (type_identifier)
+                (type_identifier))))))
+      (object
+        (pair
+          (property_identifier)
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (property_identifier))
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (assignment_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (member_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (property_identifier))))
+
+=============================================================================
+types / narrowing / writes / loop back-edges rejoin and widen narrowed locals
+=============================================================================
+
+let value: "a" | "b" = "a";
+
+while (true) {
+    if (value == "a") {
+        value = "b";
+        break;
+    }
+
+    break;
+}
+
+value satisfies "a";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (while_expression
+      (while_expression
+        (parenthesized_expression
+          (true))
+        (statement_block
+          (expression_statement
+            (if_expression
+              (binary_expression
+                (identifier)
+                (string
+                  (string_fragment)))
+              (statement_block
+                (expression_statement
+                  (assignment_expression
+                    (identifier)
+                    (string
+                      (string_fragment))))
+                (break_statement))))
+          (break_statement)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+=========================================================================================
+types / narrowing / writes / branch joins preserve only intersection of branch guarantees
+=========================================================================================
+
+let value: string | int32 = "ok";
+
+if (true) {
+    value = "next";
+} else {
+    value = 1;
+}
+
+value satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (type_identifier)))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (if_expression
+      (true)
+      (statement_block
+        (expression_statement
+          (assignment_expression
+            (identifier)
+            (string
+              (string_fragment)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================================
+types / narrowing / writes / writes through aliases invalidate discriminant narrows
+===================================================================================
+
+type Ready = { kind: "ready"; payload: string };
+type Idle = { kind: "idle" };
+
+let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
+let alias = box;
+
+if (box.state.kind == "ready") {
+    alias.state = { kind: "idle" };
+    box.state.payload;
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (union_type
+                (type_identifier)
+                (type_identifier))))))
+      (object
+        (pair
+          (property_identifier)
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (identifier)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (assignment_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment))))))
+        (expression_statement
+          (member_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (property_identifier)))))))
+
+================================================================================
+types / narrowing / writes / index writes invalidate prior tuple element narrows
+================================================================================
+
+let pair: (string | null, int32) = ("ok", 1);
+
+if (pair[0] != null) {
+    pair[0] satisfies string;
+    pair[0] = null;
+    pair[0] satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (tuple_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (type_identifier)))
+      (parenthesized_expression
+        (sequence_expression
+          (string
+            (string_fragment))
+          (number)))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (subscript_expression
+          (identifier)
+          (number))
+        (null))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (subscript_expression
+              (identifier)
+              (number))
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (assignment_expression
+            (subscript_expression
+              (identifier)
+              (number))
+            (null)))
+        (expression_statement
+          (satisfies_expression
+            (subscript_expression
+              (identifier)
+              (number))
+            (satisfies_type
+              (predefined_type))))))))

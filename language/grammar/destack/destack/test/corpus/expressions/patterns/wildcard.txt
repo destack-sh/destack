@@ -1,0 +1,97 @@
+=====================================================================
+expressions / patterns / wildcard / wildcard binding discards a value
+=====================================================================
+
+let _ = 1;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number))))
+
+=========================================================================
+expressions / patterns / wildcard / wildcard does not introduce a binding
+=========================================================================
+
+let _ = 1;
+_ satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================
+expressions / patterns / wildcard / wildcard discards tuple positions
+=====================================================================
+
+let (_, value) = (1, "ok");
+value satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (identifier)))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================
+expressions / patterns / wildcard / wildcard discards object fields
+===================================================================
+
+let { id: _, name } = { id: 1, name: "Ada" };
+name satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (match_object_pattern
+          (match_object_pattern_property
+            (property_identifier)
+            (match_pattern
+              (identifier)))
+          (match_object_pattern_property
+            (property_identifier))))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

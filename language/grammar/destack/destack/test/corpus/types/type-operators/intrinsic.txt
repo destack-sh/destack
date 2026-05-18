@@ -1,0 +1,93 @@
+======================================================================
+types / type operators / intrinsic / intrinsic types cannot be indexed
+======================================================================
+
+type Bad = intrinsic["foo"];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment))))))
+
+=======================================================================================
+types / type operators / intrinsic / intrinsic types cannot appear in value annotations
+=======================================================================================
+
+const value: intrinsic = "x";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+============================================================================================
+types / type operators / intrinsic / intrinsic types cannot be used in conditional operators
+============================================================================================
+
+type Select<T> = intrinsic extends T ? true : false;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (type_identifier)
+      (literal_type
+        (true))
+      (literal_type
+        (false)))))
+
+==========================================================================================
+types / type operators / intrinsic / intrinsic types cannot be passed as generic arguments
+==========================================================================================
+
+type Box<T> = T;
+type Bad = Box<intrinsic>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type_identifier))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))))
+
+===================================================================================
+types / type operators / intrinsic / intrinsic types cannot appear in union members
+===================================================================================
+
+type Bad = intrinsic | string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (type_identifier)
+      (predefined_type))))

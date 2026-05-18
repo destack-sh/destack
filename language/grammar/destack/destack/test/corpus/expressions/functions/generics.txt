@@ -1,0 +1,537 @@
+============================================================
+expressions / functions / generics / explicit type arguments
+============================================================
+
+function identity<T>(value: T): T {
+    return value;
+}
+const as_number = identity<number>;
+as_number satisfies (value: number) => number;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (predefined_type)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type))))))
+
+======================================================================
+expressions / functions / generics / inferred type arguments from call
+======================================================================
+
+function identity<T>(value: T): T {
+    return value;
+}
+const one = identity(1);
+one satisfies 1;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+====================================================================
+expressions / functions / generics / explicit type argument mismatch
+====================================================================
+
+function identity<T>(value: T): T {
+    return value;
+}
+identity<number>("hi");
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (predefined_type))
+      (arguments
+        (string
+          (string_fragment))))))
+
+===========================================================
+expressions / functions / generics / static value arguments
+===========================================================
+
+function choose<comptime Flag: boolean>(value: number): number {
+    return value;
+}
+choose<true>(1);
+choose<1>(1);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (literal_type
+          (true)))
+      (arguments
+        (number))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (literal_type
+          (number)))
+      (arguments
+        (number)))))
+
+===================================================================
+expressions / functions / generics / default static value arguments
+===================================================================
+
+function choose<comptime Flag: boolean = true>(value: number): number {
+    return value;
+}
+choose(1);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))
+        (default_type
+          (literal_type
+            (true)))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (number)))))
+
+===========================================================================
+expressions / functions / generics / default static value argument mismatch
+===========================================================================
+
+function broken<comptime Flag: boolean = 1>(value: number): number {
+    return value;
+}
+broken(1);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))
+        (default_type
+          (literal_type
+            (number)))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (number)))))
+
+============================================================
+expressions / functions / generics / default type parameters
+============================================================
+
+declare function make<T = number>(): T;
+
+const value = make();
+value satisfies number;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (default_type
+          (predefined_type))))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=================================================================================
+expressions / functions / generics / inherited comptime arguments on member calls
+=================================================================================
+
+interface Container<T> {
+    map<U>(value: T): U;
+}
+
+declare function getContainer(): Container<number>;
+
+getContainer().map<string>("hello");
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)))
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (call_expression
+          (identifier)
+          (arguments))
+        (property_identifier))
+      (type_arguments
+        (predefined_type))
+      (arguments
+        (string
+          (string_fragment))))))
+
+====================================================================================
+expressions / functions / generics / member comptime arguments on member expressions
+====================================================================================
+
+interface Container<T> {
+    map<U>(value: T): U;
+}
+
+declare function getContainer(): Container<number>;
+
+const mapper = getContainer().map<string>;
+mapper("hi");
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)))
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (instantiation_expression
+        (member_expression
+          (call_expression
+            (identifier)
+            (arguments))
+          (property_identifier))
+        (type_arguments
+          (predefined_type)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (string
+          (string_fragment))))))
+
+=======================================================================================================
+expressions / functions / generics / instantiation expressions require parentheses before member access
+=======================================================================================================
+
+function make<T>(value: T): T {
+    return value;
+}
+
+make<number>.value;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (member_expression
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (predefined_type)))
+      (property_identifier))))
+
+================================================================================================
+expressions / functions / generics / parenthesized instantiation expressions allow member access
+================================================================================================
+
+function make<T>(value: T): T {
+    return value;
+}
+
+const next = make<number>(1);
+next satisfies number;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (type_arguments
+          (predefined_type))
+        (arguments
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================================
+expressions / functions / generics / conflicting comptime arguments on member calls
+===================================================================================
+
+interface Container<T> {
+    map<U>(value: T): U;
+}
+
+declare function getContainer(): Container<number>;
+
+(getContainer().map<string>)<number>(1);
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)))
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (expression_statement
+    (call_expression
+      (parenthesized_expression
+        (instantiation_expression
+          (member_expression
+            (call_expression
+              (identifier)
+              (arguments))
+            (property_identifier))
+          (type_arguments
+            (predefined_type))))
+      (type_arguments
+        (predefined_type))
+      (arguments
+        (number)))))

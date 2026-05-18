@@ -1,0 +1,1026 @@
+=================================================================
+expressions / dispatch / interfaces / field order does not matter
+=================================================================
+
+interface PointLike {
+    x: int32;
+    y: int32;
+}
+
+struct Point implements PointLike {
+    y: int32;
+    x: int32;
+}
+
+const point: PointLike = Point { y: 2, x: 1 };
+
+const total = point.x + point.y;
+total satisfies int32;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================================
+expressions / dispatch / interfaces / structural fields do not require implements
+=================================================================================
+
+interface Named {
+    name: string;
+}
+
+struct User {
+    name: string;
+}
+
+const user: Named = User { name: "Ada" };
+user.name satisfies string;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================
+expressions / dispatch / interfaces / mutable fields are read-write
+===================================================================
+
+interface PointLike {
+    x: int32;
+}
+
+struct Point {
+    x: int32;
+}
+
+let point: PointLike = Point { x: 1 };
+point.x = 2;
+point.x satisfies int32;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (number)))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================
+expressions / dispatch / interfaces / readonly fields can widen
+===============================================================
+
+interface PointLike {
+    readonly x: int32 | float32;
+}
+
+struct Point {
+    x: int32;
+}
+
+const point: PointLike = Point { x: 1 };
+point.x satisfies int32 | float32;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (type_identifier)))
+      (identifier))))
+
+==========================================================================
+expressions / dispatch / interfaces / mutable fields reject widened writes
+==========================================================================
+
+interface PointLike {
+    x: int32 | float32;
+}
+
+struct Point {
+    x: int32;
+}
+
+const point: PointLike = Point { x: 1 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number)))))))
+
+=======================================================================
+expressions / dispatch / interfaces / accessors can adapt mutable views
+=======================================================================
+
+interface PointLike {
+    get x(): int32 | float32;
+    set x(value: int32 | float32);
+}
+
+class Point implements PointLike {
+    private value: int32 = 0;
+
+    get x(): int32 | float32 {
+        this.value
+    }
+
+    set x(value: int32 | float32) {
+        this.value = value as int32;
+    }
+}
+
+const point: PointLike = new Point();
+point.x = 2.0;
+point.x satisfies int32 | float32;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (type_identifier))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (union_type
+                (type_identifier)
+                (type_identifier))))))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (accessibility_modifier)
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (union_type
+                (type_identifier)
+                (type_identifier)))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (as_expression
+                (identifier)
+                (type_identifier))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (number)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (type_identifier)))
+      (identifier))))
+
+=============================================================
+expressions / dispatch / interfaces / nested fields can widen
+=============================================================
+
+interface PointLike {
+    readonly x: int32 | float32;
+}
+
+interface ShapeLike {
+    readonly origin: PointLike;
+}
+
+struct Point {
+    x: int32;
+}
+
+struct Shape {
+    origin: Point;
+}
+
+const shape: ShapeLike = Shape { origin: Point { x: 1 } };
+shape.origin.x satisfies int32 | float32;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (type_identifier))))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (number)))))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (satisfies_type
+          (type_identifier)))
+      (identifier))))
+
+===========================================================================
+expressions / dispatch / interfaces / methods specialize through interfaces
+===========================================================================
+
+interface Writer {
+    write(chunk: [byte]): usize;
+}
+
+struct Buffer implements Writer {
+    write(chunk: [byte]): usize {
+        chunk.length
+    }
+}
+
+declare const bytes: [byte];
+
+const writer: Writer = Buffer {};
+const written = writer.write(bytes);
+written satisfies usize;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (identifier)
+              (property_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===========================================================================
+expressions / dispatch / interfaces / nominal interfaces require implements
+===========================================================================
+
+newtype interface Writer {
+    write(chunk: [byte]): usize;
+}
+
+struct Buffer {
+    write(chunk: [byte]): usize {
+        chunk.length
+    }
+}
+
+const writer: Writer = Buffer {};
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (identifier)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (struct_literal_expression
+        (identifier)
+        (object)))))
+
+==================================================================================
+expressions / dispatch / interfaces / index signatures dispatch through interfaces
+==================================================================================
+
+interface Bag<T> {
+    [key: string]: T | undefined;
+}
+
+declare const bag: Bag<int32>;
+declare const key: string;
+
+const value = bag[key];
+value satisfies int32 | undefined;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (subscript_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (type_identifier)))
+      (undefined))))
+
+=============================================================================
+expressions / dispatch / interfaces / records satisfy string index signatures
+=============================================================================
+
+interface Bag<T> {
+    [key: string]: T | undefined;
+}
+
+const bag: Bag<int32> = { alpha: 1, beta: 2 };
+
+const value = bag["alpha"];
+value satisfies int32 | undefined;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (subscript_expression
+        (identifier)
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (type_identifier)))
+      (undefined))))
+
+===============================================================================
+expressions / dispatch / interfaces / structs satisfy readonly index signatures
+===============================================================================
+
+interface Bag<T> {
+    readonly [key: string]: T | undefined;
+}
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const bag: Bag<int32> = Point { x: 1, y: 2 };
+
+const value = bag["x"];
+value satisfies int32 | undefined;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (subscript_expression
+        (identifier)
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (type_identifier)))
+      (undefined))))
+
+===============================================================================
+expressions / dispatch / interfaces / classes satisfy readonly index signatures
+===============================================================================
+
+interface Bag<T> {
+    readonly [key: string]: T | undefined;
+}
+
+class Point {
+    x: int32 = 1;
+    y: int32 = 2;
+}
+
+const bag: Bag<int32> = new Point();
+
+const value = bag["y"];
+value satisfies int32 | undefined;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (subscript_expression
+        (identifier)
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (type_identifier)))
+      (undefined))))
+
+=============================================================================
+expressions / dispatch / interfaces / structs reject mutable index signatures
+=============================================================================
+
+interface Bag<T> {
+    [key: string]: T | undefined;
+}
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const bag: Bag<int32> = Point { x: 1, y: 2 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number)))))))
+
+=============================================================================
+expressions / dispatch / interfaces / classes reject mutable index signatures
+=============================================================================
+
+interface Bag<T> {
+    [key: string]: T | undefined;
+}
+
+class Point {
+    x: int32 = 1;
+    y: int32 = 2;
+}
+
+const bag: Bag<int32> = new Point();
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments))))))

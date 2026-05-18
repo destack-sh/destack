@@ -1,0 +1,169 @@
+========================================================
+types / utilities / awaited / awaited keeps non promises
+========================================================
+
+type Value = Awaited<string>;
+
+const ok: Value = "ready";
+ok satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (predefined_type))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=================================================================
+types / utilities / awaited / awaited unwraps promise-like values
+=================================================================
+
+type Value = Awaited<PromiseLike<string>>;
+
+const ok: Value = "ready";
+ok satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+========================================================================
+types / utilities / awaited / awaited unwraps nested promise-like values
+========================================================================
+
+type Value = Awaited<PromiseLike<PromiseLike<string>>>;
+
+const ok: Value = "ready";
+ok satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (predefined_type))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================================
+types / utilities / awaited / awaited rejects unresolved promise values
+=======================================================================
+
+type Value = Awaited<PromiseLike<string>>;
+
+const bad: Value = Promise.resolve("ready");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (string
+            (string_fragment)))))))
+
+==============================================================
+types / utilities / awaited / awaited preserves nullish values
+==============================================================
+
+type Value = Awaited<null | undefined>;
+
+const ok: Value = null;
+const ok2: Value = undefined;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (union_type
+          (literal_type
+            (null))
+          (literal_type
+            (undefined))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (undefined))))

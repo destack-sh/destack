@@ -1,0 +1,908 @@
+================================================================
+types / objects / excess properties / union rejects extra fields
+================================================================
+
+interface Named {
+    name: string;
+}
+
+interface Aged {
+    age: int32;
+}
+
+const value: Named | Aged = { name: "Ada", extra: true };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (type_identifier)
+          (type_identifier)))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (true))))))
+
+======================================================================
+types / objects / excess properties / intersection requires all fields
+======================================================================
+
+interface Named {
+    name: string;
+}
+
+interface Aged {
+    age: int32;
+}
+
+const value: Named & Aged = { name: "Ada" };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (intersection_type
+          (type_identifier)
+          (type_identifier)))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+==========================================================================
+types / objects / excess properties / intersection accepts combined fields
+==========================================================================
+
+interface Named {
+    name: string;
+}
+
+interface Aged {
+    age: int32;
+}
+
+const value: Named & Aged = { name: "Ada", age: 42 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (intersection_type
+          (type_identifier)
+          (type_identifier)))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number))))))
+
+=========================================================================================================
+types / objects / excess properties / fresh object literals reject extra fields for direct object targets
+=========================================================================================================
+
+type Person = { name: string };
+
+const value: Person = { name: "Ada", extra: true };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (true))))))
+
+===================================================================================================
+types / objects / excess properties / non-fresh object values allow extra fields through assignment
+===================================================================================================
+
+type Person = { name: string };
+
+const source = { name: "Ada", extra: true };
+const value: Person = source;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (true)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+=================================================================================================
+types / objects / excess properties / generic targets do not run excess checks for fresh literals
+=================================================================================================
+
+function keep<T: { name: string }>(value: T): T {
+    return value;
+}
+
+const value = keep({ name: "Ada", extra: true });
+value.extra satisfies boolean;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (true)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================================
+types / objects / excess properties / fresh discriminant literals reject extra fields
+=====================================================================================
+
+type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
+
+const value: Shape = { kind: "a" as const, value: 1, extra: true };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (as_expression
+            (string
+              (string_fragment))))
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (true))))))
+
+======================================================================================
+types / objects / excess properties / non-fresh discriminant values allow extra fields
+======================================================================================
+
+type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
+
+const source = { kind: "a" as const, value: 1, extra: true };
+const value: Shape = source;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (as_expression
+            (string
+              (string_fragment))))
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (true)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+========================================================================================
+types / objects / excess properties / fresh spread literals reject explicit extra fields
+========================================================================================
+
+type Person = { name: string };
+
+const base = { name: "Ada" };
+const value: Person = { ...base, extra: true };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (spread_element
+          (identifier))
+        (pair
+          (property_identifier)
+          (true))))))
+
+================================================================================================================
+types / objects / excess properties / spread-only object literals keep source extras without fresh excess checks
+================================================================================================================
+
+type Person = { name: string };
+
+const source = { name: "Ada", extra: true };
+const value: Person = { ...source };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (true)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (spread_element
+          (identifier))))))
+
+======================================================================================================
+types / objects / excess properties / weak object targets reject assignments without shared properties
+======================================================================================================
+
+type WeakPoint = {
+    x?: number;
+    y?: number;
+};
+
+const value: WeakPoint = { label: "origin" };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+===================================================================================================
+types / objects / excess properties / weak object targets accept assignments with shared properties
+===================================================================================================
+
+type WeakPoint = {
+    x?: number;
+    y?: number;
+};
+
+const value: WeakPoint = { x: 1, label: "origin" };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+================================================================================================================
+types / objects / excess properties / weak object targets reject fresh spread literals without shared properties
+================================================================================================================
+
+type WeakPoint = {
+    x?: number;
+    y?: number;
+};
+
+const base = { label: "origin" };
+const value: WeakPoint = { ...base };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (spread_element
+          (identifier))))))
+
+=======================================================================================================
+types / objects / excess properties / weak object targets accept spread literals with shared properties
+=======================================================================================================
+
+type WeakPoint = {
+    x?: number;
+    y?: number;
+};
+
+const base = { x: 1, label: "origin" };
+const value: WeakPoint = { ...base };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (spread_element
+          (identifier))))))
+
+==================================================================================================================
+types / objects / excess properties / callback return literals run excess checks in contextual object return types
+==================================================================================================================
+
+type Person = { name: string };
+
+function use(factory: () => Person): Person {
+    return factory();
+}
+
+use(() => ({ name: "Ada", extra: true }));
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters)
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (arrow_function
+          (formal_parameters)
+          (parenthesized_expression
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))
+              (pair
+                (property_identifier)
+                (true)))))))))
+
+=================================================================================================================
+types / objects / excess properties / callback-produced values lose freshness outside contextual return positions
+=================================================================================================================
+
+type Person = { name: string };
+
+const make = () => ({ name: "Ada", extra: true });
+const value: Person = make();
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (arrow_function
+        (formal_parameters)
+        (parenthesized_expression
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (true)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+================================================================================================================
+types / objects / excess properties / fresh discriminant literals reject extra fields through renamed re-exports
+================================================================================================================
+
+export type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type))))
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type))))))))
+
+================================================================================================================
+types / objects / excess properties / fresh discriminant literals reject extra fields through renamed re-exports
+================================================================================================================
+
+export type { Shape as PublicShape } from "./shape.ds";
+
+---
+
+(program
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier)
+        (identifier)))
+    (string
+      (string_fragment))))
+
+================================================================================================================
+types / objects / excess properties / fresh discriminant literals reject extra fields through renamed re-exports
+================================================================================================================
+
+import type { PublicShape } from "./index.ds";
+
+const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (as_expression
+            (string
+              (string_fragment))))
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (true))))))
+
+=================================================================================================================
+types / objects / excess properties / spread discriminant literals reject extra fields through renamed re-exports
+=================================================================================================================
+
+export type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type))))
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type))))))))
+
+=================================================================================================================
+types / objects / excess properties / spread discriminant literals reject extra fields through renamed re-exports
+=================================================================================================================
+
+export type { Shape as PublicShape } from "./shape.ds";
+
+---
+
+(program
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier)
+        (identifier)))
+    (string
+      (string_fragment))))
+
+=================================================================================================================
+types / objects / excess properties / spread discriminant literals reject extra fields through renamed re-exports
+=================================================================================================================
+
+import type { PublicShape } from "./index.ds";
+
+const base = { kind: "a" as const, value: 1 };
+const value: PublicShape = { ...base, extra: true };
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (as_expression
+            (string
+              (string_fragment))))
+        (pair
+          (property_identifier)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (spread_element
+          (identifier))
+        (pair
+          (property_identifier)
+          (true))))))

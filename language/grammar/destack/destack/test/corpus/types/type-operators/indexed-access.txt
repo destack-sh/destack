@@ -1,0 +1,656 @@
+=============================================================================
+types / type operators / indexed access / indexed access reads property types
+=============================================================================
+
+type User = { name: string; age: number };
+type Name = User["name"];
+
+const value: Name = "Ada";
+value satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================================
+types / type operators / indexed access / indexed access rejects missing properties
+===================================================================================
+
+type User = { name: string; age: number };
+type Missing = User["missing"];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment))))))
+
+==========================================================================================
+types / type operators / indexed access / numeric keys on object types stay indexed access
+==========================================================================================
+
+type Pair = { 0: string; 1: int32 };
+type Right = Pair[1];
+
+declare const value: Right;
+value satisfies int32;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (number)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (number)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (number))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==================================================================================
+types / type operators / indexed access / missing numeric object keys are rejected
+==================================================================================
+
+type ObjectLike = { label: string };
+type Missing = ObjectLike[5];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (number)))))
+
+==================================================================================
+types / type operators / indexed access / indexed access distributes across unions
+==================================================================================
+
+type A = { kind: "a"; value: number };
+type B = { kind: "b"; value: string };
+type Value = (A | B)["value"];
+
+const first: Value = 1;
+const second: Value = "hi";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (parenthesized_type
+        (union_type
+          (type_identifier)
+          (type_identifier)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+==============================================================================================
+types / type operators / indexed access / indexed access with key unions yields unioned values
+==============================================================================================
+
+type User = { name: string; age: number };
+type Value = User["name" | "age"];
+
+const first: Value = "Ada";
+const second: Value = 42;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (union_type
+        (literal_type
+          (string
+            (string_fragment)))
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+================================================================================================
+types / type operators / indexed access / indexed access rejects values outside selected members
+================================================================================================
+
+type User = { name: string; age: number };
+type Value = User["name" | "age"];
+
+const bad: Value = true;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (union_type
+        (literal_type
+          (string
+            (string_fragment)))
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (true))))
+
+==========================================================================================
+types / type operators / indexed access / generic indexed access requires a key constraint
+==========================================================================================
+
+type ValueAt<T, K: keyof T> = T[K];
+type User = { name: string; age: int32 };
+
+declare const value: ValueAt<User, "name">;
+value satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (index_type_query
+            (type_identifier)))))
+    (lookup_type
+      (type_identifier)
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (literal_type
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==========================================================================================
+types / type operators / indexed access / unconstrained generic indexed access is rejected
+==========================================================================================
+
+type ValueAt<T, K> = T[K];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (lookup_type
+      (type_identifier)
+      (type_identifier))))
+
+=======================================================================================
+types / type operators / indexed access / tuple indexing keeps indexed access semantics
+=======================================================================================
+
+type Pair = (string, int32);
+type First = Pair[0];
+
+declare const first: First;
+first satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (predefined_type)
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (number))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================================
+types / type operators / indexed access / dynamic array indexing yields element types
+=====================================================================================
+
+type Element<T: string[]> = T[number];
+
+declare const value: Element<string[]>;
+value satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (array_type
+            (predefined_type)))))
+    (lookup_type
+      (type_identifier)
+      (predefined_type)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (array_type
+                (predefined_type))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+========================================================================
+types / type operators / indexed access / fixed array syntax is separate
+========================================================================
+
+type Lane<comptime N: uint> = [uint8; N];
+
+declare const value: Lane<4>;
+value satisfies [uint8; 4];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (tuple_type
+      (type_identifier)
+      (identifier)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (literal_type
+                (number))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (tuple_type
+          (type_identifier)
+          (number))))))
+
+=======================================================================================================
+types / type operators / indexed access / indexed access over optional union members includes undefined
+=======================================================================================================
+
+type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
+
+type Value = Input["value"];
+
+const maybe: Value = undefined;
+maybe satisfies number | string | undefined;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (undefined)))
+  (expression_statement
+    (binary_expression
+      (binary_expression
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type)))
+        (identifier))
+      (undefined))))
+
+=================================================================================================================================
+types / type operators / indexed access / indexed access over optional union members rejects assignment to missing required value
+=================================================================================================================================
+
+type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
+
+type Value = Input["value"];
+
+const maybe: Value = undefined;
+maybe satisfies number | string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (undefined)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (identifier))))
+
+=============================================================================================================
+types / type operators / indexed access / indexed access over optional union members rejects unrelated values
+=============================================================================================================
+
+type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
+
+type Value = Input["value"];
+
+const bad: Value = true;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (true))))

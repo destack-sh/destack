@@ -1,0 +1,511 @@
+=========================================================================
+types / narrowing / try / catch assignments widen post-try variable types
+=========================================================================
+
+let value: string | int32 = "ok";
+
+try {
+    value = "next";
+} catch (error) {
+    value = 1;
+}
+
+value satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (type_identifier)))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (try_expression
+      (try_expression
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (string
+                (string_fragment)))))
+        (catch_clause
+          (identifier)
+          (statement_block
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (number))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===========================================================================
+types / narrowing / try / catch assignments remove variant-specific members
+===========================================================================
+
+type Ready = { kind: "ready"; payload: string };
+type Idle = { kind: "idle" };
+
+let state: Ready | Idle = { kind: "ready", payload: "ok" };
+
+try {
+    if (state.kind == "ready") {
+        state.payload satisfies string;
+    }
+} catch (error) {
+    state = { kind: "idle" };
+}
+
+state.payload;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (type_identifier)
+          (type_identifier)))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (try_expression
+      (try_expression
+        (statement_block
+          (expression_statement
+            (if_expression
+              (binary_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (string
+                  (string_fragment)))
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (member_expression
+                      (identifier)
+                      (property_identifier))
+                    (satisfies_type
+                      (predefined_type))))))))
+        (catch_clause
+          (identifier)
+          (statement_block
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (object
+                  (pair
+                    (property_identifier)
+                    (string
+                      (string_fragment)))))))))))
+  (expression_statement
+    (member_expression
+      (identifier)
+      (property_identifier))))
+
+==============================================================
+types / narrowing / try / catch joins keep only shared members
+==============================================================
+
+let value: string | number = "ok";
+
+try {
+    value = "next";
+} catch (error) {
+    value = 1;
+}
+
+value.toUpperCase();
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (predefined_type)))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (try_expression
+      (try_expression
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (string
+                (string_fragment)))))
+        (catch_clause
+          (identifier)
+          (statement_block
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (number))))))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments))))
+
+=================================================================
+types / narrowing / try / finally writes invalidate prior narrows
+=================================================================
+
+let value: string | null = "ok";
+
+if (value != null) {
+    try {
+        value satisfies string;
+    } finally {
+        value = null;
+    }
+
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (identifier)
+        (null))
+      (statement_block
+        (expression_statement
+          (try_expression
+            (try_expression
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (identifier)
+                    (satisfies_type
+                      (predefined_type)))))
+              (finally_clause
+                (statement_block
+                  (expression_statement
+                    (assignment_expression
+                      (identifier)
+                      (null))))))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))))))
+
+==============================================================================
+types / narrowing / try / finally alias writes invalidate prior dotted narrows
+==============================================================================
+
+let box: { inner: { value?: string } } = { inner: { value: "ok" } };
+
+if (box.inner.value !== undefined) {
+    try {
+        box.inner.value satisfies string;
+    } finally {
+        const alias = box.inner;
+        alias.value = undefined;
+    }
+
+    box.inner.value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (object_type
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (predefined_type))))))))
+      (object
+        (pair
+          (property_identifier)
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (undefined))
+      (statement_block
+        (expression_statement
+          (try_expression
+            (try_expression
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (member_expression
+                      (member_expression
+                        (identifier)
+                        (property_identifier))
+                      (property_identifier))
+                    (satisfies_type
+                      (predefined_type)))))
+              (finally_clause
+                (statement_block
+                  (lexical_declaration
+                    (variable_declarator
+                      (destack_if_let_pattern
+                        (identifier))
+                      (member_expression
+                        (identifier)
+                        (property_identifier))))
+                  (expression_statement
+                    (assignment_expression
+                      (member_expression
+                        (identifier)
+                        (property_identifier))
+                      (undefined))))))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (property_identifier))
+            (satisfies_type
+              (predefined_type))))))))
+
+============================================================================
+types / narrowing / try / finally helper writes invalidate prior null checks
+============================================================================
+
+let value: string | null = "ok";
+
+if (value !== null) {
+    const clear = () => {
+        value = null;
+    };
+
+    try {
+        value satisfies string;
+    } finally {
+        clear();
+    }
+
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (identifier)
+        (null))
+      (statement_block
+        (lexical_declaration
+          (variable_declarator
+            (destack_if_let_pattern
+              (identifier))
+            (arrow_function
+              (formal_parameters)
+              (statement_block
+                (expression_statement
+                  (assignment_expression
+                    (identifier)
+                    (null)))))))
+        (expression_statement
+          (try_expression
+            (try_expression
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (identifier)
+                    (satisfies_type
+                      (predefined_type)))))
+              (finally_clause
+                (statement_block
+                  (expression_statement
+                    (call_expression
+                      (identifier)
+                      (arguments))))))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))))))
+
+==============================================================================
+types / narrowing / try / loop closures invalidate discriminant member narrows
+==============================================================================
+
+type Ready = { kind: "ready"; payload: string };
+type Idle = { kind: "idle" };
+
+let state: Ready | Idle = { kind: "ready", payload: "ok" };
+
+const clear = () => {
+    state = { kind: "idle" };
+};
+
+while (true) {
+    if (state.kind === "ready") {
+        clear();
+        state.payload;
+    }
+
+    break;
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (type_identifier)
+          (type_identifier)))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (arrow_function
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))))))
+  (expression_statement
+    (while_expression
+      (while_expression
+        (parenthesized_expression
+          (true))
+        (statement_block
+          (expression_statement
+            (if_expression
+              (binary_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (string
+                  (string_fragment)))
+              (statement_block
+                (expression_statement
+                  (call_expression
+                    (identifier)
+                    (arguments)))
+                (expression_statement
+                  (member_expression
+                    (identifier)
+                    (property_identifier))))))
+          (break_statement))))))

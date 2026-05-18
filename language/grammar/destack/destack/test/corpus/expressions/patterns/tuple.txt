@@ -1,0 +1,202 @@
+==================================================================
+expressions / patterns / tuple / tuple patterns destructure values
+==================================================================
+
+let (left, right) = (1, 2);
+left satisfies number;
+right satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (identifier)))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+======================================================================
+expressions / patterns / tuple / wildcard tuple patterns ignore values
+======================================================================
+
+let (_, value) = (1, 2);
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (identifier)))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================
+expressions / patterns / tuple / tuple patterns reject arity mismatch
+=====================================================================
+
+let (left, right, extra) = (1, 2);
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (identifier)))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (number))))))
+
+====================================================
+expressions / patterns / tuple / tuple patterns nest
+====================================================
+
+let (left, (middle, right)) = (1, (2, 3));
+left satisfies number;
+middle satisfies number;
+right satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (tuple_pattern
+            (match_pattern
+              (identifier))
+            (match_pattern
+              (identifier)))))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (parenthesized_expression
+            (sequence_expression
+              (number)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+========================================================================
+expressions / patterns / tuple / tuple defaults fill undefined positions
+========================================================================
+
+let (left, right = 2) = (1, undefined);
+left satisfies number;
+right satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (default_pattern
+            (match_pattern
+              (identifier))
+            (number))))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (undefined)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================
+expressions / patterns / tuple / tuple rest binds tails
+=======================================================
+
+let (head, ...tail) = (1, "two", true);
+head satisfies number;
+tail satisfies (string, boolean);
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (rest_pattern
+            (identifier))))
+      (parenthesized_expression
+        (sequence_expression
+          (number)
+          (string
+            (string_fragment))
+          (true)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (tuple_type
+          (predefined_type)
+          (predefined_type))))))

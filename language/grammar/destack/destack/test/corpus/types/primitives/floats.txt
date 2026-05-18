@@ -1,0 +1,101 @@
+======================================================
+types / primitives / floats / float32 accepts literals
+======================================================
+
+let value: float32 = 1.5;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+=======================================================
+types / primitives / floats / float32 widens to float64
+=======================================================
+
+let small: float32 = 1.5;
+let wide: float64 = small;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+================================================================
+types / primitives / floats / float64 does not narrow to float32
+================================================================
+
+let wide: float64 = 1.5;
+let narrow: float32 = wide;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+==========================================================================
+types / primitives / floats / floats do not implicitly convert to integers
+==========================================================================
+
+let value: int32 = 1.5;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+================================================================
+types / primitives / floats / float arithmetic stays float-typed
+================================================================
+
+let value: float32 = 1.5 + 2.5;
+value satisfies float32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (binary_expression
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))

@@ -1,0 +1,16 @@
+==================================================================
+expressions / operators / logical not / logical not yields boolean
+==================================================================
+
+let value: boolean = !true;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (unary_expression
+        (true)))))

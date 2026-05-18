@@ -1,0 +1,426 @@
+===================================================================
+types / generics / classes / classes accept explicit type arguments
+===================================================================
+
+class Box<T> {
+    value?: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<number> = makeBox();
+value satisfies Box<number>;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)))))))
+
+====================================================================
+types / generics / classes / classes reject type argument mismatches
+====================================================================
+
+class Box<T: number> {
+    value?: T;
+}
+
+declare function makeBox(): Box<number>;
+
+let value: Box<string> = makeBox();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+==================================================================
+types / generics / classes / classes accept static value arguments
+==================================================================
+
+class Buffer<T, comptime N: number> {
+    value?: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, 4> = makeBuffer();
+buffer satisfies Buffer<string, 4>;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (literal_type
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (literal_type
+              (number)))))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (literal_type
+              (number))))))))
+
+============================================================================
+types / generics / classes / classes reject static value argument mismatches
+============================================================================
+
+class Buffer<T, comptime N: number> {
+    value?: T;
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, true> = makeBuffer();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (literal_type
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (literal_type
+              (true)))))
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+===================================================================
+types / generics / classes / classes accept default type parameters
+===================================================================
+
+class Box<T = number> {
+    value?: T;
+}
+
+declare function makeBox(): Box;
+
+let value: Box = makeBox();
+value satisfies Box<number>;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (default_type
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)))))))
+
+=================================================================
+types / generics / classes / classes accept default static values
+=================================================================
+
+class Buffer<T, comptime N: number = 4> {
+    value?: T;
+}
+
+declare function makeBuffer(): Buffer<string>;
+
+let buffer: Buffer<string> = makeBuffer();
+buffer satisfies Buffer<string, 4>;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))
+        (default_type
+          (literal_type
+            (number)))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (literal_type
+              (number))))))))
+
+======================================================================
+types / generics / classes / type arguments affect class assignability
+======================================================================
+
+class Box<T> {
+    value?: T;
+}
+
+declare let numberBox: Box<number>;
+
+let stringBox: Box<string> = numberBox;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (identifier))))
+
+==============================================================================
+types / generics / classes / static value arguments affect class assignability
+==============================================================================
+
+class Buffer<T, comptime N: number> {
+    value?: T;
+}
+
+declare let buffer4: Buffer<string, 4>;
+
+let buffer8: Buffer<string, 8> = buffer4;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)
+              (literal_type
+                (number))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (literal_type
+              (number)))))
+      (identifier))))

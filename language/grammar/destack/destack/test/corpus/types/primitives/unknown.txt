@@ -1,0 +1,87 @@
+=======================================================
+types / primitives / unknown / values assign to unknown
+=======================================================
+
+const value: unknown = 42;
+value satisfies unknown;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+======================================================================
+types / primitives / unknown / unknown rejects arbitrary member access
+======================================================================
+
+declare const value: unknown;
+const result = value.missing;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))
+
+==============================================
+types / primitives / unknown / any is rejected
+==============================================
+
+const value: any = 42;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (number))))
+
+=================================================================
+types / primitives / unknown / any does not enable dynamic access
+=================================================================
+
+declare const value: any;
+const result = value.missing.member;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (property_identifier)))))

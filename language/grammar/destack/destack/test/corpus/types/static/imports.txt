@@ -1,0 +1,41 @@
+========================================================
+types / static / imports / imports cannot refine exports
+========================================================
+
+export declare const N: uint;
+
+---
+
+(program
+  (export_statement
+    (ambient_declaration
+      (ambient_const_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier)))))))
+
+========================================================
+types / static / imports / imports cannot refine exports
+========================================================
+
+import { N } from "./a.ds";
+
+N satisfies 3;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))

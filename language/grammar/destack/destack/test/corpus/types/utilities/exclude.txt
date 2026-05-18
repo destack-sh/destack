@@ -1,0 +1,117 @@
+=============================================================
+types / utilities / exclude / exclude distributes over unions
+=============================================================
+
+type Letters = "a" | "b" | "c";
+type Only = Exclude<Letters, "b">;
+
+const ok: Only = "a";
+ok satisfies Only;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (literal_type
+          (string
+            (string_fragment)))
+        (literal_type
+          (string
+            (string_fragment))))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=============================================================
+types / utilities / exclude / exclude rejects removed members
+=============================================================
+
+type Letters = "a" | "b" | "c";
+type Only = Exclude<Letters, "b">;
+
+const bad: Only = "b";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (literal_type
+          (string
+            (string_fragment)))
+        (literal_type
+          (string
+            (string_fragment))))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+=============================================================
+types / utilities / exclude / exclude with never yields never
+=============================================================
+
+type NeverLetters = Exclude<never, "b">;
+
+let bad: NeverLetters = "b";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (predefined_type)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))

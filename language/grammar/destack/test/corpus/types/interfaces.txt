@@ -1,0 +1,112 @@
+=======================================
+Interface declarations
+:language(typescript)
+=======================================
+
+interface A { a: string; }
+
+interface B extends A { b: string; }
+
+interface Friend {
+    name: string;
+    favoriteColor?: string;
+}
+
+interface G<T, U extends B> {
+    x: T;
+    y: U;
+}
+
+interface X {
+  hook: {
+  }
+  get(key: Key): Promise<T>;
+}
+
+interface Enum extends Bar, Baz, Foo<A> {
+  public toEnum(): Int;
+}
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (extends_type_clause
+      (type_identifier))
+    (interface_body
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (interface_body
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (object_type)))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (interface_declaration
+    (type_identifier)
+    (extends_type_clause
+      (type_identifier)
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (interface_body
+      (method_signature
+        (accessibility_modifier)
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))))))

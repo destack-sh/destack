@@ -1,0 +1,564 @@
+=========================================================
+types / generics / extensions / extension type parameters
+=========================================================
+
+struct Box<T> {
+    value: T;
+}
+
+extension<T> of Box<T> {
+    get(): T {
+        return this.value;
+    }
+}
+
+declare function makeBox(): Box<number>;
+
+const boxed = makeBox();
+boxed.get() satisfies number;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (predefined_type)))))
+
+=================================================================
+types / generics / extensions / extension static value parameters
+=================================================================
+
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Buffer<T, N> {
+    get(): T {
+        return this.value;
+    }
+}
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+const buffer = makeBuffer();
+buffer.get() satisfies string;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (literal_type
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (predefined_type)))))
+
+=========================================================================================
+types / generics / extensions / extension generic parameters map by target argument order
+=========================================================================================
+
+struct Pair<A, B> {
+    left: A;
+    right: B;
+}
+
+extension<Left, Right> of Pair<Right, Left> {
+    swap(): Pair<Left, Right> {
+        return Pair<Left, Right> {
+            left: this.right,
+            right: this.left,
+        };
+    }
+}
+
+declare function makePair(): Pair<number, string>;
+
+const pair = makePair();
+pair.swap() satisfies Pair<string, number>;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))
+        (statement_block
+          (return_statement
+            (sequence_expression
+              (binary_expression
+                (identifier)
+                (identifier))
+              (binary_expression
+                (identifier)
+                (object
+                  (pair
+                    (property_identifier)
+                    (member_expression
+                      (this)
+                      (property_identifier)))
+                  (pair
+                    (property_identifier)
+                    (member_expression
+                      (this)
+                      (property_identifier)))))))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (predefined_type)))))))
+
+==============================================================================
+types / generics / extensions / extension static value parameters use defaults
+==============================================================================
+
+struct Buffer<T, comptime N: number = 4> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Buffer<T, N> {
+    get(): T {
+        return this.value;
+    }
+}
+
+declare function makeBuffer(): Buffer<string>;
+
+const buffer = makeBuffer();
+buffer.get() satisfies string;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))
+        (default_type
+          (literal_type
+            (number)))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (predefined_type)))))
+
+===============================================================================================
+types / generics / extensions / extension generic parameter mismatch rejects incompatible calls
+===============================================================================================
+
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Buffer<T, N> {
+    requireSize(value: [T; N]): [T; N] {
+        return value;
+    }
+}
+
+declare function makeBuffer(): Buffer<uint8, 4>;
+
+const buffer = makeBuffer();
+buffer.requireSize([1, 2, 3, 4]);
+buffer.requireSize([1, 2]);
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)
+                (identifier)))))
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier)))
+        (statement_block
+          (return_statement
+            (identifier))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (literal_type
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments
+        (array
+          (number)
+          (number)
+          (number)
+          (number)))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments
+        (array
+          (number)
+          (number))))))
+
+=============================================================================
+types / generics / extensions / extension defaults keep concrete member types
+=============================================================================
+
+struct Registry<T, comptime N: number = 2> {
+    value: T;
+}
+
+extension<T, comptime N: number> of Registry<T, N> {
+    pair(): (T, T) {
+        (this.value, this.value)
+    }
+}
+
+declare function makeRegistry(): Registry<string>;
+
+const registry = makeRegistry();
+registry.pair() satisfies (string, string);
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))
+        (default_type
+          (literal_type
+            (number)))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (parenthesized_expression
+              (sequence_expression
+                (member_expression
+                  (this)
+                  (property_identifier))
+                (member_expression
+                  (this)
+                  (property_identifier)))))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (tuple_type
+          (predefined_type)
+          (predefined_type))))))

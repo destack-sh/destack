@@ -1,0 +1,455 @@
+====================================================================
+expressions / macros / expansion / add creates a sibling declaration
+====================================================================
+
+newtype exposeMetrics = ();
+
+extension of exposeMetrics implements Macro<ClassDeclaration> {
+    static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {
+        const declaration = comptime eval<Declaration>(ds`
+            const ${context.name}Metrics = {
+                requests: 0uint64,
+            } as const;
+        `);
+
+        context.add(declaration);
+    }
+}
+
+@exposeMetrics
+class Server {
+    start(): void {}
+}
+
+ServerMetrics.requests satisfies uint64;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (this_type))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (comptime_expression
+                (call_expression
+                  (identifier)
+                  (type_arguments
+                    (type_identifier))
+                  (arguments
+                    (call_expression
+                      (identifier)
+                      (template_string
+                        (string_fragment)
+                        (template_substitution
+                          (member_expression
+                            (identifier)
+                            (property_identifier)))
+                        (string_fragment))))))))
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (identifier))))))))
+  (class_declaration
+    (decorator
+      (identifier))
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================
+expressions / macros / expansion / addChild creates a member
+============================================================
+
+newtype observable = ();
+
+type ChangeEvent = {
+    field: string;
+};
+
+interface Disposable {
+    dispose(): void;
+}
+
+extension of observable implements Macro<ClassDeclaration> {
+    static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {
+        const method = comptime eval<Member>(ds`
+            onChange(listener: (event: ChangeEvent) => void): Disposable;
+        `);
+
+        context.addChild(method);
+    }
+}
+
+@observable
+class Store {
+    value: int32;
+}
+
+const store = new Store();
+store.onChange satisfies (listener: (event: ChangeEvent) => void) => Disposable;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (this_type))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (comptime_expression
+                (call_expression
+                  (identifier)
+                  (type_arguments
+                    (type_identifier))
+                  (arguments
+                    (call_expression
+                      (identifier)
+                      (template_string
+                        (string_fragment))))))))
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (identifier))))))))
+  (class_declaration
+    (decorator
+      (identifier))
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (type_identifier))))
+                  (predefined_type)))))
+          (type_identifier))))))
+
+======================================================================================
+expressions / macros / expansion / generated decorators expand in the same fixed point
+======================================================================================
+
+newtype route = (string,);
+newtype exposeHealth = ();
+
+extension of route implements Macro<FunctionDeclaration> {
+    static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
+        context.ensureDeclaration(
+            "RouteDefinition",
+            () =>
+                comptime eval<Declaration>(ds`
+            type RouteDefinition = {
+                path: string;
+                handler: unknown;
+            };
+        `),
+        );
+
+        const declaration = comptime eval<Declaration>(ds`
+            const ROUTE_DEFINITION_${context.name.toUpperCase()} = {
+                path: "${config[0]}",
+                handler: ${context.name},
+            } as const satisfies RouteDefinition;
+        `);
+
+        context.add(declaration);
+    }
+}
+
+extension of exposeHealth implements Macro<ClassDeclaration> {
+    static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {
+        const declaration = comptime eval<Declaration>(ds`
+            @route("/health")
+            function health(): string {
+                return "ok";
+            }
+        `);
+
+        context.add(declaration);
+    }
+}
+
+@exposeHealth
+class Server {}
+
+ROUTE_DEFINITION_HEALTH.path satisfies "/health";
+ROUTE_DEFINITION_HEALTH.handler satisfies () => string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (this_type))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (string
+                  (string_fragment))
+                (arrow_function
+                  (formal_parameters)
+                  (comptime_expression
+                    (call_expression
+                      (identifier)
+                      (type_arguments
+                        (type_identifier))
+                      (arguments
+                        (call_expression
+                          (identifier)
+                          (template_string
+                            (string_fragment))))))))))
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (comptime_expression
+                (call_expression
+                  (identifier)
+                  (type_arguments
+                    (type_identifier))
+                  (arguments
+                    (call_expression
+                      (identifier)
+                      (template_string
+                        (string_fragment)
+                        (template_substitution
+                          (call_expression
+                            (member_expression
+                              (member_expression
+                                (identifier)
+                                (property_identifier))
+                              (property_identifier))
+                            (arguments)))
+                        (string_fragment)
+                        (template_substitution
+                          (subscript_expression
+                            (identifier)
+                            (number)))
+                        (string_fragment)
+                        (template_substitution
+                          (member_expression
+                            (identifier)
+                            (property_identifier)))
+                        (string_fragment))))))))
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (identifier))))))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (this_type))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (comptime_expression
+                (call_expression
+                  (identifier)
+                  (type_arguments
+                    (type_identifier))
+                  (arguments
+                    (call_expression
+                      (identifier)
+                      (template_string
+                        (string_fragment))))))))
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (identifier))))))))
+  (class_declaration
+    (decorator
+      (identifier))
+    (type_identifier)
+    (class_body))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (function_type
+          (formal_parameters)
+          (predefined_type))))))

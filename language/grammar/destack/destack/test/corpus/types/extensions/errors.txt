@@ -1,0 +1,316 @@
+==================================================================
+types / extensions / errors / calling nonexistent extension method
+==================================================================
+
+struct Point {
+    x: number;
+    y: number;
+}
+
+extension of Point {
+    magnitude(): number {
+        return 0;
+    }
+}
+
+declare function getPoint(): Point;
+
+const point = getPoint();
+point.nonexistent();
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (extension_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (return_statement
+            (number))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments))))
+
+=============================================================
+types / extensions / errors / method exists on different type
+=============================================================
+
+struct Point {
+    x: number;
+    y: number;
+}
+struct Vector3 {
+    x: number;
+    y: number;
+    z: number;
+}
+
+extension of Point {
+    magnitude(): number {
+        return 0;
+    }
+}
+
+declare function getVector(): Vector3;
+
+const vector = getVector();
+vector.magnitude();
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (extension_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (return_statement
+            (number))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments))))
+
+=================================================
+types / extensions / errors / wrong argument type
+=================================================
+
+struct Calculator {
+    value: number;
+}
+
+extension of Calculator {
+    add(a: number, b: number): number {
+        return 0;
+    }
+}
+
+declare function getCalculator(): Calculator;
+
+const calculator = getCalculator();
+calculator.add("one", 2);
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (extension_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (return_statement
+            (number))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments
+        (string
+          (string_fragment))
+        (number)))))
+
+===========================================================================
+types / extensions / errors / local extension not visible from another file
+===========================================================================
+
+export struct Vector2 {
+    x: number;
+    y: number;
+}
+
+---
+
+(program
+  (export_statement
+    (struct_declaration
+      (type_identifier)
+      (class_body
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+===========================================================================
+types / extensions / errors / local extension not visible from another file
+===========================================================================
+
+import { Vector2 } from "./types.ds";
+
+extension of Vector2 {
+    magnitude(): number {
+        return 0;
+    }
+}
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (extension_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (return_statement
+            (number)))))))
+
+===========================================================================
+types / extensions / errors / local extension not visible from another file
+===========================================================================
+
+import { Vector2 } from "./types.ds";
+
+declare function getVector(): Vector2;
+
+const vector = getVector();
+vector.magnitude();
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments))))

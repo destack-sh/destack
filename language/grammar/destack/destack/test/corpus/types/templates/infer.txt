@@ -1,0 +1,1140 @@
+====================================================================================
+types / templates / infer / template literal infer extracts span from string literal
+====================================================================================
+
+type Segment<T> = T extends `/${infer Name}` ? Name : never;
+
+let ok: Segment<"/api"> = "api";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment)))))
+
+===================================================================================
+types / templates / infer / template literal infer rejects mismatched inferred type
+===================================================================================
+
+type Segment<T> = T extends `/${infer Name}` ? Name : never;
+
+let bad: Segment<"/api"> = 1;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (number))))
+
+===========================================================================================
+types / templates / infer / template literal infer extracts span from template literal type
+===========================================================================================
+
+type Strip<T> = T extends `prefix-${infer A}` ? A : never;
+type Result = Strip<`prefix-${string}`>;
+
+let ok: Result = "value";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (template_literal_type
+          (string_fragment)
+          (template_type
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+========================================================================
+types / templates / infer / template literal infer falls back for string
+========================================================================
+
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
+let ok: Strip<string> = "no";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (string
+        (string_fragment)))))
+
+=====================================================================================
+types / templates / infer / template literal infer rejects non else branch for string
+=====================================================================================
+
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
+let bad: Strip<string> = "value";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (string
+        (string_fragment)))))
+
+=========================================================================
+types / templates / infer / template literal infer falls back for unknown
+=========================================================================
+
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
+let ok: Strip<unknown> = "no";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (string
+        (string_fragment)))))
+
+======================================================================================
+types / templates / infer / template literal infer rejects non else branch for unknown
+======================================================================================
+
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
+let bad: Strip<unknown> = "value";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (string
+        (string_fragment)))))
+
+===================================================================================
+types / templates / infer / template literal infer distributes over union templates
+===================================================================================
+
+type Extract<T> = T extends `foo-${infer A}` ? A : never;
+type Result = Extract<`foo-a` | `foo-b`>;
+
+let ok: Result = "a";
+let ok2: Result = "b";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (union_type
+          (template_literal_type
+            (string_fragment))
+          (template_literal_type
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+==============================================================================
+types / templates / infer / template literal infer extracts union span members
+==============================================================================
+
+type Extract<T> = T extends `id-${infer A}` ? A : never;
+type Result = Extract<`id-${"a" | "b"}`>;
+
+let ok: Result = "a";
+let ok2: Result = "b";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (template_literal_type
+          (string_fragment)
+          (template_type
+            (union_type
+              (literal_type
+                (string
+                  (string_fragment)))
+              (literal_type
+                (string
+                  (string_fragment)))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+=====================================================================================
+types / templates / infer / template literal infer rejects non member from union span
+=====================================================================================
+
+type Extract<T> = T extends `id-${infer A}` ? A : never;
+type Result = Extract<`id-${"a" | "b"}`>;
+
+let bad: Result = "c";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (template_literal_type
+          (string_fragment)
+          (template_type
+            (union_type
+              (literal_type
+                (string
+                  (string_fragment)))
+              (literal_type
+                (string
+                  (string_fragment)))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+========================================================================
+types / templates / infer / template literal infer merges repeated spans
+========================================================================
+
+type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
+
+let ok: Repeat<"foo-foo"> = "foo";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment)))))
+
+===========================================================================
+types / templates / infer / template literal infer honors constrained spans
+===========================================================================
+
+type Extract<T> = T extends `id-${infer A extends "a" | "b"}` ? A : "no";
+
+let ok: Extract<"id-a"> = "a";
+let ok2: Extract<"id-c"> = "no";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier)
+            (union_type
+              (literal_type
+                (string
+                  (string_fragment)))
+              (literal_type
+                (string
+                  (string_fragment)))))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment)))))
+
+====================================================================================
+types / templates / infer / template literal infer rejects constrained span mismatch
+====================================================================================
+
+type Extract<T> = T extends `id-${infer A extends "a" | "b"}` ? A : "no";
+
+let bad: Extract<"id-c"> = "c";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier)
+            (union_type
+              (literal_type
+                (string
+                  (string_fragment)))
+              (literal_type
+                (string
+                  (string_fragment)))))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment)))))
+
+===========================================================================================
+types / templates / infer / template literal infer falls back for mismatched repeated spans
+===========================================================================================
+
+type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
+
+let ok: Repeat<"foo-bar"> = "no";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment)))))
+
+====================================================================================
+types / templates / infer / template literal infer rejects mismatched repeated spans
+====================================================================================
+
+type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
+
+let bad: Repeat<"foo-bar"> = "foo";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (string
+        (string_fragment)))))
+
+====================================================================================
+types / templates / infer / template literal infer rejects non matching union member
+====================================================================================
+
+type Extract<T> = T extends `foo-${infer A}` ? A : never;
+type Result = Extract<`foo-a` | `bar-b`>;
+
+let bad: Result = "b";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (union_type
+          (template_literal_type
+            (string_fragment))
+          (template_literal_type
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+============================================================================
+types / templates / infer / template literal infer rejects non string result
+============================================================================
+
+type Strip<T> = T extends `prefix-${infer A}` ? A : never;
+type Result = Strip<"prefix-hello">;
+
+let bad: Result = 1;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (type_identifier)
+      (predefined_type)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+==========================================================================
+types / templates / infer / template literal infer splits on first literal
+==========================================================================
+
+type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
+
+let ok: Pair<"foo-bar-baz"> = ("foo", "bar-baz");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (tuple_type
+        (type_identifier)
+        (type_identifier))
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (parenthesized_expression
+        (sequence_expression
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))))))
+
+======================================================================
+types / templates / infer / template literal infer rejects later split
+======================================================================
+
+type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
+
+let bad: Pair<"foo-bar-baz"> = ("foo-bar", "baz");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (tuple_type
+        (type_identifier)
+        (type_identifier))
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (parenthesized_expression
+        (sequence_expression
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))))))
+
+===========================================================================
+types / templates / infer / template literal infer requires non-empty spans
+===========================================================================
+
+type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
+
+let ok: Split<"a"> = ("a", "");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (tuple_type
+        (type_identifier)
+        (type_identifier))
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (parenthesized_expression
+        (sequence_expression
+          (string
+            (string_fragment))
+          (string))))))
+
+===========================================================================================
+types / templates / infer / template literal infer allows empty spans with literal boundary
+===========================================================================================
+
+type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
+
+let ok: Split<"a"> = ("", "");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (tuple_type
+        (type_identifier)
+        (type_identifier))
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (parenthesized_expression
+        (sequence_expression
+          (string)
+          (string))))))
+
+===========================================================================
+types / templates / infer / template literal infer rejects empty first span
+===========================================================================
+
+type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
+
+let bad: Split<"a"> = ("", "a");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (tuple_type
+        (type_identifier)
+        (type_identifier))
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (literal_type
+              (string
+                (string_fragment))))))
+      (parenthesized_expression
+        (sequence_expression
+          (string)
+          (string
+            (string_fragment)))))))
+
+=================================================================================================
+types / templates / infer / recursive template literal parameter extraction keeps all path params
+=================================================================================================
+
+type Params<T: string> = T extends `${string}:${infer Param}/${infer Rest}`
+    ? Param | Params<Rest>
+    : T extends `${string}:${infer Param}`
+      ? Param
+      : never;
+
+type RouteParams = Params<"/users/:userId/posts/:postId">;
+
+declare const key: RouteParams;
+key satisfies "userId" | "postId";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (predefined_type))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (union_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (conditional_type
+        (type_identifier)
+        (template_literal_type
+          (template_type
+            (predefined_type))
+          (string_fragment)
+          (template_type
+            (infer_type
+              (type_identifier))))
+        (type_identifier)
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (literal_type
+          (string
+            (string_fragment))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+====================================================================================================
+types / templates / infer / recursive template literal parameter extraction rejects unrelated params
+====================================================================================================
+
+type Params<T: string> = T extends `${string}:${infer Param}/${infer Rest}`
+    ? Param | Params<Rest>
+    : T extends `${string}:${infer Param}`
+      ? Param
+      : never;
+
+type RouteParams = Params<"/users/:userId/posts/:postId">;
+
+declare const key: RouteParams;
+key satisfies "userId" | "postId" | "commentId";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (conditional_type
+      (type_identifier)
+      (template_literal_type
+        (template_type
+          (predefined_type))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier)))
+        (string_fragment)
+        (template_type
+          (infer_type
+            (type_identifier))))
+      (union_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (conditional_type
+        (type_identifier)
+        (template_literal_type
+          (template_type
+            (predefined_type))
+          (string_fragment)
+          (template_type
+            (infer_type
+              (type_identifier))))
+        (type_identifier)
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (literal_type
+          (string
+            (string_fragment))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (binary_expression
+      (binary_expression
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (literal_type
+              (string
+                (string_fragment)))))
+        (string
+          (string_fragment)))
+      (string
+        (string_fragment)))))

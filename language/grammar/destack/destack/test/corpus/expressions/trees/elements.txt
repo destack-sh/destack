@@ -1,0 +1,172 @@
+==============================================================
+expressions / trees / elements / tree elements are expressions
+==============================================================
+
+declare const A: unknown;
+
+let node = <A />;
+node;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (jsx_self_closing_element
+        (identifier))))
+  (expression_statement
+    (identifier)))
+
+================================================================
+expressions / trees / elements / tree elements accept attributes
+================================================================
+
+declare const A: unknown;
+
+let node = <A value={1} />;
+node;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (jsx_self_closing_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (number))))))
+  (expression_statement
+    (identifier)))
+
+==============================================================
+expressions / trees / elements / tree elements accept children
+==============================================================
+
+declare const A: unknown;
+
+let node = <A>{1}</A>;
+node;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (jsx_element
+        (jsx_opening_element
+          (identifier))
+        (jsx_expression
+          (number))
+        (jsx_closing_element
+          (identifier)))))
+  (expression_statement
+    (identifier)))
+
+==========================================================================
+expressions / trees / elements / tree elements reject duplicate attributes
+==========================================================================
+
+declare const A: unknown;
+
+const node = <A value={1} value={2} />;
+node;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (jsx_self_closing_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (number)))
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (number))))))
+  (expression_statement
+    (identifier)))
+
+======================================================================
+expressions / trees / elements / tree elements support nested children
+======================================================================
+
+declare const A: unknown;
+declare const B: unknown;
+
+const node = (
+    <A>
+        <B value={1} />
+    </A>
+);
+node;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (parenthesized_expression
+        (jsx_element
+          (jsx_opening_element
+            (identifier))
+          (jsx_self_closing_element
+            (identifier)
+            (jsx_attribute
+              (property_identifier)
+              (jsx_expression
+                (number))))
+          (jsx_closing_element
+            (identifier))))))
+  (expression_statement
+    (identifier)))

@@ -1,0 +1,176 @@
+=====================================================================
+expressions / static if / validation / when true, @if includes errors
+=====================================================================
+
+@if(true)
+missingSymbol;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (true))
+    (expression_statement
+      (identifier))))
+
+======================================================================
+expressions / static if / validation / @if requires boolean conditions
+======================================================================
+
+@if(1)
+const value = 1;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (number))
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (number)))))
+
+=====================================================================
+expressions / static if / validation / @if requires static conditions
+=====================================================================
+
+declare const enabled: bool;
+
+@if(enabled)
+const value = 1;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (identifier))
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (number)))))
+
+===============================================================
+expressions / static if / validation / @if requires a condition
+===============================================================
+
+@if
+const value = 1;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard)
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (number)))))
+
+==================================================================
+expressions / static if / validation / @if rejects extra arguments
+==================================================================
+
+@if(true, false)
+const value = 1;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (true)
+      (false))
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (number)))))
+
+=============================================================
+expressions / static if / validation / @if rejects parameters
+=============================================================
+
+function demo(@if(true) value: number): void {}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (decorator
+          (call_expression
+            (identifier)
+            (arguments
+              (true))))
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block)))
+
+==========================================================================
+expressions / static if / validation / @if rejects type literal properties
+==========================================================================
+
+type Box = {
+    @if(true)
+    value: number;
+};
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (destack_static_if_guard
+        (true))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))
+
+=================================================================
+expressions / static if / validation / @if rejects call arguments
+=================================================================
+
+function call(value: number): void {}
+
+call(@if(true) 1);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (destack_static_if_expression
+          (destack_static_if_guard
+            (true))
+          (number))))))

@@ -1,0 +1,1032 @@
+=================================================================
+expressions / if / ternary / ternary yields union of branch types
+=================================================================
+
+const value = true ? 1 : "hi";
+value satisfies int | string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (number)
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (type_identifier)))
+      (identifier))))
+
+=============================================================
+expressions / if / ternary / ternary respects contextual type
+=============================================================
+
+const value: int = true ? 1 : 2;
+value satisfies int;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (ternary_expression
+        (true)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+================================================================
+expressions / if / ternary / ternary rejects incompatible branch
+================================================================
+
+const value: int = true ? 1 : "hi";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (ternary_expression
+        (true)
+        (number)
+        (string
+          (string_fragment))))))
+
+=============================================================
+expressions / if / ternary / let ternary literal unions widen
+=============================================================
+
+let value = true ? "api" : "admin";
+
+value satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==================================================================================
+expressions / if / ternary / let ternary literal unions do not keep literal unions
+==================================================================================
+
+let value = true ? "api" : "admin";
+
+value satisfies "api" | "admin";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=================================================================================================
+expressions / if / ternary / exported const ternary values preserve literal unions across modules
+=================================================================================================
+
+export const route = true ? "api" : "admin";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (ternary_expression
+          (true)
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))))))
+
+=================================================================================================
+expressions / if / ternary / exported const ternary values preserve literal unions across modules
+=================================================================================================
+
+import { route } from "./values.ds";
+
+route satisfies "api" | "admin";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=============================================================================
+expressions / if / ternary / exported let ternary values widen across modules
+=============================================================================
+
+export let route = true ? "api" : "admin";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (ternary_expression
+          (true)
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))))))
+
+=============================================================================
+expressions / if / ternary / exported let ternary values widen across modules
+=============================================================================
+
+import { route } from "./values.ds";
+
+route satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==================================================================================================
+expressions / if / ternary / exported let ternary values do not keep literal unions across modules
+==================================================================================================
+
+export let route = true ? "api" : "admin";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (ternary_expression
+          (true)
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))))))
+
+==================================================================================================
+expressions / if / ternary / exported let ternary values do not keep literal unions across modules
+==================================================================================================
+
+import { route } from "./values.ds";
+
+route satisfies "api" | "admin";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=================================================================================
+expressions / if / ternary / const ternary literal unions preserve literal unions
+=================================================================================
+
+const value = true ? "api" : "admin";
+
+value satisfies "api" | "admin";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=====================================================================================
+expressions / if / ternary / const ternary object members widen without const context
+=====================================================================================
+
+const route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+===========================================================================================
+expressions / if / ternary / const ternary object members do not keep member literal unions
+===========================================================================================
+
+const route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies "api" | "admin";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+===================================================================================
+expressions / if / ternary / contextual ternary unions reject narrowed expectations
+===================================================================================
+
+const value: "api" | "admin" = true ? "api" : "admin";
+
+value satisfies "api";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+===================================================================================
+expressions / if / ternary / let ternary object members widen without const context
+===================================================================================
+
+let route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================================
+expressions / if / ternary / let ternary object members do not keep member literals
+===================================================================================
+
+let route = true ? { kind: "api" } : { kind: "admin" };
+
+route.kind satisfies "api" | "admin";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=======================================================================================
+expressions / if / ternary / exported const ternary object members widen across modules
+=======================================================================================
+
+export const route = true ? { kind: "api" } : { kind: "admin" };
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (ternary_expression
+          (true)
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))))))))
+
+=======================================================================================
+expressions / if / ternary / exported const ternary object members widen across modules
+=======================================================================================
+
+import { route } from "./values.ds";
+
+route.kind satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================================================================
+expressions / if / ternary / exported const ternary object members do not keep literal unions across modules
+============================================================================================================
+
+export const route = true ? { kind: "api" } : { kind: "admin" };
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (ternary_expression
+          (true)
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))))))))
+
+============================================================================================================
+expressions / if / ternary / exported const ternary object members do not keep literal unions across modules
+============================================================================================================
+
+import { route } from "./values.ds";
+
+route.kind satisfies "api" | "admin";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+==================================================================================================
+expressions / if / ternary / branch const assertions preserve ternary object member literal unions
+==================================================================================================
+
+const route = true ? ({ kind: "api" } as const) : ({ kind: "admin" } as const);
+
+route.kind satisfies "api" | "admin";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (parenthesized_expression
+          (as_expression
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment))))))
+        (parenthesized_expression
+          (as_expression
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=================================================================================================================
+expressions / if / ternary / branch const assertions preserve ternary object member literal unions across modules
+=================================================================================================================
+
+export const route = true ? ({ kind: "api" } as const) : ({ kind: "admin" } as const);
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (ternary_expression
+          (true)
+          (parenthesized_expression
+            (as_expression
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))
+          (parenthesized_expression
+            (as_expression
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment)))))))))))
+
+=================================================================================================================
+expressions / if / ternary / branch const assertions preserve ternary object member literal unions across modules
+=================================================================================================================
+
+import { route } from "./values.ds";
+
+route.kind satisfies "api" | "admin";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=====================================================================================================
+expressions / if / ternary / explicit export annotations anchor ternary literal unions across modules
+=====================================================================================================
+
+export const route: "api" | "admin" = true ? "api" : "admin";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment)))))
+        (ternary_expression
+          (true)
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))))))
+
+=====================================================================================================
+expressions / if / ternary / explicit export annotations anchor ternary literal unions across modules
+=====================================================================================================
+
+import { route } from "./values.ds";
+
+route satisfies "api" | "admin";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=================================================================================================
+expressions / if / ternary / const ternary unions preserve literal precision in generic inference
+=================================================================================================
+
+declare function identity<T>(value: T): T;
+
+const value = true ? "api" : "admin";
+const result = identity(value);
+
+result satisfies "api" | "admin";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+==============================================================================
+expressions / if / ternary / let ternary unions widen before generic inference
+==============================================================================
+
+declare function identity<T>(value: T): T;
+
+let value = true ? "api" : "admin";
+const result = identity(value);
+
+result satisfies string;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==================================================================================================
+expressions / if / ternary / let ternary unions do not keep literal precision in generic inference
+==================================================================================================
+
+declare function identity<T>(value: T): T;
+
+let value = true ? "api" : "admin";
+const result = identity(value);
+
+result satisfies "api" | "admin";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=======================================================================================================
+expressions / if / ternary / const ternary templates preserve span unions in generic template inference
+=======================================================================================================
+
+declare function parse<T: string>(value: `id:${T}`): T;
+
+const route = true ? "id:users" : "id:posts";
+const span = parse(route);
+
+span satisfies "users" | "posts";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (string_fragment)
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+==================================================================================================
+expressions / if / ternary / let ternary templates are rejected by narrow template argument shapes
+==================================================================================================
+
+declare function parse<T: string>(value: `id:${T}`): T;
+
+let route = true ? "id:users" : "id:posts";
+parse(route);
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (string_fragment)
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (ternary_expression
+        (true)
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (identifier)))))

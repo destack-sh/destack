@@ -1,0 +1,1053 @@
+=================================================================
+types / narrowing / truthiness / and guard narrows to non nullish
+=================================================================
+
+const value: string | null | undefined = null;
+if (value !== null && value !== undefined) {
+    value satisfies string;
+} else {
+    value satisfies null | undefined;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (binary_expression
+          (identifier)
+          (undefined)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (literal_type
+                    (null))))
+              (undefined))))))))
+
+========================================================================
+types / narrowing / truthiness / and guard narrows mixed nullish symbols
+========================================================================
+
+const left: string | null = null;
+const right: string | undefined = undefined;
+if (left !== null && right !== undefined) {
+    left satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    right satisfies string | undefined;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (undefined))))
+      (undefined)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (binary_expression
+          (identifier)
+          (undefined)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (null)))
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (undefined))))))))
+
+=================================================================
+types / narrowing / truthiness / and guard narrows the right side
+=================================================================
+
+const value: string | null = null;
+const accepts_string = (input: string): boolean => true;
+if (value !== null && accepts_string(value)) {
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (arrow_function
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (predefined_type))
+        (true))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))))))
+
+=======================================================================
+types / narrowing / truthiness / and guard narrows with symbol on right
+=======================================================================
+
+const value: string | null | undefined = null;
+if (null !== value && undefined !== value) {
+    value satisfies string;
+} else {
+    value satisfies string | null | undefined;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (null)
+          (identifier))
+        (binary_expression
+          (undefined)
+          (identifier)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (binary_expression
+                (satisfies_expression
+                  (identifier)
+                  (satisfies_type
+                    (predefined_type)))
+                (null))
+              (undefined))))))))
+
+===================================================================
+types / narrowing / truthiness / and guard narrows with parentheses
+===================================================================
+
+const value: string | null | undefined = null;
+if (value !== null && value !== undefined) {
+    value satisfies string;
+} else {
+    value satisfies null | undefined;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (binary_expression
+          (identifier)
+          (undefined)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (literal_type
+                    (null))))
+              (undefined))))))))
+
+============================================================
+types / narrowing / truthiness / or guard narrows to nullish
+============================================================
+
+const value: string | null | undefined = null;
+if (value === null || value === undefined) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (binary_expression
+          (identifier)
+          (undefined)))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (literal_type
+                  (null))))
+            (undefined))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+=================================================================================
+types / narrowing / truthiness / or guard narrows both symbols in the else branch
+=================================================================================
+
+const left: string | null = null;
+const right: string | null = null;
+if (left === null || right === null) {
+    left satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    right satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (binary_expression
+          (identifier)
+          (null)))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null)))
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type))))
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+================================================================
+types / narrowing / truthiness / or guard narrows the right side
+================================================================
+
+const value: string | null = null;
+const accepts_string = (input: string): boolean => true;
+if (value === null || accepts_string(value)) {
+    value satisfies string | null;
+} else {
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (arrow_function
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (predefined_type))
+        (true))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+======================================================================
+types / narrowing / truthiness / or guard narrows with symbol on right
+======================================================================
+
+const value: string | null | undefined = null;
+if (null === value || undefined === value) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (null)
+          (identifier))
+        (binary_expression
+          (undefined)
+          (identifier)))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (literal_type
+                  (null))))
+            (undefined))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+====================================================================================
+types / narrowing / truthiness / or guard narrows chained symbols in the else branch
+====================================================================================
+
+const left: string | null = null;
+const middle: string | null = null;
+const right: string | null = null;
+if (left === null || middle === null || right === null) {
+    left satisfies string | null;
+    middle satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    middle satisfies string;
+    right satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (null))
+          (binary_expression
+            (identifier)
+            (null)))
+        (binary_expression
+          (identifier)
+          (null)))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null)))
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null)))
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type))))
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type))))
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+============================================================
+types / narrowing / truthiness / not guard inverts narrowing
+============================================================
+
+const value: string | null | undefined = null;
+if (!(value === null)) {
+    value satisfies string | undefined;
+} else {
+    value satisfies null;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (unary_expression
+        (parenthesized_expression
+          (binary_expression
+            (identifier)
+            (null))))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (undefined))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (literal_type
+                  (null))))))))))
+
+====================================================================
+types / narrowing / truthiness / not guard narrows an and expression
+====================================================================
+
+const left: string | null = null;
+const right: string | null = null;
+if (!(left !== null && right !== null)) {
+    left satisfies string | null;
+    right satisfies string | null;
+} else {
+    left satisfies string;
+    right satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (unary_expression
+        (parenthesized_expression
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (null))
+            (binary_expression
+              (identifier)
+              (null)))))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null)))
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (null))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type))))
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+===================================================================
+types / narrowing / truthiness / not guard narrows an or expression
+===================================================================
+
+const left: string | null = null;
+const right: string | null = null;
+if (!(left === null || right === null)) {
+    left satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    right satisfies string | null;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (unary_expression
+        (parenthesized_expression
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (null))
+            (binary_expression
+              (identifier)
+              (null)))))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (null)))
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (null))))))))
+
+=============================================================================
+types / narrowing / truthiness / not guard narrows a non strict nullish guard
+=============================================================================
+
+const value: string | null | undefined = null;
+if (!(value != null)) {
+    value satisfies null | undefined;
+} else {
+    value satisfies string;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (unary_expression
+        (parenthesized_expression
+          (binary_expression
+            (identifier)
+            (null))))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (literal_type
+                  (null))))
+            (undefined))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))))))))
+
+===================================================================
+types / narrowing / truthiness / and guard narrows multiple symbols
+===================================================================
+
+const left: string | null | undefined = null;
+const right: string | null | undefined = null;
+if (left !== null && right !== null) {
+    left satisfies string | undefined;
+    right satisfies string | undefined;
+} else {
+    left satisfies string | null | undefined;
+    right satisfies string | null | undefined;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (predefined_type)
+            (literal_type
+              (null)))
+          (literal_type
+            (undefined))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (null))
+        (binary_expression
+          (identifier)
+          (null)))
+      (statement_block
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (undefined)))
+        (expression_statement
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (predefined_type)))
+            (undefined))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (binary_expression
+                (satisfies_expression
+                  (identifier)
+                  (satisfies_type
+                    (predefined_type)))
+                (null))
+              (undefined)))
+          (expression_statement
+            (binary_expression
+              (binary_expression
+                (satisfies_expression
+                  (identifier)
+                  (satisfies_type
+                    (predefined_type)))
+                (null))
+              (undefined))))))))
+
+==================================================================
+types / narrowing / truthiness / and guard narrows chained symbols
+==================================================================
+
+const left: string | null = null;
+const middle: string | undefined = undefined;
+const right: string | null = null;
+if (left !== null && middle !== undefined && right !== null) {
+    left satisfies string;
+    middle satisfies string;
+    right satisfies string;
+} else {
+    left satisfies string | null;
+    middle satisfies string | undefined;
+    right satisfies string | null;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (undefined))))
+      (undefined)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (literal_type
+            (null))))
+      (null)))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (null))
+          (binary_expression
+            (identifier)
+            (undefined)))
+        (binary_expression
+          (identifier)
+          (null)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (null)))
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (undefined)))
+          (expression_statement
+            (binary_expression
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))
+              (null))))))))

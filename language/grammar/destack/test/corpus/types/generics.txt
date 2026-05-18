@@ -1,0 +1,204 @@
+=======================================
+Generic types
+:language(typescript)
+=======================================
+
+class A<
+  B,
+  C,
+> {}
+
+class D extends A<
+  X,
+  Y,
+> {}
+
+class E extends funThatEvalsToClass()<
+  X,
+  Y,
+> {}
+
+class F extends G, H<T> {}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)
+        (type_arguments
+          (type_identifier)
+          (type_identifier))))
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (call_expression
+          (identifier)
+          (arguments))
+        (type_arguments
+          (type_identifier)
+          (type_identifier))))
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)
+        (identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body)))
+
+=======================================
+Nested type arguments
+:language(typescript)
+=======================================
+
+interface X {
+  x(): Promise<Array<Foo>>;
+}
+
+var y: Map<number, Promise<Map<bool, Map<Foo, Bar>>>>
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (type_identifier)))))))))
+  (variable_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (generic_type
+                  (type_identifier)
+                  (type_arguments
+                    (type_identifier)
+                    (generic_type
+                      (type_identifier)
+                      (type_arguments
+                        (type_identifier)
+                        (type_identifier)))))))))))))
+
+=======================================
+Mapped types
+:language(typescript)
+=======================================
+
+export type NoInfer<T> = T & { [K in keyof T]: T[K] };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (intersection_type
+        (type_identifier)
+        (object_type
+          (index_signature
+            (mapped_type_clause
+              (type_identifier)
+              (index_type_query
+                (type_identifier)))
+            (type_annotation
+              (lookup_type
+                (type_identifier)
+                (type_identifier)))))))))
+
+==================================
+Mapped type 'as' clauses
+:language(typescript)
+==================================
+
+type A<B> = { [B in keyof C & string as `get${Capitalize<P>}`]: () => A[B] };
+type A<B> = { [B in keyof C & string as `${P}1` | `${P}2`]: A[B] }
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (object_type
+      (index_signature
+        (mapped_type_clause
+          (type_identifier)
+          (intersection_type
+            (index_type_query
+              (type_identifier))
+            (predefined_type))
+          (template_literal_type
+            (string_fragment)
+            (template_type
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (type_identifier))))))
+        (type_annotation
+          (function_type
+            (formal_parameters)
+            (lookup_type
+              (type_identifier)
+              (type_identifier)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (object_type
+      (index_signature
+        (mapped_type_clause
+          (type_identifier)
+          (intersection_type
+            (index_type_query
+              (type_identifier))
+            (predefined_type))
+          (union_type
+            (template_literal_type
+              (template_type
+                (type_identifier))
+              (string_fragment))
+            (template_literal_type
+              (template_type
+                (type_identifier))
+              (string_fragment))))
+        (type_annotation
+          (lookup_type
+            (type_identifier)
+            (type_identifier)))))))

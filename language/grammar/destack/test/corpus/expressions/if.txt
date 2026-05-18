@@ -1,0 +1,19 @@
+==================================
+Ternary expression
+:language(typescript)
+==================================
+
+a ? function(){ return true } : b;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (function_expression
+        (formal_parameters)
+        (statement_block
+          (return_statement
+            (true))))
+      (identifier))))

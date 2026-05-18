@@ -1,0 +1,958 @@
+====================================================================
+types / classes / constructors / required fields need initialization
+====================================================================
+
+class Counter {
+    value: number;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))
+
+========================================================================
+types / classes / constructors / constructors initialize required fields
+========================================================================
+
+class Counter {
+    value: number;
+
+    constructor(value: number) {
+        this.value = value;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier))))))))
+
+===========================================================================
+types / classes / constructors / optional fields do not need initialization
+===========================================================================
+
+class Counter {
+    value?: number;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))
+
+=============================================================================
+types / classes / constructors / all constructor paths must initialize fields
+=============================================================================
+
+class Counter {
+    value: number;
+
+    constructor(flag: boolean) {
+        if (flag) {
+            this.value = 1;
+        }
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (if_expression
+              (identifier)
+              (statement_block
+                (expression_statement
+                  (assignment_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (number)))))))))))
+
+===============================================================================
+types / classes / constructors / constructor overloads share one implementation
+===============================================================================
+
+class Box {
+    value: string | number;
+
+    constructor(value: string);
+    constructor(value: number);
+    constructor(value: string | number) {
+        this.value = value;
+    }
+}
+
+const fromString = new Box("x");
+const fromNumber = new Box(42);
+
+fromString.value satisfies string | number;
+fromNumber.value satisfies string | number;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (predefined_type)
+            (predefined_type))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (union_type
+                (predefined_type)
+                (predefined_type)))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (predefined_type)))
+      (identifier)))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (satisfies_type
+          (predefined_type)))
+      (identifier))))
+
+======================================================================================
+types / classes / constructors / constructor overloads reject multiple implementations
+======================================================================================
+
+class Box {
+    value: string | number;
+
+    constructor(value: string) {
+        this.value = value;
+    }
+
+    constructor(value: number) {
+        this.value = value;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (predefined_type)
+            (predefined_type))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier))))))))
+
+==========================================================================================
+types / classes / constructors / constructor overloads require a compatible implementation
+==========================================================================================
+
+class Box {
+    value: string | number;
+
+    constructor(value: string);
+    constructor(value: number);
+    constructor(value: boolean) {
+        this.value = value ? 1 : 0;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (predefined_type)
+            (predefined_type))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (ternary_expression
+                (identifier)
+                (number)
+                (number)))))))))
+
+==========================================================================
+types / classes / constructors / constructor calls use overload signatures
+==========================================================================
+
+class Box {
+    value: string | number;
+
+    constructor(value: string);
+    constructor(value: number);
+    constructor(value: string | number) {
+        this.value = value;
+    }
+}
+
+new Box(true);
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (predefined_type)
+            (predefined_type))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (union_type
+                (predefined_type)
+                (predefined_type)))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))))
+  (expression_statement
+    (new_expression
+      (call_expression
+        (identifier)
+        (arguments
+          (true))))))
+
+====================================================================
+types / classes / constructors / parameter properties declare fields
+====================================================================
+
+class Counter {
+    constructor(
+        public value: int32,
+        readonly label: string,
+    ) {}
+}
+
+const counter = new Counter(1, "label");
+counter.value = 2;
+counter.label satisfies string;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (number)))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+======================================================================
+types / classes / constructors / parameter properties support defaults
+======================================================================
+
+class Counter {
+    constructor(public value: int32 = 4) {}
+}
+
+const counter = new Counter();
+counter.value satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))
+            (number)))
+        (statement_block))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================================
+types / classes / constructors / parameter properties reject rest parameters
+============================================================================
+
+class Counter {
+    constructor(public ...values: int32[]) {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (rest_pattern
+              (identifier))
+            (type_annotation
+              (array_type
+                (type_identifier)))))
+        (statement_block)))))
+
+============================================================================
+types / classes / constructors / readonly parameter properties reject writes
+============================================================================
+
+class Counter {
+    constructor(readonly label: string) {}
+
+    update() {
+        this.label = "next";
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (string
+                (string_fragment)))))))))
+
+=========================================================================
+types / classes / constructors / private parameter properties are private
+=========================================================================
+
+class Counter {
+    constructor(private value: int32) {}
+}
+
+const counter = new Counter(1);
+counter.value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (member_expression
+      (identifier)
+      (property_identifier))))
+
+=============================================================================
+types / classes / constructors / protected parameter properties are inherited
+=============================================================================
+
+class Base {
+    constructor(protected value: int32) {}
+}
+
+class Derived extends Base {
+    read(): int32 {
+        this.value
+    }
+}
+
+const derived = new Derived(1);
+derived.read() satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (type_identifier)))))
+
+=====================================================================================
+types / classes / constructors / protected parameter properties reject outside access
+=====================================================================================
+
+class Base {
+    constructor(protected value: int32) {}
+}
+
+const base = new Base(1);
+base.value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (member_expression
+      (identifier)
+      (property_identifier))))
+
+==================================================================================
+types / classes / constructors / private parameter properties affect assignability
+==================================================================================
+
+class Left {
+    constructor(private value: int32) {}
+}
+
+class Right {
+    constructor(private value: int32) {}
+}
+
+declare const right: Right;
+const left: Left = right;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+====================================================================================
+types / classes / constructors / protected parameter properties affect assignability
+====================================================================================
+
+class Left {
+    constructor(protected value: int32) {}
+}
+
+class Right {
+    constructor(protected value: int32) {}
+}
+
+declare const right: Right;
+const left: Left = right;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+========================================================================
+types / classes / constructors / parameter property fields are inherited
+========================================================================
+
+class Base {
+    constructor(public value: int32) {}
+}
+
+class Derived extends Base {
+    constructor(value: int32) {
+        super(value);
+    }
+}
+
+const derived = new Derived(1);
+derived.value satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments
+                (identifier))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================================================
+types / classes / constructors / readonly parameter properties stay readonly in subclasses
+==========================================================================================
+
+class Base {
+    constructor(readonly label: string) {}
+}
+
+class Derived extends Base {
+    update() {
+        this.label = "next";
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (string
+                (string_fragment)))))))))
+
+========================================================================================
+types / classes / constructors / parameter property modifiers only apply to constructors
+========================================================================================
+
+class Counter {
+    method(public value: int32) {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (accessibility_modifier)
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block)))))

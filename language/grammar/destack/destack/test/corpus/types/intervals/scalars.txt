@@ -1,0 +1,140 @@
+=====================================================================
+types / intervals / scalars / char intervals use Unicode scalar order
+=====================================================================
+
+type LowerAscii = 'a'..='z';
+
+let value: LowerAscii = 'm';
+value satisfies LowerAscii;
+value satisfies char;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================================
+types / intervals / scalars / char intervals reject values outside their bounds
+===============================================================================
+
+type LowerAscii = 'a'..='z';
+
+let value: LowerAscii = 'A';
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+================================================================
+types / intervals / scalars / bigint intervals use integer order
+================================================================
+
+type BigId = 1n..=9007199254740993n;
+
+let value: BigId = 9007199254740993n;
+value satisfies BigId;
+value satisfies bigint;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (number))
+      (literal_type
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================================================
+types / intervals / scalars / float intervals are rejected because floats are partially ordered
+===============================================================================================
+
+type UnitFloat = 0.0..=1.0;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (number))
+      (literal_type
+        (number)))))
+
+====================================================================================================
+types / intervals / scalars / string intervals are rejected because string ordering is not primitive
+====================================================================================================
+
+type Lower = "a"..="z";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment))))))

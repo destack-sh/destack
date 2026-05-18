@@ -1,0 +1,234 @@
+====================================================================
+types / generics / recursion / direct recursive aliases are rejected
+====================================================================
+
+type Loop<T> = Loop<T>;
+
+declare let value: Loop<number>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type))))))))
+
+=========================================================================
+types / generics / recursion / recursive conditionals report depth errors
+=========================================================================
+
+type Recurse<T> = T extends string ? Recurse<T> : never;
+
+declare let value: Recurse<"x">;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_type
+      (type_identifier)
+      (predefined_type)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)))
+      (predefined_type)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (literal_type
+                (string
+                  (string_fragment))))))))))
+
+======================================================================
+types / generics / recursion / mutually recursive aliases are rejected
+======================================================================
+
+type A<T> = B<T>;
+type B<T> = A<T>;
+
+declare let value: A<number>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type))))))))
+
+====================================================================================
+types / generics / recursion / recursive aliases through mapped aliases are rejected
+====================================================================================
+
+type Remap<T> = { [K in keyof T]: Remap<T[K]> };
+
+declare let value: Remap<{ name: string }>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (object_type
+      (index_signature
+        (mapped_type_clause
+          (type_identifier)
+          (index_type_query
+            (type_identifier)))
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (lookup_type
+                (type_identifier)
+                (type_identifier))))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (object_type
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (predefined_type)))))))))))
+
+============================================================================
+types / generics / recursion / recursive aliases across modules are rejected
+============================================================================
+
+import type { B } from "./b.ds";
+
+export type A<T> = B<T>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))))
+
+============================================================================
+types / generics / recursion / recursive aliases across modules are rejected
+============================================================================
+
+import type { A } from "./a.ds";
+
+export type B<T> = A<T>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))))
+
+============================================================================
+types / generics / recursion / recursive aliases across modules are rejected
+============================================================================
+
+import type { A } from "./a.ds";
+
+declare let value: A<number>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type))))))))

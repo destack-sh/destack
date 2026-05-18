@@ -1,0 +1,111 @@
+=======================================================================
+expressions / patterns / newtypes / scalar newtype patterns bind values
+=======================================================================
+
+newtype UserId = int64;
+
+let UserId(value) = UserId(42);
+value satisfies int64;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+======================================================================
+expressions / patterns / newtypes / tuple newtype patterns bind fields
+======================================================================
+
+newtype Point = (float32, float32);
+
+let Point(x, y) = Point(1.0, 2.0);
+x satisfies float32;
+y satisfies float32;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier)
+            (identifier))))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=======================================================================
+expressions / patterns / newtypes / object newtype patterns bind fields
+=======================================================================
+
+newtype Config = { debug: boolean };
+
+let Config { debug } = Config({ debug: true });
+debug satisfies boolean;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (struct_pattern
+        (identifier)
+        (object_pattern
+          (shorthand_property_identifier_pattern)))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (true)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

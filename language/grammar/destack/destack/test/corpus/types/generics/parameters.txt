@@ -1,0 +1,719 @@
+===============================================================================
+types / generics / parameters / const modifiers are not allowed on type aliases
+===============================================================================
+
+type Bad<const T> = T;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type_identifier)))
+
+========================================================================
+types / generics / parameters / in modifiers are allowed on type aliases
+========================================================================
+
+type Sink<in T> = (value: T) => void;
+
+declare const sink: Sink<string>;
+sink satisfies (value: string) => void;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (function_type
+      (formal_parameters
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (type_identifier))))
+      (predefined_type)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type))))))
+
+=========================================================================
+types / generics / parameters / out modifiers are allowed on type aliases
+=========================================================================
+
+type Source<out T> = () => T;
+
+declare const source: Source<string>;
+source() satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (function_type
+      (formal_parameters)
+      (type_identifier)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (identifier)
+        (arguments))
+      (satisfies_type
+        (predefined_type)))))
+
+========================================================================
+types / generics / parameters / const modifiers are allowed on functions
+========================================================================
+
+declare function id<const T>(value: T): T;
+
+const value = id("ready");
+value satisfies "ready";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+==========================================================================================
+types / generics / parameters / const function parameters preserve array literal precision
+==========================================================================================
+
+declare function id<const T>(value: T): T;
+
+const values = id([1, 2]);
+values[0] satisfies 1;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (array
+            (number)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+===========================================================================================
+types / generics / parameters / non-const function parameters widen array literal arguments
+===========================================================================================
+
+declare function id<T>(value: T): T;
+
+const values = id([1, 2]);
+values[0] satisfies 1;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (array
+            (number)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+=====================================================================================================================
+types / generics / parameters / const function parameters preserve array literal precision through renamed re-exports
+=====================================================================================================================
+
+export declare function id<const T>(value: T): T;
+
+---
+
+(program
+  (export_statement
+    (destack_declare_function_signature
+      (identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (formal_parameters
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (type_identifier))))
+      (type_annotation
+        (type_identifier)))))
+
+=====================================================================================================================
+types / generics / parameters / const function parameters preserve array literal precision through renamed re-exports
+=====================================================================================================================
+
+export { id as stableId } from "./helper.ds";
+
+---
+
+(program
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier)
+        (identifier)))
+    (string
+      (string_fragment))))
+
+=====================================================================================================================
+types / generics / parameters / const function parameters preserve array literal precision through renamed re-exports
+=====================================================================================================================
+
+import { stableId } from "./index.ds";
+
+const values = stableId([1, 2]);
+values[0] satisfies 1;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (array
+            (number)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+======================================================================================================================
+types / generics / parameters / const function parameters preserve array literal precision through export-star barrels
+======================================================================================================================
+
+export declare function id<const T>(value: T): T;
+
+---
+
+(program
+  (export_statement
+    (destack_declare_function_signature
+      (identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (formal_parameters
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (type_identifier))))
+      (type_annotation
+        (type_identifier)))))
+
+======================================================================================================================
+types / generics / parameters / const function parameters preserve array literal precision through export-star barrels
+======================================================================================================================
+
+export * from "./helper.ds";
+
+---
+
+(program
+  (export_statement
+    (string
+      (string_fragment))))
+
+======================================================================================================================
+types / generics / parameters / const function parameters preserve array literal precision through export-star barrels
+======================================================================================================================
+
+import { id } from "./index.ds";
+
+const values = id([1, 2]);
+values[0] satisfies 1;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (array
+            (number)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+====================================================================================================
+types / generics / parameters / const function parameters preserve object literal property precision
+====================================================================================================
+
+declare function id<const T>(value: T): T;
+
+const value = id({ kind: "ready", level: 1 });
+value.kind satisfies "ready";
+value.level satisfies 1;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+=====================================================================================================
+types / generics / parameters / non-const function parameters widen object literal property precision
+=====================================================================================================
+
+declare function id<T>(value: T): T;
+
+const value = id({ kind: "ready", level: 1 });
+value.kind satisfies "ready";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+======================================================================================
+types / generics / parameters / defaulted generic parameters support partial inference
+======================================================================================
+
+declare function pair<T, U = T>(left: T, right?: U): (T, U);
+
+const value = pair(1);
+value[0] satisfies number;
+value[1] satisfies number;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (default_type
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (tuple_type
+        (type_identifier)
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (predefined_type)))))
+
+==============================================================================================================
+types / generics / parameters / defaulted generic parameters reject incompatible partial inference assumptions
+==============================================================================================================
+
+declare function pair<T, U = T>(left: T, right?: U): (T, U);
+
+const value = pair(1);
+value[1] satisfies string;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (default_type
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (tuple_type
+        (type_identifier)
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================================================
+types / generics / parameters / inference prefers argument usage over defaults when provided
+============================================================================================
+
+declare function pair<T, U = T>(left: T, right: U): (T, U);
+
+const value = pair(1, "ok");
+value[0] satisfies number;
+value[1] satisfies string;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (default_type
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (tuple_type
+        (type_identifier)
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (predefined_type)))))
+
+=============================================================================================
+types / generics / parameters / const generic precision survives multi-hop generic forwarding
+=============================================================================================
+
+declare function hold<const T>(value: T): T;
+declare function pass<const T>(value: T): T;
+
+const values = pass(hold([1, 2]));
+values[0] satisfies 1;
+values[1] satisfies 2;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (call_expression
+            (identifier)
+            (arguments
+              (array
+                (number)
+                (number))))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number))))))

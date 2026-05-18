@@ -1,0 +1,320 @@
+===============================================================
+expressions / comptime / scope / comptime locals can be mutated
+===============================================================
+
+const width = comptime {
+    let value = 4;
+    value *= 2;
+    value
+};
+
+width satisfies 8;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (number)))
+          (expression_statement
+            (augmented_assignment_expression
+              (identifier)
+              (number)))
+          (expression_statement
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+======================================================================
+expressions / comptime / scope / comptime values return lowerable data
+======================================================================
+
+struct Config {
+    width: uint;
+    tags: string[];
+}
+
+const config = comptime Config {
+    width: 4,
+    tags: ["fast", "safe"],
+};
+
+config.width satisfies 4;
+config.tags[0] satisfies "fast";
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (array_type
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (struct_literal_expression
+          (identifier)
+          (object
+            (pair
+              (property_identifier)
+              (number))
+            (pair
+              (property_identifier)
+              (array
+                (string
+                  (string_fragment))
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (number))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+==================================================================================
+expressions / comptime / scope / struct comptime blocks can read static parameters
+==================================================================================
+
+struct Buffer<comptime N: uint> {
+    comptime {
+        assert(N > 0);
+    }
+
+    data: [uint8; N];
+}
+
+declare const buffer: Buffer<4>;
+buffer.data satisfies [uint8; 4];
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (class_body
+      (comptime_block_statement
+        (statement_block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (binary_expression
+                  (identifier)
+                  (number)))))))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (literal_type
+                (number))))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (tuple_type
+          (type_identifier)
+          (number))))))
+
+=================================================================================
+expressions / comptime / scope / class comptime blocks can read static parameters
+=================================================================================
+
+class Buffer<comptime N: uint> {
+    comptime {
+        assert(N > 0);
+    }
+
+    data: [uint8; N] = [0; N];
+}
+
+declare const buffer: Buffer<4>;
+buffer.data satisfies [uint8; 4];
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (class_body
+      (comptime_block_statement
+        (statement_block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (binary_expression
+                  (identifier)
+                  (number)))))))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier)))
+        (fixed_array_expression
+          (number)
+          (identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (literal_type
+                (number))))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (tuple_type
+          (type_identifier)
+          (number))))))
+
+==================================================================================
+expressions / comptime / scope / comptime expressions cannot mutate outer bindings
+==================================================================================
+
+let counter = 0;
+
+comptime {
+    counter += 1;
+};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number)))
+  (expression_statement
+    (comptime_expression
+      (statement_block
+        (expression_statement
+          (augmented_assignment_expression
+            (identifier)
+            (number)))))))
+
+===================================================================================
+expressions / comptime / scope / comptime member blocks cannot read instance fields
+===================================================================================
+
+class Counter {
+    value: int32 = 0;
+
+    comptime {
+        const snapshot = this.value;
+        snapshot;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (comptime_block_statement
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (member_expression
+                (this)
+                (property_identifier))))
+          (expression_statement
+            (identifier)))))))
+
+=================================================================================
+expressions / comptime / scope / comptime expressions reject non-lowerable values
+=================================================================================
+
+declare function currentWorker(): Worker;
+
+const worker = comptime currentWorker();
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (arguments))))))

@@ -1,0 +1,237 @@
+=======================================
+Built-in types
+:language(typescript)
+=======================================
+
+var x: string = 'hi';
+var y: number;
+
+---
+
+(program
+  (variable_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string
+        (string_fragment))))
+  (variable_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type)))))
+
+=======================================
+Parenthesized types
+:language(typescript)
+=======================================
+
+var x: (string);
+var x: ({a: any});
+
+---
+
+(program
+  (variable_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (parenthesized_type
+          (predefined_type)))))
+  (variable_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (parenthesized_type
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
+
+=======================================
+Symbol types
+:language(typescript)
+=======================================
+
+const symFoo: unique symbol = Symbol("foo");
+const symBar: symbol = Symbol.for("bar");
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (string
+            (string_fragment)))))))
+
+=======================================
+Type annotations in parenthesized expressions
+:language(typescript)
+=======================================
+
+const range = (document: any).selection.createRange()
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (parenthesized_expression
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (property_identifier))
+          (property_identifier))
+        (arguments)))))
+
+=======================================
+Flow Maybe Types
+:language(typescript)
+=======================================
+
+const editor: ?CodeEditor
+const miscArray: ?T[]
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (flow_maybe_type
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (flow_maybe_type
+          (array_type
+            (type_identifier)))))))
+
+=======================================
+Type alias declarations
+:language(typescript)
+=======================================
+
+type FileMergeData = {
+  document: Doc,
+  headDocument: Doc,
+  baseDocument: Doc,
+  conflicts: ConflictInfo[]
+}
+
+type ConflictInfo = {
+  start?: LineHandle,
+  middle?: LineHandle,
+  end?: LineHandle
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier))))))
+
+=======================================
+Existential types
+:language(typescript)
+=======================================
+
+let x: Array<*>
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (existential_type)))))))
+
+=======================================
+predefined types as identifiers
+:language(typescript)
+=======================================
+
+let score: (string: string, query: string) => number
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type))))))

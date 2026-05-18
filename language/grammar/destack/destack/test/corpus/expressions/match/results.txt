@@ -1,0 +1,329 @@
+==================================================================
+expressions / match / results / const arrays keep literal elements
+==================================================================
+
+const pair = [1, 2] as const;
+
+match (pair) {
+    [first, second] => {
+        first satisfies 1;
+        second satisfies 2;
+    }
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (as_expression
+        (array
+          (number)
+          (number)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (array_pattern
+            (identifier)
+            (identifier)))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (literal_type
+                    (number)))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (literal_type
+                    (number)))))))))))
+
+===========================================================
+expressions / match / results / plain arrays widen elements
+===========================================================
+
+const pair = [1, 2];
+
+match (pair) {
+    [first, second] => {
+        first satisfies number;
+        second satisfies number;
+    }
+    _ => {}
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (array_pattern
+            (identifier)
+            (identifier)))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type)))))))
+      (match_arm
+        (match_pattern
+          (identifier))
+        (match_arm_statement
+          (statement_block))))))
+
+=====================================================================
+expressions / match / results / fixed arrays are exhaustive by length
+=====================================================================
+
+declare const pair: [int32; 2];
+
+match (pair) {
+    [first, second] => {
+        first satisfies int32;
+        second satisfies int32;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (number))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (array_pattern
+            (identifier)
+            (identifier)))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))))))))
+
+================================================================
+expressions / match / results / let bindings widen match results
+================================================================
+
+let value = match (1) {
+    1 => 1
+    _ => 2
+};
+
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (match_expression
+        (number)
+        (match_arm
+          (match_pattern
+            (number))
+          (expression_statement
+            (number)))
+        (match_arm
+          (match_pattern
+            (identifier))
+          (expression_statement
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=============================================================================
+expressions / match / results / literal scrutinees still use binding widening
+=============================================================================
+
+let value = match (1) {
+    1 => 1
+};
+
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (match_expression
+        (number)
+        (match_arm
+          (match_pattern
+            (number))
+          (expression_statement
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===========================================================================
+expressions / match / results / fresh literal results widen in let bindings
+===========================================================================
+
+let value = match (1) {
+    1 => 1
+    _ => 2
+};
+
+value satisfies 1;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (match_expression
+        (number)
+        (match_arm
+          (match_pattern
+            (number))
+          (expression_statement
+            (number)))
+        (match_arm
+          (match_pattern
+            (identifier))
+          (expression_statement
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+=============================================================
+expressions / match / results / result annotations check arms
+=============================================================
+
+function choose(value: int32): string {
+    const result: string = match (value) {
+        0 => "zero"
+        _ => 1
+    };
+    result
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (predefined_type))
+          (match_expression
+            (identifier)
+            (match_arm
+              (match_pattern
+                (number))
+              (expression_statement
+                (string
+                  (string_fragment))))
+            (match_arm
+              (match_pattern
+                (identifier))
+              (expression_statement
+                (number))))))
+      (expression_statement
+        (identifier)))))
+
+==================================================================
+expressions / match / results / const bindings keep literal unions
+==================================================================
+
+const value = match (1) {
+    1 => 1
+    _ => 2
+};
+
+value satisfies 1 | 2;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (match_expression
+        (number)
+        (match_arm
+          (match_pattern
+            (number))
+          (expression_statement
+            (number)))
+        (match_arm
+          (match_pattern
+            (identifier))
+          (expression_statement
+            (number))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (number))))
+      (number))))

@@ -1,0 +1,778 @@
+=====================================================================
+runtime / modules / global / imported global blocks contribute values
+=====================================================================
+
+global {
+    answer: (int32 = 42),
+};
+
+---
+
+(program
+  (global_declaration
+    (global_block
+      (global_property
+        (property_identifier)
+        (global_value
+          (type_identifier)
+          (number)))))
+  (empty_statement))
+
+=====================================================================
+runtime / modules / global / imported global blocks contribute values
+=====================================================================
+
+import "./globals.ds";
+
+answer satisfies int32;
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+runtime / modules / global / duplicate global values are rejected
+=================================================================
+
+global {
+    answer: (int32 = 42),
+};
+
+---
+
+(program
+  (global_declaration
+    (global_block
+      (global_property
+        (property_identifier)
+        (global_value
+          (type_identifier)
+          (number)))))
+  (empty_statement))
+
+=================================================================
+runtime / modules / global / duplicate global values are rejected
+=================================================================
+
+global {
+    answer: (int32 = 7),
+};
+
+---
+
+(program
+  (global_declaration
+    (global_block
+      (global_property
+        (property_identifier)
+        (global_value
+          (type_identifier)
+          (number)))))
+  (empty_statement))
+
+=================================================================
+runtime / modules / global / duplicate global values are rejected
+=================================================================
+
+import "./a.ds";
+import "./b.ds";
+
+answer satisfies int32;
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (import_statement
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+================================================================================
+runtime / modules / global / configured global roots are visible without imports
+================================================================================
+
+global {
+    runtimeName: (string = "test"),
+};
+
+---
+
+(program
+  (global_declaration
+    (global_block
+      (global_property
+        (property_identifier)
+        (global_value
+          (predefined_type)
+          (string
+            (string_fragment))))))
+  (empty_statement))
+
+================================================================================
+runtime / modules / global / configured global roots are visible without imports
+================================================================================
+
+runtimeName satisfies string;
+
+---
+
+(program
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==========================================================================
+runtime / modules / global / global declarations are visible when imported
+==========================================================================
+
+declare global {
+    interface GlobalThing {
+        value: number;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (interface_declaration
+          (type_identifier)
+          (interface_body
+            (destack_property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
+
+==========================================================================
+runtime / modules / global / global declarations are visible when imported
+==========================================================================
+
+import "./globals.ds";
+
+type Alias = GlobalThing;
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier)))
+
+===============================================================================
+runtime / modules / global / global declarations are not visible without import
+===============================================================================
+
+declare global {
+    interface GlobalThing {
+        value: number;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (interface_declaration
+          (type_identifier)
+          (interface_body
+            (destack_property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
+
+===============================================================================
+runtime / modules / global / global declarations are not visible without import
+===============================================================================
+
+type Alias = GlobalThing;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier)))
+
+=====================================================================
+runtime / modules / global / global declarations merge across imports
+=====================================================================
+
+declare global {
+    interface GlobalThing {
+        value: number;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (interface_declaration
+          (type_identifier)
+          (interface_body
+            (destack_property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
+
+=====================================================================
+runtime / modules / global / global declarations merge across imports
+=====================================================================
+
+declare global {
+    interface GlobalThing {
+        label: string;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (interface_declaration
+          (type_identifier)
+          (interface_body
+            (destack_property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
+
+=====================================================================
+runtime / modules / global / global declarations merge across imports
+=====================================================================
+
+import "./a.ds";
+import "./b.ds";
+
+const thing: GlobalThing = { value: 1, label: "ok" };
+thing.label satisfies string;
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (import_statement
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=============================================================================
+runtime / modules / global / global class static members merge across imports
+=============================================================================
+
+declare global {
+    class GlobalBox {
+        static left(): number;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (class_declaration
+          (type_identifier)
+          (class_body
+            (method_signature
+              (property_identifier)
+              (formal_parameters)
+              (type_annotation
+                (predefined_type)))))))))
+
+=============================================================================
+runtime / modules / global / global class static members merge across imports
+=============================================================================
+
+declare global {
+    class GlobalBox {
+        static right(): string;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (class_declaration
+          (type_identifier)
+          (class_body
+            (method_signature
+              (property_identifier)
+              (formal_parameters)
+              (type_annotation
+                (predefined_type)))))))))
+
+=============================================================================
+runtime / modules / global / global class static members merge across imports
+=============================================================================
+
+import "./a.ds";
+import "./b.ds";
+
+const left = GlobalBox.left();
+left satisfies number;
+
+const right = GlobalBox.right();
+right satisfies string;
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (import_statement
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================================================
+runtime / modules / global / global class merges tolerate namespace value augmentations
+=======================================================================================
+
+declare global {
+    class GlobalWidget {
+        ping(): number;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (class_declaration
+          (type_identifier)
+          (class_body
+            (method_signature
+              (property_identifier)
+              (formal_parameters)
+              (type_annotation
+                (predefined_type)))))))))
+
+=======================================================================================
+runtime / modules / global / global class merges tolerate namespace value augmentations
+=======================================================================================
+
+declare global {
+    namespace GlobalWidget {
+        export const tag: string;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (internal_module
+          (identifier)
+          (statement_block
+            (export_statement
+              (lexical_declaration
+                (variable_declarator
+                  (identifier)
+                  (type_annotation
+                    (predefined_type)))))))))))
+
+=======================================================================================
+runtime / modules / global / global class merges tolerate namespace value augmentations
+=======================================================================================
+
+import "./a.ds";
+import "./b.ds";
+
+declare const widget: GlobalWidget;
+widget.ping() satisfies number;
+
+GlobalWidget.tag satisfies string;
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (import_statement
+    (string
+      (string_fragment)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+======================================================================================
+runtime / modules / global / global array augmentations preserve ambient array members
+======================================================================================
+
+declare global {
+    interface Array<T> {
+        first(): T | undefined;
+    }
+}
+
+const values = [1, 2, 3];
+values.length satisfies number;
+values.first() satisfies number | undefined;
+
+---
+
+(program
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (interface_declaration
+          (type_identifier)
+          (type_parameters
+            (type_parameter
+              (type_identifier)))
+          (interface_body
+            (method_signature
+              (property_identifier)
+              (formal_parameters)
+              (type_annotation
+                (union_type
+                  (type_identifier)
+                  (literal_type
+                    (undefined))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments))
+        (satisfies_type
+          (predefined_type)))
+      (undefined))))
+
+=========================================================================================
+runtime / modules / global / global declarations do not conflict with module declarations
+=========================================================================================
+
+export {};
+
+declare class Iterator<T> {
+    next(value?: T): T;
+}
+
+interface IteratorConstructor {
+    from<T>(value: T): Iterator<T>;
+}
+
+declare global {
+    let Iterator: IteratorConstructor;
+}
+
+---
+
+(program
+  (export_statement
+    (export_clause))
+  (ambient_declaration
+    (class_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (class_body
+        (method_signature
+          (property_identifier)
+          (formal_parameters
+            (optional_parameter
+              (identifier)
+              (type_annotation
+                (type_identifier))))
+          (type_annotation
+            (type_identifier))))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)))
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (lexical_declaration
+          (variable_declarator
+            (identifier)
+            (type_annotation
+              (type_identifier))))))))
+
+=========================================================================================
+runtime / modules / global / global declarations do not conflict with module declarations
+=========================================================================================
+
+import "./globals.ds";
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment))))
+
+==========================================================================================
+runtime / modules / global / global augmentations do not conflict with module declarations
+==========================================================================================
+
+export {};
+
+declare abstract class Iterator<T> {
+    next(value?: T): T;
+}
+
+declare global {
+    let Iterator: {
+        new <T>(): Iterator<T>;
+    };
+}
+
+---
+
+(program
+  (export_statement
+    (export_clause))
+  (ambient_declaration
+    (class_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (class_body
+        (method_signature
+          (property_identifier)
+          (formal_parameters
+            (optional_parameter
+              (identifier)
+              (type_annotation
+                (type_identifier))))
+          (type_annotation
+            (type_identifier))))))
+  (ambient_declaration
+    (global_declaration
+      (statement_block
+        (lexical_declaration
+          (variable_declarator
+            (identifier)
+            (type_annotation
+              (object_type
+                (method_signature
+                  (property_identifier)
+                  (type_parameters
+                    (type_parameter
+                      (type_identifier)))
+                  (formal_parameters)
+                  (type_annotation
+                    (generic_type
+                      (type_identifier)
+                      (type_arguments
+                        (type_identifier)))))))))))))
+
+==========================================================================================
+runtime / modules / global / global augmentations do not conflict with module declarations
+==========================================================================================
+
+import "./globals.ds";
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment))))
+
+========================================================================================
+runtime / modules / global / global declarations in module bindings can use module scope
+========================================================================================
+
+export {};
+
+declare module "foo" {
+    type Local = number;
+
+    global {
+        interface GlobalThing {
+            value: Local;
+        }
+    }
+}
+
+---
+
+(program
+  (export_statement
+    (export_clause))
+  (ambient_declaration
+    (string
+      (string_fragment))
+    (statement_block
+      (type_alias_declaration
+        (type_identifier)
+        (predefined_type))
+      (global_declaration
+        (statement_block
+          (interface_declaration
+            (type_identifier)
+            (interface_body
+              (destack_property_signature
+                (property_identifier)
+                (type_annotation
+                  (type_identifier))))))))))
+
+========================================================================================
+runtime / modules / global / global declarations in module bindings can use module scope
+========================================================================================
+
+import "./bindings.ds";
+
+type Alias = GlobalThing;
+const value: Alias = { value: 1 };
+
+---
+
+(program
+  (import_statement
+    (string
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))))))

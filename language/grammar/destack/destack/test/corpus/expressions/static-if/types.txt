@@ -1,0 +1,52 @@
+======================================================================
+expressions / static if / types / when false, @if removes type aliases
+======================================================================
+
+@if(false)
+type Hidden = MissingType;
+
+type Visible = number;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (false))
+    (type_alias_declaration
+      (type_identifier)
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (predefined_type)))
+
+======================================================================
+expressions / static if / types / when true, @if includes type aliases
+======================================================================
+
+@if(true)
+type Visible = number;
+
+declare const value: Visible;
+value satisfies number;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (true))
+    (type_alias_declaration
+      (type_identifier)
+      (predefined_type)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

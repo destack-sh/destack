@@ -1,0 +1,340 @@
+=======================================================================
+types / type operators / typeof / typeof returns value types for locals
+=======================================================================
+
+const value = 42;
+
+type ValueType = typeof value;
+
+let ok: ValueType = 42;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+====================================================================
+types / type operators / typeof / typeof rejects incompatible locals
+====================================================================
+
+const value = 42;
+
+type ValueType = typeof value;
+
+let bad: ValueType = "no";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+==============================================================================
+types / type operators / typeof / typeof returns constructor types for classes
+==============================================================================
+
+class Counter {
+    static version: int32;
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+
+type CounterCtor = typeof Counter;
+
+declare function takesCounter(ctor: { new (value: int32): Counter }): void;
+
+takesCounter(Counter);
+
+let okVersion: CounterCtor["version"] = 1;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (method_signature
+              (property_identifier)
+              (formal_parameters
+                (required_parameter
+                  (identifier)
+                  (type_annotation
+                    (type_identifier))))
+              (type_annotation
+                (type_identifier)))))))
+    (type_annotation
+      (predefined_type)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (lookup_type
+          (type_identifier)
+          (literal_type
+            (string
+              (string_fragment)))))
+      (number))))
+
+===========================================================================
+types / type operators / typeof / typeof rejects incompatible static fields
+===========================================================================
+
+class Counter {
+    static version: int32;
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+    }
+}
+
+type CounterCtor = typeof Counter;
+
+let badVersion: CounterCtor["version"] = "no";
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (lookup_type
+          (type_identifier)
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+================================================================
+types / type operators / typeof / typeof includes static methods
+================================================================
+
+class Counter {
+    static next(value: int32): int32 {
+        return value + 1;
+    }
+}
+
+type CounterCtor = typeof Counter;
+type CounterNext = (typeof Counter)["next"];
+
+let ctor: CounterCtor = Counter;
+let okNext: int32 = ctor.next(1);
+
+let okFn: CounterNext = Counter.next;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (binary_expression
+              (identifier)
+              (number)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (parenthesized_type
+        (type_query
+          (identifier)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))
+
+=================================================================================
+types / type operators / typeof / typeof rejects static method call assignability
+=================================================================================
+
+class Counter {
+    static next(value: int32): int32 {
+        return value + 1;
+    }
+}
+
+type CounterCtor = typeof Counter;
+
+let ctor: CounterCtor = Counter;
+let badNext: string = ctor.next(1);
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (binary_expression
+              (identifier)
+              (number)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (number))))))

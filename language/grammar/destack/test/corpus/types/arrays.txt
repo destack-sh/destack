@@ -1,0 +1,130 @@
+=======================================
+Array types
+:language(typescript)
+=======================================
+
+let x: X[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (type_identifier))))))
+
+==================================
+Read-only arrays
+:language(typescript)
+==================================
+
+type t = a[]
+type t = readonly a[]
+type t = readonly a[][]
+type t = (readonly a[])[]
+type t = readonly (readonly a[]) []
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (array_type
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (array_type
+        (array_type
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (parenthesized_type
+        (readonly_type
+          (array_type
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (array_type
+        (parenthesized_type
+          (readonly_type
+            (array_type
+              (type_identifier))))))))
+
+==================================
+Tuple types
+:language(typescript)
+==================================
+
+type t = []
+type t = [A,]
+type t = [A|B, C]
+type t = readonly [A[], B.C]
+
+// special optional and rest type syntax
+type t = [string?, ...B]
+
+// labeled elements
+type t = [a: A, b?: B, ...c: C[]]
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (union_type
+        (type_identifier)
+        (type_identifier))
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (tuple_type
+        (array_type
+          (type_identifier))
+        (nested_type_identifier
+          (identifier)
+          (type_identifier)))))
+  (comment)
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (optional_type
+        (predefined_type))
+      (rest_type
+        (type_identifier))))
+  (comment)
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (rest_pattern
+          (identifier))
+        (type_annotation
+          (array_type
+            (type_identifier)))))))

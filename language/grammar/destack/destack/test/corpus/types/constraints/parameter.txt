@@ -1,0 +1,338 @@
+===========================================================================
+types / constraints / parameter / type parameters accept matching arguments
+===========================================================================
+
+interface Readable {
+    read(): void;
+}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+const value: Readable = {
+    read() {},
+};
+clone<Readable>(value);
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (method_definition
+          (property_identifier)
+          (formal_parameters)
+          (statement_block)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments
+        (identifier)))))
+
+=============================================================================
+types / constraints / parameter / type parameters reject mismatched arguments
+=============================================================================
+
+interface Readable {
+    read(): void;
+}
+
+interface NotReadable {}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+const value: NotReadable = {};
+clone<NotReadable>(value);
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments
+        (identifier)))))
+
+=============================================================================
+types / constraints / parameter / inferred arguments must satisfy constraints
+=============================================================================
+
+interface Readable {
+    read(): void;
+}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+clone({
+    read() {},
+});
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (method_definition
+            (property_identifier)
+            (formal_parameters)
+            (statement_block)))))))
+
+=============================================================================
+types / constraints / parameter / inferred arguments reject unmet constraints
+=============================================================================
+
+interface Readable {
+    read(): void;
+}
+
+function clone<T: Readable>(value: T): T {
+    return value;
+}
+
+clone({
+    merge() {},
+});
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (method_definition
+            (property_identifier)
+            (formal_parameters)
+            (statement_block)))))))
+
+===================================================================================
+types / constraints / parameter / static value parameters accept matching arguments
+===================================================================================
+
+function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
+    return value;
+}
+
+const bytes = take<4>([1, 2, 3, 4]);
+bytes satisfies [uint8; 4];
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier)))))
+    (type_annotation
+      (tuple_type
+        (type_identifier)
+        (identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (type_arguments
+          (literal_type
+            (number)))
+        (arguments
+          (array
+            (number)
+            (number)
+            (number)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (tuple_type
+          (type_identifier)
+          (number))))))
+
+=====================================================================================
+types / constraints / parameter / static value parameters reject mismatched arguments
+=====================================================================================
+
+function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
+    return value;
+}
+
+take<"four">([1, 2, 3, 4]);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier)))))
+    (type_annotation
+      (tuple_type
+        (type_identifier)
+        (identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (literal_type
+          (string
+            (string_fragment))))
+      (arguments
+        (array
+          (number)
+          (number)
+          (number)
+          (number))))))
