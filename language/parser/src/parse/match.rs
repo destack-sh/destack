@@ -294,11 +294,9 @@ impl Parser {
                 return Ok(match_case_id);
             }
             let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
-            loop {
-                // skip empty lines before statements
-
-                // consume empty statements (`;`) between switch body statements
-                if self.is_statement_stop() {
+            while self.has_more_tokens() {
+                // consume empty statements between switch body statements
+                if self.peek_is(TokenType::Semicolon) {
                     self.eat_statement_stop()?;
                     continue;
                 }
@@ -322,7 +320,12 @@ impl Parser {
                             .insert(Expression::Error, self.get_span_from(&statement_start))
                     });
                 expressions.push(expression_id);
-                if self.is_any_stop() {
+
+                // consume real separators without treating eof as progress
+                if matches!(
+                    self.peek_token_type(),
+                    TokenType::Comma | TokenType::Semicolon
+                ) {
                     self.eat_any_stop()?;
                 }
             }
@@ -423,7 +426,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Block, CommentKind, Expression, MatchCase, MatchForm, MatchSelector, Pattern, ScalarLiteral,
+        Block, CommentKind, Declarator, Expression, LetKind, MatchCase, MatchForm, MatchSelector,
+        Mutability, NodeType, Pattern, ScalarLiteral,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -932,6 +936,50 @@ switch (value) {
                 });
             });
         });
+    }
+
+    /// Recover a switch case body that reaches EOF before the switch closes.
+    #[test]
+    fn test_parse_switch_case_body_recovers_at_eof() {
+        let mut test = TestParser::new_with_language(
+            "switch (cond) { case 10: let a = 20;",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let roots = parser.parse();
+
+        assert_eq!(roots.len(), 1);
+        assert_node!(parser.tree, roots[0], Expression::Match { form, value, cases } => {
+            assert_eq!(*form, MatchForm::Switch);
+            assert_expression_path!(parser, parser.tree.get(*value), "cond");
+            assert_eq!(cases.len(), 1);
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { selector, body } => {
+                assert_node!(selector, MatchSelector::Pattern { pattern, guard } => {
+                    assert!(guard.is_none());
+                    assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(10)));
+                    });
+                });
+                assert_node!(parser.tree, *body, Expression::Let { kind, export, mutability, declarators, is_ambient, is_shared } => {
+                    assert_eq!(*kind, LetKind::Let);
+                    assert_eq!(*export, None);
+                    assert_eq!(*mutability, Mutability::Mutable);
+                    assert!(!*is_ambient);
+                    assert!(!*is_shared);
+                    assert_eq!(declarators.len(), 1);
+                    assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                        assert!(ty.is_none());
+                        assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern } => {
+                            assert_string!(parser, *name, "a");
+                            assert!(pattern.is_none());
+                        });
+                        assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
+                    });
+                });
+            });
+        });
+
+        test.assert_error_leaves(&parser, &[(Some(NodeType::MatchCase), None, "")]);
     }
 
     /// Parse minified switch cases where `continue` is followed by `}` and another `if`.
