@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// Package dependency declarations keyed by package specifier.
-pub type DependencyMap = IndexMap<String, Dependency>;
+use crate::config::ConditionGate;
 
 /// Package dependency declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -57,8 +56,59 @@ impl Dependency {
     }
 }
 
+/// Dependency declarations guarded by one active condition predicate.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalDependencies {
+    /// Condition predicate enabling these dependencies.
+    pub when: ConditionPredicate,
+    /// Dependency declarations enabled when the predicate matches.
+    pub dependencies: IndexMap<String, Dependency>,
+}
+
+/// Predicate selecting one active condition set.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum ConditionPredicate {
+    /// Named condition alias.
+    Alias(String),
+    /// Inline condition gate.
+    Gate(ConditionGate),
+}
+
+impl Default for ConditionPredicate {
+    fn default() -> Self {
+        Self::Gate(ConditionGate::default())
+    }
+}
+
+/// Package registry declaration.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct Registry {
+    /// Registry base URL.
+    pub url: String,
+}
+
+/// Patch file applied to one resolved package.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct PackagePatch {
+    /// Patch file path.
+    pub path: PathBuf,
+}
+
 /// Validate dependency declarations.
-pub(crate) fn validate_dependency_map(dependencies: Option<&DependencyMap>) -> Result<(), String> {
+pub(crate) fn validate_dependency_map(
+    dependencies: Option<&IndexMap<String, Dependency>>,
+) -> Result<(), String> {
     if let Some(dependencies) = dependencies {
         for (name, dependency) in dependencies {
             dependency.validate(name)?;

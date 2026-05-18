@@ -115,6 +115,38 @@
       },
       "default": {}
     },
+    "conditionalDependencies": {
+      "description": "Dependencies enabled by condition predicates.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ConditionalDependencies"
+      },
+      "default": []
+    },
+    "overrides": {
+      "description": "Package dependency overrides.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Dependency"
+      },
+      "default": {}
+    },
+    "patches": {
+      "description": "Package patch files.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/PackagePatch"
+      },
+      "default": {}
+    },
+    "registries": {
+      "description": "Package registries.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Registry"
+      },
+      "default": {}
+    },
     "vendoring": {
       "description": "Vendored dependency resolution declaration.",
       "$ref": "#/$defs/Vendor",
@@ -128,7 +160,6 @@
       "default": {
         "module": "esnext",
         "target": "esnext",
-        "environment": null,
         "profile": null,
         "modes": [],
         "roles": [],
@@ -521,14 +552,6 @@
       },
       "default": {}
     },
-    "environments": {
-      "description": "Named reusable toolchain and runtime environments.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/EnvironmentOptions"
-      },
-      "default": {}
-    },
     "profiles": {
       "description": "Named profiles for semantic configuration.",
       "type": "object",
@@ -547,6 +570,14 @@
         "tags": {},
         "aliases": {}
       }
+    },
+    "tasks": {
+      "description": "Named toolchain and shell tasks.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Task"
+      },
+      "default": {}
     },
     "defaultTarget": {
       "description": "Default target for the package.",
@@ -674,6 +705,200 @@
         }
       ]
     },
+    "ConditionalDependencies": {
+      "description": "Dependency declarations guarded by one active condition predicate.",
+      "type": "object",
+      "properties": {
+        "when": {
+          "description": "Condition predicate enabling these dependencies.",
+          "$ref": "#/$defs/ConditionPredicate",
+          "default": {
+            "mode": null,
+            "role": null,
+            "feature": null,
+            "tag": null,
+            "target": null,
+            "product": null,
+            "platform": null,
+            "host": null,
+            "runtime": null
+          }
+        },
+        "dependencies": {
+          "description": "Dependency declarations enabled when the predicate matches.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Dependency"
+          },
+          "default": {}
+        }
+      }
+    },
+    "ConditionPredicate": {
+      "description": "Predicate selecting one active condition set.",
+      "anyOf": [
+        {
+          "description": "Named condition alias.",
+          "type": "string"
+        },
+        {
+          "description": "Inline condition gate.",
+          "$ref": "#/$defs/ConditionGate"
+        }
+      ]
+    },
+    "ConditionGate": {
+      "description": "Predicate over active source graph and runtime conditions.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Active mode selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "role": {
+          "description": "Active role selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "feature": {
+          "description": "Active feature selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tag": {
+          "description": "Active tag selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "target": {
+          "description": "Active build target selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "product": {
+          "description": "Active product selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "platform": {
+          "description": "Active target platform selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "host": {
+          "description": "Active host environment selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "runtime": {
+          "description": "Active runtime selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      }
+    },
+    "ConditionSelector": {
+      "description": "Selector over one active condition axis.",
+      "type": "object",
+      "properties": {
+        "patterns": {
+          "description": "Condition names or glob patterns.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "patterns"
+      ]
+    },
+    "PackagePatch": {
+      "description": "Patch file applied to one resolved package.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Patch file path.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "Registry": {
+      "description": "Package registry declaration.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "Registry base URL.",
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
     "Vendor": {
       "description": "Vendored dependency resolution options.",
       "type": "object",
@@ -723,14 +948,6 @@
           "description": "ECMAScript target version.",
           "$ref": "#/$defs/EsTarget",
           "default": "esnext"
-        },
-        "environment": {
-          "description": "Default environment.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
         },
         "profile": {
           "description": "Default profile.",
@@ -1343,22 +1560,6 @@
           "type": "string",
           "const": "doesNotExist"
         }
-      ]
-    },
-    "ConditionSelector": {
-      "description": "Selector over one active condition axis.",
-      "type": "object",
-      "properties": {
-        "patterns": {
-          "description": "Condition names or glob patterns.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "patterns"
       ]
     },
     "PolicyAccess": {
@@ -6985,40 +7186,6 @@
         }
       }
     },
-    "EnvironmentOptions": {
-      "description": "Environment options.",
-      "type": "object",
-      "properties": {
-        "profile": {
-          "description": "Default profile selection for this environment.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "modes": {
-          "description": "Default active source graph modes for this environment.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "runtime": {
-          "description": "Runtime overrides for this environment.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeOptions"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      }
-    },
     "ProfileOptions": {
       "description": "Normalized profile options.",
       "type": "object",
@@ -7212,117 +7379,103 @@
         }
       }
     },
-    "ConditionGate": {
-      "description": "Predicate over active source graph and runtime conditions.",
+    "Task": {
+      "description": "Named toolchain or shell invocation.",
       "type": "object",
       "properties": {
-        "mode": {
-          "description": "Active mode selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
+        "run": {
+          "description": "Destack command name to run.",
+          "type": [
+            "string",
+            "null"
           ],
           "default": null
         },
-        "role": {
-          "description": "Active role selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "feature": {
-          "description": "Active feature selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "tag": {
-          "description": "Active tag selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
+        "exec": {
+          "description": "Explicit shell command to execute.",
+          "type": [
+            "string",
+            "null"
           ],
           "default": null
         },
         "target": {
-          "description": "Active build target selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Build target selected for this task.",
+          "type": [
+            "string",
+            "null"
           ],
           "default": null
         },
         "product": {
-          "description": "Active product selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
+          "description": "Product selected for this task.",
+          "type": [
+            "string",
+            "null"
           ],
           "default": null
         },
-        "platform": {
-          "description": "Active target platform selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
+        "profile": {
+          "description": "Profile selected for this task.",
+          "type": [
+            "string",
+            "null"
           ],
           "default": null
         },
-        "host": {
-          "description": "Active host environment selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+        "modes": {
+          "description": "Active source graph modes added by this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         },
-        "runtime": {
-          "description": "Active runtime selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionSelector"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+        "roles": {
+          "description": "Active source graph roles added by this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "features": {
+          "description": "Active source graph features added by this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "tags": {
+          "description": "Active source graph tags added by this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "env": {
+          "description": "Environment variables passed to this task.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "arguments": {
+          "description": "Structured command arguments.",
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "dependsOn": {
+          "description": "Tasks that must complete before this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         }
       }
     }

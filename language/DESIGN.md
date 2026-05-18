@@ -2524,6 +2524,32 @@ test("loadUser", () => {
 
 Chained like `user.test.browser.ds` behave as "and" gates on all conditions, that is, `user.test.browser.ds` is included only when both `test` mode and the `browser` alias match.
 
+Package dependencies can also be gated by the same condition system.
+Top-level dependencies are always part of the source graph, while `conditionalDependencies` are included when their `when` predicate matches.
+The `when` field accepts either an alias name or a full condition gate:
+
+```json:destack.json
+{
+    "dependencies": {
+        "@destack/http": { "source": "registry", "version": "^1.0.0" }
+    },
+    "conditionalDependencies": [
+        {
+            "when": "test",
+            "dependencies": {
+                "@destack/test": { "source": "registry", "version": "^1.0.0" }
+            }
+        },
+        {
+            "when": { "feature": "sqlite", "host": "native" },
+            "dependencies": {
+                "@destack/sqlite": { "source": "registry", "version": "^1.0.0" }
+            }
+        }
+    ]
+}
+```
+
 ### Import Meta
 
 `import.meta` exposes profile metadata and current module metadata during static and comptime evaluation.
