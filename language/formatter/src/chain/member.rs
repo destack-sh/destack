@@ -1,7 +1,10 @@
 use super::groups::{
     MemberChainGroup, TailChainGroups, build_tail_chain_groups, chain_head_member_count,
 };
-use crate::expression::parenthesized_expression_needs_preserved_wrapper;
+use crate::expression::{
+    parenthesized_expression_needs_preserved_wrapper,
+    transparent_wrapper_needs_parentheses_in_parent,
+};
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_core::StringId;
@@ -149,14 +152,20 @@ pub(crate) fn chain_node_left_id(
 
 /// Collect all chain nodes from root to leaf.
 pub(crate) fn chain_nodes(
-    tree: &Tree,
+    context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Expression>> {
+    let tree = context.tree;
     // walk from leaf to root through chain links
     let mut chain = Vec::new();
     let mut current = node_id;
     loop {
         chain.push(current);
+
+        // semantic transparent wrappers become the base of the remaining chain
+        if transparent_wrapper_needs_parentheses_in_parent(context, current) {
+            break;
+        }
 
         let Some(next_id) = chain_node_left_id(tree, current) else {
             break;
@@ -208,7 +217,7 @@ pub(super) fn build_member_chain_parts(
     TailChainGroups,
 )> {
     let tree = context.tree;
-    let chain = chain_nodes(tree, node_id);
+    let chain = chain_nodes(context, node_id);
     let root_id = chain[0];
     let base_root_id = root_id;
 
@@ -612,15 +621,19 @@ fn maybe_position_for_left(
 
 /// Return whether the normalized chain contains at least one call-like operation.
 pub(crate) fn chain_has_call_like_expression(
-    tree: &Tree,
+    context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    chain_nodes(tree, node_id).into_iter().any(|expression_id| {
-        matches!(
-            tree.get(expression_id),
-            Expression::Call { .. } | Expression::Instantiation { .. }
-        )
-    })
+    let tree = context.tree;
+
+    chain_nodes(context, node_id)
+        .into_iter()
+        .any(|expression_id| {
+            matches!(
+                tree.get(expression_id),
+                Expression::Call { .. } | Expression::Instantiation { .. }
+            )
+        })
 }
 
 /// Walk upward through transparent wrappers to find an assignment-like parent rhs.

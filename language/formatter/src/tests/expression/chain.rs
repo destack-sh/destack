@@ -134,6 +134,32 @@ fn test_format_parenthesized_instantiation_callee_keeps_grouping() {
     );
 }
 
+/// Parenthesized member callees should keep explicit field selection.
+#[test]
+fn test_format_parenthesized_member_callee_keeps_field_selection() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"(runner.run)() satisfies "field"
+"#,
+        r#"(runner.run)() satisfies "field";
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
+/// Parenthesized identifier callees should drop redundant grouping before type arguments.
+#[test]
+fn test_format_parenthesized_identifier_callee_drops_redundant_grouping() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"(run)<string>()
+"#,
+        r#"run<string>();
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
 /// Short statement-position heads should merge the first chain group.
 #[test]
 fn test_format_member_chain_merges_short_statement_head() {
