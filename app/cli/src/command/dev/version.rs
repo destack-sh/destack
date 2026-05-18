@@ -437,7 +437,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_should_not_ignore_path_for_workspace_package() {
         let path = Path::new("bridge/vscode/package.json");
 

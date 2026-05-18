@@ -1,9 +1,6 @@
 use clap::{Args, ValueEnum};
-use destack_workspace::{
-    ClockSourceJson, HeapOptionsJson, HeapSpaceOptionsJson, RandomOptionsJson, RandomSourceJson,
-    RuntimeOptionsJson, SchedulerModeJson, SchedulerOptionsJson, SchedulerPolicyJson,
-    TimeOptionsJson, TraceModeJson, TraceOptionsJson,
-};
+use destack_workspace::ConfigPatch;
+use serde_json::{Map, Value};
 use std::path::PathBuf;
 
 /// Runtime configuration arguments for run-like commands.
@@ -135,114 +132,191 @@ impl RuntimeArgs {
             && self.heap_shared_hard_limit_bytes.is_none()
     }
 
-    /// Convert runtime arguments into runtime option overrides.
-    pub fn to_runtime_overrides(&self) -> Option<RuntimeOptionsJson> {
+    /// Convert runtime arguments into one config patch.
+    pub fn to_config_patch(&self) -> Option<ConfigPatch> {
         if self.is_empty() {
             return None;
         }
 
-        let trace = if self.execution_mode.is_some()
-            || self.replay_path.is_some()
-            || self.replay_template.is_some()
-            || self.replay_chunk_mb.is_some()
-        {
-            Some(TraceOptionsJson {
-                mode: self.execution_mode.map(TraceModeJson::from),
-                restore: None,
-                path: self
-                    .replay_path
-                    .as_ref()
-                    .map(|path| path.to_string_lossy().into()),
-                template: self.replay_template.clone(),
-                chunk_size_mb: self.replay_chunk_mb,
-                payload: None,
-            })
-        } else {
-            None
-        };
+        let mut runtime = Map::new();
 
-        let time =
-            if self.time_mode.is_some() || self.time_epoch_ns.is_some() || self.time_zone.is_some()
-            {
-                Some(TimeOptionsJson {
-                    source: self.time_mode.map(Into::into),
-                    epoch_ns: self.time_epoch_ns,
-                    time_zone: self.time_zone.clone(),
-                })
-            } else {
-                None
-            };
+        // apply collapsed execution mode
+        if let Some(mode) = self.execution_mode {
+            insert_runtime_value(&mut runtime, "scheduler", "mode", mode.scheduler_value());
+            insert_runtime_value(&mut runtime, "trace", "mode", mode.trace_value());
+            if mode == ExecutionModeArg::Replay {
+                insert_runtime_value(
+                    &mut runtime,
+                    "time",
+                    "source",
+                    Value::String("virtual".into()),
+                );
+                insert_runtime_value(
+                    &mut runtime,
+                    "random",
+                    "source",
+                    Value::String("deterministic".into()),
+                );
+            }
+        }
 
-        let random =
-            if self.random_mode.is_some() || self.random_seed.is_some() || self.random_per_runnable
-            {
-                Some(RandomOptionsJson {
-                    source: self.random_mode.map(Into::into),
-                    seed: self.random_seed,
-                    per_runnable: self.random_per_runnable.then_some(true),
-                })
-            } else {
-                None
-            };
+        // apply trace settings
+        if let Some(path) = self.replay_path.as_ref() {
+            insert_runtime_value(
+                &mut runtime,
+                "trace",
+                "path",
+                Value::String(path.to_string_lossy().into_owned()),
+            );
+        }
+        if let Some(template) = self.replay_template.as_ref() {
+            insert_runtime_value(
+                &mut runtime,
+                "trace",
+                "template",
+                Value::String(template.clone()),
+            );
+        }
+        if let Some(chunk_size_mb) = self.replay_chunk_mb {
+            insert_runtime_value(&mut runtime, "trace", "chunkSizeMb", chunk_size_mb.into());
+        }
 
-        let scheduler = if self.scheduler_policy.is_some()
-            || self.scheduler_tick_budget_ns.is_some()
-            || self.scheduler_microtask_budget.is_some()
-            || self.scheduler_max_microtask_depth.is_some()
-            || self.scheduler_timer_resolution_ns.is_some()
-            || self.scheduler_max_timer_coalesce_ns.is_some()
-            || self.scheduler_preempt_interval_ns.is_some()
-            || self.scheduler_task_limit.is_some()
-            || self.execution_mode.is_some()
-        {
-            Some(SchedulerOptionsJson {
-                mode: self.execution_mode.map(SchedulerModeJson::from),
-                tick_budget_ns: self.scheduler_tick_budget_ns,
-                microtask_budget: self.scheduler_microtask_budget,
-                max_microtask_depth: self.scheduler_max_microtask_depth,
-                timer_resolution_ns: self.scheduler_timer_resolution_ns,
-                max_timer_coalesce_ns: self.scheduler_max_timer_coalesce_ns,
-                preempt_interval_ns: self.scheduler_preempt_interval_ns,
-                policy: self.scheduler_policy.map(Into::into),
-                task_limit: self.scheduler_task_limit,
-                poller_backend: None,
-            })
-        } else {
-            None
-        };
+        // apply time settings
+        if let Some(mode) = self.time_mode {
+            insert_runtime_value(&mut runtime, "time", "source", mode.value());
+        }
+        if let Some(epoch_ns) = self.time_epoch_ns {
+            insert_runtime_value(&mut runtime, "time", "epochNs", epoch_ns.into());
+        }
+        if let Some(time_zone) = self.time_zone.as_ref() {
+            insert_runtime_value(
+                &mut runtime,
+                "time",
+                "timeZone",
+                Value::String(time_zone.clone()),
+            );
+        }
 
-        let heap = if self.heap_local_growth_percent.is_some()
-            || self.heap_local_memory_limit_bytes.is_some()
-            || self.heap_local_hard_limit_bytes.is_some()
-            || self.heap_shared_growth_percent.is_some()
-            || self.heap_shared_memory_limit_bytes.is_some()
-            || self.heap_shared_hard_limit_bytes.is_some()
-        {
-            Some(HeapOptionsJson {
-                local: Some(HeapSpaceOptionsJson {
-                    growth_percent: self.heap_local_growth_percent,
-                    memory_limit_bytes: self.heap_local_memory_limit_bytes,
-                    hard_limit_bytes: self.heap_local_hard_limit_bytes,
-                }),
-                shared: Some(HeapSpaceOptionsJson {
-                    growth_percent: self.heap_shared_growth_percent,
-                    memory_limit_bytes: self.heap_shared_memory_limit_bytes,
-                    hard_limit_bytes: self.heap_shared_hard_limit_bytes,
-                }),
-                allocator: None,
-            })
-        } else {
-            None
-        };
+        // apply randomness settings
+        if let Some(mode) = self.random_mode {
+            insert_runtime_value(&mut runtime, "random", "source", mode.value());
+        }
+        if let Some(seed) = self.random_seed {
+            insert_runtime_value(&mut runtime, "random", "seed", seed.into());
+        }
+        if self.random_per_runnable {
+            insert_runtime_value(&mut runtime, "random", "perRunnable", true.into());
+        }
 
-        Some(RuntimeOptionsJson {
-            scheduler,
-            trace,
-            time,
-            random,
-            heap,
-            platform: None,
-            ..Default::default()
+        // apply scheduler settings
+        if let Some(policy) = self.scheduler_policy {
+            insert_runtime_value(&mut runtime, "scheduler", "policy", policy.value());
+        }
+        if let Some(tick_budget_ns) = self.scheduler_tick_budget_ns {
+            insert_runtime_value(
+                &mut runtime,
+                "scheduler",
+                "tickBudgetNs",
+                tick_budget_ns.into(),
+            );
+        }
+        if let Some(microtask_budget) = self.scheduler_microtask_budget {
+            insert_runtime_value(
+                &mut runtime,
+                "scheduler",
+                "microtaskBudget",
+                microtask_budget.into(),
+            );
+        }
+        if let Some(max_microtask_depth) = self.scheduler_max_microtask_depth {
+            insert_runtime_value(
+                &mut runtime,
+                "scheduler",
+                "maxMicrotaskDepth",
+                max_microtask_depth.into(),
+            );
+        }
+        if let Some(timer_resolution_ns) = self.scheduler_timer_resolution_ns {
+            insert_runtime_value(
+                &mut runtime,
+                "scheduler",
+                "timerResolutionNs",
+                timer_resolution_ns.into(),
+            );
+        }
+        if let Some(max_timer_coalesce_ns) = self.scheduler_max_timer_coalesce_ns {
+            insert_runtime_value(
+                &mut runtime,
+                "scheduler",
+                "maxTimerCoalesceNs",
+                max_timer_coalesce_ns.into(),
+            );
+        }
+        if let Some(preempt_interval_ns) = self.scheduler_preempt_interval_ns {
+            insert_runtime_value(
+                &mut runtime,
+                "scheduler",
+                "preemptIntervalNs",
+                preempt_interval_ns.into(),
+            );
+        }
+        if let Some(task_limit) = self.scheduler_task_limit {
+            insert_runtime_value(&mut runtime, "scheduler", "taskLimit", task_limit.into());
+        }
+
+        // apply heap settings
+        if let Some(growth_percent) = self.heap_local_growth_percent {
+            insert_runtime_value(
+                &mut runtime,
+                "heap",
+                "gc",
+                heap_space_value("local", "growthPercent", growth_percent.into()),
+            );
+        }
+        if let Some(memory_limit_bytes) = self.heap_local_memory_limit_bytes {
+            insert_runtime_value(
+                &mut runtime,
+                "heap",
+                "gc",
+                heap_space_value("local", "memoryLimitBytes", memory_limit_bytes.into()),
+            );
+        }
+        if let Some(max_bytes) = self.heap_local_hard_limit_bytes {
+            insert_runtime_value(
+                &mut runtime,
+                "heap",
+                "limit",
+                heap_space_value("local", "maxBytes", max_bytes.into()),
+            );
+        }
+        if let Some(growth_percent) = self.heap_shared_growth_percent {
+            insert_runtime_value(
+                &mut runtime,
+                "heap",
+                "gc",
+                heap_space_value("shared", "growthPercent", growth_percent.into()),
+            );
+        }
+        if let Some(memory_limit_bytes) = self.heap_shared_memory_limit_bytes {
+            insert_runtime_value(
+                &mut runtime,
+                "heap",
+                "gc",
+                heap_space_value("shared", "memoryLimitBytes", memory_limit_bytes.into()),
+            );
+        }
+        if let Some(max_bytes) = self.heap_shared_hard_limit_bytes {
+            insert_runtime_value(
+                &mut runtime,
+                "heap",
+                "limit",
+                heap_space_value("shared", "maxBytes", max_bytes.into()),
+            );
+        }
+
+        Some(ConfigPatch {
+            path: "runtime".to_string(),
+            value: Value::Object(runtime),
         })
     }
 }
@@ -260,23 +334,23 @@ pub enum ExecutionModeArg {
     Replay,
 }
 
-impl From<ExecutionModeArg> for SchedulerModeJson {
-    fn from(value: ExecutionModeArg) -> Self {
-        match value {
-            ExecutionModeArg::Fast => Self::Parallel,
-            ExecutionModeArg::Deterministic
-            | ExecutionModeArg::Record
-            | ExecutionModeArg::Replay => Self::Cooperative,
+impl ExecutionModeArg {
+    /// Return the scheduler config value implied by this execution mode.
+    fn scheduler_value(self) -> Value {
+        match self {
+            Self::Fast => Value::String("parallel".into()),
+            Self::Deterministic | Self::Record | Self::Replay => {
+                Value::String("cooperative".into())
+            }
         }
     }
-}
 
-impl From<ExecutionModeArg> for TraceModeJson {
-    fn from(value: ExecutionModeArg) -> Self {
-        match value {
-            ExecutionModeArg::Fast | ExecutionModeArg::Deterministic => Self::Off,
-            ExecutionModeArg::Record => Self::Record,
-            ExecutionModeArg::Replay => Self::Replay,
+    /// Return the trace config value implied by this execution mode.
+    fn trace_value(self) -> Value {
+        match self {
+            Self::Fast | Self::Deterministic => Value::String("off".into()),
+            Self::Record => Value::String("record".into()),
+            Self::Replay => Value::String("replay".into()),
         }
     }
 }
@@ -293,12 +367,13 @@ pub enum SchedulerPolicyArg {
     WorkStealing,
 }
 
-impl From<SchedulerPolicyArg> for SchedulerPolicyJson {
-    fn from(value: SchedulerPolicyArg) -> Self {
-        match value {
-            SchedulerPolicyArg::Fifo => SchedulerPolicyJson::Fifo,
-            SchedulerPolicyArg::Fair => SchedulerPolicyJson::Fair,
-            SchedulerPolicyArg::WorkStealing => SchedulerPolicyJson::WorkStealing,
+impl SchedulerPolicyArg {
+    /// Return the scheduler policy config value.
+    fn value(self) -> Value {
+        match self {
+            Self::Fifo => Value::String("fifo".into()),
+            Self::Fair => Value::String("fair".into()),
+            Self::WorkStealing => Value::String("workstealing".into()),
         }
     }
 }
@@ -312,11 +387,12 @@ pub enum TimeModeArg {
     Virtual,
 }
 
-impl From<TimeModeArg> for ClockSourceJson {
-    fn from(value: TimeModeArg) -> Self {
-        match value {
-            TimeModeArg::Host => Self::Host,
-            TimeModeArg::Virtual => Self::Virtual,
+impl TimeModeArg {
+    /// Return the clock source config value.
+    fn value(self) -> Value {
+        match self {
+            Self::Host => Value::String("host".into()),
+            Self::Virtual => Value::String("virtual".into()),
         }
     }
 }
@@ -330,11 +406,49 @@ pub enum RandomModeArg {
     Deterministic,
 }
 
-impl From<RandomModeArg> for RandomSourceJson {
-    fn from(value: RandomModeArg) -> Self {
-        match value {
-            RandomModeArg::Host => Self::Host,
-            RandomModeArg::Deterministic => Self::Deterministic,
+impl RandomModeArg {
+    /// Return the randomness source config value.
+    fn value(self) -> Value {
+        match self {
+            Self::Host => Value::String("host".into()),
+            Self::Deterministic => Value::String("deterministic".into()),
         }
+    }
+}
+
+/// Insert one nested runtime config value.
+fn insert_runtime_value(runtime: &mut Map<String, Value>, section: &str, key: &str, value: Value) {
+    let section = runtime
+        .entry(section.to_string())
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !section.is_object() {
+        *section = Value::Object(Map::new());
+    }
+
+    if let Value::Object(section) = section {
+        merge_json_value(section.entry(key.to_string()).or_insert(Value::Null), value);
+    }
+}
+
+/// Build one heap space patch object.
+fn heap_space_value(space: &str, key: &str, value: Value) -> Value {
+    let mut field = Map::new();
+    field.insert(key.to_string(), value);
+
+    let mut object = Map::new();
+    object.insert(space.to_string(), Value::Object(field));
+
+    Value::Object(object)
+}
+
+/// Merge one json value into another.
+fn merge_json_value(target: &mut Value, value: Value) {
+    match (target, value) {
+        (Value::Object(target), Value::Object(source)) => {
+            for (key, value) in source {
+                merge_json_value(target.entry(key).or_insert(Value::Null), value);
+            }
+        }
+        (target, value) => *target = value,
     }
 }

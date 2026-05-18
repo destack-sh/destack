@@ -217,7 +217,7 @@ impl CompilerContext {
 
         match &self.mode {
             CompilerMode::Check => {
-                let profile = self.module_profile_id(revision, module)?;
+                let profile = self.selected_profile_id(revision, module)?;
                 root_artifact_keys.push(ArtifactKey::dir_checked(module, profile));
             }
             CompilerMode::Lower { target } => {
@@ -366,14 +366,36 @@ impl CompilerContext {
         Ok(diagnostics)
     }
 
-    /// Return the default profile id for one module.
-    fn module_profile_id(&self, revision: Revision, module_id: ModuleId) -> CliResult<ProfileId> {
-        let profile = self
-            .repository
-            .module_profile(revision, module_id)
-            .map_err(|error| CliError::message(error.to_string()))?;
+    /// Return the profile id selected for one module.
+    fn selected_profile_id(&self, revision: Revision, module_id: ModuleId) -> CliResult<ProfileId> {
+        let target_id = self.selected_target_id(revision, module_id)?;
 
-        Ok(profile.id())
+        self.target_profile_id(revision, module_id, target_id)
+    }
+
+    /// Return the target id selected for one module.
+    fn selected_target_id(&self, revision: Revision, module_id: ModuleId) -> CliResult<TargetId> {
+        let module = self
+            .repository
+            .module(revision, module_id)
+            .map_err(|error| CliError::message(format!("failed to read module snapshot: {error}")))?
+            .ok_or_else(|| {
+                CliError::message(format!("missing module snapshot for {module_id:?}"))
+            })?;
+
+        if let Some((target_id, _)) = self
+            .repository
+            .package_default_target(revision, module.package_id)
+            .map_err(|error| {
+                CliError::message(format!("failed to read target snapshot: {error}"))
+            })?
+        {
+            return Ok(target_id);
+        }
+
+        let target_name = if module.is_destack() { "native" } else { "js" };
+
+        Ok(TargetId::new(module.package_id, target_name))
     }
 
     /// Return the profile id selected for one module target.
@@ -387,13 +409,11 @@ impl CompilerContext {
             .repository
             .module_target_profile(revision, module_id, target_id)
             .map_err(|error| CliError::message(error.to_string()))?;
-        let profile = if let Some(profile) = profile {
-            profile
-        } else {
-            self.repository
-                .module_profile(revision, module_id)
-                .map_err(|error| CliError::message(error.to_string()))?
-        };
+        let profile = profile.ok_or_else(|| {
+            CliError::message(format!(
+                "target {target_id:?} is not available for {module_id:?}"
+            ))
+        })?;
 
         Ok(profile.id())
     }

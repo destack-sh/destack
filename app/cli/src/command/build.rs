@@ -73,6 +73,7 @@ pub fn run(args: &BuildArgs) -> i32 {
         };
         config
             .default_target
+            .clone()
             .unwrap_or_else(|| "default".to_string())
     };
 

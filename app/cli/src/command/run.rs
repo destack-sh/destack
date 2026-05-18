@@ -669,7 +669,7 @@ fn build_run_command(
         .inputs(inputs)
         .target(target_name.to_string())
         .target_overrides(target_overrides_from_args(&request.target))
-        .runtime_overrides(request.runtime.to_runtime_overrides())
+        .config_patch(request.runtime.to_config_patch())
         .build();
 
     Ok((common, build_run_payload(request)))

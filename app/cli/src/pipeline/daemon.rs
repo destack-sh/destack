@@ -19,7 +19,6 @@ use destack_daemon::{
 };
 use destack_session::SessionEventHandler;
 use destack_source::{DiagnosticCollection, File, FileId, FileType, FileWatchStatus};
-use destack_workspace::config::RuntimeOptionsJson;
 use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
@@ -213,7 +212,6 @@ impl CommandOptionsBuilder {
             config_path: program.config.clone(),
             target: None,
             target_overrides: None,
-            runtime_overrides: None,
             profile: None,
             env: Vec::new(),
             config_patches: config_patches_from_program(program),
@@ -248,12 +246,6 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Set runtime overrides.
-    pub fn runtime_overrides(mut self, overrides: Option<RuntimeOptionsJson>) -> Self {
-        self.options.runtime_overrides = overrides;
-        self
-    }
-
     /// Set the profile name override.
     pub fn profile(mut self, profile: impl Into<String>) -> Self {
         self.options.profile = Some(profile.into());
@@ -269,6 +261,15 @@ impl CommandOptionsBuilder {
     /// Set config patches.
     pub fn config_patches(mut self, patches: Vec<ConfigPatch>) -> Self {
         self.options.config_patches = patches;
+        self
+    }
+
+    /// Add one optional config patch.
+    pub fn config_patch(mut self, patch: Option<ConfigPatch>) -> Self {
+        if let Some(patch) = patch {
+            self.options.config_patches.push(patch);
+        }
+
         self
     }
 
