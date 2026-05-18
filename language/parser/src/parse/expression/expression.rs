@@ -2042,10 +2042,13 @@ impl Parser {
         self.bump(); // eat ^ or &
         let mutability = self.eat_reference_mutability_maybe()?;
         let variance = self.eat_variance_bound_maybe()?;
-        let target_type = self.eat_type_expression_or_recover_missing(
-            self.flags.not_in_position().with_type(true),
-            NodeType::Expression,
-        )?;
+        let target_flags = self
+            .flags
+            .not_in_position()
+            .with_type(true)
+            .in_left_precedence(TypeUnaryOperator::Readonly.precedence());
+        let target_type =
+            self.eat_type_expression_or_recover_missing(target_flags, NodeType::Expression)?;
 
         let type_expression = if is_value_of {
             TypeExpression::OwnedOf {
@@ -2075,7 +2078,12 @@ impl Parser {
         self.bump(); // eat ^ or &
         let mutability = self.eat_reference_mutability_maybe()?;
         let variance = self.eat_variance_bound_maybe()?;
-        let right = self.eat_expression_with_context_unchecked(self.flags.not_in_position())?;
+        let right_flags = self
+            .flags
+            .not_in_position()
+            .not_in_before_block()
+            .in_left_precedence(UnaryOperator::Dereference.precedence());
+        let right = self.eat_expression(right_flags)?;
         let expression = if is_value_of {
             Expression::MoveOf {
                 mutability,
@@ -2497,10 +2505,13 @@ impl Parser {
             TokenType::Multiply => {
                 self.bump(); // eat *
                 let mutability = self.eat_reference_mutability_maybe()?;
-                let target_type = self.eat_type_expression_or_recover_missing(
-                    self.flags.not_in_position().with_type(true),
-                    NodeType::Expression,
-                )?;
+                let target_flags = self
+                    .flags
+                    .not_in_position()
+                    .with_type(true)
+                    .in_left_precedence(TypeUnaryOperator::Readonly.precedence());
+                let target_type = self
+                    .eat_type_expression_or_recover_missing(target_flags, NodeType::Expression)?;
 
                 Ok(self.insert_node(
                     TypeExpression::PointerOf {

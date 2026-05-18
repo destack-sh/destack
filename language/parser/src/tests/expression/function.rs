@@ -115,6 +115,39 @@ fn test_parse_lambda_function_value() {
     });
 }
 
+/// Parse a lambda body that owns a tagged struct literal.
+#[test]
+fn test_parse_lambda_owned_struct_body() {
+    let mut test =
+        TestParser::new_with_language("() => ^Node { parent: this }", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+            assert_eq!(signature.form, FunctionForm::Lambda);
+            assert!(signature.return_type.is_none());
+            assert!(signature.parameters.is_empty());
+
+            assert_node!(parser.tree, body.expect("expected lambda body"), Expression::MoveOf { right, .. } => {
+                assert_node!(parser.tree, *right, Expression::StructExpression { ty, properties } => {
+                    assert_expression_path!(parser, parser.tree.get(*ty), "Node");
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
+                        let Key::Name(Name::Identifier(name)) = key else {
+                            panic!("expected parent field name");
+                        };
+                        assert_string!(parser, *name, "parent");
+                        assert_node!(parser.tree, *value, Expression::This);
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Parse a typed lambda with multiple parameters and a return annotation.
 #[test]
 fn test_parse_typed_lambda_value_with_multiple_parameters() {
