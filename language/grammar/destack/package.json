@@ -2,7 +2,7 @@
   "name": "tree-sitter-destack",
   "private": true,
   "version": "0.23.2",
-  "description": "Destack, TypeScript, and TSX grammars for tree-sitter",
+  "description": "Destack grammar for tree-sitter",
   "repository": "https://github.com/symbol-industries/destack",
   "license": "MIT",
   "keywords": [
@@ -17,12 +17,8 @@
     "queries/*",
     "destack/grammar.js",
     "destack/src/**",
-    "typescript/grammar.js",
-    "tsx/grammar.js",
     "tree-sitter.json",
-    "typescript/src/**",
-    "tsx/src/**",
-    "common/**",
+    "common/scanner.h",
     "*.wasm"
   ],
   "dependencies": {
@@ -34,7 +30,10 @@
     "tree-sitter-cli": "^0.24.4"
   },
   "scripts": {
-    "lint": "eslint common/define-grammar.js",
+    "lint": "eslint destack/grammar.js common/define-grammar.js",
+    "audit:corpus": "node ../scripts/check-corpus-routing.mjs && node ../scripts/check-destack-node-coverage.mjs",
+    "audit:fixtures": "node ../scripts/check-grammar-fixtures.mjs",
+    "report:specification": "node ../scripts/check-specification-fences.mjs",
     "test": "tree-sitter test"
   }
 }
