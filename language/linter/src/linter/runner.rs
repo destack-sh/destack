@@ -453,20 +453,28 @@ impl LintRunner {
             else {
                 continue;
             };
-            let Ok(profile) = repository.module_profile(revision, module.id) else {
+            let Ok(profile_ids) = repository.target_profile_ids(revision) else {
                 continue;
             };
-            let report = self.lint_module_profiled_with_artifacts(
-                repository.clone(),
-                artifacts.clone(),
-                revision,
-                module,
-                profile.as_ref().clone(),
-                options,
-                level,
-            );
-            diagnostics.extend(report.diagnostics);
-            performance.merge(&report.performance);
+
+            for profile_id in profile_ids {
+                let Ok(Some(profile)) =
+                    repository.module_profile_by_id(revision, module.id, profile_id)
+                else {
+                    continue;
+                };
+                let report = self.lint_module_profiled_with_artifacts(
+                    repository.clone(),
+                    artifacts.clone(),
+                    revision,
+                    module.clone(),
+                    profile.as_ref().clone(),
+                    options,
+                    level,
+                );
+                diagnostics.extend(report.diagnostics);
+                performance.merge(&report.performance);
+            }
         }
 
         LintRunReport {

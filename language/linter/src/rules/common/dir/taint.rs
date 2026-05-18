@@ -802,7 +802,7 @@ pub fn expression_sanitizer_taint_labels(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
     let Some(sanitizer_symbol) =
-        language_item_symbol(artifacts, profile_id, dir::LanguageItem::Sanitizer)
+        language_item_symbol(artifacts, profile_id, dir::LanguageItem::Untaint)
     else {
         return TaintLabels::default();
     };
