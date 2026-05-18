@@ -53,7 +53,7 @@ export extension<T> of MaybeUninit<T> implements Default {
     /// Move initialized storage out as `T`.
     @unsafe
     @intrinsic("memory.init.assumeInit")
-    assumeInit(this: ^MaybeUninit<T>): T;
+    assumeInit(this: MaybeUninit<T>): T;
 
     /// Copy initialized storage out without ending this storage.
     @unsafe

@@ -4,7 +4,7 @@ import { Dereference } from "destack:ops";
 import { Atomic } from "destack:sync";
 import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
-import { Owned } from "../form.ds";
+import { Owned } from "../owned.ds";
 import { MaybeUninit } from "../init.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
@@ -119,17 +119,17 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out when this is the only strong handle.
-    intoInner(this: ^Arc<T>): ^T | undefined {
+    intoInner(this: Arc<T>): ^T | undefined {
         todo("Arc.intoInner")
     }
 
     /// Move the value out when this is the only strong handle.
-    tryUnwrap(this: ^Arc<T>): Result<^T, Arc<T>> {
+    tryUnwrap(this: Arc<T>): Result<^T, Arc<T>> {
         todo("Arc.tryUnwrap")
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this: ^Arc<T>): ^T
+    unwrapOrClone(this: Arc<T>): ^T
     where T implements Clone {
         todo("Arc.unwrapOrClone")
     }
@@ -140,7 +140,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: ^Arc<T>): *T {
+    intoRaw(this: Arc<T>): *T {
         todo("Arc.intoRaw")
     }
 

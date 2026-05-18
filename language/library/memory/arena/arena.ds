@@ -1,5 +1,7 @@
 import { todo } from "destack:error";
-import { Lifetime, ReadonlyBorrowed, Space } from "../form.ds";
+import { ReadonlyBorrowed } from "../borrow.ds";
+import { Lifetime } from "../lifetime.ds";
+import { Space } from "../place.ds";
 import { Bump } from "./bump.ds";
 
 /// Typed arena for values with a shared lifetime.

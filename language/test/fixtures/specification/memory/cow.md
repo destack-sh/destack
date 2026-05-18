@@ -2,6 +2,18 @@
 
 ## construction
 
+### maybe owned is the common readonly shape
+
+`MaybeOwned<T>` is the usual borrowed-or-owned result for display and formatting APIs.
+
+```ds
+import { MaybeOwned } from "destack:memory";
+
+declare const name: MaybeOwned<string>;
+
+name satisfies MaybeOwned<string>;
+```
+
 ### cow can hold borrowed storage
 
 `Cow` bridges borrowed and owned APIs without choosing ownership up front.

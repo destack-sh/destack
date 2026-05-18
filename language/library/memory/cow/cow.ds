@@ -1,6 +1,6 @@
 import { todo } from "destack:error";
 import { Clone } from "../capability.ds";
-import { BaseOf } from "../form.ds";
+import { BaseOf } from "../type.ds";
 
 /// Borrowed copy-on-write value.
 export struct CowBorrowed<T> {
@@ -19,6 +19,9 @@ export struct CowOwned<T> {
 export newtype Cow<Borrowed, Owned = ^BaseOf<Borrowed>> =
     | CowBorrowed<Borrowed>
     | CowOwned<Owned>;
+
+/// Readonly borrowed or owned value.
+export type MaybeOwned<T, Owned = ^T> = Cow<&readonly T, Owned>;
 
 extension<Borrowed, Owned = ^BaseOf<Borrowed>> of Cow<Borrowed, Owned> {
     /// Create a borrowed copy-on-write value.
@@ -53,7 +56,7 @@ extension<Borrowed, Owned = ^BaseOf<Borrowed>> of Cow<Borrowed, Owned> {
     }
 
     /// Move or clone this value into owned storage.
-    intoOwned(this: ^Cow<Borrowed, Owned>): Owned
+    intoOwned(this: Cow<Borrowed, Owned>): Owned
     where BaseOf<Borrowed> implements Clone {
         todo("Cow.intoOwned")
     }

@@ -1,0 +1,3 @@
+/// Default managed form for exactly `T`.
+@languageItem("memory.Managed")
+export newtype Managed<T> = intrinsic;

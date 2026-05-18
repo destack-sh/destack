@@ -1,64 +1,13 @@
-/// Builtin lifetime root for static storage.
-export type StaticLifetime = "static";
-
-/// Lifetime marker for borrowed validity.
-export type Lifetime = StaticLifetime | intrinsic;
-
-/// Concrete memory space tag kind.
-export type Space = "local" | "shared" | "static" | "frame";
-
-/// Placement tag kind for qualified storage.
-export type Place = "ambient" | Space;
+import { Access, Readonly } from "./access.ds";
+import { Borrowed, ExclusiveBorrowed, ReadonlyBorrowed } from "./borrow.ds";
+import { Lifetime } from "./lifetime.ds";
+import { Managed } from "./managed.ds";
+import { Owned } from "./owned.ds";
+import { Place, Placed, Space } from "./place.ds";
+import { Raw } from "./raw.ds";
 
 /// Ownership kind for qualified storage.
 export type Ownership = "managed" | "owned" | "borrowed" | "raw";
-
-/// Access mode for qualified storage.
-export type Access = "readonly" | "mutable" | "exclusive";
-
-/// Default managed form for exactly `T`.
-@languageItem("memory.Managed")
-export newtype Managed<T> = intrinsic;
-
-/// Unique ownership form for exactly `T`.
-@languageItem("memory.Owned")
-export newtype Owned<T> = intrinsic;
-
-/// Borrowed access form for exactly `T`.
-@languageItem("memory.Borrowed")
-export newtype Borrowed<T, L: Lifetime, A: Access = "mutable"> = intrinsic;
-
-/// Unsafe raw pointer form for exactly `T`.
-@languageItem("memory.Raw")
-export newtype Raw<T> = intrinsic;
-
-/// Placement form for exactly `T`.
-@languageItem("memory.Placed")
-export newtype Placed<T, P: Place> = intrinsic;
-
-/// Readonly form for exactly `T`.
-@languageItem("memory.Readonly")
-export newtype Readonly<T> = intrinsic;
-
-/// Unique traced heap handle containing exactly `T`.
-///
-/// `Unique<T>` is the low-level storage handle behind types such as `Box<T>`.
-/// It is compiler-known because tracing, drop, and move checking must understand the handle.
-@languageItem("memory.Unique")
-export newtype Unique<T> = intrinsic;
-
-/// Erased runtime value for interface constraint `T`.
-///
-/// `Any<T>` stores an erased value pointer and dispatch table.
-/// It is compiler-known because static interface constraints are specialized by default, while `Any<T>` explicitly requests runtime erasure.
-@languageItem("memory.Any")
-export newtype Any<T> = intrinsic;
-
-/// Readonly borrowed access to `T` within lifetime `L`.
-export type ReadonlyBorrowed<T, L: Lifetime> = Borrowed<T, L, "readonly">;
-
-/// Exclusive borrowed access to `T` within lifetime `L`.
-export type ExclusiveBorrowed<T, L: Lifetime> = Borrowed<T, L, "exclusive">;
 
 /// Rebase `T` into the shared space.
 export type Shared<T> = WithPlace<T, "shared">;
