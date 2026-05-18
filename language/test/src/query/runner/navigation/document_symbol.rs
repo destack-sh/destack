@@ -21,8 +21,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // empty expectation is an error: must specify expected symbols
     if expected.is_empty() {
-        let symbols =
-            query::document_symbols(&session.repository, session.revision, session.file_id);
+        let ctx = session.primary_module_context();
+        let symbols = query::document_symbols(&ctx);
         let actual_names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
         return CaseResult::Failed {
             message: format!(
@@ -32,7 +32,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     }
 
     // run the document symbols query once
-    let symbols = query::document_symbols(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let symbols = query::document_symbols(&ctx);
 
     // allow explicit empty snapshots
     if expected == "<none>" {

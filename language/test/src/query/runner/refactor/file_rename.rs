@@ -61,7 +61,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     // execute rename files query
-    let result = query::rename_files(&session.repository, session.revision, &renames);
+    let workspace = session.workspace_context();
+    let result = query::rename_files(&workspace, &renames);
 
     // allow explicit failure expectations
     let content = exp.content.trim();
@@ -71,7 +72,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
             Some(rename_result) => CaseResult::Failed {
                 message: format!(
                     "file_rename should have produced no edits but produced {}",
-                    rename_result.edit_count()
+                    rename_result.total_edits()
                 ),
             },
         };
@@ -87,7 +88,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // empty expectation means any edits are acceptable
     if content.is_empty() {
         // reject empty edit sets
-        if rename_result.edit_count() == 0 {
+        if rename_result.total_edits() == 0 {
             return CaseResult::Failed {
                 message: "file_rename produced 0 edits".to_string(),
             };
@@ -104,11 +105,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     // ensure expected edit count matches
-    if rename_result.edit_count() != expected_count {
+    if rename_result.total_edits() != expected_count {
         return CaseResult::Failed {
             message: format!(
                 "file_rename produced {} edits, expected {}",
-                rename_result.edit_count(),
+                rename_result.total_edits(),
                 expected_count
             ),
         };

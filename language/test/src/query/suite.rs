@@ -332,13 +332,9 @@ fn run_rename_expected_files(
     let offset = marker.span.start;
 
     // run rename
-    let result = query::rename(
-        &session.repository,
-        session.revision,
-        file_id,
-        offset,
-        new_name,
-    );
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let result = query::rename(&ctx, &workspace, offset, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: format!("rename at '{}' returned None", expectation.target),
@@ -346,7 +342,7 @@ fn run_rename_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result.edits) {
+    let applied = match apply_batch_edit(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -371,7 +367,8 @@ fn run_file_rename_expected_files(
     };
 
     // run file rename edits
-    let result = query::rename_files(&session.repository, session.revision, &renames);
+    let workspace = session.workspace_context();
+    let result = query::rename_files(&workspace, &renames);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "file_rename returned no edits".to_string(),
@@ -379,7 +376,7 @@ fn run_file_rename_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result.edits) {
+    let applied = match apply_batch_edit(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -410,13 +407,8 @@ fn run_extract_function_expected_files(
         .unwrap_or("extracted");
 
     // run extract function edits
-    let result = query::extract_function(
-        &session.repository,
-        session.revision,
-        session.file_id,
-        selection,
-        new_name,
-    );
+    let ctx = session.module_context(selection.file);
+    let result = query::extract_function(&ctx, selection, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "extract_function returned no edits".to_string(),
@@ -424,7 +416,7 @@ fn run_extract_function_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result.edits) {
+    let applied = match apply_batch_edit(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -455,13 +447,8 @@ fn run_extract_variable_expected_files(
         .unwrap_or("extracted");
 
     // run extract variable edits
-    let result = query::extract_variable(
-        &session.repository,
-        session.revision,
-        session.file_id,
-        selection,
-        new_name,
-    );
+    let ctx = session.module_context(selection.file);
+    let result = query::extract_variable(&ctx, selection, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "extract_variable returned no edits".to_string(),
@@ -469,7 +456,7 @@ fn run_extract_variable_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result.edits) {
+    let applied = match apply_batch_edit(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -495,7 +482,9 @@ fn run_inline_expected_files(
         };
 
     // run inline edits
-    let result = query::inline_symbol(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let result = query::inline_symbol(&ctx, &workspace, offset);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "inline returned no edits".to_string(),
@@ -503,7 +492,7 @@ fn run_inline_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result.edits) {
+    let applied = match apply_batch_edit(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };
@@ -540,14 +529,9 @@ fn run_change_signature_expected_files(
         .unwrap_or("");
 
     // run change signature edits
-    let result = query::change_signature(
-        &session.repository,
-        session.revision,
-        file_id,
-        offset,
-        new_parameters,
-        new_arguments,
-    );
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let result = query::change_signature(&ctx, &workspace, offset, new_parameters, new_arguments);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "change_signature returned no edits".to_string(),
@@ -555,7 +539,7 @@ fn run_change_signature_expected_files(
     };
 
     // apply edits to sources
-    let applied = match apply_batch_edit(session, &result.edits) {
+    let applied = match apply_batch_edit(session, &result) {
         Ok(applied) => applied,
         Err(error) => {
             return CaseResult::Failed { message: error };

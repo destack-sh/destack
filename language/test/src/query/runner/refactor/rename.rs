@@ -36,14 +36,10 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // allow explicit failure expectations
     let content = exp.content.trim();
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
     if content == "<none>" {
-        let result = query::rename(
-            &session.repository,
-            session.revision,
-            file_id,
-            offset,
-            new_name,
-        );
+        let result = query::rename(&ctx, &workspace, offset, new_name);
         return match result {
             None => CaseResult::Passed,
             Some(rename_result) => CaseResult::Failed {
@@ -51,15 +47,14 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
                     "rename at '{}' to '{}' should have failed but produced {} edits",
                     exp.target,
                     new_name,
-                    rename_result.edit_count(),
+                    rename_result.total_edits(),
                 ),
             },
         };
     }
 
     // first check prepare_rename
-    let prepare_result =
-        query::prepare_rename(&session.repository, session.revision, file_id, offset);
+    let prepare_result = query::rename_target(&ctx, offset);
     if prepare_result.is_none() {
         return CaseResult::Failed {
             message: format!("prepare_rename at '{}' returned None", exp.target),
@@ -67,19 +62,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // then do the actual rename
-    let result = query::rename(
-        &session.repository,
-        session.revision,
-        file_id,
-        offset,
-        new_name,
-    );
+    let result = query::rename(&ctx, &workspace, offset, new_name);
 
     // empty expectation means we just verify the rename works (produces any edits)
     if content.is_empty() {
         match result {
             Some(rename_result) => {
-                if rename_result.edit_count() == 0 {
+                if rename_result.total_edits() == 0 {
                     return CaseResult::Failed {
                         message: format!(
                             "rename at '{}' to '{}' produced 0 edits",
@@ -106,13 +95,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     match result {
         Some(rename_result) => {
-            if rename_result.edit_count() != expected_count {
+            if rename_result.total_edits() != expected_count {
                 CaseResult::Failed {
                     message: format!(
                         "rename at '{}' to '{}' produced {} edits, expected {}",
                         exp.target,
                         new_name,
-                        rename_result.edit_count(),
+                        rename_result.total_edits(),
                         expected_count
                     ),
                 }

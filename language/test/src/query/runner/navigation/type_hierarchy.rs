@@ -35,9 +35,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         .unwrap_or("supertypes");
 
     // prepare type hierarchy item
-    let Some(item) =
-        query::prepare_type_hierarchy(&session.repository, session.revision, file_id, offset)
-    else {
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let Some(item) = query::type_hierarchy_item(&ctx, offset) else {
         return CaseResult::Failed {
             message: format!("type_hierarchy at '{}' returned None", exp.target),
         };
@@ -50,14 +50,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // compute hierarchy items for the requested direction
     let (items, label) = match direction {
-        "supertypes" | "super" => (
-            query::supertypes(&session.repository, session.revision, &item),
-            "supertypes",
-        ),
-        "subtypes" | "sub" => (
-            query::subtypes(&session.repository, session.revision, &item),
-            "subtypes",
-        ),
+        "supertypes" | "super" => (query::supertypes(&workspace, &item), "supertypes"),
+        "subtypes" | "sub" => (query::subtypes(&workspace, &item), "subtypes"),
         _ => {
             return CaseResult::Failed {
                 message: format!(
@@ -162,8 +156,10 @@ fn snapshot_items(session: &QueryTestSession, items: &[TypeHierarchyItem]) -> St
 
 /// Format a single type hierarchy item snapshot line.
 fn format_item_line(session: &QueryTestSession, item: &TypeHierarchyItem) -> String {
-    let range = format_span_for_session(session, item.range);
-    let selection = format_span_for_session(session, item.selection_range);
+    let range = item_range(item);
+    let selection = item_selection_range(item);
+    let range = format_span_for_session(session, range);
+    let selection = format_span_for_session(session, selection);
     let kind = type_hierarchy_kind_name(item.kind);
 
     // include detail when it is present
@@ -274,26 +270,22 @@ fn validate_item_collect_errors(
     item: &TypeHierarchyItem,
     errors: &mut Vec<String>,
 ) {
-    let source = source_for_file(session, item.file);
+    let range = item_range(item);
+    let selection = item_selection_range(item);
+    let source = source_for_file(session, range.file);
     let source_len = u32::try_from(source.len()).unwrap_or(u32::MAX);
 
     // validate the item range bounds
-    validate_span_bounds(&item.name, "range", item.range, source_len, errors);
+    validate_span_bounds(&item.name, "range", range, source_len, errors);
 
     // validate the selection range bounds
-    validate_span_bounds(
-        &item.name,
-        "selection",
-        item.selection_range,
-        source_len,
-        errors,
-    );
+    validate_span_bounds(&item.name, "selection", selection, source_len, errors);
 
     // ensure the selection stays within the full range
-    if item.selection_range.start < item.range.start || item.selection_range.end > item.range.end {
+    if selection.start < range.start || selection.end > range.end {
         errors.push(format!(
             "{}: selection {:?} is outside range {:?}",
-            item.name, item.selection_range, item.range
+            item.name, selection, range
         ));
     }
 }
@@ -325,13 +317,26 @@ fn validate_span_bounds(
 
 /// Build a stable ordering key for a type hierarchy item.
 fn item_key(item: &TypeHierarchyItem) -> (u128, u32, u32, u32, u32, u8, String) {
+    let range = item_range(item);
+    let selection = item_selection_range(item);
+
     (
-        item.file.0,
-        item.range.start,
-        item.range.end,
-        item.selection_range.start,
-        item.selection_range.end,
+        range.file.0,
+        range.start,
+        range.end,
+        selection.start,
+        selection.end,
         type_hierarchy_kind_rank(item.kind),
         item.name.clone(),
     )
+}
+
+/// Return the full source range for a type hierarchy item.
+fn item_range(item: &TypeHierarchyItem) -> Span {
+    item.target.span
+}
+
+/// Return the primary selection range for a type hierarchy item.
+fn item_selection_range(item: &TypeHierarchyItem) -> Span {
+    item.target.selection_span.unwrap_or(item.target.span)
 }

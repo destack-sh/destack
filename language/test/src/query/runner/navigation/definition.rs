@@ -42,44 +42,40 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // run goto definition at the resolved position
-    let result = query::goto_definition(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let targets = query::goto_definition(&ctx, offset);
+    let locations = navigation_target_spans(&targets);
 
     // "<none>" means we expect no result
     if expected_content == "<none>" {
-        return match result {
-            None => CaseResult::Passed,
-            Some(def_result) if def_result.locations.is_empty() => CaseResult::Passed,
-            Some(def_result) => CaseResult::Failed {
+        return if locations.is_empty() {
+            CaseResult::Passed
+        } else {
+            CaseResult::Failed {
                 message: format!(
                     "goto_definition at '{}' expected no results, got {} locations",
                     exp.target,
-                    def_result.locations.len()
+                    locations.len()
                 ),
-            },
+            }
         };
     }
 
-    let Some(def_result) = result else {
-        return CaseResult::Failed {
-            message: format!("goto_definition at '{}' returned None", exp.target),
-        };
-    };
-
     // require at least one definition location
-    if def_result.locations.is_empty() {
+    if locations.is_empty() {
         return CaseResult::Failed {
             message: format!("goto_definition at '{}' returned empty result", exp.target),
         };
     }
 
     // validate invariants before comparisons
-    if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
+    if let Err(message) = validate_definition_invariants(session, &locations) {
         return CaseResult::Failed { message };
     }
 
     // compare against protocol shaped snapshots when structured
     if looks_like_span_snapshot(expected_content, &["range="]) {
-        let actual_snapshot = snapshot_locations(session, &def_result.locations);
+        let actual_snapshot = snapshot_locations(session, &locations);
         return compare_snapshot(
             &format!("goto_definition at '{}'", exp.target),
             &actual_snapshot,
@@ -97,7 +93,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     if let Err(message) = require_exact_marker_match(
         "goto_definition",
         exp.target.clone(),
-        &def_result.locations,
+        &locations,
         expected_def.span,
     ) {
         return CaseResult::Failed { message };
@@ -158,44 +154,40 @@ fn run_declaration_with_expectation(
     }
 
     // run goto declaration at the resolved position
-    let result = query::goto_declaration(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let targets = query::goto_declaration(&ctx, offset);
+    let locations = navigation_target_spans(&targets);
 
     // "<none>" means we expect no result
     if expected_content == "<none>" {
-        return match result {
-            None => CaseResult::Passed,
-            Some(def_result) if def_result.locations.is_empty() => CaseResult::Passed,
-            Some(def_result) => CaseResult::Failed {
+        return if locations.is_empty() {
+            CaseResult::Passed
+        } else {
+            CaseResult::Failed {
                 message: format!(
                     "goto_declaration at '{}' expected no results, got {} locations",
                     exp.target,
-                    def_result.locations.len()
+                    locations.len()
                 ),
-            },
+            }
         };
     }
 
-    let Some(def_result) = result else {
-        return CaseResult::Failed {
-            message: format!("goto_declaration at '{}' returned None", exp.target),
-        };
-    };
-
     // require at least one declaration location
-    if def_result.locations.is_empty() {
+    if locations.is_empty() {
         return CaseResult::Failed {
             message: format!("goto_declaration at '{}' returned empty result", exp.target),
         };
     }
 
     // validate invariants before comparisons
-    if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
+    if let Err(message) = validate_definition_invariants(session, &locations) {
         return CaseResult::Failed { message };
     }
 
     // compare against protocol shaped snapshots when structured
     if looks_like_span_snapshot(expected_content, &["range="]) {
-        let actual_snapshot = snapshot_locations(session, &def_result.locations);
+        let actual_snapshot = snapshot_locations(session, &locations);
         return compare_snapshot(
             &format!("goto_declaration at '{}'", exp.target),
             &actual_snapshot,
@@ -213,7 +205,7 @@ fn run_declaration_with_expectation(
     if let Err(message) = require_exact_marker_match(
         "goto_declaration",
         exp.target.clone(),
-        &def_result.locations,
+        &locations,
         expected_def.span,
     ) {
         return CaseResult::Failed { message };
@@ -247,32 +239,27 @@ fn run_type_definition_with_expectation(
     }
 
     // run goto type definition at the resolved position
-    let result =
-        query::goto_type_definition(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let targets = query::goto_type_definition(&ctx, offset);
+    let locations = navigation_target_spans(&targets);
 
     // "<none>" means we expect no result
     if expected_content == "<none>" {
-        return match result {
-            None => CaseResult::Passed,
-            Some(def_result) if def_result.locations.is_empty() => CaseResult::Passed,
-            Some(def_result) => CaseResult::Failed {
+        return if locations.is_empty() {
+            CaseResult::Passed
+        } else {
+            CaseResult::Failed {
                 message: format!(
                     "goto_type_definition at '{}' expected no results, got {} locations",
                     exp.target,
-                    def_result.locations.len()
+                    locations.len()
                 ),
-            },
+            }
         };
     }
 
-    let Some(def_result) = result else {
-        return CaseResult::Failed {
-            message: format!("goto_type_definition at '{}' returned None", exp.target),
-        };
-    };
-
     // require at least one type definition location
-    if def_result.locations.is_empty() {
+    if locations.is_empty() {
         return CaseResult::Failed {
             message: format!(
                 "goto_type_definition at '{}' returned empty result",
@@ -282,13 +269,13 @@ fn run_type_definition_with_expectation(
     }
 
     // validate invariants before comparisons
-    if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
+    if let Err(message) = validate_definition_invariants(session, &locations) {
         return CaseResult::Failed { message };
     }
 
     // compare against protocol shaped snapshots when structured
     if looks_like_span_snapshot(expected_content, &["range="]) {
-        let actual_snapshot = snapshot_locations(session, &def_result.locations);
+        let actual_snapshot = snapshot_locations(session, &locations);
         return compare_snapshot(
             &format!("goto_type_definition at '{}'", exp.target),
             &actual_snapshot,
@@ -306,13 +293,18 @@ fn run_type_definition_with_expectation(
     if let Err(message) = require_exact_marker_match(
         "goto_type_definition",
         exp.target.clone(),
-        &def_result.locations,
+        &locations,
         expected_def.span,
     ) {
         return CaseResult::Failed { message };
     }
 
     CaseResult::Passed
+}
+
+/// Return the source spans for navigation targets.
+fn navigation_target_spans(targets: &[query::NavigationTarget]) -> Vec<Span> {
+    targets.iter().map(|target| target.target.span).collect()
 }
 
 /// Format definition locations into a protocol shaped snapshot.

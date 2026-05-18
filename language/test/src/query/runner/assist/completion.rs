@@ -52,13 +52,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     }
 
-    let completions = query::completions(
-        &session.repository,
-        session.revision,
-        file_id,
-        offset,
-        CompletionTrigger::Invoked,
-    );
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let completions = query::completions(&ctx, &workspace, offset, CompletionTrigger::Invoked);
 
     // validate completion invariants before comparisons
     if let Err(message) = validate_completion_invariants(session, &completions) {

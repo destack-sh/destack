@@ -31,71 +31,64 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // resolve source file and offset
     let file_id = source_marker.span.file;
     let offset = source_marker.span.start;
-    let declaration_span =
-        query::goto_definition(&session.repository, session.revision, file_id, offset)
-            .and_then(|result| result.locations.first().copied());
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let declaration_span = query::goto_definition(&ctx, offset)
+        .first()
+        .map(|target| target.target.span);
 
     let content = exp.content.trim();
 
     // empty expectation is an error
     if content.is_empty() {
-        let result =
-            query::find_references(&session.repository, session.revision, file_id, offset, true);
+        let result = query::find_references(&ctx, &workspace, offset, true);
         return CaseResult::Failed {
             message: format!(
                 "find_references expectation is empty at '{}', got: {:?}",
                 exp.target,
-                result.map(|r| r.len())
+                result.len()
             ),
         };
     }
 
     // none marker means we expect no results
     if content == "<none>" {
-        let result =
-            query::find_references(&session.repository, session.revision, file_id, offset, true);
-        return match result {
-            None => CaseResult::Passed,
-            Some(refs) => {
-                // validate invariants when we do get a result
-                if let Err(message) =
-                    validate_reference_invariants(session, &refs.references, declaration_span)
-                {
-                    return CaseResult::Failed { message };
-                }
+        let refs = query::find_references(&ctx, &workspace, offset, true);
+        let spans = reference_spans(&refs);
+        if let Err(message) = validate_reference_invariants(session, &spans, declaration_span) {
+            return CaseResult::Failed { message };
+        };
 
-                if refs.is_empty() {
-                    CaseResult::Passed
-                } else {
-                    CaseResult::Failed {
-                        message: format!(
-                            "find_references at '{}' expected no results, got {}",
-                            exp.target,
-                            refs.len()
-                        ),
-                    }
-                }
+        return if refs.is_empty() {
+            CaseResult::Passed
+        } else {
+            CaseResult::Failed {
+                message: format!(
+                    "find_references at '{}' expected no results, got {}",
+                    exp.target,
+                    refs.len()
+                ),
             }
         };
     }
 
-    let result =
-        query::find_references(&session.repository, session.revision, file_id, offset, true);
-    let Some(refs) = result else {
+    let refs = query::find_references(&ctx, &workspace, offset, true);
+    if refs.is_empty() {
         return CaseResult::Failed {
-            message: format!("find_references at '{}' returned None", exp.target),
+            message: format!("find_references at '{}' returned no references", exp.target),
         };
-    };
+    }
+    let reference_spans = reference_spans(&refs);
 
     // validate reference invariants before comparing expectations
-    if let Err(message) = validate_reference_invariants(session, &refs.references, declaration_span)
+    if let Err(message) = validate_reference_invariants(session, &reference_spans, declaration_span)
     {
         return CaseResult::Failed { message };
     }
 
     // prefer protocol shaped snapshots when the expectation is structured
     if looks_like_span_snapshot(content, &["file=", "decl=", "ref=", ".ds:", "range="]) {
-        let actual_lines = format_reference_snapshot(session, &refs.references, declaration_span);
+        let actual_lines = format_reference_snapshot(session, &reference_spans, declaration_span);
         return compare_snapshot(
             &format!("find_references at '{}'", exp.target),
             &actual_lines.join("\n"),
@@ -121,7 +114,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // compare marker expectations against actual references
-    let actual_spans = normalized_spans(session, &refs.references, declaration_span);
+    let actual_spans = normalized_spans(session, &reference_spans, declaration_span);
     let expected_spans = normalized_spans(session, &expected_spans, declaration_span);
 
     if actual_spans.len() != expected_spans.len() {
@@ -151,6 +144,14 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     CaseResult::Passed
+}
+
+/// Return the source spans for query references.
+fn reference_spans(references: &[query::Reference]) -> Vec<Span> {
+    references
+        .iter()
+        .map(|reference| reference.target.span)
+        .collect()
 }
 
 /// Validate basic reference invariants.

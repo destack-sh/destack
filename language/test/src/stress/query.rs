@@ -72,12 +72,8 @@ impl StressIdeDriver for QueryStressDriver<'_> {
 
     fn hover(&mut self, anchor: &StressAnchor) -> Result<Option<NormalizedQuickInfo>, String> {
         let (file_id, offset) = self.file_position(anchor)?;
-        let hover = query::hover(
-            &self.workspace.repository,
-            self.workspace.revision,
-            file_id,
-            offset,
-        );
+        let ctx = self.workspace.module_context(file_id)?;
+        let hover = query::hover(&ctx, offset);
         let Some(hover) = hover else {
             return Ok(None);
         };
@@ -94,21 +90,15 @@ impl StressIdeDriver for QueryStressDriver<'_> {
         anchor: &StressAnchor,
     ) -> Result<Vec<NormalizedLocation>, String> {
         let (file_id, offset) = self.file_position(anchor)?;
-        let definition = query::goto_definition(
-            &self.workspace.repository,
-            self.workspace.revision,
-            file_id,
-            offset,
-        );
-        let Some(definition) = definition else {
-            return Ok(Vec::new());
-        };
+        let ctx = self.workspace.module_context(file_id)?;
+        let definition = query::goto_definition(&ctx, offset);
+        let spans = navigation_target_spans(&definition);
 
-        for span in &definition.locations {
+        for span in &spans {
             self.workspace.validate_span(*span)?;
         }
 
-        normalize_query_definition_result(self.workspace, &definition.locations)
+        normalize_query_definition_result(self.workspace, &spans)
     }
 
     fn goto_declaration(
@@ -116,21 +106,15 @@ impl StressIdeDriver for QueryStressDriver<'_> {
         anchor: &StressAnchor,
     ) -> Result<Vec<NormalizedLocation>, String> {
         let (file_id, offset) = self.file_position(anchor)?;
-        let declaration = query::goto_declaration(
-            &self.workspace.repository,
-            self.workspace.revision,
-            file_id,
-            offset,
-        );
-        let Some(declaration) = declaration else {
-            return Ok(Vec::new());
-        };
+        let ctx = self.workspace.module_context(file_id)?;
+        let declaration = query::goto_declaration(&ctx, offset);
+        let spans = navigation_target_spans(&declaration);
 
-        for span in &declaration.locations {
+        for span in &spans {
             self.workspace.validate_span(*span)?;
         }
 
-        normalize_query_definition_result(self.workspace, &declaration.locations)
+        normalize_query_definition_result(self.workspace, &spans)
     }
 
     fn goto_type_definition(
@@ -138,41 +122,29 @@ impl StressIdeDriver for QueryStressDriver<'_> {
         anchor: &StressAnchor,
     ) -> Result<Vec<NormalizedLocation>, String> {
         let (file_id, offset) = self.file_position(anchor)?;
-        let type_definition = query::goto_type_definition(
-            &self.workspace.repository,
-            self.workspace.revision,
-            file_id,
-            offset,
-        );
-        let Some(type_definition) = type_definition else {
-            return Ok(Vec::new());
-        };
+        let ctx = self.workspace.module_context(file_id)?;
+        let type_definition = query::goto_type_definition(&ctx, offset);
+        let spans = navigation_target_spans(&type_definition);
 
-        for span in &type_definition.locations {
+        for span in &spans {
             self.workspace.validate_span(*span)?;
         }
 
-        normalize_query_definition_result(self.workspace, &type_definition.locations)
+        normalize_query_definition_result(self.workspace, &spans)
     }
 
     fn references(&mut self, anchor: &StressAnchor) -> Result<Vec<NormalizedLocation>, String> {
         let (file_id, offset) = self.file_position(anchor)?;
-        let references = query::find_references(
-            &self.workspace.repository,
-            self.workspace.revision,
-            file_id,
-            offset,
-            true,
-        );
-        let Some(references) = references else {
-            return Ok(Vec::new());
-        };
+        let ctx = self.workspace.module_context(file_id)?;
+        let workspace = self.workspace.workspace_context()?;
+        let references = query::find_references(&ctx, &workspace, offset, true);
+        let spans = reference_spans(&references);
 
-        for span in &references.references {
+        for span in &spans {
             self.workspace.validate_span(*span)?;
         }
 
-        normalize_query_references_result(self.workspace, &references.references)
+        normalize_query_references_result(self.workspace, &spans)
     }
 
     fn completion(
@@ -180,13 +152,9 @@ impl StressIdeDriver for QueryStressDriver<'_> {
         anchor: &StressAnchor,
     ) -> Result<Vec<NormalizedCompletionItem>, String> {
         let (file_id, offset) = self.file_position(anchor)?;
-        let completions = query::completions(
-            &self.workspace.repository,
-            self.workspace.revision,
-            file_id,
-            offset,
-            CompletionTrigger::Invoked,
-        );
+        let ctx = self.workspace.module_context(file_id)?;
+        let workspace = self.workspace.workspace_context()?;
+        let completions = query::completions(&ctx, &workspace, offset, CompletionTrigger::Invoked);
 
         for completion in &completions {
             for edit in &completion.additional_text_edits {
@@ -201,15 +169,11 @@ impl StressIdeDriver for QueryStressDriver<'_> {
         &mut self,
         query_text: &str,
     ) -> Result<Vec<NormalizedWorkspaceSymbol>, String> {
-        let symbols = query::workspace_symbols(
-            &self.workspace.repository,
-            self.workspace.revision,
-            query_text,
-            64,
-        );
+        let workspace = self.workspace.workspace_context()?;
+        let symbols = query::workspace_symbols(&workspace, query_text, 64);
 
         for symbol in &symbols {
-            self.workspace.validate_span(symbol.range)?;
+            self.workspace.validate_span(symbol.target.span)?;
         }
 
         normalize_query_workspace_symbols(self.workspace, &symbols)
@@ -265,6 +229,19 @@ fn normalize_query_hover(
     normalize_quick_info(workspace.workspace_root(), file_path, &lsp_hover)
 }
 
+/// Return source spans for navigation targets.
+fn navigation_target_spans(targets: &[query::NavigationTarget]) -> Vec<Span> {
+    targets.iter().map(|target| target.target.span).collect()
+}
+
+/// Return source spans for references.
+fn reference_spans(references: &[query::Reference]) -> Vec<Span> {
+    references
+        .iter()
+        .map(|reference| reference.target.span)
+        .collect()
+}
+
 /// Normalize one direct query definition result through the shared location path.
 fn normalize_query_definition_result(
     workspace: &StressWorkspace,
@@ -298,7 +275,7 @@ fn normalize_query_workspace_symbols(
                 kind: lsp_symbol_kind(symbol.kind),
                 tags: None,
                 container_name: symbol.container.clone(),
-                location: lsp::OneOf::Left(query_location(workspace, symbol.range)?),
+                location: lsp::OneOf::Left(query_location(workspace, symbol.target.span)?),
                 data: None,
             })
         })

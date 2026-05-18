@@ -24,7 +24,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         Err(error) => return CaseResult::Failed { message: error },
     };
 
-    let result = query::inline_symbol(&session.repository, session.revision, file_id, offset);
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let result = query::inline_symbol(&ctx, &workspace, offset);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();
@@ -34,7 +36,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
             Some(result) => CaseResult::Failed {
                 message: format!(
                     "inline should have produced no edits but produced {}",
-                    result.edits.total_edits()
+                    result.total_edits()
                 ),
             },
         };
@@ -47,7 +49,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     if content.is_empty() {
-        if result.edits.total_edits() == 0 {
+        if result.total_edits() == 0 {
             return CaseResult::Failed {
                 message: "inline produced 0 edits".to_string(),
             };
@@ -62,11 +64,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     };
 
-    if result.edits.total_edits() != expected_count {
+    if result.total_edits() != expected_count {
         return CaseResult::Failed {
             message: format!(
                 "inline produced {} edits, expected {}",
-                result.edits.total_edits(),
+                result.total_edits(),
                 expected_count
             ),
         };

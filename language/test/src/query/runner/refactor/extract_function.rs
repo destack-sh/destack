@@ -31,13 +31,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         .map(|name| name.as_str())
         .unwrap_or("extracted");
 
-    let result = query::extract_function(
-        &session.repository,
-        session.revision,
-        session.file_id,
-        selection,
-        new_name,
-    );
+    let ctx = session.module_context(selection.file);
+    let result = query::extract_function(&ctx, selection, new_name);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();
@@ -47,7 +42,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
             Some(result) => CaseResult::Failed {
                 message: format!(
                     "extract_function should have produced no edits but produced {}",
-                    result.edits.total_edits()
+                    result.total_edits()
                 ),
             },
         };
@@ -60,7 +55,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     if content.is_empty() {
-        if result.edits.total_edits() == 0 {
+        if result.total_edits() == 0 {
             return CaseResult::Failed {
                 message: "extract_function produced 0 edits".to_string(),
             };
@@ -75,11 +70,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     };
 
-    if result.edits.total_edits() != expected_count {
+    if result.total_edits() != expected_count {
         return CaseResult::Failed {
             message: format!(
                 "extract_function produced {} edits, expected {}",
-                result.edits.total_edits(),
+                result.total_edits(),
                 expected_count
             ),
         };

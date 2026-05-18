@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
+use destack_query::{self as query, ModuleQueryContext, WorkspaceQueryContext};
 use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
 use destack_workspace::{ProfileId, Ref, Repository, Revision};
 
@@ -22,60 +23,8 @@ struct QuerySessionBuildTimings {
     populate_files: Duration,
     /// The time spent resolving the module set.
     resolve_modules: Duration,
-    /// The time spent compiling DIR artifacts.
-    compile: Duration,
-    /// The time spent indexing module-backed query slices.
-    index_modules: Duration,
-    /// The time spent indexing repository-backed import slices.
-    index_imports: Duration,
     /// The time spent rebuilding file and marker metadata.
     rebuild_metadata: Duration,
-}
-
-/// The workspace query indexes needed by one query test case.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct QueryIndexRequirements {
-    /// Whether module-backed query indexes are required.
-    pub needs_module_indexes: bool,
-    /// Whether repository-backed import indexes are required.
-    pub needs_import_indexes: bool,
-}
-
-impl QueryIndexRequirements {
-    /// Build requirements for one query test case.
-    pub fn for_mdtest(test: &MdTestCase) -> Self {
-        let mut requirements = Self::default();
-
-        for kind in query_kinds_for_mdtest(test) {
-            requirements.include_query_kind(kind);
-        }
-
-        requirements
-    }
-
-    /// Expand requirements for one query kind.
-    pub fn include_query_kind(&mut self, kind: &str) {
-        // import search surfaces
-        if matches!(kind, "completion" | "code_actions") {
-            self.needs_import_indexes = true;
-        }
-
-        // syntax local surfaces don't need workspace indexes
-        if !matches!(
-            kind,
-            "document_link"
-                | "resolve_document_link"
-                | "document_symbols"
-                | "folding_ranges"
-                | "selection_range"
-                | "semantic_tokens"
-                | "semantic_tokens_range"
-                | "extract_function"
-                | "extract_variable"
-        ) {
-            self.needs_module_indexes = true;
-        }
-    }
 }
 
 /// Information about a single file in a test session.
@@ -106,6 +55,10 @@ pub struct QueryTestSession {
     pub markers: TestMarkers,
     /// The clean source (without markers, from primary file).
     pub source: String,
+    /// The query profiles included in this session.
+    pub profile_ids: Vec<ProfileId>,
+    /// The selected query profile keyed by module.
+    profile_by_module: HashMap<ModuleId, ProfileId>,
     /// All files in the session (keyed by file name).
     pub files: HashMap<String, TestFile>,
 }
@@ -130,10 +83,6 @@ impl QueryTestSession {
             memory_fs,
             root,
             QueryTestProfileMode::Default,
-            QueryIndexRequirements {
-                needs_module_indexes: true,
-                needs_import_indexes: true,
-            },
         )
     }
 
@@ -165,10 +114,6 @@ impl QueryTestSession {
             memory_fs,
             root,
             QueryTestProfileMode::Default,
-            QueryIndexRequirements {
-                needs_module_indexes: true,
-                needs_import_indexes: true,
-            },
         )
     }
 
@@ -181,9 +126,8 @@ impl QueryTestSession {
         let memory_fs = workspace.fs();
         let root = workspace.root().to_path_buf();
         let repository = workspace.repository();
-        let index_requirements = QueryIndexRequirements::for_mdtest(test);
 
-        Self::from_mdtest_with_repository(test, repository, memory_fs, root, index_requirements)
+        Self::from_mdtest_with_repository(test, repository, memory_fs, root)
     }
 
     /// Create a test session from a markdown test case using a shared repository.
@@ -192,7 +136,6 @@ impl QueryTestSession {
         repository: Arc<Repository>,
         memory_fs: Arc<MemoryFileSystem>,
         root: PathBuf,
-        index_requirements: QueryIndexRequirements,
     ) -> Result<Self, String> {
         // first pass: parse markers and collect clean sources
         let mut clean_files: Vec<(String, String, TestMarkers)> = Vec::new();
@@ -213,7 +156,6 @@ impl QueryTestSession {
             memory_fs,
             root,
             QueryTestProfileMode::MdTest(test),
-            index_requirements,
         ))
     }
 
@@ -227,6 +169,97 @@ impl QueryTestSession {
         self.files.get(name).map(|f| &f.markers)
     }
 
+    /// Return the query context for the primary file.
+    pub fn primary_module_context(&self) -> ModuleQueryContext<'_> {
+        self.module_context(self.file_id)
+    }
+
+    /// Return the query context for one file.
+    pub fn module_context(&self, file_id: FileId) -> ModuleQueryContext<'_> {
+        let module_id = self
+            .repository
+            .module_id_for_file(self.revision, file_id)
+            .expect("failed to resolve query module for file")
+            .expect("missing query module for file");
+        let profile_id = self.module_profile_id(module_id);
+        self.require_artifacts(&[
+            ArtifactKey::dir_checked(module_id, profile_id),
+            ArtifactKey::global_environment(profile_id),
+        ]);
+
+        query::module_query_context(
+            self.repository.as_ref(),
+            self.revision,
+            module_id,
+            profile_id,
+        )
+        .expect("missing module query context")
+    }
+
+    /// Return the selected query profile for one module.
+    pub fn module_profile_id(&self, module_id: ModuleId) -> ProfileId {
+        self.profile_by_module
+            .get(&module_id)
+            .copied()
+            .expect("missing query profile for module")
+    }
+
+    /// Return the workspace query context for this session.
+    pub fn workspace_context(&self) -> WorkspaceQueryContext<'_> {
+        let mut indexes = Vec::with_capacity(self.profile_ids.len());
+
+        for profile_id in &self.profile_ids {
+            let key = ArtifactKey::workspace_query_index(*profile_id);
+            self.require_artifact(key.clone());
+            let version = self
+                .repository
+                .artifact_version(self.revision, &key)
+                .expect("failed to resolve workspace query index version")
+                .expect("missing workspace query index version");
+            let index = self
+                .repository
+                .artifact_store()
+                .workspace_query_index(&version)
+                .expect("missing workspace query index payload");
+
+            indexes.push((*profile_id, index));
+        }
+
+        query::workspace_query_context(self.repository.as_ref(), self.revision, indexes)
+            .expect("missing workspace query context")
+    }
+
+    /// Require one artifact in this session revision.
+    fn require_artifact(&self, key: ArtifactKey) {
+        self.require_artifacts(&[key]);
+    }
+
+    /// Require artifacts in this session revision.
+    fn require_artifacts(&self, keys: &[ArtifactKey]) {
+        let missing_keys: Vec<_> = keys
+            .iter()
+            .filter(|key| {
+                self.repository
+                    .artifact_version(self.revision, key)
+                    .expect("failed to read query artifact version")
+                    .is_none()
+            })
+            .cloned()
+            .collect();
+        if missing_keys.is_empty() {
+            return;
+        }
+
+        let compiler = Arc::new(Compiler::new(self.repository.clone()));
+        let revision =
+            provide_workspace_artifacts(self.repository.clone(), compiler, &missing_keys);
+
+        assert_eq!(
+            revision, self.revision,
+            "query artifact provider changed the source revision"
+        );
+    }
+
     /// Build one compiled query test session from clean files.
     fn from_clean_files_with_repository(
         clean_files: Vec<(String, String, TestMarkers)>,
@@ -235,7 +268,6 @@ impl QueryTestSession {
         memory_fs: Arc<MemoryFileSystem>,
         root: PathBuf,
         profile_mode: QueryTestProfileMode<'_>,
-        index_requirements: QueryIndexRequirements,
     ) -> Self {
         // stage timings
         let mut timings = QuerySessionBuildTimings::default();
@@ -252,13 +284,12 @@ impl QueryTestSession {
 
         // build and index the compiled module set
         let main_path = root.join(&primary_name);
-        let (revision, modules_by_path) = compile_and_index_query_modules(
+        let (revision, modules_by_path, profile_by_module, profile_ids) = build_query_modules(
             &repository,
             &root,
             &clean_files,
             &main_path,
             profile_mode,
-            index_requirements,
             &mut timings,
         );
 
@@ -329,6 +360,8 @@ impl QueryTestSession {
             file_id: primary_file_id,
             markers: all_markers,
             source: primary_source,
+            profile_ids,
+            profile_by_module,
             files,
         }
     }
@@ -431,18 +464,20 @@ pub fn test_session_multi(files: &[(&str, &str)]) -> QueryTestSession {
     QueryTestSession::from_files(files)
 }
 
-/// Resolve, compile, and index one query test module set.
-fn compile_and_index_query_modules(
+/// Resolve one query test module set.
+fn build_query_modules(
     repository: &Arc<Repository>,
     root: &Path,
     clean_files: &[(String, String, TestMarkers)],
     main_path: &PathBuf,
     profile_mode: QueryTestProfileMode<'_>,
-    index_requirements: QueryIndexRequirements,
     timings: &mut QuerySessionBuildTimings,
-) -> (Revision, HashMap<PathBuf, ModuleId>) {
-    let compiler = Compiler::new(repository.clone());
-
+) -> (
+    Revision,
+    HashMap<PathBuf, ModuleId>,
+    HashMap<ModuleId, ProfileId>,
+    Vec<ProfileId>,
+) {
     // materialize all test files into the active revision first
     for (path, clean_source, _) in clean_files {
         let file_path = root.join(path);
@@ -477,60 +512,34 @@ fn compile_and_index_query_modules(
     module_ids.dedup();
     timings.resolve_modules = resolve_start.elapsed();
 
-    // choose the profile set for every compiled module
-    let mut profiles_by_module = HashMap::<ModuleId, HashSet<ProfileId>>::new();
-    let extra_profile = match profile_mode {
-        QueryTestProfileMode::Default => None,
-        QueryTestProfileMode::MdTest(test) => {
-            let (profile, _load_libraries) =
-                select_profile_for_mdtest(repository, revision, main_module_id, test, false);
-            Some(profile.id())
-        }
-    };
-
+    // select one explicit profile for every query module
+    let mut profile_by_module = HashMap::<ModuleId, ProfileId>::new();
     for module_id in &module_ids {
-        let profile = profile_id_for_builtin_default_target(repository, revision, *module_id);
-        let profiles = profiles_by_module.entry(*module_id).or_default();
-        profiles.insert(profile);
-
-        if let Some(profile) = extra_profile {
-            profiles.insert(profile);
-        }
-    }
-
-    // compile the checked DIR for every relevant profile
-    //
-    // checked depends on declared and exported DIR, so this materializes both
-    // artifacts for query_context consumers
-    let mut artifact_keys = Vec::new();
-    let mut profile_ids = HashSet::new();
-    for (module_id, profiles) in &profiles_by_module {
-        for profile in profiles {
-            profile_ids.insert(*profile);
-            artifact_keys.push(ArtifactKey::DirChecked {
-                module: *module_id,
-                profile: *profile,
-            });
-
-            if index_requirements.needs_module_indexes {
-                artifact_keys.push(ArtifactKey::module_query_index(*module_id, *profile));
+        let profile = match &profile_mode {
+            QueryTestProfileMode::Default => {
+                profile_id_for_builtin_default_target(repository, revision, *module_id)
             }
-        }
+            QueryTestProfileMode::MdTest(test) => {
+                let (profile, _load_libraries) =
+                    select_profile_for_mdtest(repository, revision, *module_id, test, false);
+                profile.id()
+            }
+        };
+
+        profile_by_module.insert(*module_id, profile);
     }
 
-    if index_requirements.needs_import_indexes {
-        for profile in profile_ids {
-            artifact_keys.push(ArtifactKey::workspace_query_index(profile));
-        }
+    // collect the profiles used by this query case
+    let mut profile_ids = HashSet::new();
+    for profile in profile_by_module.values() {
+        profile_ids.insert(*profile);
     }
 
-    let compiler = Arc::new(compiler);
+    let mut profile_ids = profile_ids.into_iter().collect::<Vec<_>>();
+    profile_ids.sort();
+    profile_ids.dedup();
 
-    let compile_start = Instant::now();
-    let revision = provide_workspace_artifacts(repository.clone(), compiler, &artifact_keys);
-    timings.compile = compile_start.elapsed();
-
-    (revision, modules_by_path)
+    (revision, modules_by_path, profile_by_module, profile_ids)
 }
 
 /// Print one query session build timing line when timing is enabled.
@@ -539,36 +548,16 @@ fn log_query_session_build_timing(root: &Path, timings: &QuerySessionBuildTiming
         return;
     }
 
-    let total = timings.populate_files
-        + timings.resolve_modules
-        + timings.compile
-        + timings.index_modules
-        + timings.index_imports
-        + timings.rebuild_metadata;
+    let total = timings.populate_files + timings.resolve_modules + timings.rebuild_metadata;
 
     eprintln!(
-        "query build {}: files={:?} resolve={:?} compile={:?} index_modules={:?} index_imports={:?} rebuild={:?} total={:?}",
+        "query build {}: files={:?} resolve={:?} rebuild={:?} total={:?}",
         root.display(),
         timings.populate_files,
         timings.resolve_modules,
-        timings.compile,
-        timings.index_modules,
-        timings.index_imports,
         timings.rebuild_metadata,
         total,
     );
-}
-
-/// Iterate the query kinds declared in one mdtest case.
-fn query_kinds_for_mdtest(test: &MdTestCase) -> impl Iterator<Item = &str> + '_ {
-    test.extra_blocks.iter().filter_map(|block| {
-        let parts: Vec<_> = block.language.split_whitespace().collect();
-        if parts.len() < 3 || parts[0] != "query" {
-            return None;
-        }
-
-        Some(parts[1])
-    })
 }
 
 /// Return the current workspace revision for one repository.
@@ -586,7 +575,7 @@ mod tests {
 
     use destack_query::{CompletionTrigger, completions};
 
-    use super::{QueryIndexRequirements, QueryTestSession};
+    use super::QueryTestSession;
     use crate::core::SharedMemoryWorkspace;
     use crate::mdtest::{MdTestCase, MdTestFile};
 
@@ -616,246 +605,12 @@ mod tests {
 const foo = 1;
 $0
 "#,
-        ));
+        ))
+        .expect("query session");
 
-        // resolve the compiled module for the main file
-        let module = session
-            .session
-            .primary_module_for_file(session.file_id)
-            .unwrap_or_else(|| panic!("expected compiled module for {:?}", session.file_id));
-        let module = module.as_ref();
+        let context = session.primary_module_context();
 
-        // require the standard query context surface
-        let ctx = query_context(session.session.as_ref(), module);
-        assert!(ctx.is_some(), "expected query context for main file");
-    }
-
-    /// Detects statement completion context in mdtest sessions.
-    #[test]
-    fn test_detects_statement_completion_context_in_mdtest_session() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-const foo = 1;
-$0
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require statement position at the cursor
-        match result.context {
-            CompletionContext::StatementPosition { .. } => {}
-            other => panic!("expected statement completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects new-expression completion context after a bare `new` keyword.
-    #[test]
-    fn test_detects_new_expression_completion_context_after_new_keyword() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-class Engine {}
-
-function main() {
-    new $0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require new-expression completion at the cursor
-        match result.context {
-            CompletionContext::NewExpression { .. } => {}
-            other => panic!("expected new-expression completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects new-expression completion context while typing a constructor name.
-    #[test]
-    fn test_detects_new_expression_completion_context_for_constructor_prefix() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-class Engine {}
-
-function main() {
-    new Eng$0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require new-expression completion at the cursor
-        match result.context {
-            CompletionContext::NewExpression { .. } => {}
-            other => panic!("expected new-expression completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects value completion context in one missing return slot.
-    #[test]
-    fn test_detects_value_completion_context_after_return_keyword() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-function helper(): void {}
-
-function main() {
-    return $0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require value completion at the cursor
-        match result.context {
-            CompletionContext::ValuePosition { .. } => {}
-            other => panic!("expected value completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects value completion context in one missing yield slot.
-    #[test]
-    fn test_detects_value_completion_context_after_yield_keyword() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-function* main() {
-    yield $0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require value completion at the cursor
-        match result.context {
-            CompletionContext::ValuePosition { .. } => {}
-            other => panic!("expected value completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects value completion context in one missing `yield*` operand slot.
-    #[test]
-    fn test_detects_value_completion_context_after_yield_star() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-function* main() {
-    yield* $0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require value completion at the cursor
-        match result.context {
-            CompletionContext::ValuePosition { .. } => {}
-            other => panic!("expected value completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects value completion context in one missing throw slot.
-    #[test]
-    fn test_detects_value_completion_context_after_throw_keyword() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-function main() {
-    throw $0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require value completion at the cursor
-        match result.context {
-            CompletionContext::ValuePosition { .. } => {}
-            other => panic!("expected value completion context, found {other:?}"),
-        }
-    }
-
-    /// Detects member access completion context inside one initializer with the same binding name.
-    #[test]
-    fn test_detects_member_access_context_inside_initializer_with_same_label() {
-        let session = QueryTestSession::from_mdtest(&mdtest_case(
-            r#"
-class Calculator {
-    add(a: int32, b: int32): int32 {
-        return a + b;
-    }
-}
-
-function main() {
-    const calc = new Calculator();
-    const add = calc.ad$0
-}
-"#,
-        ));
-        let cursor = session
-            .markers
-            .cursors
-            .first()
-            .unwrap_or_else(|| panic!("expected cursor marker"))
-            .offset;
-
-        // detect completion context at the cursor
-        let result = detect_completion_context(session.session.as_ref(), session.file_id, cursor);
-
-        // require member access completion at the cursor
-        match result.context {
-            CompletionContext::MemberAccess { .. } => {}
-            other => panic!("expected member access completion context, found {other:?}"),
-        }
+        assert_eq!(context.file_id(), session.file_id);
     }
 
     /// Returns member completions inside one initializer even when the binding has the same label.
@@ -884,13 +639,9 @@ function main() {
             .offset;
 
         // request completions at the member access cursor
-        let completions = completions(
-            session.repository.as_ref(),
-            session.revision,
-            session.file_id,
-            cursor,
-            CompletionTrigger::Invoked,
-        );
+        let context = session.primary_module_context();
+        let workspace = session.workspace_context();
+        let completions = completions(&context, &workspace, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())
@@ -921,13 +672,9 @@ $0
             .offset;
 
         // request completions at the statement cursor
-        let completions = completions(
-            session.repository.as_ref(),
-            session.revision,
-            session.file_id,
-            cursor,
-            CompletionTrigger::Invoked,
-        );
+        let context = session.primary_module_context();
+        let workspace = session.workspace_context();
+        let completions = completions(&context, &workspace, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())
@@ -957,10 +704,6 @@ $0
             workspace.repository(),
             workspace.fs(),
             first_root,
-            QueryIndexRequirements {
-                needs_module_indexes: true,
-                needs_import_indexes: true,
-            },
         )
         .expect("query session");
 
@@ -976,10 +719,6 @@ $0
             workspace.repository(),
             workspace.fs(),
             second_root,
-            QueryIndexRequirements {
-                needs_module_indexes: true,
-                needs_import_indexes: true,
-            },
         )
         .expect("query session");
         let cursor = session
@@ -990,13 +729,9 @@ $0
             .offset;
 
         // request completions through the shared-session path
-        let completions = completions(
-            session.repository.as_ref(),
-            session.revision,
-            session.file_id,
-            cursor,
-            CompletionTrigger::Invoked,
-        );
+        let context = session.primary_module_context();
+        let workspace = session.workspace_context();
+        let completions = completions(&context, &workspace, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())

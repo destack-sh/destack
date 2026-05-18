@@ -31,7 +31,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         };
     };
 
-    let tokens = query::semantic_tokens(&session.repository, session.revision, session.file_id);
+    let ctx = session.primary_module_context();
+    let tokens = query::semantic_tokens(&ctx);
     run_with_expectation(session, exp, &tokens)
 }
 
@@ -48,8 +49,8 @@ pub fn run_range(session: &QueryTestSession, expectation: Option<&QueryExpectati
         Err(message) => return CaseResult::Failed { message },
     };
 
-    let tokens =
-        query::semantic_tokens_range(&session.repository, session.revision, range.file, range);
+    let ctx = session.module_context(range.file);
+    let tokens = query::semantic_tokens_range(&ctx, range);
     run_with_expectation(session, exp, &tokens)
 }
 

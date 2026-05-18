@@ -27,14 +27,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let new_parameters = exp.args.first().map(|value| value.as_str()).unwrap_or("");
     let new_arguments = exp.args.get(1).map(|value| value.as_str()).unwrap_or("");
 
-    let result = query::change_signature(
-        &session.repository,
-        session.revision,
-        file_id,
-        offset,
-        new_parameters,
-        new_arguments,
-    );
+    let ctx = session.module_context(file_id);
+    let workspace = session.workspace_context();
+    let result = query::change_signature(&ctx, &workspace, offset, new_parameters, new_arguments);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();
@@ -44,7 +39,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
             Some(result) => CaseResult::Failed {
                 message: format!(
                     "change_signature should have produced no edits but produced {}",
-                    result.edits.total_edits()
+                    result.total_edits()
                 ),
             },
         };
@@ -57,7 +52,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     if content.is_empty() {
-        if result.edits.total_edits() == 0 {
+        if result.total_edits() == 0 {
             return CaseResult::Failed {
                 message: "change_signature produced 0 edits".to_string(),
             };
@@ -72,11 +67,11 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     };
 
-    if result.edits.total_edits() != expected_count {
+    if result.total_edits() != expected_count {
         return CaseResult::Failed {
             message: format!(
                 "change_signature produced {} edits, expected {}",
-                result.edits.total_edits(),
+                result.total_edits(),
                 expected_count
             ),
         };
