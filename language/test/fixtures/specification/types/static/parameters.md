@@ -289,8 +289,8 @@ Object static expressions may be used as value arguments.
 ```ds
 type Tagged<comptime Tag: { name: string; count: int32 }> = { tag: Tag };
 
-declare let value: Tagged<{ name: "alpha"; count: 1 }>;
-value satisfies Tagged<{ name: "alpha"; count: 1 }>;
+declare let value: Tagged<{ name: "alpha", count: 1 }>;
+value satisfies Tagged<{ name: "alpha", count: 1 }>;
 ```
 
 ### static value parameters reject mismatched objects
@@ -300,7 +300,7 @@ Object comptime arguments must match the declared shape.
 ```ds
 type Tagged<comptime Tag: { name: string; count: int32 }> = { tag: Tag };
 
-declare let value: Tagged<{ name: "alpha"; count: true }>;
+declare let value: Tagged<{ name: "alpha", count: true }>;
 ```
 
 - contains: not assignable
@@ -393,7 +393,7 @@ type Tagged<comptime Tag: { name: string; count: int32 }> = { tag: Tag };
 declare function make<comptime Tag: { name: string; count: int32 }>(value: Tag): Tagged<Tag>;
 
 let value = make({ name: "alpha", count: 1 });
-value satisfies Tagged<{ name: "alpha"; count: 1 }>;
+value satisfies Tagged<{ name: "alpha", count: 1 }>;
 ```
 
 ### static value inference accepts enum members

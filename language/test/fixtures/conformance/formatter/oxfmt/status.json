@@ -69,6 +69,12 @@
             "note": "unsupported legacy TypeScript angle-bracket assertion syntax"
         },
         {
+            "patterns": ["ts/directives/issue-16192.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "mixed fixture with unsupported TypeScript namespace declaration syntax"
+        },
+        {
             "patterns": ["ts/class/decorators.ts", "ts/class/issue-20519.ts"],
             "status": "ignore",
             "reason": "scope",

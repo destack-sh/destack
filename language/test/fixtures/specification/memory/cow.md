@@ -21,7 +21,9 @@ name satisfies MaybeOwned<string>;
 ```ds
 import { Cow } from "destack:memory/cow";
 
-function view<L: Lifetime>(name: ReadonlyBorrowed<string, L>): Cow<ReadonlyBorrowed<string, L>, ^string> {
+function view<L: Lifetime>(
+    name: ReadonlyBorrowed<string, L>,
+): Cow<ReadonlyBorrowed<string, L>, ^string> {
     return Cow.borrowed(name);
 }
 ```

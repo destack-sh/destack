@@ -12,7 +12,7 @@ struct Point {
     y: int32;
 }
 
-function kernel(data: shared (&Point)): int32 {
+function kernel(data: shared &Point): int32 {
     data.x
 }
 ```

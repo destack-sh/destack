@@ -29,7 +29,7 @@ Adding readonly markers prevents writes through the mapped type.
 ```ds
 type Frozen<T> = { readonly [K in keyof T]: T[K] };
 
-const value: Frozen<{ a: number }> = { a: 1 };
+const value: Frozen<type { a: number }> = { a: 1 };
 value.a = 2;
 ```
 

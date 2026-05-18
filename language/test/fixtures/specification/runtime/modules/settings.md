@@ -37,8 +37,8 @@ function read(value: int32): int32 {
 Module metadata declarations are static terms.
 
 ```ds
-import { HtmlTree } from "destack:ui/html";
 import { Clone, Debug } from "destack:decorator";
+import { HtmlTree } from "destack:ui/html";
 
 module {
     const tree = HtmlTree;

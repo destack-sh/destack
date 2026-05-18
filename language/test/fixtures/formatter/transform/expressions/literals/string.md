@@ -98,7 +98,7 @@ const x = "say \"hello\""
 ```
 
 ```ds expected
-const x = 'say "hello"';
+const x = "say \"hello\"";
 ```
 
 

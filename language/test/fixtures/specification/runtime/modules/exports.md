@@ -81,7 +81,7 @@ export interface RegistryChain<R> {
     build(): Registry<R>;
 }
 
-export declare function createRegistry(): RegistryChain<{}>;
+export declare function createRegistry(): RegistryChain<type {}>;
 ```
 
 ```ds:registry.ds
@@ -115,7 +115,7 @@ export interface RegistryChain<R> {
     build(): Registry<R>;
 }
 
-export declare function createRegistry(): RegistryChain<{}>;
+export declare function createRegistry(): RegistryChain<type {}>;
 ```
 
 ```ds:registry.ds
