@@ -1039,21 +1039,71 @@ impl Parser {
 
     /// Return whether `?` can finish one direct postfix expression here.
     fn direct_maybe_postfix_has_follow(&mut self) -> bool {
+        if self.current_token_is_on_new_line() {
+            return false;
+        }
+
         // statement boundary
-        if self.is_next_any_stop() && !self.current_token_is_on_new_line() {
+        if self.is_next_any_stop() {
             return true;
         }
 
         // expression boundary
-        if self.is_next_any_close_parenthesis() || self.peek_next_assign_operator_is() {
+        if self.is_next_any_close_parenthesis() {
             return true;
         }
 
-        // assertion boundary
-        matches!(
-            self.next_keyword(),
-            Some(Keyword::As | Keyword::Satisfies | Keyword::Is | Keyword::InstanceOf)
-        )
+        // postfix continuation
+        if matches!(
+            self.next_token_type(),
+            TokenType::Dot | TokenType::OpenBracket
+        ) {
+            return !self.next_bracket_starts_ternary_branch();
+        }
+
+        // tree literal branch
+        if self.next_token_type() == TokenType::LessThan
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.can_start_tree_literal()
+            })
+        {
+            return false;
+        }
+
+        // infix continuation
+        self.lookahead(|parser| {
+            parser.bump();
+            let has_line_break_before = parser.current_token().token.is_on_new_line;
+
+            parser
+                .peek_infix_operator_maybe(has_line_break_before)
+                .is_some()
+        })
+    }
+
+    /// Return whether `?[...]` starts a ternary then branch.
+    fn next_bracket_starts_ternary_branch(&mut self) -> bool {
+        if self.next_token_type() != TokenType::OpenBracket {
+            return false;
+        }
+
+        self.lookahead(|parser| {
+            parser.bump();
+            let Some(close_span) =
+                parser.find_matching_close_maybe(TokenType::OpenBracket, TokenType::CloseBracket)
+            else {
+                return false;
+            };
+
+            while parser.peek_token_type() != TokenType::End
+                && parser.current_token().span.start <= close_span.start
+            {
+                parser.bump();
+            }
+
+            parser.peek_is(TokenType::Colon)
+        })
     }
 
     /// Eat one type-space postfix `!` or `as comptime` continuation.
@@ -1276,7 +1326,7 @@ impl Parser {
             TokenType::OpenBracket => {
                 let left_is_maybe =
                     matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
-                if left_is_maybe {
+                if left_is_maybe && !self.language.is_destack() {
                     return Ok(None);
                 }
                 let expression_id = self.eat_index(left_expression_id, PostfixPosition::Direct)?;

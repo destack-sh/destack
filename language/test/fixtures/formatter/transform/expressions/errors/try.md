@@ -45,3 +45,59 @@ try {
     handle(error)
 }
 ```
+
+## Try Propagation
+
+### postfix try before binary operators
+
+Postfix `?` binds before binary operators.
+
+```ds
+const size = encode()? + 1
+const ready = encode()? && isReady
+```
+
+```ds expected
+const size = encode()? + 1;
+const ready = encode()? && isReady;
+```
+
+### postfix try before type operators
+
+Postfix `?` binds before type assertions.
+
+```ds
+const text = encode()? as string
+const valid = encode()? satisfies string
+```
+
+```ds expected
+const text = encode()? as string;
+const valid = encode()? satisfies string;
+```
+
+### postfix try before chain operators
+
+Postfix `?` binds before member and index continuations.
+
+```ds
+const field = encode()?.field
+const item = encode()?[0]
+```
+
+```ds expected
+const field = encode()?.field;
+const item = encode()?[0];
+```
+
+### compact ternary
+
+Expression operands after `?` keep ternary shape.
+
+```ds
+const value = a?b:c
+```
+
+```ds expected
+const value = a ? b : c;
+```

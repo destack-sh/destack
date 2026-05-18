@@ -3,6 +3,21 @@ use crate::{assert_expression_path, assert_node, assert_string};
 use destack_dir::*;
 use destack_source::LanguageType;
 
+/// Assert one direct maybe expression wrapping a call.
+fn assert_direct_maybe_call(
+    parser: &crate::Parser,
+    expression_id: LocalNodeId<Expression>,
+    expected_callee: &str,
+) {
+    assert_node!(parser.tree, expression_id, Expression::Maybe { left, position } => {
+        assert_eq!(*position, PostfixPosition::Direct);
+        assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+            assert!(arguments.is_empty());
+            assert_expression_path!(parser, parser.tree.get(*left), expected_callee);
+        });
+    });
+}
+
 /// Parse optional chaining after comment-separated newlines.
 #[test]
 fn test_parse_optional_chain_after_comment_newlines() {
@@ -31,6 +46,52 @@ fn test_parse_optional_chain_after_comment_newlines() {
     });
 }
 
+/// Parse direct `?` before arithmetic continuation.
+#[test]
+fn test_parse_direct_maybe_before_arithmetic() {
+    let mut test = TestParser::new_with_language("encode()? + 1", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::Add);
+        assert_direct_maybe_call(&parser, *left, "encode");
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+    });
+}
+
+/// Parse direct `?` before logical continuation.
+#[test]
+fn test_parse_direct_maybe_before_logical() {
+    let mut test = TestParser::new_with_language("encode()? && ready", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::And);
+        assert_direct_maybe_call(&parser, *left, "encode");
+        assert_expression_path!(parser, parser.tree.get(*right), "ready");
+    });
+}
+
+/// Parse direct `?` before an `as` assertion continuation.
+#[test]
+fn test_parse_direct_maybe_before_as() {
+    let mut test = TestParser::new_with_language("encode()? as string", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::As { expression, target_type } => {
+        assert_direct_maybe_call(&parser, *expression, "encode");
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::String);
+        });
+    });
+}
+
 /// Parse direct `?` before a type assertion continuation.
 #[test]
 fn test_parse_direct_maybe_before_satisfies() {
@@ -48,6 +109,55 @@ fn test_parse_direct_maybe_before_satisfies() {
         assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
             assert_eq!(*value, TypeLiteral::String);
         });
+    });
+}
+
+/// Parse direct `?` before member continuation.
+#[test]
+fn test_parse_direct_maybe_before_member() {
+    let mut test = TestParser::new_with_language("encode()?.field", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
+        assert_string!(parser, *name, "field");
+        assert_direct_maybe_call(&parser, *left, "encode");
+    });
+}
+
+/// Parse direct `?` before index continuation.
+#[test]
+fn test_parse_direct_maybe_before_index() {
+    let mut test = TestParser::new_with_language("encode()?[0]", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::Index { left, index, position } => {
+        assert_eq!(*position, PostfixPosition::Direct);
+        assert_direct_maybe_call(&parser, *left, "encode");
+        assert_node!(parser.tree, index.expect("expected index"), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+    });
+}
+
+/// Parse compact ternary after an identifier condition.
+#[test]
+fn test_parse_identifier_question_expression_as_ternary() {
+    let mut test = TestParser::new_with_language("a?b:c", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::If { form, condition, then_expression, else_expression } => {
+        assert_eq!(*form, IfForm::Ternary);
+        let condition_id = match condition {
+            IfCondition::Expression { condition } => *condition,
+            IfCondition::Let { .. } => panic!("expected expression condition"),
+        };
+        assert_expression_path!(parser, parser.tree.get(condition_id), "a");
+        assert_expression_path!(parser, parser.tree.get(*then_expression), "b");
+        assert_expression_path!(parser, parser.tree.get(else_expression.expect("expected else expression")), "c");
     });
 }
 
