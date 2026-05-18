@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.ds"
+
+// memory / moves / owned values through bindings and returns
+function take(value: ^User): ^User {
+// <- keyword.declaration.type.ds
+    let next: ^User = value;
+    return next;
+}

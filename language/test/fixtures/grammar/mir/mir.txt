@@ -1,0 +1,110 @@
+// SYNTAX TEST "source.dsmir"
+
+function fib(v0: int64): int64 {
+// <- keyword.declaration.function.dsmir
+//       ^^^ entity.name.function.dsmir
+//           ^^ variable.other.ssa.dsmir
+//               ^^^^^ support.type.dsmir
+//                       ^^^^^ support.type.dsmir
+
+bb0(v0: int64):
+// <- entity.name.label.dsmir
+//  ^^ variable.other.ssa.dsmir
+//      ^^^^^ support.type.dsmir
+
+    v1: int64 = const 2int64
+//  ^^ variable.other.ssa.dsmir
+//      ^^^^^ support.type.dsmir
+//              ^^^^^ keyword.operator.instruction.dsmir
+//                    ^^^^^^ constant.numeric.dsmir
+
+    v2: boolean = int.lt.s v0, v1
+//  ^^ variable.other.ssa.dsmir
+//      ^^^^^^^ support.type.dsmir
+//                ^^^^^^^^ keyword.operator.instruction.dsmir
+
+    branch v2, bb1, bb2
+//  ^^^^^^ keyword.control.flow.dsmir
+//             ^^^ entity.name.label.dsmir
+//                  ^^^ entity.name.label.dsmir
+
+    store v0, v1
+//  ^^^^^ keyword.operator.instruction.dsmir
+
+    local.set v0, v1
+//  ^^^^^^^^^ keyword.operator.instruction.dsmir
+
+    v6: slice<(int64, int64) -> int64> = new.slice (int64, int64) -> int64, v5
+//      ^^^ support.type.dsmir
+//                                       ^^^^^^^^^ keyword.operator.instruction.dsmir
+
+    v7: int64 = const -1int64
+//                    ^^^^^^^ constant.numeric.dsmir
+
+    local local0: ref<int64, copy>
+//  ^^^^^ keyword.declaration.dsmir
+//        ^^^^^^ variable.other.local.dsmir
+//                           ^^^^ keyword.other.memory.dsmir
+
+    v8: ref<int64, copy> = local.get local0
+//  ^^ variable.other.ssa.dsmir
+//                         ^^^^^^^^^ keyword.operator.instruction.dsmir
+//                                   ^^^^^^ variable.other.local.dsmir
+
+    function.address function0
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+//                   ^^^^^^^^^ entity.name.function.dsmir
+
+    call print(v0)
+//  ^^^^ keyword.operator.instruction.dsmir
+
+    intrinsic.memset(v0, v1)
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+
+// comment
+// <- comment.line.double-slash.dsmir
+}
+
+external function @host.print(v0: ref<borrowed vector<i32, 4>>) -> void
+// <- keyword.declaration.dsmir
+//                                ^^^ support.type.dsmir
+//                                    ^^^^^^^^ keyword.other.memory.dsmir
+//                                             ^^^^^^ support.type.dsmir
+
+export global @COUNTER: ref<raw const int64>
+// <- keyword.declaration.dsmir
+//            ^^^^^^^^ entity.name.symbol.dsmir
+//                          ^^^ keyword.other.memory.dsmir
+//                              ^^^^^ keyword.other.memory.dsmir
+
+type @Tensor = tensorView<float32, raw, readonly, (4, 4)>
+// <- keyword.declaration.dsmir
+//             ^^^^^^^^^^ support.type.dsmir
+//                        ^^^^^^^ support.type.dsmir
+//                                 ^^^ keyword.other.memory.dsmir
+//                                      ^^^^^^^^ keyword.other.memory.dsmir
+
+function @tokens(v0: ref<int64, raw>, v1: ref<any<@Iface>, owned>) -> void {
+entry0(v0: ref<int64, raw>):
+    jump block1
+//  ^^^^ keyword.control.flow.dsmir
+block1:
+    switch v0, block2, block3
+//  ^^^^^^ keyword.control.flow.dsmir
+block2:
+    tailCall.class @Klass.method(v0) -> (i64) -> void
+//  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+    call.interface @Iface.method(v0) -> (i64) -> void
+//  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+    call.indirect v0(v1) -> (i64) -> void
+//  ^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+block3:
+    panic
+//  ^^^^^ keyword.control.flow.dsmir
+    panic.resume
+//  ^^^^^^^^^^^^ keyword.control.flow.dsmir
+    trap.abort
+//  ^^^^^^^^^^ keyword.control.flow.dsmir
+    unreachable
+//  ^^^^^^^^^^^ keyword.control.flow.dsmir
+}

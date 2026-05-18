@@ -1,0 +1,27 @@
+// SYNTAX TEST "source.ds"
+
+// types / members / classes constructors and accessors
+class Counter {
+// <- keyword.declaration.type.ds
+    public readonly value: int32;
+    constructor(readonly label: string) {}
+    get count(): int32 { return this.value; }
+}
+
+// types / members / interfaces objects and index signatures
+interface Dictionary {
+// <- keyword.declaration.type.ds
+    readonly [key: string]: string;
+    name?: string;
+    (key: string): string;
+}
+
+// types / members / enums structs and newtypes
+struct Point {
+// <- keyword.declaration.type.ds
+    x: float64;
+    y: float64;
+}
+
+newtype NonEmptyString = string;
+// <- keyword.declaration.type.ds

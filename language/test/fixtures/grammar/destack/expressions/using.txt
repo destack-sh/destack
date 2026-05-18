@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / using / sync
+using file = open(path);
+// <- keyword.control.using.ds
+
+// expressions / using / async
+await using connection = await pool.connect();
+//    ^^^^^ keyword.control.using.ds
+
+// expressions / using / loops
+for (using file of files) {
+//   ^^^^^ keyword.control.using.ds
+    process(file);
+}
+

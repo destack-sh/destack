@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / if / branches
+const label = if (ready) {
+//            ^^ keyword.control.conditional.ds
+    "ready"
+} else {
+    "waiting"
+};
+
+// expressions / if / if let
+if (let Some(value) = maybe) {
+// <- keyword.control.conditional.ds
+    value
+} else {
+    fallback
+}
+
+// expressions / if / ternary
+const value = ready ? left : right;
+//                  ^ keyword.operator.ternary.ds
+

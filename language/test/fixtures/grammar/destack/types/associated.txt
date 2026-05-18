@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.ds"
+
+// types / associated / requirements
+interface Iterator {
+// <- keyword.declaration.type.ds
+    type Item;
+    next(): Option<this.Item>;
+}
+
+// types / associated / constants
+interface RegisterBlock {
+// <- keyword.declaration.type.ds
+    comptime const Width: uint;
+    read(): [uint8; this.Width];
+}
+
+// types / associated / projections
+type ItemOf<I: Iterator> = I.Item;
+// <- keyword.declaration.type.ds
+

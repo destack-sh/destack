@@ -1,0 +1,57 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / control / if switch and match
+if (let Some(value) = maybe) {
+// <- keyword.control.conditional.ds
+    value
+} else {
+    0
+}
+
+switch (kind) {
+// <- keyword.control.conditional.ds
+    case "a":
+        break;
+    default:
+        break;
+}
+
+match (result) {
+// <- keyword.control.conditional.ds
+    Ok(value) if (value > 0) => value
+    Err(error) => throw error
+}
+
+// expressions / control / loops breaks and continues
+const loopValue = loop {
+//                ^^^^ keyword.control.loop.ds
+    break 1;
+};
+
+const labeledValue = outer: loop {
+    break outer: 1;
+//  ^^^^^ keyword.control.flow.ds
+};
+
+for (const item of items) {
+// <- keyword.control.loop.ds
+    continue;
+}
+
+while (ready()) {
+// <- keyword.control.loop.ds
+    break;
+}
+
+// expressions / control / try catch and throw
+try {
+// <- keyword.control.exception.ds
+    read()?
+} catch match (failure) {
+    IOError(error) => recover(error)
+} finally {
+    cleanup();
+}
+
+throw error;
+// <- keyword.control.exception.ds

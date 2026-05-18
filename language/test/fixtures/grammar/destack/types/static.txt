@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.ds"
+
+// types / static / arrays associated guards imports and parameters
+type Buffer<comptime N: uint, comptime Tag: string = "default"> = [uint8; N];
+//          ^^^^^^^^ keyword.other.comptime.ds
+
+declare let value: Buffer<4, "fast">;
+//                 ^^^^^^ entity.name.type.ds
+
+declare let sized: Buffer<2 + 2, "sum">;
+
+type Tagged<comptime Tag: string> = { tag: Tag };

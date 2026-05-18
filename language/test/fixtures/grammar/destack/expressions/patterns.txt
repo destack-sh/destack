@@ -1,0 +1,41 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / patterns / match patterns
+match (value) {
+// <- keyword.control.conditional.ds
+    _ => "wildcard",
+    0 | 1 | 2 => "small",
+    3..=9 => "range",
+    ..=255 => "byte",
+    [head, ...tail] => head,
+    (left, right) => left,
+    { kind: "ok", value } => value,
+    { id, ...rest } => rest,
+    Point { x, y } if (x == y) => x,
+    ^owned => owned,
+    &readonly borrowed => borrowed,
+    &exclusive exclusive => exclusive,
+    *pointer => pointer,
+}
+
+// expressions / patterns / let catch and if-let
+let Some(value) = maybe else {
+// <- keyword.declaration.type.ds
+    return none;
+};
+
+try {
+    read()?
+} catch (error: unknown) {
+    error
+}
+
+if (let { id, name } = input) {
+// <- keyword.control.conditional.ds
+    name
+}
+
+let (left, ...tail) = tuple;
+// <- keyword.declaration.type.ds
+
+let { name: displayName = "Ada", ...rest } = object;

@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.ds"
+
+// memory / layout / placement
+let localValue: local Buffer = Buffer.allocate();
+//              ^^^^^ keyword.other.modifier.ds
+
+let sharedValue: shared Counter = Counter.create();
+//               ^^^^^^ keyword.other.modifier.ds
+
+// memory / layout / raw pointers
+let pointer: *uint8 = &bytes[0];
+//           ^ keyword.operator.pointer.ds
+

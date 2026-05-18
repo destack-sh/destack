@@ -1,0 +1,27 @@
+// SYNTAX TEST "source.ds"
+
+// declarations / modules / imports and exports
+import type { User as ImportedUser } from "./user.ds" with { mode: "static" };
+// <- keyword.declaration.import.ds
+
+export default function run(): void {}
+// <- keyword.declaration.import.ds
+
+export { ImportedUser as User };
+// <- keyword.declaration.import.ds
+
+// declarations / modules / namespaces modules and globals
+namespace App.Core {
+// <- keyword.declaration.type.ds
+    export const version = "1";
+}
+
+module VirtualConfig {
+// <- keyword.declaration.type.ds
+    export const enabled: boolean;
+}
+
+global {
+// <- keyword.declaration.type.ds
+    const process: Process;
+}

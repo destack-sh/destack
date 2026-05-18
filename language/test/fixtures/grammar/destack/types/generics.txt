@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.ds"
+
+// types / generics / constraints defaults and variance
+interface Store<out T: Entity = User> {
+//              ^^^ keyword.operator.variance.ds
+    get(id: UserId): T;
+}
+
+function decode<T>(input: Bytes): T where T: Deserialize;
+
+// types / generics / static values associated types and constants
+type InlineBytes<T, comptime N: uint = comptime 64> = [uint8; N];
+
+type Label<T: Message> = T.Label<"created">;
+//                         ^ entity.name.type.ds
+
+extension MessageOps of Message {
+    type Output = string;
+//  ^^^^ keyword.declaration.type.ds
+    comptime const MaxSize: uint = 64;
+//  ^^^^^^^^ keyword.other.comptime.ds
+}

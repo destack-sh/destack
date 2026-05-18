@@ -1,0 +1,20 @@
+// SYNTAX TEST "source.ds"
+
+// types / classes / constructors
+class Counter {
+// <- keyword.declaration.type.ds
+    public readonly value: int32;
+    constructor(readonly label: string) {}
+}
+
+// types / classes / inheritance and abstract members
+abstract class Logger {
+// <- meta.type.definition.ds
+    abstract write(message: string): void;
+}
+
+// types / classes / overrides
+class ConsoleLogger extends Logger {
+// <- keyword.declaration.type.ds
+    override write(message: string): void {}
+}

@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.ds"
+
+// types / any / erasure
+let value: any = input;
+//         ^^^ keyword.other.type.ds
+
+value satisfies unknown;
+//    ^^^^^^^^^ keyword.operator.type.binary.ds

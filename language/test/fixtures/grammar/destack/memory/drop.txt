@@ -1,0 +1,9 @@
+// SYNTAX TEST "source.ds"
+
+// memory / drop / cleanup members
+class Resource {
+// <- keyword.declaration.type.ds
+    drop(): void {
+        cleanup();
+    }
+}

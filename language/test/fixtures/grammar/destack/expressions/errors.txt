@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / errors / propagation
+const user = decode(raw)?;
+//           ^^^^^^ entity.name.function.call.ds
+//                      ^ keyword.operator.postfix.ds
+
+const value = maybe ?? fallback;
+//                  ^^ keyword.operator.boolean.ds
+
+// expressions / errors / try catch finally
+try {
+// <- keyword.control.exception.ds
+    read()?
+} catch (error: unknown) {
+    recover(error)
+} finally {
+    cleanup();
+}
+
+// expressions / errors / catch match
+try {
+// <- keyword.control.exception.ds
+    read()?
+} catch match (failure) {
+    Missing(path) => create(path),
+    IOError(error) => throw error
+}

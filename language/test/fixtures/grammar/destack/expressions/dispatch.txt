@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / dispatch / overloads interfaces operators and unions
+function parse(value: string): string {
+// <- keyword.declaration.type.ds
+    return value;
+}
+
+function parse(value: int32): int32 {
+    return value + 1;
+}
+
+const parsed = parse("42");
+//             ^^^^^ entity.name.function.call.ds
+
+value satisfies Printable & Serializable;
+//    ^^^^^^^^^ keyword.operator.type.binary.ds
+
+newtype interface Add<T = this> {
+// <- keyword.declaration.type.ds
+    type Output;
+    add(other: T): this.Output;
+}
+
+extension of Vector2 implements Add<Vector2> {
+    [Add.add](other: Vector2): this.Output {
+        return other;
+    }
+}

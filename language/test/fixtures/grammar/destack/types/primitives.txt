@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.ds"
+
+// types / primitives / aliases characters numbers nullish and unknown
+type Scalar = bool | char | string | int32 | uint64 | float64 | bigint | symbol | object | void | unknown;
+// <- keyword.declaration.type.ds
+
+type Empty = never | null | undefined;
+//           ^^^^^ keyword.other.type.ds

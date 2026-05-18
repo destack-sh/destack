@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.ds"
+
+// types / narrowing / guards flow nullish and writes
+if (typeof value == "string") {
+//  ^^^^^^ keyword.operator.type.unary.ds
+    value satisfies string;
+} else if (value instanceof User) {
+    value satisfies User;
+} else if ("name" in value) {
+    value satisfies { name: string };
+} else if (value is null) {
+    value satisfies null;
+}
