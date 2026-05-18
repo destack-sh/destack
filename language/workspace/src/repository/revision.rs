@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{FileContentId, FileId};
 
-use crate::repository::{FileEntry, HostEnvironment, RevisionCache};
+use crate::Environment;
+use crate::repository::{FileEntry, RevisionCache};
 
 /// Content identity for one immutable repository revision state.
 #[repr(transparent)]
@@ -137,23 +138,26 @@ impl RevisionEntry {
     }
 }
 
-/// Source and host inputs addressed by one revision identity.
+/// Source and environment inputs addressed by one revision identity.
 #[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
     pub files: Arc<OrdMap<FileId, FileEntry>>,
-    /// Host inputs captured in this revision.
-    pub host: Arc<HostEnvironment>,
+    /// Environment inputs captured in this revision.
+    pub environment: Arc<Environment>,
     /// Lazily derived data for this revision.
     pub cache: RevisionCache,
 }
 
 impl RevisionState {
     /// Build one revision state from explicit parts.
-    pub(crate) fn new(files: Arc<OrdMap<FileId, FileEntry>>, host: Arc<HostEnvironment>) -> Self {
+    pub(crate) fn new(
+        files: Arc<OrdMap<FileId, FileEntry>>,
+        environment: Arc<Environment>,
+    ) -> Self {
         Self {
             files,
-            host,
+            environment,
             cache: RevisionCache::new(),
         }
     }
@@ -175,6 +179,6 @@ impl RevisionState {
 
     /// Hash this revision state into its deterministic revision identity.
     pub(crate) fn revision(&self) -> Revision {
-        Revision::new(stable_hash_value_256(&(&self.files, &self.host)))
+        Revision::new(stable_hash_value_256(&(&self.files, &self.environment)))
     }
 }

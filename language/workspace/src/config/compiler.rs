@@ -19,8 +19,6 @@ pub struct CompilerOptions {
     /// ECMAScript target version.
     #[serde(rename = "target")]
     pub es_target: EsTarget,
-    /// Default environment.
-    pub environment: Option<String>,
     /// Default profile.
     pub profile: Option<String>,
     /// Default active source graph modes.
@@ -70,7 +68,6 @@ impl Default for CompilerOptions {
         Self {
             module: JsModuleFormat::default(),
             es_target: EsTarget::default(),
-            environment: None,
             profile: None,
             modes: Vec::new(),
             roles: Vec::new(),

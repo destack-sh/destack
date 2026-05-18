@@ -84,7 +84,19 @@ impl Repository {
                 package: package_id,
             });
         };
+        let revision_state = self.revision(revision)?;
         let config = self.destack_for_package_id(revision, package_id)?;
+        let selection = &revision_state.environment.selection;
+
+        // honor target selected by the operation environment
+        if let Some(target_name) = selection.target.as_ref() {
+            let target_id = TargetId::new(package_id, target_name);
+            let Some(target) = self.target_or_builtin(revision, target_id)? else {
+                return Err(RepositoryError::MissingTarget { target: target_id });
+            };
+
+            return Ok(Some((target_id, target)));
+        }
 
         // honor one explicit default target from config
         if let Some(config) = config.as_ref()
@@ -100,7 +112,7 @@ impl Repository {
 
         // use one product target when it is unambiguous
         if let Some(config) = config.as_ref()
-            && let Some((_, product)) = selected_product(config)?
+            && let Some((_, product)) = selected_product(config, selection.product.as_deref())?
             && product.targets.len() == 1
             && let Some((_, target_name)) = product.targets.iter().next()
         {
@@ -139,13 +151,17 @@ impl Repository {
                 package: package_id,
             });
         };
+        let revision_state = self.revision(revision)?;
         let config = self.destack_for_package_id(revision, package_id)?;
+        let selection = &revision_state.environment.selection;
 
         let Some(config) = config.as_ref() else {
             return Ok(None);
         };
 
-        Ok(selected_product(config)?.map(|(name, _)| name.to_string()))
+        let product = selected_product(config, selection.product.as_deref())?;
+
+        Ok(product.map(|(name, _)| name.to_string()))
     }
 
     /// Return the product role selected by one target name.
@@ -196,7 +212,21 @@ impl Repository {
 }
 
 /// Return the selected product declaration when product selection is unambiguous.
-fn selected_product(config: &Destack) -> Result<Option<(&str, &Product)>, RepositoryError> {
+fn selected_product<'a>(
+    config: &'a Destack,
+    selected_product: Option<&'a str>,
+) -> Result<Option<(&'a str, &'a Product)>, RepositoryError> {
+    // honor product selected by the operation environment
+    if let Some(selected_product) = selected_product {
+        let Some(product) = config.products.get(selected_product) else {
+            return Err(RepositoryError::MissingProduct {
+                product: selected_product.to_string(),
+            });
+        };
+
+        return Ok(Some((selected_product, product)));
+    }
+
     // use the explicit default product
     if let Some(default_product) = config.default_product.as_ref() {
         let Some(product) = config.products.get(default_product) else {

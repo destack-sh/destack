@@ -187,7 +187,8 @@ mod tests {
     use destack_artifact::DiskCacheStore;
     use destack_source::{FileSystem, PhysicalFileSystem};
 
-    use crate::repository::{Edit, HostEnvironment, Ref, Repository, Revision};
+    use crate::Environment;
+    use crate::repository::{Edit, Ref, Repository, Revision};
 
     /// Keep one anonymous revision alive while it is pinned.
     #[test]
@@ -200,7 +201,7 @@ mod tests {
             root.clone(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         ));
         let reference = Ref::for_workspace_root(&root);
         let base_revision = repository
@@ -256,7 +257,7 @@ mod tests {
             root.clone(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            HostEnvironment::capture_process(),
+            Environment::capture_process(),
         ));
         let reference = Ref::for_workspace_root(&root);
 

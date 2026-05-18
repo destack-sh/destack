@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::config::{DESTACK_CACHE_DIR, HOME, LOCAL_APPDATA, USERPROFILE, XDG_CACHE_HOME};
+use crate::{DESTACK_CACHE_DIR, HOME, LOCAL_APPDATA, USERPROFILE, XDG_CACHE_HOME};
 
 const UNIX_HOME_CACHE_DIRECTORY: &str = ".cache";
 

@@ -11,10 +11,9 @@ use destack_source::{FileContentEntry, FileContentId, FileId, FileSystem};
 use im::OrdMap;
 
 use crate::repository::{
-    FileCache, FileEntry, FileStore, HostEnvironment, Ref, RepositoryError, Revision,
-    RevisionEntry, RevisionState,
+    FileCache, FileEntry, FileStore, Ref, RepositoryError, Revision, RevisionEntry, RevisionState,
 };
-use crate::{Workspace, WorkspaceKind, resolve_cache_root};
+use crate::{Environment, Workspace, WorkspaceKind, resolve_cache_root};
 
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
@@ -49,7 +48,7 @@ impl Repository {
         root: PathBuf,
         cache: Arc<dyn CacheStore>,
         fs: Arc<dyn FileSystem>,
-        host: HostEnvironment,
+        environment: Environment,
     ) -> Self {
         let file_contents = FileStore::new();
 
@@ -75,7 +74,7 @@ impl Repository {
         // initial repository revision
         let initial_revision = Arc::new(RevisionState::new(
             Arc::new(OrdMap::<FileId, FileEntry>::new()),
-            Arc::new(host),
+            Arc::new(environment),
         ));
         let initial_revision_id = initial_revision.revision();
         repository.revisions.insert(

@@ -1,8 +1,8 @@
 use destack_artifact::ProfileKey;
 
 use crate::{
-    CompilerOptions, ConditionSet, Destack, HostEnvironment, ProfileOptions, Target,
-    profile_flags_for_compiler_options,
+    CompilerOptions, ConditionSelection, ConditionSet, Destack, Environment, ProfileOptions,
+    Target, profile_flags_for_compiler_options,
 };
 
 /// Build one profile key for one target.
@@ -12,7 +12,7 @@ pub(crate) fn profile_key_for_target(
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
     config: Option<&Destack>,
-    environment: &HostEnvironment,
+    environment: &Environment,
     product: Option<&str>,
     product_role: Option<&str>,
 ) -> ProfileKey {
@@ -23,6 +23,7 @@ pub(crate) fn profile_key_for_target(
         target,
         &compiler_options,
         config,
+        &environment.selection,
         product,
     );
     let emit = target.emit;
@@ -83,11 +84,13 @@ fn condition_set_from_compiler_options(
     target: &Target,
     compiler_options: &CompilerOptions,
     config: Option<&Destack>,
+    selection: &ConditionSelection,
     product: Option<&str>,
 ) -> ConditionSet {
     ConditionSet {
         modes: inherited_conditions(
             &compiler_options.modes,
+            &selection.modes,
             |config, name| {
                 config
                     .conditions
@@ -99,6 +102,7 @@ fn condition_set_from_compiler_options(
         ),
         roles: inherited_conditions(
             &compiler_options.roles,
+            &selection.roles,
             |config, name| {
                 config
                     .conditions
@@ -110,6 +114,7 @@ fn condition_set_from_compiler_options(
         ),
         features: inherited_conditions(
             &compiler_options.features,
+            &selection.features,
             |config, name| {
                 config
                     .conditions
@@ -121,6 +126,7 @@ fn condition_set_from_compiler_options(
         ),
         tags: inherited_conditions(
             &compiler_options.tags,
+            &selection.tags,
             |config, name| {
                 config
                     .conditions
@@ -174,13 +180,14 @@ fn profile_compiler_options_for_target(
 
 /// Expand selected source graph names through declared parents.
 fn inherited_conditions(
-    selected: &[String],
+    declared: &[String],
+    environment: &[String],
     parents_for: impl for<'a> Fn(&'a Destack, &str) -> Option<&'a [String]>,
     config: Option<&Destack>,
 ) -> indexmap::IndexSet<String> {
     let mut conditions = indexmap::IndexSet::new();
 
-    for name in selected {
+    for name in declared.iter().chain(environment) {
         // declared parent conditions
         if let Some(parents) = config.and_then(|config| parents_for(config, name)) {
             conditions.extend(parents.iter().cloned());
