@@ -92,22 +92,6 @@ impl Linter {
         self.repository.module(revision, module_id).ok().flatten()
     }
 
-    /// Return the effective profile id for one module.
-    fn module_profile_id(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-    ) -> Result<ProfileId, LinterError> {
-        let profile = self
-            .repository
-            .module_profile(revision, module_id)
-            .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
-
-        Ok(profile.id())
-    }
-
     /// Convert one lint diagnostic to a dedupe key.
     fn lint_key_from_lint_report(diagnostic: &LintReport) -> LintReportKey {
         let primary_span = diagnostic.primary;
@@ -263,13 +247,8 @@ impl Linter {
         }
 
         let runner = Self::cached_runner(&options);
-        // run package scoped rules once per active profile
-        let mut profiles = HashSet::new();
-        for module_id in &module_ids {
-            let profile_id = self.module_profile_id(revision, *module_id)?;
-            profiles.insert(profile_id);
-        }
-        for profile_id in profiles {
+        // run package scoped rules once per addressable profile
+        for profile_id in self.target_profile_ids(revision)? {
             let dir_diagnostics = runner.lint_package_dir(
                 self.repository.clone(),
                 revision,
@@ -296,20 +275,8 @@ impl Linter {
         }
 
         let runner = Self::cached_runner(&options);
-        // run workspace scoped rules once per active profile
-        let mut profiles = HashSet::new();
-        let module_ids =
-            self.repository
-                .module_ids(revision)
-                .map_err(|error| LinterError::Repository {
-                    message: error.to_string(),
-                })?;
-        for module_id in &module_ids {
-            let profile_id = self.module_profile_id(revision, *module_id)?;
-            profiles.insert(profile_id);
-        }
-
-        for profile_id in profiles {
+        // run workspace scoped rules once per addressable profile
+        for profile_id in self.target_profile_ids(revision)? {
             let dir_diagnostics =
                 runner.lint_workspace_dir(self.repository.clone(), revision, profile_id, &options);
             self.record_lint_diagnostics(context, dir_diagnostics)?;
@@ -432,11 +399,30 @@ impl Linter {
                 continue;
             }
 
-            let profile_id = self.module_profile_id(revision, module_id)?;
-            artifact_keys.push(ArtifactKey::module_linted(module_id, profile_id));
+            for profile_id in self.target_profile_ids(revision)? {
+                if self
+                    .repository
+                    .module_profile_by_id(revision, module_id, profile_id)
+                    .map_err(|error| LinterError::Repository {
+                        message: error.to_string(),
+                    })?
+                    .is_some()
+                {
+                    artifact_keys.push(ArtifactKey::module_linted(module_id, profile_id));
+                }
+            }
         }
 
         Ok(artifact_keys)
+    }
+
+    /// Return exact profile ids addressable in one revision.
+    fn target_profile_ids(&self, revision: Revision) -> Result<Vec<ProfileId>, LinterError> {
+        self.repository
+            .target_profile_ids(revision)
+            .map_err(|error| LinterError::Repository {
+                message: error.to_string(),
+            })
     }
 
     /// Return the dependency keys for one workspace lint artifact.
