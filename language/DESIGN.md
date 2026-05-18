@@ -2545,8 +2545,7 @@ test("loadUser", () => {
 Chained like `user.test.browser.ds` behave as "and" gates on all conditions, that is, `user.test.browser.ds` is included only when both `test` mode and the `browser` alias match.
 
 Package dependencies can also be gated by the same condition system.
-Top-level dependencies are always part of the source graph, while `conditionalDependencies` are included when their `when` predicate matches.
-The `when` field accepts either an alias name or a full condition gate:
+Top-level dependencies are always part of the source graph, while `conditionalDependencies` are included when their `when` predicate matches:
 
 ```json:destack.json
 {
