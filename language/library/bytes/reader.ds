@@ -10,7 +10,7 @@ export class ByteReader {
     offset: usize = 0;
 
     /// Create a reader for `bytes`.
-    static from(bytes: Bytes): ByteReader {
+    static from(bytes: Bytes): ^ByteReader {
         todo("ByteReader.from")
     }
 

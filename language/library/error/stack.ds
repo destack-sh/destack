@@ -52,4 +52,4 @@ export declare function captureStackTrace(options?: StackTraceOptions): StackTra
 
 /// Format a structured stack trace as diagnostic text.
 @intrinsic("error.stack.format")
-export declare function formatStackTrace(trace: StackTrace): string;
+export declare function formatStackTrace(trace: StackTrace): ^string;

@@ -65,17 +65,17 @@ export function accept(listener: &Listener): AsyncResult<Connection, HostError> 
 }
 
 /// Close one stream connection.
-export function close(connection: ^Connection): AsyncResult<void, HostError> {
+export function close(connection: Connection): AsyncResult<void, HostError> {
     todo("net.close")
 }
 
 /// Close one stream listener.
-export function closeListener(listener: ^Listener): AsyncResult<void, HostError> {
+export function closeListener(listener: Listener): AsyncResult<void, HostError> {
     todo("net.closeListener")
 }
 
 /// Close one datagram socket.
-export function closeDatagram(socket: ^DatagramSocket): AsyncResult<void, HostError> {
+export function closeDatagram(socket: DatagramSocket): AsyncResult<void, HostError> {
     todo("net.closeDatagram")
 }
 

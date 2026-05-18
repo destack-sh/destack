@@ -8,7 +8,7 @@ import { Path } from "destack:fs/host";
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function getCurrentDirectory(): Result<^Path, HostError>;
+export declare function getCurrentDirectory(): Result<Path, HostError>;
 
 /// Change the current working directory.
 @binding("destack.process.workdir.set", {

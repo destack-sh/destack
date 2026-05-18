@@ -12,37 +12,42 @@ export class SortedSet<T> {
     map: SortedMap<T, void>;
 }
 
-extension<T> of SortedSet<T> implements Default {
+extension<T> of SortedSet<T> {
     /// Create an empty sorted set.
-    static new(): SortedSet<T> {
+    static new(): ^SortedSet<T> {
         todo("SortedSet.new")
     }
 
     /// Create a sorted set with room for at least `capacity` values.
-    static withCapacity(capacity: usize): SortedSet<T> {
+    static withCapacity(capacity: usize): ^SortedSet<T> {
         todo("SortedSet.withCapacity")
     }
 
     /// Create the default sorted set.
-    static default(): SortedSet<T> {
+    static default(): ^SortedSet<T> {
         SortedSet.new()
+    }
+}
+
+extension<T> of ^SortedSet<T> implements Default {
+    /// Create the default owned sorted set.
+    static default(): ^SortedSet<T> {
+        SortedSet.default()
     }
 }
 
 extension<T: Compare<T>> of SortedSet<T> implements
     Iterable<T>,
     Iterable<&readonly T>,
-    From<Iterable<T>>,
-    FromIterator<T>,
     Extend<T, "exclusive">
 {
     /// Create a sorted set from values.
-    static from(values: Iterable<T>): SortedSet<T> {
+    static from(values: Iterable<T>): ^SortedSet<T> {
         todo("SortedSet.from")
     }
 
     /// Create a sorted set from `values`.
-    static fromIterator(values: Iterator<T>): SortedSet<T> {
+    static fromIterator(values: Iterator<T>): ^SortedSet<T> {
         todo("SortedSet.fromIterator")
     }
 
@@ -115,22 +120,22 @@ extension<T: Compare<T>> of SortedSet<T> implements
     }
 
     /// Return the union of two sets.
-    union(other: &readonly SortedSet<T>): SortedSet<T> {
+    union(other: &readonly SortedSet<T>): ^SortedSet<T> {
         todo("SortedSet.union")
     }
 
     /// Return the intersection with `other`.
-    intersection(other: &readonly SortedSet<T>): SortedSet<T> {
+    intersection(other: &readonly SortedSet<T>): ^SortedSet<T> {
         todo("SortedSet.intersection")
     }
 
     /// Return this set without values in `other`.
-    difference(other: &readonly SortedSet<T>): SortedSet<T> {
+    difference(other: &readonly SortedSet<T>): ^SortedSet<T> {
         todo("SortedSet.difference")
     }
 
     /// Return values present in exactly one set.
-    symmetricDifference(other: &readonly SortedSet<T>): SortedSet<T> {
+    symmetricDifference(other: &readonly SortedSet<T>): ^SortedSet<T> {
         todo("SortedSet.symmetricDifference")
     }
 
@@ -178,5 +183,17 @@ extension<T: Compare<T>> of SortedSet<T> implements
     /// Consume this set into owned values.
     iterator(this: ^SortedSet<T>): Iterator<T> {
         todo("SortedSet.iterator")
+    }
+}
+
+extension<T: Compare<T>> of ^SortedSet<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create an owned sorted set from values.
+    static from(values: Iterable<T>): ^SortedSet<T> {
+        SortedSet.from(values)
+    }
+
+    /// Create an owned sorted set from `values`.
+    static fromIterator(values: Iterator<T>): ^SortedSet<T> {
+        SortedSet.fromIterator(values)
     }
 }

@@ -93,7 +93,7 @@ extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclus
     }
 
     /// Downgrade this write guard to a read guard.
-    downgrade(this: ^AsyncRwLockWriteGuard<T>): AsyncRwLockReadGuard<T> {
+    downgrade(this: AsyncRwLockWriteGuard<T>): AsyncRwLockReadGuard<T> {
         todo("AsyncRwLockWriteGuard.downgrade")
     }
 }

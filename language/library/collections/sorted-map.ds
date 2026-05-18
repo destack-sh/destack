@@ -103,20 +103,27 @@ extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
     }
 }
 
-extension<K, V> of SortedMap<K, V> implements Default {
+extension<K, V> of SortedMap<K, V> {
     /// Create an empty sorted map.
-    static new(): SortedMap<K, V> {
+    static new(): ^SortedMap<K, V> {
         todo("SortedMap.new")
     }
 
     /// Create a sorted map with room for at least `capacity` entries.
-    static withCapacity(capacity: usize): SortedMap<K, V> {
+    static withCapacity(capacity: usize): ^SortedMap<K, V> {
         todo("SortedMap.withCapacity")
     }
 
     /// Create the default sorted map.
-    static default(): SortedMap<K, V> {
+    static default(): ^SortedMap<K, V> {
         SortedMap.new()
+    }
+}
+
+extension<K, V> of ^SortedMap<K, V> implements Default {
+    /// Create the default owned sorted map.
+    static default(): ^SortedMap<K, V> {
+        SortedMap.default()
     }
 }
 
@@ -127,20 +134,18 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     Iterable<SortedMapEntry<&readonly K, &V>>,
     Iterable<SortedMapEntry<&readonly K, &readonly V>>,
     Iterable<SortedMapEntry<&readonly K, &exclusive V>>,
-    From<Iterable<(K, V)>>,
-    FromIterator<(K, V)>,
     Extend<(K, V), "exclusive">
 {
     /// The indexed output type.
     type Output = V | undefined;
 
     /// Create a sorted map from entries.
-    static from(entries: Iterable<(K, V)>): SortedMap<K, V> {
+    static from(entries: Iterable<(K, V)>): ^SortedMap<K, V> {
         todo("SortedMap.from")
     }
 
     /// Create a sorted map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): SortedMap<K, V> {
+    static fromIterator(entries: Iterator<(K, V)>): ^SortedMap<K, V> {
         todo("SortedMap.fromIterator")
     }
 
@@ -302,5 +307,17 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     /// Consume this map into owned entries.
     iterator(this: ^SortedMap<K, V>): Iterator<(K, V)> {
         todo("SortedMap.iterator")
+    }
+}
+
+extension<K: Compare<K>, V> of ^SortedMap<K, V> implements From<Iterable<(K, V)>>, FromIterator<(K, V)> {
+    /// Create an owned sorted map from entries.
+    static from(entries: Iterable<(K, V)>): ^SortedMap<K, V> {
+        SortedMap.from(entries)
+    }
+
+    /// Create an owned sorted map from entries.
+    static fromIterator(entries: Iterator<(K, V)>): ^SortedMap<K, V> {
+        SortedMap.fromIterator(entries)
     }
 }

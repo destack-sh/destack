@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Slice } from "destack:collections";
+import { Array, Slice } from "destack:collections";
 import { As, Borrow, From } from "destack:convert";
 import { Iterator } from "destack:iter";
 import { Default, Unique } from "destack:memory";
@@ -26,39 +26,39 @@ export class String {
     bytes: Unique<[uint8]>;
 }
 
-extension of String implements Default, From<&readonly StringSlice>, From<^StringBuilder> {
+extension of String {
     /// Create an empty string.
-    static new(): string {
+    static new(): ^string {
         todo("String.new")
     }
 
     /// Create the default string.
-    static default(): string {
+    static default(): ^string {
         String.new()
     }
 
     /// Create a string from UTF-16 code units.
-    static fromCharCode(...codes: number[]): string {
+    static fromCharCode(...codes: number[]): ^string {
         todo("String.fromCharCode")
     }
 
     /// Create a string from Unicode code points.
-    static fromCodePoint(...codePoints: number[]): string {
+    static fromCodePoint(...codePoints: number[]): ^string {
         todo("String.fromCodePoint")
     }
 
     /// Create a string from raw template parts.
-    static raw(parts: StringRawParts, ...substitutions: unknown[]): string {
+    static raw(parts: StringRawParts, ...substitutions: unknown[]): ^string {
         todo("String.raw")
     }
 
     /// Copy a string slice into owned storage.
-    static from(value: &readonly StringSlice): string {
+    static from(value: &readonly StringSlice): ^string {
         todo("String.from")
     }
 
     /// Consume a string builder into owned storage.
-    static from(value: ^StringBuilder): string {
+    static from(value: ^StringBuilder): ^string {
         value.intoString()
     }
 
@@ -79,12 +79,12 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
 
     /// Get a character at the given UTF-16 index.
     /// Returns undefined if index is out of bounds.
-    charAt(this: &readonly string, index: number): string | undefined {
+    charAt(this: &readonly string, index: number): ^string | undefined {
         todo("String.charAt")
     }
 
     /// Get the character at `index`, counting from the end when negative.
-    at(this: &readonly string, index: number): string | undefined {
+    at(this: &readonly string, index: number): ^string | undefined {
         todo("String.at")
     }
 
@@ -99,7 +99,7 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// Concatenate two strings.
-    concat(this: &readonly string, ...values: string[]): string {
+    concat(this: &readonly string, ...values: string[]): ^string {
         todo("String.concat")
     }
 
@@ -134,12 +134,12 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// Replace the first matching text.
-    replace(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): string {
+    replace(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): ^string {
         todo("String.replace")
     }
 
     /// Replace every matching text.
-    replaceAll(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): string {
+    replaceAll(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): ^string {
         todo("String.replaceAll")
     }
 
@@ -149,7 +149,7 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// Split this string by `separator`.
-    split(this: &readonly string, separator?: string | RegExp, limit?: number): string[] {
+    split(this: &readonly string, separator?: string | RegExp, limit?: number): ^Array<^string> {
         todo("String.split")
     }
 
@@ -164,67 +164,67 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// Extract a substring.
-    substring(this: &readonly string, start: number, end?: number): string {
+    substring(this: &readonly string, start: number, end?: number): ^string {
         todo("String.substring")
     }
 
     /// Extract a slice of the string.
-    slice(this: &readonly string, start?: number, end?: number): string {
+    slice(this: &readonly string, start?: number, end?: number): ^string {
         todo("String.slice")
     }
 
     /// Convert to lowercase.
-    toLowerCase(this: &readonly string): string {
+    toLowerCase(this: &readonly string): ^string {
         todo("String.toLowerCase")
     }
 
     /// Convert to lowercase using locale rules.
-    toLocaleLowerCase(this: &readonly string, locales?: string | string[]): string {
+    toLocaleLowerCase(this: &readonly string, locales?: string | string[]): ^string {
         todo("String.toLocaleLowerCase")
     }
 
     /// Convert to uppercase.
-    toUpperCase(this: &readonly string): string {
+    toUpperCase(this: &readonly string): ^string {
         todo("String.toUpperCase")
     }
 
     /// Convert to uppercase using locale rules.
-    toLocaleUpperCase(this: &readonly string, locales?: string | string[]): string {
+    toLocaleUpperCase(this: &readonly string, locales?: string | string[]): ^string {
         todo("String.toLocaleUpperCase")
     }
 
     /// Normalize this string.
-    normalize(this: &readonly string, form?: "NFC" | "NFD" | "NFKC" | "NFKD"): string {
+    normalize(this: &readonly string, form?: "NFC" | "NFD" | "NFKC" | "NFKD"): ^string {
         todo("String.normalize")
     }
 
     /// Remove leading and trailing whitespace.
-    trim(this: &readonly string): string {
+    trim(this: &readonly string): ^string {
         todo("String.trim")
     }
 
     /// Remove leading whitespace.
-    trimStart(this: &readonly string): string {
+    trimStart(this: &readonly string): ^string {
         todo("String.trimStart")
     }
 
     /// Remove trailing whitespace.
-    trimEnd(this: &readonly string): string {
+    trimEnd(this: &readonly string): ^string {
         todo("String.trimEnd")
     }
 
     /// Repeat the string n times.
-    repeat(this: &readonly string, count: number): string {
+    repeat(this: &readonly string, count: number): ^string {
         todo("String.repeat")
     }
 
     /// Pad the start of the string.
-    padStart(this: &readonly string, targetLength: number, padString?: string): string {
+    padStart(this: &readonly string, targetLength: number, padString?: string): ^string {
         todo("String.padStart")
     }
 
     /// Pad the end of the string.
-    padEnd(this: &readonly string, targetLength: number, padString?: string): string {
+    padEnd(this: &readonly string, targetLength: number, padString?: string): ^string {
         todo("String.padEnd")
     }
 
@@ -234,7 +234,7 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// Return this string with invalid Unicode replaced.
-    toWellFormed(this: &readonly string): string {
+    toWellFormed(this: &readonly string): ^string {
         todo("String.toWellFormed")
     }
 
@@ -244,7 +244,7 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// Return the primitive string value.
-    toString(this: &readonly string): string {
+    toString(this: &readonly string): &readonly string {
         todo("String.toString")
     }
 
@@ -254,8 +254,25 @@ extension of String implements Default, From<&readonly StringSlice>, From<^Strin
     }
 
     /// String concatenation via + operator.
-    add(this: &readonly string, other: string): string {
+    add(this: &readonly string, other: string): ^string {
         todo("String.add")
+    }
+}
+
+extension of ^string implements Default, From<&readonly StringSlice>, From<^StringBuilder> {
+    /// Create the default owned string.
+    static default(): ^string {
+        String.default()
+    }
+
+    /// Create an owned string from borrowed text.
+    static from(value: &readonly StringSlice): ^string {
+        String.from(value)
+    }
+
+    /// Create an owned string from a string builder.
+    static from(value: ^StringBuilder): ^string {
+        String.from(value)
     }
 }
 

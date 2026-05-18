@@ -12,37 +12,42 @@ export class Set<T> {
     map: Map<T, void>;
 }
 
-extension<T> of Set<T> implements Default {
+extension<T> of Set<T> {
     /// Create an empty set.
-    static new(): Set<T> {
+    static new(): ^Set<T> {
         todo("Set.new")
     }
 
     /// Create a set with room for at least `capacity` elements.
-    static withCapacity(capacity: usize): Set<T> {
+    static withCapacity(capacity: usize): ^Set<T> {
         todo("Set.withCapacity")
     }
 
     /// Create the default set.
-    static default(): Set<T> {
+    static default(): ^Set<T> {
         Set.new()
+    }
+}
+
+extension<T> of ^Set<T> implements Default {
+    /// Create the default owned set.
+    static default(): ^Set<T> {
+        Set.default()
     }
 }
 
 extension<T: Hash> of Set<T> implements
     Iterable<T>,
     Iterable<&readonly T>,
-    From<Iterable<T>>,
-    FromIterator<T>,
     Extend<T, "exclusive">
 where T implements Equal<T> {
     /// Create a set from values.
-    static from(values: Iterable<T>): Set<T> {
+    static from(values: Iterable<T>): ^Set<T> {
         todo("Set.from")
     }
 
     /// Create a set from `values`.
-    static fromIterator(values: Iterator<T>): Set<T> {
+    static fromIterator(values: Iterator<T>): ^Set<T> {
         todo("Set.fromIterator")
     }
 
@@ -115,22 +120,22 @@ where T implements Equal<T> {
     }
 
     /// Return the union of two sets.
-    union(other: &readonly Set<T>): Set<T> {
+    union(other: &readonly Set<T>): ^Set<T> {
         todo("Set.union")
     }
 
     /// Return the intersection with `other`.
-    intersection(other: &readonly Set<T>): Set<T> {
+    intersection(other: &readonly Set<T>): ^Set<T> {
         todo("Set.intersection")
     }
 
     /// Return this set without values in `other`.
-    difference(other: &readonly Set<T>): Set<T> {
+    difference(other: &readonly Set<T>): ^Set<T> {
         todo("Set.difference")
     }
 
     /// Return values present in exactly one set.
-    symmetricDifference(other: &readonly Set<T>): Set<T> {
+    symmetricDifference(other: &readonly Set<T>): ^Set<T> {
         todo("Set.symmetricDifference")
     }
 
@@ -182,5 +187,18 @@ where T implements Equal<T> {
     /// Call `f` for each value.
     forEach(f: (value: T, set: Set<T>) => void): void {
         todo("Set.forEach")
+    }
+}
+
+extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T>
+where T implements Equal<T> {
+    /// Create an owned set from values.
+    static from(values: Iterable<T>): ^Set<T> {
+        Set.from(values)
+    }
+
+    /// Create an owned set from `values`.
+    static fromIterator(values: Iterator<T>): ^Set<T> {
+        Set.fromIterator(values)
     }
 }

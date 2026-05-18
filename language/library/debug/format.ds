@@ -16,16 +16,16 @@ export struct FormatOptions {
 }
 
 /// Inspect one value for developer output.
-export function inspect(value: unknown, options?: FormatOptions): string {
+export function inspect(value: unknown, options?: FormatOptions): ^string {
     todo("debug.inspect")
 }
 
 /// Format a list of values for developer output.
-export function format(...values: unknown[]): string {
+export function format(...values: unknown[]): ^string {
     formatWithOptions(null, ...values)
 }
 
 /// Format a list of values with explicit options.
-export function formatWithOptions(options: FormatOptions | null, ...values: unknown[]): string {
+export function formatWithOptions(options: FormatOptions | null, ...values: unknown[]): ^string {
     todo("debug.formatWithOptions")
 }
