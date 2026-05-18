@@ -1020,10 +1020,7 @@ impl Parser {
         }
 
         let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
-        let is_direct_postfix_maybe = is_destack_language
-            && (self.is_next_any_stop() && !self.previous_token_is_on_new_line()
-                || self.is_next_any_close_parenthesis()
-                || self.peek_next_assign_operator_is());
+        let is_direct_postfix_maybe = is_destack_language && self.direct_maybe_postfix_has_follow();
         if !is_optional_chain_after_maybe && !is_direct_postfix_maybe {
             return Ok(None);
         }
@@ -1038,6 +1035,25 @@ impl Parser {
         );
 
         Ok(Some(expression_id))
+    }
+
+    /// Return whether `?` can finish one direct postfix expression here.
+    fn direct_maybe_postfix_has_follow(&mut self) -> bool {
+        // statement boundary
+        if self.is_next_any_stop() && !self.current_token_is_on_new_line() {
+            return true;
+        }
+
+        // expression boundary
+        if self.is_next_any_close_parenthesis() || self.peek_next_assign_operator_is() {
+            return true;
+        }
+
+        // assertion boundary
+        matches!(
+            self.next_keyword(),
+            Some(Keyword::As | Keyword::Satisfies | Keyword::Is | Keyword::InstanceOf)
+        )
     }
 
     /// Eat one type-space postfix `!` or `as comptime` continuation.

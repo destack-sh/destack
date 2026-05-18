@@ -266,6 +266,56 @@ fn test_parse_readonly_borrowed_reference_type_alias() {
 }
 
 #[test]
+fn test_parse_borrowed_reference_type_alias_before_union() {
+    let mut test = TestParser::new("type MaybeBorrowed = &int32 | undefined");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+
+                assert_node!(parser.tree, elements[0], TypeExpression::BorrowedOf { target_type, .. } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
+                    });
+                });
+
+                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Undefined);
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_pointer_type_alias_before_union() {
+    let mut test = TestParser::new("type MaybePointer = *int32 | undefined");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+
+                assert_node!(parser.tree, elements[0], TypeExpression::PointerOf { target_type, .. } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
+                    });
+                });
+
+                assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Undefined);
+                });
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_type_parameter_function_constraint() {
     let mut test = TestParser::new("type Parameters<T extends (a: any) => any> = T");
     let mut parser = test.prepare();

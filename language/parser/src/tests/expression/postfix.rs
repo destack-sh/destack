@@ -31,6 +31,111 @@ fn test_parse_optional_chain_after_comment_newlines() {
     });
 }
 
+/// Parse direct `?` before a type assertion continuation.
+#[test]
+fn test_parse_direct_maybe_before_satisfies() {
+    let mut test =
+        TestParser::new_with_language("encode(value)? satisfies string", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Satisfies { expression, target_type } => {
+        assert_node!(parser.tree, *expression, Expression::Maybe { left, position } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_node!(parser.tree, *left, Expression::Call { .. });
+        });
+
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::String);
+        });
+    });
+}
+
+/// Parse direct `?` after a generic call with an escaped string argument.
+#[test]
+fn test_parse_direct_maybe_after_generic_call_with_escaped_string() {
+    let mut test = TestParser::new_with_language(
+        r#"const config = decode<ServerConfig>("{\"host\":\"127.0.0.1\",\"port\":8080,\"secure\":true}")?;"#,
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+        assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Maybe { left, position } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_node!(parser.tree, *left, Expression::Call { .. });
+            });
+        });
+    });
+}
+
+/// Parse direct `?` after a multiline generic call.
+#[test]
+fn test_parse_direct_maybe_after_multiline_generic_call() {
+    let mut test = TestParser::new_with_language(
+        r#"const config = decode<AppConfig>(
+    "{\"database\":{\"url\":\"postgres://local\"}",
+)?;"#,
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+        assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Maybe { left, position } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert_node!(parser.tree, *left, Expression::Call { .. });
+            });
+        });
+    });
+}
+
+/// Parse direct `?` after a qualified method call.
+#[test]
+fn test_parse_direct_maybe_after_qualified_call() {
+    let mut test = TestParser::new_with_language("JSON.parse(text)?;", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Maybe { left, position } => {
+        assert_eq!(*position, PostfixPosition::Direct);
+        assert_node!(parser.tree, *left, Expression::Call { .. });
+    });
+}
+
+/// Parse direct `?` after a qualified method call before a type assertion.
+#[test]
+fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
+    let mut test = TestParser::new_with_language(
+        "JSON.stringify(value)? satisfies string;",
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Satisfies { expression, target_type } => {
+        assert_node!(parser.tree, *expression, Expression::Maybe { left, position } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_node!(parser.tree, *left, Expression::Call { .. });
+        });
+
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::String);
+        });
+    });
+}
+
 #[test]
 fn test_parse_optional_call_after_question_dot_line_comment_newline() {
     let input = "call?.// comment\n()";
