@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use crate::conformance::{
-    Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, ecma, run_conformance_driver,
+    Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
+    suite_fixtures_dir, suite_tests_dir,
 };
 use crate::core::RunOptions;
 
@@ -20,8 +21,8 @@ pub struct BiomeSuite {
 impl BiomeSuite {
     /// Create one Biome conformance suite.
     pub fn new() -> Self {
-        let suite_dir = ecma::suite_fixtures_dir("ecma", "biome");
-        let tests_dir = ecma::suite_tests_dir("ecma", "biome");
+        let suite_dir = suite_fixtures_dir("ecma", "biome");
+        let tests_dir = suite_tests_dir("ecma", "biome");
         Self {
             tests_dir,
             suite_dir,
