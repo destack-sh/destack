@@ -1,6 +1,6 @@
 =======================================
 Interface declarations
-:language(typescript)
+:language(destack)
 =======================================
 
 interface A { a: string; }

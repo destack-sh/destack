@@ -1,6 +1,6 @@
 =======================================
 Built-in types
-:language(typescript)
+:language(destack)
 =======================================
 
 var x: string = 'hi';
@@ -24,7 +24,7 @@ var y: number;
 
 =======================================
 Parenthesized types
-:language(typescript)
+:language(destack)
 =======================================
 
 var x: (string);
@@ -52,7 +52,7 @@ var x: ({a: any});
 
 =======================================
 Symbol types
-:language(typescript)
+:language(destack)
 =======================================
 
 const symFoo: unique symbol = Symbol("foo");
@@ -86,7 +86,7 @@ const symBar: symbol = Symbol.for("bar");
 
 =======================================
 Type annotations in parenthesized expressions
-:language(typescript)
+:language(destack)
 =======================================
 
 const range = (document: any).selection.createRange()
@@ -96,8 +96,7 @@ const range = (document: any).selection.createRange()
 (program
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (call_expression
         (member_expression
           (member_expression
@@ -110,33 +109,8 @@ const range = (document: any).selection.createRange()
         (arguments)))))
 
 =======================================
-Flow Maybe Types
-:language(typescript)
-=======================================
-
-const editor: ?CodeEditor
-const miscArray: ?T[]
-
----
-
-(program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (type_annotation
-        (flow_maybe_type
-          (type_identifier)))))
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (type_annotation
-        (flow_maybe_type
-          (array_type
-            (type_identifier)))))))
-
-=======================================
 Type alias declarations
-:language(typescript)
+:language(destack)
 =======================================
 
 type FileMergeData = {
@@ -192,27 +166,8 @@ type ConflictInfo = {
           (type_identifier))))))
 
 =======================================
-Existential types
-:language(typescript)
-=======================================
-
-let x: Array<*>
-
----
-
-(program
-  (lexical_declaration
-    (variable_declarator
-      (identifier)
-      (type_annotation
-        (generic_type
-          (type_identifier)
-          (type_arguments
-            (existential_type)))))))
-
-=======================================
-predefined types as identifiers
-:language(typescript)
+Predefined types as identifiers
+:language(destack)
 =======================================
 
 let score: (string: string, query: string) => number

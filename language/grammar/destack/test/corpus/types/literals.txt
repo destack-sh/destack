@@ -1,6 +1,6 @@
 =======================================
 Literal types
-:language(typescript)
+:language(destack)
 =======================================
 
 let x: 2
@@ -47,7 +47,7 @@ let x: false
 
 ==================================
 Literal types and pre-defined types
-:language(typescript)
+:language(destack)
 ==================================
 
 type T = Foo<any, unknown, number, string, void, true, false, null, undefined, 0, "foo">

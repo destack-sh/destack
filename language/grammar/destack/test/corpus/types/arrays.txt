@@ -1,6 +1,6 @@
 =======================================
 Array types
-:language(typescript)
+:language(destack)
 =======================================
 
 let x: X[];
@@ -17,7 +17,7 @@ let x: X[];
 
 ==================================
 Read-only arrays
-:language(typescript)
+:language(destack)
 ==================================
 
 type t = a[]
@@ -62,7 +62,7 @@ type t = readonly (readonly a[]) []
 
 ==================================
 Tuple types
-:language(typescript)
+:language(destack)
 ==================================
 
 type t = []

@@ -1,6 +1,6 @@
 ==================================
 Ambient declarations
-:language(typescript)
+:language(destack)
 ==================================
 
 declare class Error {
@@ -78,20 +78,18 @@ declare module Foo {
   (ambient_declaration
     (lexical_declaration
       (variable_declarator
-        name: (destack_if_let_pattern
-          (identifier))
+        name: (identifier)
         value: (string
           (string_fragment)))))
-  (ambient_declaration
-    (function_signature
-      name: (identifier)
-      parameters: (formal_parameters
-        (required_parameter
-          pattern: (identifier)
-          type: (type_annotation
-            (predefined_type))))
-      return_type: (type_annotation
-        (predefined_type))))
+  (destack_declare_function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (predefined_type))))
+    return_type: (type_annotation
+      (predefined_type)))
   (ambient_declaration
     (internal_module
       name: (identifier)
@@ -153,7 +151,7 @@ declare module Foo {
           return_type: (type_annotation
             (predefined_type))))))
   (ambient_declaration
-    (module
+    (internal_module
       name: (nested_identifier
         object: (identifier)
         property: (property_identifier))
@@ -164,7 +162,7 @@ declare module Foo {
               name: (identifier)))))))
   (empty_statement)
   (ambient_declaration
-    (module
+    (internal_module
       name: (identifier)
       body: (statement_block
         (break_statement)
@@ -183,8 +181,7 @@ declare module Foo {
           condition: (empty_statement)
           body: (statement_block))
         (if_statement
-          condition: (parenthesized_expression
-            (true))
+          condition: (true)
           consequence: (statement_block)
           alternative: (else_clause
             (statement_block)))
@@ -211,56 +208,9 @@ declare module Foo {
           finalizer: (finally_clause
             body: (statement_block)))))))
 
-==================================================
-Flow-style ambient class declarations with commas
-:language(typescript)
-==================================================
-
-declare interface IFoo {
-  bar(): number,
-  baz(): IBaz,
-}
-
-declare class Foo {
-  bar(): number,
-  baz(): Baz,
-}
-
----
-
-(program
-  (ambient_declaration
-    (interface_declaration
-      (type_identifier)
-      (interface_body
-        (method_signature
-          (property_identifier)
-          (formal_parameters)
-          (type_annotation
-            (predefined_type)))
-        (method_signature
-          (property_identifier)
-          (formal_parameters)
-          (type_annotation
-            (type_identifier))))))
-  (ambient_declaration
-    (class_declaration
-      (type_identifier)
-      (class_body
-        (method_signature
-          (property_identifier)
-          (formal_parameters)
-          (type_annotation
-            (predefined_type)))
-        (method_signature
-          (property_identifier)
-          (formal_parameters)
-          (type_annotation
-            (type_identifier)))))))
-
 ==================================
 Ambient type declarations
-:language(typescript)
+:language(destack)
 ==================================
 
 declare type IndexableType = string | number | Date | Array<string | number | Date>;
@@ -285,45 +235,3 @@ declare type IndexableType = string | number | Date | Array<string | number | Da
                 (predefined_type)
                 (predefined_type))
               (type_identifier))))))))
-
-=================================
-Ambient export function declarations
-:language(typescript)
-=================================
-
-export interface Foo {
-  export function OrderedMap<K, V>(iter: Iterable.Keyed<K, V>): OrderedMap<K, V>;
-}
-
----
-
-(program
-  (export_statement
-    (interface_declaration
-      (type_identifier)
-      (interface_body
-        (export_statement
-          (function_signature
-            (identifier)
-            (type_parameters
-              (type_parameter
-                (type_identifier))
-              (type_parameter
-                (type_identifier)))
-            (formal_parameters
-              (required_parameter
-                (identifier)
-                (type_annotation
-                  (generic_type
-                    (nested_type_identifier
-                      (identifier)
-                      (type_identifier))
-                    (type_arguments
-                      (type_identifier)
-                      (type_identifier))))))
-            (type_annotation
-              (generic_type
-                (type_identifier)
-                (type_arguments
-                  (type_identifier)
-                  (type_identifier))))))))))

@@ -6,7 +6,7 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const grammarDirectory = path.resolve(scriptDirectory, "..", "destack");
 const destackNodeTypesPath = path.resolve(grammarDirectory, "destack", "src", "node-types.json");
 const tsxNodeTypesPath = path.resolve(grammarDirectory, "tsx", "src", "node-types.json");
-const destackCorpusDirectory = path.resolve(grammarDirectory, "destack", "test", "corpus");
+const corpusDirectory = path.resolve(grammarDirectory, "test", "corpus");
 
 function readNamedNodeTypes(filePath) {
     const source = fs.readFileSync(filePath, "utf8");
@@ -38,11 +38,20 @@ function expectedTrees(filePath) {
 }
 
 function corpusFiles(directory) {
-    return fs
-        .readdirSync(directory)
-        .filter((entry) => entry.endsWith(".txt"))
-        .sort()
-        .map((entry) => path.join(directory, entry));
+    const entries = fs.readdirSync(directory, { withFileTypes: true });
+    const files = [];
+
+    for (const entry of entries) {
+        const entryPath = path.join(directory, entry.name);
+
+        if (entry.isDirectory()) {
+            files.push(...corpusFiles(entryPath));
+        } else if (entry.name.endsWith(".txt")) {
+            files.push(entryPath);
+        }
+    }
+
+    return files.sort();
 }
 
 function main() {
@@ -52,9 +61,9 @@ function main() {
         .filter((node) => !tsxNamedNodes.has(node))
         .sort();
 
-    const files = corpusFiles(destackCorpusDirectory);
+    const files = corpusFiles(corpusDirectory);
     if (files.length === 0) {
-        console.error(`no corpus files found in ${destackCorpusDirectory}`);
+        console.error(`no corpus files found in ${corpusDirectory}`);
         process.exit(1);
     }
 

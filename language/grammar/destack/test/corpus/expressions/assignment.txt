@@ -1,6 +1,6 @@
 ==================================
 Definite assignment assertions
-:language(typescript)
+:language(destack)
 ==================================
 
 var a!: b;
@@ -11,24 +11,18 @@ let a!: b;
 (program
   (variable_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (must_pattern
-          (match_pattern
-            (identifier))))
+      (identifier)
       (type_annotation
         (type_identifier))))
   (lexical_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (must_pattern
-          (match_pattern
-            (identifier))))
+      (identifier)
       (type_annotation
         (type_identifier)))))
 
 ==================================
 Multi-line variable declarations
-:language(typescript)
+:language(destack)
 ==================================
 
 var a = b
@@ -40,21 +34,18 @@ var a = b
 (program
   (variable_declaration
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (identifier))
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (identifier))
     (variable_declarator
-      (destack_if_let_pattern
-        (identifier))
+      (identifier)
       (identifier))))
 
 ====================================
 Assignment to non-null LHS
-:language(typescript)
+:language(destack)
 ====================================
 
 foo! = bar;
@@ -87,3 +78,20 @@ foo! += bar;
         (parenthesized_expression
           (identifier)))
       (identifier))))
+
+=======================================
+Using assignment statement
+:language(destack)
+=======================================
+
+using file = open();
+
+---
+
+(program
+  (using_assignment_statement
+    (using_assignment_expression
+      (identifier)
+      (call_expression
+        (identifier)
+        (arguments)))))
