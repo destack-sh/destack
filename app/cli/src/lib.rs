@@ -12,5 +12,5 @@ pub mod tests;
 
 pub use command::{
     bench, build, cache, check, clean, completions, config, daemon, doc, doctor, eval, explain,
-    fmt, info, init, lint, lsp, query, repl, run, targets, task, test, update, version,
+    fmt, info, init, lint, lsp, repl, run, targets, task, test, update, version,
 };
