@@ -283,14 +283,26 @@ fn parameter_pattern_is_destructuring(
         }
     };
 
-    matches!(
-        context.tree.get(pattern_id),
+    pattern_is_destructuring(context, pattern_id)
+}
+
+/// Return whether one pattern is destructuring through transparent wrappers.
+fn pattern_is_destructuring(
+    context: &DestackFormatContext<'_>,
+    pattern_id: LocalNodeId<Pattern>,
+) -> bool {
+    match context.tree.get(pattern_id) {
         Pattern::Object { .. }
-            | Pattern::TaggedObject { .. }
-            | Pattern::Sequence { .. }
-            | Pattern::Tuple { .. }
-            | Pattern::TaggedTuple { .. }
-    )
+        | Pattern::TaggedObject { .. }
+        | Pattern::Sequence { .. }
+        | Pattern::Tuple { .. }
+        | Pattern::TaggedTuple { .. } => true,
+        Pattern::Must(inner)
+        | Pattern::BorrowOf { right: inner, .. }
+        | Pattern::MoveOf { right: inner, .. }
+        | Pattern::DereferenceOf { right: inner } => pattern_is_destructuring(context, *inner),
+        _ => false,
+    }
 }
 
 /// Return whether one parameter default is simple enough to hug.

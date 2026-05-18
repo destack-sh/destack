@@ -404,7 +404,8 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
         // transparent wrappers
         Pattern::Must(pattern)
         | Pattern::BorrowOf { right: pattern, .. }
-        | Pattern::MoveOf { right: pattern, .. } => {
+        | Pattern::MoveOf { right: pattern, .. }
+        | Pattern::DereferenceOf { right: pattern } => {
             pattern_is_direct_object_or_array_like(tree, *pattern)
         }
 
@@ -842,6 +843,10 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 
             Pattern::MoveOf { right, mutability } => {
                 format_prefixed_pattern(f, "^", *right, *mutability)?;
+            }
+
+            Pattern::DereferenceOf { right } => {
+                write!(f, [token("*"), right])?;
             }
 
             Pattern::Binding { name, pattern } => {
