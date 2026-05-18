@@ -267,7 +267,7 @@ abstract class Foo {
 
 abstract class Animal {
     readonly abstract prop: string;
-    requiredProp!: string;
+    requiredProp: string;
     abstract makeSound(): void;
     abstract get readonlyProp(): string;
     protected abstract readonlyProp?(): string;
@@ -633,3 +633,47 @@ type Foo<T> = abstract new () => T;
     (constructor_type
       (formal_parameters)
       (type_identifier))))
+
+===========================
+Virtual method declarations
+:language(destack)
+===========================
+
+class Logger {
+    virtual write(message: string): void {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (predefined_type))
+        (statement_block)))))
+
+========================
+Negated implements type
+:language(destack)
+========================
+
+class Value implements !Disposable {}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (negated_implements_type
+          (type_identifier))))
+    (class_body)))

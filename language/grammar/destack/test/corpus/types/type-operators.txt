@@ -260,3 +260,49 @@ type X2 = (typeof Y)[keyof typeof Z];
       (index_type_query
         (type_query
           (identifier))))))
+
+======================
+Conditional union type
+:language(destack)
+======================
+
+type Value<T> = T extends "a" | "b" ? true : false;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (conditional_union_type
+      (type_identifier)
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (true))
+      (literal_type
+        (false)))))
+
+===========
+Key in type
+:language(destack)
+===========
+
+type Value = "name" in Target;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (key_in_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (type_identifier))))

@@ -205,3 +205,21 @@ type A<B> = { [B in keyof C & string as `${P}1` | `${P}2`]: A[B] }
           (lookup_type
             (type_identifier)
             (type_identifier)))))))
+
+======================
+Explicit type argument
+:language(destack)
+======================
+
+type Value = Box<type string>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (explicit_type_argument
+          (predefined_type))))))

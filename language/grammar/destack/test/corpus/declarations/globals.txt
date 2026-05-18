@@ -1,14 +1,42 @@
 =======================================
-Global namespace declarations
+Global declarations
 :language(destack)
 =======================================
 
-declare global {
+global {
+  const process: Process = runtime.process();
 }
 
 ---
 
 (program
-  (ambient_declaration
-    (global_declaration
-      (statement_block))))
+  (global_declaration
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments)))))))
+
+==========================
+Shared lexical declaration
+:language(destack)
+==========================
+
+shared const registry = new Registry();
+
+---
+
+(program
+  (shared_lexical_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (new_expression
+          (identifier)
+          (arguments))))))

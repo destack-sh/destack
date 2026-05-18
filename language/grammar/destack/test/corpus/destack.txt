@@ -63,13 +63,12 @@ async function read(packet: shared ^Packet): Promise<int32> {
           (call_expression
             (identifier)
             (arguments))))
-      (expression_statement
-        (satisfies_expression
-          (identifier)
-          (placement_type
-            (parenthesized_type
-              (borrow_type
-                (type_identifier))))))
+      (value_satisfies_statement
+        (identifier)
+        (placement_type
+          (parenthesized_type
+            (borrow_type
+              (type_identifier)))))
       (return_statement
         (dereference_expression
           (identifier))))))
@@ -108,47 +107,46 @@ function sign(value: int32): string {
     (type_annotation
       (predefined_type))
     (statement_block
-      (match_statement
-        (identifier)
-        (match_arm
-          (match_pattern
-            (range_pattern
-              (literal_type
-                (number))))
-          (match_arm_statement
-            (statement_block
-              (expression_statement
-                (satisfies_expression
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (range_pattern
+                (literal_type
+                  (number))))
+            (match_arm_statement
+              (statement_block
+                (value_satisfies_statement
                   (identifier)
                   (interval_type
                     (literal_type
-                      (number)))))
-              (expression_statement
-                (string
-                  (string_fragment))))))
-        (match_arm
-          (match_pattern
-            (literal_type
-              (number)))
-          (expression_statement
-            (string
-              (string_fragment))))
-        (match_arm
-          (match_pattern
-            (range_pattern
+                      (number))))
+                (expression_statement
+                  (string
+                    (string_fragment))))))
+          (match_arm
+            (match_pattern
               (literal_type
-                (number))))
-          (match_arm_statement
-            (statement_block
-              (expression_statement
-                (satisfies_expression
+                (number)))
+            (expression_statement
+              (string
+                (string_fragment))))
+          (match_arm
+            (match_pattern
+              (range_pattern
+                (literal_type
+                  (number))))
+            (match_arm_statement
+              (statement_block
+                (value_satisfies_statement
                   (identifier)
                   (interval_type
                     (literal_type
-                      (number)))))
-              (expression_statement
-                (string
-                  (string_fragment))))))))))
+                      (number))))
+                (expression_statement
+                  (string
+                    (string_fragment)))))))))))
 
 =========================================================================
 expressions / comptime / try / comptime try can catch propagated failures
@@ -231,16 +229,14 @@ value satisfies int;
             (catch_clause
               (identifier)
               (statement_block
-                (expression_statement
-                  (satisfies_expression
-                    (identifier)
-                    (predefined_type)))
+                (value_satisfies_statement
+                  (identifier)
+                  (predefined_type))
                 (expression_statement
                   (number)))))))))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (type_identifier))))
+  (value_satisfies_statement
+    (identifier)
+    (type_identifier)))
 
 ============================================================================
 expressions / annotations / capture / move can capture explicit owned values
@@ -339,17 +335,15 @@ if (let x! = value) {
               (identifier)))))
       (identifier))
     (statement_block
-      (expression_statement
-        (satisfies_expression
-          (identifier)
-          (type_identifier))))
+      (value_satisfies_statement
+        (identifier)
+        (type_identifier)))
     (else_clause
       (statement_block
-        (expression_statement
-          (satisfies_expression
-            (identifier)
-            (literal_type
-              (null))))))))
+        (value_satisfies_statement
+          (identifier)
+          (literal_type
+            (null)))))))
 
 =================================================================================
 expressions / if / patterns / if (let ...) union patterns narrow covered literals
@@ -395,20 +389,19 @@ if (let 1 | 2 = value) {
                 (number))))))
       (identifier))
     (statement_block
-      (expression_statement
-        (binary_expression
-          (satisfies_expression
-            (identifier)
-            (literal_type
-              (number)))
-          (number))))
+      (value_satisfies_statement
+        (identifier)
+        (union_type
+          (literal_type
+            (number))
+          (literal_type
+            (number)))))
     (else_clause
       (statement_block
-        (expression_statement
-          (satisfies_expression
-            (identifier)
-            (literal_type
-              (number))))))))
+        (value_satisfies_statement
+          (identifier)
+          (literal_type
+            (number)))))))
 
 ==========================================================
 expressions / loops / loop / labeled loop break is allowed
@@ -564,12 +557,11 @@ lane satisfies [uint8; 8];
               (type_arguments
                 (predefined_type)))
             (type_identifier))))))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (tuple_type
-        (type_identifier)
-        (number)))))
+  (value_satisfies_statement
+    (identifier)
+    (tuple_type
+      (type_identifier)
+      (number))))
 
 ==========================================================
 types / constraints / where / where accepts one constraint
@@ -672,11 +664,10 @@ size satisfies 4;
               (identifier)
               (number)))))))
   (empty_statement)
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (literal_type
-        (number)))))
+  (value_satisfies_statement
+    (identifier)
+    (literal_type
+      (number))))
 
 =======================================================
 expressions / errors / match / catch match binds errors
@@ -730,16 +721,14 @@ value satisfies int;
                 (identifier))
               (match_arm_statement
                 (statement_block
-                  (expression_statement
-                    (satisfies_expression
-                      (identifier)
-                      (predefined_type)))
+                  (value_satisfies_statement
+                    (identifier)
+                    (predefined_type))
                   (expression_statement
                     (number))))))))))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (type_identifier))))
+  (value_satisfies_statement
+    (identifier)
+    (type_identifier)))
 
 ===============================================================================
 expressions / functions / signatures / declared generator functions are allowed
@@ -831,17 +820,17 @@ match (value) {
         (type_annotation
           (managed_type
             (type_identifier))))))
-  (match_statement
-    (identifier)
-    (match_arm
-      (match_pattern
-        (managed_pattern
-          (match_pattern
-            (identifier))))
-      (match_arm_statement
-        (statement_block
-          (expression_statement
-            (satisfies_expression
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (managed_pattern
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (value_satisfies_statement
               (identifier)
               (managed_type
                 (type_identifier)))))))))
@@ -871,17 +860,17 @@ match (value) {
         (type_annotation
           (borrow_type
             (type_identifier))))))
-  (match_statement
-    (identifier)
-    (match_arm
-      (match_pattern
-        (borrow_pattern
-          (match_pattern
-            (identifier))))
-      (match_arm_statement
-        (statement_block
-          (expression_statement
-            (satisfies_expression
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (borrow_pattern
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (value_satisfies_statement
               (identifier)
               (borrow_type
                 (type_identifier)))))))))
@@ -909,10 +898,9 @@ displayName satisfies string;
             (string
               (string_fragment)))))
       (object)))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (predefined_type))))
+  (value_satisfies_statement
+    (identifier)
+    (predefined_type)))
 
 =================================================================
 expressions / static if / validation / @if rejects call arguments
@@ -988,11 +976,10 @@ pointer satisfies *Widget;
           (type_identifier)))
       (borrow_expression
         (identifier))))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (pointer_type
-        (type_identifier)))))
+  (value_satisfies_statement
+    (identifier)
+    (pointer_type
+      (type_identifier))))
 
 =====================================================
 types / classes / members / placeholder methods parse
@@ -1058,10 +1045,9 @@ value satisfies Status;
       (member_expression
         (identifier)
         (property_identifier))))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (type_identifier))))
+  (value_satisfies_statement
+    (identifier)
+    (type_identifier)))
 
 ===================================================================
 types / generics / aliases / aliases require static value arguments
@@ -1207,12 +1193,11 @@ lane satisfies [uint8; 8];
             (type_arguments
               (literal_type
                 (number))))))))
-  (expression_statement
-    (satisfies_expression
-      (identifier)
-      (tuple_type
-        (type_identifier)
-        (number)))))
+  (value_satisfies_statement
+    (identifier)
+    (tuple_type
+      (type_identifier)
+      (number))))
 
 =====================================================
 types / structs / construction / structs embed fields
@@ -1301,15 +1286,16 @@ match (value) {
 ---
 
 (program
-  (match_statement
-    (identifier)
-    (match_arm
-      (match_pattern
-        (dereference_pattern
-          (match_pattern
-            (identifier))))
-      (expression_statement
-        (identifier)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (dereference_pattern
+            (match_pattern
+              (identifier))))
+        (expression_statement
+          (identifier))))))
 
 ===========================================================
 types / type operators / implements / implements type parses
