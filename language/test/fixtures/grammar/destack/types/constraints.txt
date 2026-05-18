@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.ds"
+
+// types / constraints / parameter
+function copy<T: Clone>(value: T): T {
+//            ^ entity.name.type.parameter.ds
+    value.clone()
+}
+
+// types / constraints / where
+function merge<T, U>(left: T, right: U): T where (T: Merge<U>, U: Clone) {
+// <- keyword.declaration.type.ds
+    left.merge(right.clone())
+}

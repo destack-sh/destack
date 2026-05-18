@@ -1,0 +1,25 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / functions / declarations arrows and generators
+async function* stream<T>(source: Source<T>): AsyncGenerator<T, void, unknown> {
+// <- keyword.control.async.ds
+    yield await source.next();
+}
+
+const map = <T, U>(value: T, project: (value: T) => U): U => project(value);
+//          ^ punctuation.definition.typeparameters.begin.ds
+
+// expressions / functions / calls and type arguments
+const user = create<User, comptime 4>(input);
+//           ^^^^^^ entity.name.function.call.ds
+
+const value = object.method?.<Result<string>>(argument);
+
+// expressions / functions / decorators
+@derive(Debug, Clone)
+// <- entity.name.function.decorator.ds
+struct Event {}
+
+@capture({ default: "move", logger: "borrow" })
+// <- entity.name.function.decorator.ds
+const handler = () => logger.info("handled");

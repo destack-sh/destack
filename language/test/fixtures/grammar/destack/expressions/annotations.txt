@@ -1,0 +1,34 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / annotations / decorators
+@derive(Debug, Clone)
+// <- entity.name.function.decorator.ds
+struct Event {}
+
+@route("/users/:id")
+// <- entity.name.function.decorator.ds
+function loadUser(id: UserId): Result<User, Error> {
+    findUser(id)
+}
+
+// expressions / annotations / capture
+@capture({ default: "move", logger: "borrow" })
+// <- entity.name.function.decorator.ds
+const handler = () => logger.info("handled");
+
+@unsafe
+// <- entity.name.function.decorator.ds
+function readPointer(pointer: *uint8): uint8 {
+    read(pointer)
+}
+
+@safe
+// <- entity.name.function.decorator.ds
+function checked(): void {}
+
+// expressions / annotations / taint source and sink
+@taint("html")
+// <- entity.name.function.decorator.ds
+@source("network")
+@sink("log")
+function tagged(input: string): void {}

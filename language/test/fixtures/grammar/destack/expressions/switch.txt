@@ -1,0 +1,10 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / switch / cases and flow
+switch (state) {
+// <- keyword.control.conditional.ds
+    case "ready":
+        return 1;
+    default:
+        return 0;
+}

@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.ds"
+
+// memory / ownership / owned borrowed and shared types
+let owned: ^User = ^User.create();
+//         ^ keyword.operator.elementwise.ds
+
+let borrowed: &readonly User = &readonly owned;
+//            ^ keyword.operator.elementwise.ds
+
+let shared: shared User = User.create();
+//          ^^^^^^ keyword.other.modifier.ds
+
+let localValue: local Buffer = Buffer.allocate();
+//              ^^^^^ keyword.other.modifier.ds
+
+// memory / ownership / raw pointers and address expressions
+let pointer: *uint8 = &bytes[0];
+//           ^ keyword.operator.pointer.ds
+
+let pinned: Pin<Box<Task>> = Box.pin(task);
+//          ^^^ entity.name.type.ds

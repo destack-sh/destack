@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.ds"
+
+// runtime / modules / import meta and module settings
+const runtime = import.meta.runtime;
+//              ^^^^^^ keyword.declaration.import.ds
+
+module Runtime {
+// <- keyword.declaration.type.ds
+    export const mode = "dev";
+}
+
+// runtime / modules / binary and text dependencies
+import data from "./schema.json" with { type: "json" };
+// <- keyword.declaration.import.ds
+
+export * as runtimeConfig from "./config.ds";
+// <- keyword.declaration.import.ds

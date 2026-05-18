@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.ds"
+
+// memory / algebra / shared borrowed and owned combinations
+let view: shared (&readonly Packet) = packet;
+//        ^^^^^^ keyword.other.modifier.ds
+
+let owner: shared ^Packet = ^Packet.create();
+
+type Base = BaseOf<shared ^Packet>;
+
+type Reborrowed = WithAccess<&Packet, "exclusive">;

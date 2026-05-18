@@ -1,0 +1,9 @@
+// SYNTAX TEST "source.ds"
+
+// memory / capabilities / marker interfaces
+interface Send<T> {}
+// <- keyword.declaration.type.ds
+
+interface Sync<T> {}
+
+type SharedTask = Task & Send<Task> & Sync<Task>;

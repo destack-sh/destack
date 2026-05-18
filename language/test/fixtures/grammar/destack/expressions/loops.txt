@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / loops / loop
+const value = loop {
+//            ^^^^ keyword.control.loop.ds
+    break 1;
+};
+
+const labeled = outer: loop {
+    break outer: 2;
+//  ^^^^^ keyword.control.flow.ds
+};
+
+// expressions / loops / while for and continue
+while (ready()) {
+// <- keyword.control.loop.ds
+    continue;
+}
+
+for (const item of items) {
+// <- keyword.control.loop.ds
+    break;
+}
+
+for item in items {
+// <- keyword.control.loop.ds
+    consume(item);
+}
+
+for await (const entry of stream) {
+// <- keyword.control.loop.ds
+    consume(entry);
+}

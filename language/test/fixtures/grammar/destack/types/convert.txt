@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.ds"
+
+// types / convert / from reference and try
+newtype UserId = string;
+// <- keyword.declaration.type.ds
+
+extension of UserId implements From<string> {
+//                  ^^^^^^^^^^ keyword.operator.type.binary.ds
+    static from(value: string): UserId {
+        return UserId(value);
+    }
+}

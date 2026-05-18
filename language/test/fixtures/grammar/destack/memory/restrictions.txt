@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.ds"
+
+// memory / restrictions / local and shared modifiers
+let localValue: local Buffer = Buffer.allocate();
+//              ^^^^^ keyword.other.modifier.ds
+
+let sharedValue: shared Buffer = Buffer.share(localValue);
+//               ^^^^^^ keyword.other.modifier.ds

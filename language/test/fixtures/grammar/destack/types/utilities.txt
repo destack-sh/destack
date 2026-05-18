@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.ds"
+
+// types / utilities / built in type operators
+type Patch = Partial<User> & Pick<User, "id" | "name">;
+//           ^^^^^^^ support.type.builtin.ds
+
+type Result = Exclude<keyof Patch, "password">;
+//                    ^^^^^ keyword.operator.type.unary.ds

@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / assignment / declarations
+const id: UserId = UserId(1);
+// <- keyword.declaration.type.ds
+
+let count = 0;
+// <- keyword.declaration.type.ds
+
+// expressions / assignment / destructuring
+const { name, profile: { age } } = user;
+// <- keyword.declaration.type.ds
+
+let [head, ...tail] = items;
+// <- keyword.declaration.type.ds
+
+// expressions / assignment / updates
+count += 1;
+//    ^^ keyword.operator.assignment.addition.ds
+
+user.name = "Ada";
+

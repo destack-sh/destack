@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.ds"
+
+// memory / statics / static members
+class Registry {
+// <- keyword.declaration.type.ds
+    static Default: Registry = new Registry();
+}

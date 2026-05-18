@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.ds"
+
+// types / arrays / dynamic slices fixed and tuples
+type Dynamic = uint8[];
+// <- keyword.declaration.type.ds
+
+type Slice = [uint8];
+//           ^ punctuation.section.brackets.begin.ds
+
+type Fixed<comptime N: uint> = [uint8; N];
+
+type Pair = (string, uint32);
+
+// types / arrays / readonly
+type ReadonlyNames = readonly string[];
+// <- keyword.declaration.type.ds
+

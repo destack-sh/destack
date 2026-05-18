@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / macros / decorators expansion materialization and serde
+newtype route = (string,);
+// <- keyword.declaration.type.ds
+
+@route("/users")
+// <- entity.name.function.decorator.ds
+function users(): string {
+    return "users";
+}
+
+const declaration = comptime eval<Declaration>(ds`
+//                  ^^^^^^^^ keyword.other.comptime.ds
+    type RouteDefinition = { path: string; handler: unknown };
+`);

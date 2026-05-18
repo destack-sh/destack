@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / comptime / expressions and blocks
+const size = comptime sizeOf<User>();
+//           ^^^^^^^^ keyword.other.comptime.ds
+
+comptime {
+// <- keyword.other.comptime.ds
+    assert(layoutOf<User>().size > 0);
+}
+
+// expressions / comptime / static if annotations
+@if(import.meta.runtime == "js")
+// <- entity.name.function.decorator.ds
+function runtimeName(): string {
+    "js"
+}
+
+function make<comptime N: uint>(value: [uint8; N]): Buffer<N> {
+//            ^^^^^^^^ keyword.other.comptime.ds
+    Buffer.from(value)
+}

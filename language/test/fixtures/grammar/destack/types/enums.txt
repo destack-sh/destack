@@ -1,0 +1,10 @@
+// SYNTAX TEST "source.ds"
+
+// types / enums / backing members and nominality
+enum Status {
+// <- keyword.declaration.type.ds
+    Active = 1,
+    Inactive = 2,
+
+    static Default = Status.Active;
+}

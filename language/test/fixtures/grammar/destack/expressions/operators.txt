@@ -1,0 +1,43 @@
+// SYNTAX TEST "source.ds"
+
+// expressions / operators / arithmetic comparison and boolean
+const value = (a +| b) *% c ** d <= limit && ready || fallback;
+
+const assigned = value ?? defaultValue;
+//                     ^^ keyword.operator.boolean.ds
+
+const updated = counter += 1;
+//                      ^^ keyword.operator.assignment.addition.ds
+
+const bits = (flags << 2) & mask | other ^ next;
+//                  ^^ keyword.operator.shift.ds
+
+// expressions / operators / type assertions and predicates
+value satisfies string;
+//    ^^^^^^^^^ keyword.operator.type.binary.ds
+
+value as Result<string>;
+//    ^^ keyword.operator.type.binary.ds
+
+if (value is User) {
+//        ^^ keyword.operator.type.binary.ds
+    value.name
+}
+
+// expressions / operators / ownership and ranges
+const owned = ^readonly value;
+//            ^ keyword.operator.elementwise.ds
+
+const borrowed = &exclusive value;
+//               ^ keyword.operator.elementwise.ds
+
+const raw = *pointer;
+//          ^ keyword.operator.multiplication.ds
+
+const address = &value;
+//              ^ keyword.operator.elementwise.ds
+
+const range = start..=end;
+//                 ^^^ keyword.operator.range.ds
+
+const item = values[index]?.field!;

@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.ds"
+
+// memory / rc / reference counted handles
+let handle: Rc<User> = Rc.new(user);
+//          ^^ entity.name.type.ds
+
+let clone = handle.clone();

@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.ds"
+
+// types / interfaces / structural
+interface Drawable {
+// <- keyword.declaration.type.ds
+    draw(): void;
+}
+
+// types / interfaces / nominal
+newtype interface Add<T = this> {
+// <- keyword.declaration.type.ds
+    type Output;
+    add(other: T): this.Output;
+}
+
+// types / interfaces / extends
+interface Writer extends Disposable {
+// <- keyword.declaration.type.ds
+    write(bytes: [uint8]): Result<uint, IOError>;
+}
+
