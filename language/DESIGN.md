@@ -953,7 +953,9 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Rest | `...tail` | collect the remaining elements or fields |
 | Default | `name = "guest"` | bind a fallback for missing destructured values |
 | Must | `value!` | bind the non-nullish value |
-| Ownership | `^value`, `&value` | bind an owned or borrowed view |
+| Borrow binding | `&readonly value`, `&value`, `&exclusive value` | bind the selected place through a borrow |
+| Move binding | `^value` | bind the selected place by ownership |
+| Dereference | `*Point { x, y }` | dereference the selected place before matching |
 | Guard | `pattern if (condition)` | require an extra boolean condition |
 
 Object-backed newtypes still use the wrapper pattern around the object pattern.
