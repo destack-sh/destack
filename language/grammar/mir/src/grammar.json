@@ -201,11 +201,15 @@
             },
             {
               "type": "STRING",
-              "value": "trap.abort"
+              "value": "panic"
             },
             {
               "type": "STRING",
-              "value": "trap.panic"
+              "value": "panic.resume"
+            },
+            {
+              "type": "STRING",
+              "value": "trap.abort"
             },
             {
               "type": "STRING",
