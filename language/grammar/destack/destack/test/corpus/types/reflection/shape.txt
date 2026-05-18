@@ -1,0 +1,359 @@
+============================================================
+types / reflection / shape / Type.of returns a semantic type
+============================================================
+
+struct User {
+    name: string;
+}
+
+const type = Type.of<User>();
+(type) satisfies Type<User>;
+(type) satisfies dir.Type;
+type.id satisfies TypeId;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (type_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (parenthesized_expression
+        (identifier))
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (parenthesized_expression
+        (identifier))
+      (satisfies_type
+        (nested_type_identifier
+          (identifier)
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+===========================================================
+types / reflection / shape / reference types expose symbols
+===========================================================
+
+struct User {
+    name: string;
+}
+
+const type = Type.of<User>();
+
+if (type.kind == "reference") {
+    (type) satisfies dir.ReferenceType;
+    type.symbol satisfies dir.Symbol;
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (type_identifier))
+        (arguments))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (parenthesized_expression
+              (identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))))))
+
+=======================================================
+types / reflection / shape / object types expose fields
+=======================================================
+
+const type = Type.of<{ name: string; age?: uint }>();
+
+if (type.kind == "object") {
+    (type) satisfies dir.ObjectType;
+    type.fields satisfies readonly dir.TypeField[];
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (type_identifier)))))
+        (arguments))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (parenthesized_expression
+              (identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (satisfies_type
+              (readonly_type
+                (array_type
+                  (nested_type_identifier
+                    (identifier)
+                    (type_identifier)))))))))))
+
+==================================================================
+types / reflection / shape / fixed arrays expose element and count
+==================================================================
+
+const type = Type.of<[uint8; 4]>();
+
+if (type.kind == "arraySized") {
+    (type) satisfies dir.ArraySizedType;
+    type.element satisfies dir.Type;
+    type.count satisfies dir.Type;
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (tuple_type
+            (type_identifier)
+            (number)))
+        (arguments))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (parenthesized_expression
+              (identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))))))
+
+===========================================================
+types / reflection / shape / tuples expose ordered elements
+===========================================================
+
+const type = Type.of<(string, int32)>();
+
+if (type.kind == "tuple") {
+    (type) satisfies dir.TupleType;
+    type.elements satisfies readonly dir.TypeElement[];
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (tuple_type
+            (predefined_type)
+            (type_identifier)))
+        (arguments))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (parenthesized_expression
+              (identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (satisfies_type
+              (readonly_type
+                (array_type
+                  (nested_type_identifier
+                    (identifier)
+                    (type_identifier)))))))))))
+
+==================================================
+types / reflection / shape / unions expose members
+==================================================
+
+const type = Type.of<string | int32>();
+
+if (type.kind == "union") {
+    (type) satisfies dir.UnionType;
+    type.elements satisfies readonly dir.Type[];
+}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (union_type
+            (predefined_type)
+            (type_identifier)))
+        (arguments))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (parenthesized_expression
+              (identifier))
+            (satisfies_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier)))))
+        (expression_statement
+          (satisfies_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (satisfies_type
+              (readonly_type
+                (array_type
+                  (nested_type_identifier
+                    (identifier)
+                    (type_identifier)))))))))))

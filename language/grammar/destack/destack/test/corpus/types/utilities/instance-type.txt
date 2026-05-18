@@ -1,0 +1,99 @@
+=========================================================================
+types / utilities / instance type / InstanceType extracts class instances
+=========================================================================
+
+class User {
+    name: string = "";
+}
+
+type Value = InstanceType<typeof User>;
+
+const ok: Value = new User();
+ok.name satisfies string;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (string))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_query
+          (identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================================
+types / utilities / instance type / InstanceType rejects unrelated instances
+============================================================================
+
+class User {
+    name: string = "";
+}
+
+class Project {
+    title: string = "";
+}
+
+type Value = InstanceType<typeof User>;
+
+const bad: Value = new Project();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (string))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (string))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_query
+          (identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments))))))

@@ -1,0 +1,279 @@
+====================================================================================
+types / generics / variadic / variadic tuple tail extraction preserves literal heads
+====================================================================================
+
+type Head<T: readonly unknown[]> = T extends readonly (infer H, ...unknown[]) ? H : never;
+
+declare const value: Head<readonly ("a", "b", "c")>;
+value satisfies "a";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (predefined_type))))))
+    (conditional_type
+      (type_identifier)
+      (readonly_type
+        (tuple_type
+          (infer_type
+            (type_identifier))
+          (rest_type
+            (array_type
+              (predefined_type)))))
+      (type_identifier)
+      (predefined_type)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (readonly_type
+                (tuple_type
+                  (literal_type
+                    (string
+                      (string_fragment)))
+                  (literal_type
+                    (string
+                      (string_fragment)))
+                  (literal_type
+                    (string
+                      (string_fragment)))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+===================================================================================
+types / generics / variadic / variadic tuple concat preserves const tuple precision
+===================================================================================
+
+declare function concat<T: readonly unknown[], U: readonly unknown[]>(a: T, b: U): (...T, ...U);
+
+const value = concat([1, 2] as const, ["x"] as const);
+value[0] satisfies 1;
+value[2] satisfies "x";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (predefined_type)))))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (predefined_type))))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (tuple_type
+        (rest_type
+          (type_identifier))
+        (rest_type
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (as_expression
+            (array
+              (number)
+              (number)))
+          (as_expression
+            (array
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+=========================================================================
+types / generics / variadic / variadic tuple concat widens mutable arrays
+=========================================================================
+
+declare function concat<T: readonly unknown[], U: readonly unknown[]>(a: T, b: U): (...T, ...U);
+
+let left = [1, 2];
+let right = ["x"];
+const value = concat(left, right);
+
+value[0] satisfies 1;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (predefined_type)))))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (predefined_type))))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (tuple_type
+        (rest_type
+          (type_identifier))
+        (rest_type
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)
+          (identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+=======================================================================================
+types / generics / variadic / rest parameter inference preserves tuple element ordering
+=======================================================================================
+
+declare function collect<T: readonly unknown[]>(...values: T): T;
+
+const value = collect("a", 1, true);
+value[0] satisfies "a";
+value[1] satisfies 1;
+value[2] satisfies true;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (predefined_type))))))
+    (formal_parameters
+      (required_parameter
+        (rest_pattern
+          (identifier))
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))
+          (number)
+          (true)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (subscript_expression
+        (identifier)
+        (number))
+      (satisfies_type
+        (literal_type
+          (true))))))

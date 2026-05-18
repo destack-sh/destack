@@ -1,0 +1,214 @@
+=============================================================
+expressions / operators / remainder / number remainder number
+=============================================================
+
+const value = 10 % 3;
+value satisfies 1;
+value satisfies int;
+value satisfies float64;
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================================
+expressions / operators / remainder / remainder dispatches to Remainder
+=======================================================================
+
+struct Scalar {
+    value: int;
+}
+
+extension of Scalar implements Remainder<Scalar> {
+    type Output = Scalar;
+
+    remainder(other: Scalar): this.Output {
+        return this;
+    }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+const value = left % right;
+value satisfies Scalar;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==================================================================
+expressions / operators / remainder / remainder requires Remainder
+==================================================================
+
+struct Scalar {
+    value: int;
+}
+
+extension of Scalar implements Add<Scalar> {
+    type Output = Scalar;
+
+    add(other: Scalar): this.Output {
+        return this;
+    }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+left % right;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))

@@ -1,0 +1,269 @@
+======================================================================
+types / associated / const / constants can use enclosing type generics
+======================================================================
+
+class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 4 : 2;
+}
+
+const width = Segment<string>.Width;
+width satisfies 4;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (ternary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (number)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (instantiation_expression
+          (identifier)
+          (type_arguments
+            (predefined_type)))
+        (property_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+============================================================
+types / associated / const / constants can size fixed arrays
+============================================================
+
+class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 8 : 4;
+    type Lane = [uint8; this.Width];
+}
+
+declare const lane: Segment<string>.Lane;
+lane satisfies [uint8; 8];
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (ternary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (number)
+          (number)))
+      (associated_type_declaration
+        (type_identifier)
+        (tuple_type
+          (type_identifier)
+          (member_expression
+            (this)
+            (property_identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (associated_type_projection
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (predefined_type)))
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (tuple_type
+          (type_identifier)
+          (number))))))
+
+==============================================================
+types / associated / const / constants can use other constants
+==============================================================
+
+class Layout<Row> {
+    comptime const Width: uint = Row extends string ? 4 : 2;
+    comptime const DoubleWidth: uint = this.Width * 2;
+    type Lane = [Row; this.DoubleWidth];
+}
+
+declare const lane: Layout<string>.Lane;
+lane satisfies [string; 8];
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (ternary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (number)
+          (number)))
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (binary_expression
+          (member_expression
+            (this)
+            (property_identifier))
+          (number)))
+      (associated_type_declaration
+        (type_identifier)
+        (tuple_type
+          (type_identifier)
+          (member_expression
+            (this)
+            (property_identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (associated_type_projection
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (predefined_type)))
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (tuple_type
+          (predefined_type)
+          (number))))))
+
+============================================================
+types / associated / const / value reads need resolved types
+============================================================
+
+class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 4 : 2;
+}
+
+function readWidth<Row>() {
+    const width = Segment<Row>.Width;
+    width
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (ternary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (number)
+          (number)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (member_expression
+            (instantiation_expression
+              (identifier)
+              (type_arguments
+                (type_identifier)))
+            (property_identifier))))
+      (expression_statement
+        (identifier)))))
+
+==============================================================
+types / associated / const / constants are not instance fields
+==============================================================
+
+class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 4 : 2;
+}
+
+const segment = new Segment<string>();
+const width = segment.Width;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (ternary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (number)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (identifier)
+        (type_arguments
+          (predefined_type))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))

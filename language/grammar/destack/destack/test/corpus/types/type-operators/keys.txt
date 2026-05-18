@@ -1,0 +1,665 @@
+===============================================================
+types / type operators / keys / keyof builds literal key unions
+===============================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type Keys = keyof Person;
+
+const name: Keys = "name";
+const age: Keys = "age";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+==========================================================
+types / type operators / keys / keyof rejects unknown keys
+==========================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type Keys = keyof Person;
+
+const bad: Keys = "title";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+=============================================================
+types / type operators / keys / keyof unions keep shared keys
+=============================================================
+
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
+
+type Keys = keyof (Left | Right);
+
+const ok: Keys = "shared";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (parenthesized_type
+        (union_type
+          (type_identifier)
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+================================================================
+types / type operators / keys / keyof unions reject missing keys
+================================================================
+
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
+
+type Keys = keyof (Left | Right);
+
+const bad: Keys = "left";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (parenthesized_type
+        (union_type
+          (type_identifier)
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+====================================================================
+types / type operators / keys / keyof intersections include all keys
+====================================================================
+
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
+
+type Keys = keyof (Left & Right);
+
+const shared: Keys = "shared";
+const left: Keys = "left";
+const right: Keys = "right";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (parenthesized_type
+        (intersection_type
+          (type_identifier)
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+============================================================
+types / type operators / keys / keyof uses instantiated keys
+============================================================
+
+type Keys<T: { a: number }> = keyof T;
+type Actual = Keys<{ a: number; b: string }>;
+
+const key: Actual = "b";
+key satisfies "a" | "b";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))
+    (index_type_query
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+================================================================================
+types / type operators / keys / string indexes contribute string and number keys
+================================================================================
+
+interface Bag {
+    [key: string]: number;
+}
+
+type Keys = keyof Bag;
+
+const okString: Keys = "a";
+const okNumber: Keys = 1;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+==================================================================
+types / type operators / keys / string indexes reject boolean keys
+==================================================================
+
+interface Bag {
+    [key: string]: number;
+}
+
+type Keys = keyof Bag;
+
+const bad: Keys = true;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (true))))
+
+=====================================================================
+types / type operators / keys / number indexes contribute number keys
+=====================================================================
+
+interface NumberBag {
+    [key: number]: string;
+}
+
+type Keys = keyof NumberBag;
+
+const ok: Keys = 1;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+=================================================================
+types / type operators / keys / number indexes reject string keys
+=================================================================
+
+interface NumberBag {
+    [key: number]: string;
+}
+
+type Keys = keyof NumberBag;
+
+const bad: Keys = "name";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+=================================================================
+types / type operators / keys / in returns true for existing keys
+=================================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type HasName = "name" in Person;
+
+const ok: HasName = true;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (relation_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (true))))
+
+=================================================================
+types / type operators / keys / in returns false for missing keys
+=================================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type HasTitle = "title" in Person;
+
+const ok: HasTitle = false;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (relation_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (false))))
+
+=========================================================
+types / type operators / keys / in uses shared union keys
+=========================================================
+
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
+
+type HasLeft = "left" in (Left | Right);
+type HasShared = "shared" in (Left | Right);
+
+const left: HasLeft = false;
+const shared: HasShared = true;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (relation_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (parenthesized_type
+        (union_type
+          (type_identifier)
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (relation_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (parenthesized_type
+        (union_type
+          (type_identifier)
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (false)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (type_annotation
+        (type_identifier))
+      (true))))
+
+=========================================================
+types / type operators / keys / in uses intersection keys
+=========================================================
+
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
+
+type HasLeft = "left" in (Left & Right);
+
+const ok: HasLeft = true;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (relation_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (parenthesized_type
+        (intersection_type
+          (type_identifier)
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (true))))

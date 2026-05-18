@@ -1,0 +1,256 @@
+====================================================================
+expressions / match / newtypes / scalar newtype patterns bind values
+====================================================================
+
+newtype UserId = int64;
+
+function nextId(id: UserId): int64 {
+    match (id) {
+        UserId(value) => {
+            value satisfies int64;
+            value
+        }
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (call_expression
+                (identifier)
+                (arguments
+                  (identifier))))
+            (match_arm_statement
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (identifier)
+                    (satisfies_type
+                      (type_identifier))))
+                (expression_statement
+                  (identifier))))))))))
+
+=============================================================================
+expressions / match / newtypes / scalar newtype patterns reject bare literals
+=============================================================================
+
+newtype UserId = int64;
+
+function nextId(id: UserId): int64 {
+    return match (id) {
+        1 => 1
+        UserId(value) => value
+    };
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (number))
+            (expression_statement
+              (number)))
+          (match_arm
+            (match_pattern
+              (call_expression
+                (identifier)
+                (arguments
+                  (identifier))))
+            (expression_statement
+              (identifier))))))))
+
+===================================================================
+expressions / match / newtypes / tuple newtype patterns bind fields
+===================================================================
+
+newtype Point = (float32, float32);
+
+function sum(point: Point): float32 {
+    match (point) {
+        Point(x, y) => {
+            x satisfies float32;
+            y satisfies float32;
+            x
+        }
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (type_identifier)
+      (type_identifier)))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (call_expression
+                (identifier)
+                (arguments
+                  (identifier)
+                  (identifier))))
+            (match_arm_statement
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (identifier)
+                    (satisfies_type
+                      (type_identifier))))
+                (expression_statement
+                  (satisfies_expression
+                    (identifier)
+                    (satisfies_type
+                      (type_identifier))))
+                (expression_statement
+                  (identifier))))))))))
+
+=====================================================================
+expressions / match / newtypes / object newtype patterns require tags
+=====================================================================
+
+newtype Config = { debug: boolean };
+
+function read(config: Config): boolean {
+    match (config) {
+        Config { debug } => {
+            debug satisfies boolean;
+            debug
+        }
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (struct_literal_expression
+                (identifier)
+                (object
+                  (shorthand_property_identifier))))
+            (match_arm_statement
+              (statement_block
+                (expression_statement
+                  (satisfies_expression
+                    (identifier)
+                    (satisfies_type
+                      (predefined_type))))
+                (expression_statement
+                  (identifier))))))))))
+
+============================================================================
+expressions / match / newtypes / object newtype patterns reject bare objects
+============================================================================
+
+newtype Config = { debug: boolean };
+
+function read(config: Config): boolean {
+    match (config) {
+        { debug } => debug
+        _ => false
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (object_pattern
+                (shorthand_property_identifier_pattern)))
+            (expression_statement
+              (identifier)))
+          (match_arm
+            (match_pattern
+              (identifier))
+            (expression_statement
+              (false))))))))

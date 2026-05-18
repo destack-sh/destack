@@ -1,0 +1,610 @@
+=============================================================
+types / utilities / pick / pick preserves optional properties
+=============================================================
+
+interface Person {
+    name: string;
+    age?: number;
+}
+
+type AgeOnly = Pick<Person, "age">;
+
+const ok: AgeOnly = {};
+ok satisfies AgeOnly;
+const ok2 = { age: 42 };
+ok2 satisfies AgeOnly;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+======================================================================
+types / utilities / pick / pick rejects extra fields on optional picks
+======================================================================
+
+interface Person {
+    name: string;
+    age?: number;
+}
+
+type AgeOnly = Pick<Person, "age">;
+
+const bad: AgeOnly = { name: "Ada" };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+=======================================================
+types / utilities / pick / pick accepts required fields
+=======================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameOnly = Pick<Person, "name">;
+
+const ok: NameOnly = { name: "Ada" };
+ok satisfies NameOnly;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==================================================
+types / utilities / pick / pick accepts union keys
+==================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameAge = Pick<Person, "name" | "age">;
+
+const ok: NameAge = { name: "Ada", age: 42 };
+ok satisfies NameAge;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=============================================================
+types / utilities / pick / pick merges shared union key types
+=============================================================
+
+type Mixed = { value: string } | { value: int32 };
+type Picked = Pick<Mixed, "value">;
+
+const ok: Picked = { value: "Ada" };
+const ok2: Picked = { value: 42 };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))))))
+
+===============================================================
+types / utilities / pick / pick rejects non member union values
+===============================================================
+
+type Mixed = { value: string } | { value: int32 };
+type Picked = Pick<Mixed, "value">;
+
+const bad: Picked = { value: true };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (true))))))
+
+==========================================================
+types / utilities / pick / pick rejects missing union keys
+==========================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameAge = Pick<Person, "name" | "age">;
+
+const bad: NameAge = { name: "Ada" };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+====================================================
+types / utilities / pick / pick rejects extra fields
+====================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameOnly = Pick<Person, "name">;
+
+const bad: NameOnly = { name: "Ada", extra: true };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (true))))))
+
+=======================================================================
+types / utilities / pick / pick rejects extra fields with required keys
+=======================================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameOnly = Pick<Person, "name">;
+
+const bad: NameOnly = { name: "Ada", age: 42 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number))))))
+
+===============================================================
+types / utilities / pick / pick rejects missing required fields
+===============================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameOnly = Pick<Person, "name">;
+
+const bad: NameOnly = {};
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object))))
+
+====================================================
+types / utilities / pick / pick rejects unknown keys
+====================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type NameOnly = Pick<Person, "name" | "missing">;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment))))))))
+
+=============================================================
+types / utilities / pick / pick preserves readonly properties
+=============================================================
+
+interface Person {
+    readonly name: string;
+    age: number;
+}
+
+type NameOnly = Pick<Person, "name">;
+
+const person: NameOnly = { name: "Ada" };
+person.name = "Grace";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (string
+        (string_fragment)))))

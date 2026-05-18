@@ -1,0 +1,657 @@
+===========================================================================
+expressions / dispatch / operators / binary operators use the left receiver
+===========================================================================
+
+struct Left {}
+struct Right {}
+
+extension of Right implements Add<Left> {
+    type Output = Right;
+
+    add(other: Left): this.Output {
+        return Right {};
+    }
+}
+
+declare let left: Left;
+declare let right: Right;
+
+left + right;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body))
+  (struct_declaration
+    (type_identifier)
+    (class_body))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (struct_literal_expression
+              (identifier)
+              (object)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
+
+====================================================================================
+expressions / dispatch / operators / reversed operands need reversed implementations
+====================================================================================
+
+struct Vector2 {
+    x: int32;
+    y: int32;
+}
+struct Scalar {
+    value: int32;
+}
+
+extension of Vector2 implements Add<Scalar> {
+    type Output = Vector2;
+
+    add(other: Scalar): this.Output {
+        return this;
+    }
+}
+
+extension of Scalar implements Add<Vector2> {
+    type Output = Vector2;
+
+    add(other: Vector2): this.Output {
+        return other;
+    }
+}
+
+declare let vector: Vector2;
+declare let scalar: Scalar;
+
+const padded = vector + scalar;
+const scaled = scalar + vector;
+
+padded satisfies Vector2;
+scaled satisfies Vector2;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===================================================================================
+expressions / dispatch / operators / operator implementations use declaration order
+===================================================================================
+
+struct Counter {}
+
+extension of Counter implements Add<number> {
+    type Output = "number";
+
+    add(other: number): this.Output {
+        return "number";
+    }
+}
+
+extension of Counter implements Add<int32> {
+    type Output = "int32";
+
+    add(other: int32): this.Output {
+        return "int32";
+    }
+}
+
+declare let counter: Counter;
+
+const value = counter + 1;
+value satisfies "number";
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (string
+              (string_fragment)))))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (string
+              (string_fragment)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+======================================================================
+expressions / dispatch / operators / imported operator order is stable
+======================================================================
+
+export struct Counter {}
+
+---
+
+(program
+  (export_statement
+    (struct_declaration
+      (type_identifier)
+      (class_body))))
+
+======================================================================
+expressions / dispatch / operators / imported operator order is stable
+======================================================================
+
+import { Counter } from "./counter.ds";
+
+export extension CounterNumberAdd of Counter implements Add<number> {
+    type Output = "number";
+
+    add(other: number): this.Output {
+        return "number";
+    }
+}
+
+export extension CounterIntAdd of Counter implements Add<int32> {
+    type Output = "int32";
+
+    add(other: int32): this.Output {
+        return "int32";
+    }
+}
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (export_statement
+    (extension_declaration
+      (type_identifier)
+      (relation_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (class_body
+        (associated_type_declaration
+          (type_identifier)
+          (literal_type
+            (string
+              (string_fragment))))
+        (method_definition
+          (property_identifier)
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (type_annotation
+            (associated_type_projection
+              (this_type)
+              (type_identifier)))
+          (statement_block
+            (return_statement
+              (string
+                (string_fragment))))))))
+  (export_statement
+    (extension_declaration
+      (type_identifier)
+      (relation_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (class_body
+        (associated_type_declaration
+          (type_identifier)
+          (literal_type
+            (string
+              (string_fragment))))
+        (method_definition
+          (property_identifier)
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (type_identifier))))
+          (type_annotation
+            (associated_type_projection
+              (this_type)
+              (type_identifier)))
+          (statement_block
+            (return_statement
+              (string
+                (string_fragment)))))))))
+
+======================================================================
+expressions / dispatch / operators / imported operator order is stable
+======================================================================
+
+import { Counter } from "./counter.ds";
+import { CounterIntAdd, CounterNumberAdd } from "./extensions.ds";
+
+declare let counter: Counter;
+
+const value = counter + 1;
+value satisfies "number";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+=================================================================================
+expressions / dispatch / operators / overlapping imported operators are ambiguous
+=================================================================================
+
+export struct Counter {}
+
+---
+
+(program
+  (export_statement
+    (struct_declaration
+      (type_identifier)
+      (class_body))))
+
+=================================================================================
+expressions / dispatch / operators / overlapping imported operators are ambiguous
+=================================================================================
+
+import { Counter } from "./counter.ds";
+
+export extension FirstAdd of Counter implements Add<number> {
+    type Output = "first";
+
+    add(other: number): this.Output {
+        return "first";
+    }
+}
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (export_statement
+    (extension_declaration
+      (type_identifier)
+      (relation_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (class_body
+        (associated_type_declaration
+          (type_identifier)
+          (literal_type
+            (string
+              (string_fragment))))
+        (method_definition
+          (property_identifier)
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (type_annotation
+            (associated_type_projection
+              (this_type)
+              (type_identifier)))
+          (statement_block
+            (return_statement
+              (string
+                (string_fragment)))))))))
+
+=================================================================================
+expressions / dispatch / operators / overlapping imported operators are ambiguous
+=================================================================================
+
+import { Counter } from "./counter.ds";
+
+export extension SecondAdd of Counter implements Add<number> {
+    type Output = "second";
+
+    add(other: number): this.Output {
+        return "second";
+    }
+}
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (export_statement
+    (extension_declaration
+      (type_identifier)
+      (relation_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (class_body
+        (associated_type_declaration
+          (type_identifier)
+          (literal_type
+            (string
+              (string_fragment))))
+        (method_definition
+          (property_identifier)
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (type_annotation
+            (associated_type_projection
+              (this_type)
+              (type_identifier)))
+          (statement_block
+            (return_statement
+              (string
+                (string_fragment)))))))))
+
+=================================================================================
+expressions / dispatch / operators / overlapping imported operators are ambiguous
+=================================================================================
+
+import { Counter } from "./counter.ds";
+import { FirstAdd } from "./first.ds";
+import { SecondAdd } from "./second.ds";
+
+declare let counter: Counter;
+
+counter + 1;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (number))))

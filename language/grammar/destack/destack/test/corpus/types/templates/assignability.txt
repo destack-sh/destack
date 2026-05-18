@@ -1,0 +1,333 @@
+=====================================================================================
+types / templates / assignability / template literal type assigns to broader template
+=====================================================================================
+
+type Loose = `${string}-id`;
+type Tight = `user-${string}-id`;
+
+declare let tight: Tight;
+let ok: Loose = tight;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (template_type
+        (predefined_type))
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))
+      (string_fragment)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+=======================================================================================================
+types / templates / assignability / template literal type rejects union assignment to narrower template
+=======================================================================================================
+
+type Combo = `foo-${string}` | `bar-${string}`;
+type FooOnly = `foo-${string}`;
+
+declare let combo: Combo;
+let bad: FooOnly = combo;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (predefined_type)))
+      (template_literal_type
+        (string_fragment)
+        (template_type
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+=================================================================================================
+types / templates / assignability / template literal type rejects assignment to narrower template
+=================================================================================================
+
+type Loose = `${string}-id`;
+type Tight = `user-${string}-id`;
+
+declare let loose: Loose;
+let bad: Tight = loose;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (template_type
+        (predefined_type))
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))
+      (string_fragment)))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+===============================================================================
+types / templates / assignability / template literal type accepts generic spans
+===============================================================================
+
+type AnyString = `${string}`;
+type Tagged = `tag-${string}`;
+
+declare let tagged: Tagged;
+let ok: AnyString = tagged;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (template_type
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+=========================================================================================
+types / templates / assignability / template literal numeric spans assign to string spans
+=========================================================================================
+
+type NumericId = `id-${number}`;
+type StringId = `id-${string}`;
+
+declare let numeric: NumericId;
+let ok: StringId = numeric;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+======================================================================================
+types / templates / assignability / template literal string spans reject numeric spans
+======================================================================================
+
+type NumericId = `id-${number}`;
+type StringId = `id-${string}`;
+
+declare let value: StringId;
+let bad: NumericId = value;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+===========================================================================
+types / templates / assignability / template literal type assigns to string
+===========================================================================
+
+type Tagged = `tag-${string}`;
+
+declare let tagged: Tagged;
+let ok: string = tagged;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (identifier))))
+
+===================================================================================
+types / templates / assignability / string does not assign to template literal type
+===================================================================================
+
+type Tagged = `tag-${string}`;
+
+declare let value: string;
+let bad: Tagged = value;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+===============================================================================
+types / templates / assignability / template literal type rejects boolean spans
+===============================================================================
+
+type BoolSpan = `flag-${boolean}`;
+type NumSpan = `flag-${number}`;
+
+declare let value: BoolSpan;
+let bad: NumSpan = value;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (template_literal_type
+      (string_fragment)
+      (template_type
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))

@@ -1,0 +1,103 @@
+============================================================================
+types / utilities / noinfer / NoInfer keeps inference from earlier arguments
+============================================================================
+
+declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
+
+const ok = choose(["red", "blue"], "red");
+ok satisfies "red" | "blue";
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (array
+            (string
+              (string_fragment))
+            (string
+              (string_fragment)))
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (literal_type
+            (string
+              (string_fragment)))))
+      (string
+        (string_fragment)))))
+
+=======================================================================
+types / utilities / noinfer / NoInfer rejects unrelated later arguments
+=======================================================================
+
+declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
+
+choose(["red", "blue"], "green");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (array
+          (string
+            (string_fragment))
+          (string
+            (string_fragment)))
+        (string
+          (string_fragment))))))

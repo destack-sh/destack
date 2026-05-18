@@ -1,0 +1,1067 @@
+===============================================================
+types / classes / members / instance fields keep declared types
+===============================================================
+
+class Counter {
+    value: int32 = 0;
+}
+
+const counter = new Counter();
+const value = counter.value;
+value satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==============================================================
+types / classes / members / instance methods keep return types
+==============================================================
+
+class Counter {
+    value: int32 = 0;
+
+    increment(): int32 {
+        this.value = this.value + 1;
+        this.value
+    }
+}
+
+const counter = new Counter();
+const next = counter.increment();
+next satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (binary_expression
+                (member_expression
+                  (this)
+                  (property_identifier))
+                (number))))
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================================
+types / classes / members / virtual methods type check as instance methods
+==========================================================================
+
+class Counter {
+    value: int32 = 0;
+
+    virtual increment(): int32 {
+        this.value = this.value + 1;
+        this.value
+    }
+}
+
+const counter = new Counter();
+const next = counter.increment();
+next satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (binary_expression
+                (member_expression
+                  (this)
+                  (property_identifier))
+                (number))))
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==============================================================
+types / classes / members / fields and methods can share names
+==============================================================
+
+class Counter {
+    count: int32 = 0;
+
+    count(): string {
+        "count"
+    }
+}
+
+const counter = new Counter();
+
+counter.count satisfies int32;
+counter.count() satisfies string;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (predefined_type)))))
+
+======================================================================
+types / classes / members / callable fields can be selected explicitly
+======================================================================
+
+class Runner {
+    run: () => "field" = () => "field";
+
+    run(): "method" {
+        "method"
+    }
+}
+
+const runner = new Runner();
+
+runner.run() satisfies "method";
+(runner.run)() satisfies "field";
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters)
+            (literal_type
+              (string
+                (string_fragment)))))
+        (arrow_function
+          (formal_parameters)
+          (string
+            (string_fragment))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment))))
+        (statement_block
+          (expression_statement
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (parenthesized_expression
+          (member_expression
+            (identifier)
+            (property_identifier)))
+        (arguments))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+============================================================================
+types / classes / members / instance members are unavailable on class values
+============================================================================
+
+class Counter {
+    value: int32 = 0;
+}
+
+const value = Counter.value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))
+
+==============================================================
+types / classes / members / static fields live on class values
+==============================================================
+
+class Counter {
+    static defaultValue: int32 = 0;
+}
+
+const value = Counter.defaultValue;
+value satisfies number;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=================================================================
+types / classes / members / static fields infer from initializers
+=================================================================
+
+class Counter {
+    static defaultValue = 1;
+}
+
+const value = Counter.defaultValue;
+value satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+======================================================================
+types / classes / members / static fields are unavailable on instances
+======================================================================
+
+class Counter {
+    static defaultValue: int32 = 0;
+}
+
+const counter = new Counter();
+const value = counter.defaultValue;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))
+
+============================================================
+types / classes / members / static methods keep return types
+============================================================
+
+class Counter {
+    value: int32 = 0;
+
+    static make(value: int32): Counter {
+        const counter = new Counter();
+        counter.value = value;
+        counter
+    }
+}
+
+const counter = Counter.make(1);
+counter satisfies Counter;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (new_expression
+                (call_expression
+                  (identifier)
+                  (arguments)))))
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (identifier)))
+          (expression_statement
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=======================================================================
+types / classes / members / static methods are unavailable on instances
+=======================================================================
+
+class Counter {
+    static make(): int32 {
+        1
+    }
+}
+
+const counter = new Counter();
+const value = counter.make();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments)))))
+
+===================================================================
+types / classes / members / static blocks can access static members
+===================================================================
+
+class Counter {
+    static value: int32 = 1;
+
+    static {
+        Counter.value = 2;
+    }
+}
+
+Counter.value satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (class_static_block
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+===========================================================
+types / classes / members / accessors expose property types
+===========================================================
+
+class Counter {
+    private value: int32 = 0;
+
+    get count(): int32 {
+        this.value
+    }
+
+    set count(next: int32) {
+        this.value = next;
+    }
+}
+
+const counter = new Counter();
+counter.count satisfies int32;
+counter.count = 1;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (accessibility_modifier)
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (number))))
+
+=======================================================
+types / classes / members / accessors check assignments
+=======================================================
+
+class Counter {
+    private value: int32 = 0;
+
+    get count(): int32 {
+        this.value
+    }
+
+    set count(next: int32) {
+        this.value = next;
+    }
+}
+
+const counter = new Counter();
+counter.count = "bad";
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (accessibility_modifier)
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (string
+        (string_fragment)))))
+
+=====================================================================
+types / classes / members / fields and accessors share property names
+=====================================================================
+
+class Counter {
+    count: int32 = 0;
+
+    get count(): int32 {
+        this.count
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier))))))))
+
+====================================================================
+types / classes / members / abstract fields cannot have initializers
+====================================================================
+
+abstract class Counter {
+    abstract value: int32 = 1;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number)))))
+
+=============================================================
+types / classes / members / readonly fields reject assignment
+=============================================================
+
+class Counter {
+    readonly value: int32 = 0;
+
+    update() {
+        this.value = 1;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (number))))))))
+
+======================================================================
+types / classes / members / declare fields cannot include initializers
+======================================================================
+
+class Counter {
+    declare value: int32 = 1;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number)))))
+
+========================================================
+types / classes / members / constructors reject override
+========================================================
+
+class Base {}
+
+class Counter extends Base {
+    override constructor() {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (override_modifier)
+        (property_identifier)
+        (formal_parameters)
+        (statement_block)))))
+
+===============================================================
+types / classes / members / abstract methods cannot have bodies
+===============================================================
+
+abstract class Counter {
+    abstract increment(): void {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block)))))
+
+=============================================================
+types / classes / members / static methods cannot be abstract
+=============================================================
+
+abstract class Counter {
+    static abstract increment(): void;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))))))
+
+=======================================================================
+types / classes / members / constructors cannot have generic parameters
+=======================================================================
+
+class Counter {
+    constructor<T>(value: T) {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)))
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block)))))
+
+==============================================================
+types / classes / members / declare methods cannot have bodies
+==============================================================
+
+class Counter {
+    declare increment(): void {}
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block)))))
+
+=============================================================
+types / classes / members / declare cannot apply to accessors
+=============================================================
+
+class Counter {
+    declare get value(): number;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))))))
+
+================================================================
+types / classes / members / declare cannot combine with override
+================================================================
+
+class Base {
+    greet(): void {}
+}
+
+class Counter extends Base {
+    declare override greet(): void;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_signature
+        (override_modifier)
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))))))
+
+====================================================
+types / classes / members / placeholder methods parse
+====================================================
+
+class Generated {
+    run(): void { ... }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (placeholder_block)))))

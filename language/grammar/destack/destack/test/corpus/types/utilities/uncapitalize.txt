@@ -1,0 +1,92 @@
+========================================================================
+types / utilities / uncapitalize / uncapitalize converts first character
+========================================================================
+
+type Value = Uncapitalize<"Hello">;
+
+const ok: Value = "hello";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+=======================================================================
+types / utilities / uncapitalize / uncapitalize distributes over unions
+=======================================================================
+
+type Value = Uncapitalize<"Yes" | "No">;
+
+const ok: Value = "yes";
+const ok2: Value = "no";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+=======================================================================
+types / utilities / uncapitalize / uncapitalize rejects original casing
+=======================================================================
+
+type Value = Uncapitalize<"Hello">;
+
+const bad: Value = "Hello";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))

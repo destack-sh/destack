@@ -1,0 +1,188 @@
+==============================================================
+expressions / assignment / let / let bindings allow assignment
+==============================================================
+
+let value: number = 1;
+value = 2;
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      type: (type_annotation
+        (predefined_type))
+      value: (number)))
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================================
+expressions / assignment / let / let bindings allow compound assignment
+=======================================================================
+
+let value: number = 1;
+value += 2;
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      type: (type_annotation
+        (predefined_type))
+      value: (number)))
+  (expression_statement
+    (augmented_assignment_expression
+      left: (identifier)
+      right: (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+====================================================================
+expressions / assignment / let / let destructuring allows assignment
+====================================================================
+
+let { count }: { count: number } = { count: 0 };
+count = 1;
+count satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (destack_if_let_pattern
+        (object_pattern
+          (shorthand_property_identifier_pattern)))
+      type: (type_annotation
+        (object_type
+          (property_signature
+            name: (property_identifier)
+            type: (type_annotation
+              (predefined_type)))))
+      value: (object
+        (pair
+          key: (property_identifier)
+          value: (number)))))
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================================
+expressions / assignment / let / let bindings reject incompatible assignment
+============================================================================
+
+let value: number = 1;
+value = "no";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      type: (type_annotation
+        (predefined_type))
+      value: (number)))
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (string
+        (string_fragment)))))
+
+======================================================================
+expressions / assignment / let / let bindings allow update expressions
+======================================================================
+
+let value: number = 1;
+value++;
+value--;
+value satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      type: (type_annotation
+        (predefined_type))
+      value: (number)))
+  (expression_statement
+    (update_expression
+      argument: (identifier)))
+  (expression_statement
+    (update_expression
+      argument: (identifier)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+======================================================================
+expressions / assignment / let / let tuple destructuring stays mutable
+======================================================================
+
+let (left, right): (number, number) = (1, 2);
+left = 3;
+right = 4;
+left satisfies number;
+right satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (tuple_pattern
+        (match_pattern
+          (identifier))
+        (match_pattern
+          (identifier)))
+      type: (type_annotation
+        (tuple_type
+          (predefined_type)
+          (predefined_type)))
+      value: (parenthesized_expression
+        (sequence_expression
+          (number)
+          (number)))))
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number)))
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

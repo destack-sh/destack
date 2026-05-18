@@ -1,0 +1,437 @@
+=====================================================================================
+types / type operators / satisfies / satisfies provides contextual typing for lambdas
+=====================================================================================
+
+type Handler = { run: (value: number) => number };
+
+const handler = {
+    run: (value) => value + 1,
+} satisfies Handler;
+
+handler.run(1) satisfies number;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (arrow_function
+              (formal_parameters
+                (required_parameter
+                  (identifier)))
+              (binary_expression
+                (identifier)
+                (number)))))
+        (satisfies_type
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (number)))
+      (satisfies_type
+        (predefined_type)))))
+
+================================================================================
+types / type operators / satisfies / satisfies rejects incompatible lambda calls
+================================================================================
+
+type Handler = { run: (value: number) => number };
+
+const handler = {
+    run: (value) => value + 1,
+} satisfies Handler;
+
+handler.run("no");
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (arrow_function
+              (formal_parameters
+                (required_parameter
+                  (identifier)))
+              (binary_expression
+                (identifier)
+                (number)))))
+        (satisfies_type
+          (type_identifier)))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments
+        (string
+          (string_fragment))))))
+
+=============================================================================================
+types / type operators / satisfies / satisfies preserves literal members under const bindings
+=============================================================================================
+
+type Mode = "dev" | "prod";
+
+const config = { mode: "dev" } satisfies { mode: Mode };
+
+config.mode satisfies "dev";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (satisfies_type
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (type_identifier))))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+==============================================================================
+types / type operators / satisfies / satisfies enforces excess property checks
+==============================================================================
+
+type Shape = { a: number };
+
+const value = { a: 1, b: 2 } satisfies Shape;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number)))
+        (satisfies_type
+          (type_identifier))))))
+
+===============================================================================
+types / type operators / satisfies / satisfies keeps contextual literal members
+===============================================================================
+
+type Shape = { mode: "dev" | "prod" };
+
+let config = { mode: "dev" } satisfies Shape;
+config.mode satisfies "dev";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (satisfies_type
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+===========================================================================================
+types / type operators / satisfies / satisfies contextual members reject unrelated literals
+===========================================================================================
+
+type Shape = { mode: "dev" | "prod" };
+
+let config = { mode: "dev" } satisfies Shape;
+config.mode satisfies "prod";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))
+        (satisfies_type
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+====================================================================================
+types / type operators / satisfies / satisfies keeps source members after validation
+====================================================================================
+
+type Target = { mode: "dev" | "prod"; retries: number };
+
+const config = { mode: "dev", retries: 3 } satisfies Target;
+
+config.retries satisfies number;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment))))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))
+          (pair
+            (property_identifier)
+            (number)))
+        (satisfies_type
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=============================================================================
+types / type operators / satisfies / satisfies keeps source method signatures
+=============================================================================
+
+type Target = { mode: "dev" | "prod" };
+
+const config = {
+    mode: "dev",
+    next(value: number) {
+        return value + 1;
+    },
+} satisfies Target & { next(value: number): number };
+
+config.next(1) satisfies number;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (satisfies_expression
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))
+          (method_definition
+            (property_identifier)
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (predefined_type))))
+            (statement_block
+              (return_statement
+                (binary_expression
+                  (identifier)
+                  (number))))))
+        (satisfies_type
+          (type_identifier)
+          (object_type
+            (method_signature
+              (property_identifier)
+              (formal_parameters
+                (required_parameter
+                  (identifier)
+                  (type_annotation
+                    (predefined_type))))
+              (type_annotation
+                (predefined_type))))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (number)))
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================================
+types / type operators / satisfies / satisfies expressions are not assignment targets
+=====================================================================================
+
+let value = 1;
+(value satisfies number) = 2;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number)))
+  (expression_statement
+    (assignment_expression
+      (parenthesized_expression
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (number))))

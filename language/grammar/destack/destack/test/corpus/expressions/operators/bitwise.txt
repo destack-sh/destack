@@ -1,0 +1,940 @@
+============================================================================
+expressions / operators / bitwise / bitwise and yields the left numeric type
+============================================================================
+
+const value = 5 & 3;
+value satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===========================================================================
+expressions / operators / bitwise / bitwise or yields the left numeric type
+===========================================================================
+
+const value = 5 | 3;
+value satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================================
+expressions / operators / bitwise / bitwise xor yields the left numeric type
+============================================================================
+
+const value = 5 ^ 3;
+value satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================================
+expressions / operators / bitwise / bitwise not yields the operand numeric type
+===============================================================================
+
+const value = ~5;
+value satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (unary_expression
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+expressions / operators / bitwise / sets use bitwise or for union
+=================================================================
+
+declare const left: Set<int32>;
+declare const right: Set<int32>;
+
+const combined = left | right;
+combined satisfies Set<int32>;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)))))))
+
+=================================================================
+expressions / operators / bitwise / maps use bitwise or for merge
+=================================================================
+
+declare const left: Map<string, int32>;
+declare const right: Map<string, int32>;
+
+const combined = left | right;
+combined satisfies Map<string, int32>;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)
+              (type_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)
+              (type_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (type_identifier)))))))
+
+=================================================================
+expressions / operators / bitwise / bitwise and dispatches to And
+=================================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements And<Bits> {
+    type Output = Bits;
+
+    and(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const value = left & right;
+value satisfies Bits;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================
+expressions / operators / bitwise / bitwise or dispatches to Or
+===============================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements Or<Bits> {
+    type Output = Bits;
+
+    or(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const value = left | right;
+value satisfies Bits;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+expressions / operators / bitwise / bitwise xor dispatches to Xor
+=================================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements Xor<Bits> {
+    type Output = Bits;
+
+    xor(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const value = left ^ right;
+value satisfies Bits;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (identifier)
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+expressions / operators / bitwise / bitwise not dispatches to Not
+=================================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements Not {
+    type Output = Bits;
+
+    not(): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const value = ~getBits();
+value satisfies Bits;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (type_identifier))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (unary_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================
+expressions / operators / bitwise / bitwise and requires And
+============================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements ShiftLeft<Bits> {
+    type Output = Bits;
+
+    shiftLeft(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+left & right;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
+
+==========================================================
+expressions / operators / bitwise / bitwise or requires Or
+==========================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements And<Bits> {
+    type Output = Bits;
+
+    and(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+left | right;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
+
+============================================================
+expressions / operators / bitwise / bitwise xor requires Xor
+============================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements And<Bits> {
+    type Output = Bits;
+
+    and(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+left ^ right;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
+
+============================================================
+expressions / operators / bitwise / bitwise not requires Not
+============================================================
+
+struct Bits {
+    value: int;
+}
+
+extension of Bits implements Plus {
+    type Output = Bits;
+
+    plus(): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+
+const value = ~getBits();
+value satisfies Bits;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (type_identifier))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (unary_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================================
+expressions / operators / bitwise / bitwise and requires the right operand type
+===============================================================================
+
+struct Bits {
+    value: int;
+}
+struct OtherBits {
+    value: int;
+}
+
+extension of Bits implements And<Bits> {
+    type Output = Bits;
+
+    and(other: Bits): this.Output {
+        return this;
+    }
+}
+
+declare function getBits(): Bits;
+declare function getOtherBits(): OtherBits;
+
+const left = getBits();
+const right = getOtherBits();
+
+left & right;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (return_statement
+            (this))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))

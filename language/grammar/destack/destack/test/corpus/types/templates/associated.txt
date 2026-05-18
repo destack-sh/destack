@@ -1,0 +1,378 @@
+===================================================================================
+types / templates / associated / associated aliases can use outer generic arguments
+===================================================================================
+
+class Topic<T: string> {
+    type Channel = `topic:${T}`;
+}
+
+declare const channel: Topic<"orders">.Channel;
+channel satisfies `topic:${"orders"}`;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (template_literal_type
+          (string_fragment)
+          (template_type
+            (type_identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (associated_type_projection
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (literal_type
+                  (string
+                    (string_fragment)))))
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (template_literal_type
+          (string_fragment)
+          (template_type
+            (literal_type
+              (string
+                (string_fragment)))))))))
+
+=======================================================================================
+types / templates / associated / interface defaults can use outer and member parameters
+=======================================================================================
+
+interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
+}
+
+class Message<T: string> implements Envelope<T> {}
+
+declare const label: Message<"orders">.Label<"created">;
+label satisfies `${"orders"}:${"created"}`;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (interface_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)
+            (constraint
+              (predefined_type))))
+        (template_literal_type
+          (template_type
+            (type_identifier))
+          (string_fragment)
+          (template_type
+            (type_identifier))))))
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_heritage
+      (implements_clause
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)))))
+    (class_body))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (associated_type_projection
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (literal_type
+                    (string
+                      (string_fragment)))))
+              (type_identifier))
+            (type_arguments
+              (literal_type
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (template_literal_type
+          (template_type
+            (literal_type
+              (string
+                (string_fragment))))
+          (string_fragment)
+          (template_type
+            (literal_type
+              (string
+                (string_fragment)))))))))
+
+==================================================================
+types / templates / associated / associated aliases can remap keys
+==================================================================
+
+interface EventShape<T> {
+    type Handlers = {
+        [K in keyof T as `on-${K}`]: T[K];
+    };
+}
+
+class Bus<T> implements EventShape<T> {}
+
+declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
+
+handlers satisfies { "on-ready": boolean; "on-message": string };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (associated_type_declaration
+        (type_identifier)
+        (object_type
+          (index_signature
+            (mapped_type_clause
+              (type_identifier)
+              (index_type_query
+                (type_identifier))
+              (template_literal_type
+                (string_fragment)
+                (template_type
+                  (type_identifier))))
+            (type_annotation
+              (lookup_type
+                (type_identifier)
+                (type_identifier))))))))
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_heritage
+      (implements_clause
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)))))
+    (class_body))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (associated_type_projection
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type)))
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (object_type
+          (property_signature
+            (string
+              (string_fragment))
+            (type_annotation
+              (predefined_type)))
+          (property_signature
+            (string
+              (string_fragment))
+            (type_annotation
+              (predefined_type))))))))
+
+============================================================================
+types / templates / associated / associated aliases can infer template spans
+============================================================================
+
+class EventName<T: string> {
+    type Kind = T extends `evt:${infer Name}` ? Name : never;
+}
+
+declare const kind: EventName<"evt:login">.Kind;
+kind satisfies "login";
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (conditional_type
+          (type_identifier)
+          (template_literal_type
+            (string_fragment)
+            (template_type
+              (infer_type
+                (type_identifier))))
+          (type_identifier)
+          (predefined_type)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (associated_type_projection
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (literal_type
+                  (string
+                    (string_fragment)))))
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+================================================================================
+types / templates / associated / constrained generics can use associated aliases
+================================================================================
+
+interface Envelope<T: string> {
+    type Label<U: string> = `${T}:${U}`;
+}
+
+function label<T: Envelope<"audit">>(value: T.Label<"entry">): T.Label<"entry"> {
+    value
+}
+
+declare const value: "audit:entry";
+label(value) satisfies `${"audit"}:${"entry"}`;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (interface_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_parameters
+          (type_parameter
+            (type_identifier)
+            (constraint
+              (predefined_type))))
+        (template_literal_type
+          (template_type
+            (type_identifier))
+          (string_fragment)
+          (template_type
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (literal_type
+                (string
+                  (string_fragment))))))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (nested_type_identifier
+              (identifier)
+              (type_identifier))
+            (type_arguments
+              (literal_type
+                (string
+                  (string_fragment))))))))
+    (type_annotation
+      (generic_type
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_arguments
+          (literal_type
+            (string
+              (string_fragment))))))
+    (statement_block
+      (expression_statement
+        (identifier))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)))
+      (satisfies_type
+        (template_literal_type
+          (template_type
+            (literal_type
+              (string
+                (string_fragment))))
+          (string_fragment)
+          (template_type
+            (literal_type
+              (string
+                (string_fragment)))))))))

@@ -1,0 +1,289 @@
+======================================================================
+types / reflection / type / type expressions coerce to reflected types
+======================================================================
+
+struct User {
+    name: string;
+}
+
+const type: Type<User> = User;
+(type) satisfies Type<User>;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (identifier)))
+  (expression_statement
+    (satisfies_expression
+      (parenthesized_expression
+        (identifier))
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)))))))
+
+===========================================================
+types / reflection / type / Type.of creates reflected types
+===========================================================
+
+struct User {
+    name: string;
+}
+
+const type = Type.of<User>();
+(type) satisfies Type<User>;
+type.id satisfies TypeId;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (type_arguments
+          (type_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (parenthesized_expression
+        (identifier))
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+=============================================================
+types / reflection / type / reflected types are static values
+=============================================================
+
+declare function parseWithType<comptime T: Type>(raw: string): T;
+
+function parse<comptime T: Type>(raw: string): T {
+    parseWithType<T>(raw)
+}
+
+struct User {
+    name: string;
+}
+
+const user = parse<User>("{}");
+user satisfies User;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (type_identifier)))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments
+            (identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (type_arguments
+          (type_identifier))
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=====================================================================
+types / reflection / type / layout queries return target-sized values
+=====================================================================
+
+struct Header {
+    id: uint32;
+}
+
+const size = comptime sizeOf<Header>();
+const alignment = comptime alignOf<Header>();
+const stride = comptime strideOf<Header>();
+
+size satisfies usize;
+alignment satisfies usize;
+stride satisfies usize;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================
+types / reflection / type / layoutOf returns field layouts
+==========================================================
+
+struct Header {
+    id: uint32;
+}
+
+const layout = comptime layoutOf<Header>();
+layout satisfies Layout;
+layout.fields satisfies readonly LayoutField[];
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (readonly_type
+          (array_type
+            (type_identifier)))))))

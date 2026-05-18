@@ -1,0 +1,125 @@
+====================================================
+expressions / literals / symbol / symbol constructor
+====================================================
+
+const x: symbol = Symbol("id");
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+==========================================================
+expressions / literals / symbol / symbol toString resolves
+==========================================================
+
+const value: symbol = Symbol("id");
+const text = value.toString();
+text satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================================
+expressions / literals / symbol / symbols are not assignable to strings
+=======================================================================
+
+const value: string = Symbol("id");
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+=======================================================================
+expressions / literals / symbol / symbol values work with symbol unions
+=======================================================================
+
+const value: symbol | string = Symbol("id");
+value satisfies symbol | string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (predefined_type)
+          (predefined_type)))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (identifier))))
+
+==========================================================================
+expressions / literals / symbol / symbol values reject numeric annotations
+==========================================================================
+
+const value: number = Symbol("id");
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))

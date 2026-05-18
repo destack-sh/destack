@@ -1,0 +1,206 @@
+=========================================================
+types / utilities / readonly / readonly keeps field types
+=========================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type Frozen = Readonly<Person>;
+
+const ok: Frozen = { name: "Ada", age: 42 };
+ok satisfies Frozen;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+types / utilities / readonly / readonly preserves optional fields
+=================================================================
+
+interface Person {
+    name?: string;
+}
+
+type Frozen = Readonly<Person>;
+
+const ok: Frozen = {};
+ok satisfies Frozen;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================
+types / utilities / readonly / readonly rejects property writes
+===============================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type Frozen = Readonly<Person>;
+
+const frozen: Frozen = { name: "Ada", age: 42 };
+frozen.name = "Grace";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number)))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (string
+        (string_fragment)))))
+
+======================================================================
+types / utilities / readonly / readonly rejects nested property writes
+======================================================================
+
+interface Person {
+    profile: {
+        name: string;
+    };
+}
+
+type Frozen = Readonly<Person>;
+
+const frozen: Frozen = { profile: { name: "Ada" } };
+frozen.profile.name = "Grace";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (property_identifier))
+      (string
+        (string_fragment)))))

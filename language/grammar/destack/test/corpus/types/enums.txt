@@ -1,0 +1,75 @@
+=======================================
+Enum declarations
+:language(typescript)
+=======================================
+
+enum Test {
+    A,
+    'B',
+    'C' = Math.floor(Math.random() * 1000),
+    D = 10,
+    E
+}
+
+enum Style {
+    None = 0,
+    Bold = 1,
+    Italic = 2,
+    Underline = 4,
+    Emphasis = Bold | Italic,
+    Hyperlink = Bold | Underline
+}
+
+---
+
+(program
+  (enum_declaration
+    (identifier)
+    (enum_body
+      (property_identifier)
+      (string
+        (string_fragment))
+      (enum_assignment
+        (string
+          (string_fragment))
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (binary_expression
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments))
+              (number)))))
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (property_identifier)))
+  (enum_declaration
+    (identifier)
+    (enum_body
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_assignment
+        (property_identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (enum_assignment
+        (property_identifier)
+        (binary_expression
+          (identifier)
+          (identifier))))))

@@ -1,0 +1,164 @@
+============================================================
+types / convert / reference / As defaults to readonly access
+============================================================
+
+class Buffer {
+    bytes: uint8[];
+}
+
+extension of Buffer implements As<[uint8]> {
+    as(): &readonly [uint8] {
+        return &readonly this.bytes;
+    }
+}
+
+declare function read(bytes: &readonly [uint8]): void;
+
+const buffer = new Buffer();
+read(buffer.as());
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (tuple_type
+            (type_identifier)))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (borrow_type
+            (tuple_type
+              (type_identifier))))
+        (statement_block
+          (return_statement
+            (borrow_expression
+              (member_expression
+                (this)
+                (property_identifier))))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (borrow_type
+            (tuple_type
+              (type_identifier))))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments))))))
+
+==========================================================
+types / convert / reference / As selects access explicitly
+==========================================================
+
+class Buffer {
+    bytes: uint8[];
+}
+
+extension of Buffer implements As<[uint8], "exclusive"> {
+    as(): &exclusive [uint8] {
+        return &exclusive this.bytes;
+    }
+}
+
+declare function write(bytes: &exclusive [uint8]): void;
+
+const buffer = new Buffer();
+write(buffer.as());
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (tuple_type
+            (type_identifier))
+          (literal_type
+            (string
+              (string_fragment))))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (borrow_type
+            (tuple_type
+              (type_identifier))))
+        (statement_block
+          (return_statement
+            (borrow_expression
+              (member_expression
+                (this)
+                (property_identifier))))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (borrow_type
+            (tuple_type
+              (type_identifier))))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments))))))

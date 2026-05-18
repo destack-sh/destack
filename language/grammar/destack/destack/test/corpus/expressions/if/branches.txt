@@ -1,0 +1,340 @@
+=========================================================
+expressions / if / branches / if (let ...) joins branches
+=========================================================
+
+declare const value: int32;
+
+const result = if (let 1 = value) {
+    "one"
+} else {
+    2
+};
+
+result satisfies string | int32;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (if_expression
+        (destack_if_let_condition
+          (destack_if_let_pattern
+            (number))
+          (identifier))
+        (statement_block
+          (expression_statement
+            (string
+              (string_fragment))))
+        (else_clause
+          (statement_block
+            (expression_statement
+              (number)))))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (identifier))))
+
+==============================================================
+expressions / if / branches / if (let ...) chains with else if
+==============================================================
+
+declare const value: 1 | 2 | 3;
+
+const result = if (let 1 = value) {
+    "one"
+} else if (let 2 = value) {
+    "two"
+} else {
+    "three"
+};
+
+result satisfies string;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (union_type
+              (literal_type
+                (number))
+              (literal_type
+                (number)))
+            (literal_type
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (if_expression
+        (destack_if_let_condition
+          (destack_if_let_pattern
+            (number))
+          (identifier))
+        (statement_block
+          (expression_statement
+            (string
+              (string_fragment))))
+        (else_clause
+          (expression_statement
+            (if_expression
+              (destack_if_let_condition
+                (destack_if_let_pattern
+                  (number))
+                (identifier))
+              (statement_block
+                (expression_statement
+                  (string
+                    (string_fragment))))
+              (else_clause
+                (statement_block
+                  (expression_statement
+                    (string
+                      (string_fragment)))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================
+expressions / if / branches / if (let ...) without else yields void
+===================================================================
+
+declare const value: int32;
+
+const result: int32 = if (let 1 = value) {
+    1
+};
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (if_expression
+        (destack_if_let_condition
+          (destack_if_let_pattern
+            (number))
+          (identifier))
+        (statement_block
+          (expression_statement
+            (number)))))))
+
+===========================================================================
+expressions / if / branches / if (let ...) bindings stay in the then branch
+===========================================================================
+
+declare const pair: (int32, int32);
+
+const result = if (let (left, right) = pair) {
+    left + right
+} else {
+    left
+};
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (if_expression
+        (destack_if_let_condition
+          (destack_if_let_pattern
+            (tuple_pattern
+              (match_pattern
+                (identifier))
+              (match_pattern
+                (identifier))))
+          (identifier))
+        (statement_block
+          (expression_statement
+            (binary_expression
+              (identifier)
+              (identifier))))
+        (else_clause
+          (statement_block
+            (expression_statement
+              (identifier))))))))
+
+===================================================================================
+expressions / if / branches / if (let ...) bindings do not escape the if expression
+===================================================================================
+
+declare const value: int32;
+
+if (let x = value) {
+    x
+}
+
+x;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (if_expression
+      (destack_if_let_condition
+        (destack_if_let_pattern
+          (identifier))
+        (identifier))
+      (statement_block
+        (expression_statement
+          (identifier)))))
+  (expression_statement
+    (identifier)))
+
+================================================================
+expressions / if / branches / if (let ...) narrows both branches
+================================================================
+
+declare const value: 1 | 2;
+
+if (let 1 = value) {
+    value satisfies 1;
+} else {
+    value satisfies 2;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (number))
+            (literal_type
+              (number)))))))
+  (expression_statement
+    (if_expression
+      (destack_if_let_condition
+        (destack_if_let_pattern
+          (number))
+        (identifier))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (literal_type
+                (number))))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (literal_type
+                  (number))))))))))
+
+=============================================================================
+expressions / if / branches / if (let ...) annotations accept matching values
+=============================================================================
+
+declare const value: int32;
+
+if (let x: int32 = value) {
+    x satisfies int32;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (if_expression
+      (destack_if_let_condition
+        (destack_if_let_pattern
+          (identifier))
+        (type_annotation
+          (type_identifier))
+        (identifier))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (type_identifier))))))))
+
+========================================================================
+expressions / if / branches / if (let ...) annotations reject mismatches
+========================================================================
+
+declare const value: string | int32;
+
+if (let x: int32 = value) {
+    x
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (predefined_type)
+            (type_identifier))))))
+  (expression_statement
+    (if_expression
+      (destack_if_let_condition
+        (destack_if_let_pattern
+          (identifier))
+        (type_annotation
+          (type_identifier))
+        (identifier))
+      (statement_block
+        (expression_statement
+          (identifier))))))

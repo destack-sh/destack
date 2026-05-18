@@ -1,0 +1,273 @@
+================================================================================
+types / type operators / intersection / intersection type combines object fields
+================================================================================
+
+type A = { a: number };
+type B = { b: string };
+type C = A & B;
+
+let value: C = { a: 1, b: "ok" };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+================================================================================
+types / type operators / intersection / intersection type rejects missing fields
+================================================================================
+
+type A = { a: number };
+type B = { b: string };
+type C = A & B;
+
+let value: C = { a: 1 };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))))))
+
+=========================================================================================================
+types / type operators / intersection / intersection type requires overlapping keys to satisfy both sides
+=========================================================================================================
+
+type A = { value: number };
+type B = { value: string };
+type C = A & B;
+
+let value: C = { value: "ok" };
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+===================================================================================================
+types / type operators / intersection / intersection type preserves all overlapping-compatible keys
+===================================================================================================
+
+type A = { value: number };
+type B = { value: number; extra: string };
+type C = A & B;
+
+let value: C = { value: 1, extra: "ok" };
+value.value satisfies number;
+value.extra satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=================================================================================
+types / type operators / intersection / primitive intersections collapse to never
+=================================================================================
+
+type Both = string & int32;
+
+let value: Both = "ok";
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (predefined_type)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (string
+        (string_fragment)))))
+
+==================================================================================================
+types / type operators / intersection / intersections keep stricter overlapping member constraints
+==================================================================================================
+
+type A = { value: string | int32 };
+type B = { value: string };
+type C = A & B;
+
+let value: C = { value: "ok" };
+value.value satisfies string;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (union_type
+            (predefined_type)
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))

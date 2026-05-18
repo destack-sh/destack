@@ -1,0 +1,422 @@
+================================================================
+expressions / patterns / let / let else matches literal patterns
+================================================================
+
+function parse(value: "ok" | "bad"): int32 {
+    let "ok" = value else {
+        return 0;
+    };
+
+    1
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment)))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (string
+            (string_fragment)))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (number)))))
+
+=============================================================
+expressions / patterns / let / let else narrows after success
+=============================================================
+
+function parse(value: "ok" | "bad"): "ok" {
+    let "ok" = value else {
+        return "ok";
+    };
+
+    value
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment)))))))
+    (type_annotation
+      (literal_type
+        (string
+          (string_fragment))))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (string
+            (string_fragment)))
+        (identifier)
+        (statement_block
+          (return_statement
+            (string
+              (string_fragment)))))
+      (expression_statement
+        (identifier)))))
+
+======================================================
+expressions / patterns / let / let else binds newtypes
+======================================================
+
+newtype UserId = int64;
+
+function read(id: UserId): int64 {
+    let UserId(value) = id else {
+        return 0;
+    };
+
+    value
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (call_expression
+            (identifier)
+            (arguments
+              (identifier))))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (identifier)))))
+
+=====================================================
+expressions / patterns / let / let else binds structs
+=====================================================
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function read(point: Point): int32 {
+    let Point { x, y: _ } = point else {
+        return 0;
+    };
+
+    x
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (struct_literal_expression
+            (identifier)
+            (object
+              (shorthand_property_identifier)
+              (pair
+                (property_identifier)
+                (identifier)))))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (identifier)))))
+
+===============================================================
+expressions / patterns / let / refutable let patterns need else
+===============================================================
+
+function parse(value: "ok" | "bad"): int32 {
+    let "ok" = value;
+    1
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (literal_type
+              (string
+                (string_fragment)))
+            (literal_type
+              (string
+                (string_fragment)))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (string
+              (string_fragment)))
+          (identifier)))
+      (expression_statement
+        (number)))))
+
+====================================================
+expressions / patterns / let / let else binds tuples
+====================================================
+
+function read(value: (int32, string) | null): int32 {
+    let (count, label) = value else {
+        return 0;
+    };
+
+    label satisfies string;
+    count
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (tuple_type
+              (type_identifier)
+              (predefined_type))
+            (literal_type
+              (null))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (tuple_pattern
+            (match_pattern
+              (identifier))
+            (match_pattern
+              (identifier))))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (expression_statement
+        (identifier)))))
+
+==========================================================
+expressions / patterns / let / let else binds fixed arrays
+==========================================================
+
+function read(values: [int32; 2] | null): int32 {
+    let [first, second] = values else {
+        return 0;
+    };
+
+    first + second
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (tuple_type
+              (type_identifier)
+              (number))
+            (literal_type
+              (null))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (array_pattern
+            (identifier)
+            (identifier)))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (binary_expression
+          (identifier)
+          (identifier))))))
+
+===============================================================
+expressions / patterns / let / let else binds fixed array tails
+===============================================================
+
+function read(values: [int32; 3] | null): int32 {
+    let [first, ...rest] = values else {
+        return 0;
+    };
+
+    rest satisfies [int32; 2];
+    first
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (tuple_type
+              (type_identifier)
+              (number))
+            (literal_type
+              (null))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (array_pattern
+            (identifier)
+            (rest_pattern
+              (identifier))))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (tuple_type
+              (type_identifier)
+              (number)))))
+      (expression_statement
+        (identifier)))))
+
+=====================================================
+expressions / patterns / let / let else binds objects
+=====================================================
+
+function read(value: { id: int32; name: string } | null): int32 {
+    let { id, name } = value else {
+        return 0;
+    };
+
+    name satisfies string;
+    id
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (union_type
+            (object_type
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (type_identifier)))
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (predefined_type))))
+            (literal_type
+              (null))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (let_else_statement
+        (destack_if_let_pattern
+          (object_pattern
+            (shorthand_property_identifier_pattern)
+            (shorthand_property_identifier_pattern)))
+        (identifier)
+        (statement_block
+          (return_statement
+            (number))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (expression_statement
+        (identifier)))))

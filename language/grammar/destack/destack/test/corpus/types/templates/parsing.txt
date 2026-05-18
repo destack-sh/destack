@@ -1,0 +1,586 @@
+================================================================================
+types / templates / parsing / template literal infers constrained number literal
+================================================================================
+
+declare function parse<T: number>(value: `${T}`): T;
+
+let ok = parse("42");
+ok satisfies 42;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+================================================================================
+types / templates / parsing / template literal infers constrained bigint literal
+================================================================================
+
+declare function parse<T: bigint>(value: `${T}`): T;
+
+let ok = parse("42");
+ok satisfies 42n;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+============================================================================================
+types / templates / parsing / template literal rejects invalid bigint string for bigint span
+============================================================================================
+
+declare function parse<T: bigint>(value: `${T}`): T;
+
+let bad = parse("+1");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+=============================================================================
+types / templates / parsing / template literal infers constrained int literal
+=============================================================================
+
+declare function parse<T: int32>(value: `${T}`): T;
+
+let ok = parse("42");
+ok satisfies 42;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+============================================================================
+types / templates / parsing / template literal rejects out of range int span
+============================================================================
+
+declare function parse<T: int8>(value: `${T}`): T;
+
+let bad = parse("128");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+=========================================================================================
+types / templates / parsing / template literal rejects non numeric string for number span
+=========================================================================================
+
+declare function parse<T: number>(value: `${T}`): T;
+
+let bad = parse("no");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+=========================================================================================
+types / templates / parsing / template literal infers non-canonical number span as number
+=========================================================================================
+
+declare function parse<T: number>(value: `${T}`): T;
+
+let nonCanonical = parse("1e3");
+let ok: number = nonCanonical;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (identifier))))
+
+==========================================================================================================
+types / templates / parsing / template literal infers non-canonical number span rejects literal assignment
+==========================================================================================================
+
+declare function parse<T: number>(value: `${T}`): T;
+
+let nonCanonical = parse("1e3");
+let bad: 1000 = nonCanonical;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (literal_type
+          (number)))
+      (identifier))))
+
+=============================================================================================
+types / templates / parsing / template literal infers constrained bigint literal for parseBig
+=============================================================================================
+
+declare function parseBig<T: bigint>(value: `${T}`): T;
+
+let ok = parseBig("-1");
+ok satisfies -1n;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (unary_expression
+            (number)))))))
+
+====================================================================================
+types / templates / parsing / template literal infers non-canonical bigint as bigint
+====================================================================================
+
+declare function parseBig<T: bigint>(value: `${T}`): T;
+
+let nonCanonical = parseBig("0x1");
+let ok: bigint = nonCanonical;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+=====================================================================================================
+types / templates / parsing / template literal infers non-canonical bigint rejects literal assignment
+=====================================================================================================
+
+declare function parseBig<T: bigint>(value: `${T}`): T;
+
+let nonCanonical = parseBig("0x1");
+let bad: 1n = nonCanonical;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (literal_type
+          (number)))
+      (identifier))))
+
+============================================================================
+types / templates / parsing / template literal rejects invalid bigint string
+============================================================================
+
+declare function parseBig<T: bigint>(value: `${T}`): T;
+
+let bad = parseBig("01");
+let bad2 = parseBig("+1");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+==========================================================================================
+types / templates / parsing / template literal rejects invalid bigint string leading zeros
+==========================================================================================
+
+declare function parseBig<T: bigint>(value: `${T}`): T;
+
+let bad = parseBig("01");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))
+
+======================================================================================
+types / templates / parsing / template literal rejects invalid bigint string plus sign
+======================================================================================
+
+declare function parseBig<T: bigint>(value: `${T}`): T;
+
+let bad = parseBig("+1");
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (template_literal_type
+            (template_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))))

@@ -1,0 +1,291 @@
+=================================================================================================
+expressions / operators / optional / optional property access returns undefined for nullish bases
+=================================================================================================
+
+type User = { name: string };
+
+declare const user: User | null;
+
+const name = user?.name;
+name satisfies string | undefined;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (null)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (optional_chain)
+        (property_identifier))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (undefined))))
+
+=======================================================================================
+expressions / operators / optional / optional property access requires known properties
+=======================================================================================
+
+type User = { name: string };
+
+declare const user: User | null;
+
+user?.missing;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (null)))))))
+  (expression_statement
+    (member_expression
+      (identifier)
+      (optional_chain)
+      (property_identifier))))
+
+================================================================================================
+expressions / operators / optional / optional element access returns undefined for nullish bases
+================================================================================================
+
+type Bag = { [key: string]: number };
+
+declare const bag: Bag | undefined;
+
+const value = bag?.["count"];
+value satisfies number | undefined;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (index_signature
+        (identifier)
+        (predefined_type)
+        (type_annotation
+          (predefined_type)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (subscript_expression
+        (identifier)
+        (optional_chain)
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (undefined))))
+
+==========================================================================================
+expressions / operators / optional / optional call returns undefined for nullish functions
+==========================================================================================
+
+declare const handler: ((value: number) => string) | undefined;
+
+const result = handler?.(1);
+result satisfies string | undefined;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (parenthesized_type
+              (function_type
+                (formal_parameters
+                  (required_parameter
+                    (identifier)
+                    (type_annotation
+                      (predefined_type))))
+                (predefined_type)))
+            (literal_type
+              (undefined)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (optional_chain)
+        (arguments
+          (number)))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (undefined))))
+
+===========================================================================
+expressions / operators / optional / optional call validates argument types
+===========================================================================
+
+declare const handler: ((value: number) => string) | undefined;
+
+handler?.("bad");
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (parenthesized_type
+              (function_type
+                (formal_parameters
+                  (required_parameter
+                    (identifier)
+                    (type_annotation
+                      (predefined_type))))
+                (predefined_type)))
+            (literal_type
+              (undefined)))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (optional_chain)
+      (arguments
+        (string
+          (string_fragment))))))
+
+==============================================================================
+expressions / operators / optional / optional call rejects non callable values
+==============================================================================
+
+declare const value: { name: string } | undefined;
+
+value?.();
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (object_type
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (predefined_type))))
+            (literal_type
+              (undefined)))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (optional_chain)
+      (arguments))))
+
+========================================================================
+expressions / operators / optional / optional chains propagate undefined
+========================================================================
+
+type User = { name?: { length: number } };
+
+declare const user: User | null;
+
+const length = user?.name?.length;
+length satisfies number | undefined;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type))))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (null)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (member_expression
+          (identifier)
+          (optional_chain)
+          (property_identifier))
+        (optional_chain)
+        (property_identifier))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (predefined_type)))
+      (undefined))))

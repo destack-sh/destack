@@ -1,0 +1,58 @@
+==================================
+Array with empty elements
+:language(typescript)
+==================================
+
+[, a, , b, , , , s, , , ]
+
+---
+
+(program
+  (expression_statement
+    (array
+      (identifier)
+      (identifier)
+      (identifier))))
+
+====================================
+Objects with reserved words as keys
+:language(typescript)
+====================================
+
+{
+  public: true,
+  private: true,
+  readonly: true
+};
+
+{
+  readonly: 1,
+  abstract: 1,
+  static: 1
+};
+
+---
+
+(program
+  (expression_statement
+    (object
+      (pair
+        key: (property_identifier)
+        value: (true))
+      (pair
+        key: (property_identifier)
+        value: (true))
+      (pair
+        key: (property_identifier)
+        value: (true))))
+  (expression_statement
+    (object
+      (pair
+        key: (property_identifier)
+        value: (number))
+      (pair
+        key: (property_identifier)
+        value: (number))
+      (pair
+        key: (property_identifier)
+        value: (number)))))

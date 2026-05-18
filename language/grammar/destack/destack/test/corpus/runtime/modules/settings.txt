@@ -1,0 +1,127 @@
+==================================================================
+runtime / modules / settings / module block tightens memory policy
+==================================================================
+
+module {
+    noManaged: true,
+    noHeap: true,
+};
+
+function read(value: &[uint8]): uint8 {
+    return value[0];
+}
+
+---
+
+(program
+  (module_directive
+    (module_directive_body
+      (module_directive_property
+        (identifier)
+        (true))
+      (module_directive_property
+        (identifier)
+        (true))))
+  (empty_statement)
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (borrow_type
+            (tuple_type
+              (type_identifier))))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (subscript_expression
+          (identifier)
+          (number))))))
+
+===================================================================
+runtime / modules / settings / module block tightens runtime policy
+===================================================================
+
+module {
+    noRuntime: true,
+    noExceptions: true,
+    noImplicitDynamicDispatch: true,
+};
+
+function read(value: int32): int32 {
+    return value;
+}
+
+---
+
+(program
+  (module_directive
+    (module_directive_body
+      (module_directive_property
+        (identifier)
+        (true))
+      (module_directive_property
+        (identifier)
+        (true))
+      (module_directive_property
+        (identifier)
+        (true))))
+  (empty_statement)
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier)))))
+
+=============================================================================
+runtime / modules / settings / module block selects tree and derive providers
+=============================================================================
+
+import { HtmlTree } from "destack:ui/html";
+
+module {
+    tree: HtmlTree,
+    derive: [Debug, Clone],
+};
+
+struct User {
+    name: string;
+}
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (module_directive
+    (module_directive_body
+      (module_directive_property
+        (identifier)
+        (identifier))
+      (module_directive_property
+        (identifier)
+        (array
+          (identifier)
+          (identifier)))))
+  (empty_statement)
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))

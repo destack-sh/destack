@@ -1,0 +1,169 @@
+==============================================================
+expressions / comptime / eval / eval requires an expected type
+==============================================================
+
+const source = comptime "1 + 1";
+const value = comptime eval<int32>(source);
+
+value satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+====================================================================
+expressions / comptime / eval / eval can produce declaration handles
+====================================================================
+
+const source = comptime "function value(): int32 { return 1; }";
+const declaration = comptime eval<Declaration>(source);
+
+declaration satisfies Declaration;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==================================================================
+expressions / comptime / eval / eval can produce declaration lists
+==================================================================
+
+const source = comptime "function a() {} function b() {}";
+const declarations = comptime eval<Declaration[]>(source);
+
+declarations satisfies Declaration[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (array_type
+              (type_identifier)))
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (type_identifier))))))
+
+==========================================================================
+expressions / comptime / eval / comptime Function accepts generated bodies
+==========================================================================
+
+const body = comptime "return target + suffix;";
+const makeName = comptime new Function<(target: string, suffix: string) => string>(
+    "target",
+    "suffix",
+    body,
+);
+
+makeName("user", "Id") satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (string
+          (string_fragment)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (comptime_expression
+        (new_expression
+          (identifier)
+          (type_arguments
+            (function_type
+              (formal_parameters
+                (required_parameter
+                  (identifier)
+                  (type_annotation
+                    (predefined_type)))
+                (required_parameter
+                  (identifier)
+                  (type_annotation
+                    (predefined_type))))
+              (predefined_type)))
+          (arguments
+            (string
+              (string_fragment))
+            (string
+              (string_fragment))
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))
+          (string
+            (string_fragment))))
+      (satisfies_type
+        (predefined_type)))))

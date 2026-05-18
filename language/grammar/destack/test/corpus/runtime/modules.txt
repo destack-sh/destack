@@ -1,0 +1,531 @@
+==================================
+Flow module.exports declarations
+:language(typescript)
+==================================
+
+declare module.exports: {
+  foo: string;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (property_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))
+
+==================================
+Export assignments
+:language(typescript)
+==================================
+
+export = Linter;
+export = {};
+
+---
+
+(program
+  (export_statement
+    (identifier))
+  (export_statement
+    (object)))
+
+==================================
+Import aliases
+:language(typescript)
+==================================
+
+import r = X.N;
+
+---
+
+(program
+  (import_alias
+    (identifier)
+    (nested_identifier
+      (identifier)
+      (property_identifier))))
+
+==================================
+Import aliases in modules
+:language(typescript)
+==================================
+
+module C {
+  import r = X.N;
+}
+
+---
+
+(program
+  (module
+    (identifier)
+    (statement_block
+      (import_alias
+        (identifier)
+        (nested_identifier
+          (identifier)
+          (property_identifier))))))
+
+==================================
+Export import aliases
+:language(typescript)
+==================================
+
+module M {
+    export module N {
+    }
+    export import X = N;
+}
+
+---
+
+(program
+  (module
+    (identifier)
+    (statement_block
+      (export_statement
+        (module
+          (identifier)
+          (statement_block)))
+      (export_statement
+        (import_alias
+          (identifier)
+          (identifier))))))
+
+==================================
+Ambient module declarations
+:language(typescript)
+==================================
+
+module Promise {
+    var on: {}
+    export function resolve<R>(value?: Thenable<R>): Promise<R>;
+}
+
+declare module "example"
+
+declare module "example" { }
+
+---
+
+(program
+  (module
+    (identifier)
+    (statement_block
+      (variable_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (object_type))))
+      (export_statement
+        (function_signature
+          (identifier)
+          (type_parameters
+            (type_parameter
+              (type_identifier)))
+          (formal_parameters
+            (optional_parameter
+              (identifier)
+              (type_annotation
+                (generic_type
+                  (type_identifier)
+                  (type_arguments
+                    (type_identifier))))))
+          (type_annotation
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (type_identifier))))))))
+  (ambient_declaration
+    (module
+      (string
+        (string_fragment))))
+  (ambient_declaration
+    (module
+      (string
+        (string_fragment))
+      (statement_block))))
+
+=================================
+Ambient type alias declarations in namespaces
+:language(typescript)
+=================================
+
+declare namespace moment {
+  type formatFunction = () => string;
+
+  export var x: string;
+  export class foo {
+
+  }
+  export function utc(): Moment;
+  export const enum Blah { Blaz, Bloz, Bleez }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (internal_module
+      (identifier)
+      (statement_block
+        (type_alias_declaration
+          (type_identifier)
+          (function_type
+            (formal_parameters)
+            (predefined_type)))
+        (export_statement
+          (variable_declaration
+            (variable_declarator
+              (identifier)
+              (type_annotation
+                (predefined_type)))))
+        (export_statement
+          (class_declaration
+            (type_identifier)
+            (class_body)))
+        (export_statement
+          (function_signature
+            (identifier)
+            (formal_parameters)
+            (type_annotation
+              (type_identifier))))
+        (export_statement
+          (enum_declaration
+            (identifier)
+            (enum_body
+              (property_identifier)
+              (property_identifier)
+              (property_identifier))))))))
+
+=================================
+Export interfaces in namespaces
+:language(typescript)
+=================================
+
+declare namespace Foo {
+  export interface Bar {
+  }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (internal_module
+      (identifier)
+      (statement_block
+        (export_statement
+          (interface_declaration
+            (type_identifier)
+            (interface_body)))))))
+
+=================================
+Namespaces as internal modules
+:language(typescript)
+=================================
+
+namespace Foo {
+}
+
+namespace Bar {
+  var x;
+}
+
+---
+
+(program
+  (expression_statement
+    (internal_module
+      (identifier)
+      (statement_block)))
+  (expression_statement
+    (internal_module
+      (identifier)
+      (statement_block
+        (variable_declaration
+          (variable_declarator
+            (identifier)))))))
+
+====================================
+Top-level exports
+:language(typescript)
+====================================
+
+export default abstract class C { }
+export default class C { }
+export class C { }
+export default interface I { }
+export interface I { }
+
+---
+
+(program
+  (export_statement
+    (abstract_class_declaration
+      (type_identifier)
+      (class_body)))
+  (export_statement
+    (class_declaration
+      (type_identifier)
+      (class_body)))
+  (export_statement
+    (class_declaration
+      (type_identifier)
+      (class_body)))
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body)))
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body))))
+
+==================================
+Variable named 'module'
+:language(typescript)
+==================================
+
+var module;
+module;
+
+---
+
+(program
+  (variable_declaration
+    (variable_declarator
+      (identifier)))
+  (expression_statement
+    (identifier)))
+
+=======================================
+Flow Import Types
+:language(typescript)
+=======================================
+
+import type {UserID, User} from "./User.js";
+import {type UserID, type User} from "./User.js";
+import typeof {jimiguitar as GuitarT} from "./User.js";
+import type UserID, {addUser, removeUser} from './User.js';
+
+import type from './User.js';
+import type, {addUser} from './User.js';
+import {type} from './User.js';
+import {addUser as type} from './User.js';
+import {type as addUser} from './User.js';
+import {type, addUser} from './User.js';
+import {addUser, type} from './User.js';
+import type, {addUser, type User} from './User.js';
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier)
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (identifier)
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (identifier)
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier)
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier)
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (identifier)
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment))))
+
+=======================================
+Type-only Export
+:language(typescript)
+=======================================
+
+export type { UserType }
+export type { UserType } from "./User.js";
+export type { A, B, C as D } from 'mymodule';
+
+---
+
+(program
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier))))
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier)))
+    (string
+      (string_fragment)))
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier))
+      (export_specifier
+        (identifier))
+      (export_specifier
+        (identifier)
+        (identifier)))
+    (string
+      (string_fragment))))
+
+=======================================
+Flow Export Types
+:language(typescript)
+=======================================
+
+export type UserType = {};
+export interface UserInterface {}
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (object_type)))
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body))))
+
+=========================
+Import in type
+:language(typescript)
+=========================
+
+type Foo = import('node:fs').ReadStream & {
+  bar();
+};
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (member_expression
+        (call_expression
+          (import)
+          (arguments
+            (string
+              (string_fragment))))
+        (property_identifier))
+      (object_type
+        (method_signature
+          (property_identifier)
+          (formal_parameters))))))
+
+=========================
+Import assert
+:language(typescript)
+=========================
+
+import something from 'foo.css' assert { type: 'css' }
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment))
+    (import_attribute
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))

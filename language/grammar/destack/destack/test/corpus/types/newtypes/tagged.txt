@@ -1,0 +1,1090 @@
+====================================================================
+types / newtypes / tagged / tagged constructors insert discriminants
+====================================================================
+
+@derive(Tagged)
+newtype Shape =
+    | { kind: "rectangle"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+
+const rectangle = Shape.Rectangle({ width: 10, height: 20 });
+const circle = Shape.Circle({ radius: 5 });
+
+rectangle satisfies Shape;
+circle satisfies Shape;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number))
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+======================================================================
+types / newtypes / tagged / tagged constructors preserve payload types
+======================================================================
+
+@derive(Tagged)
+newtype AppError = { kind: "missing"; path: string } | { kind: "denied"; code: int32 };
+
+const error = AppError.Missing({ path: "config.json" });
+
+match (error) {
+    AppError { kind: "missing", path } => path satisfies string
+    AppError { kind: "denied", code } => code satisfies int32
+}
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (struct_literal_expression
+            (identifier)
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))
+              (shorthand_property_identifier))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))))
+      (match_arm
+        (match_pattern
+          (struct_literal_expression
+            (identifier)
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))
+              (shorthand_property_identifier))))
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (type_identifier))))))))
+
+=============================================================
+types / newtypes / tagged / preserve keeps discriminant names
+=============================================================
+
+@derive(Tagged({ case: "preserve" }))
+newtype Shape =
+    | { kind: "rectangle"; width: int32; height: int32 }
+    | { kind: "circle"; radius: int32 };
+
+const rectangle = Shape.rectangle({ width: 10, height: 20 });
+const circle = Shape.circle({ radius: 5 });
+
+rectangle satisfies Shape;
+circle satisfies Shape;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number))
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+types / newtypes / tagged / camelCase converts discriminant names
+=================================================================
+
+@derive(Tagged({ case: "camelCase" }))
+newtype Event = { kind: "parse-error"; line: int32 } | { kind: "file-missing"; path: string };
+
+const parse = Event.parseError({ line: 10 });
+const missing = Event.fileMissing({ path: "config.json" });
+
+parse satisfies Event;
+missing satisfies Event;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=========================================================
+types / newtypes / tagged / UpperCamelCase is the default
+=========================================================
+
+@derive(Tagged)
+newtype Event = { kind: "parse-error"; line: int32 } | { kind: "file-missing"; path: string };
+
+const parse = Event.ParseError({ line: 10 });
+const missing = Event.FileMissing({ path: "config.json" });
+
+parse satisfies Event;
+missing satisfies Event;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+types / newtypes / tagged / snakecase converts discriminant names
+=================================================================
+
+@derive(Tagged({ case: "snake_case" }))
+newtype Event = { kind: "parseError"; line: int32 } | { kind: "fileMissing"; path: string };
+
+const parse = Event.parse_error({ line: 10 });
+const missing = Event.file_missing({ path: "config.json" });
+
+parse satisfies Event;
+missing satisfies Event;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================================
+types / newtypes / tagged / SCREAMINGSNAKECASE converts discriminant names
+==========================================================================
+
+@derive(Tagged({ case: "SCREAMING_SNAKE_CASE" }))
+newtype Event = { kind: "parseError"; line: int32 } | { kind: "fileMissing"; path: string };
+
+const parse = Event.PARSE_ERROR({ line: 10 });
+const missing = Event.FILE_MISSING({ path: "config.json" });
+
+parse satisfies Event;
+missing satisfies Event;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+======================================================================
+types / newtypes / tagged / explicit names cover numeric discriminants
+======================================================================
+
+@derive(Tagged({ names: { "1": "Ready", "2": "Done" } }))
+newtype State = { kind: 1; path: string } | { kind: 2; code: int32 };
+
+const ready = State.Ready({ path: "config.json" });
+const done = State.Done({ code: 0 });
+
+ready satisfies State;
+done satisfies State;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (object
+                  (pair
+                    (string
+                      (string_fragment))
+                    (string
+                      (string_fragment)))
+                  (pair
+                    (string
+                      (string_fragment))
+                    (string
+                      (string_fragment)))))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (number))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (number))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================================
+types / newtypes / tagged / tagged constructors infer the discriminant field
+============================================================================
+
+@derive(Tagged)
+newtype Shape =
+    | { type: "rectangle"; width: int32; height: int32 }
+    | { type: "circle"; radius: int32 };
+
+const rectangle = Shape.Rectangle({ width: 10, height: 20 });
+const circle = Shape.Circle({ radius: 5 });
+
+rectangle satisfies Shape;
+circle satisfies Shape;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number))
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+types / newtypes / tagged / tagged unions require object variants
+=================================================================
+
+@derive(Tagged)
+newtype Value = string | int32;
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (predefined_type)
+      (type_identifier))))
+
+========================================================================
+types / newtypes / tagged / numeric discriminants require explicit names
+========================================================================
+
+@derive(Tagged)
+newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (number))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (number))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier)))))))
+
+================================================================================
+types / newtypes / tagged / explicit names must cover every numeric discriminant
+================================================================================
+
+@derive(Tagged({ names: { "1": "Ready" } }))
+newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (object
+                  (pair
+                    (string
+                      (string_fragment))
+                    (string
+                      (string_fragment)))))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (number))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (number))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier)))))))
+
+===============================================================
+types / newtypes / tagged / tagged discriminants must be unique
+===============================================================
+
+@derive(Tagged)
+newtype Event = { kind: "message"; text: string } | { kind: "message"; code: int32 };
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier)))))))
+
+===================================================================
+types / newtypes / tagged / tagged constructor names must be unique
+===================================================================
+
+@derive(Tagged({ case: "camelCase" }))
+newtype Event = { kind: "parse-error"; line: int32 } | { kind: "parse_error"; path: string };
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (call_expression
+          (identifier)
+          (arguments
+            (object
+              (pair
+                (property_identifier)
+                (string
+                  (string_fragment)))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+========================================================================
+types / newtypes / tagged / tagged unions require one discriminant field
+========================================================================
+
+@derive(Tagged)
+newtype Event =
+    | { kind: "parse"; type: "error"; line: int32 }
+    | { kind: "file"; type: "missing"; path: string };
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))

@@ -1,0 +1,469 @@
+=======================================================================
+expressions / switch / flow / switch breaks target the innermost switch
+=======================================================================
+
+function invalidSwitchBreakValueInLoop(value: int32): int32 {
+    loop {
+        switch (value) {
+            case 0:
+                break 1;
+            default:
+                break;
+        }
+        break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (loop_expression
+          (statement_block
+            (switch_statement
+              (parenthesized_expression
+                (identifier))
+              (switch_body
+                (switch_case
+                  (number)
+                  (break_statement
+                    (number)))
+                (switch_default
+                  (break_statement))))
+            (break_statement))))
+      (expression_statement
+        (number)))))
+
+===============================================================
+expressions / switch / flow / labeled break can target a switch
+===============================================================
+
+function labeledBreakSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    outer: switch (value) {
+        case 0:
+            count = 1;
+            break :outer;
+        default:
+            count = 2;
+            break;
+    }
+    count
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (number)))
+      (labeled_statement
+        (statement_identifier)
+        (switch_statement
+          (parenthesized_expression
+            (identifier))
+          (switch_body
+            (switch_case
+              (number)
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number)))
+              (break_statement
+                (statement_identifier)))
+            (switch_default
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number)))
+              (break_statement)))))
+      (expression_statement
+        (identifier)))))
+
+=============================================================
+expressions / switch / flow / labeled break can target a loop
+=============================================================
+
+function labeledBreakLoopFromSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    outer: loop {
+        switch (value) {
+            case 0:
+                count = 1;
+                break :outer;
+            default:
+                count = 2;
+                break;
+        }
+        count = count + 1;
+        break;
+    }
+    count
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (number)))
+      (labeled_statement
+        (statement_identifier)
+        (expression_statement
+          (loop_expression
+            (statement_block
+              (switch_statement
+                (parenthesized_expression
+                  (identifier))
+                (switch_body
+                  (switch_case
+                    (number)
+                    (expression_statement
+                      (assignment_expression
+                        (identifier)
+                        (number)))
+                    (break_statement
+                      (statement_identifier)))
+                  (switch_default
+                    (expression_statement
+                      (assignment_expression
+                        (identifier)
+                        (number)))
+                    (break_statement))))
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (binary_expression
+                    (identifier)
+                    (number))))
+              (break_statement)))))
+      (expression_statement
+        (identifier)))))
+
+============================================================
+expressions / switch / flow / switch does not allow continue
+============================================================
+
+function invalidSwitchContinue(value: int32): int32 {
+    switch (value) {
+        case 0:
+            continue;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (number)
+            (continue_statement))
+          (switch_default
+            (break_statement))))
+      (expression_statement
+        (number)))))
+
+=====================================================================
+expressions / switch / flow / continue inside switch targets the loop
+=====================================================================
+
+function continueInSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    loop {
+        switch (value) {
+            case 0:
+                count = count + 1;
+                continue;
+            default:
+                break;
+        }
+        break;
+    }
+    count
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (number)))
+      (expression_statement
+        (loop_expression
+          (statement_block
+            (switch_statement
+              (parenthesized_expression
+                (identifier))
+              (switch_body
+                (switch_case
+                  (number)
+                  (expression_statement
+                    (assignment_expression
+                      (identifier)
+                      (binary_expression
+                        (identifier)
+                        (number))))
+                  (continue_statement))
+                (switch_default
+                  (break_statement))))
+            (break_statement))))
+      (expression_statement
+        (identifier)))))
+
+================================================================
+expressions / switch / flow / labeled continue can target a loop
+================================================================
+
+function labeledContinueLoopFromSwitch(value: int32): int32 {
+    let count: int32 = 0;
+    outer: loop {
+        switch (value) {
+            case 0:
+                count = count + 1;
+                continue :outer;
+            default:
+                break;
+        }
+        break;
+    }
+    count
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (number)))
+      (labeled_statement
+        (statement_identifier)
+        (expression_statement
+          (loop_expression
+            (statement_block
+              (switch_statement
+                (parenthesized_expression
+                  (identifier))
+                (switch_body
+                  (switch_case
+                    (number)
+                    (expression_statement
+                      (assignment_expression
+                        (identifier)
+                        (binary_expression
+                          (identifier)
+                          (number))))
+                    (continue_statement
+                      (statement_identifier)))
+                  (switch_default
+                    (break_statement))))
+              (break_statement)))))
+      (expression_statement
+        (identifier)))))
+
+=====================================================================
+expressions / switch / flow / labeled continue cannot target a switch
+=====================================================================
+
+function invalidLabeledContinueSwitch(value: int32): int32 {
+    outer: switch (value) {
+        case 0:
+            continue :outer;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (labeled_statement
+        (statement_identifier)
+        (switch_statement
+          (parenthesized_expression
+            (identifier))
+          (switch_body
+            (switch_case
+              (number)
+              (continue_statement
+                (statement_identifier)))
+            (switch_default
+              (break_statement)))))
+      (expression_statement
+        (number)))))
+
+===================================================
+expressions / switch / flow / switch rejects guards
+===================================================
+
+function invalidSwitchGuard(value: int32): int32 {
+    switch (value) {
+        case 0 if (value > 0):
+            break;
+        default:
+            break;
+    }
+    0
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (switch_statement
+        (parenthesized_expression
+          (identifier))
+        (switch_body
+          (switch_case
+            (number)
+            (parenthesized_expression
+              (binary_expression
+                (identifier)
+                (number)))
+            (break_statement))
+          (switch_default
+            (break_statement))))
+      (expression_statement
+        (number)))))
+
+===========================================================
+expressions / switch / flow / switch does not yield a value
+===========================================================
+
+function invalidSwitchExpression(value: int32): int32 {
+    const result: int32 = switch (value) {
+        case 0:
+            break;
+        default:
+            break;
+    };
+    result
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (switch_statement
+            (parenthesized_expression
+              (identifier))
+            (switch_body
+              (switch_case
+                (number)
+                (break_statement))
+              (switch_default
+                (break_statement))))))
+      (expression_statement
+        (identifier)))))

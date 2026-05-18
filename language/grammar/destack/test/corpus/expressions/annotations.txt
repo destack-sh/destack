@@ -1,0 +1,124 @@
+===========================================================
+Classes with decorator calls that have type arguments
+:language(typescript)
+===========================================================
+
+class Foo {
+  @bar<T>()
+  method() {
+  }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (decorator
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block)))))
+
+=======================================
+Classes with decorators
+:language(typescript)
+=======================================
+
+@baz @bam class Foo {
+  @foo static 2: string;
+  @bar.buzz(grue) public static 2: string = 'string';
+  @readonly readonly 'hello'?: int = 'string';
+  @readonly fooBar(@required param: any, @optional param2?: any) {
+  }
+}
+
+---
+
+(program
+  (class_declaration
+    (decorator
+      (identifier))
+    (decorator
+      (identifier))
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (decorator
+          (identifier))
+        (number)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (decorator
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments
+              (identifier))))
+        (accessibility_modifier)
+        (number)
+        (type_annotation
+          (predefined_type))
+        (string
+          (string_fragment)))
+      (public_field_definition
+        (decorator
+          (identifier))
+        (string
+          (string_fragment))
+        (type_annotation
+          (type_identifier))
+        (string
+          (string_fragment)))
+      (decorator
+        (identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (decorator
+              (identifier))
+            (identifier)
+            (type_annotation
+              (predefined_type)))
+          (optional_parameter
+            (decorator
+              (identifier))
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (statement_block)))))
+
+=======================================
+Decorator with parenthesized expression
+:language(typescript)
+=======================================
+
+class C {
+    @(super.decorate)
+    method2() { }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (decorator
+        (parenthesized_expression
+          (member_expression
+            (identifier)
+            (property_identifier))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block)))))

@@ -1,0 +1,159 @@
+==================================================================
+expressions / literals / template / template literal yields string
+==================================================================
+
+let name = "Ada";
+let greeting = `hello ${name}`;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (template_string
+        (string_fragment)
+        (template_substitution
+          (identifier))))))
+
+============================================================================
+expressions / literals / template / template literal is assignable to string
+============================================================================
+
+let greeting: string = `hello`;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (template_string
+        (string_fragment)))))
+
+================================================================================
+expressions / literals / template / template literal is not assignable to number
+================================================================================
+
+let value: number = `hello`;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (template_string
+        (string_fragment)))))
+
+========================================================================
+expressions / literals / template / tagged template uses tag return type
+========================================================================
+
+declare function tag(strings: TemplateStringsArray, value: int32): boolean;
+
+let result: boolean = tag`value=${1}`;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (template_string
+          (string_fragment)
+          (template_substitution
+            (number)))))))
+
+===========================================================================
+expressions / literals / template / tagged template enforces argument types
+===========================================================================
+
+declare function tag(strings: TemplateStringsArray, value: string): string;
+
+let result = tag`value=${1}`;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (template_string
+          (string_fragment)
+          (template_substitution
+            (number)))))))
+
+==============================================================================
+expressions / literals / template / tagged template return type is not widened
+==============================================================================
+
+declare function tag(strings: TemplateStringsArray): int32;
+
+let result: string = tag`value`;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (call_expression
+        (identifier)
+        (template_string
+          (string_fragment))))))

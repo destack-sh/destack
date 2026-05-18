@@ -1,0 +1,544 @@
+=====================================================================================
+runtime / modules / imports / type-only imports cannot mix default and named bindings
+=====================================================================================
+
+import type Foo, { Bar } from "./mod.ds";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (identifier)
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment))))
+
+=====================================================================================
+runtime / modules / imports / type-only imports cannot mix default and named bindings
+=====================================================================================
+
+export default class Foo {}
+export type Bar = string;
+
+---
+
+(program
+  (export_statement
+    (class_declaration
+      (type_identifier)
+      (class_body)))
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (predefined_type))))
+
+========================================================================
+runtime / modules / imports / type-only imports cannot be used as values
+========================================================================
+
+import type { Foo } from "./mod.ds";
+
+Foo;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (identifier)))
+
+========================================================================
+runtime / modules / imports / type-only imports cannot be used as values
+========================================================================
+
+export type Foo = { name: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+=================================================================
+runtime / modules / imports / named type-only imports are allowed
+=================================================================
+
+import { type Foo } from "./mod.ds";
+
+type Alias = Foo;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=================================================================
+runtime / modules / imports / named type-only imports are allowed
+=================================================================
+
+export type Foo = { name: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+==============================================================================
+runtime / modules / imports / named type-only imports cannot be used as values
+==============================================================================
+
+import { type Foo } from "./mod.ds";
+
+Foo;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (identifier)))
+
+==============================================================================
+runtime / modules / imports / named type-only imports cannot be used as values
+==============================================================================
+
+export type Foo = { name: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+===================================================================
+runtime / modules / imports / default type-only imports are allowed
+===================================================================
+
+import type Foo from "./mod.ds";
+
+type Alias = Foo;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================
+runtime / modules / imports / default type-only imports are allowed
+===================================================================
+
+export default interface Foo {
+    name: string;
+}
+
+---
+
+(program
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (destack_property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+================================================================================
+runtime / modules / imports / default type-only imports cannot be used as values
+================================================================================
+
+import type Foo from "./mod.ds";
+
+Foo;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (identifier)))
+
+================================================================================
+runtime / modules / imports / default type-only imports cannot be used as values
+================================================================================
+
+export default interface Foo {
+    name: string;
+}
+
+---
+
+(program
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (destack_property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+=====================================================================
+runtime / modules / imports / namespace type-only imports are allowed
+=====================================================================
+
+import type * as Types from "./mod.ds";
+
+type Alias = Types.User;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (nested_type_identifier
+      (identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================
+runtime / modules / imports / namespace type-only imports are allowed
+=====================================================================
+
+export interface User {
+    name: string;
+}
+
+---
+
+(program
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (destack_property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+================================================================================
+runtime / modules / imports / namespace type-only imports are not runtime values
+================================================================================
+
+import type * as Types from "./mod.ds";
+
+Types;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (identifier)))
+
+================================================================================
+runtime / modules / imports / namespace type-only imports are not runtime values
+================================================================================
+
+export interface User {
+    name: string;
+}
+
+---
+
+(program
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (destack_property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+=====================================================================================
+runtime / modules / imports / value imports allow type-only exports in type positions
+=====================================================================================
+
+import { Foo } from "./mod.ds";
+
+type Alias = Foo;
+const value: Alias = { name: "Ada" };
+value.name satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+=====================================================================================
+runtime / modules / imports / value imports allow type-only exports in type positions
+=====================================================================================
+
+export type Foo = { name: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+=======================================================================================
+runtime / modules / imports / value imports of type-only exports are not runtime values
+=======================================================================================
+
+import { Foo } from "./mod.ds";
+
+Foo;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (identifier)))
+
+=======================================================================================
+runtime / modules / imports / value imports of type-only exports are not runtime values
+=======================================================================================
+
+export type Foo = { name: string };
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type)))))))
+
+=====================================================================================
+runtime / modules / imports / imported generic constraints are enforced at call sites
+=====================================================================================
+
+export function readName<T: { name: string }>(value: T): string {
+    return value.name;
+}
+
+---
+
+(program
+  (export_statement
+    (function_declaration
+      (identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)
+          (constraint
+            (object_type
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (predefined_type)))))))
+      (formal_parameters
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (type_identifier))))
+      (type_annotation
+        (predefined_type))
+      (statement_block
+        (return_statement
+          (member_expression
+            (identifier)
+            (property_identifier)))))))
+
+=====================================================================================
+runtime / modules / imports / imported generic constraints are enforced at call sites
+=====================================================================================
+
+import { readName } from "./lib.ds";
+
+readName({ name: "ok" });
+readName({ name: 1 });
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment)))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (pair
+            (property_identifier)
+            (number)))))))

@@ -1,0 +1,1433 @@
+=====================================================================
+expressions / functions / inference / default values infer parameters
+=====================================================================
+
+function greet(name = "hi") {
+    return name;
+}
+greet satisfies (name: string) => string;
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (string
+          (string_fragment))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type))))))
+
+=======================================================================
+expressions / functions / inference / contextual lambda from annotation
+=======================================================================
+
+const add: (a: number, b: number) => number = (a, b) => a + b;
+add satisfies (a: number, b: number) => number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type)))
+      (arrow_function
+        (formal_parameters
+          (required_parameter
+            (identifier))
+          (required_parameter
+            (identifier)))
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type))))))
+
+================================================================================
+expressions / functions / inference / contextual lambda from annotation mismatch
+================================================================================
+
+const add: (a: number, b: number) => number = (a, b) => "hi";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type)))
+      (arrow_function
+        (formal_parameters
+          (required_parameter
+            (identifier))
+          (required_parameter
+            (identifier)))
+        (string
+          (string_fragment))))))
+
+=====================================================================
+expressions / functions / inference / contextual lambda from argument
+=====================================================================
+
+function apply(transform: (value: number) => number) {
+    return transform(1);
+}
+apply((value) => value + 1);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type)))))
+    (statement_block
+      (return_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (arrow_function
+          (formal_parameters
+            (required_parameter
+              (identifier)))
+          (binary_expression
+            (identifier)
+            (number)))))))
+
+==============================================================================
+expressions / functions / inference / contextual lambda from argument mismatch
+==============================================================================
+
+function apply(transform: (value: number) => number) {
+    return transform(1);
+}
+apply((value) => "hi");
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type)))))
+    (statement_block
+      (return_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (number))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (arrow_function
+          (formal_parameters
+            (required_parameter
+              (identifier)))
+          (string
+            (string_fragment)))))))
+
+================================================================
+expressions / functions / inference / contextual object argument
+================================================================
+
+function use_point(point: { x: number; y: number }) {
+    return point.x;
+}
+use_point({ x: 1, y: 2 });
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))
+    (statement_block
+      (return_statement
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number)))))))
+
+=========================================================================
+expressions / functions / inference / contextual object argument mismatch
+=========================================================================
+
+function use_point(point: { x: number; y: number }) {
+    return point.x;
+}
+use_point({ x: 1, y: "hi" });
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))
+    (statement_block
+      (return_statement
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (string
+              (string_fragment))))))))
+
+===============================================================
+expressions / functions / inference / contextual tuple argument
+===============================================================
+
+function sum(pair: (number, number)) {
+    return pair;
+}
+sum((1, 2));
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (predefined_type)
+            (predefined_type)))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (parenthesized_expression
+          (sequence_expression
+            (number)
+            (number)))))))
+
+========================================================================
+expressions / functions / inference / contextual tuple argument mismatch
+========================================================================
+
+function sum(pair: (number, number)) {
+    return pair;
+}
+sum((1, "hi"));
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (predefined_type)
+            (predefined_type)))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (parenthesized_expression
+          (sequence_expression
+            (number)
+            (string
+              (string_fragment))))))))
+
+===============================================================
+expressions / functions / inference / contextual array argument
+===============================================================
+
+function total(values: number[]) {
+    return values;
+}
+total([1, 2, 3]);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (array_type
+            (predefined_type)))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (array
+          (number)
+          (number)
+          (number))))))
+
+========================================================================
+expressions / functions / inference / contextual array argument mismatch
+========================================================================
+
+function total(values: number[]) {
+    return values;
+}
+total([1, "hi"]);
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (array_type
+            (predefined_type)))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (array
+          (number)
+          (string
+            (string_fragment)))))))
+
+=================================================================================================================
+expressions / functions / inference / arrow properties remain order-insensitive for contextual callback inference
+=================================================================================================================
+
+declare function callIt<T>(obj: { produce: (x: number) => T; consume: (y: T) => void }): void;
+
+callIt({
+    consume: (y) => y.toFixed(),
+    produce: (x: number) => x * 2,
+});
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (predefined_type))))
+                  (type_identifier))))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (type_identifier))))
+                  (predefined_type))))))))
+    (type_annotation
+      (predefined_type)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (pair
+            (property_identifier)
+            (arrow_function
+              (formal_parameters
+                (required_parameter
+                  (identifier)))
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments))))
+          (pair
+            (property_identifier)
+            (arrow_function
+              (formal_parameters
+                (required_parameter
+                  (identifier)
+                  (type_annotation
+                    (predefined_type))))
+              (binary_expression
+                (identifier)
+                (number)))))))))
+
+===================================================================================================
+expressions / functions / inference / object methods do not infer from sibling members when flipped
+===================================================================================================
+
+declare function callIt<T>(obj: { produce: (x: number) => T; consume: (y: T) => void }): void;
+
+callIt({
+    consume(y) {
+        return y.toFixed();
+    },
+    produce(x: number) {
+        return x * 2;
+    },
+});
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (predefined_type))))
+                  (type_identifier))))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (type_identifier))))
+                  (predefined_type))))))))
+    (type_annotation
+      (predefined_type)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (method_definition
+            (property_identifier)
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (statement_block
+              (return_statement
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (property_identifier))
+                  (arguments)))))
+          (method_definition
+            (property_identifier)
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (predefined_type))))
+            (statement_block
+              (return_statement
+                (binary_expression
+                  (identifier)
+                  (number))))))))))
+
+================================================================================================================
+expressions / functions / inference / arrow properties infer across sibling ordering with nested object literals
+================================================================================================================
+
+declare function build<T>(spec: { payload: () => T; consume: (value: T) => string }): string;
+
+const output = build({
+    consume: (value) => value.toUpperCase(),
+    payload: () => "ready",
+});
+
+output satisfies string;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters)
+                  (type_identifier))))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (type_identifier))))
+                  (predefined_type))))))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (arrow_function
+                (formal_parameters
+                  (required_parameter
+                    (identifier)))
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (property_identifier))
+                  (arguments))))
+            (pair
+              (property_identifier)
+              (arrow_function
+                (formal_parameters)
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=======================================================================================================
+expressions / functions / inference / object methods do not contextually infer sibling generic payloads
+=======================================================================================================
+
+declare function build<T>(spec: { payload: () => T; consume: (value: T) => string }): string;
+
+build({
+    consume(value) {
+        return value.toUpperCase();
+    },
+    payload() {
+        return "ready";
+    },
+});
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters)
+                  (type_identifier))))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (type_identifier))))
+                  (predefined_type))))))))
+    (type_annotation
+      (predefined_type)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (method_definition
+            (property_identifier)
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (statement_block
+              (return_statement
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (property_identifier))
+                  (arguments)))))
+          (method_definition
+            (property_identifier)
+            (formal_parameters)
+            (statement_block
+              (return_statement
+                (string
+                  (string_fragment))))))))))
+
+===================================================================================================
+expressions / functions / inference / arrow callbacks preserve inference through renamed re-exports
+===================================================================================================
+
+export declare function build<T>(spec: { payload: () => T; consume: (value: T) => string }): string;
+
+---
+
+(program
+  (export_statement
+    (destack_declare_function_signature
+      (identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (formal_parameters
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (object_type
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (function_type
+                    (formal_parameters)
+                    (type_identifier))))
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (function_type
+                    (formal_parameters
+                      (required_parameter
+                        (identifier)
+                        (type_annotation
+                          (type_identifier))))
+                    (predefined_type))))))))
+      (type_annotation
+        (predefined_type)))))
+
+===================================================================================================
+expressions / functions / inference / arrow callbacks preserve inference through renamed re-exports
+===================================================================================================
+
+export { build as make } from "./api.ds";
+
+---
+
+(program
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier)
+        (identifier)))
+    (string
+      (string_fragment))))
+
+===================================================================================================
+expressions / functions / inference / arrow callbacks preserve inference through renamed re-exports
+===================================================================================================
+
+import { make } from "./index.ds";
+
+const output = make({
+    consume: (value) => value.toUpperCase(),
+    payload: () => "ready",
+});
+
+output satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (arrow_function
+                (formal_parameters
+                  (required_parameter
+                    (identifier)))
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (property_identifier))
+                  (arguments))))
+            (pair
+              (property_identifier)
+              (arrow_function
+                (formal_parameters)
+                (string
+                  (string_fragment)))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================================================================
+expressions / functions / inference / generic callback inference preserves const tuple literal element types
+============================================================================================================
+
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+const tuple = [1, 2] as const;
+const head = mapOne(tuple, (input) => input[0]);
+
+head satisfies 1;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (type_identifier))))
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (as_expression
+        (array
+          (number)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (subscript_expression
+              (identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+===================================================================================================
+expressions / functions / inference / generic callback inference widens mutable array element types
+===================================================================================================
+
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+let values = [1, 2];
+const head = mapOne(values, (input) => input[0]);
+
+head satisfies number;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (type_identifier))))
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (subscript_expression
+              (identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=============================================================================================================
+expressions / functions / inference / generic callback inference does not keep mutable array literal elements
+=============================================================================================================
+
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+let values = [1, 2];
+const head = mapOne(values, (input) => input[0]);
+
+head satisfies 1;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (type_identifier))))
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (subscript_expression
+              (identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+=========================================================================================================
+expressions / functions / inference / generic callback inference stays precise through renamed re-exports
+=========================================================================================================
+
+export declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+---
+
+(program
+  (export_statement
+    (destack_declare_function_signature
+      (identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier))
+        (type_parameter
+          (type_identifier)))
+      (formal_parameters
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (type_identifier)))
+        (required_parameter
+          (identifier)
+          (type_annotation
+            (function_type
+              (formal_parameters
+                (required_parameter
+                  (identifier)
+                  (type_annotation
+                    (type_identifier))))
+              (type_identifier)))))
+      (type_annotation
+        (type_identifier)))))
+
+=========================================================================================================
+expressions / functions / inference / generic callback inference stays precise through renamed re-exports
+=========================================================================================================
+
+export { mapOne as runOne } from "./api.ds";
+
+---
+
+(program
+  (export_statement
+    (export_clause
+      (export_specifier
+        (identifier)
+        (identifier)))
+    (string
+      (string_fragment))))
+
+=========================================================================================================
+expressions / functions / inference / generic callback inference stays precise through renamed re-exports
+=========================================================================================================
+
+import { runOne } from "./index.ds";
+
+const tuple = [1, 2] as const;
+const head = runOne(tuple, (input) => input[0]);
+
+head satisfies 1;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (as_expression
+        (array
+          (number)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (subscript_expression
+              (identifier)
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (number))))))
+
+==============================================================================================
+expressions / functions / inference / nested callback inference threads outer generic payloads
+==============================================================================================
+
+declare function withValue<T>(value: T, callback: (read: () => T) => string): string;
+
+const output = withValue("ready", (read) => read());
+output satisfies string;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (function_type
+                    (formal_parameters)
+                    (type_identifier)))))
+            (predefined_type)))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (call_expression
+              (identifier)
+              (arguments)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+================================================================================================
+expressions / functions / inference / nested callback inference rejects mismatched payload usage
+================================================================================================
+
+declare function withValue<T>(value: T, callback: (read: () => T) => string): string;
+
+withValue("ready", (read) => read().toFixed());
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (function_type
+                    (formal_parameters)
+                    (type_identifier)))))
+            (predefined_type)))))
+    (type_annotation
+      (predefined_type)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (string
+          (string_fragment))
+        (arrow_function
+          (formal_parameters
+            (required_parameter
+              (identifier)))
+          (call_expression
+            (member_expression
+              (call_expression
+                (identifier)
+                (arguments))
+              (property_identifier))
+            (arguments)))))))
+
+===========================================================================================================
+expressions / functions / inference / nested arrows remain order-insensitive in contextual object inference
+===========================================================================================================
+
+declare function wire<T>(spec: {
+    make: () => { value: T };
+    use: (input: { value: T }) => string;
+}): string;
+
+const output = wire({
+    use: (input) => {
+        input.value satisfies string;
+        return input.value;
+    },
+    make: () => ({ value: "ready" }),
+});
+
+output satisfies string;
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters)
+                  (object_type
+                    (property_signature
+                      (property_identifier)
+                      (type_annotation
+                        (type_identifier)))))))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (object_type
+                          (property_signature
+                            (property_identifier)
+                            (type_annotation
+                              (type_identifier)))))))
+                  (predefined_type))))))))
+    (type_annotation
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (arrow_function
+                (formal_parameters
+                  (required_parameter
+                    (identifier)))
+                (statement_block
+                  (expression_statement
+                    (satisfies_expression
+                      (member_expression
+                        (identifier)
+                        (property_identifier))
+                      (satisfies_type
+                        (predefined_type))))
+                  (return_statement
+                    (member_expression
+                      (identifier)
+                      (property_identifier))))))
+            (pair
+              (property_identifier)
+              (arrow_function
+                (formal_parameters)
+                (parenthesized_expression
+                  (object
+                    (pair
+                      (property_identifier)
+                      (string
+                        (string_fragment))))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==================================================================================
+expressions / functions / inference / nested methods do not infer sibling payloads
+==================================================================================
+
+declare function wire<T>(spec: {
+    make: () => { value: T };
+    use: (input: { value: T }) => string;
+}): string;
+
+wire({
+    use(input) {
+        return input.value.toUpperCase();
+    },
+    make() {
+        return { value: "ready" };
+    },
+});
+
+---
+
+(program
+  (destack_declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters)
+                  (object_type
+                    (property_signature
+                      (property_identifier)
+                      (type_annotation
+                        (type_identifier)))))))
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (function_type
+                  (formal_parameters
+                    (required_parameter
+                      (identifier)
+                      (type_annotation
+                        (object_type
+                          (property_signature
+                            (property_identifier)
+                            (type_annotation
+                              (type_identifier)))))))
+                  (predefined_type))))))))
+    (type_annotation
+      (predefined_type)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (object
+          (method_definition
+            (property_identifier)
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (statement_block
+              (return_statement
+                (call_expression
+                  (member_expression
+                    (member_expression
+                      (identifier)
+                      (property_identifier))
+                    (property_identifier))
+                  (arguments)))))
+          (method_definition
+            (property_identifier)
+            (formal_parameters)
+            (statement_block
+              (return_statement
+                (object
+                  (pair
+                    (property_identifier)
+                    (string
+                      (string_fragment))))))))))))

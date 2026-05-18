@@ -1,0 +1,429 @@
+============================================================
+expressions / using / loops / for of accepts using resources
+============================================================
+
+class File implements Dispose {
+    dispose(): void {}
+}
+
+declare const files: File[];
+
+for (using file of files) {
+    file satisfies File;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (for_in_statement
+    (destack_for_header
+      (identifier)
+      (identifier))
+    (statement_block
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (type_identifier)))))))
+
+====================================================================
+expressions / using / loops / for of accepts nullish using resources
+====================================================================
+
+class File implements Dispose {
+    dispose(): void {}
+}
+
+declare const files: (File | null | undefined)[];
+
+for (using file of files) {
+    file satisfies File | null | undefined;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (array_type
+            (parenthesized_type
+              (union_type
+                (union_type
+                  (type_identifier)
+                  (literal_type
+                    (null)))
+                (literal_type
+                  (undefined)))))))))
+  (for_in_statement
+    (destack_for_header
+      (identifier)
+      (identifier))
+    (statement_block
+      (expression_statement
+        (binary_expression
+          (binary_expression
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (type_identifier)))
+            (null))
+          (undefined))))))
+
+=======================================================================
+expressions / using / loops / for of rejects async-only using resources
+=======================================================================
+
+class Connection implements AsyncDispose {
+    asyncDispose(): Promise<void> {
+        Promise.resolve()
+    }
+}
+
+declare const connections: Connection[];
+
+for (using connection of connections) {
+    connection satisfies Connection;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (for_in_statement
+    (destack_for_header
+      (identifier)
+      (identifier))
+    (statement_block
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (type_identifier)))))))
+
+============================================================
+expressions / using / loops / for in rejects using resources
+============================================================
+
+class File implements Dispose {
+    dispose(): void {}
+}
+
+declare const files: { [path: string]: File };
+
+for (using path in files) {
+    path satisfies string;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (object_type
+            (index_signature
+              (identifier)
+              (predefined_type)
+              (type_annotation
+                (type_identifier))))))))
+  (for_in_statement
+    (destack_for_header
+      (identifier)
+      (identifier))
+    (statement_block
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type)))))))
+
+========================================================================
+expressions / using / loops / for await of accepts await using resources
+========================================================================
+
+class Connection implements AsyncDispose {
+    asyncDispose(): Promise<void> {
+        Promise.resolve()
+    }
+}
+
+interface AsyncIterator<T> {
+    next(): Promise<IteratorResult<T>>;
+}
+
+interface AsyncIterable<T> {
+    asyncIterator(): AsyncIterator<T>;
+}
+
+declare function connections(): AsyncIterable<Connection>;
+
+async function run(): Promise<void> {
+    for await (await using connection of connections()) {
+        connection satisfies Connection;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type))))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments)))))))
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (type_identifier)))))))))
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (destack_declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (for_in_statement
+        (destack_for_header
+          (identifier)
+          (call_expression
+            (identifier)
+            (arguments)))
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (type_identifier)))))))))
+
+=================================================================
+expressions / using / loops / for await of accepts sync resources
+=================================================================
+
+class File implements Dispose {
+    dispose(): void {}
+}
+
+declare const files: File[];
+
+async function run(): Promise<void> {
+    for await (await using file of files) {
+        file satisfies File;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (for_in_statement
+        (destack_for_header
+          (identifier)
+          (identifier))
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (type_identifier)))))))))
+
+===============================================================================
+expressions / using / loops / await using loop bindings require async iteration
+===============================================================================
+
+class File implements Dispose {
+    dispose(): void {}
+}
+
+declare const files: File[];
+
+for (await using file of files) {
+    file satisfies File;
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (implements_clause
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (for_in_statement
+    (destack_for_header
+      (identifier)
+      (identifier))
+    (statement_block
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (type_identifier)))))))

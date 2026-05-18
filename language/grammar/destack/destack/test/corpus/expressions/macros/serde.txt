@@ -1,0 +1,364 @@
+===================================================================
+expressions / macros / serde / serde derives satisfy json protocols
+===================================================================
+
+import {
+    JSON,
+    Json,
+    JsonDeserialize,
+    JsonSerialize,
+    decode,
+    encode,
+} from "destack:json";
+
+@derive(Serialize, Deserialize)
+struct ServerConfig {
+    host: string;
+    port: uint16;
+    secure: boolean;
+}
+
+const config = decode<ServerConfig>("{\"host\":\"127.0.0.1\",\"port\":8080,\"secure\":true}")?;
+
+config satisfies ServerConfig;
+config satisfies JsonSerialize;
+ServerConfig satisfies JsonDeserialize;
+
+const text = encode(config)?;
+text satisfies string;
+
+const value = JSON.parse(text)?;
+value satisfies Json;
+JSON.stringify(value)? satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier)
+        (identifier))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (try_propagation_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments
+            (string
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (try_propagation_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (try_propagation_expression
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (try_propagation_expression
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))
+      (satisfies_type
+        (predefined_type)))))
+
+===================================================================
+expressions / macros / serde / serde derives compose through fields
+===================================================================
+
+import { decode, encode } from "destack:json";
+
+@derive(Serialize, Deserialize)
+struct DatabaseConfig {
+    url: string;
+    poolSize: uint16;
+}
+
+@derive(Serialize, Deserialize)
+struct AppConfig {
+    database: DatabaseConfig;
+    tags: string[];
+}
+
+const config = decode<AppConfig>(
+    "{\"database\":{\"url\":\"postgres://local\",\"poolSize\":8},\"tags\":[\"dev\"]}",
+)?;
+
+config.database.poolSize satisfies uint16;
+encode(config)? satisfies string;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier)
+        (identifier))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier)
+        (identifier))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (array_type
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (try_propagation_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments
+            (string
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)
+              (escape_sequence)
+              (string_fragment)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (property_identifier))
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (try_propagation_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (satisfies_type
+        (predefined_type)))))
+
+========================================================================
+expressions / macros / serde / serde derive requires serializable fields
+========================================================================
+
+import { encode } from "destack:json";
+
+class Socket {}
+
+@derive(Serialize)
+struct Connection {
+    socket: Socket;
+}
+
+const connection = Connection {
+    socket: new Socket(),
+};
+
+encode(connection)?;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (class_declaration
+    (type_identifier)
+    (class_body))
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (identifier))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (new_expression
+              (call_expression
+                (identifier)
+                (arguments))))))))
+  (expression_statement
+    (try_propagation_expression
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier))))))
+
+===============================================================
+expressions / macros / serde / separated try satisfies parses
+===============================================================
+
+value ? satisfies string;
+
+---
+
+(program
+  (expression_statement
+    (try_satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

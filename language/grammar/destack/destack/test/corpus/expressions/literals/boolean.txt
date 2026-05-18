@@ -1,0 +1,171 @@
+===============================================
+expressions / literals / boolean / true literal
+===============================================
+
+const x: boolean = true;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (true))))
+
+================================================
+expressions / literals / boolean / false literal
+================================================
+
+const x: boolean = false;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (false))))
+
+===========================================================
+expressions / literals / boolean / true literals stay exact
+===========================================================
+
+const x = true;
+x satisfies true;
+x satisfies boolean;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (true)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (true)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================
+expressions / literals / boolean / false literals stay exact
+============================================================
+
+const x = false;
+x satisfies false;
+x satisfies boolean;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (false)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (false)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+=============================================================
+expressions / literals / boolean / boolean assigned to string
+=============================================================
+
+const x: string = true;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (true))))
+
+=============================================================
+expressions / literals / boolean / boolean assigned to number
+=============================================================
+
+const x: number = false;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (false))))
+
+==================================================================
+expressions / literals / boolean / boolean does not satisfy string
+==================================================================
+
+const x = true;
+x satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (true)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+============================================================
+expressions / literals / boolean / boolean toString resolves
+============================================================
+
+const value = true;
+const text = value.toString();
+text satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (true)))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

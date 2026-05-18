@@ -1,0 +1,887 @@
+=========================================================================
+expressions / match / patterns / match tuple patterns bind tuple elements
+=========================================================================
+
+declare const pair: (int32, int32);
+
+match (pair) {
+    (left, right) => {
+        left satisfies int32;
+        right satisfies int32;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (type_identifier))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (tuple_pattern
+            (match_pattern
+              (identifier))
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))))))))
+
+=======================================================================================
+expressions / match / patterns / match nested tuple patterns bind nested tuple elements
+=======================================================================================
+
+declare const pair: ((int32, int32), int32);
+
+match (pair) {
+    ((left, right), tail) => {
+        left satisfies int32;
+        right satisfies int32;
+        tail satisfies int32;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (tuple_type
+              (type_identifier)
+              (type_identifier))
+            (type_identifier))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (tuple_pattern
+            (match_pattern
+              (tuple_pattern
+                (match_pattern
+                  (identifier))
+                (match_pattern
+                  (identifier))))
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))))))))
+
+=========================================================================
+expressions / match / patterns / match fixed array patterns bind elements
+=========================================================================
+
+declare const pair: [int32; 2];
+
+match (pair) {
+    [left, right] => {
+        left satisfies int32;
+        right satisfies int32;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (number))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (array_pattern
+            (identifier)
+            (identifier)))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))))))))
+
+================================================================
+expressions / match / patterns / match slice patterns bind heads
+================================================================
+
+declare const values: [int32];
+
+match (values) {
+    [first, ...rest] => {
+        first satisfies int32;
+        rest satisfies [int32];
+    }
+    _ => {}
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (array_pattern
+            (identifier)
+            (rest_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (tuple_type
+                    (type_identifier))))))))
+      (match_arm
+        (match_pattern
+          (identifier))
+        (match_arm_statement
+          (statement_block))))))
+
+========================================================================
+expressions / match / patterns / match object patterns bind named fields
+========================================================================
+
+type Config = { enabled: boolean; retries: int32 };
+
+declare const config: Config;
+
+match (config) {
+    { enabled, retries } => {
+        enabled satisfies boolean;
+        retries satisfies int32;
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (object_pattern
+            (shorthand_property_identifier_pattern)
+            (shorthand_property_identifier_pattern)))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))))))))
+
+================================================================================
+expressions / match / patterns / match nested object patterns bind nested fields
+================================================================================
+
+type Config = { runtime: { retries: int32 }; enabled: boolean };
+
+declare const config: Config;
+
+match (config) {
+    {
+        runtime: { retries },
+        enabled,
+    } => {
+        retries satisfies int32;
+        enabled satisfies boolean;
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (type_identifier))))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (match_object_pattern
+            (match_object_pattern_property
+              (property_identifier)
+              (match_pattern
+                (object_pattern
+                  (shorthand_property_identifier_pattern))))
+            (match_object_pattern_property
+              (property_identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type))))))))))
+
+=====================================================================
+expressions / match / patterns / match wildcards ignore object fields
+=====================================================================
+
+type Config =
+    | { kind: "a"; retries: int32; enabled: boolean }
+    | { kind: "b"; retries: int32; enabled: boolean };
+
+declare const config: Config;
+
+match (config) {
+    { kind: _, retries } => {
+        retries satisfies int32;
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (union_type
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (literal_type
+                (string
+                  (string_fragment)))))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (predefined_type)))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (type_identifier)))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (match_object_pattern
+            (match_object_pattern_property
+              (property_identifier)
+              (match_pattern
+                (identifier)))
+            (match_object_pattern_property
+              (property_identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))))))))
+
+==================================================================
+expressions / match / patterns / match struct patterns bind fields
+==================================================================
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function sum(value: Point): int32 {
+    match (value) {
+        Point { x, y } => x + y
+    }
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (struct_literal_expression
+                (identifier)
+                (object
+                  (shorthand_property_identifier)
+                  (shorthand_property_identifier))))
+            (expression_statement
+              (binary_expression
+                (identifier)
+                (identifier)))))))))
+
+==================================================================================
+expressions / match / patterns / match struct patterns reject bare object patterns
+==================================================================================
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function sum(value: Point): int32 {
+    match (value) {
+        { x, y } => x + y
+        _ => 0
+    }
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (object_pattern
+                (shorthand_property_identifier_pattern)
+                (shorthand_property_identifier_pattern)))
+            (expression_statement
+              (binary_expression
+                (identifier)
+                (identifier))))
+          (match_arm
+            (match_pattern
+              (identifier))
+            (expression_statement
+              (number))))))))
+
+=============================================================
+expressions / match / patterns / match tuple rest binds tails
+=============================================================
+
+declare const values: (int32, int32, int32);
+
+match (values) {
+    (first, ...rest) => {
+        first satisfies int32;
+        rest satisfies (int32, int32);
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (type_identifier)
+            (type_identifier))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (tuple_pattern
+            (match_pattern
+              (identifier))
+            (match_pattern
+              (rest_pattern
+                (identifier)))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (tuple_type
+                    (type_identifier)
+                    (type_identifier)))))))))))
+
+===================================================================
+expressions / match / patterns / match fixed array rest binds tails
+===================================================================
+
+declare const values: [int32; 3];
+
+match (values) {
+    [first, ...rest] => {
+        first satisfies int32;
+        rest satisfies [int32; 2];
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (number))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (array_pattern
+            (identifier)
+            (rest_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (tuple_type
+                    (type_identifier)
+                    (number)))))))))))
+
+==============================================================
+expressions / match / patterns / match object rest binds tails
+==============================================================
+
+type Config = { enabled: boolean; retries: int32 };
+
+declare const config: Config;
+
+match (config) {
+    { enabled, ...rest } => {
+        enabled satisfies boolean;
+        rest satisfies { retries: int32 };
+    }
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (object_pattern
+            (shorthand_property_identifier_pattern)
+            (rest_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (predefined_type))))
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (object_type
+                    (property_signature
+                      (property_identifier)
+                      (type_annotation
+                        (type_identifier)))))))))))))
+
+============================================================================
+expressions / match / patterns / match must patterns bind non-nullish values
+============================================================================
+
+declare const value: int32 | null;
+
+match (value) {
+    x! => {
+        x satisfies int32;
+    }
+    _ => {}
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (null)))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (must_pattern
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (type_identifier)))))))
+      (match_arm
+        (match_pattern
+          (identifier))
+        (match_arm_statement
+          (statement_block))))))
+
+=======================================================================
+expressions / match / patterns / match value patterns bind owned values
+=======================================================================
+
+declare const value: ^int32;
+
+match (value) {
+    ^x => {
+        x satisfies ^int32;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (managed_type
+            (type_identifier))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (managed_pattern
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (managed_type
+                    (type_identifier)))))))))))
+
+=========================================================================
+expressions / match / patterns / match reference patterns bind references
+=========================================================================
+
+declare const value: &int32;
+
+match (value) {
+    &x => {
+        x satisfies &int32;
+    }
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (borrow_type
+            (type_identifier))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (borrow_pattern
+            (match_pattern
+              (identifier))))
+        (match_arm_statement
+          (statement_block
+            (expression_statement
+              (satisfies_expression
+                (identifier)
+                (satisfies_type
+                  (borrow_type
+                    (type_identifier)))))))))))
+
+=============================================================================
+expressions / match / patterns / match union patterns cover multiple literals
+=============================================================================
+
+declare const value: 1 | 2 | 3;
+
+match (value) {
+    1 | 2 => "low"
+    3 => "high"
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (union_type
+              (literal_type
+                (number))
+              (literal_type
+                (number)))
+            (literal_type
+              (number)))))))
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (union_pattern
+            (match_pattern
+              (number))
+            (match_pattern
+              (number))))
+        (expression_statement
+          (string
+            (string_fragment))))
+      (match_arm
+        (match_pattern
+          (number))
+        (expression_statement
+          (string
+            (string_fragment)))))))
+
+===========================================================================
+expressions / match / patterns / literal patterns must fit the matched type
+===========================================================================
+
+function invalidMatchPattern(value: int32): int32 {
+    match (value) {
+        "hi" => 1
+        _ => 2
+    }
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (match_expression
+          (identifier)
+          (match_arm
+            (match_pattern
+              (string
+                (string_fragment)))
+            (expression_statement
+              (number)))
+          (match_arm
+            (match_pattern
+              (identifier))
+            (expression_statement
+              (number))))))))

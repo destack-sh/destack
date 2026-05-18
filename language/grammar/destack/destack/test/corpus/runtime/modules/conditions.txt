@@ -1,0 +1,364 @@
+=============================================================================
+runtime / modules / conditions / active condition files share the base module
+=============================================================================
+
+export const base = "user";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (string
+          (string_fragment))))))
+
+=============================================================================
+runtime / modules / conditions / active condition files share the base module
+=============================================================================
+
+export const previewName = `${base}.preview`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+=============================================================================
+runtime / modules / conditions / active condition files share the base module
+=============================================================================
+
+export const serverName = `${base}.server`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+=============================================================================
+runtime / modules / conditions / active condition files share the base module
+=============================================================================
+
+export const checkoutName = `${base}.checkout`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+=============================================================================
+runtime / modules / conditions / active condition files share the base module
+=============================================================================
+
+export const internalName = `${base}.internal`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+=============================================================================
+runtime / modules / conditions / active condition files share the base module
+=============================================================================
+
+import { base, checkoutName, internalName, previewName, serverName } from "./user";
+
+base satisfies "user";
+previewName satisfies "user.preview";
+serverName satisfies "user.server";
+checkoutName satisfies "user.checkout";
+internalName satisfies "user.internal";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+=====================================================================
+runtime / modules / conditions / inactive condition files are ignored
+=====================================================================
+
+export const base = "user";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (string
+          (string_fragment))))))
+
+=====================================================================
+runtime / modules / conditions / inactive condition files are ignored
+=====================================================================
+
+export const checkoutName = `${base}.checkout`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+=====================================================================
+runtime / modules / conditions / inactive condition files are ignored
+=====================================================================
+
+import { base } from "./user";
+
+base satisfies "user";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+==========================================================================
+runtime / modules / conditions / explicit aliases can target profile gates
+==========================================================================
+
+export const base = "user";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (string
+          (string_fragment))))))
+
+==========================================================================
+runtime / modules / conditions / explicit aliases can target profile gates
+==========================================================================
+
+export const browserName = `${base}.browser`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+==========================================================================
+runtime / modules / conditions / explicit aliases can target profile gates
+==========================================================================
+
+import { base, browserName } from "./user";
+
+base satisfies "user";
+browserName satisfies "user.browser";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))
+
+===================================================================
+runtime / modules / conditions / chained aliases require every gate
+===================================================================
+
+export const base = "user";
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (string
+          (string_fragment))))))
+
+===================================================================
+runtime / modules / conditions / chained aliases require every gate
+===================================================================
+
+export const browserTestName = `${base}.test.browser`;
+
+---
+
+(program
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (template_string
+          (template_substitution
+            (identifier))
+          (string_fragment))))))
+
+===================================================================
+runtime / modules / conditions / chained aliases require every gate
+===================================================================
+
+import { base, browserTestName } from "./user";
+
+base satisfies "user";
+browserTestName satisfies "user.test.browser";
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment)))))))

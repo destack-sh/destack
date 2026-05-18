@@ -1,0 +1,406 @@
+==================================================================
+expressions / functions / async / await unwraps promise value type
+==================================================================
+
+declare const value: Promise<number>;
+
+async function read(): Promise<number> {
+    const inner = await value;
+    inner satisfies number;
+    return inner;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (identifier))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (return_statement
+        (identifier)))))
+
+==================================================================
+expressions / functions / async / await rejects non promise values
+==================================================================
+
+async function read(): Promise<string> {
+    const value = await "hello";
+    value satisfies string;
+    return value;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (string
+              (string_fragment)))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (return_statement
+        (identifier)))))
+
+===============================================================
+expressions / functions / async / await distributes over unions
+===============================================================
+
+declare const value: Promise<number> | Promise<string>;
+
+async function read(): Promise<number | string> {
+    const inner = await value;
+    inner satisfies number | string;
+    return inner;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (predefined_type)))
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (predefined_type))))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (union_type
+            (predefined_type)
+            (predefined_type)))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (identifier))))
+      (expression_statement
+        (binary_expression
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (predefined_type)))
+          (identifier)))
+      (return_statement
+        (identifier)))))
+
+===============================================================
+expressions / functions / async / await unwraps nested promises
+===============================================================
+
+declare const value: Promise<Promise<number>>;
+
+async function read(): Promise<number> {
+    const inner = await value;
+    inner satisfies number;
+    return inner;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (predefined_type)))))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (identifier))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (return_statement
+        (identifier)))))
+
+========================================================================
+expressions / functions / async / await preserves unknown promise values
+========================================================================
+
+declare const value: Promise<unknown>;
+
+async function read(): Promise<unknown> {
+    const inner = await value;
+    inner satisfies unknown;
+    return inner;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (identifier))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (return_statement
+        (identifier)))))
+
+===============================================================
+expressions / functions / async / await unwraps promise aliases
+===============================================================
+
+type Box<T> = Promise<T>;
+declare const value: Box<int32>;
+
+async function read(): Promise<int32> {
+    const inner = await value;
+    inner satisfies int32;
+    return inner;
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (identifier))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (type_identifier))))
+      (return_statement
+        (identifier)))))
+
+=============================================================================
+expressions / functions / async / await unwraps unevaluated promise arguments
+=============================================================================
+
+type Box<T> = Promise<T>;
+type Alias = Box<string>;
+declare const value: Alias;
+
+async function read(): Promise<string> {
+    const inner = await value;
+    inner satisfies string;
+    return inner;
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (predefined_type))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (identifier))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (return_statement
+        (identifier)))))
+
+====================================================================
+expressions / functions / async / await! unwraps async result values
+====================================================================
+
+declare const value: Promise<Result<string, Error>>;
+
+async function read(): Promise<string> {
+    const inner = await! value;
+    inner satisfies string;
+    return inner;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (predefined_type)
+                  (type_identifier)))))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (await_expression
+            (unary_expression
+              (identifier)))))
+      (expression_statement
+        (satisfies_expression
+          (identifier)
+          (satisfies_type
+            (predefined_type))))
+      (return_statement
+        (identifier)))))

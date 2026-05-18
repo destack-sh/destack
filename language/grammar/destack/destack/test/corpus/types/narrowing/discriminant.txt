@@ -1,0 +1,484 @@
+=================================================================================
+types / narrowing / discriminant / discriminant guard narrows to matching variant
+=================================================================================
+
+type Result = { kind: "ok"; value: string } | { kind: "err"; error: string };
+
+const result: Result = { kind: "ok", value: "done" };
+if (result.kind == "ok") {
+    result satisfies { kind: "ok"; value: string };
+} else {
+    result satisfies { kind: "err"; error: string };
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (object_type
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (literal_type
+                      (string
+                        (string_fragment)))))
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (predefined_type))))))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (literal_type
+                        (string
+                          (string_fragment)))))
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))))))))
+
+===============================================================================
+types / narrowing / discriminant / discriminant guard narrows with index access
+===============================================================================
+
+type Result = { kind: "ok"; value: string } | { kind: "err"; error: string };
+
+const result: Result = { kind: "ok", value: "done" };
+if (result["kind"] == "ok") {
+    result satisfies { kind: "ok"; value: string };
+} else {
+    result satisfies { kind: "err"; error: string };
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (subscript_expression
+          (identifier)
+          (string
+            (string_fragment)))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (object_type
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (literal_type
+                      (string
+                        (string_fragment)))))
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (predefined_type))))))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (literal_type
+                        (string
+                          (string_fragment)))))
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))))))))
+
+===========================================================================
+types / narrowing / discriminant / discriminant guard narrows on not equals
+===========================================================================
+
+type Result = { kind: "ok"; value: string } | { kind: "err"; error: string };
+
+const result: Result = { kind: "ok", value: "done" };
+if (result.kind != "ok") {
+    result satisfies { kind: "err"; error: string };
+} else {
+    result satisfies { kind: "ok"; value: string };
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (object_type
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (literal_type
+                      (string
+                        (string_fragment)))))
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (predefined_type))))))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (literal_type
+                        (string
+                          (string_fragment)))))
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))))))))
+
+=================================================================================================
+types / narrowing / discriminant / discriminant guard keeps optional variants on the false branch
+=================================================================================================
+
+type Result = { kind?: "ok"; value: string } | { kind: "err"; error: string };
+
+const result: Result = { kind: "ok", value: "done" };
+if (result.kind == "ok") {
+    result satisfies { kind?: "ok"; value: string };
+} else {
+    result satisfies { kind?: "ok"; value: string } | { kind: "err"; error: string };
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))
+      (object_type
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment)))))
+        (property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (object_type
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (literal_type
+                      (string
+                        (string_fragment)))))
+                (property_signature
+                  (property_identifier)
+                  (type_annotation
+                    (predefined_type))))))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (literal_type
+                        (string
+                          (string_fragment)))))
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))
+                (object_type
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (literal_type
+                        (string
+                          (string_fragment)))))
+                  (property_signature
+                    (property_identifier)
+                    (type_annotation
+                      (predefined_type))))))))))))
+
+==================================================================================
+types / narrowing / discriminant / discriminant guard narrows through type aliases
+==================================================================================
+
+type Ok = { kind: "ok"; value: string };
+type Err = { kind: "err"; error: string };
+type Result = Ok | Err;
+
+const result: Result = { kind: "ok", value: "done" };
+if (result.kind == "ok") {
+    result satisfies Ok;
+} else {
+    result satisfies Err;
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment)))))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (union_type
+      (type_identifier)
+      (type_identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (if_expression
+      (binary_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (string
+          (string_fragment)))
+      (statement_block
+        (expression_statement
+          (satisfies_expression
+            (identifier)
+            (satisfies_type
+              (type_identifier)))))
+      (else_clause
+        (statement_block
+          (expression_statement
+            (satisfies_expression
+              (identifier)
+              (satisfies_type
+                (type_identifier)))))))))

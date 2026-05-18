@@ -1,0 +1,481 @@
+===================================================================
+types / classes / visibility / private fields reject outside access
+===================================================================
+
+class Counter {
+    private value: int32 = 0;
+
+    get(): int32 {
+        this.value
+    }
+}
+
+const counter = new Counter();
+const out = counter.value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (accessibility_modifier)
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))
+
+=============================================================================
+types / classes / visibility / private shorthand fields reject outside access
+=============================================================================
+
+class Counter {
+    #value: int32 = 0;
+
+    get(): int32 {
+        this.#value
+    }
+}
+
+const counter = new Counter();
+const out = counter.#value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (private_property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (private_property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (private_property_identifier)))))
+
+==========================================================================
+types / classes / visibility / private shorthand fields allow class access
+==========================================================================
+
+class Counter {
+    #value: int32 = 0;
+
+    get(): int32 {
+        this.#value
+    }
+}
+
+const counter = new Counter();
+const out = counter.get();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (private_property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (private_property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments)))))
+
+==============================================================================
+types / classes / visibility / private shorthand fields reject subclass access
+==============================================================================
+
+class Base {
+    #value: int32 = 0;
+}
+
+class Child extends Base {
+    get(): int32 {
+        this.#value
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (private_property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (private_property_identifier))))))))
+
+===========================================================================
+types / classes / visibility / private shorthand methods allow class access
+===========================================================================
+
+class Counter {
+    #next(): int32 {
+        1
+    }
+
+    get(): int32 {
+        this.#next()
+    }
+}
+
+const counter = new Counter();
+const out = counter.get();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (private_property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (number))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (this)
+                (private_property_identifier))
+              (arguments)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments)))))
+
+==============================================================================
+types / classes / visibility / private shorthand methods reject outside access
+==============================================================================
+
+class Counter {
+    #next(): int32 {
+        1
+    }
+}
+
+const counter = new Counter();
+const out = counter.#next();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (private_property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (private_property_identifier))
+        (arguments)))))
+
+=======================================================================
+types / classes / visibility / static private fields allow class access
+=======================================================================
+
+class Counter {
+    static #value: int32 = 1;
+
+    static get(): int32 {
+        Counter.#value
+    }
+}
+
+Counter.get() satisfies int32;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (private_property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (identifier)
+              (private_property_identifier)))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================================
+types / classes / visibility / static private fields reject outside access
+==========================================================================
+
+class Counter {
+    static #value: int32 = 1;
+}
+
+Counter.#value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (private_property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (expression_statement
+    (member_expression
+      (identifier)
+      (private_property_identifier))))
+
+=====================================================================
+types / classes / visibility / protected fields allow subclass access
+=====================================================================
+
+class Base {
+    protected value: int32 = 0;
+}
+
+class Child extends Base {
+    get(): int32 {
+        return this.value;
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (accessibility_modifier)
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (member_expression
+              (this)
+              (property_identifier))))))))
+
+=====================================================================
+types / classes / visibility / protected fields reject outside access
+=====================================================================
+
+class Base {
+    protected value: int32 = 0;
+}
+
+class Child extends Base {
+    get(): int32 {
+        return this.value;
+    }
+}
+
+const child = new Child();
+const out = child.value;
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (accessibility_modifier)
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (member_expression
+              (this)
+              (property_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (new_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (member_expression
+        (identifier)
+        (property_identifier)))))

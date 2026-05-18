@@ -1,0 +1,311 @@
+=====================================================
+types / utilities / omit / omit removes selected keys
+=====================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type WithoutAge = Omit<Person, "age">;
+
+const ok: WithoutAge = { name: "Ada" };
+ok satisfies WithoutAge;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+====================================================
+types / utilities / omit / omit rejects removed keys
+====================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type WithoutAge = Omit<Person, "age">;
+
+const bad: WithoutAge = { name: "Ada", age: 42 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number))))))
+
+===========================================================
+types / utilities / omit / omit with union keys removes all
+===========================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type WithoutAll = Omit<Person, "name" | "age">;
+
+const ok: WithoutAll = {};
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object))))
+
+======================================================================
+types / utilities / omit / omit with union keys rejects removed fields
+======================================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type WithoutAll = Omit<Person, "name" | "age">;
+
+const bad: WithoutAll = { name: "Ada" };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (union_type
+          (literal_type
+            (string
+              (string_fragment)))
+          (literal_type
+            (string
+              (string_fragment)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
+
+====================================================
+types / utilities / omit / omit ignores unknown keys
+====================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+type WithoutAge = Omit<Person, "missing">;
+
+const ok: WithoutAge = { name: "Ada", age: 42 };
+ok satisfies Person;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=============================================================
+types / utilities / omit / omit preserves readonly properties
+=============================================================
+
+interface Person {
+    readonly name: string;
+    age: number;
+}
+
+type NameOnly = Omit<Person, "age">;
+
+const person: NameOnly = { name: "Ada" };
+person.name = "Grace";
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (string
+        (string_fragment)))))

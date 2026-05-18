@@ -1,0 +1,217 @@
+=========================================================================
+types / newtypes / assignability / backing values do not satisfy newtypes
+=========================================================================
+
+newtype UserId = int64;
+
+const id: UserId = 42;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (number))))
+
+========================================================================
+types / newtypes / assignability / newtypes do not satisfy backing types
+========================================================================
+
+newtype UserId = int64;
+
+const raw: int64 = UserId(42);
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number))))))
+
+=============================================================
+types / newtypes / assignability / backing casts are explicit
+=============================================================
+
+newtype UserId = int64;
+
+const id = UserId(42);
+const raw = id as int64;
+raw satisfies int64;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (as_expression
+        (identifier)
+        (type_identifier))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================================
+types / newtypes / assignability / same newtype assigns to itself
+=================================================================
+
+newtype UserId = int64;
+
+const source = UserId(42);
+const target: UserId = source;
+target satisfies UserId;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==================================================================
+types / newtypes / assignability / distinct newtypes stay distinct
+==================================================================
+
+newtype UserId = int64;
+newtype OrderId = int64;
+
+const user = UserId(42);
+const order: OrderId = user;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+==================================================================
+types / newtypes / assignability / imported newtypes stay distinct
+==================================================================
+
+export newtype UserId = int64;
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (type_identifier))))
+
+==================================================================
+types / newtypes / assignability / imported newtypes stay distinct
+==================================================================
+
+export newtype UserId = int64;
+
+---
+
+(program
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (type_identifier))))
+
+==================================================================
+types / newtypes / assignability / imported newtypes stay distinct
+==================================================================
+
+import { UserId as LeftUserId } from "./left.ds";
+import { UserId as RightUserId } from "./right.ds";
+
+const id: LeftUserId = RightUserId(42);
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier)
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier)
+          (identifier))))
+    (string
+      (string_fragment)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (identifier)
+        (arguments
+          (number))))))

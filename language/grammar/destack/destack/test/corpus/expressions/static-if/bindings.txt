@@ -1,0 +1,51 @@
+===============================================================================
+expressions / static if / bindings / when false, @if removes const declarations
+===============================================================================
+
+@if(false)
+const hidden = missingSymbol;
+
+const visible = 1;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (false))
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (number))))
+
+===============================================================================
+expressions / static if / bindings / when true, @if includes const declarations
+===============================================================================
+
+@if(true)
+const value = 1;
+
+value satisfies number;
+
+---
+
+(program
+  (destack_static_if_statement
+    (destack_static_if_guard
+      (true))
+    (lexical_declaration
+      (variable_declarator
+        (destack_if_let_pattern
+          (identifier))
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

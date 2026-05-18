@@ -1,0 +1,521 @@
+========================================
+memory / rc / Rc can create weak handles
+========================================
+
+import * as rc from "destack:memory/rc";
+
+struct User {
+    name: string;
+}
+
+let owner = rc.Rc.new(^User { name: "Ada" });
+let weak = owner.downgrade();
+let upgraded = weak.upgrade();
+
+upgraded satisfies rc.Rc<User> | undefined;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (managed_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (generic_type
+            (nested_type_identifier
+              (identifier)
+              (type_identifier))
+            (type_arguments
+              (type_identifier)))))
+      (undefined))))
+
+===========================================
+memory / rc / Rc can build cyclic ownership
+===========================================
+
+import * as rc from "destack:memory/rc";
+
+struct Node {
+    parent: rc.Weak<Node>;
+}
+
+let node = rc.Rc.newCyclic((self) => ^Node { parent: self });
+
+node satisfies rc.Rc<Node>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (nested_type_identifier
+              (identifier)
+              (type_identifier))
+            (type_arguments
+              (type_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (managed_expression
+              (struct_literal_expression
+                (identifier)
+                (object
+                  (pair
+                    (property_identifier)
+                    (identifier))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (nested_type_identifier
+            (identifier)
+            (type_identifier))
+          (type_arguments
+            (type_identifier)))))))
+
+=========================================
+memory / rc / Rc can expose unique access
+=========================================
+
+import * as rc from "destack:memory/rc";
+
+struct User {
+    name: string;
+}
+
+let owner = rc.Rc.new(^User { name: "Ada" });
+let user = owner.getExclusive();
+
+user satisfies &exclusive User | undefined;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (managed_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (borrow_type
+            (type_identifier))))
+      (undefined))))
+
+=============================================
+memory / rc / Rc can recover unique ownership
+=============================================
+
+import { type Result } from "destack:error";
+import * as rc from "destack:memory/rc";
+
+struct User {
+    name: string;
+}
+
+let owner = rc.Rc.new(^User { name: "Ada" });
+let result = owner.tryUnwrap();
+
+result satisfies Result<^User, rc.Rc<User>>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (managed_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (managed_type
+              (type_identifier))
+            (generic_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier))
+              (type_arguments
+                (type_identifier)))))))))
+
+=========================================
+memory / rc / Arc can create weak handles
+=========================================
+
+import * as arc from "destack:memory/arc";
+
+struct User {
+    name: string;
+}
+
+let owner = arc.Arc.new(^User { name: "Ada" });
+let weak = owner.downgrade();
+let upgraded = weak.upgrade();
+
+upgraded satisfies arc.Arc<User> | undefined;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (managed_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (binary_expression
+      (satisfies_expression
+        (identifier)
+        (satisfies_type
+          (generic_type
+            (nested_type_identifier
+              (identifier)
+              (type_identifier))
+            (type_arguments
+              (type_identifier)))))
+      (undefined))))
+
+============================================
+memory / rc / Arc can build cyclic ownership
+============================================
+
+import * as arc from "destack:memory/arc";
+
+struct Node {
+    parent: arc.Weak<Node>;
+}
+
+let node = arc.Arc.newCyclic((self) => ^Node { parent: self });
+
+node satisfies arc.Arc<Node>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (nested_type_identifier
+              (identifier)
+              (type_identifier))
+            (type_arguments
+              (type_identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (arrow_function
+            (formal_parameters
+              (required_parameter
+                (identifier)))
+            (managed_expression
+              (struct_literal_expression
+                (identifier)
+                (object
+                  (pair
+                    (property_identifier)
+                    (identifier))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (nested_type_identifier
+            (identifier)
+            (type_identifier))
+          (type_arguments
+            (type_identifier)))))))
+
+=======================================
+memory / rc / Arc can pin shared owners
+=======================================
+
+import { type Pin } from "destack:memory";
+import * as arc from "destack:memory/arc";
+
+struct User {
+    name: string;
+}
+
+let owner = arc.Arc.pin(^User { name: "Ada" });
+
+owner satisfies Pin<arc.Arc<User>>;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (namespace_import
+        (identifier)))
+    (string
+      (string_fragment)))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (managed_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (string
+                    (string_fragment))))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (generic_type
+              (nested_type_identifier
+                (identifier)
+                (type_identifier))
+              (type_arguments
+                (type_identifier)))))))))

@@ -1,0 +1,793 @@
+====================================================================
+types / objects / assignability / object literal satisfies interface
+====================================================================
+
+interface Person {
+    name: string;
+}
+
+const person = { name: "Ada" };
+person satisfies Person;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================================
+types / objects / assignability / missing required field is not assignable
+==========================================================================
+
+interface Person {
+    name: string;
+    age: number;
+}
+
+const person = { name: "Ada" };
+person satisfies Person;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===============================================================
+types / objects / assignability / excess property reports error
+===============================================================
+
+interface Person {
+    name: string;
+}
+
+const person: Person = { name: "Ada", age: 42 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number))))))
+
+=======================================================================
+types / objects / assignability / extra fields allowed for non-literals
+=======================================================================
+
+interface Person {
+    name: string;
+}
+
+const raw = { name: "Ada", age: 42 };
+raw satisfies Person;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (pair
+          (property_identifier)
+          (number)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+================================================================
+types / objects / assignability / optional fields allow omission
+================================================================
+
+interface Person {
+    name?: string;
+}
+
+const person = {};
+person satisfies Person;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (object)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+===========================================================================
+types / objects / assignability / optional fields reject explicit undefined
+===========================================================================
+
+interface Target {
+    value?: number;
+}
+
+const value: Target = { value: undefined };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (undefined))))))
+
+================================================================================
+types / objects / assignability / optional fields are not assignable to required
+================================================================================
+
+interface Target {
+    name: string;
+}
+
+interface Source {
+    name?: string;
+}
+
+const source: Source = {};
+source satisfies Target;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================================
+types / objects / assignability / required fields are assignable to optional
+============================================================================
+
+interface Target {
+    name?: string;
+}
+
+interface Source {
+    name: string;
+}
+
+const source: Source = { name: "Ada" };
+source satisfies Target;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=========================================================================
+types / objects / assignability / assignment rejects optional to required
+=========================================================================
+
+interface Target {
+    name: string;
+}
+
+interface Source {
+    name?: string;
+}
+
+const source: Source = {};
+const target: Target = source;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+========================================================================
+types / objects / assignability / assignment allows required to optional
+========================================================================
+
+interface Target {
+    name?: string;
+}
+
+interface Source {
+    name: string;
+}
+
+const source: Source = { name: "Ada" };
+const target: Target = source;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (identifier))))
+
+===================================================================================
+types / objects / assignability / interface declarations merge in declaration files
+===================================================================================
+
+export interface Widget {
+    value: number;
+}
+
+export interface Widget {
+    label: string;
+}
+
+export const widget: Widget;
+
+---
+
+(program
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (destack_property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (export_statement
+    (interface_declaration
+      (type_identifier)
+      (interface_body
+        (destack_property_signature
+          (property_identifier)
+          (type_annotation
+            (predefined_type))))))
+  (export_statement
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier))))))
+
+===================================================================================
+types / objects / assignability / interface declarations merge in declaration files
+===================================================================================
+
+import { widget } from "./types.ds";
+
+widget.label satisfies string;
+widget.value satisfies number;
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (named_imports
+        (import_specifier
+          (identifier))))
+    (string
+      (string_fragment)))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (predefined_type)))))
+
+===============================================================================
+types / objects / assignability / duplicate interface names are rejected in .ds
+===============================================================================
+
+interface Duplicate {
+    value: number;
+}
+
+interface Duplicate {
+    label: string;
+}
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))
+
+=======================================================================
+types / objects / assignability / interface assignability is structural
+=======================================================================
+
+interface Named {
+    name: string;
+}
+
+interface Person {
+    name: string;
+}
+
+const person: Person = { name: "Ada" };
+person satisfies Named;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (destack_property_signature
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+================================================================================
+types / objects / assignability / nominal interface requires explicit implements
+================================================================================
+
+newtype interface Add<T> {
+    type Output;
+
+    add(other: T): this.Output;
+}
+
+struct Vec2 {
+    x: float32;
+    y: float32;
+
+    add(other: Vec2): Vec2 {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (associated_type_declaration
+        (type_identifier))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (binary_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (member_expression
+                      (identifier)
+                      (property_identifier))))
+                (pair
+                  (property_identifier)
+                  (binary_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (member_expression
+                      (identifier)
+                      (property_identifier)))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number)))))))
+
+===============================================================================
+types / objects / assignability / nominal interface accepts explicit implements
+===============================================================================
+
+newtype interface Add<T> {
+    type Output;
+
+    add(other: T): this.Output;
+}
+
+struct Vec2 {
+    x: float32;
+    y: float32;
+}
+
+extension of Vec2 implements Add<Vec2> {
+    type Output = Vec2;
+
+    add(other: Vec2): this.Output {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
+value.add(Vec2 { x: 2, y: 3 }) satisfies Vec2;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body
+      (associated_type_declaration
+        (type_identifier))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (type_identifier))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (binary_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (member_expression
+                      (identifier)
+                      (property_identifier))))
+                (pair
+                  (property_identifier)
+                  (binary_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (member_expression
+                      (identifier)
+                      (property_identifier)))))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (number))
+          (pair
+            (property_identifier)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (struct_literal_expression
+            (identifier)
+            (object
+              (pair
+                (property_identifier)
+                (number))
+              (pair
+                (property_identifier)
+                (number))))))
+      (satisfies_type
+        (type_identifier)))))

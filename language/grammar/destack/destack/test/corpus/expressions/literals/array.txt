@@ -1,0 +1,432 @@
+=================================================
+expressions / literals / array / array of numbers
+=================================================
+
+const x = [1, 2, 3];
+x satisfies number[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+=================================================
+expressions / literals / array / array of strings
+=================================================
+
+const x = ["a", "b", "c"];
+x satisfies string[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (string
+          (string_fragment))
+        (string
+          (string_fragment))
+        (string
+          (string_fragment)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+============================================
+expressions / literals / array / empty array
+============================================
+
+const x = [];
+x satisfies unknown[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+============================================
+expressions / literals / array / mixed array
+============================================
+
+const x = [1, "two", true];
+x satisfies (number | string | boolean)[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (string
+          (string_fragment))
+        (true))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (parenthesized_type
+            (union_type
+              (union_type
+                (predefined_type)
+                (predefined_type))
+              (predefined_type))))))))
+
+=========================================================
+expressions / literals / array / contextual array literal
+=========================================================
+
+const values: number[] = [1, 2, 3];
+values satisfies number[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (predefined_type)))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+==================================================================
+expressions / literals / array / contextual array literal mismatch
+==================================================================
+
+const values: number[] = [1, "two"];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (predefined_type)))
+      (array
+        (number)
+        (string
+          (string_fragment))))))
+
+===================================================================
+expressions / literals / array / contextual array literal via alias
+===================================================================
+
+type Numbers = number[];
+
+const values: Numbers = [1, 2, 3];
+values satisfies number[];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+========================================================================
+expressions / literals / array / contextual array literal alias mismatch
+========================================================================
+
+type Numbers = number[];
+
+const values: Numbers = [1, "two"];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (predefined_type)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (array
+        (number)
+        (string
+          (string_fragment))))))
+
+================================================================
+expressions / literals / array / contextual array spread literal
+================================================================
+
+const values: number[] = [...[1, 2]];
+values satisfies number[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (predefined_type)))
+      (array
+        (spread_element
+          (array
+            (number)
+            (number))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+=========================================================================
+expressions / literals / array / contextual array spread literal mismatch
+=========================================================================
+
+const values: number[] = [...[1, "two"]];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (predefined_type)))
+      (array
+        (spread_element
+          (array
+            (number)
+            (string
+              (string_fragment))))))))
+
+==============================================================
+expressions / literals / array / Array<T> matches array syntax
+==============================================================
+
+const values: Array<number> = [1, 2, 3];
+values satisfies number[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+==============================================================
+expressions / literals / array / array syntax matches Array<T>
+==============================================================
+
+const values: number[] = [1, 2, 3];
+values satisfies Array<number>;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (predefined_type)))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)))))))
+
+=====================================================================
+expressions / literals / array / array spread preserves element types
+=====================================================================
+
+const base = [1, 2];
+const values = [...base, 3];
+values satisfies number[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (spread_element
+          (identifier))
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (array_type
+          (predefined_type))))))
+
+==================================================================
+expressions / literals / array / index access returns element type
+==================================================================
+
+const values = [1, 2, 3];
+let value: number = values[0];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number)
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (subscript_expression
+        (identifier)
+        (number)))))
+
+======================================================
+expressions / literals / array / array length resolves
+======================================================
+
+const values = [1, 2, 3];
+values.length satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+================================================================
+expressions / literals / array / array push checks element types
+================================================================
+
+const values: number[] = [1, 2, 3];
+values.push("no");
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (predefined_type)))
+      (array
+        (number)
+        (number)
+        (number))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments
+        (string
+          (string_fragment))))))

@@ -1,0 +1,258 @@
+=============================================================
+memory / restrictions / noManaged rejects managed allocations
+=============================================================
+
+class Widget {
+    value: number = 0;
+}
+
+@noManaged
+function run(): void {
+    let value = new Widget();
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (number))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (new_expression
+            (call_expression
+              (identifier)
+              (arguments))))))))
+
+=====================================================
+memory / restrictions / noManaged allows owned values
+=====================================================
+
+struct Data {
+    value: int32;
+}
+
+@noManaged
+function run(): void {
+    let value = ^Data { value: 1 };
+    value.value;
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (managed_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (number)))))))
+      (expression_statement
+        (member_expression
+          (identifier)
+          (property_identifier))))))
+
+==========================================================
+memory / restrictions / noHeap rejects managed allocations
+==========================================================
+
+class Widget {
+    value: number = 0;
+}
+
+@noHeap
+function run(): void {
+    let value = new Widget();
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (number))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (new_expression
+            (call_expression
+              (identifier)
+              (arguments))))))))
+
+====================================================
+memory / restrictions / noHeap rejects allocator use
+====================================================
+
+@noHeap
+@allowUnsafe
+function run(): void {
+    let allocator = defaultAllocator();
+    let layout = AllocationLayout.new(64, 8);
+    let value = allocator.allocate(layout)?;
+}
+
+---
+
+(program
+  (function_declaration
+    (decorator
+      (identifier))
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (call_expression
+            (identifier)
+            (arguments))))
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments
+              (number)
+              (number)))))
+      (lexical_declaration
+        (variable_declarator
+          (destack_if_let_pattern
+            (identifier))
+          (try_propagation_expression
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (identifier)))))))))
+
+============================================================
+memory / restrictions / noManaged rejects managed parameters
+============================================================
+
+class Widget {
+    value: number = 0;
+}
+
+@noManaged
+function take(value: Widget): void {
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (number))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (predefined_type))
+    (statement_block)))
+
+=========================================================
+memory / restrictions / noManaged rejects managed returns
+=========================================================
+
+class Widget {
+    value: number = 0;
+}
+
+@noManaged
+function make(): Widget {
+    return new Widget();
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))
+        (number))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (new_expression
+          (call_expression
+            (identifier)
+            (arguments)))))))

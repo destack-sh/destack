@@ -1,0 +1,451 @@
+==================================================================
+types / any / erasure / interface parameters specialize by default
+==================================================================
+
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Buffer implements Writer {
+    write(bytes: [uint8]): uint {
+        bytes.length
+    }
+}
+
+declare const bytes: [uint8];
+
+function write(writer: Writer): uint {
+    writer.write(bytes)
+}
+
+write(Buffer {}) satisfies uint;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (identifier)
+              (property_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (identifier)
+        (arguments
+          (struct_literal_expression
+            (identifier)
+            (object))))
+      (satisfies_type
+        (type_identifier)))))
+
+======================================================================
+types / any / erasure / explicit generic parameters use the same model
+======================================================================
+
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Buffer implements Writer {
+    write(bytes: [uint8]): uint {
+        bytes.length
+    }
+}
+
+declare const bytes: [uint8];
+
+function write<W: Writer>(writer: W): uint {
+    writer.write(bytes)
+}
+
+write(Buffer {}) satisfies uint;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (identifier)
+              (property_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (identifier)
+        (arguments
+          (struct_literal_expression
+            (identifier)
+            (object))))
+      (satisfies_type
+        (type_identifier)))))
+
+============================================================
+types / any / erasure / any stores an erased interface value
+============================================================
+
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Logger {
+    writer: Any<Writer>;
+}
+
+declare const bytes: [uint8];
+declare const logger: Logger;
+
+logger.writer.write(bytes) satisfies uint;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (type_identifier)))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier))
+        (arguments
+          (identifier)))
+      (satisfies_type
+        (type_identifier)))))
+
+=====================================================================
+types / any / erasure / generic aggregates keep concrete field layout
+=====================================================================
+
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+struct Buffer implements Writer {
+    write(bytes: [uint8]): uint {
+        bytes.length
+    }
+}
+
+struct Logger<W: Writer> {
+    writer: W;
+}
+
+const logger = Logger<Buffer> { writer: Buffer {} };
+logger.writer satisfies Buffer;
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (identifier)
+              (property_identifier)))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (binary_expression
+        (binary_expression
+          (identifier)
+          (identifier))
+        (object
+          (pair
+            (property_identifier)
+            (struct_literal_expression
+              (identifier)
+              (object)))))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+==========================================================================
+types / any / erasure / empty any uses an explicit anonymous type argument
+==========================================================================
+
+declare const value: Any<type {}>;
+value satisfies Any<type {}>;
+
+---
+
+(program
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (anonymous_type_argument
+                (object_type))))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (anonymous_type_argument
+              (object_type))))))))
+
+=================================================
+types / any / erasure / unknown is not erased any
+=================================================
+
+newtype interface Writer {
+    write(bytes: [uint8]): uint;
+}
+
+declare const bytes: [uint8];
+declare const writer: Any<Writer>;
+declare const opaque: unknown;
+
+writer.write(bytes) satisfies uint;
+opaque.write(bytes);
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (tuple_type
+                (type_identifier)))))
+        (type_annotation
+          (type_identifier)))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (ambient_declaration
+    (ambient_const_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (predefined_type)))))
+  (expression_statement
+    (satisfies_expression
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (identifier)))
+      (satisfies_type
+        (type_identifier))))
+  (expression_statement
+    (call_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (arguments
+        (identifier)))))

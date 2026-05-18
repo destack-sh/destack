@@ -1,0 +1,98 @@
+========================================================================================
+types / intervals / constraints / interval constraints accept in-bounds static arguments
+========================================================================================
+
+struct InlineBuffer<T, comptime N: 0..=4096> {
+    storage: [T; N];
+}
+
+let buffer: InlineBuffer<uint8, 64>;
+buffer satisfies InlineBuffer<uint8, 64>;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (interval_type
+            (literal_type
+              (number))
+            (literal_type
+              (number))))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)
+            (literal_type
+              (number)))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)
+            (literal_type
+              (number))))))))
+
+============================================================================================
+types / intervals / constraints / interval constraints reject out-of-bounds static arguments
+============================================================================================
+
+struct InlineBuffer<T, comptime N: 0..=4096> {
+    storage: [T; N];
+}
+
+let buffer: InlineBuffer<uint8, 4097>;
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (interval_type
+            (literal_type
+              (number))
+            (literal_type
+              (number))))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)
+            (literal_type
+              (number))))))))

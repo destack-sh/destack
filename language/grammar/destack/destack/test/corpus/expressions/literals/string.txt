@@ -1,0 +1,185 @@
+================================================
+expressions / literals / string / string literal
+================================================
+
+const x: string = "hello";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string
+        (string_fragment)))))
+
+==============================================
+expressions / literals / string / empty string
+==============================================
+
+const x: string = "";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string))))
+
+====================================================
+expressions / literals / string / string with spaces
+====================================================
+
+const x: string = "hello world";
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string
+        (string_fragment)))))
+
+============================================================
+expressions / literals / string / string literals stay exact
+============================================================
+
+const x = "hello";
+x satisfies "hello";
+x satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+==================================================================
+expressions / literals / string / empty string literals stay exact
+==================================================================
+
+const x = "";
+x satisfies "";
+x satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string)))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (literal_type
+          (string)))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+================================================================
+expressions / literals / string / string does not satisfy number
+================================================================
+
+const x = "hello";
+x satisfies number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))
+
+========================================================
+expressions / literals / string / string length resolves
+========================================================
+
+const value = "hello";
+value.length satisfies int32;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (expression_statement
+    (satisfies_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (satisfies_type
+        (type_identifier)))))
+
+=============================================================
+expressions / literals / string / string toUpperCase resolves
+=============================================================
+
+const value = "hello";
+const text = value.toUpperCase();
+text satisfies string;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (predefined_type)))))

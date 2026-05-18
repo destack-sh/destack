@@ -1,0 +1,393 @@
+========================================================================
+types / classes / super / super calls accept base constructor parameters
+========================================================================
+
+class Base {
+    constructor(value: int32) {}
+}
+
+class Derived extends Base {
+    constructor() {
+        super(1);
+    }
+}
+
+new Derived();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments
+                (number))))))))
+  (expression_statement
+    (new_expression
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+=======================================================================
+types / classes / super / super calls accept implicit base constructors
+=======================================================================
+
+class Base {}
+
+class Derived extends Base {
+    constructor() {
+        super();
+    }
+}
+
+new Derived();
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments)))))))
+  (expression_statement
+    (new_expression
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+==================================================================
+types / classes / super / super calls check constructor parameters
+==================================================================
+
+class Base {
+    constructor(value: int32) {}
+}
+
+class Derived extends Base {
+    constructor() {
+        super("invalid");
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments
+                (string
+                  (string_fragment))))))))))
+
+=============================================================
+types / classes / super / super calls reject non-constructors
+=============================================================
+
+class Base {}
+
+class Derived extends Base {
+    update() {
+        super();
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments))))))))
+
+==========================================================
+types / classes / super / super calls require base classes
+==========================================================
+
+class Base {
+    constructor() {
+        super();
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments))))))))
+
+=============================================================
+types / classes / super / super calls reject nested functions
+=============================================================
+
+class Base {
+    constructor() {}
+}
+
+class Derived extends Base {
+    constructor() {
+        let invoke = () => {
+            super();
+        };
+
+        invoke();
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (lexical_declaration
+            (variable_declarator
+              (destack_if_let_pattern
+                (identifier))
+              (arrow_function
+                (formal_parameters)
+                (statement_block
+                  (expression_statement
+                    (call_expression
+                      (super)
+                      (arguments)))))))
+          (expression_statement
+            (call_expression
+              (identifier)
+              (arguments))))))))
+
+===========================================================
+types / classes / super / super calls reject static methods
+===========================================================
+
+class Base {
+    constructor() {}
+}
+
+class Derived extends Base {
+    static boot() {
+        super();
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (statement_block
+          (expression_statement
+            (call_expression
+              (super)
+              (arguments))))))))
+
+=============================================================
+types / classes / super / super rejects optional member calls
+=============================================================
+
+class Base {
+    value(): int32 {
+        1
+    }
+}
+
+class Derived extends Base {
+    inspectBase(): int32 | undefined {
+        super.value?.()
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (number))))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (undefined))))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (super)
+                (property_identifier))
+              (optional_chain)
+              (arguments))))))))
+
+=====================================================================
+types / classes / super / super member calls use base implementations
+=====================================================================
+
+class Base {
+    label(): "base" {
+        "base"
+    }
+}
+
+class Derived extends Base {
+    fromSuper(): "base" {
+        super.label()
+    }
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment))))
+        (statement_block
+          (expression_statement
+            (string
+              (string_fragment)))))))
+  (class_declaration
+    (type_identifier)
+    (class_heritage
+      (extends_clause
+        (identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment))))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (super)
+                (property_identifier))
+              (arguments))))))))

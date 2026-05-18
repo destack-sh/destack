@@ -1,0 +1,221 @@
+=================================================================
+types / convert / from / From converts into the implementing type
+=================================================================
+
+newtype UserId = string;
+
+extension of UserId implements From<string> {
+    static from(value: string): UserId {
+        return UserId(value);
+    }
+}
+
+const id = UserId.from("u_123");
+id satisfies UserId;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (predefined_type))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (identifier))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=================================================
+types / convert / from / Into is provided by From
+=================================================
+
+newtype UserId = string;
+
+extension of UserId implements From<string> {
+    static from(value: string): UserId {
+        return UserId(value);
+    }
+}
+
+const source = "u_123";
+const id: UserId = source.into();
+id satisfies UserId;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (predefined_type))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (identifier))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (expression_statement
+    (satisfies_expression
+      (identifier)
+      (satisfies_type
+        (type_identifier)))))
+
+=============================================================================
+types / convert / from / Into does not chain through intermediate conversions
+=============================================================================
+
+newtype UserId = string;
+newtype AccountId = UserId;
+
+extension of UserId implements From<string> {
+    static from(value: string): UserId {
+        return UserId(value);
+    }
+}
+
+extension of AccountId implements From<UserId> {
+    static from(value: UserId): AccountId {
+        return AccountId(value);
+    }
+}
+
+const source = "u_123";
+const id: AccountId = source.into();
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (predefined_type))
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (identifier))))))))
+  (extension_declaration
+    (relation_type
+      (type_identifier)
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (identifier))))))))
+  (lexical_declaration
+    (variable_declarator
+      (destack_if_let_pattern
+        (identifier))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments)))))
