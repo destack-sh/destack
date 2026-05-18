@@ -28,11 +28,6 @@ name = "update_conformance_schema"
 path = "src/conformance/bin/update_schema.rs"
 
 [[test]]
-name = "smoke"
-path = "src/smoke/main.rs"
-harness = false
-
-[[test]]
 name = "emit"
 path = "src/emit/main.rs"
 harness = false

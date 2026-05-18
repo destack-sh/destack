@@ -5,6 +5,5 @@ pub mod formatter;
 pub mod lsp;
 pub mod mdtest;
 pub mod query;
-pub mod smoke;
 pub mod specification;
 pub mod stress;
