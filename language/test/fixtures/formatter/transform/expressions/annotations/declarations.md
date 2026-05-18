@@ -64,13 +64,13 @@ Module declaration bodies are parsed and formatted.
 
 ```ds
 module {
-    tree: HtmlTree
+    const tree = HtmlTree
 }
 ```
 
 ```ds expected
 module {
-    tree: HtmlTree;
+    const tree = HtmlTree;
 }
 ```
 

@@ -36,9 +36,11 @@ user.debug() satisfies string;
 ### module derive providers run automatically
 
 ```ds
+import { Clone } from "destack:decorator";
+
 module {
-    derive: [Clone],
-};
+    const derive = [Clone];
+}
 
 struct User {
     id: int64;

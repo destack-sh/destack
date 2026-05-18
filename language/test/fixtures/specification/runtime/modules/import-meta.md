@@ -2,7 +2,7 @@
 
 ## metadata
 
-Module metadata available via `import.meta`.
+Profile and module metadata are available via `import.meta`.
 
 ### runtime is a known union
 
@@ -108,6 +108,30 @@ const dir: string | undefined = import.meta.dir;
 `import.meta.env` exposes configured string values.
 
 ```ds
-
 const value: string | undefined = import.meta.env.CUSTOM_KEY;
+```
+
+### module declarations extend import.meta
+
+```ds
+import { Clone, Debug } from "destack:decorator";
+import { HtmlTree } from "destack:ui/html";
+
+module {
+    const tree = HtmlTree;
+    const derive = [Clone, Debug];
+    const role = "server";
+    const labels = {
+        feature: ["search", "billing"],
+    };
+}
+
+import.meta.tree satisfies TreeTagBuilder;
+import.meta.derive satisfies readonly Macro<unknown>[];
+
+const role = import.meta.role;
+role satisfies "server";
+
+const features = import.meta.labels.feature;
+features satisfies readonly ["search", "billing"];
 ```
