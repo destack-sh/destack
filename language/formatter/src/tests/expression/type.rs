@@ -123,6 +123,20 @@ type B = T | {};
     );
 }
 
+/// Anonymous object generic type arguments should keep the explicit marker.
+#[test]
+fn test_format_type_object_generic_argument_marker() {
+    assert_format_program!(
+        r#"declare const value: Any<type {}>
+value satisfies Any<type {}>
+"#,
+        r#"declare const value: Any<type {}>;
+value satisfies Any<type {}>;
+"#,
+        FileType::Destack
+    );
+}
+
 /// Construct signatures should keep a space before parameters.
 #[test]
 fn test_format_type_construct_signature_spacing() {
