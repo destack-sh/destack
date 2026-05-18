@@ -17,9 +17,9 @@ export type StringMatch = RegExpMatch | readonly string[];
 /// Replacement value used by `String.replace` and `String.replaceAll`.
 export type StringReplacement = string | ((match: string, ...captures: (string | undefined)[]) => string);
 
-/// Borrowed UTF-8 string view.
-@languageItem("string.StringView")
-export newtype StringView = Slice<uint8>;
+/// Borrowed UTF-8 string slice.
+@languageItem("string.StringSlice")
+export newtype StringSlice = Slice<uint8>;
 
 /// Immutable UTF-8 string.
 @languageItem("string.String")
@@ -251,19 +251,19 @@ extension of String implements Default {
     }
 }
 
-extension of String implements Borrow<StringView> {
+extension of String implements Borrow<StringSlice> {
     /// Borrow this string as UTF-8 text.
-    borrow(this: &readonly string): &readonly StringView {
+    borrow(this: &readonly string): &readonly StringSlice {
         todo("String.borrow")
     }
 }
 
-extension of StringView implements ToOwned {
+extension of StringSlice implements ToOwned {
     /// The owned value type.
     type Owned = string;
 
-    /// Copy this view into an owned string.
-    toOwned(this: &readonly StringView): string {
-        todo("StringView.toOwned")
+    /// Copy this slice into an owned string.
+    toOwned(this: &readonly StringSlice): string {
+        todo("StringSlice.toOwned")
     }
 }

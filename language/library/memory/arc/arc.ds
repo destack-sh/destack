@@ -103,9 +103,9 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Arc.isUnique")
     }
 
-    /// Return whether this handle points to the same block as `other`.
-    ptrEq(other: Arc<T>): boolean {
-        todo("Arc.ptrEq")
+    /// Return whether this handle points to the same allocation as `other`.
+    pointerEquals(other: Arc<T>): boolean {
+        todo("Arc.pointerEquals")
     }
 
     /// Return the strong reference count.

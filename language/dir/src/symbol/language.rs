@@ -23,6 +23,15 @@ pub enum LanguageItemForm {
     Function,
 }
 
+macro_rules! language_item_key {
+    ($namespace:expr, $export:expr) => {
+        concat!($namespace, ".", $export)
+    };
+    ($namespace:expr, $export:expr, $key:literal) => {
+        $key
+    };
+}
+
 macro_rules! define_language_items {
     (
         $(
@@ -33,7 +42,12 @@ macro_rules! define_language_items {
                     $file_group:ident {
                         $(
                             $(#[$item_attr:meta])*
-                            $name:ident => ($form:ident, $module:literal, $export:literal),
+                            $name:ident => (
+                                $form:ident,
+                                $module:literal,
+                                $export:literal
+                                $(, $key:literal)?
+                            ),
                         )*
                     }
                 )*
@@ -74,7 +88,15 @@ macro_rules! define_language_items {
 
             /// Return the stable `@languageItem` key.
             pub fn key(&self) -> String {
-                format!("{}.{}", self.namespace(), self.export_name())
+                match self {
+                    $($($(Self::$name => {
+                        language_item_key!(
+                            stringify!($module_group),
+                            $export
+                            $(, $key)?
+                        ).to_string()
+                    },)*)*)*
+                }
             }
 
             /// Return the expected declaration form.
@@ -93,7 +115,7 @@ macro_rules! define_language_items {
 
         impl std::fmt::Display for LanguageItem {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}.{}", self.namespace(), self.export_name())
+                f.write_str(&self.key())
             }
         }
     };
@@ -154,6 +176,9 @@ define_language_items! {
         string {
             /// String class.
             String => (Class, "string/string", "String"),
+
+            /// Borrowed UTF-8 string slice.
+            StringSlice => (Newtype, "string/string", "StringSlice"),
         }
     }
 
@@ -381,10 +406,10 @@ define_language_items! {
         /// `destack:range/range`.
         range {
             /// Range endpoint.
-            Bound => (Newtype, "range/range", "Bound"),
+            Bound => (Newtype, "range/bound", "Bound"),
 
             /// Common range-bounds protocol.
-            RangeBounds => (NewtypeInterface, "range/range", "RangeBounds"),
+            RangeBounds => (NewtypeInterface, "range/bound", "RangeBounds"),
 
             /// Half-open range.
             Range => (Struct, "range/range", "Range"),
@@ -684,25 +709,25 @@ define_language_items! {
         /// `destack:memory/rc`.
         rc {
             /// Local reference-counted heap block.
-            RcInner => (Struct, "memory/rc/rc", "RcInner"),
+            RcInner => (Struct, "memory/rc/rc", "RcInner", "memory.rc.RcInner"),
 
             /// Local reference-counted ownership.
-            Rc => (Struct, "memory/rc/rc", "Rc"),
+            Rc => (Struct, "memory/rc/rc", "Rc", "memory.rc.Rc"),
 
             /// Weak local reference-counted handle.
-            RcWeak => (Struct, "memory/rc/weak", "Weak"),
+            RcWeak => (Struct, "memory/rc/weak", "Weak", "memory.rc.Weak"),
         }
 
         /// `destack:memory/arc`.
         arc {
             /// Shared reference-counted heap block.
-            ArcInner => (Struct, "memory/arc/arc", "ArcInner"),
+            ArcInner => (Struct, "memory/arc/arc", "ArcInner", "memory.arc.ArcInner"),
 
             /// Shared reference-counted ownership.
-            Arc => (Struct, "memory/arc/arc", "Arc"),
+            Arc => (Struct, "memory/arc/arc", "Arc", "memory.arc.Arc"),
 
             /// Weak shared reference-counted handle.
-            ArcWeak => (Struct, "memory/arc/weak", "Weak"),
+            ArcWeak => (Struct, "memory/arc/weak", "Weak", "memory.arc.Weak"),
         }
     }
 
