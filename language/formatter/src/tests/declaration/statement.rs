@@ -92,6 +92,22 @@ function osPathBytes(data: PathBytes): OsPath {
     );
 }
 
+/// Module decorators should stay above empty module declarations.
+#[test]
+fn test_format_module_declaration_decorators() {
+    assert_format_program!(
+        r#"@noManaged
+@noHeap
+module {}
+"#,
+        r#"@noManaged
+@noHeap
+module {}
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Final semicolons in value-capable blocks should preserve statement position.
 #[test]
 fn test_format_block_preserves_terminal_statement_semicolon() {

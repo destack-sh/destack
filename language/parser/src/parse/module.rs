@@ -6,19 +6,16 @@ use destack_dir::{
 };
 
 impl Parser {
-    /// Eat a module directive declaration.
-    pub(crate) fn eat_module_directive(
+    /// Eat a module declaration.
+    pub(crate) fn eat_module(
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         self.eat_identifier_str("module")?;
 
         self.eat_token(TokenType::OpenBrace)?;
-        let flags = self.flags.with_module_directive(true);
         let expressions = self
-            .with_flags(flags, |parser| {
-                parser.eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)
-            })
+            .eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)
             .for_node_type(NodeType::Block)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
@@ -31,7 +28,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_dir::{Declaration, Expression, ModuleDeclaration};
+    use destack_dir::{Declaration, Decorator, DecoratorPosition, Expression, ModuleDeclaration};
     use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node};
@@ -59,7 +56,7 @@ mod tests {
         let mut test = TestParser::new(
             r###"
 module {
-    tree: HtmlTree
+    const tree = HtmlTree
 }
 "###,
         );
@@ -72,6 +69,41 @@ module {
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Module(ModuleDeclaration { expressions }) => {
                 assert_eq!(expressions.len(), 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_module_declaration_decorators() {
+        let mut test = TestParser::new(
+            r###"
+@noManaged
+@noHeap
+module {}
+"###,
+        );
+        let mut parser = test.prepare();
+
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = expressions[0];
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Module(ModuleDeclaration { expressions }) => {
+                assert!(expressions.is_empty());
+
+                let decorators = parser.tree.get_decorators(declaration_id.id);
+                assert_eq!(decorators.len(), 2);
+
+                assert_node!(parser.tree, decorators[0], Decorator { expression, position } => {
+                    assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                    assert_expression_path!(parser, parser.tree.get(*expression), "noManaged");
+                });
+
+                assert_node!(parser.tree, decorators[1], Decorator { expression, position } => {
+                    assert_eq!(*position, DecoratorPosition::BlockPrefix);
+                    assert_expression_path!(parser, parser.tree.get(*expression), "noHeap");
+                });
             });
         });
     }
