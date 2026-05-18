@@ -131,6 +131,11 @@ pub fn pattern_subsumes_semantically(
                 && pattern_subsumes_semantically(ctx, left_inner, right_inner)
         }
 
+        (
+            dir::Pattern::DereferenceOf { right: left_inner },
+            dir::Pattern::DereferenceOf { right: right_inner },
+        ) => pattern_subsumes_semantically(ctx, left_inner, right_inner),
+
         _ => false,
     }
 }

@@ -135,7 +135,8 @@ pub fn collect_pattern_value_binding_symbols(
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
-        | dir::Pattern::MoveOf { right: inner, .. } => {
+        | dir::Pattern::MoveOf { right: inner, .. }
+        | dir::Pattern::DereferenceOf { right: inner } => {
             collect_pattern_value_binding_symbols(tree, symbols, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }

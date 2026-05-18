@@ -429,15 +429,26 @@ fn assignment_can_become_const_declaration(
 
 /// Return true when one pattern is a destructuring pattern.
 fn pattern_is_destructuring(tree: &dir::Tree, pattern_id: LocalNodeId<dir::Pattern>) -> bool {
-    !matches!(
-        tree.get(pattern_id),
+    match tree.get(pattern_id) {
+        dir::Pattern::Tuple { .. }
+        | dir::Pattern::TaggedTuple { .. }
+        | dir::Pattern::Sequence { .. }
+        | dir::Pattern::Object { .. }
+        | dir::Pattern::TaggedObject { .. } => true,
+        dir::Pattern::Assign { pattern, .. }
+        | dir::Pattern::Must(pattern)
+        | dir::Pattern::BorrowOf { right: pattern, .. }
+        | dir::Pattern::MoveOf { right: pattern, .. }
+        | dir::Pattern::DereferenceOf { right: pattern } => {
+            pattern_is_destructuring(tree, *pattern)
+        }
         dir::Pattern::Wildcard
-            | dir::Pattern::Must(_)
-            | dir::Pattern::BorrowOf { .. }
-            | dir::Pattern::MoveOf { .. }
-            | dir::Pattern::Binding { .. }
-            | dir::Pattern::Expression { .. }
-    )
+        | dir::Pattern::Binding { .. }
+        | dir::Pattern::Expression { .. }
+        | dir::Pattern::Range { .. }
+        | dir::Pattern::TypeExpression { .. }
+        | dir::Pattern::Union { .. } => false,
+    }
 }
 
 #[cfg(test)]

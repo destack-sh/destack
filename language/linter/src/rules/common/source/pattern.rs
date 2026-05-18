@@ -61,6 +61,9 @@ fn pattern_assignment_value_expression_id(
         | dir::Pattern::MoveOf {
             right: inner_pattern_id,
             ..
+        }
+        | dir::Pattern::DereferenceOf {
+            right: inner_pattern_id,
         } => pattern_assignment_value_expression_id(tree, *inner_pattern_id),
         dir::Pattern::Wildcard
         | dir::Pattern::Binding { pattern: None, .. }
@@ -97,6 +100,9 @@ pub fn pattern_expression_id(
         | dir::Pattern::MoveOf {
             right: inner_pattern_id,
             ..
+        }
+        | dir::Pattern::DereferenceOf {
+            right: inner_pattern_id,
         } => pattern_expression_id(ctx, *inner_pattern_id),
         _ => None,
     }
@@ -252,6 +258,12 @@ pub fn pattern_subsumes(
         ) => {
             left_mutability == right_mutability && pattern_subsumes(ctx, *left_inner, *right_inner)
         }
+
+        // dereference wrappers are comparable only when wrapper shape matches
+        (
+            dir::Pattern::DereferenceOf { right: left_inner },
+            dir::Pattern::DereferenceOf { right: right_inner },
+        ) => pattern_subsumes(ctx, *left_inner, *right_inner),
 
         _ => false,
     }

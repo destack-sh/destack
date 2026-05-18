@@ -109,10 +109,11 @@ fn binds_anything(ctx: &LintModuleContext<'_>, pattern_id: dir::LocalNodeId<dir:
         // union patterns bind if any arm binds
         dir::Pattern::Union { patterns } => patterns.iter().any(|p| binds_anything(ctx, *p)),
 
-        // reference/value patterns bind if inner binds
+        // stack access patterns bind if the inner pattern binds
         dir::Pattern::Must(inner)
         | dir::Pattern::BorrowOf { right: inner, .. }
-        | dir::Pattern::MoveOf { right: inner, .. } => binds_anything(ctx, *inner),
+        | dir::Pattern::MoveOf { right: inner, .. }
+        | dir::Pattern::DereferenceOf { right: inner } => binds_anything(ctx, *inner),
     }
 }
 
