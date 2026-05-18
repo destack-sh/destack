@@ -176,19 +176,19 @@ for (const Some(value, meta) of items) {
 }
 ```
 
-### for with nested tagged destructuring
+### for with nested newtype destructuring
 
-Nested tagged patterns in for-of headers break with the header.
+Nested newtype patterns in for-of headers break with the header.
 
 ```ds line-width=80
-for (const Shape.Line { start: Point { x, y }, end } of lines) { draw(start, end) }
+for (const Shape.Line({ start: Point { x, y }, end }) of lines) { draw(start, end) }
 ```
 
 ```ds expected
-for (const Shape.Line {
+for (const Shape.Line({
     start: Point { x, y },
     end,
-} of lines) {
+}) of lines) {
     draw(start, end);
 }
 ```

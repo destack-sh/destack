@@ -58,16 +58,16 @@ function sum(point: Point): float32 {
 
 ## object newtype patterns
 
-### object newtype patterns require tags
+### object newtype patterns unwrap object payloads
 
-Object newtypes require tagged object patterns.
+Object newtypes use the newtype wrapper pattern around an object pattern.
 
 ```ds
 newtype Config = { debug: boolean };
 
 function read(config: Config): boolean {
     match (config) {
-        Config { debug } => {
+        Config({ debug }) => {
             debug satisfies boolean;
             debug
         }

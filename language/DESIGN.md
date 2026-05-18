@@ -378,8 +378,8 @@ extension of Shape {
     
     variant() {
         match (this) {
-            Shape.Rectangle { ... } => "rectangle"
-            Shape.Circle { ... } => "circle"
+            Shape.Rectangle({ width, height }) => "rectangle"
+            Shape.Circle({ radius }) => "circle"
         }
     }
 }
@@ -947,7 +947,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Array, slice, fixed array | `[head, ...tail]` | destructure indexed elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
 | Struct | `Point { x, y }` | destructure a nominal struct |
-| Newtype | `UserId(value)` | unwrap a nominal newtype |
+| Newtype | `UserId(value)`, `Config({ debug })` | unwrap a nominal newtype |
 | Enum | `State.Ready` | match a nominal enum variant |
 | Union | `0 | 1 | 2` | accept any listed pattern |
 | Rest | `...tail` | collect the remaining elements or fields |
@@ -955,6 +955,9 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Must | `value!` | bind the non-nullish value |
 | Ownership | `^value`, `&value` | bind an owned or borrowed view |
 | Guard | `pattern if (condition)` | require an extra boolean condition |
+
+Object-backed newtypes still use the wrapper pattern around the object pattern.
+`Config({ debug })` unwraps a `Config` newtype, while `Config { debug }` is reserved for nominal struct and variant object patterns.
 
 For exhaustive pattern matching, Destack supports the `match` expression:
 

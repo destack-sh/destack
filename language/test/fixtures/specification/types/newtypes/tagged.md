@@ -28,8 +28,8 @@ newtype AppError = { kind: "missing"; path: string } | { kind: "denied"; code: i
 const error = AppError.Missing({ path: "config.json" });
 
 match (error) {
-    AppError { kind: "missing", path } => path satisfies string
-    AppError { kind: "denied", code } => code satisfies int32
+    AppError.Missing({ path }) => path satisfies string
+    AppError.Denied({ code }) => code satisfies int32
 }
 ```
 

@@ -399,32 +399,32 @@ const Result.Ok(Point { x, y }, meta) = result
 const Result.Ok(Point { x, y }, meta) = result;
 ```
 
-### nested tagged object destructuring
+### nested newtype object destructuring
 
-Nested tagged object fields break as a single pattern when they exceed the line width.
+Nested newtype object fields break as a single pattern when they exceed the line width.
 
 ```ds line-width=80
-const Shape.Line { start: Point { x, y }, end } = line
+const Shape.Line({ start: Point { x, y }, end }) = line
 ```
 
 ```ds expected
-const Shape.Line {
+const Shape.Line({
     start: Point { x, y },
     end,
-} = line;
+}) = line;
 ```
 
-### nested tagged destructuring with comments
+### nested newtype destructuring with comments
 
-Comments inside nested tagged fields stay attached to their bindings.
+Comments inside nested newtype fields stay attached to their bindings.
 
 ```ds
-const Shape.Line { start: Point { x: /* x */ x, y: /* y */ y }, end } = line
+const Shape.Line({ start: Point { x: /* x */ x, y: /* y */ y }, end }) = line
 ```
 
 ```ds expected
-const Shape.Line {
+const Shape.Line({
     start: Point { x: /* x */ x, y: /* y */ y },
     end,
-} = line;
+}) = line;
 ```

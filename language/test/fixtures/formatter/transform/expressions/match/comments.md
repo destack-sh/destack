@@ -52,21 +52,21 @@ match (value) {
 }
 ```
 
-### tagged object patterns
+### newtype object patterns
 
-Tagged object patterns keep aliases, defaults, rest fields, and guards structured.
+Newtype object patterns keep aliases, defaults, rest fields, and guards structured.
 
 ```ds
-match (shape) { Shape.Point { x, y: renamed = 0, ...rest } if (renamed > 0) => x + renamed; Shape.Line { start: Point { x, y }, end } => x + y; _ => 0 }
+match (shape) { Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed; Shape.Line({ start: Point { x, y }, end }) => x + y; _ => 0 }
 ```
 
 ```ds expected
 match (shape) {
-    Shape.Point { x, y: renamed = 0, ...rest } if (renamed > 0) => x + renamed
-    Shape.Line {
+    Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed
+    Shape.Line({
         start: Point { x, y },
         end,
-    } => x + y
+    }) => x + y
     _ => 0
 }
 ```
