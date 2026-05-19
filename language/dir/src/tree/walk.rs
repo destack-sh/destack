@@ -394,7 +394,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         | TypeExpression::Shared { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Must { target_type }
-        | TypeExpression::AsComptime { target_type }
         | TypeExpression::Not { target_type }
         | TypeExpression::OwnedOf {
             mutability: _,

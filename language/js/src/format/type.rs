@@ -217,9 +217,6 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
             TypeExpression::Must { target_type } => {
                 write!(f, [target_type, token("!")])?;
             }
-            TypeExpression::AsComptime { target_type } => {
-                write!(f, [target_type, space(), token("as comptime")])?;
-            }
             TypeExpression::Not { target_type } => {
                 write!(f, [token("!"), target_type])?;
             }

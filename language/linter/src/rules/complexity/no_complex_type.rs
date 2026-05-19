@@ -115,7 +115,6 @@ fn type_expression_complexity_inner(
             | TypeExpression::KeyOf { .. }
             | TypeExpression::TypeOfValue { .. }
             | TypeExpression::Must { .. }
-            | TypeExpression::AsComptime { .. }
             | TypeExpression::Not { .. }
             | TypeExpression::OwnedOf { .. }
             | TypeExpression::BorrowedOf { .. }
@@ -263,7 +262,6 @@ fn type_expression_complexity_inner(
         | TypeExpression::Shared { target_type: left }
         | TypeExpression::KeyOf { target_type: left }
         | TypeExpression::Must { target_type: left }
-        | TypeExpression::AsComptime { target_type: left }
         | TypeExpression::Not { target_type: left }
         | TypeExpression::OwnedOf {
             target_type: left, ..

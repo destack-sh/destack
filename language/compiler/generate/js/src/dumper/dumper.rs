@@ -1489,9 +1489,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::TypeExpression::Must { target_type: _ } => {
                 self.node("js::TypeExpression::Must", id.id).end();
             }
-            js::TypeExpression::AsComptime { target_type: _ } => {
-                self.node("js::TypeExpression::AsComptime", id.id).end();
-            }
             js::TypeExpression::Not { target_type: _ } => {
                 self.node("js::TypeExpression::Not", id.id).end();
             }

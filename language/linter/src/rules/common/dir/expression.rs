@@ -238,7 +238,6 @@ pub fn type_expression_contains_reference_segment(
         | dir::TypeExpression::Shared { target_type }
         | dir::TypeExpression::KeyOf { target_type }
         | dir::TypeExpression::Must { target_type }
-        | dir::TypeExpression::AsComptime { target_type }
         | dir::TypeExpression::Not { target_type }
         | dir::TypeExpression::OwnedOf {
             target_type,

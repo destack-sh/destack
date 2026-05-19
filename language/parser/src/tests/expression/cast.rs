@@ -272,19 +272,6 @@ fn test_parse_as_const_records_semantic_head_span() {
     });
 }
 
-/// Parse type unary postfix as comptime operation.
-#[test]
-fn test_parse_type_unary_postfix_as_comptime_expression() {
-    let mut test = TestParser::new("Value as comptime");
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    // Value as comptime
-    assert_node!(parser.tree, expr_id, Expression::Comptime { body } => {
-        assert_expression_path!(parser, parser.tree.get(*body), "Value");
-    });
-}
-
 /// Parse comparisons against members on an identifier named `as`.
 #[test]
 fn test_parse_comparison_with_as_identifier_member_access() {

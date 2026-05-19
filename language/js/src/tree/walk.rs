@@ -1457,7 +1457,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Readonly { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Must { target_type }
-        | TypeExpression::AsComptime { target_type }
         | TypeExpression::Not { target_type } => {
             let target_type_node = tree.get(*target_type);
             visitor.visit_type_expression(tree, *target_type, target_type_node);

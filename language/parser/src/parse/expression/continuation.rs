@@ -1,7 +1,7 @@
 use crate::parse::parser::ParserFlags;
 use crate::{ParseError, ParseResult, Parser, ParserCheckpoint, ParserSpanStart};
 
-use super::operator::{ParseInfixOperator, TypeBinaryOperator, TypeUnaryOperator};
+use super::operator::{ParseInfixOperator, TypeBinaryOperator};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfCondition, IfForm, Key,
@@ -104,26 +104,6 @@ impl InfixRightKind {
 }
 
 impl Parser {
-    /// Eat one postfix `as comptime` operator and return its span when present.
-    fn eat_as_comptime_postfix_operator_maybe(&mut self) -> ParseResult<Option<Span>> {
-        let Some(operator) = self.peek_type_unary_postfix_operator_maybe() else {
-            return Ok(None);
-        };
-
-        let operator_start = self.span_start();
-        self.bump(); // eat type unary operator
-        if operator == TypeUnaryOperator::AsComptime {
-            self.bump(); // eat second token
-        }
-        let operator_span = self.get_span_from(&operator_start);
-
-        if operator != TypeUnaryOperator::AsComptime {
-            return Err(ParseError::unexpected(operator_span));
-        }
-
-        Ok(Some(operator_span))
-    }
-
     /// Return one continuation token at the current parser position.
     fn next_continuation_token_maybe(&mut self) -> Option<ContinuationToken> {
         let token = self.current_token();
@@ -999,26 +979,13 @@ impl Parser {
         Ok(Some(member_id))
     }
 
-    /// Eat one value-space postfix `?` or `as comptime` continuation.
+    /// Eat one value-space postfix `?` continuation.
     fn eat_value_postfix_operator_continuation(
         &mut self,
         start: &ParserSpanStart,
         left_expression_id: LocalNodeId<Expression>,
         is_destack_language: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        // `value as comptime`
-        if let Some(operator_span) = self.eat_as_comptime_postfix_operator_maybe()? {
-            let expression_id = self.insert_node(
-                Expression::Comptime {
-                    body: left_expression_id,
-                },
-                self.get_span_from(start),
-            );
-            self.tree.set_main_span(expression_id, operator_span);
-
-            return Ok(Some(expression_id));
-        }
-
         if !self.peek_is(TokenType::Maybe) {
             return Ok(None);
         }
@@ -1110,25 +1077,12 @@ impl Parser {
         })
     }
 
-    /// Eat one type-space postfix `!` or `as comptime` continuation.
-    fn eat_type_postfix_operator_continuation(
+    /// Eat one type-space postfix `!` continuation.
+    fn eat_type_must_postfix_continuation(
         &mut self,
         start: &ParserSpanStart,
         left_type_id: LocalNodeId<TypeExpression>,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
-        // `T as comptime`
-        if let Some(operator_span) = self.eat_as_comptime_postfix_operator_maybe()? {
-            let expression_id = self.insert_node(
-                TypeExpression::AsComptime {
-                    target_type: left_type_id,
-                },
-                self.get_span_from(start),
-            );
-            self.tree.set_main_span(expression_id, operator_span);
-
-            return Ok(Some(expression_id));
-        }
-
         if !self.peek_is(TokenType::Not) {
             return Ok(None);
         }
@@ -1350,13 +1304,12 @@ impl Parser {
                 self.try_eat_value_postfix_generic_application(start, left_expression_id, position)
             }
 
-            // postfix `?` and `as comptime`
-            TokenType::Identifier | TokenType::Maybe => self
-                .eat_value_postfix_operator_continuation(
-                    start,
-                    left_expression_id,
-                    self.language.is_destack(),
-                ),
+            // postfix `?`
+            TokenType::Maybe => self.eat_value_postfix_operator_continuation(
+                start,
+                left_expression_id,
+                self.language.is_destack(),
+            ),
 
             // direct must postfix
             TokenType::Not => {
@@ -1414,10 +1367,8 @@ impl Parser {
                 self.try_eat_type_postfix_generic_application(start, left_type_id, position)
             }
 
-            // postfix `as comptime` and direct must postfix
-            TokenType::Identifier | TokenType::Not => {
-                self.eat_type_postfix_operator_continuation(start, left_type_id)
-            }
+            // direct must postfix
+            TokenType::Not => self.eat_type_must_postfix_continuation(start, left_type_id),
 
             // done
             _ => Ok(None),

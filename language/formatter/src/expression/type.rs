@@ -73,7 +73,6 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
-        | TypeExpression::AsComptime { .. }
         | TypeExpression::Range { .. }
         | TypeExpression::Not { .. }
         | TypeExpression::OwnedOf { .. }
@@ -106,7 +105,6 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
-        | TypeExpression::AsComptime { .. }
         | TypeExpression::Not { .. }
         | TypeExpression::OwnedOf { .. }
         | TypeExpression::BorrowedOf { .. }
@@ -1587,9 +1585,7 @@ fn type_parent_requires_parentheses(
         | TypeExpression::PointerOf { target_type, .. } => {
             *target_type == child_id && type_needs_prefix_operand_parentheses(context, child_id)
         }
-        TypeExpression::Must { target_type } | TypeExpression::AsComptime { target_type } => {
-            *target_type == child_id
-        }
+        TypeExpression::Must { target_type } => *target_type == child_id,
 
         // value space typeof keeps its own precedence
         TypeExpression::TypeOfValue { .. } => false,
@@ -1807,7 +1803,6 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
-        | TypeExpression::AsComptime { .. }
         | TypeExpression::Not { .. }
         | TypeExpression::OwnedOf { .. }
         | TypeExpression::BorrowedOf { .. }
@@ -2679,18 +2674,6 @@ pub(crate) fn write_type_expression_body<'ast>(
         }
         TypeExpression::Must { target_type } => {
             write!(f, [target_type, token("!")])?;
-        }
-        TypeExpression::AsComptime { target_type } => {
-            write!(
-                f,
-                [
-                    target_type,
-                    space(),
-                    token("as"),
-                    space(),
-                    Keyword::Comptime
-                ]
-            )?;
         }
         TypeExpression::Not { target_type } => {
             write!(f, [token("!"), target_type])?;

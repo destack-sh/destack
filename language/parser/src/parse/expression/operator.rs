@@ -34,8 +34,6 @@ pub(crate) enum TypeUnaryOperator {
     Shared,
     /// `!T`
     Not,
-    /// `T as comptime`
-    AsComptime,
 }
 
 impl TypeUnaryOperator {
@@ -49,7 +47,6 @@ impl TypeUnaryOperator {
             TypeUnaryOperator::Local => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Shared => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Not => TYPE_UNARY_PRECEDENCE + 3,
-            TypeUnaryOperator::AsComptime => TYPE_UNARY_PRECEDENCE + 2,
         }
     }
 
@@ -380,32 +377,6 @@ impl Parser {
         }
 
         Some(operator)
-    }
-
-    /// Peek a type unary postfix operator.
-    #[inline]
-    pub(crate) fn peek_type_unary_postfix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
-        let token = *self.peek().ok()?;
-        if token.token.ty != TokenType::Identifier {
-            return None;
-        }
-
-        let token_str = self.get_span_str(token.span);
-        if token_str != "as" {
-            return None;
-        }
-
-        // allow `as comptime` across line breaks
-        let next_token = self.next_token();
-        if next_token.token.ty != TokenType::Identifier {
-            return None;
-        }
-
-        let next_keyword = self.next_keyword();
-        match next_keyword {
-            Some(Keyword::Comptime) => Some(TypeUnaryOperator::AsComptime),
-            _ => None,
-        }
     }
 
     /// Peek an assign operator.
