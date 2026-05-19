@@ -19,17 +19,6 @@ pub(super) struct Scanner {
     previous: char,
 }
 
-/// Snapshot of scanner state for speculative parsing.
-#[derive(Debug, Clone)]
-pub(super) struct ScannerSnapshot {
-    /// The current head byte position.
-    position: usize,
-    /// The byte position where the current token started.
-    token_start: usize,
-    /// The most recently consumed character.
-    previous: char,
-}
-
 impl Scanner {
     /// Create a scanner for one file.
     pub(super) fn new(file: Arc<File>) -> Self {
@@ -169,39 +158,5 @@ impl Scanner {
                 self.position = self.text().len();
             }
         }
-    }
-
-    /// Position the scanner to re-read a token from one byte offset.
-    #[inline]
-    pub(super) fn start_re_lex(&mut self, start: usize, previous: char) {
-        self.position = start + previous.len_utf8();
-        self.token_start = start;
-        self.previous = previous;
-    }
-
-    /// Position the scanner after a one-byte re-lexed token.
-    #[inline]
-    pub(super) fn finish_one_byte_re_lex(&mut self, start: usize, previous: char) {
-        self.position = start + previous.len_utf8();
-        self.token_start = self.position;
-        self.previous = previous;
-    }
-
-    /// Return one scanner snapshot.
-    #[inline]
-    pub(super) fn snapshot(&self) -> ScannerSnapshot {
-        ScannerSnapshot {
-            position: self.position,
-            token_start: self.token_start,
-            previous: self.previous,
-        }
-    }
-
-    /// Restore one scanner snapshot.
-    #[inline]
-    pub(super) fn restore(&mut self, snapshot: ScannerSnapshot) {
-        self.position = snapshot.position;
-        self.token_start = snapshot.token_start;
-        self.previous = snapshot.previous;
     }
 }

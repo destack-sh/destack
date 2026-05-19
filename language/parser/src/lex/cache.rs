@@ -58,18 +58,6 @@ pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
 }
 
 impl Lexer {
-    /// Return the current semantic tokens.
-    #[inline]
-    pub fn tokens(&self) -> &[TokenSpan] {
-        &self.tokens
-    }
-
-    /// Return whether side trivia buffers are retained.
-    #[inline]
-    pub fn retains_trivia_tokens(&self) -> bool {
-        self.retain_trivia_tokens
-    }
-
     /// Enable or disable side trivia retention before lexing begins.
     #[inline]
     pub fn set_retain_trivia_tokens(&mut self, retain_trivia_tokens: bool) {
@@ -80,96 +68,10 @@ impl Lexer {
         self.retain_trivia_tokens = retain_trivia_tokens;
     }
 
-    /// Return the current side tokens.
-    #[inline]
-    pub fn side_tokens(&self) -> &[TokenSpan] {
-        &self.side_tokens
-    }
-
     /// Take trivia comments collected during lexing.
     #[inline]
     pub(crate) fn take_trivia_comments(&mut self) -> Vec<TriviaComment> {
         self.trivia.take_comments()
-    }
-
-    /// Return true once EOF has been reached.
-    #[inline]
-    pub fn is_finished(&self) -> bool {
-        self.is_finished
-    }
-
-    /// Allow or disallow tree literal lexing.
-    #[inline]
-    pub fn set_allow_tree_literals(&mut self, allow: bool) {
-        self.options.allow_tree_literals = allow;
-    }
-
-    /// Enable or disable tree attribute-value string lexing for the next token.
-    #[inline]
-    pub fn set_tree_attribute_value(&mut self, enabled: bool) {
-        self.options.in_tree_attribute_value = enabled;
-    }
-
-    /// Return true when tree literal lexing is enabled.
-    #[inline]
-    pub fn allow_tree_literals(&self) -> bool {
-        self.options.allow_tree_literals
-    }
-
-    /// Read the next semantic token from the current lexer cursor.
-    pub fn next_token(&mut self) -> TokenSpan {
-        let token_index = self.tokens.len();
-
-        while !self.is_finished && self.tokens.len() <= token_index {
-            self.lex_next();
-        }
-
-        if let Some(token) = self.tokens.get(token_index) {
-            return *token;
-        }
-
-        if let Some(token) = self.eof_token {
-            return token;
-        }
-
-        panic!("lexer must produce an eof token after finishing");
-    }
-
-    /// Lex the next token as a tree child token.
-    pub fn next_tree_child(&mut self) -> TokenSpan {
-        let start = self.position() as u32;
-        let token = self.advance_tree_child();
-        let token_span = TokenSpan {
-            token,
-            span: Span {
-                file: self.file_id(),
-                start,
-                end: start + token.len,
-            },
-        };
-
-        if is_semantic(token.ty) {
-            self.push_semantic_token(token_span);
-        } else {
-            let has_line_terminator = self.side_token_had_line_terminator();
-            self.push_side_token(token_span, has_line_terminator);
-        }
-
-        if token.ty == TokenType::End {
-            self.is_finished = true;
-            self.eof_token = Some(token_span);
-        }
-
-        token_span
-    }
-
-    /// Replace the current stream-tail token after tokenization refines its kind.
-    pub fn replace_current_token(&mut self, token_span: TokenSpan) {
-        let token = self
-            .tokens
-            .last_mut()
-            .expect("current stream-tail token must exist");
-        *token = token_span;
     }
 
     /// Get the EOF token, lexing until the end if needed.
@@ -280,25 +182,10 @@ impl Lexer {
             .with_on_new_line(self.pending_line_terminator_before_next);
         self.tokens.push(token_span);
         self.pending_line_terminator_before_next = false;
-        if token_span.token.ty == TokenType::At {
-            self.has_at = true;
-        }
         if self.retain_trivia_tokens && token_span.token.ty != TokenType::End {
             self.attachable_semantic_token_count += 1;
         }
 
         self.trivia.handle_token(token_span);
-    }
-
-    /// Return true when any trivia comments were collected.
-    #[inline]
-    pub fn has_comment_tokens(&self) -> bool {
-        self.trivia.has_comments()
-    }
-
-    /// Return true when attachable semantic tokens were seen.
-    #[inline]
-    pub fn has_attachable_semantic_tokens(&self) -> bool {
-        self.attachable_semantic_token_count > 0
     }
 }

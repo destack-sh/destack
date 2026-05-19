@@ -3,24 +3,24 @@ use std::sync::Arc;
 use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::Lexer;
 use destack_dir::{
-    NumberBase, Token, TokenLiteral, TokenSpan, TokenType, is_identifier_continue,
+    Comment, NumberBase, Token, TokenLiteral, TokenSpan, TokenType, is_identifier_continue,
     is_identifier_start, is_whitespace,
 };
 
 use destack_source::{File, LanguageType};
 use destack_unicode::UnicodeEmoji;
 
-/// Result of lexing with additional flags.
+/// Result of lexing one complete source file.
 #[derive(Debug)]
 pub struct LexResult {
     /// The semantic tokens (identifiers, keywords, literals, operators).
     pub tokens: Vec<TokenSpan>,
     /// The non-semantic tokens (whitespace, comments).
     pub side_tokens: Vec<TokenSpan>,
+    /// The structured comments collected during lexing.
+    pub comments: Vec<Comment>,
     /// The end-of-file token.
     pub eof_token: TokenSpan,
-    /// Whether an `@` token was seen.
-    pub has_at: bool,
 }
 
 pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
@@ -124,64 +124,6 @@ fn is_ascii_non_newline_whitespace_byte(byte: u8) -> bool {
 }
 
 impl Lexer {
-    /// Parses one tree child token from the current source position.
-    pub(crate) fn advance_tree_child(&mut self) -> Token {
-        self.last_side_token_had_line_terminator = false;
-
-        // tree child text is the hot path between structural delimiters
-        if let Some(token) = self.try_eat_tree_text() {
-            if is_semantic(token.ty) {
-                self.options.in_tree_attribute_value = false;
-            }
-
-            return token;
-        }
-
-        let Some(first_char) = self.eat() else {
-            return Token::new(TokenType::End, 0, None);
-        };
-
-        let (token_type, literal) = match first_char {
-            '<' => (TokenType::LessThan, None),
-            '{' => {
-                self.options.parentheses_depth += 1;
-                (TokenType::OpenBrace, None)
-            }
-            '&' => {
-                if let Some(html_entity_token) = self.try_eat_html_entity() {
-                    html_entity_token
-                } else {
-                    self.eat_tree_text_after_ampersand();
-                    (TokenType::Literal, Some(TokenLiteral::TreeString))
-                }
-            }
-            '>' => (TokenType::GreaterThan, None),
-            '}' => {
-                self.options.parentheses_depth -= 1;
-                (TokenType::CloseBrace, None)
-            }
-            _ => {
-                while !self.is_end() {
-                    let c = self.peek();
-                    if matches!(c, '<' | '{' | '}' | '>' | '&') {
-                        break;
-                    }
-                    self.eat();
-                }
-
-                (TokenType::Literal, Some(TokenLiteral::TreeString))
-            }
-        };
-
-        if is_semantic(token_type) {
-            self.options.in_tree_attribute_value = false;
-        }
-
-        let token = Token::new(token_type, self.token_len(), literal);
-        self.reset_token_start();
-        token
-    }
-
     /// Return whether `.e` or `.E` starts a decimal exponent after a dot.
     #[inline]
     fn dot_starts_decimal_exponent(&self) -> bool {
@@ -198,24 +140,40 @@ impl Lexer {
         file: Arc<File>,
         language: LanguageType,
     ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
-        let result = Self::lex_with_flags(file, language);
+        let result = Self::lex_file(file, language);
         (result.tokens, result.side_tokens, result.eof_token)
     }
 
-    /// Lex the input string and return extra flags.
-    pub fn lex_with_flags(file: Arc<File>, language: LanguageType) -> LexResult {
+    /// Lex the input string and return token buffers.
+    pub fn lex_file(file: Arc<File>, language: LanguageType) -> LexResult {
         let mut lexer = Lexer::new(file, language);
-        lexer.lex_to_end();
+        lexer.lex_to_result()
+    }
 
-        let eof_token = lexer.eof_token();
-        let has_at = lexer.has_at;
-        let (tokens, side_tokens) = lexer.take_tokens();
+    /// Lex the input string with trivia retention configured.
+    pub fn lex_with_options(
+        file: Arc<File>,
+        language: LanguageType,
+        retain_trivia_tokens: bool,
+    ) -> LexResult {
+        let mut lexer = Lexer::new(file, language);
+        lexer.set_retain_trivia_tokens(retain_trivia_tokens);
+        lexer.lex_to_result()
+    }
+
+    /// Finish lexing and extract the stream buffers.
+    fn lex_to_result(&mut self) -> LexResult {
+        self.lex_to_end();
+
+        let eof_token = self.eof_token();
+        let comments = self.take_trivia_comments();
+        let (tokens, side_tokens) = self.take_tokens();
 
         LexResult {
             tokens,
             side_tokens,
+            comments,
             eof_token,
-            has_at,
         }
     }
 
@@ -710,48 +668,6 @@ impl Lexer {
         let token = Token::new(token_type, self.token_len(), literal);
         self.reset_token_start();
         token
-    }
-
-    fn try_eat_html_entity(&mut self) -> Option<(TokenType, Option<TokenLiteral>)> {
-        let rest = self.remaining_text();
-        let semicolon_idx = rest.find(';')?;
-        if semicolon_idx == 0 {
-            return None;
-        }
-
-        let entity_data = &rest.as_bytes()[..semicolon_idx];
-        if entity_data.is_empty()
-            || entity_data.iter().any(|byte| {
-                !matches!(
-                    byte,
-                    b'#' | b'x' | b'X' | b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z'
-                )
-            })
-        {
-            return None;
-        }
-
-        let start = self.position().saturating_sub(1);
-        let end = self.position() + semicolon_idx + 1;
-        let source = self.source_text();
-        if end > source.len() {
-            return None;
-        }
-
-        let entity_slice = &source[start..end];
-        let _ = decode_html_entity(entity_slice)?;
-
-        for _ in 0..=semicolon_idx {
-            self.eat();
-        }
-
-        Some((
-            TokenType::Literal,
-            Some(TokenLiteral::Character {
-                is_terminated: true,
-                is_html_entity: true,
-            }),
-        ))
     }
 
     /// Eat ascii identifier continuation bytes.
@@ -1323,54 +1239,6 @@ impl Lexer {
         false
     }
 
-    /// Parses a regex string (excluding first `/`, including any flags after `/`).
-    /// Works exactly like modern regex literals.
-    pub(super) fn eat_regex_string(&mut self) -> bool {
-        debug_assert!(self.previous() == '/');
-        let mut escaped = false;
-        let mut in_character_class = false;
-
-        // match until next '/' outside character classes
-        while let Some(c) = self.eat() {
-            if escaped {
-                escaped = false;
-                continue;
-            }
-
-            if c == '\\' {
-                escaped = true;
-                continue;
-            }
-
-            if in_character_class {
-                if c == ']' {
-                    in_character_class = false;
-                }
-                continue;
-            }
-
-            if c == '[' {
-                in_character_class = true;
-                continue;
-            }
-
-            if c == '/' {
-                break;
-            }
-        }
-        // flags are are any alpha characters immediately after the last '/'
-        let mut has_flags = false;
-        loop {
-            if self.peek().is_ascii_alphabetic() {
-                has_flags = true;
-                self.eat();
-            } else {
-                break;
-            }
-        }
-        has_flags
-    }
-
     /// Parse a template string (excluding first backtick).
     /// Returns whether the template ended before `${`.
     fn eat_template_string(&mut self) -> bool {
@@ -1509,57 +1377,6 @@ impl Lexer {
         }
 
         (false, has_line_terminator)
-    }
-
-    /// Tries to eat tree literal text content.
-    /// Returns a Literal token with TreeString type if there's text content.
-    /// Text content ends at `<`, `{`, or `&` (for HTML entities).
-    fn try_eat_tree_text(&mut self) -> Option<Token> {
-        // peek at what's coming - don't eat yet
-        let first = self.peek();
-
-        // these characters start other tokens, not text
-        // `&` may start an HTML entity, so let advance() handle it
-        if matches!(first, '<' | '>' | '{' | '}' | '&' | '\0') {
-            return None;
-        }
-
-        // eat characters until we hit a boundary
-        self.eat(); // consume first character
-
-        while !self.is_end() {
-            let c = self.peek();
-            match c {
-                // boundaries: start of tag, expression container, or potential html entity
-                '<' | '>' | '{' | '}' | '&' => break,
-                _ => {
-                    self.eat();
-                }
-            }
-        }
-
-        // always produce a token for consumed text
-        // the parser will normalize and trim whitespace as needed for tree strings
-        let token = Token::new(
-            TokenType::Literal,
-            self.token_len(),
-            Some(TokenLiteral::TreeString),
-        );
-        self.reset_token_start();
-        Some(token)
-    }
-
-    /// Eat tree literal text starting from an already consumed `&`.
-    fn eat_tree_text_after_ampersand(&mut self) {
-        while !self.is_end() {
-            let c = self.peek();
-            match c {
-                '<' | '>' | '{' | '&' => break,
-                _ => {
-                    self.eat();
-                }
-            }
-        }
     }
 }
 
