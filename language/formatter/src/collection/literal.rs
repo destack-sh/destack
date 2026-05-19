@@ -469,7 +469,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
             TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
-            TypeLiteral::Intrinsic(_) => write!(f, [token("intrinsic")]),
+            TypeLiteral::BuiltinTypeFunction(_) => write!(f, [token("intrinsic")]),
         }?;
 
         Ok(())
