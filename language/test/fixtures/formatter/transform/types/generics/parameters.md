@@ -2,6 +2,28 @@
 
 ## Type Parameter Constraints and Defaults
 
+### const and variance modifiers
+
+Type parameter modifiers keep their declaration order.
+
+```ts
+function id< const T , U >(value: T): T { return value }
+class Box< out T , const U > {
+    method< const V , in W >(value: V): V { return value }
+}
+```
+
+```ts expected
+function id<const T, U>(value: T): T {
+    return value;
+}
+class Box<out T, const U> {
+    method<const V, in W>(value: V): V {
+        return value;
+    }
+}
+```
+
 ### long type parameter constraints and defaults break cleanly
 
 Long generic constraints and defaults break cleanly under non-default formatter options.
