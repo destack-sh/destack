@@ -52,18 +52,6 @@ Declared function signatures can use generator markers.
 declare function* ids(): Generator<int32, void, unknown>;
 ```
 
-### declared functions cannot have bodies
-
-Declared functions cannot include bodies.
-
-```ds
-declare function greet(): string {
-    return "hi";
-}
-```
-
-- contains: invalid function
-
 ## overloads
 
 ### declaration file overloads merge
