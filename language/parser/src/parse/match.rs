@@ -388,7 +388,9 @@ impl Parser {
         }
         // single expression
         else {
-            let expression_id = self.try_eat_expression_until_statement_boundary()?;
+            let expression_id = self.with_flags(self.flags.in_match_case_body(), |parser| {
+                parser.try_eat_expression_until_statement_boundary()
+            })?;
             let match_case_id = self.insert_node(
                 MatchCase::Expression {
                     selector,
@@ -426,8 +428,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_dir::{
-        Block, CommentKind, Declarator, Expression, LetKind, MatchCase, MatchForm, MatchSelector,
-        Mutability, NodeType, Pattern, ScalarLiteral,
+        BinaryOperator, Block, CommentKind, Declarator, Expression, LetKind, MatchCase, MatchForm,
+        MatchSelector, Mutability, NodeType, Pattern, PatternField, ScalarLiteral,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -565,6 +567,51 @@ match (x) {
 
                 // body: 20
                 assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(20)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_match_tuple_guard_with_comparison() {
+        let mut test = TestParser::new(
+            r###"
+match (pair) {
+    (_, count) if (count > 0) => count
+    _ => 0
+}
+"###,
+        );
+        let mut parser = test.prepare();
+
+        let match_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value: _, cases } => {
+            assert_eq!(cases.len(), 2);
+
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+                assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
+                    assert_eq!(fields.len(), 2);
+
+                    assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                        assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+                    });
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name: _, is_shorthand, pattern } => {
+                        assert!(*is_shorthand);
+                        assert!(pattern.is_none());
+                    });
+                });
+
+                let guard_id = guard.expect("expected guard");
+                assert_node!(parser.tree, guard_id, Expression::Binary { left, operator: BinaryOperator::GreaterThan, right } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "count");
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                });
+                assert_expression_path!(parser, parser.tree.get(*body), "count");
+            });
+
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+                assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
             });
         });
     }

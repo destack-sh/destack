@@ -150,6 +150,10 @@ impl Parser {
 
         // some postfix forms may cross a newline, but only for specific tokens
         if token.has_line_break_before {
+            if self.flags.is_in_match_case_body() {
+                return None;
+            }
+
             let can_continue_after_newline = match space {
                 PostfixSpace::Value => {
                     // tree literal starters own newline led `<...` in value space
@@ -1892,7 +1896,7 @@ impl Parser {
             }
 
             // statement expressions do not continue across line breaks
-            if left_is_statement && has_line_break_before {
+            if has_line_break_before && (left_is_statement || self.flags.is_in_match_case_body()) {
                 break;
             }
 
