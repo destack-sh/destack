@@ -167,3 +167,107 @@ select(ok ? left : right, fallback);
           (identifier)
           (identifier))
         (identifier)))))
+
+================================================================================
+If let must patterns bind non-nullish values
+:language(destack)
+================================================================================
+
+declare const value: int32 | null;
+
+if (let x! = value) {
+    x satisfies int32;
+} else {
+    value satisfies null;
+}
+
+
+
+---
+
+(program
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (null)))))))
+  (if_statement
+    (if_let_condition
+      (if_let_pattern
+        (match_pattern
+          (must_pattern
+            (match_pattern
+              (identifier)))))
+      (identifier))
+    (statement_block
+      (value_satisfies_statement
+        (identifier)
+        (type_identifier)))
+    (else_clause
+      (statement_block
+        (value_satisfies_statement
+          (identifier)
+          (literal_type
+            (null)))))))
+
+=================================================================================
+If let union patterns narrow covered literals
+:language(destack)
+=================================================================================
+
+declare const value: 1 | 2 | 3;
+
+if (let 1 | 2 = value) {
+    value satisfies 1 | 2;
+} else {
+    value satisfies 3;
+}
+
+
+
+---
+
+(program
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (union_type
+              (literal_type
+                (number))
+              (literal_type
+                (number)))
+            (literal_type
+              (number)))))))
+  (if_statement
+    (if_let_condition
+      (if_let_pattern
+        (match_pattern
+          (union_pattern
+            (match_pattern
+              (literal_type
+                (number)))
+            (match_pattern
+              (literal_type
+                (number))))))
+      (identifier))
+    (statement_block
+      (value_satisfies_statement
+        (identifier)
+        (union_type
+          (literal_type
+            (number))
+          (literal_type
+            (number)))))
+    (else_clause
+      (statement_block
+        (value_satisfies_statement
+          (identifier)
+          (literal_type
+            (number)))))))

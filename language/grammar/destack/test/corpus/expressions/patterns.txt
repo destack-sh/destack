@@ -1,0 +1,71 @@
+==============================================================
+Object defaults bind aliases
+:language(destack)
+==============================================================
+
+let { name: displayName = "Ada" } = {};
+displayName satisfies string;
+
+
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (object_pattern
+        (pair_pattern
+          (property_identifier)
+          (assignment_pattern
+            (identifier)
+            (string
+              (string_fragment)))))
+      (object)))
+  (value_satisfies_statement
+    (identifier)
+    (predefined_type)))
+
+==========================================================================
+Dereference patterns bind pointers
+:language(destack)
+==========================================================================
+
+match (value) {
+    *pointer => pointer
+}
+
+---
+
+(program
+  (expression_statement
+    (match_expression
+      (identifier)
+      (match_arm
+        (match_pattern
+          (memory_pattern
+            (match_pattern
+              (identifier))))
+        (expression_statement
+          (identifier))))))
+
+======================================================
+Let else parses
+:language(destack)
+======================================================
+
+let Some(value) = maybe else {
+    return none;
+};
+
+---
+
+(program
+  (let_else_statement
+    left: (match_constructor_pattern
+      name: (identifier)
+      (match_pattern
+        (identifier)))
+    right: (identifier)
+    alternative: (statement_block
+      (return_statement
+        (identifier)))))

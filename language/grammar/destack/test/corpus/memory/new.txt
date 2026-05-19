@@ -1,0 +1,45 @@
+=========================================================
+Address expression can create raw pointers
+:language(destack)
+=========================================================
+
+class Widget {
+    value: int32 = 0;
+}
+
+let box = new Widget();
+let pointer: *Widget = &box;
+
+pointer satisfies *Widget;
+
+
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (number))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (new_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (identifier))))
+  (value_satisfies_statement
+    (identifier)
+    (memory_type
+      (type_identifier))))

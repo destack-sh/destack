@@ -15,7 +15,7 @@ let 1 = value else {};
     (statement_block)))
 
 ==============
-Loop statement
+Loop expression
 :language(destack)
 ==============
 
@@ -24,7 +24,7 @@ loop {}
 ---
 
 (program
-  (loop_statement
+  (loop_expression
     (statement_block)))
 
 ================

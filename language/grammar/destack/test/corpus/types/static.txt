@@ -1,0 +1,42 @@
+=======================================================
+Static parameters size arrays
+:language(destack)
+=======================================================
+
+type Lane<comptime N: uint> = [uint8; N * 2];
+
+declare const lane: Lane<4>;
+lane satisfies [uint8; 8];
+
+
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (tuple_type
+      (type_identifier)
+      (static_value_argument
+        (identifier)
+        (number))))
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (literal_type
+                (number))))))))
+  (value_satisfies_statement
+    (identifier)
+    (tuple_type
+      (type_identifier)
+      (number))))

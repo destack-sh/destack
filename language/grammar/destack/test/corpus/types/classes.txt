@@ -677,3 +677,27 @@ class Value implements !Disposable {}
         (negated_implements_type
           (type_identifier))))
     (class_body)))
+
+=====================================================
+Placeholder methods parse
+:language(destack)
+=====================================================
+
+class Generated {
+    run(): void { ... }
+}
+
+
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (placeholder_block)))))

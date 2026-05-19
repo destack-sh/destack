@@ -1,0 +1,20 @@
+==================================================================
+Decorators apply to statements
+:language(destack)
+==================================================================
+
+@trace
+const decorated = 1;
+
+
+
+---
+
+(program
+  (decorated_statement
+    (decorator
+      (identifier))
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (number)))))

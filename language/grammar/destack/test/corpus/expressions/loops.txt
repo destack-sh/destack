@@ -1,0 +1,90 @@
+==========================================================
+Labeled loop break is allowed
+:language(destack)
+==========================================================
+
+let value: void = outer: loop {
+    break outer;
+};
+
+
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      type: (type_annotation
+        (predefined_type))
+      value: (labeled_loop_initializer
+        label: (statement_identifier)
+        value: (loop_expression
+          body: (statement_block
+            (break_statement
+              label: (statement_identifier))))))))
+
+===========================================================
+Break values disambiguate labels
+:language(destack)
+===========================================================
+
+const labeled = loop {
+  break outer;
+};
+
+const value = loop {
+  break (outer);
+};
+
+const labeledValue = loop {
+  break outer: 1;
+};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (loop_expression
+        body: (statement_block
+          (break_statement
+            label: (statement_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (loop_expression
+        body: (statement_block
+          (break_statement
+            value: (parenthesized_expression
+              (identifier)))))))
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (loop_expression
+        body: (statement_block
+          (break_statement
+            label: (statement_identifier)
+            value: (number)))))))
+
+================================================================
+For in statement parses
+:language(destack)
+================================================================
+
+for value in values {
+    value;
+}
+
+
+
+---
+
+(program
+  (for_in_binding_statement
+    (identifier)
+    (identifier)
+    (statement_block
+      (expression_statement
+        (identifier)))))

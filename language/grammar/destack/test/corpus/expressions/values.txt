@@ -1,0 +1,76 @@
+======================================================
+Expression node smoke parses
+:language(destack)
+======================================================
+
+const a = if (flag) { 1 } else { 2 };
+const b = match (value) { x = 1 => x _ => 0 };
+const c = 1..10;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (if_expression
+        (parenthesized_expression
+          (identifier))
+        (statement_block
+          (expression_statement
+            (number)))
+        (statement_block
+          (expression_statement
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (match_expression
+        (identifier)
+        (match_arm
+          (match_pattern
+            (default_pattern
+              (match_pattern
+                (identifier))
+              (literal_type
+                (number))))
+          (expression_statement
+            (identifier)))
+        (match_arm
+          (match_pattern
+            (identifier))
+          (expression_statement
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (range_expression
+        (number)
+        (number)))))
+
+=================================================
+Do expression parses
+:language(destack)
+=================================================
+
+const value = do {
+    let base = 1;
+    base + 2
+};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (do_expression
+        body: (statement_block
+          (lexical_declaration
+            (variable_declarator
+              name: (identifier)
+              value: (number)))
+          (expression_statement
+            (binary_expression
+              left: (identifier)
+              right: (number))))))))

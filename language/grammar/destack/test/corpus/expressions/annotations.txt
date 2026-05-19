@@ -122,3 +122,64 @@ class C {
         (property_identifier)
         (formal_parameters)
         (statement_block)))))
+
+============================================================================
+Move capture can capture explicit owned values
+:language(destack)
+============================================================================
+
+struct Packet {
+    sequence: int32;
+}
+
+function run(): () => int32 {
+    let packet = ^Packet { sequence: 1 };
+
+    // explicit owned values move the same way
+    @capture("move")
+    return () => packet.sequence;
+}
+
+
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (function_type
+        (formal_parameters)
+        (type_identifier)))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (memory_expression
+            (struct_literal_expression
+              (identifier)
+              (object
+                (pair
+                  (property_identifier)
+                  (number)))))))
+      (comment)
+      (expression_statement
+        (annotation_call_expression
+          (identifier)
+          (arguments
+            (string
+              (string_fragment)))))
+      (return_statement
+        (arrow_function
+          (formal_parameters)
+          (member_expression
+            (identifier)
+            (property_identifier)))))))

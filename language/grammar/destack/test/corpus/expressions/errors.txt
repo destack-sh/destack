@@ -169,3 +169,64 @@ match (value) {
             (identifier)))
         (expression_statement
           (number))))))
+
+=======================================================
+Catch match binds errors
+:language(destack)
+=======================================================
+
+declare function read(): Result<int, string>;
+
+const value = try {
+    read()?;
+    1
+} catch match (failure) {
+    error => {
+        error satisfies string;
+        0
+    }
+};
+value satisfies int;
+
+
+
+---
+
+(program
+  (declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (try_expression
+        (try_expression
+          (statement_block
+            (expression_statement
+              (try_propagation_expression
+                (call_expression
+                  (identifier)
+                  (arguments))))
+            (expression_statement
+              (number)))
+          (catch_match_clause
+            (identifier)
+            (match_arm
+              (match_pattern
+                (identifier))
+              (match_arm_statement
+                (statement_block
+                  (value_satisfies_statement
+                    (identifier)
+                    (predefined_type))
+                  (expression_statement
+                    (number))))))))))
+  (value_satisfies_statement
+    (identifier)
+    (type_identifier)))

@@ -73,3 +73,47 @@ enum Style {
         (binary_expression
           (identifier)
           (identifier))))))
+
+====================================================
+Enum statics expose values
+:language(destack)
+====================================================
+
+enum Status {
+    Active = 1,
+    Inactive = 2,
+
+    static Default = Status.Active;
+}
+
+const value = Status.Default;
+value satisfies Status;
+
+
+
+---
+
+(program
+  (enum_declaration
+    (identifier)
+    (enum_body
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_static_field
+        (property_identifier)
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (member_expression
+        (identifier)
+        (property_identifier))))
+  (value_satisfies_statement
+    (identifier)
+    (type_identifier)))
