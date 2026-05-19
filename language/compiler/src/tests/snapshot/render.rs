@@ -249,10 +249,10 @@ impl<'a> SnapshotRenderer<'a> {
     /// Return row ordering rank inside one table.
     fn entry_rank(entry: &str) -> u8 {
         match entry {
-            "scope" => 0,
-            "parameters" => 1,
-            "parameter" => 2,
-            "symbol" => 3,
+            "symbol" => 0,
+            "scope" => 1,
+            "parameters" => 2,
+            "parameter" => 3,
             "static" => 4,
             "node" => 5,
             "entry" => 6,

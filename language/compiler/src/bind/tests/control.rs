@@ -25,18 +25,18 @@ let output: number = if (let Some(value) = maybe) {
         r#"
 for (let index: number = 0; index < 10; index = index + 1) {
 /// @binding.scope scope=scope2 kind=block parent=<module>@1
-/// @binding.symbol name=index#1 role=local form=variable scope=scope2@0 mutability=mutable
+/// @binding.symbol key=index#1 role=local form=variable scope=scope2@0 mutability=mutable
 /// @binding.scope scope=scope3 kind=block parent=scope2@1
 
     let index: number = index;
-    /// @binding.symbol name=index#2 role=local form=variable scope=scope3@0 mutability=mutable
+    /// @binding.symbol key=index#2 role=local form=variable scope=scope3@0 mutability=mutable
 
 }
 
 let output: number = if (let Some(value) = maybe) {
-/// @binding.symbol name=output role=local form=variable scope=<module>@1 mutability=mutable
+/// @binding.symbol key=output role=local form=variable scope=<module>@1 mutability=mutable
 /// @binding.scope scope=scope4 kind=block parent=<module>@1
-/// @binding.symbol name=value role=local form=variable scope=scope4@0
+/// @binding.symbol key=value role=local form=variable scope=scope4@0
 /// @binding.scope scope=scope5 kind=block parent=scope4@1
 
     value
@@ -45,7 +45,7 @@ let output: number = if (let Some(value) = maybe) {
 
     0
 };
-/// @binding.symbol name=<module> role=namespace form=variable scope=<module>@end
+/// @binding.symbol key=<module> role=namespace form=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
@@ -71,7 +71,7 @@ let x: number = x;
         r#"
 let x: number = 1;
 /// @binding.node node=expression scope=<module>@1 source="let x: number = 1"
-/// @binding.symbol name=x#1 role=local form=variable scope=<module>@1 mutability=mutable
+/// @binding.symbol key=x#1 role=local form=variable scope=<module>@1 mutability=mutable
 /// @binding.node node=declarator scope=<module>@1 source="x: number = 1"
 /// @binding.node node=pattern scope=<module>@2 source=x
 /// @binding.node node=type_expression scope=<module>@1 source=number
@@ -79,12 +79,12 @@ let x: number = 1;
 
 let x: number = x;
 /// @binding.node node=expression scope=<module>@2 source="let x: number = x"
-/// @binding.symbol name=x#2 role=local form=variable scope=<module>@2 mutability=mutable
+/// @binding.symbol key=x#2 role=local form=variable scope=<module>@2 mutability=mutable
 /// @binding.node node=declarator scope=<module>@2 source="x: number = x"
 /// @binding.node node=pattern scope=<module>@3 source=x
 /// @binding.node node=type_expression scope=<module>@2 source=number
 /// @binding.node node=expression scope=<module>@2 source=x
-/// @binding.symbol name=<module> role=namespace form=variable scope=<module>@end
+/// @binding.symbol key=<module> role=namespace form=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 

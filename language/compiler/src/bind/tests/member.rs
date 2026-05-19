@@ -29,24 +29,24 @@ interface Reader<T> {
         compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 struct User<T> {
-/// @binding.symbol name=User role=namespace form=struct scope=<module>@1
+/// @binding.symbol key=User role=namespace form=struct scope=<module>@1
 /// @binding.scope scope=User kind=namespace parent=<module>@2 owner=User
-/// @binding.symbol name=T#1 role=local form=type_alias scope=User@0
+/// @binding.symbol key=T#1 role=local form=type_alias scope=User@0
 
     id: string;
-    /// @binding.symbol name=id role=item form=variable scope=User@1
+    /// @binding.symbol key=id role=item form=variable scope=User@1
 
     type Id = string;
-    /// @binding.symbol name=Id role=item form=type_alias scope=User@2
+    /// @binding.symbol key=Id role=item form=type_alias scope=User@2
     /// @binding.scope scope=Id kind=type parent=User@3 owner=Id
 
     static defaultName: string = "guest";
-    /// @binding.symbol name=defaultName role=item form=variable scope=User@3
+    /// @binding.symbol key=defaultName role=item form=variable scope=User@3
 
     rename(name: string): User<T> {
-    /// @binding.symbol name=rename role=item form=function scope=User@4
+    /// @binding.symbol key=rename role=item form=function scope=User@4
     /// @binding.scope scope=rename kind=function parent=User@5 owner=rename
-    /// @binding.symbol name=name role=local form=variable scope=rename@0
+    /// @binding.symbol key=name role=local form=variable scope=rename@0
     /// @binding.scope scope=scope5 kind=block parent=rename@1
 
         this;
@@ -54,21 +54,21 @@ struct User<T> {
 }
 
 interface Reader<T> {
-/// @binding.symbol name=Reader role=namespace form=interface scope=<module>@2
+/// @binding.symbol key=Reader role=namespace form=interface scope=<module>@2
 /// @binding.scope scope=Reader kind=namespace parent=<module>@3 owner=Reader
-/// @binding.symbol name=T#2 role=local form=type_alias scope=Reader@0
+/// @binding.symbol key=T#2 role=local form=type_alias scope=Reader@0
 
     read(value: T): Result<T>;
-    /// @binding.symbol name=read role=item form=function scope=Reader@1
+    /// @binding.symbol key=read role=item form=function scope=Reader@1
     /// @binding.scope scope=read kind=function parent=Reader@2 owner=read
-    /// @binding.symbol name=value role=local form=variable scope=read@0
+    /// @binding.symbol key=value role=local form=variable scope=read@0
 
     type Item = T;
-    /// @binding.symbol name=Item role=item form=type_alias scope=Reader@2
+    /// @binding.symbol key=Item role=item form=type_alias scope=Reader@2
     /// @binding.scope scope=Item kind=type parent=Reader@3 owner=Item
 
 }
-/// @binding.symbol name=<module> role=namespace form=variable scope=<module>@end
+/// @binding.symbol key=<module> role=namespace form=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
