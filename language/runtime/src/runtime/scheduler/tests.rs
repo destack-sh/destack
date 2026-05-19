@@ -34,7 +34,7 @@ fn runtime_options_with_clock_source(source: ClockSource) -> RuntimeOptions {
 #[test]
 fn test_tick_executes_one_task() {
     // create runtime state with one queued task
-    let mut runtime = TestRuntime::new();
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.enqueue_task_native(7, 1, 0);
 
     // execute one tick and verify one resume
@@ -50,7 +50,7 @@ fn test_tick_executes_one_task() {
 #[test]
 fn test_tick_until_idle_drains_yielded_tasks() {
     // create runtime state with one queued task
-    let mut runtime = TestRuntime::new();
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.enqueue_task_native(11, 9, 0);
 
     // run ticks until the queue is drained
@@ -66,7 +66,7 @@ fn test_tick_until_idle_drains_yielded_tasks() {
 #[test]
 fn test_tick_dispatches_timer_waiter_task() {
     // create runtime state with one timer waiter registration
-    let mut runtime = TestRuntime::new();
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.add_timer_waiter_native(77, 31, 0);
     runtime.schedule_timer(77, 0, None);
 
@@ -89,7 +89,7 @@ fn test_tick_dispatches_timer_waiter_task() {
 #[test]
 fn test_tick_dispatches_event_waiter_task() {
     // create runtime state with one resource waiter registration
-    let mut runtime = TestRuntime::new();
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.add_resource_waiter_native(5, 41, 0);
     runtime.enqueue_io_event(5, 91, 9);
 
@@ -106,7 +106,7 @@ fn test_tick_dispatches_event_waiter_task() {
 #[test]
 fn test_tick_dispatches_host_event_waiter_task() {
     // create runtime state with one lifecycle host waiter registration
-    let mut runtime = TestRuntime::new();
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.add_host_waiter_native(HostEventKind::Lifecycle, 42, 0);
     runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
 
@@ -123,8 +123,7 @@ fn test_tick_dispatches_host_event_waiter_task() {
 #[test]
 fn test_tick_dispatches_event_waiter_by_task_priority() {
     // create runtime state with one queued high-priority task
-    let mut runtime =
-        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.enqueue_task_native(301, 91, 200);
 
     // register one low-priority resource waiter and enqueue one wake
@@ -149,8 +148,7 @@ fn test_tick_dispatches_event_waiter_by_task_priority() {
 #[test]
 fn test_tick_ignores_event_without_waiter() {
     // create runtime state with one unregistered resource wake
-    let mut runtime =
-        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.enqueue_io_event(8, 404, 2);
 
     // executing one tick should drop the stale wake without crashing
@@ -165,8 +163,7 @@ fn test_tick_ignores_event_without_waiter() {
 #[test]
 fn test_tick_ignores_host_event_without_waiter() {
     // create runtime state with one unregistered lifecycle host wake
-    let mut runtime =
-        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
 
     // executing one tick should drop the stale event without crashing
@@ -181,10 +178,7 @@ fn test_tick_ignores_host_event_without_waiter() {
 #[test]
 fn test_runtime_tick_ignores_unmatched_poller_ingress() {
     // create one multi-worker runtime with no poller waiters
-    let mut runtime = TestWorldRuntime::with_options_and_engine(
-        &RuntimeOptions::default(),
-        TestEngine::default(),
-    );
+    let mut runtime = TestWorldRuntime::build(&RuntimeOptions::default(), TestEngine::default());
     runtime.set_poller(Box::new(TestPoller::with_events(vec![PollerEvent {
         resource_id: test_resource_id(19),
         source: PollerEventSource::Io,
@@ -204,8 +198,7 @@ fn test_runtime_tick_ignores_unmatched_poller_ingress() {
 #[test]
 fn test_tick_respects_microtask_budget() {
     // configure one microtask budget of one
-    let mut runtime =
-        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.configure_scheduler(SchedulerOptions {
         microtask_budget: Some(1),
         ..SchedulerOptions::default()
@@ -228,8 +221,7 @@ fn test_tick_respects_microtask_budget() {
 #[test]
 fn test_max_microtask_depth_allows_sequential_microtasks() {
     // configure one depth limit of one with budget for two microtasks
-    let mut runtime =
-        TestRuntime::with_options_and_engine(&RuntimeOptions::default(), TestEngine::default());
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default(), None);
     runtime.configure_scheduler(SchedulerOptions {
         microtask_budget: Some(2),
         max_microtask_depth: Some(1),
@@ -395,33 +387,28 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
 fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
     // build one runtime with a virtual clock source
     let options = runtime_options_with_clock_source(ClockSource::Virtual);
-    let mut runtime = TestRuntime::with_options_and_engine(&options, TestEngine::default());
+    let mut runtime = TestRuntime::build(&options, TestEngine::default(), None);
 
     // enqueue one timer that is not yet ready
     runtime.schedule_timer(900, 1_000_000, None);
 
     // running for one nonexistent target task should return idle instead of spinning
-    let error = runtime
-        .run_loop_until_task_complete(12345)
-        .expect_err("virtual mode should not block or spin to advance time");
-    assert!(
-        error
-            .message()
-            .contains("event loop idle before completing task 12345"),
-        "virtual mode should report idle when pending work is not ready"
-    );
+    let output = runtime
+        .run_loop_until_task_complete(12345, None)
+        .expect("virtual mode should not fail while pending work is not ready");
+    assert!(output.is_none(), "virtual mode should report no output");
 }
 
 /// Returns none when one timeout elapses before the target task completes.
 #[test]
-fn test_run_loop_until_task_complete_with_timeout_returns_none() {
+fn test_run_loop_until_task_complete_returns_none_after_timeout() {
     // configure one test host clock source for deterministic host mode waits
     let host_clock_source = Arc::new(TestHostClockSource::new(1_000_000, 0));
     let options = runtime_options_with_clock_source(ClockSource::Host);
-    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+    let mut runtime = TestRuntime::build(
         &options,
         TestEngine::default(),
-        host_clock_source.clone(),
+        Some(host_clock_source.clone()),
     );
 
     // schedule one timer later than the configured timeout
@@ -431,7 +418,7 @@ fn test_run_loop_until_task_complete_with_timeout_returns_none() {
 
     // timeout should elapse before one waiter task can complete
     let output = runtime
-        .run_loop_until_task_complete_with_timeout(0, Some(1_000_000))
+        .run_loop_until_task_complete(0, Some(1_000_000))
         .expect("bounded run loop should return timeout result");
     assert!(output.is_none(), "timeout should return no output");
     assert!(
@@ -446,10 +433,10 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
     // configure one test host clock source for deterministic host mode waits
     let host_clock_source = Arc::new(TestHostClockSource::new(2_000_000, 0));
     let options = runtime_options_with_clock_source(ClockSource::Host);
-    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+    let mut runtime = TestRuntime::build(
         &options,
         TestEngine::default(),
-        host_clock_source.clone(),
+        Some(host_clock_source.clone()),
     );
 
     // schedule one near-future timer for the first waiter task id
@@ -459,9 +446,9 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
 
     // host-mode run loop should wait and complete the target task
     let output = runtime
-        .run_loop_until_task_complete(0)
+        .run_loop_until_task_complete(0, None)
         .expect("host mode should wait for the timer and complete the task");
-    assert_eq!(output, engine::Value::int32(88));
+    assert_eq!(output, Some(engine::Value::int32(88)));
     assert!(
         host_clock_source.wall_nanos() >= fire_at_nanos,
         "host wait should advance test wall time to the timer deadline"
@@ -474,10 +461,10 @@ fn test_wall_clock_jump_fires_wall_timer() {
     // configure one host-mode runtime with one test clock source
     let host_clock_source = Arc::new(TestHostClockSource::new(10_000, 500));
     let options = runtime_options_with_clock_source(ClockSource::Host);
-    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+    let mut runtime = TestRuntime::build(
         &options,
         TestEngine::default(),
-        host_clock_source.clone(),
+        Some(host_clock_source.clone()),
     );
 
     // schedule one wall timer and jump wall time beyond the deadline
@@ -502,10 +489,10 @@ fn test_wall_clock_jump_does_not_fire_monotonic_timer() {
     // configure one host-mode runtime with one test clock source
     let host_clock_source = Arc::new(TestHostClockSource::new(20_000, 900));
     let options = runtime_options_with_clock_source(ClockSource::Host);
-    let mut runtime = TestRuntime::with_options_engine_and_host_clock_source(
+    let mut runtime = TestRuntime::build(
         &options,
         TestEngine::default(),
-        host_clock_source.clone(),
+        Some(host_clock_source.clone()),
     );
 
     // schedule one monotonic timer and jump wall time only
@@ -535,7 +522,7 @@ fn test_wall_clock_jump_does_not_fire_monotonic_timer() {
 fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     // configure one virtual runtime with one future timer
     let options = runtime_options_with_clock_source(ClockSource::Virtual);
-    let mut runtime = TestWorldRuntime::with_options_and_engine(&options, TestEngine::default());
+    let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let default_worker_id = runtime.default_worker_id();
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
     let continuation = runtime.completing_continuation(default_worker_id, 111);
@@ -570,11 +557,19 @@ fn test_world_tick_drives_runtime() {
     let options = RuntimeOptions::default();
     let mut world = World::from_options(&options).expect("world");
     let runtime_id = world
-        .spawn_runtime(Vec::new(), &options, TestEngine::default())
+        .spawn_runtime(
+            destack_workspace::Environment::default(),
+            &options,
+            TestEngine::default(),
+        )
         .expect("runtime should spawn");
     // enqueue one ready task on the default worker
     let World {
-        state, runtimes, ..
+        state,
+        runtimes,
+        host,
+        host_queue,
+        ..
     } = &mut world;
     let runtime = runtimes
         .get_mut(&runtime_id)
@@ -582,10 +577,11 @@ fn test_world_tick_drives_runtime() {
         .expect("runtime should exist");
     let default_worker_id = runtime.default_worker_id();
     runtime
-        .with_worker_context(default_worker_id, |host, shared, runtime_static, worker| {
+        .with_worker_context(default_worker_id, |shared, runtime_static, worker| {
             let continuation = start_worker_continuation(
                 worker,
-                host,
+                host.as_ref(),
+                host_queue,
                 state,
                 shared,
                 runtime_static,
@@ -610,7 +606,7 @@ fn test_world_tick_drives_runtime() {
 fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     // configure one virtual runtime with two workers and one equal deadline
     let options = runtime_options_with_clock_source(ClockSource::Virtual);
-    let mut runtime = TestWorldRuntime::with_options_and_engine(&options, TestEngine::default());
+    let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let default_worker_id = runtime.default_worker_id();
     let secondary_worker_id = runtime.spawn_worker(TestEngine::default());
     let fire_at_nanos = runtime.wall_nanos().saturating_add(10_000);
@@ -639,7 +635,7 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
 fn test_runtime_tick_advances_to_simulation_deadline() {
     // configure one virtual runtime with one simulated wakeup
     let options = runtime_options_with_clock_source(ClockSource::Virtual);
-    let runtime = TestWorldRuntime::with_options_and_engine(&options, TestEngine::default());
+    let runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let mut runtime = runtime;
     runtime
         .world_mut()

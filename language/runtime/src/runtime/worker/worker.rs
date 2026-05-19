@@ -11,24 +11,19 @@ use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
 use crate::runtime::heap::{HeapHandle, HeapHandleTable, RootSet, resolve_local_heap_options};
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
-use crate::runtime::{
-    HostState, HostStateImage, RuntimeFinalizers, RuntimeFinalizersImage, ScenarioRunner,
-    SharedHeap,
-};
+use crate::runtime::{RuntimeFinalizers, RuntimeFinalizersImage, ScenarioRunner, SharedHeap};
 use crate::world::scenario::ScenarioRunnerSnapshot;
-use crate::world::{RuntimeId, WorldState};
-use destack_workspace::{ExecutionMode, RuntimeOptions};
+use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
+use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
 /// Execution worker owned by one runtime.
 pub struct Worker {
     /// Monotonic world-local worker identity.
     pub(crate) id: WorkerId,
-    /// Worker name used for identity selection and diagnostics.
-    pub(crate) name: String,
     /// Runtime owner identifier in world topology.
     pub(crate) runtime_id: RuntimeId,
-    /// Immutable process arguments for host bindings.
-    pub(crate) process_args: Arc<[String]>,
+    /// Immutable ambient environment for host bindings.
+    pub(crate) environment: Arc<Environment>,
     /// Immutable runtime options.
     pub(crate) options: Arc<RuntimeOptions>,
 
@@ -38,8 +33,6 @@ pub struct Worker {
     pub(crate) scenario: Arc<ScenarioRunner>,
     /// Worker-level finalizer registry for module services.
     pub(crate) finalizers: RuntimeFinalizers,
-    /// Worker-owned host state store.
-    pub(crate) host_state: HostState,
     /// Diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// External binding registry and policy enforcement.
@@ -87,8 +80,6 @@ pub struct WorkerImage {
     pub resources: ResourceTableSnapshot,
     /// Captured finalizer lifecycle state.
     pub finalizers: RuntimeFinalizersImage,
-    /// Captured host-state lifecycle state.
-    pub host_state: HostStateImage,
     /// Captured event-loop state.
     pub event_loop: EventLoopSnapshot,
     /// Captured authoritative heap snapshot.
@@ -125,7 +116,6 @@ impl PartialEq for WorkerImage {
             && self.scenario == other.scenario
             && self.resources == other.resources
             && self.finalizers == other.finalizers
-            && self.host_state == other.host_state
             && self.event_loop == other.event_loop
             && heap.is_ok()
             && heap == other_heap
@@ -179,14 +169,12 @@ impl std::fmt::Debug for Worker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Worker")
             .field("worker_id", &self.id)
-            .field("name", &self.name)
             .field("runtime_id", &self.runtime_id)
-            .field("process_args", &self.process_args)
+            .field("environment", &self.environment)
             .field("options", &self.options)
             .field("resources", &self.resources)
             .field("scenario", &self.scenario)
             .field("finalizers", &self.finalizers)
-            .field("host_state", &self.host_state)
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
             .field("handles", &self.handles.len())
@@ -200,7 +188,7 @@ impl std::fmt::Debug for Worker {
 impl Worker {
     /// Create one worker in one new runtime in one shared world.
     pub(crate) fn new_in_world(
-        process_args: impl Into<Arc<[String]>>,
+        environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         world: &mut WorldState,
         shared: &SharedHeap,
@@ -208,26 +196,24 @@ impl Worker {
         worker_options: WorkerOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
-        let process_args = process_args.into();
-        let (runtime_id, worker_id, worker_name) =
-            Self::register_runtime(world, options, &worker_options)?;
+        let environment = environment.into();
+        let (runtime_id, worker_id) = Self::register_runtime(world, options, &worker_options)?;
 
         Self::from_registered(
-            process_args,
+            environment,
             options,
             world,
             shared,
             runtime_static,
             runtime_id,
             worker_id,
-            worker_name,
             engine,
         )
     }
 
     /// Create one worker in one existing runtime.
     pub(crate) fn new_in_runtime(
-        process_args: impl Into<Arc<[String]>>,
+        environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         world: &mut WorldState,
         shared: &SharedHeap,
@@ -236,32 +222,30 @@ impl Worker {
         worker_options: WorkerOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
-        let process_args = process_args.into();
-        let (worker_id, worker_name) = Self::register_worker(world, runtime_id, &worker_options)?;
+        let environment = environment.into();
+        let worker_id = Self::register_worker(world, runtime_id, &worker_options)?;
 
         Self::from_registered(
-            process_args,
+            environment,
             options,
             world,
             shared,
             runtime_static,
             runtime_id,
             worker_id,
-            worker_name,
             engine,
         )
     }
 
     /// Create one worker from registered world topology metadata.
     fn from_registered(
-        process_args: Arc<[String]>,
+        environment: Arc<Environment>,
         options: &RuntimeOptions,
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        worker_name: String,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
         let mut engine = engine.into();
@@ -270,14 +254,14 @@ impl Worker {
         let scenario = Arc::new(ScenarioRunner::new(
             runtime_id,
             worker_id,
-            world.trace().mode(),
+            world.trace.mode(),
             options.conditions.clone(),
         ));
         let resources = ResourceTable::new(worker_id);
 
         // bindings
         let mut bindings = BindingRegistry::new();
-        bindings.set_access(BindingAccess::new(world.trace().mode()));
+        bindings.set_access(BindingAccess::new(world.trace.mode()));
         bindings.apply_runtime_defaults(options);
 
         // heap and statics
@@ -309,13 +293,11 @@ impl Worker {
         Ok(Self {
             id: worker_id,
             runtime_id,
-            name: worker_name,
-            process_args,
+            environment,
             options: Arc::new(options.clone()),
             resources,
             scenario,
             finalizers: RuntimeFinalizers::default(),
-            host_state: HostState,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             bindings,
             handles: HeapHandleTable::default(),
@@ -328,19 +310,19 @@ impl Worker {
         })
     }
 
-    /// Return immutable process arguments exposed to host bindings.
-    pub fn process_args(&self) -> &[String] {
-        self.process_args.as_ref()
+    /// Return immutable environment exposed to host bindings.
+    pub fn environment(&self) -> &Environment {
+        self.environment.as_ref()
+    }
+
+    /// Return immutable launch arguments exposed to host bindings.
+    pub fn arguments(&self) -> &[String] {
+        self.environment.args.as_slice()
     }
 
     /// Return this worker identifier.
     pub fn worker_id(&self) -> WorkerId {
         self.id
-    }
-
-    /// Return this worker name.
-    pub fn name(&self) -> &str {
-        &self.name
     }
 
     /// Return the owning runtime identifier.
@@ -363,35 +345,34 @@ impl Worker {
         world: &mut WorldState,
         options: &RuntimeOptions,
         worker_options: &WorkerOptions,
-    ) -> RuntimeResult<(RuntimeId, WorkerId, String)> {
+    ) -> RuntimeResult<(RuntimeId, WorkerId)> {
+        // allocate topology identities
+        let runtime_id = world.allocate_runtime_id();
+        let worker_id = world.allocate_worker_id();
+
         // runtime selector metadata
         let runtime_name = options
             .name
             .clone()
             .unwrap_or_else(|| "runtime".to_string());
-        let runtime_labels = BTreeMap::new();
+        let runtime_entity =
+            Entity::new(runtime_id.entity_id(), EntityKind::RUNTIME).named(runtime_name);
 
-        // worker selector metadata
-        let runtime_id = world.allocate_runtime_id();
-        let worker_id = world.allocate_worker_id();
         let worker_name = worker_options
             .name
             .clone()
             .unwrap_or_else(|| format!("worker-{}", worker_id.0));
-        let worker_labels = worker_options.labels.clone();
+        let worker_entity = Entity::new(worker_id.entity_id(), EntityKind::WORKER)
+            .named(worker_name)
+            .labels(worker_options.labels.clone());
 
         // runtime metadata
-        world.register_runtime_topology(runtime_id, runtime_name, runtime_labels)?;
+        world.register_runtime_topology(runtime_id, runtime_entity)?;
 
         // worker metadata
-        world.register_worker_topology(
-            runtime_id,
-            worker_id,
-            worker_name.clone(),
-            worker_labels,
-        )?;
+        world.register_worker_topology(runtime_id, worker_id, worker_entity)?;
 
-        Ok((runtime_id, worker_id, worker_name))
+        Ok((runtime_id, worker_id))
     }
 
     /// Register one worker in one existing runtime.
@@ -399,24 +380,21 @@ impl Worker {
         world: &mut WorldState,
         runtime_id: RuntimeId,
         worker_options: &WorkerOptions,
-    ) -> RuntimeResult<(WorkerId, String)> {
+    ) -> RuntimeResult<WorkerId> {
         // worker selector metadata
         let worker_id = world.allocate_worker_id();
         let worker_name = worker_options
             .name
             .clone()
             .unwrap_or_else(|| format!("worker-{}", worker_id.0));
-        let worker_labels = worker_options.labels.clone();
+        let worker_entity = Entity::new(worker_id.entity_id(), EntityKind::WORKER)
+            .named(worker_name)
+            .labels(worker_options.labels.clone());
 
         // register one worker in one existing runtime
-        world.register_worker_topology(
-            runtime_id,
-            worker_id,
-            worker_name.clone(),
-            worker_labels,
-        )?;
+        world.register_worker_topology(runtime_id, worker_id, worker_entity)?;
 
-        Ok((worker_id, worker_name))
+        Ok(worker_id)
     }
 
     /// Add one waiter for a timer resource.
@@ -455,21 +433,6 @@ impl Worker {
         )
     }
 
-    /// Remove one waiter registered for one resource readiness.
-    pub fn remove_resource_waiter(
-        &mut self,
-        resource_id: ResourceId,
-        readiness: Readiness,
-    ) -> Option<Waiter> {
-        self.event_loop
-            .remove_resource_waiter(resource_id, readiness)
-    }
-
-    /// Return whether one waiter is registered for one resource readiness.
-    pub fn has_resource_waiter(&self, resource_id: ResourceId, readiness: Readiness) -> bool {
-        self.event_loop.has_resource_waiter(resource_id, readiness)
-    }
-
     /// Add one waiter for a host event kind.
     pub fn add_host_waiter(
         &mut self,
@@ -480,16 +443,6 @@ impl Worker {
     ) -> RuntimeResult<()> {
         self.event_loop
             .add_host_waiter(kind, runnable, resume_value, priority, &mut self.engine)
-    }
-
-    /// Remove the waiter registered for one host event kind.
-    pub fn remove_host_waiter(&mut self, kind: HostEventKind) -> Option<Waiter> {
-        self.event_loop.remove_host_waiter(kind)
-    }
-
-    /// Return whether one waiter is registered for the given host event kind.
-    pub fn has_host_waiter(&self, kind: HostEventKind) -> bool {
-        self.event_loop.has_host_waiter(kind)
     }
 
     /// Retain one local heap reference for host-owned state.
@@ -641,10 +594,9 @@ impl Worker {
         let event_loop = self.event_loop.capture_image(mode, &mut self.engine)?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
-        let scenario = self.scenario.snapshot()?;
+        let scenario = self.scenario.snapshot();
 
         // runtime-owned service state
-        let host_state = self.host_state.capture_image(mode, ())?;
         let finalizers = self.finalizers.capture_image(mode, ())?;
 
         // capture the worker-local image payload
@@ -654,7 +606,6 @@ impl Worker {
             scenario,
             resources,
             finalizers,
-            host_state,
             event_loop,
             heap: self
                 .heap
@@ -694,10 +645,7 @@ impl Worker {
         }
 
         // scenario and diagnostics state
-        let scenario = match self.scenario.try_fork()? {
-            Some(scenario) => Arc::new(scenario),
-            None => return Ok(None),
-        };
+        let scenario = Arc::new(self.scenario.fork());
         let diagnostics = match self.diagnostics.try_fork()? {
             Some(diagnostics) => Arc::new(diagnostics),
             None => return Ok(None),
@@ -731,19 +679,14 @@ impl Worker {
         })?;
         let event_loop = Box::new(self.event_loop.fork(&mut self.engine, &mut engine)?);
 
-        // host state
-        let host_state = self.host_state.fork()?;
-
         Ok(Some(Self {
             id: self.id,
-            name: self.name.clone(),
             runtime_id: self.runtime_id,
-            process_args: self.process_args.clone(),
+            environment: self.environment.clone(),
             options: self.options.clone(),
             resources,
             scenario,
             finalizers,
-            host_state,
             diagnostics,
             bindings,
             handles: HeapHandleTable::default(),
@@ -763,8 +706,7 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        worker_name: String,
-        process_args: Arc<[String]>,
+        environment: Arc<Environment>,
         image: &WorkerImage,
         shared_options: Option<&Arc<RuntimeOptions>>,
         rebind_context: Option<&ResourceRebinders>,
@@ -776,14 +718,14 @@ impl Worker {
         let scenario = Arc::new(ScenarioRunner::new(
             runtime_id,
             worker_id,
-            world.trace().mode(),
+            world.trace.mode(),
             options.conditions.clone(),
         ));
         let resources = ResourceTable::new(worker_id);
 
         // bindings
         let mut bindings = BindingRegistry::new();
-        bindings.set_access(BindingAccess::new(world.trace().mode()));
+        bindings.set_access(BindingAccess::new(world.trace.mode()));
         bindings.apply_runtime_defaults(&options);
 
         // diagnostics and event loop
@@ -831,14 +773,13 @@ impl Worker {
         // restore local state on fresh containers
         event_loop.restore_snapshot(&image.event_loop, &mut engine)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
-        scenario.restore_snapshot(&image.scenario)?;
+        scenario.restore_snapshot(&image.scenario);
         resources.restore_snapshot(&image.resources, rebind_context)?;
 
         Ok(Self {
             id: worker_id,
-            name: worker_name,
             runtime_id,
-            process_args,
+            environment,
             options,
             resources,
             scenario,
@@ -846,11 +787,6 @@ impl Worker {
                 let mut finalizers = RuntimeFinalizers::default();
                 finalizers.restore_image(&image.finalizers, ())?;
                 finalizers
-            },
-            host_state: {
-                let mut host_state = HostState;
-                host_state.restore_image(&image.host_state, ())?;
-                host_state
             },
             diagnostics,
             bindings,

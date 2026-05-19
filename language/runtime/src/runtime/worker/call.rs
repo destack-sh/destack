@@ -5,7 +5,8 @@ use crate::host::binding::{
     BindingAccess, BindingAffinity, BindingDescriptor, BindingReplayPayload, BindingRoute,
     RuntimeAccess,
 };
-use crate::host::{HostError, HostSession, core as host_core};
+use crate::host::core::{Host, HostQueue, advance_host_events};
+use crate::host::{HostError, core as host_core};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::simulation::Simulation;
@@ -19,13 +20,15 @@ use destack_workspace::{ClockSource, RuntimeDiagnosticLevel};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
-pub struct BindingCallContext {
+pub struct BindingCallContext<'host> {
     /// Worker state for host bindings.
     pub(crate) worker: *mut Worker,
     /// Event loop for task queues and timers.
     pub(crate) event_loop: *const EventLoop,
-    /// Host event boundary for callbacks.
-    pub(crate) host: *const HostSession,
+    /// Host integration for callbacks.
+    pub(crate) host: &'host dyn Host,
+    /// Host event queue for callbacks.
+    pub(crate) host_queue: &'host HostQueue,
     /// Shared world for replay, time, random, and policy.
     pub(crate) world: *mut WorldState,
     /// Currently running task or microtask.
@@ -38,7 +41,7 @@ pub struct BindingCallContext {
 #[derive(Debug)]
 pub struct BindingCallGuard<'call> {
     /// Binding call context for event routing.
-    context: &'call BindingCallContext,
+    context: &'call BindingCallContext<'call>,
     /// Binding descriptor for event routing.
     spec: BindingDescriptor,
     /// Binding call identifier for before and after correlation.
@@ -53,7 +56,7 @@ impl Drop for BindingCallGuard<'_> {
 }
 
 #[allow(clippy::mut_from_ref)]
-impl BindingCallContext {
+impl BindingCallContext<'_> {
     /// Borrow the worker state.
     #[inline]
     pub fn worker(&self) -> &Worker {
@@ -102,16 +105,16 @@ impl BindingCallContext {
         unsafe { &*self.event_loop }
     }
 
-    /// Borrow immutable process arguments.
+    /// Borrow immutable launch arguments.
     #[inline]
-    pub fn process_args(&self) -> &[String] {
-        self.worker().process_args()
+    pub fn arguments(&self) -> &[String] {
+        self.worker().arguments()
     }
 
     /// Borrow the trace state.
     #[inline]
     pub fn trace(&self) -> &Trace {
-        self.world().trace()
+        &self.world().trace
     }
 
     /// Borrow the binding access for this worker.
@@ -137,10 +140,16 @@ impl BindingCallContext {
         self.worker().scenario.as_ref()
     }
 
-    /// Borrow the runtime host state.
+    /// Borrow the host integration.
     #[inline]
-    pub fn host(&self) -> &HostSession {
-        unsafe { &*self.host }
+    pub(crate) fn host(&self) -> &dyn Host {
+        self.host
+    }
+
+    /// Borrow the host event queue.
+    #[inline]
+    pub(crate) fn host_queue(&self) -> &HostQueue {
+        self.host_queue
     }
 
     /// Borrow the shared runtime world.
@@ -152,7 +161,7 @@ impl BindingCallContext {
     /// Borrow one read guard for the simulation state.
     #[inline]
     pub fn simulation(&self) -> &Simulation {
-        self.world().simulation()
+        &self.world().simulation
     }
 
     /// Return the currently running task or microtask.
@@ -167,7 +176,7 @@ impl BindingCallContext {
 
     /// Advance host and runtime wait progress for one blocked binding path.
     pub(crate) fn advance_wait_progress(&self) -> RuntimeResult<()> {
-        self.host().advance_ingress()
+        advance_host_events(self.host(), self.host_queue())
     }
 
     /// Wait for one binding result while runtime-owned host ingress makes progress.
@@ -233,7 +242,7 @@ impl BindingCallContext {
         };
 
         // resolve one stable world scoped stream id
-        self.world().random().scoped_stream_id(
+        self.world().random.scoped_stream_id(
             worker.runtime_id.0,
             worker.id.0,
             task_id,
@@ -244,7 +253,7 @@ impl BindingCallContext {
     /// Return true when the world clock runs in virtual mode.
     #[inline]
     pub fn is_virtual_clock(&self) -> bool {
-        self.world().clock().source() == ClockSource::Virtual
+        self.world().clock.source() == ClockSource::Virtual
     }
 
     /// Return one runtime-backed wall clock sample.
@@ -290,13 +299,13 @@ impl BindingCallContext {
     /// Sleep one runtime-backed duration.
     #[inline]
     pub fn sleep_nanos(&self, duration: u64) {
-        self.world().clock().host_sleep_nanos(duration);
+        self.host().sleep_nanos(duration);
     }
 
     /// Sleep until one runtime-backed wall deadline.
     #[inline]
     pub fn sleep_until_wall_nanos(&self, deadline: u64) {
-        self.world().clock().host_sleep_until_nanos(deadline);
+        self.host().sleep_until_wall_nanos(deadline);
     }
 
     /// Sleep until one runtime-backed monotonic deadline.
