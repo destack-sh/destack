@@ -24,8 +24,8 @@ pub(crate) fn for_each_visible_extension(
             continue;
         };
 
-        let types = module_ctx.dir().types();
-        let extension = types.get_extension(entry.extension_id);
+        let extensions = module_ctx.dir().extensions();
+        let extension = extensions.get_extension(entry.extension_id);
 
         // filter out not visible extensions
         if !extension_is_visible(extension, ctx.module_id()) {
@@ -46,7 +46,7 @@ pub(crate) fn build_extension_candidates_for_module(
     let mut entries = Vec::new();
     let module_id = ctx.module_id();
 
-    for (extension_id, extension) in ctx.dir().types().iter_extensions() {
+    for (extension_id, extension) in ctx.dir().extensions().iter_extensions() {
         entries.push(ExtensionEntry {
             module_id,
             extension_id,

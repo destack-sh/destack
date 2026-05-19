@@ -147,7 +147,7 @@ fn format_function(
                 module_id,
                 local_id: return_node.into(),
             };
-            types.get_declared_or_inferred_type_id(node_id)
+            types.get_node_type_id(node_id)
         })
         .map(|type_id| format!(": {}", format_local_type(type_id, types, ctx)))
         .unwrap_or_default();
@@ -232,7 +232,7 @@ pub fn format_call_signature(
                 module_id,
                 local_id: return_node.into(),
             };
-            types.get_declared_or_inferred_type_id(node_id)
+            types.get_node_type_id(node_id)
         })
         .map(|type_id| format!(": {}", format_local_type(type_id, types, ctx)))
         .unwrap_or_default();
@@ -368,7 +368,7 @@ fn format_parameter(
         local_id: parameter_id.into(),
     };
 
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
+    if let Some(type_id) = types.get_node_type_id(node_id) {
         let type_text = format_local_type(type_id, types, ctx);
         format!("{name}: {type_text}")
     } else {

@@ -150,7 +150,7 @@ pub fn inlay_hints(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<InlayHint> 
             continue;
         };
         let global_symbol_id = GlobalSymbolId::new(ctx.module_id(), local_symbol);
-        let Some(type_id) = types.get_value_type_id(global_symbol_id) else {
+        let Some(type_id) = types.get_symbol_type_id(global_symbol_id) else {
             continue;
         };
 

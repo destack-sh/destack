@@ -30,6 +30,8 @@ pub struct ModuleQueryContext<'a> {
     dir_dependencies: dir::DependencyTable<'static>,
     /// The checked type table.
     dir_types: dir::TypeTable<'static>,
+    /// The checked extension table.
+    dir_extensions: dir::ExtensionTable<'static>,
     /// The checked resolution table.
     dir_resolutions: dir::ResolutionTable<'static>,
     /// The profile global environment.
@@ -113,6 +115,8 @@ pub(crate) struct DirQueryContext<'a> {
     exports: &'a dir::ExportTable,
     /// The checked type table.
     types: &'a dir::TypeTable<'static>,
+    /// The checked extension table.
+    extensions: &'a dir::ExtensionTable<'static>,
     /// The checked resolution table.
     resolutions: &'a dir::ResolutionTable<'static>,
     /// Shared repository strings.
@@ -216,6 +220,11 @@ impl<'a> DirQueryContext<'a> {
         self.types
     }
 
+    /// Return the DIR extension table.
+    pub(crate) fn extensions(self) -> &'a dir::ExtensionTable<'static> {
+        self.extensions
+    }
+
     /// Return the DIR resolution table.
     pub(crate) fn resolutions(self) -> &'a dir::ResolutionTable<'static> {
         self.resolutions
@@ -252,14 +261,13 @@ impl<'a> DirQueryContext<'a> {
         node_id: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalTypeId> {
         let global_node_id = node_id.into_global(self.module_id);
-        self.types().get_inferred_type_id(global_node_id)
+        self.types().get_node_type_id(global_node_id)
     }
 
     /// Get the declared or inferred type id for a node.
     pub(crate) fn node_type_id(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalTypeId> {
         let global_node_id = node_id.into_global(self.module_id);
-        self.types()
-            .get_declared_or_inferred_type_id(global_node_id)
+        self.types().get_node_type_id(global_node_id)
     }
 }
 
@@ -326,6 +334,7 @@ impl<'a> ModuleQueryContext<'a> {
             dependencies: &self.dir_dependencies,
             exports: &self.dir_exported.exports,
             types: &self.dir_types,
+            extensions: &self.dir_extensions,
             resolutions: &self.dir_resolutions,
             strings: self.strings,
         }
@@ -499,6 +508,7 @@ fn read_module_query_context_from_checked(
     let dir_bindings = dir_expanded.binding_table(&dir_bound);
     let dir_dependencies = dir_expanded.dependency_table(&dir_imported);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
+    let dir_extensions = dir_checked.extension_table();
     let dir_resolutions = dir_checked.resolution_table();
 
     Some(ModuleQueryContext {
@@ -510,6 +520,7 @@ fn read_module_query_context_from_checked(
         dir_bindings,
         dir_dependencies,
         dir_types,
+        dir_extensions,
         dir_resolutions,
         global_environment,
         strings: repository.string_pool().as_ref(),
@@ -562,6 +573,7 @@ pub(crate) fn require_module_query_context<'a>(
     let dir_bindings = dir_expanded.binding_table(&dir_bound);
     let dir_dependencies = dir_expanded.dependency_table(&dir_imported);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
+    let dir_extensions = dir_checked.extension_table();
     let dir_resolutions = dir_checked.resolution_table();
 
     Ok(ModuleQueryContext {
@@ -573,6 +585,7 @@ pub(crate) fn require_module_query_context<'a>(
         dir_bindings,
         dir_dependencies,
         dir_types,
+        dir_extensions,
         dir_resolutions,
         global_environment,
         strings: repository.string_pool().as_ref(),

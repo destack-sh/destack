@@ -77,7 +77,7 @@ pub fn format_member_hover(
         local_id: member_id.into(),
     };
     let type_str = types
-        .get_declared_or_inferred_type_id(node_id)
+        .get_node_type_id(node_id)
         .map(|type_id| format_local_type(type_id, types, ctx));
 
     // build the qualified name
@@ -159,7 +159,7 @@ pub fn format_enum_field_hover(
         module_id,
         local_id: field_id.into(),
     };
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
+    if let Some(type_id) = types.get_node_type_id(node_id) {
         let type_text = format_local_type(type_id, types, ctx);
         format!("(enum member) {qualified_name} = {type_text}")
     } else {
@@ -190,7 +190,7 @@ pub fn format_parameter_hover(
         module_id,
         local_id: param_id.into(),
     };
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
+    if let Some(type_id) = types.get_node_type_id(node_id) {
         let type_text = format_local_type(type_id, types, ctx);
         format!("(parameter) {name}: {type_text}")
     } else {
@@ -202,7 +202,6 @@ pub fn format_parameter_hover(
 pub fn format_local_variable_hover(
     name: Option<&str>,
     symbol_id: dir::GlobalSymbolId,
-    symbols: &dir::BindingTable<'_>,
     types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
@@ -210,7 +209,7 @@ pub fn format_local_variable_hover(
     let name = name.unwrap_or("<anonymous>");
 
     // resolve the local type when available
-    if let Some(type_id) = types.symbol_type_id(symbols, symbol_id) {
+    if let Some(type_id) = types.get_symbol_type_id(symbol_id) {
         let type_text = format_local_type(type_id, types, ctx);
         format!("let {name}: {type_text}")
     } else {

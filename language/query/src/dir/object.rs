@@ -162,7 +162,7 @@ fn contextual_object_type(
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalTypeId> {
     let global_node_id = node_id.into_global(ctx.module_id());
-    types.contextual_object_type_id(global_node_id)
+    types.get_node_type_id(global_node_id)
 }
 
 /// Extract property names from object literal properties.

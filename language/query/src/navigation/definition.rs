@@ -229,18 +229,18 @@ pub fn goto_type_definition(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<Na
         ];
     }
 
-    // for non-type symbols (variables, parameters, etc.), look up their value type
+    // for non-type symbols, look up their checked type
     let resolved_type_symbol = {
         let types = ctx.dir().types();
 
-        // try get_value_type_id first
-        if let Some(type_id) = types.get_value_type_id(symbol_id) {
+        // prefer the symbol type
+        if let Some(type_id) = types.get_symbol_type_id(symbol_id) {
             resolve_nominal_type_symbol(types, type_id)
         }
-        // otherwise use the declared or inferred type
+        // otherwise use the node type
         else {
             let node_id = symbol_at.node_id.into_global(symbol_id.module_id);
-            let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) else {
+            let Some(type_id) = types.get_node_type_id(node_id) else {
                 return Vec::new();
             };
             resolve_nominal_type_symbol(types, type_id)
@@ -433,7 +433,7 @@ fn declaration_parameter_type_ids_match(
 
     for (parameter_id, expected_type_id) in parameters.iter().zip(parameter_types.iter()) {
         let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
-        let type_id = types.get_declared_type_id(global_parameter_id)?;
+        let type_id = types.get_node_type_id(global_parameter_id)?;
         if type_id != *expected_type_id {
             return Some(false);
         }

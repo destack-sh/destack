@@ -192,10 +192,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
 
     // resolve the declared parameter type and classify its shape
     let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
-    let type_id = ctx
-        .dir()
-        .types()
-        .get_declared_type_id(global_parameter_id)?;
+    let type_id = ctx.dir().types().get_node_type_id(global_parameter_id)?;
     let type_symbol = ctx
         .dir()
         .types()
@@ -260,7 +257,7 @@ fn collect_expected_type_symbols_inner(
             symbols.push(canonical_symbol);
         }
 
-        if let Some(target_type_id) = types.get_alias_target_type_id(symbol) {
+        if let Some(target_type_id) = types.get_symbol_type_id(symbol) {
             collect_expected_type_symbols_inner(
                 ctx,
                 types,
