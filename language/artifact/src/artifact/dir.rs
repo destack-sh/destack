@@ -161,12 +161,16 @@ pub struct DirExported {
 pub struct DirChecked {
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New generic binders.
+    pub generics: Arc<dir::GenericSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New generic instantiations.
+    /// New generic instances.
     pub instances: Arc<dir::InstanceSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
+    /// New extension records.
+    pub extensions: Arc<dir::ExtensionSegment>,
     /// New layouts.
     pub layouts: Arc<dir::LayoutSegment>,
     /// New captures.
@@ -183,6 +187,11 @@ impl DirChecked {
         ])
     }
 
+    /// Return the cumulative generic table for checked DIR.
+    pub fn generic_table(&self) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segment(self.generics.clone())
+    }
+
     /// Return the cumulative resolution table for checked DIR.
     pub fn resolution_table(&self) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segment(self.resolutions.clone())
@@ -196,6 +205,11 @@ impl DirChecked {
     /// Return the cumulative relation table for checked DIR.
     pub fn relation_table(&self) -> dir::RelationTable<'static> {
         dir::RelationTable::from_segment(self.relations.clone())
+    }
+
+    /// Return the cumulative extension table for checked DIR.
+    pub fn extension_table(&self) -> dir::ExtensionTable<'static> {
+        dir::ExtensionTable::from_segment(self.extensions.clone())
     }
 
     /// Return the cumulative capture table for checked DIR.
@@ -220,7 +234,7 @@ pub struct DirMaterialized {
     pub types: Arc<dir::TypeSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New generic instantiations.
+    /// New generic instances.
     pub instances: Arc<dir::InstanceSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
@@ -279,6 +293,11 @@ impl DirMaterialized {
         dir::RelationTable::from_segments(vec![checked.relations.clone(), self.relations.clone()])
     }
 
+    /// Return the cumulative extension table for materialized DIR.
+    pub fn extension_table(&self, checked: &DirChecked) -> dir::ExtensionTable<'static> {
+        dir::ExtensionTable::from_segment(checked.extensions.clone())
+    }
+
     /// Return the cumulative capture table for materialized DIR.
     pub fn capture_table(&self, checked: &DirChecked) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segments(vec![checked.captures.clone(), self.captures.clone()])
@@ -301,7 +320,7 @@ pub struct DirElaborated {
     pub types: Arc<dir::TypeSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New generic instantiations.
+    /// New generic instances.
     pub instances: Arc<dir::InstanceSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
@@ -385,6 +404,11 @@ impl DirElaborated {
             materialized.relations.clone(),
             self.relations.clone(),
         ])
+    }
+
+    /// Return the cumulative extension table for elaborated DIR.
+    pub fn extension_table(&self, checked: &DirChecked) -> dir::ExtensionTable<'static> {
+        dir::ExtensionTable::from_segment(checked.extensions.clone())
     }
 
     /// Return the cumulative capture table for elaborated DIR.
