@@ -1,4 +1,4 @@
-use destack_artifact::{DirBound, DirChecked, DirExpanded, DirParsed};
+use destack_artifact::{DirBound, DirChecked, DirExpanded, DirImported, DirParsed};
 use destack_core::StringPool;
 use destack_js as js;
 use destack_workspace::{Module, Target};
@@ -23,13 +23,26 @@ pub fn lower_module(
     parsed: &DirParsed,
     strings: &StringPool,
     bound: &DirBound,
+    imported: &DirImported,
     expanded: &DirExpanded,
     checked: &DirChecked,
     target: &Target,
 ) -> CodegenJsResult<ModuleLowerOutput> {
     let bindings = expanded.binding_table(bound);
+    let dependencies = expanded.dependency_table(imported);
     let types = checked.type_table(bound, expanded);
-    let mut lowerer = ModuleLowerer::new(module, parsed, strings, bound, bindings, &types, target);
+    let resolutions = checked.resolution_table();
+    let mut lowerer = ModuleLowerer::new(
+        module,
+        parsed,
+        strings,
+        bound,
+        bindings,
+        &types,
+        &resolutions,
+        dependencies,
+        target,
+    );
     lowerer.lower_module()?;
 
     Ok(ModuleLowerOutput {
