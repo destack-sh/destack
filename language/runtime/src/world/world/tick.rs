@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::core::poll_host_events;
 use crate::host::time::TimerClock;
 use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
 use crate::runtime::{TickResult, WorkerId};
@@ -35,16 +36,24 @@ impl World {
 
     /// Execute one world tick across all stored runtimes in stable order.
     pub fn tick(&mut self) -> RuntimeResult<TickResult> {
-        self.do_tick()
-    }
-
-    /// Execute one world tick without tracing the outer invocation.
-    pub(crate) fn do_tick(&mut self) -> RuntimeResult<TickResult> {
+        let host_events = poll_host_events(self.host.as_ref(), &self.host_queue, Some(0))?.events;
+        let poller_events = self.poller.poll(Some(0))?;
         let world = &mut self.state;
+        let mut ingress_progressed = false;
+
+        // external events
+        for runtime in self.runtimes.values_mut() {
+            if runtime.deliver_events(world, &host_events, &poller_events)? {
+                ingress_progressed = true;
+            }
+        }
 
         // runnable work and ingress
         for runtime in self.runtimes.values_mut() {
-            if runtime.tick(world)?.is_progress() {
+            if runtime
+                .tick(world, self.host.as_ref(), &self.host_queue)?
+                .is_progress()
+            {
                 runtime.tick_shared_gc()?;
 
                 world.observe(Observation::scheduler_progressed());
@@ -60,6 +69,13 @@ impl World {
 
                 return Ok(TickResult::Progress);
             }
+        }
+
+        // ingress without immediate worker execution still advanced scheduler state
+        if ingress_progressed {
+            world.observe(Observation::scheduler_progressed());
+
+            return Ok(TickResult::Progress);
         }
 
         // background shared GC still counts as live world work,

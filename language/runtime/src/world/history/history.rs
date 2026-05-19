@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeImage, SharedCollector, WorkerId, WorkerImage};
-use crate::world::trace::{ObservationRecord, TraceImage, TraceSequence};
+use crate::world::trace::{ObservationEntry, TraceImage, TraceSequence};
 use crate::world::{RuntimeId, WorldImage};
 
 use super::{
@@ -28,10 +28,6 @@ const INITIAL_REVISION_ID: u128 = 1;
 const INITIAL_CHECKPOINT_ID: u128 = 1;
 /// First allocated image identifier after the root image.
 const INITIAL_IMAGE_ID: u128 = 1;
-/// First allocated runtime image identifier.
-const INITIAL_RUNTIME_IMAGE_ID: u128 = 0;
-/// First allocated worker image identifier.
-const INITIAL_WORKER_IMAGE_ID: u128 = 0;
 /// History-root metadata and durable restore metadata.
 #[derive(Debug)]
 pub(crate) struct History {
@@ -47,10 +43,6 @@ pub(crate) struct History {
     pub next_checkpoint_id: u128,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
-    /// The next runtime image identifier to allocate.
-    pub next_runtime_image_id: u128,
-    /// The next worker image identifier to allocate.
-    pub next_worker_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -62,11 +54,11 @@ pub(crate) struct History {
     /// The known trace image payloads keyed by trace image identifier.
     pub trace_images: BTreeMap<RevisionId, Arc<TraceImage>>,
     /// The canonical retained runtime image payloads.
-    runtime_images: BTreeMap<RuntimeImageId, Arc<RuntimeImage>>,
+    runtime_images: Vec<Arc<RuntimeImage>>,
     /// The canonical retained worker image payloads.
-    worker_images: BTreeMap<WorkerImageId, Arc<WorkerImage>>,
+    worker_images: Vec<Arc<WorkerImage>>,
     /// The committed observation history keyed by branch.
-    pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
+    pub observations: BTreeMap<BranchId, Vec<ObservationEntry>>,
 }
 
 /// Durable history metadata captured in one world snapshot.
@@ -82,10 +74,6 @@ pub struct HistorySnapshot {
     pub allocator: heap::AllocatorImage,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
-    /// The next runtime image identifier to allocate.
-    pub next_runtime_image_id: u128,
-    /// The next worker image identifier to allocate.
-    pub next_worker_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -97,29 +85,7 @@ pub struct HistorySnapshot {
     /// The known trace image payloads keyed by trace image identifier.
     pub trace_images: BTreeMap<RevisionId, TraceImage>,
     /// The committed observation history keyed by branch.
-    pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
-}
-
-/// History-local identifier for one canonical retained runtime image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct RuntimeImageId(u128);
-
-impl RuntimeImageId {
-    /// Create a new runtime image identifier.
-    const fn new(value: u128) -> Self {
-        Self(value)
-    }
-}
-
-/// History-local identifier for one canonical retained worker image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct WorkerImageId(u128);
-
-impl WorkerImageId {
-    /// Create a new worker image identifier.
-    const fn new(value: u128) -> Self {
-        Self(value)
-    }
+    pub observations: BTreeMap<BranchId, Vec<ObservationEntry>>,
 }
 
 impl History {
@@ -133,8 +99,6 @@ impl History {
             next_checkpoint_id: self.next_checkpoint_id,
             allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
             next_image_id: self.next_image_id,
-            next_runtime_image_id: self.next_runtime_image_id,
-            next_worker_image_id: self.next_worker_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
             checkpoints: self.checkpoints.clone(),
@@ -200,8 +164,6 @@ impl History {
             next_checkpoint_id: self.next_checkpoint_id,
             allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
             next_image_id: self.next_image_id,
-            next_runtime_image_id: self.next_runtime_image_id,
-            next_worker_image_id: self.next_worker_image_id,
             branches: BTreeMap::from([(branch.id, branch)]),
             revisions: BTreeMap::from([(revision_id, revision)]),
             checkpoints,
@@ -261,15 +223,13 @@ impl History {
             next_revision_id: INITIAL_REVISION_ID,
             next_checkpoint_id: INITIAL_CHECKPOINT_ID,
             next_image_id: INITIAL_IMAGE_ID,
-            next_runtime_image_id: INITIAL_RUNTIME_IMAGE_ID,
-            next_worker_image_id: INITIAL_WORKER_IMAGE_ID,
             branches,
             revisions,
             checkpoints: BTreeMap::new(),
             images,
             trace_images,
-            runtime_images: BTreeMap::new(),
-            worker_images: BTreeMap::new(),
+            runtime_images: Vec::new(),
+            worker_images: Vec::new(),
             observations,
         }
     }
@@ -298,16 +258,14 @@ impl History {
             next_revision_id: snapshot.next_revision_id,
             next_checkpoint_id: snapshot.next_checkpoint_id,
             next_image_id: snapshot.next_image_id,
-            next_runtime_image_id: snapshot.next_runtime_image_id,
-            next_worker_image_id: snapshot.next_worker_image_id,
             branches: snapshot.branches,
             revisions: snapshot.revisions,
             checkpoints: snapshot.checkpoints,
             images,
             trace_images,
             observations: snapshot.observations,
-            runtime_images: BTreeMap::new(),
-            worker_images: BTreeMap::new(),
+            runtime_images: Vec::new(),
+            worker_images: Vec::new(),
         };
         history.rebuild_image_tables();
 
@@ -512,7 +470,7 @@ impl History {
     pub(crate) fn record_observations(
         &mut self,
         branch_id: BranchId,
-        observations: Vec<ObservationRecord>,
+        observations: Vec<ObservationEntry>,
     ) {
         if observations.is_empty() {
             return;
@@ -528,7 +486,7 @@ impl History {
         &self,
         start: Moment,
         end: Moment,
-    ) -> RuntimeResult<Vec<ObservationRecord>> {
+    ) -> RuntimeResult<Vec<ObservationEntry>> {
         if start.branch_id != end.branch_id {
             return Err(RuntimeError::MomentBranchMismatch {
                 moment_branch_id: start.branch_id.get(),
@@ -890,10 +848,7 @@ impl History {
             return parent_runtime_image.clone();
         }
 
-        let runtime_image_id = RuntimeImageId::new(self.next_runtime_image_id);
-        self.next_runtime_image_id += 1;
-        self.runtime_images
-            .insert(runtime_image_id, runtime_image.clone());
+        self.runtime_images.push(runtime_image.clone());
 
         runtime_image
     }
@@ -912,10 +867,7 @@ impl History {
             return parent_worker_image.clone();
         }
 
-        let worker_image_id = WorkerImageId::new(self.next_worker_image_id);
-        self.next_worker_image_id += 1;
-        self.worker_images
-            .insert(worker_image_id, worker_image.clone());
+        self.worker_images.push(worker_image.clone());
 
         worker_image
     }
@@ -924,7 +876,7 @@ impl History {
     fn rebuild_runtime_image_entries(&mut self, image: &mut WorldImage) {
         for runtime_image in image.runtimes.values_mut() {
             if let Some(existing_runtime_image) =
-                self.runtime_images.values().find(|existing_runtime_image| {
+                self.runtime_images.iter().find(|existing_runtime_image| {
                     existing_runtime_image.as_ref() == runtime_image.as_ref()
                 })
             {
@@ -932,10 +884,7 @@ impl History {
                 continue;
             }
 
-            let runtime_image_id = RuntimeImageId::new(self.next_runtime_image_id);
-            self.next_runtime_image_id += 1;
-            self.runtime_images
-                .insert(runtime_image_id, runtime_image.clone());
+            self.runtime_images.push(runtime_image.clone());
         }
     }
 
@@ -943,7 +892,7 @@ impl History {
     fn rebuild_worker_image_entries(&mut self, image: &mut WorldImage) {
         for worker_image in image.workers.values_mut() {
             if let Some(existing_worker_image) =
-                self.worker_images.values().find(|existing_worker_image| {
+                self.worker_images.iter().find(|existing_worker_image| {
                     existing_worker_image.as_ref() == worker_image.as_ref()
                 })
             {
@@ -951,10 +900,7 @@ impl History {
                 continue;
             }
 
-            let worker_image_id = WorkerImageId::new(self.next_worker_image_id);
-            self.next_worker_image_id += 1;
-            self.worker_images
-                .insert(worker_image_id, worker_image.clone());
+            self.worker_images.push(worker_image.clone());
         }
     }
 }

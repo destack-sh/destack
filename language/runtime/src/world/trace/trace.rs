@@ -1,19 +1,21 @@
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
-use super::entropy::ENTROPY_CHANNEL;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
 use crate::runtime::time::Instant;
 use crate::world::trace::{
-    BindingCallEvent, EntropyEvent, EntrypointInvocation, Outcome, TraceCursor, TraceCursorImage,
-    TraceHeader, TraceLog, TraceLogImage, TraceRecord, TraceSequence,
+    BindingCall, EntropySample, EntropySubject, EntrypointCall, Outcome, TraceCursor,
+    TraceCursorImage, TraceHeader, TraceLog, TraceLogImage, TraceRecord, TraceSequence,
 };
 use crate::world::{BranchId, Mutation};
-use destack_workspace::ExecutionMode;
+use destack_workspace::{Environment, ExecutionMode};
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+
+/// Trace channel name for entropy records.
+pub(super) const ENTROPY_CHANNEL: &str = "runtime.random.entropy";
 
 /// Validation state for trace record ordering.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -40,7 +42,7 @@ impl Validator {
             }
 
             TraceRecord::Outcome(Outcome::Entropy(event)) => match event {
-                EntropyEvent::TimeReadMonotonic { outcome, .. } => {
+                EntropySample::TimeReadMonotonic { outcome, .. } => {
                     if let Ok(time_nanos) = outcome {
                         if let Some(last) = self.last_monotonic_nanos
                             && *time_nanos < last
@@ -55,7 +57,7 @@ impl Validator {
                     }
                 }
 
-                EntropyEvent::RandomReadBytes {
+                EntropySample::RandomReadBytes {
                     len,
                     outcome: Ok(bytes),
                     ..
@@ -83,16 +85,19 @@ impl Validator {
 pub struct TraceImage {
     /// The active trace execution mode.
     pub(crate) mode: ExecutionMode,
-    /// The captured branch identifier.
-    pub(crate) branch_id: BranchId,
-    /// The next sequence number after the captured image.
-    pub(crate) next_sequence: TraceSequence,
     /// The captured trace-log image.
     pub(crate) log: TraceLogImage,
     /// The captured reader cursor when replay mode is active.
     pub(crate) cursor: Option<TraceCursorImage>,
     /// The captured trace validator state.
     pub(crate) validator: Validator,
+}
+
+impl TraceImage {
+    /// Return the next sequence number after this trace image.
+    pub(crate) fn next_sequence(&self) -> TraceSequence {
+        self.log.next_sequence()
+    }
 }
 
 /// Trace controller for record and replay pipelines.
@@ -158,6 +163,11 @@ impl Trace {
         self.log.set_branch_id(branch_id);
     }
 
+    /// Replace the captured runtime environment.
+    pub(crate) fn set_environment(&self, environment: Environment) {
+        self.log.set_environment(environment);
+    }
+
     /// Capture one materialized trace image.
     pub(crate) fn capture_image(&self) -> TraceImage {
         let cursor = self
@@ -168,8 +178,6 @@ impl Trace {
 
         TraceImage {
             mode: self.mode,
-            branch_id: self.log.branch_id(),
-            next_sequence: self.log.next_sequence(),
             log: self.log.image(),
             cursor,
             validator,
@@ -216,20 +224,6 @@ impl Trace {
         if self.mode != image.mode {
             return Err(RuntimeError::Internal {
                 message: "trace image mode does not match world execution mode".to_string(),
-            }
-            .boxed());
-        }
-
-        if image.log.branch_id() != image.branch_id {
-            return Err(RuntimeError::Internal {
-                message: "trace image branch metadata does not match trace log image".to_string(),
-            }
-            .boxed());
-        }
-
-        if image.log.next_sequence() != image.next_sequence {
-            return Err(RuntimeError::Internal {
-                message: "trace image sequence metadata does not match trace log image".to_string(),
             }
             .boxed());
         }
@@ -327,8 +321,8 @@ impl Trace {
         self.record_event(TraceRecord::Mutation(mutation))
     }
 
-    /// Record one authoritative entrypoint invocation.
-    pub(crate) fn record_entrypoint(&self, invocation: EntrypointInvocation) -> RuntimeResult<()> {
+    /// Record one authoritative entrypoint call.
+    pub(crate) fn record_entrypoint(&self, invocation: EntrypointCall) -> RuntimeResult<()> {
         self.record_event(TraceRecord::Entrypoint(invocation))
     }
 
@@ -337,13 +331,46 @@ impl Trace {
         self.record_event(TraceRecord::Outcome(outcome))
     }
 
-    /// Record one authoritative trace anchor and return its assigned sequence.
-    pub(crate) fn record_anchor(&self, anchor: String) -> RuntimeResult<TraceSequence> {
+    /// Record one user-visible trace label and return its assigned sequence.
+    pub(crate) fn record_label(&self, label: String) -> RuntimeResult<TraceSequence> {
         if self.mode() != ExecutionMode::Record {
             return Ok(self.log.next_sequence());
         }
 
-        self.log.record_event(TraceRecord::Anchor(anchor))
+        self.log.record_event(TraceRecord::Label(label))
+    }
+
+    /// Return one trace mismatch error for the entropy channel.
+    pub(crate) fn entropy_mismatch_error(&self) -> Box<RuntimeError> {
+        RuntimeError::TraceMismatch {
+            name: ENTROPY_CHANNEL.to_string(),
+        }
+        .boxed()
+    }
+
+    /// Read and validate one entropy sample from trace.
+    pub(crate) fn next_entropy_sample(
+        &self,
+        expected_subject: EntropySubject,
+    ) -> RuntimeResult<EntropySample> {
+        if self.mode() != ExecutionMode::Replay {
+            return Err(self.entropy_mismatch_error());
+        }
+
+        let Some(record) = self.next_event()? else {
+            let sequence = self.log().next_sequence().get();
+            return Err(RuntimeError::TraceExhausted { sequence }.boxed());
+        };
+
+        let TraceRecord::Outcome(Outcome::Entropy(sample)) = record else {
+            return Err(self.entropy_mismatch_error());
+        };
+
+        if sample.subject() != expected_subject {
+            return Err(self.entropy_mismatch_error());
+        }
+
+        Ok(sample)
     }
 
     /// Read the next event when replay is enabled.
@@ -394,7 +421,7 @@ impl Trace {
         spec: BindingDescriptor,
         payload: &[u8],
     ) -> RuntimeResult<()> {
-        self.record_outcome(Outcome::BindingCall(BindingCallEvent {
+        self.record_outcome(Outcome::BindingCall(BindingCall {
             binding_id: spec.id,
             codec: spec.codec,
             payload: payload.to_vec(),
@@ -402,7 +429,7 @@ impl Trace {
     }
 
     /// Read the next binding call payload for replay.
-    pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingCallEvent> {
+    pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingCall> {
         // read the next event from the log
         let event = self.next_required_record(spec.name)?;
 
@@ -490,8 +517,8 @@ impl Trace {
         }
     }
 
-    /// Read the next entrypoint invocation from replay.
-    pub(crate) fn next_entrypoint(&self) -> RuntimeResult<EntrypointInvocation> {
+    /// Read the next entrypoint call from replay.
+    pub(crate) fn next_entrypoint(&self) -> RuntimeResult<EntrypointCall> {
         let event = self.next_required_record("entrypoint")?;
         let TraceRecord::Entrypoint(invocation) = event else {
             return Err(Self::trace_mismatch_error("entrypoint"));
@@ -500,11 +527,11 @@ impl Trace {
         Ok(invocation)
     }
 
-    /// Resolve one entrypoint invocation under the active replay mode.
+    /// Resolve one entrypoint call under the active replay mode.
     pub(crate) fn resolve_entrypoint(
         &self,
-        requested_invocation: EntrypointInvocation,
-    ) -> RuntimeResult<EntrypointInvocation> {
+        requested_invocation: EntrypointCall,
+    ) -> RuntimeResult<EntrypointCall> {
         match self.mode() {
             ExecutionMode::Fast => Ok(requested_invocation),
             ExecutionMode::Replay => {

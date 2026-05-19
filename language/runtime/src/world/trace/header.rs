@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::host::binding::BindingReplayPayload;
 use crate::world::trace::TraceSequence;
 use crate::world::{BranchId, CheckpointId, RevisionId};
-use destack_workspace::{ClockSource, ExecutionMode, RandomSource};
+use destack_workspace::{ClockSource, Environment, ExecutionMode, RandomSource};
 
 /// Current trace format version.
 pub const TRACE_FORMAT_VERSION: u32 = 1;
@@ -39,13 +39,13 @@ pub struct TraceHeader {
     pub max_events_per_chunk: u32,
     /// Maximum chunk size in bytes.
     pub max_chunk_bytes: u64,
-    /// Runtime environment configuration.
-    pub environment: EnvironmentConfig,
+    /// Runtime environment.
+    pub environment: Environment,
 }
 
 impl TraceHeader {
     /// Create a trace header with explicit configuration.
-    pub fn new(environment: EnvironmentConfig) -> Self {
+    pub fn new(environment: Environment) -> Self {
         Self {
             format_version: TRACE_FORMAT_VERSION,
             build_hash: 0,
@@ -61,21 +61,6 @@ impl TraceHeader {
             environment,
         }
     }
-}
-
-/// Environment configuration captured for trace.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct EnvironmentConfig {
-    /// Process arguments.
-    pub argv: Vec<String>,
-    /// Environment variables.
-    pub env: Vec<(String, String)>,
-    /// Current working directory.
-    pub cwd: String,
-    /// Timezone name or offset.
-    pub timezone: Option<String>,
-    /// Locale identifier.
-    pub locale: Option<String>,
 }
 
 /// Header metadata for one trace chunk.

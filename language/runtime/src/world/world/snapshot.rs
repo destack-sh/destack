@@ -158,6 +158,7 @@ impl World {
     /// Return the revision that owns one stored image.
     pub fn revision_for_image(&self, image_id: ImageId) -> RuntimeResult<RevisionId> {
         let history = self.history.read();
+        history.image(image_id)?;
         let revision = history.revision_for_image_id(image_id).ok_or_else(|| {
             RuntimeError::InconsistentImage {
                 detail: format!("image {} does not belong to one revision", image_id.get()),
@@ -171,14 +172,8 @@ impl World {
     /// Create one history-wide serialized snapshot from one stored image.
     pub fn snapshot_history(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
         let (revision, history_snapshot) = {
+            let revision = self.revision_for_image(image_id)?;
             let history = self.history.read();
-            history.image(image_id)?;
-            let revision = history.revision_for_image_id(image_id).ok_or_else(|| {
-                RuntimeError::InconsistentImage {
-                    detail: format!("image {} does not belong to one revision", image_id.get()),
-                }
-                .boxed()
-            })?;
 
             (revision, history.full_snapshot()?)
         };
@@ -198,13 +193,7 @@ impl World {
     ) -> RuntimeResult<()> {
         // resolve the owning revision first
         let (revision, image, trace_image) = {
-            let history = self.history.read();
-            let revision = history.revision_for_image_id(image_id).ok_or_else(|| {
-                RuntimeError::ImageNotFound {
-                    image_id: image_id.get(),
-                }
-                .boxed()
-            })?;
+            let revision = self.revision_for_image(image_id)?;
             let (_, image, trace_image) = self.revision_data(revision)?;
 
             (revision, image, trace_image)
@@ -215,16 +204,7 @@ impl World {
 
     /// Create one exact serialized snapshot for one stored image.
     pub fn snapshot(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
-        let revision = {
-            let history = self.history.read();
-            history.image(image_id)?;
-            history.revision_for_image_id(image_id).ok_or_else(|| {
-                RuntimeError::InconsistentImage {
-                    detail: format!("image {} does not belong to one revision", image_id.get()),
-                }
-                .boxed()
-            })?
-        };
+        let revision = self.revision_for_image(image_id)?;
 
         self.snapshot_revision(revision)
     }

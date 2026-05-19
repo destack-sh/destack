@@ -43,38 +43,6 @@ impl BranchSet {
         self.branches
     }
 
-    /// Return the first branch in this set, if any.
-    pub fn first(&self) -> Option<&Branch> {
-        self.branches.first()
-    }
-
-    /// Return the last branch in this set, if any.
-    pub fn last(&self) -> Option<&Branch> {
-        self.branches.last()
-    }
-
-    /// Report whether any branch in this set matches one predicate.
-    pub fn any(&self, predicate: impl FnMut(&Branch) -> bool) -> bool {
-        self.branches.iter().any(predicate)
-    }
-
-    /// Report whether every branch in this set matches one predicate.
-    pub fn all(&self, predicate: impl FnMut(&Branch) -> bool) -> bool {
-        self.branches.iter().all(predicate)
-    }
-
-    /// Keep only branches that satisfy one predicate.
-    pub fn filter(mut self, mut predicate: impl FnMut(&Branch) -> bool) -> Self {
-        self.branches.retain(|branch| predicate(branch));
-        self
-    }
-
-    /// Return one union of this set with one second branch set.
-    pub fn union(mut self, other: Self) -> Self {
-        self.branches.extend(other.branches);
-        Self::new(self.branches)
-    }
-
     /// Return the branch identifiers in stable query order.
     pub fn ids(&self) -> Vec<BranchId> {
         self.branches.iter().map(|branch| branch.id).collect()
@@ -115,54 +83,22 @@ impl MomentSet {
         self.moments
     }
 
-    /// Return the first moment in this set, if any.
-    pub fn first(&self) -> Option<&Moment> {
-        self.moments.first()
-    }
-
-    /// Return the last moment in this set, if any.
-    pub fn last(&self) -> Option<&Moment> {
-        self.moments.last()
-    }
-
-    /// Report whether any moment in this set matches one predicate.
-    pub fn any(&self, predicate: impl FnMut(&Moment) -> bool) -> bool {
-        self.moments.iter().any(predicate)
-    }
-
-    /// Report whether every moment in this set matches one predicate.
-    pub fn all(&self, predicate: impl FnMut(&Moment) -> bool) -> bool {
-        self.moments.iter().all(predicate)
-    }
-
-    /// Keep only moments that satisfy one predicate.
-    pub fn filter(mut self, mut predicate: impl FnMut(&Moment) -> bool) -> Self {
-        self.moments.retain(|moment| predicate(moment));
-        self
-    }
-
-    /// Return one union of this set with one second moment set.
-    pub fn union(mut self, other: Self) -> Self {
-        self.moments.extend(other.moments);
-        Self::new(self.moments)
-    }
-
     /// Return the first moment in this set by value.
     pub fn start(&self) -> Option<Moment> {
-        self.first().copied()
+        self.moments.first().copied()
     }
 
     /// Return the last moment in this set by value.
     pub fn end(&self) -> Option<Moment> {
-        self.last().copied()
+        self.moments.last().copied()
     }
 }
 
 /// One history-rooted committed moment query.
 #[derive(Debug, Clone, Copy)]
 pub struct MomentQuery<'a> {
-    /// The history view that owns the query.
-    history: HistoryView<'a>,
+    /// The history query root that owns the query.
+    history: HistoryQuery<'a>,
 }
 
 impl<'a> MomentQuery<'a> {
@@ -184,12 +120,12 @@ impl<'a> MomentQuery<'a> {
 
 /// One committed-history query root over shared history.
 #[derive(Debug, Clone, Copy)]
-pub struct HistoryView<'a> {
+pub struct HistoryQuery<'a> {
     /// The world that owns the shared history.
     world: &'a World,
 }
 
-impl<'a> HistoryView<'a> {
+impl<'a> HistoryQuery<'a> {
     /// Return metadata for one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<Branch> {
         let history = self.world.history.read();
@@ -453,8 +389,8 @@ impl World {
     }
 
     /// Return one committed-history query root over shared history.
-    pub fn history(&self) -> HistoryView<'_> {
-        HistoryView { world: self }
+    pub fn history(&self) -> HistoryQuery<'_> {
+        HistoryQuery { world: self }
     }
 
     /// Return every query event after one start moment and up to one end moment.
@@ -549,7 +485,7 @@ impl World {
         trace.events_between_on_branch(self.state.branch_id, start, end)
     }
 
-    /// Project committed and live observation records into query events for one range.
+    /// Project committed and live observation entries into query events for one range.
     fn observation_events_between(&self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
         let committed_head = {
             let history = self.history.read();

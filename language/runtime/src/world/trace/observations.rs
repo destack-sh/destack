@@ -8,7 +8,7 @@ use crate::world::trace::TraceSequence;
 use crate::world::{BranchId, Moment};
 
 use super::{
-    Observation, ObservationOptions, ObservationRecord, ObservationSequence,
+    Observation, ObservationEntry, ObservationOptions, ObservationSequence,
     ObservationSubscriptionId,
 };
 
@@ -20,7 +20,7 @@ pub struct Observations {
     /// Next observation subscription identifier.
     next_subscription_id: AtomicU64,
     /// Live uncommitted observation tail.
-    tail: RwLock<Vec<ObservationRecord>>,
+    tail: RwLock<Vec<ObservationEntry>>,
     /// Live observation subscriptions keyed by identifier.
     subscriptions: RwLock<BTreeMap<ObservationSubscriptionId, ObservationSubscription>>,
 }
@@ -30,7 +30,7 @@ impl Observations {
     pub fn record_at(&self, moment: Moment, observation: Observation) -> ObservationSequence {
         let sequence = ObservationSequence::new(self.next_sequence.fetch_add(1, Ordering::SeqCst));
         let mut tail = self.tail.write();
-        tail.push(ObservationRecord {
+        tail.push(ObservationEntry {
             sequence,
             moment,
             observation,
@@ -39,17 +39,12 @@ impl Observations {
         sequence
     }
 
-    /// Return every observation entry after the optional sequence.
-    pub fn records_after(&self, after: Option<ObservationSequence>) -> Vec<ObservationRecord> {
-        self.records_after_with_options(after, ObservationOptions::default())
-    }
-
     /// Return every filtered observation entry after the optional sequence.
-    pub fn records_after_with_options(
+    pub fn records_after(
         &self,
         after: Option<ObservationSequence>,
         options: ObservationOptions,
-    ) -> Vec<ObservationRecord> {
+    ) -> Vec<ObservationEntry> {
         let tail = self.tail.read();
 
         let start_index = match after {
@@ -65,7 +60,7 @@ impl Observations {
     }
 
     /// Return every observation entry within one moment range.
-    pub fn records_between(&self, start: Moment, end: Moment) -> Vec<ObservationRecord> {
+    pub fn records_between(&self, start: Moment, end: Moment) -> Vec<ObservationEntry> {
         let tail = self.tail.read();
 
         tail.iter()
@@ -83,7 +78,7 @@ impl Observations {
         &self,
         branch_id: BranchId,
         sequence: TraceSequence,
-    ) -> Vec<ObservationRecord> {
+    ) -> Vec<ObservationEntry> {
         let mut tail = self.tail.write();
         let split_index = tail.partition_point(|entry| {
             entry.moment.branch_id == branch_id && entry.moment.sequence.get() <= sequence.get()
@@ -136,7 +131,7 @@ impl Observations {
         &self,
         subscription_id: ObservationSubscriptionId,
         limit: usize,
-    ) -> RuntimeResult<Vec<ObservationRecord>> {
+    ) -> RuntimeResult<Vec<ObservationEntry>> {
         if limit == 0 {
             return Ok(Vec::new());
         }

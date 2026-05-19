@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
+use crate::host::core::HostQueue;
+use crate::host::poller::create_host_poller;
 use crate::host::resource::ResourceRebinders;
 use crate::runtime::random::Random;
 use crate::runtime::time::Instant;
@@ -108,7 +110,7 @@ impl World {
             history.commit_revision(
                 self.state.branch_id,
                 image_id,
-                trace_image.next_sequence,
+                trace_image.next_sequence(),
                 Instant::from_nanos(self.wall()),
                 Instant::from_nanos(self.mono()),
                 checkpoint_name,
@@ -341,13 +343,13 @@ impl World {
                     self.apply_mutation(mutation)?;
                 }
                 TraceRecord::Entrypoint(invocation) => {
-                    let _ = self.do_run_entrypoint(
+                    let _ = self.execute_entrypoint(
                         invocation.runtime_id,
                         &invocation.entry,
                         &invocation.args,
                     )?;
                 }
-                TraceRecord::Anchor(_) => {}
+                TraceRecord::Label(_) => {}
                 TraceRecord::Outcome(
                     outcome @ (Outcome::RuntimeSpawned { .. } | Outcome::WorkerSpawned { .. }),
                 ) => {
@@ -355,15 +357,13 @@ impl World {
                         // runtime restore
                         Outcome::RuntimeSpawned {
                             runtime_id,
-                            runtime_name,
-                            runtime_labels,
+                            runtime_entity,
                             runtime,
                             workers,
                         } => {
                             self.restore_runtime_image(
                                 runtime_id,
-                                runtime_name,
-                                runtime_labels,
+                                runtime_entity,
                                 &runtime,
                                 &workers,
                                 rebinders,
@@ -374,15 +374,13 @@ impl World {
                         Outcome::WorkerSpawned {
                             runtime_id,
                             worker_id,
-                            worker_name,
-                            worker_labels,
+                            worker_entity,
                             worker,
                         } => {
                             self.restore_worker_image(
                                 runtime_id,
                                 worker_id,
-                                worker_name,
-                                worker_labels,
+                                worker_entity,
                                 &worker,
                                 rebinders,
                             )?;
@@ -449,8 +447,14 @@ impl World {
             observations: Observations::default(),
         };
 
+        let poller_backend = self.poller_backend;
+        let poller = create_host_poller(poller_backend)?;
+
         Ok(World {
             host: self.host.clone(),
+            host_queue: HostQueue::new(),
+            poller,
+            poller_backend,
             runtimes: Default::default(),
             state,
             history: self.history.clone(),
@@ -472,9 +476,7 @@ impl World {
             let collector = self.history.read().collector();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
-                let Some(runtime) =
-                    runtime.try_fork(execution_mode, self.host.clone(), collector.clone())?
-                else {
+                let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {
                     return Ok(None);
                 };
                 runtimes.insert(*runtime_id, Box::new(runtime));
@@ -505,8 +507,13 @@ impl World {
                 observations: Observations::default(),
             };
 
+            let poller = create_host_poller(self.poller_backend)?;
+
             Ok(Some(World {
                 host: self.host.clone(),
+                host_queue: HostQueue::new(),
+                poller,
+                poller_backend: self.poller_backend,
                 runtimes,
                 state,
                 history: self.history.clone(),

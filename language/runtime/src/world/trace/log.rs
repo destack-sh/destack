@@ -10,6 +10,7 @@ use crate::world::trace::{
     TraceChunkIndex, TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
 use destack_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
+use destack_workspace::Environment;
 use postcard::experimental::serialized_size;
 
 use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
@@ -68,10 +69,6 @@ pub(super) struct TraceState {
     header: TraceHeader,
     /// Trace log trailer metadata.
     trailer: TraceTrailer,
-    /// Maximum number of events per chunk.
-    max_events_per_chunk: usize,
-    /// Maximum chunk size in bytes.
-    max_chunk_bytes: u64,
     /// Next sequence number to assign.
     next_sequence: TraceSequence,
     /// Next chunk offset for trailer entries.
@@ -89,7 +86,7 @@ impl TraceState {
     }
 
     /// Return the next trace sequence number.
-    pub(super) fn next_sequence(&self) -> TraceSequence {
+    pub(crate) fn next_sequence(&self) -> TraceSequence {
         self.next_sequence
     }
 
@@ -217,10 +214,6 @@ pub(crate) struct TraceLogImage {
     header: TraceHeader,
     /// Trace log trailer metadata.
     trailer: TraceTrailer,
-    /// Maximum number of events per chunk.
-    max_events_per_chunk: usize,
-    /// Maximum chunk size in bytes.
-    max_chunk_bytes: u64,
     /// Next sequence number to assign.
     next_sequence: TraceSequence,
     /// Next chunk offset for trailer entries.
@@ -274,16 +267,12 @@ impl TraceLog {
             header.max_chunk_bytes = TRACE_DEFAULT_MAX_CHUNK_BYTES;
         }
 
-        let max_events_per_chunk = header.max_events_per_chunk as usize;
-        let max_chunk_bytes = header.max_chunk_bytes;
         let next_sequence = TraceSequence::new(0);
 
         Self {
             state: Arc::new(Mutex::new(TraceState {
                 header,
                 trailer: TraceTrailer::default(),
-                max_events_per_chunk,
-                max_chunk_bytes,
                 next_sequence,
                 next_offset: 0,
                 head: None,
@@ -321,6 +310,12 @@ impl TraceLog {
         state.header.branch_id = branch_id;
     }
 
+    /// Replace the captured runtime environment on the trace header.
+    pub(crate) fn set_environment(&self, environment: Environment) {
+        let mut state = self.state.lock();
+        state.header.environment = environment;
+    }
+
     /// Create a trace cursor for this log.
     pub fn reader(&self) -> TraceCursor {
         TraceCursor::new(self.state.clone())
@@ -343,8 +338,6 @@ impl TraceLog {
         TraceLogImage {
             header: state.header.clone(),
             trailer: state.trailer.clone(),
-            max_events_per_chunk: state.max_events_per_chunk,
-            max_chunk_bytes: state.max_chunk_bytes,
             next_sequence: state.next_sequence,
             next_offset: state.next_offset,
             head: state.head.clone(),
@@ -361,8 +354,6 @@ impl TraceLog {
         *current = TraceState {
             header: image.header,
             trailer: image.trailer,
-            max_events_per_chunk: image.max_events_per_chunk,
-            max_chunk_bytes: image.max_chunk_bytes,
             next_sequence: image.next_sequence,
             next_offset: image.next_offset,
             head: image.head,
@@ -395,8 +386,8 @@ impl TraceLog {
         let is_rotation_required = !state.tail.active.is_empty()
             && state.tail.active.should_rotate_for_event(
                 record_len,
-                state.max_events_per_chunk,
-                state.max_chunk_bytes,
+                state.header.max_events_per_chunk as usize,
+                state.header.max_chunk_bytes,
             );
         if is_rotation_required {
             state.seal_active_chunk(sequence);
@@ -487,12 +478,13 @@ mod tests {
 
     use super::*;
     use crate::runtime::time::Instant;
-    use crate::world::trace::{EnvironmentConfig, Outcome, TraceRecord};
+    use crate::world::trace::{Outcome, TraceRecord};
     use crate::world::{CheckpointId, RevisionId};
+    use destack_workspace::Environment;
 
     /// Build one explicit trace header for log tests.
     fn test_trace_header() -> TraceHeader {
-        TraceHeader::new(EnvironmentConfig::default())
+        TraceHeader::new(Environment::default())
     }
 
     /// Capture one trace image should materialize the local tail into shared history.
