@@ -189,7 +189,7 @@ impl Compiler {
                 };
                 self.type_is_void(state, return_type_id)
             }
-            Type::Value(value) => self.return_type_is_void(state, value.value),
+            Type::Form(value) => self.return_type_is_void(state, value.value),
             _ => false,
         }
     }
@@ -200,7 +200,7 @@ impl Compiler {
             Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Void,
             }) => true,
-            Type::Value(value) => self.type_is_void(state, value.value),
+            Type::Form(value) => self.type_is_void(state, value.value),
             _ => false,
         }
     }
@@ -211,7 +211,7 @@ impl Compiler {
             Type::Literal(dir::LiteralType {
                 value: TypeLiteral::Void | TypeLiteral::Never,
             }) => true,
-            Type::Value(value) => self.type_is_void_or_never(state, value.value),
+            Type::Form(value) => self.type_is_void_or_never(state, value.value),
             _ => false,
         }
     }

@@ -96,6 +96,10 @@ impl Compiler {
             reified_value_id.into_global_any(state.module_id),
             expression_id.into_global_any(state.module_id),
         );
+        state.resolutions_tail.copy_node_relations(
+            reified_value_id.into_global_any(state.module_id),
+            expression_id.into_global_any(state.module_id),
+        );
 
         Ok(())
     }
@@ -368,15 +372,15 @@ impl Compiler {
         // prefer node-local declared or inferred types
         if let Some(type_id) = state.type_table().get_declared_or_inferred_type_id(value_id.into_global_any(state.module_id))
         {
-            return Some(state.type_table().unwrap_value_type_id(type_id));
+            return Some(state.type_table().unwrap_form_payload_type_id(type_id));
         }
 
         // otherwise fall back to reference symbol value types
         let node = value_id.into_global_any(state.module_id);
-        let symbol = state.type_table().symbol_resolution(node)?;
+        let symbol = state.resolution_table().symbol_resolution(node)?;
         let type_id = state.type_table().get_value_type_id(symbol)?;
 
-        Some(state.type_table().unwrap_value_type_id(type_id))
+        Some(state.type_table().unwrap_form_payload_type_id(type_id))
     }
 
     /// Wrap one expression in an implicit `as` when the target type narrows it.
@@ -391,8 +395,8 @@ impl Compiler {
         let Some(value_type_id) = self.value_type_id_for_expression(state, value_id) else {
             return Ok(value_id);
         };
-        let value_type_id = state.type_table().unwrap_value_type_id(value_type_id);
-        let target_type_id = state.type_table().unwrap_value_type_id(target_type_id);
+        let value_type_id = state.type_table().unwrap_form_payload_type_id(value_type_id);
+        let target_type_id = state.type_table().unwrap_form_payload_type_id(target_type_id);
 
         // skip casts that do not change semantics
         if value_type_id == target_type_id
@@ -482,8 +486,8 @@ impl Compiler {
         target_id: LocalTypeId,
     ) -> CastOperator {
         // unwrap value wrappers before classification
-        let source_id = state.type_table().unwrap_value_type_id(source_id);
-        let target_id = state.type_table().unwrap_value_type_id(target_id);
+        let source_id = state.type_table().unwrap_form_payload_type_id(source_id);
+        let target_id = state.type_table().unwrap_form_payload_type_id(target_id);
 
         // fast path for identical types
         if source_id == target_id {
@@ -543,9 +547,7 @@ impl Compiler {
             }),
         ) = (&source, &target)
         {
-            let matches_element = target_element
-                .map(|target_element| target_element == *element)
-                .unwrap_or(true);
+            let matches_element = *target_element == *element;
             if matches_element {
                 return CastOperator::ArraySizedToSlice;
             }
@@ -589,7 +591,7 @@ impl Compiler {
     ) -> Option<CastOperator> {
         // read one enum backing type when present
         let backing_for_type = |ty: &Type| -> Option<EnumBackingType> {
-            let Type::Reference(reference) = ty else {
+            let Type::Named(reference) = ty else {
                 return None;
             };
 

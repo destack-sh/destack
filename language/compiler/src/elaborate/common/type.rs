@@ -3,7 +3,7 @@ use destack_dir::GuardEntry;
 use destack_source::ModuleId;
 use dir::{
     Block, Expression, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral,
-    Type, TypeLiteral, TypeSegment, TypeTable,
+    Type, TypeSegment, TypeTable,
 };
 
 use crate::{Compiler, ElaborateError, ElaborateResult};
@@ -27,9 +27,7 @@ impl Compiler {
         module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
     ) {
-        let bool_type = Type::Literal(dir::LiteralType {
-            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-        });
+        let bool_type = Type::Primitive(PrimitiveType::Boolean);
         let bool_type_id = types_tail.insert_type_from(bool_type, expression_id);
         self.set_expression_type(types_tail, module_id, expression_id, bool_type_id);
     }
@@ -42,9 +40,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         literal: ScalarLiteral,
     ) {
-        let literal_type = Type::Literal(dir::LiteralType {
-            value: TypeLiteral::ScalarLiteral(literal),
-        });
+        let literal_type = Type::Literal(literal);
         let literal_type_id = types_tail.insert_type_from(literal_type, expression_id);
         self.set_expression_type(types_tail, module_id, expression_id, literal_type_id);
     }
@@ -104,9 +100,7 @@ impl Compiler {
         types_tail: &mut TypeSegment,
         node_id: LocalNodeIdAny,
     ) -> LocalTypeId {
-        let ty = Type::Literal(dir::LiteralType {
-            value: TypeLiteral::Void,
-        });
+        let ty = Type::Void;
         types_tail.insert_type_from_any(ty, node_id)
     }
 
@@ -116,9 +110,7 @@ impl Compiler {
         types_tail: &mut TypeSegment,
         node_id: LocalNodeIdAny,
     ) -> LocalTypeId {
-        let ty = Type::Literal(dir::LiteralType {
-            value: TypeLiteral::Never,
-        });
+        let ty = Type::Never;
         types_tail.insert_type_from_any(ty, node_id)
     }
 
@@ -176,12 +168,7 @@ impl Compiler {
         drop(types);
 
         match flattened.len() {
-            0 => types_tail.insert_type_from_any(
-                Type::Literal(dir::LiteralType {
-                    value: TypeLiteral::Never,
-                }),
-                source_id,
-            ),
+            0 => types_tail.insert_type_from_any(Type::Never, source_id),
             1 => flattened[0],
             _ => types_tail.insert_type_from_any(
                 Type::Union(dir::UnionType {
@@ -199,8 +186,8 @@ impl Compiler {
         value_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
     ) -> Option<GuardEntry> {
-        let value_type_id = types.unwrap_value_type_id(value_type_id);
-        let target_type_id = types.unwrap_value_type_id(target_type_id);
+        let value_type_id = types.unwrap_form_payload_type_id(value_type_id);
+        let target_type_id = types.unwrap_form_payload_type_id(target_type_id);
 
         // identical ids need no runtime check
         if value_type_id == target_type_id {
@@ -221,10 +208,10 @@ fn is_runtime_checkable_target(types: &TypeTable<'_>, type_id: LocalTypeId) -> b
     match types.get_type(type_id) {
         Type::Union(union) => {
             union.elements.iter().copied().all(|element| {
-                is_runtime_checkable_target(types, types.unwrap_value_type_id(element))
+                is_runtime_checkable_target(types, types.unwrap_form_payload_type_id(element))
             })
         }
-        Type::Reference(_) => true,
+        Type::Named(_) => true,
         _ => false,
     }
 }
@@ -233,11 +220,11 @@ fn is_runtime_checkable_target(types: &TypeTable<'_>, type_id: LocalTypeId) -> b
 fn guard_entry_for_value(types: &TypeTable<'_>, type_id: LocalTypeId) -> Option<GuardEntry> {
     match types.get_type(type_id) {
         Type::Union(_) => Some(GuardEntry::UnionTag),
-        Type::Reference(_) => Some(GuardEntry::TypeDescriptor),
-        Type::Literal(dir::LiteralType {
-            value: TypeLiteral::Unknown,
-        }) => Some(GuardEntry::TypeDescriptor),
-        Type::Value(value) => guard_entry_for_value(types, types.unwrap_value_type_id(value.value)),
+        Type::Named(_) => Some(GuardEntry::TypeDescriptor),
+        Type::Unknown => Some(GuardEntry::TypeDescriptor),
+        Type::Form(value) => {
+            guard_entry_for_value(types, types.unwrap_form_payload_type_id(value.value))
+        }
         _ => None,
     }
 }

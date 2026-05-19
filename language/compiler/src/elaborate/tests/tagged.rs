@@ -95,7 +95,7 @@ let value = Point(1, 2);
             let value_id = declarator.value.expect("expected initializer value");
 
             // ensure a tagged tuple expression was created
-            let Expression::TaggedTupleExpression { ty: _, elements } = tree.get(value_id) else {
+            let Expression::TaggedTuple { ty: _, elements } = tree.get(value_id) else {
                 panic!("expected tagged tuple expression");
             };
             assert_eq!(elements.len(), 2);
@@ -146,7 +146,7 @@ let value = Box<int32>(1);
             let value_id = declarator.value.expect("expected initializer value");
 
             // verify tagged tuple constructor uses static arguments on the tag
-            let Expression::TaggedTupleExpression { ty, elements: _ } = tree.get(value_id) else {
+            let Expression::TaggedTuple { ty, elements: _ } = tree.get(value_id) else {
                 panic!("expected tagged tuple expression");
             };
 

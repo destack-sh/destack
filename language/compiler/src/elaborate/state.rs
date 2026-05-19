@@ -25,6 +25,10 @@ pub(crate) struct ElaborateState<'a> {
     pub(crate) types: &'a dir::TypeTable<'static>,
     /// The local type segment.
     pub(crate) types_tail: &'a mut dir::TypeSegment,
+    /// The readable resolution table from prior phases.
+    pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
+    /// The local resolution segment.
+    pub(crate) resolutions_tail: &'a mut dir::ResolutionSegment,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a mut GuardTable,
 }
@@ -42,6 +46,8 @@ impl<'a> ElaborateState<'a> {
         symbols: &'a mut dir::BindingTable<'static>,
         types: &'a dir::TypeTable<'static>,
         types_tail: &'a mut dir::TypeSegment,
+        resolutions: &'a dir::ResolutionTable<'static>,
+        resolutions_tail: &'a mut dir::ResolutionSegment,
         guards: &'a mut GuardTable,
     ) -> Self {
         Self {
@@ -54,6 +60,8 @@ impl<'a> ElaborateState<'a> {
             symbols,
             types,
             types_tail,
+            resolutions,
+            resolutions_tail,
             guards,
         }
     }
@@ -61,5 +69,10 @@ impl<'a> ElaborateState<'a> {
     /// Return the visible type table for this elaborate run.
     pub(crate) fn type_table(&self) -> dir::TypeTable<'_> {
         self.types.with_tail(self.types_tail)
+    }
+
+    /// Return the visible resolution table for this elaborate run.
+    pub(crate) fn resolution_table(&self) -> dir::ResolutionTable<'_> {
+        self.resolutions.with_tail(self.resolutions_tail)
     }
 }

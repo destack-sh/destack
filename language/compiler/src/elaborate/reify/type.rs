@@ -2,9 +2,8 @@
 
 use destack_dir as dir;
 use dir::{
-    Argument, CastOperator, Declaration, DispatchResolution, Expression, GlobalSymbolId,
-    LocalNodeId, LocalTypeId, Member, NodeType, PrimitiveType, Resolution, ScalarLiteral, Type,
-    TypeLiteral, TypeSegment, TypeTable,
+    Argument, CastOperator, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
+    Member, NodeType, PrimitiveType, ScalarLiteral, Type, TypeLiteral, TypeSegment, TypeTable,
 };
 
 use crate::elaborate::ElaborateState;
@@ -19,51 +18,20 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         arguments: &[LocalNodeId<Argument>],
     ) -> ElaborateResult<Option<Vec<Option<LocalTypeId>>>> {
-        // resolve the call resolution
-        let Some(resolution) = state.type_table().resolution(expression_id.into_global_any(state.module_id))
+        let Some(resolution) = state
+            .resolution_table()
+            .call_resolution(expression_id.into_global_any(state.module_id))
             .cloned()
         else {
             return Ok(None);
         };
-        let candidates = match resolution {
-            Resolution::Dispatch(DispatchResolution::Static { target, .. }) => vec![target],
-            Resolution::Dispatch(DispatchResolution::Dynamic { targets, .. }) => targets,
-            _ => return Ok(None),
-        };
-
-        // collect resolved signatures for all candidates
-        let mut signatures = Vec::new();
-        for candidate in candidates {
-            let Some(resolved_signature) = candidate.signature else {
-                return Ok(None);
-            };
-            signatures.push(resolved_signature);
-        }
 
         // map positional arguments to parameter types when uniform across candidates
         let mut expected_types = Vec::with_capacity(arguments.len());
         for (index, argument_id) in arguments.iter().enumerate() {
             let argument = state.tree.get(*argument_id);
             let expected_type_id = match argument {
-                Argument::Positional { .. } => {
-                    let mut expected = None;
-                    let mut is_uniform = true;
-                    for signature in &signatures {
-                        let Some(param_ty_id) = signature.parameters.get(index).copied() else {
-                            is_uniform = false;
-                            break;
-                        };
-                        if let Some(current) = expected {
-                            if current != param_ty_id {
-                                is_uniform = false;
-                                break;
-                            }
-                        } else {
-                            expected = Some(param_ty_id);
-                        }
-                    }
-                    if is_uniform { expected } else { None }
-                }
+                Argument::Positional { .. } => resolution.parameters.get(index).copied(),
                 _ => None,
             };
             expected_types.push(expected_type_id);
@@ -141,7 +109,7 @@ impl Compiler {
         // unwrap value types when needed
         match state.type_table().get_type(type_id) {
             Type::Function(function) => function.return_type,
-            Type::Value(value) => self.return_type_from_type_id(state, value.value),
+            Type::Form(value) => self.return_type_from_type_id(state, value.value),
             _ => None,
         }
     }

@@ -52,7 +52,7 @@ impl Compiler {
             return Ok(false);
         };
         let callee_node = callee_id.into_global_any(state.module_id);
-        let Some(callee_symbol) = state.type_table().symbol_resolution(callee_node) else {
+        let Some(callee_symbol) = state.resolution_table().symbol_resolution(callee_node) else {
             return Ok(false);
         };
 
@@ -89,7 +89,7 @@ impl Compiler {
             ConstructorKind::Tuple => {
                 state.tree.replace(
                     expression_id,
-                    Expression::TaggedTupleExpression {
+                    Expression::TaggedTuple {
                         ty: callee_id,
                         elements: arguments.to_vec(),
                     },
@@ -213,9 +213,9 @@ impl Compiler {
 
         match view.types.get_type(type_id) {
             Type::Tuple(_) => ConstructorKind::Tuple,
-            Type::Object(_) => ConstructorKind::Object,
-            Type::Value(value) => self.constructor_kind_for_type_id(view, value.value, visited),
-            Type::Reference(reference) => {
+            Type::Shape(_) => ConstructorKind::Object,
+            Type::Form(value) => self.constructor_kind_for_type_id(view, value.value, visited),
+            Type::Named(reference) => {
                 if let Some(instance_id) = view.types.get_instance_type_id(reference.symbol) {
                     self.constructor_kind_for_type_id(view, instance_id, visited)
                 } else {
@@ -265,8 +265,10 @@ impl Compiler {
 
                 let source_node = callee_id.into_global_any(state.module_id);
                 let target_node = type_expression_id.into_global_any(state.module_id);
-                if let Some(symbol_id) = state.type_table().symbol_resolution(source_node) {
-                    state.types_tail.set_symbol_resolution(target_node, symbol_id);
+                if let Some(symbol_id) = state.resolution_table().symbol_resolution(source_node) {
+                    state
+                        .resolutions_tail
+                        .set_symbol_resolution(target_node, symbol_id);
                 }
 
                 Some(type_expression_id)

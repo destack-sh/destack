@@ -295,7 +295,7 @@ impl Compiler {
             }
             Expression::ArrayExpression { elements }
             | Expression::TupleExpression { elements }
-            | Expression::TaggedTupleExpression { elements, .. } => {
+            | Expression::TaggedTuple { elements, .. } => {
                 for argument_id in elements {
                     modified |=
                         self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;
@@ -527,7 +527,7 @@ impl Compiler {
         else {
             return false;
         };
-        let left_type_id = state.type_table().unwrap_value_type_id(left_type_id);
+        let left_type_id = state.type_table().unwrap_form_payload_type_id(left_type_id);
 
         let mut candidates = Vec::new();
         match state.type_table().get_type(left_type_id) {
@@ -536,7 +536,7 @@ impl Compiler {
         }
 
         for candidate_id in candidates {
-            let candidate_id = state.type_table().unwrap_value_type_id(candidate_id);
+            let candidate_id = state.type_table().unwrap_form_payload_type_id(candidate_id);
             let candidate = state.type_table().get_type(candidate_id);
             if matches!(
                 candidate,
@@ -678,7 +678,7 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let left_type_id = state.type_table().unwrap_value_type_id(left_type_id);
+        let left_type_id = state.type_table().unwrap_form_payload_type_id(left_type_id);
 
         // bind the left operand once before nullish checks
         let (left_temp_let, left_temp_symbol, left_temp_name) = self

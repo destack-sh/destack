@@ -87,7 +87,7 @@ impl Compiler {
             | Expression::TupleExpression { .. }
             | Expression::ObjectExpression { .. }
             | Expression::TaggedScalarExpression { .. }
-            | Expression::TaggedTupleExpression { .. }
+            | Expression::TaggedTuple { .. }
             | Expression::StructExpression { .. }
             | Expression::Parenthesized { .. }
             | Expression::TemplateExpression { .. } => true,

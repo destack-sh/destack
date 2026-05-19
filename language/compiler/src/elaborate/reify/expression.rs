@@ -25,6 +25,8 @@ impl Compiler {
         symbols: &mut dir::BindingTable<'_>,
         types: &dir::TypeTable<'_>,
         types_tail: &mut dir::TypeSegment,
+        resolutions: &dir::ResolutionTable<'_>,
+        resolutions_tail: &mut dir::ResolutionSegment,
         guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
@@ -43,6 +45,8 @@ impl Compiler {
             symbols,
             types,
             types_tail,
+            resolutions,
+            resolutions_tail,
             guards,
         );
 
@@ -120,7 +124,7 @@ impl Compiler {
 
             Expression::Path { .. } => {
                 let node = expression_id.into_global_any(state.module_id);
-                let Some(target_symbol) = state.type_table().symbol_resolution(node) else {
+                let Some(target_symbol) = state.resolution_table().symbol_resolution(node) else {
                     return Ok(());
                 };
                 self.reify_implicit_casts_in_reference(state, expression_id, target_symbol)?;
