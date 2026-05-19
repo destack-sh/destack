@@ -258,7 +258,7 @@ Newtype interfaces are used for explicit behavioral traits like operator interfa
 ### Representation
 
 Structural and nominal `interface`s / `type`s are represented as transparent value constraints: any bare `T` of an `interface` or `type` becomes an implicit generic parameter in its declaration that is then substituted ("monomorphized") on application (similar to Rust's `impl T`).
-Thta means the following interface-like declarations have same structure:
+That means the following interface-like declarations have same structure:
 
 ```ds
 // nominal interface
