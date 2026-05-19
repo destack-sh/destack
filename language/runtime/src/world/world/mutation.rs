@@ -33,6 +33,8 @@ pub enum Mutation {
     AddResource {
         /// Resource payload to add.
         resource: Resource,
+        /// Topology entity for this resource.
+        entity: Entity,
     },
     /// Remove one logical world resource.
     RemoveResource {
@@ -211,7 +213,7 @@ impl World {
         match mutation {
             // runtime lifecycle
             Mutation::RemoveRuntime { runtime_id } => {
-                let _ = self.do_remove_runtime(runtime_id)?;
+                let _ = self.remove_stored_runtime(runtime_id)?;
             }
 
             // structural mutations
@@ -233,8 +235,8 @@ impl World {
 
                 self.remove_worker_metadata(worker_id);
             }
-            Mutation::AddResource { resource } => {
-                self.state.attach_resource(resource)?;
+            Mutation::AddResource { resource, entity } => {
+                self.state.attach_resource(resource, entity)?;
             }
             Mutation::RemoveResource { resource_id } => {
                 self.state.detach_resource(resource_id);
@@ -368,8 +370,8 @@ impl World {
     }
 
     /// Add one world resource.
-    pub fn add_resource(&mut self, resource: Resource) -> RuntimeResult<()> {
-        self.mutate(Mutation::AddResource { resource })
+    pub fn add_resource(&mut self, resource: Resource, entity: Entity) -> RuntimeResult<()> {
+        self.mutate(Mutation::AddResource { resource, entity })
     }
 
     /// Remove one world resource.

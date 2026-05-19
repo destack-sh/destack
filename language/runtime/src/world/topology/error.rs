@@ -61,6 +61,22 @@ pub(crate) enum TopologyError {
         /// The entity role in the failed relation.
         role: EntityRole,
     },
+    /// One topology entity had the wrong identifier.
+    EntityIdMismatch {
+        /// The expected entity identifier.
+        expected: EntityId,
+        /// The provided entity identifier.
+        actual: EntityId,
+    },
+    /// One topology entity had the wrong kind.
+    EntityKindMismatch {
+        /// The entity identifier.
+        entity_id: EntityId,
+        /// The expected entity kind.
+        expected: EntityKind,
+        /// The provided entity kind.
+        actual: EntityKind,
+    },
 }
 
 /// Result type for world topology operations.
@@ -119,6 +135,22 @@ impl fmt::Display for TopologyError {
             }
             TopologyError::UnknownEntity { entity_id, role } => {
                 write!(f, "topology {role} entity {entity_id} does not exist")
+            }
+            TopologyError::EntityIdMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "topology entity id mismatch: expected {expected}, got {actual}"
+                )
+            }
+            TopologyError::EntityKindMismatch {
+                entity_id,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "topology entity {entity_id} kind mismatch: expected {expected}, got {actual}"
+                )
             }
         }
     }

@@ -2,10 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::random::Random;
+use crate::world::Topology;
 use crate::world::policy::{ActionSelector, Subject, SubjectSelector, TargetSelector};
 
 use super::{
-    Fault, FaultCatalog, FaultTarget, Lifetime, ProbabilityPpm, RuntimeEvent, Trigger,
+    Fault, FaultTarget, Lifetime, ProbabilityPpm, RuntimeEvent, Trigger,
     validate_fault_rule_compatibility,
 };
 
@@ -78,10 +79,7 @@ impl FaultRule {
     }
 
     /// Validate this rule against shape and catalog constraints.
-    pub(crate) fn validate_with_kind_catalog(
-        &self,
-        kind_catalog: &impl FaultCatalog,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn validate_with_topology(&self, topology: &Topology) -> RuntimeResult<()> {
         if matches!(self.fault.target, FaultTarget::Call {}) && self.action.is_empty() {
             return Err(Self::invalid_rule_error(format!(
                 "runtime call fault rule {} requires an action selector",
@@ -89,7 +87,7 @@ impl FaultRule {
             )));
         }
 
-        validate_fault_rule_compatibility(self, kind_catalog)
+        validate_fault_rule_compatibility(self, topology)
     }
 
     /// Return whether this rule accepts one runtime event.
@@ -98,7 +96,9 @@ impl FaultRule {
             return false;
         }
 
-        self.subject.matches(subject) && self.action.matches(event.attempt())
+        self.subject.matches(subject)
+            && self.action.matches(event.attempt())
+            && self.target.matches_binding_attempt()
     }
 
     /// Return one invalid-rule error.

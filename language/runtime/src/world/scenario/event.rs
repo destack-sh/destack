@@ -138,7 +138,7 @@ impl RuntimeEvent {
         }
     }
 
-    /// Return one call id when this event is one binding call event.
+    /// Return one call id when this event is one binding call.
     pub(crate) const fn call_id(&self) -> Option<ScenarioCallId> {
         match self {
             Self::BindingBefore { call_id, .. } | Self::BindingAfter { call_id, .. } => {

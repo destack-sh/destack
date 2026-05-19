@@ -39,15 +39,6 @@ pub(crate) struct BindingDecision {
     pub route: BindingRoute,
 }
 
-/// Active policy and compiled rule state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct PolicyState {
-    /// Active policy specification.
-    pub spec: Policy,
-    /// Enabled rule indices for this policy revision.
-    enabled_rule_indices: Vec<usize>,
-}
-
 impl Policy {
     /// Validate all policy invariants.
     pub(crate) fn validate(&self) -> RuntimeResult<()> {
@@ -189,68 +180,11 @@ impl Policy {
 
         Ok(())
     }
-}
-
-impl PolicyState {
-    /// Create one active policy.
-    pub(crate) fn new(policy: Policy) -> Self {
-        let enabled_rule_indices = Self::enabled_rule_indices(&policy);
-
-        Self {
-            spec: policy,
-            enabled_rule_indices,
-        }
-    }
 
     /// Replace active policy.
     pub(crate) fn set_policy(&mut self, policy: Policy) -> RuntimeResult<()> {
         policy.validate()?;
-        self.replace_policy(policy);
-
-        Ok(())
-    }
-
-    /// Add one rule.
-    pub(crate) fn add_rule(&mut self, rule: Rule) -> RuntimeResult<()> {
-        let mut next_policy = self.spec.clone();
-        next_policy.add_rule(rule)?;
-        self.replace_policy(next_policy);
-
-        Ok(())
-    }
-
-    /// Remove one rule.
-    pub(crate) fn remove_rule(&mut self, rule_id: &RuleId) -> RuntimeResult<()> {
-        let mut next_policy = self.spec.clone();
-        next_policy.remove_rule(rule_id)?;
-        self.replace_policy(next_policy);
-
-        Ok(())
-    }
-
-    /// Enable one rule.
-    pub(crate) fn enable_rule(&mut self, rule_id: &RuleId) -> RuntimeResult<()> {
-        let mut next_policy = self.spec.clone();
-        next_policy.enable_rule(rule_id)?;
-        self.replace_policy(next_policy);
-
-        Ok(())
-    }
-
-    /// Disable one rule.
-    pub(crate) fn disable_rule(&mut self, rule_id: &RuleId) -> RuntimeResult<()> {
-        let mut next_policy = self.spec.clone();
-        next_policy.disable_rule(rule_id)?;
-        self.replace_policy(next_policy);
-
-        Ok(())
-    }
-
-    /// Replace one rule.
-    pub(crate) fn replace_rule(&mut self, rule_id: &RuleId, rule: Rule) -> RuntimeResult<()> {
-        let mut next_policy = self.spec.clone();
-        next_policy.replace_rule(rule_id, rule)?;
-        self.replace_policy(next_policy);
+        *self = policy;
 
         Ok(())
     }
@@ -261,10 +195,12 @@ impl PolicyState {
         subject: Subject<'_>,
         descriptor: BindingDescriptor,
     ) -> BindingDecision {
-        let mut decision = self.spec.default.clone();
+        let mut decision = self.default.clone();
 
-        for rule_index in &self.enabled_rule_indices {
-            let rule = &self.spec.rules[*rule_index];
+        for rule in &self.rules {
+            if !rule.enabled {
+                continue;
+            }
             let attempt = Attempt {
                 binding: Some(descriptor),
             };
@@ -277,22 +213,6 @@ impl PolicyState {
         }
 
         Self::binding_decision(decision, descriptor)
-    }
-
-    /// Replace active policy and rebuild compiled state.
-    fn replace_policy(&mut self, policy: Policy) {
-        self.spec = policy;
-        self.enabled_rule_indices = Self::enabled_rule_indices(&self.spec);
-    }
-
-    /// Return enabled rule indices.
-    fn enabled_rule_indices(policy: &Policy) -> Vec<usize> {
-        policy
-            .rules
-            .iter()
-            .enumerate()
-            .filter_map(|(index, rule)| rule.enabled.then_some(index))
-            .collect()
     }
 
     /// Convert one policy decision into one binding decision.

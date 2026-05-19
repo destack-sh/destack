@@ -89,9 +89,8 @@ impl Topology {
         runtime_id: RuntimeId,
     ) -> Option<(&str, &BTreeMap<String, String>)> {
         let entity = self.entities.get(&runtime_id.entity_id())?;
-        let name = entity.labels.get(Entity::LABEL_RUNTIME_NAME)?;
 
-        Some((name.as_str(), &entity.labels))
+        Some((entity.name.as_str(), &entity.labels))
     }
 
     /// Return the rule subject metadata for one worker.
@@ -100,9 +99,8 @@ impl Topology {
         worker_id: WorkerId,
     ) -> Option<(&str, &BTreeMap<String, String>)> {
         let entity = self.entities.get(&worker_id.entity_id())?;
-        let name = entity.labels.get(Entity::LABEL_WORKER_NAME)?;
 
-        Some((name.as_str(), &entity.labels))
+        Some((entity.name.as_str(), &entity.labels))
     }
 
     /// Return whether one runtime owns one worker.
@@ -115,9 +113,27 @@ impl Topology {
     pub(crate) fn add_runtime(
         &mut self,
         runtime_id: RuntimeId,
-        runtime_name: String,
-        runtime_labels: BTreeMap<String, String>,
+        runtime_entity: Entity,
     ) -> TopologyResult<()> {
+        let runtime_kind = EntityKind::from(EntityKind::RUNTIME);
+
+        // reject mismatched runtime metadata
+        if runtime_entity.id != runtime_id.entity_id() {
+            return Err(TopologyError::EntityIdMismatch {
+                expected: runtime_id.entity_id(),
+                actual: runtime_entity.id,
+            });
+        }
+
+        // reject wrong runtime kind
+        if runtime_entity.kind != runtime_kind {
+            return Err(TopologyError::EntityKindMismatch {
+                entity_id: runtime_entity.id,
+                expected: runtime_kind,
+                actual: runtime_entity.kind,
+            });
+        }
+
         // reject duplicate metadata upfront
         if self.entities.contains_key(&runtime_id.entity_id()) {
             return Err(TopologyError::DuplicateEntity {
@@ -126,9 +142,6 @@ impl Topology {
         }
 
         // runtime entity
-        let runtime_entity = Entity::new(runtime_id.entity_id(), EntityKind::RUNTIME).labels(
-            entity_labels_with_name(runtime_labels, Entity::LABEL_RUNTIME_NAME, runtime_name),
-        );
         self.upsert_entity(runtime_entity)?;
 
         Ok(())
@@ -139,9 +152,27 @@ impl Topology {
         &mut self,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        worker_name: String,
-        worker_labels: BTreeMap<String, String>,
+        worker_entity: Entity,
     ) -> TopologyResult<()> {
+        let worker_kind = EntityKind::from(EntityKind::WORKER);
+
+        // reject mismatched worker metadata
+        if worker_entity.id != worker_id.entity_id() {
+            return Err(TopologyError::EntityIdMismatch {
+                expected: worker_id.entity_id(),
+                actual: worker_entity.id,
+            });
+        }
+
+        // reject wrong worker kind
+        if worker_entity.kind != worker_kind {
+            return Err(TopologyError::EntityKindMismatch {
+                entity_id: worker_entity.id,
+                expected: worker_kind,
+                actual: worker_entity.kind,
+            });
+        }
+
         // reject missing owning runtime
         if !self.entities.contains_key(&runtime_id.entity_id()) {
             return Err(TopologyError::UnknownEntity {
@@ -158,9 +189,6 @@ impl Topology {
         }
 
         // worker entity
-        let worker_entity = Entity::new(worker_id.entity_id(), EntityKind::WORKER).labels(
-            entity_labels_with_name(worker_labels, Entity::LABEL_WORKER_NAME, worker_name),
-        );
         self.upsert_entity(worker_entity)?;
 
         // ownership edge
@@ -207,8 +235,20 @@ impl Topology {
         is_worker_removed
     }
 
-    /// Attach one resource metadata record to one worker.
-    pub(crate) fn attach_resource(&mut self, resource: &Resource) -> TopologyResult<()> {
+    /// Attach one resource entity to one worker.
+    pub(crate) fn attach_resource(
+        &mut self,
+        resource: &Resource,
+        entity: Entity,
+    ) -> TopologyResult<()> {
+        // reject mismatched resource metadata
+        if entity.id != resource.entity_id() {
+            return Err(TopologyError::EntityIdMismatch {
+                expected: resource.entity_id(),
+                actual: entity.id,
+            });
+        }
+
         // reject missing owning worker
         if !self
             .entities
@@ -221,9 +261,7 @@ impl Topology {
         }
 
         // resource entity
-        let resource_entity = Entity::new(resource.entity_id(), resource.kind.clone())
-            .labels(resource.labels.clone());
-        self.upsert_entity(resource_entity)?;
+        self.upsert_entity(entity)?;
 
         // ownership edge
         let edge = Edge::new(
@@ -428,15 +466,4 @@ impl Topology {
                 && edge.from.as_str() == runtime_entity_id
         })
     }
-}
-
-/// Add one reserved display-name label to one metadata label set.
-fn entity_labels_with_name(
-    mut labels: BTreeMap<String, String>,
-    name_key: &str,
-    name: String,
-) -> BTreeMap<String, String> {
-    labels.insert(name_key.to_string(), name);
-
-    labels
 }

@@ -140,13 +140,6 @@ pub enum RuntimeError {
     LastWorkerRemoval = 132,
     /// Runtime cannot remove the default worker until a replacement is selected.
     DefaultWorkerRemoval = 133,
-    /// Runtime action profile configuration is invalid.
-    ActionProfileInvalid {
-        /// Invalid action profile name.
-        profile: String,
-        /// Human-readable validation detail.
-        detail: String,
-    } = 134,
     /// World topology is missing one runtime identity record.
     TopologyRuntimeMissing {
         /// Missing runtime identifier.
@@ -363,9 +356,6 @@ impl RuntimeError {
             RuntimeError::LastWorkerRemoval => "runtime must keep at least one worker".to_string(),
             RuntimeError::DefaultWorkerRemoval => {
                 "cannot remove default worker: set a new default worker first".to_string()
-            }
-            RuntimeError::ActionProfileInvalid { profile, detail } => {
-                format!("runtime action profile `{profile}` is invalid: {detail}")
             }
             RuntimeError::TopologyRuntimeMissing { runtime_id } => {
                 format!("runtime {runtime_id} is not registered in world topology")

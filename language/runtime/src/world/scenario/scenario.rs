@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::WorkerId;
 use crate::runtime::random::Random;
+use crate::world::Topology;
 use crate::world::policy::Subject;
 
-use super::{FaultCatalog, FaultRule, FaultRuleId, FaultRuleState, RuntimeEvent, TriggeredFault};
+use super::{FaultRule, FaultRuleId, FaultRuleState, RuntimeEvent, TriggeredFault};
 
 /// Stable identifier for one scenario.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -33,8 +34,6 @@ pub struct Scenario {
     pub labels: BTreeMap<String, String>,
     /// Ordered fault rules.
     pub rules: Vec<FaultRule>,
-    /// Enabled fault rule indices for this scenario revision.
-    enabled_rule_indices: Vec<usize>,
     /// Total matching call events seen per worker.
     total_calls_seen_by_worker: HashMap<WorkerId, u64>,
     /// Runtime fault rule state by rule id and worker id.
@@ -44,15 +43,12 @@ pub struct Scenario {
 impl Scenario {
     /// Create one active scenario with empty runtime state.
     pub fn new(id: ScenarioId, rules: Vec<FaultRule>) -> Self {
-        let enabled_rule_indices = Self::enabled_rule_indices(&rules);
-
         Self {
             id,
             name: None,
             enabled: true,
             labels: BTreeMap::new(),
             rules,
-            enabled_rule_indices,
             total_calls_seen_by_worker: HashMap::new(),
             rule_states: HashMap::new(),
         }
@@ -77,25 +73,18 @@ impl Scenario {
     }
 
     /// Validate all scenario invariants against one topology kind catalog.
-    pub(crate) fn validate_with_kind_catalog(
-        &self,
-        kind_catalog: &impl FaultCatalog,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn validate_with_topology(&self, topology: &Topology) -> RuntimeResult<()> {
         self.validate_unique_rule_ids()?;
 
         for rule in &self.rules {
-            rule.validate_with_kind_catalog(kind_catalog)?;
+            rule.validate_with_topology(topology)?;
         }
 
         Ok(())
     }
 
     /// Add one rule into this scenario.
-    pub(crate) fn add_rule(
-        &mut self,
-        rule: FaultRule,
-        kind_catalog: &impl FaultCatalog,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn add_rule(&mut self, rule: FaultRule, topology: &Topology) -> RuntimeResult<()> {
         if self.has_rule_id(&rule.id) {
             return Err(Self::invalid_scenario_error(format!(
                 "runtime scenario requires unique rule ids: {}",
@@ -103,9 +92,8 @@ impl Scenario {
             )));
         }
 
-        rule.validate_with_kind_catalog(kind_catalog)?;
+        rule.validate_with_topology(topology)?;
         self.rules.push(rule);
-        self.rebuild_rule_cache();
 
         Ok(())
     }
@@ -119,7 +107,6 @@ impl Scenario {
         }
 
         self.rule_states.remove(rule_id);
-        self.rebuild_rule_cache();
 
         Ok(())
     }
@@ -139,7 +126,7 @@ impl Scenario {
         &mut self,
         rule_id: &FaultRuleId,
         rule: FaultRule,
-        kind_catalog: &impl FaultCatalog,
+        topology: &Topology,
     ) -> RuntimeResult<()> {
         if rule.id != *rule_id {
             return Err(Self::invalid_scenario_error(format!(
@@ -148,14 +135,13 @@ impl Scenario {
             )));
         }
 
-        rule.validate_with_kind_catalog(kind_catalog)?;
+        rule.validate_with_topology(topology)?;
         let Some(existing_rule) = self.rules.iter_mut().find(|rule| rule.id == *rule_id) else {
             return Err(Self::unknown_rule_error(rule_id));
         };
 
         *existing_rule = rule;
         self.rule_states.remove(rule_id);
-        self.rebuild_rule_cache();
 
         Ok(())
     }
@@ -205,14 +191,8 @@ impl Scenario {
         };
 
         rule.enabled = is_enabled;
-        self.rebuild_rule_cache();
 
         Ok(())
-    }
-
-    /// Rebuild cached rule state after one scenario spec mutation.
-    fn rebuild_rule_cache(&mut self) {
-        self.enabled_rule_indices = Self::enabled_rule_indices(&self.rules);
     }
 
     /// Decide faults for one event.
@@ -230,9 +210,11 @@ impl Scenario {
         let total_calls_seen = self.record_call_event(event_worker_id, event);
         let mut faults = Vec::new();
 
-        for position in 0..self.enabled_rule_indices.len() {
-            let rule_index = self.enabled_rule_indices[position];
+        for rule_index in 0..self.rules.len() {
             let rule = &self.rules[rule_index];
+            if !rule.enabled {
+                continue;
+            }
             if !rule.matches_event(event, subject) {
                 continue;
             }
@@ -287,15 +269,6 @@ impl Scenario {
         }
 
         *calls_seen
-    }
-
-    /// Return enabled fault rule indices.
-    fn enabled_rule_indices(rules: &[FaultRule]) -> Vec<usize> {
-        rules
-            .iter()
-            .enumerate()
-            .filter_map(|(index, rule)| rule.enabled.then_some(index))
-            .collect()
     }
 }
 

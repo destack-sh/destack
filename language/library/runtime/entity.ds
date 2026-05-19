@@ -123,6 +123,8 @@ export struct Entity {
     id: EntityId;
     /// Entity kind.
     kind: EntityKind;
+    /// Entity name.
+    name: string;
     /// Entity labels.
     labels?: [Label];
 }
@@ -141,6 +143,8 @@ export struct Edge {
     id: EdgeId;
     /// Edge kind.
     kind: EdgeKind;
+    /// Edge name.
+    name: string;
     /// Source entity.
     from: EntityId;
     /// Destination entity.
