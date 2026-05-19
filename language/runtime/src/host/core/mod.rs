@@ -4,7 +4,6 @@ mod error;
 mod event;
 mod host;
 mod queue;
-mod session;
 mod target;
 
 #[cfg(target_os = "macos")]
@@ -28,7 +27,7 @@ pub use event::{
     MemoryPressureEvent, MemoryPressureLevel, PowerMode, PowerModeEvent, ThermalEvent,
     ThermalState, WallClockEvent,
 };
-pub(crate) use host::Host;
 pub use host::HostPollResult;
-pub use session::HostSession;
-pub(crate) use target::default_compile_target_host;
+pub(crate) use host::{Host, advance_host_events, poll_host_events};
+pub(crate) use queue::HostQueue;
+pub(crate) use target::compile_target_host;

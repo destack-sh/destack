@@ -20,12 +20,6 @@ pub(crate) trait HostRandomSource: std::fmt::Debug + Send + Sync {
 
         Ok(u64::from_le_bytes(bytes))
     }
-
-    /// Return one stable backend label for this host entropy source.
-    fn backend_name(&self) -> &'static str;
-
-    /// Return whether this host entropy source may block.
-    fn may_block(&self) -> bool;
 }
 
 /// Host-backed entropy source using host dispatch.
@@ -41,16 +35,6 @@ impl HostRandomSource for SystemHostRandomSource {
     /// Try to fill bytes from one host entropy source without blocking.
     fn try_fill_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
         host_try_fill_bytes(buffer)
-    }
-
-    /// Return one stable backend label for this host entropy source.
-    fn backend_name(&self) -> &'static str {
-        host_backend_name()
-    }
-
-    /// Return whether this host entropy source may block.
-    fn may_block(&self) -> bool {
-        host_may_block()
     }
 }
 
@@ -85,16 +69,6 @@ impl HostRandom {
     /// Return one host random u64.
     pub(crate) fn next_u64(&self) -> RuntimeResult<u64> {
         self.source.next_u64()
-    }
-
-    /// Return one stable backend label for the active host entropy source.
-    pub(crate) fn backend_name(&self) -> &'static str {
-        self.source.backend_name()
-    }
-
-    /// Return whether the active host entropy source may block.
-    pub(crate) fn may_block(&self) -> bool {
-        self.source.may_block()
     }
 }
 
@@ -138,41 +112,5 @@ fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     #[cfg(not(any(unix, windows)))]
     {
         super::unsupported::host_try_fill_bytes(buffer)
-    }
-}
-
-/// Return the active host entropy backend label.
-fn host_backend_name() -> &'static str {
-    #[cfg(unix)]
-    {
-        "getrandom"
-    }
-
-    #[cfg(windows)]
-    {
-        "bcrypt"
-    }
-
-    #[cfg(not(any(unix, windows)))]
-    {
-        "unsupported"
-    }
-}
-
-/// Return whether the active host entropy backend may block.
-fn host_may_block() -> bool {
-    #[cfg(unix)]
-    {
-        true
-    }
-
-    #[cfg(windows)]
-    {
-        false
-    }
-
-    #[cfg(not(any(unix, windows)))]
-    {
-        false
     }
 }

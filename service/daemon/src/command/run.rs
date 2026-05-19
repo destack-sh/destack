@@ -5,7 +5,7 @@ use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
-use destack_workspace::{Profile, Repository, Revision};
+use destack_workspace::{Environment, Profile, Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -200,10 +200,10 @@ fn run_entry_module(
     let entry_source = inputs
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
-    let process_args = process_args_for_source(entry_source, args);
+    let environment = environment_for_source(entry_source, args);
     let mut world = World::from_options(&runtime_options).map_err(|error| format!("{error}"))?;
     let runtime_id = world
-        .spawn_runtime(process_args, &runtime_options, isolate)
+        .spawn_runtime(environment, &runtime_options, isolate)
         .map_err(|error| format!("{error}"))?;
 
     let entry = Entry::new(entry_name);
@@ -231,12 +231,15 @@ fn run_entry_module(
     })
 }
 
-/// Build process arguments for the entry source.
-fn process_args_for_source(source: &CommandInput, args: &[String]) -> Vec<String> {
-    let mut process_args = Vec::with_capacity(args.len().saturating_add(1));
-    process_args.push(command_input_display_name(source));
-    process_args.extend(args.iter().cloned());
-    process_args
+/// Build the launch environment for the entry source.
+fn environment_for_source(source: &CommandInput, args: &[String]) -> Environment {
+    let mut arguments = Vec::with_capacity(args.len().saturating_add(1));
+    arguments.push(command_input_display_name(source));
+    arguments.extend(args.iter().cloned());
+    let mut environment = Environment::capture_process();
+    environment.args = arguments;
+
+    environment
 }
 
 /// Get a display name for the entry source.

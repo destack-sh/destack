@@ -4,24 +4,26 @@ use std::sync::Arc;
 use crate::host::linux::LinuxHost;
 #[cfg(target_os = "macos")]
 use crate::host::macos::MacosHost;
+use crate::host::time::HostClockSource;
 #[cfg(windows)]
 use crate::host::windows::WindowsHost;
 
 use super::host::Host;
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-use super::host::UnsupportedHost;
 
-/// Return the default host integration for the active compile target.
-pub(crate) fn default_compile_target_host() -> Arc<dyn Host> {
-    #[cfg(target_os = "linux")]
-    return Arc::new(LinuxHost::new());
+/// Return the host integration for the active compile target.
+#[cfg(target_os = "linux")]
+pub(crate) fn compile_target_host(clock_source: Option<Arc<dyn HostClockSource>>) -> Arc<dyn Host> {
+    Arc::new(LinuxHost::new(clock_source))
+}
 
-    #[cfg(target_os = "macos")]
-    return Arc::new(MacosHost::new());
+/// Return the host integration for the active compile target.
+#[cfg(target_os = "macos")]
+pub(crate) fn compile_target_host(clock_source: Option<Arc<dyn HostClockSource>>) -> Arc<dyn Host> {
+    Arc::new(MacosHost::new(clock_source))
+}
 
-    #[cfg(windows)]
-    return Arc::new(WindowsHost::new());
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-    return Arc::new(UnsupportedHost::new());
+/// Return the host integration for the active compile target.
+#[cfg(windows)]
+pub(crate) fn compile_target_host(clock_source: Option<Arc<dyn HostClockSource>>) -> Arc<dyn Host> {
+    Arc::new(WindowsHost::new(clock_source))
 }
