@@ -135,7 +135,7 @@ export type TypeLiteral =
     | VoidTypeLiteral
     | NullTypeLiteral
     | PrimitiveTypeLiteral
-    | IntrinsicTypeLiteral
+    | BuiltinTypeFunctionLiteral
     | ScalarLiteralTypeLiteral;
 
 /// `never`.
@@ -194,12 +194,12 @@ export interface PrimitiveTypeLiteral {
     primitive: PrimitiveType;
 }
 
-/// Intrinsic type literal.
-export interface IntrinsicTypeLiteral {
+/// Builtin type function literal.
+export interface BuiltinTypeFunctionLiteral {
     /// The type literal kind.
-    kind: "intrinsic";
-    /// The intrinsic type.
-    intrinsic: IntrinsicType;
+    kind: "builtinTypeFunction";
+    /// The builtin type function.
+    function: BuiltinTypeFunction;
 }
 
 /// Scalar literal type literal.
@@ -210,8 +210,8 @@ export interface ScalarLiteralTypeLiteral {
     literal: ScalarLiteral;
 }
 
-/// Compiler-provided intrinsic type.
-export enum IntrinsicType {
+/// Compiler-provided type function.
+export enum BuiltinTypeFunction {
     /// Uppercase string intrinsic.
     Uppercase,
     /// Lowercase string intrinsic.

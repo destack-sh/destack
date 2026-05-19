@@ -425,6 +425,14 @@ impl<'a> TypeLowerer<'a> {
                 node,
                 builder,
             )?,
+            dir::Type::Range(_) => {
+                return Err(LowerError::UnsupportedType {
+                    anchor: self.diagnostic_anchor(node),
+                    ty: type_id.into_global(module_id),
+                    message: "range types must be reduced before native lowering".to_string(),
+                }
+                .into());
+            }
             dir::Type::Function(_) => {
                 self.lower_function_type(types, type_id, module_id, node, builder)?
             }

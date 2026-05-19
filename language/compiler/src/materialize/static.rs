@@ -92,9 +92,11 @@ impl Compiler {
             dir::Type::Literal(value) => dir::TypeExpression::ScalarLiteral {
                 value: value.clone(),
             },
-            dir::Type::Intrinsic(intrinsic) => dir::TypeExpression::Literal {
-                value: dir::TypeLiteral::Intrinsic(*intrinsic),
-            },
+            dir::Type::Operation(dir::TypeOperation::BuiltinTypeFunction(function)) => {
+                dir::TypeExpression::Literal {
+                    value: dir::TypeLiteral::BuiltinTypeFunction(*function),
+                }
+            }
             _ => {
                 return Err(MaterializeError::UnsupportedConstruct {
                     anchor: anchor_id

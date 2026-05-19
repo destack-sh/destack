@@ -466,7 +466,9 @@ impl ModuleLowerer<'_> {
             dir::Type::Void => Some("void".to_string()),
             dir::Type::Null => Some("null".to_string()),
             dir::Type::Primitive(primitive) => Some(self.primitive_metadata_name(*primitive)),
-            dir::Type::Intrinsic(intrinsic) => Some(self.intrinsic_metadata_name(*intrinsic)),
+            dir::Type::Operation(dir::TypeOperation::BuiltinTypeFunction(function)) => {
+                Some(self.builtin_type_function_metadata_name(*function))
+            }
             dir::Type::Literal(literal) => Some(self.scalar_literal_metadata_name(literal)),
             _ => None,
         }
@@ -566,15 +568,15 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Resolve a metadata name for intrinsic types.
-    fn intrinsic_metadata_name(&self, intrinsic: dir::IntrinsicType) -> String {
-        let suffix = match intrinsic {
-            dir::IntrinsicType::Uppercase => "uppercase",
-            dir::IntrinsicType::Lowercase => "lowercase",
-            dir::IntrinsicType::Capitalize => "capitalize",
-            dir::IntrinsicType::Uncapitalize => "uncapitalize",
-            dir::IntrinsicType::NoInfer => "no_infer",
-            dir::IntrinsicType::BuiltinIteratorReturn => "builtin_iterator_return",
+    /// Resolve a metadata name for builtin type functions.
+    fn builtin_type_function_metadata_name(&self, function: dir::BuiltinTypeFunction) -> String {
+        let suffix = match function {
+            dir::BuiltinTypeFunction::Uppercase => "uppercase",
+            dir::BuiltinTypeFunction::Lowercase => "lowercase",
+            dir::BuiltinTypeFunction::Capitalize => "capitalize",
+            dir::BuiltinTypeFunction::Uncapitalize => "uncapitalize",
+            dir::BuiltinTypeFunction::NoInfer => "no_infer",
+            dir::BuiltinTypeFunction::BuiltinIteratorReturn => "builtin_iterator_return",
         };
 
         format!("{INTRINSIC_METADATA_PREFIX}{suffix}")

@@ -59,40 +59,13 @@ impl ModuleLowerer<'_> {
             dir::Type::Form(value) => {
                 self.declare_nominal_layouts_for_type(value.value, visited)?;
             }
-            dir::Type::Conditional(conditional) => {
-                self.declare_nominal_layouts_for_type(conditional.left, visited)?;
-                self.declare_nominal_layouts_for_type(conditional.right, visited)?;
-                self.declare_nominal_layouts_for_type(conditional.then_type, visited)?;
-                self.declare_nominal_layouts_for_type(conditional.else_type, visited)?;
-            }
-            dir::Type::Mapped(mapped) => {
-                self.declare_nominal_layouts_for_type(mapped.parameter.constraint, visited)?;
-                if let Some(key_remap) = mapped.parameter.key_remap {
-                    self.declare_nominal_layouts_for_type(key_remap, visited)?;
-                }
-                self.declare_nominal_layouts_for_type(mapped.value, visited)?;
-            }
-            dir::Type::Index(index) => {
-                self.declare_nominal_layouts_for_type(index.left, visited)?;
-                self.declare_nominal_layouts_for_type(index.index, visited)?;
-            }
-            dir::Type::TemplateLiteral(template) => {
-                for span in &template.spans {
-                    self.declare_nominal_layouts_for_type(*span, visited)?;
-                }
-            }
-            dir::Type::Infer(infer) => {
-                if let Some(constraint) = infer.constraint {
-                    self.declare_nominal_layouts_for_type(constraint, visited)?;
-                }
+            dir::Type::Operation(operation) => {
+                self.declare_nominal_layouts_for_type_operation(operation, visited)?;
             }
             dir::Type::Predicate(predicate) => {
                 if let Some(target) = predicate.target {
                     self.declare_nominal_layouts_for_type(target, visited)?;
                 }
-            }
-            dir::Type::KeyOf(unary) => {
-                self.declare_nominal_layouts_for_type(unary.target, visited)?;
             }
             dir::Type::ErasedAny(erased) => {
                 self.declare_nominal_layouts_for_type(erased.constraint, visited)?;
@@ -148,6 +121,49 @@ impl ModuleLowerer<'_> {
                 }
             }
             _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Predeclare nominal layouts referenced by one type operation.
+    fn declare_nominal_layouts_for_type_operation(
+        &mut self,
+        operation: &dir::TypeOperation,
+        visited: &mut HashSet<dir::LocalTypeId>,
+    ) -> LowerResult<()> {
+        match operation {
+            dir::TypeOperation::BuiltinTypeFunction(_) => {}
+            dir::TypeOperation::Conditional(conditional) => {
+                self.declare_nominal_layouts_for_type(conditional.left, visited)?;
+                self.declare_nominal_layouts_for_type(conditional.right, visited)?;
+                self.declare_nominal_layouts_for_type(conditional.then_type, visited)?;
+                self.declare_nominal_layouts_for_type(conditional.else_type, visited)?;
+            }
+            dir::TypeOperation::Mapped(mapped) => {
+                self.declare_nominal_layouts_for_type(mapped.parameter.constraint, visited)?;
+                if let Some(key_remap) = mapped.parameter.key_remap {
+                    self.declare_nominal_layouts_for_type(key_remap, visited)?;
+                }
+                self.declare_nominal_layouts_for_type(mapped.value, visited)?;
+            }
+            dir::TypeOperation::Index(index) => {
+                self.declare_nominal_layouts_for_type(index.left, visited)?;
+                self.declare_nominal_layouts_for_type(index.index, visited)?;
+            }
+            dir::TypeOperation::TemplateLiteral(template) => {
+                for span in &template.spans {
+                    self.declare_nominal_layouts_for_type(*span, visited)?;
+                }
+            }
+            dir::TypeOperation::Infer(infer) => {
+                if let Some(constraint) = infer.constraint {
+                    self.declare_nominal_layouts_for_type(constraint, visited)?;
+                }
+            }
+            dir::TypeOperation::KeyOf(unary) => {
+                self.declare_nominal_layouts_for_type(unary.target, visited)?;
+            }
         }
 
         Ok(())

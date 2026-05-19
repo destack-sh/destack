@@ -267,11 +267,9 @@ fn resolve_nominal_type_symbol(
         dir::Type::Named(reference) => Some(reference.symbol),
         dir::Type::Form(value) => resolve_nominal_type_symbol(types, value.value),
         dir::Type::ErasedAny(erased) => resolve_nominal_type_symbol(types, erased.constraint),
-        dir::Type::KeyOf(unary) => resolve_nominal_type_symbol(types, unary.target),
-        dir::Type::Conditional(conditional) => resolve_nominal_type_symbol(types, conditional.left)
-            .or_else(|| resolve_nominal_type_symbol(types, conditional.right))
-            .or_else(|| resolve_nominal_type_symbol(types, conditional.then_type))
-            .or_else(|| resolve_nominal_type_symbol(types, conditional.else_type)),
+        dir::Type::Operation(operation) => {
+            resolve_nominal_type_symbol_from_operation(types, operation)
+        }
         dir::Type::Union(union) => {
             for element in &union.elements {
                 if let Some(symbol_id) = resolve_nominal_type_symbol(types, *element) {
@@ -291,6 +289,23 @@ fn resolve_nominal_type_symbol(
             None
         }
         ty => ty.symbol(),
+    }
+}
+
+/// Resolve the nominal symbol for a type operation.
+fn resolve_nominal_type_symbol_from_operation(
+    types: &dir::TypeTable<'_>,
+    operation: &dir::TypeOperation,
+) -> Option<dir::GlobalSymbolId> {
+    match operation {
+        dir::TypeOperation::KeyOf(unary) => resolve_nominal_type_symbol(types, unary.target),
+        dir::TypeOperation::Conditional(conditional) => {
+            resolve_nominal_type_symbol(types, conditional.left)
+                .or_else(|| resolve_nominal_type_symbol(types, conditional.right))
+                .or_else(|| resolve_nominal_type_symbol(types, conditional.then_type))
+                .or_else(|| resolve_nominal_type_symbol(types, conditional.else_type))
+        }
+        _ => None,
     }
 }
 
