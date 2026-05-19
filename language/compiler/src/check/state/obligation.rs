@@ -1,0 +1,246 @@
+use destack_dir as dir;
+
+use crate::DiagnosticAnchor;
+
+use super::{InferId, StaticInferId};
+
+/// Rule validated after solving.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Obligation {
+    /// Source must be assignable to target.
+    ///
+    /// ```ds
+    /// let value: int32 = source;
+    /// // type(source) must be assignable to int32
+    /// ```
+    Assignable {
+        /// The source type.
+        source: InferId,
+        /// The target type.
+        target: InferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+    /// Value must satisfy a constraint.
+    ///
+    /// ```ds
+    /// function sort<T: Comparable>(values: T[]) {}
+    /// // T must satisfy Comparable
+    /// ```
+    Satisfies {
+        /// The value type.
+        value: InferId,
+        /// The constraint type.
+        constraint: InferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+    /// Subtype must extend supertype.
+    ///
+    /// ```ds
+    /// class Child extends Parent {}
+    /// // Child must extend Parent
+    /// ```
+    Extends {
+        /// The subtype.
+        subtype: InferId,
+        /// The supertype.
+        supertype: InferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+    /// Implementor must implement contract.
+    ///
+    /// ```ds
+    /// class User implements Serializable {}
+    /// // User must implement Serializable
+    /// ```
+    Implements {
+        /// The implementing type.
+        implementor: InferId,
+        /// The contract type.
+        contract: InferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+    /// Static value must be known.
+    ///
+    /// ```ds
+    /// @if(import.meta.mode == "test") {}
+    /// // the condition must evaluate during check
+    /// ```
+    KnownStatic {
+        /// The static term.
+        term: StaticInferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+    /// Type must have a concrete layout.
+    ///
+    /// ```ds
+    /// sizeOf<T>()
+    /// // T must have a concrete layout
+    /// ```
+    ConcreteLayout {
+        /// The type to lay out.
+        ty: InferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+    /// Type must be known.
+    ///
+    /// ```ds
+    /// export const value = compute();
+    /// // the exported type must be known
+    /// ```
+    KnownType {
+        /// The type that must be known.
+        ty: InferId,
+        /// The diagnostic context.
+        context: ObligationContext,
+    },
+}
+
+/// Diagnostic context for an obligation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObligationContext {
+    /// The diagnostic anchor.
+    pub anchor: DiagnosticAnchor,
+    /// The obligation source context.
+    pub source: ObligationSource,
+}
+
+/// Source of an obligation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ObligationSource {
+    /// Declaration type annotation.
+    ///
+    /// ```ds
+    /// let value: int32;
+    /// // report against the declared type
+    /// ```
+    DeclarationType {
+        /// The declaration node.
+        declaration: dir::GlobalNodeIdAny,
+    },
+    /// Variable initializer assignment.
+    ///
+    /// ```ds
+    /// let value: int32 = source;
+    /// // report against the initializer of value
+    /// ```
+    VariableInitializer {
+        /// The variable symbol.
+        symbol: dir::GlobalSymbolId,
+    },
+    /// Function return assignment.
+    ///
+    /// ```ds
+    /// function parse(): int32 {
+    ///   return text;
+    ///   // report against this return value
+    /// }
+    /// ```
+    FunctionReturn {
+        /// The function symbol.
+        function: dir::GlobalSymbolId,
+        /// The returned node.
+        return_node: dir::GlobalNodeIdAny,
+    },
+    /// Call argument assignment.
+    ///
+    /// ```ds
+    /// parse(text);
+    /// // report against the argument that failed its parameter type
+    /// ```
+    CallArgument {
+        /// The call node.
+        call: dir::GlobalNodeIdAny,
+        /// The parameter symbol, when known.
+        parameter: Option<dir::GlobalSymbolId>,
+        /// The argument index.
+        index: usize,
+    },
+    /// Generic or static argument bound check.
+    ///
+    /// ```ds
+    /// sort<NotComparable>(values);
+    /// // report against NotComparable
+    /// ```
+    GenericArgument {
+        /// The generic application node.
+        application: dir::GlobalNodeIdAny,
+        /// The parameter symbol, when known.
+        parameter: Option<dir::GlobalSymbolId>,
+        /// The argument index.
+        index: usize,
+    },
+    /// Static argument.
+    ///
+    /// ```ds
+    /// Array<T, length()>
+    /// // report against length()
+    /// ```
+    StaticArgument {
+        /// The static application node.
+        application: dir::GlobalNodeIdAny,
+        /// The parameter symbol, when known.
+        parameter: Option<dir::GlobalSymbolId>,
+        /// The argument index.
+        index: usize,
+    },
+    /// Extends clause.
+    ///
+    /// ```ds
+    /// class Child extends Parent {}
+    /// // report against Parent
+    /// ```
+    ExtendsClause {
+        /// The extending declaration.
+        symbol: dir::GlobalSymbolId,
+        /// The extends clause node.
+        clause: dir::GlobalNodeIdAny,
+    },
+    /// Implements clause.
+    ///
+    /// ```ds
+    /// class User implements Serializable {}
+    /// // report against Serializable
+    /// ```
+    ImplementsClause {
+        /// The implementing declaration.
+        symbol: dir::GlobalSymbolId,
+        /// The implements clause node.
+        clause: dir::GlobalNodeIdAny,
+    },
+    /// Exported type must be known.
+    ///
+    /// ```ds
+    /// export const value = compute();
+    /// // report when the exported type cannot be solved
+    /// ```
+    ExportedDeclaration {
+        /// The exported symbol.
+        symbol: dir::GlobalSymbolId,
+    },
+    /// Static condition.
+    ///
+    /// ```ds
+    /// @if(flag()) {}
+    /// // report when flag cannot be evaluated statically
+    /// ```
+    StaticCondition {
+        /// The static condition node.
+        condition: dir::GlobalNodeIdAny,
+    },
+    /// Explicit layout request.
+    ///
+    /// ```ds
+    /// sizeOf<T>();
+    /// // report when T has no concrete representation
+    /// ```
+    LayoutRequest {
+        /// The layout request node.
+        request: dir::GlobalNodeIdAny,
+    },
+}
