@@ -1,4 +1,6 @@
-use destack_dir::{BindingTable, GuardTable, Tree, TypeSegment, TypeTable};
+use destack_dir::{
+    BindingTable, GuardTable, ResolutionSegment, ResolutionTable, Tree, TypeSegment, TypeTable,
+};
 use destack_workspace::{Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateState;
@@ -23,6 +25,8 @@ impl Compiler {
         symbols: &mut BindingTable<'_>,
         types: &TypeTable<'_>,
         types_tail: &mut TypeSegment,
+        resolutions: &ResolutionTable<'_>,
+        resolutions_tail: &mut ResolutionSegment,
         guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // ensure analysis is complete
@@ -41,6 +45,8 @@ impl Compiler {
             symbols,
             types,
             types_tail,
+            resolutions,
+            resolutions_tail,
             guards,
         );
 

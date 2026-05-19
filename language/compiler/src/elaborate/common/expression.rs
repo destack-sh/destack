@@ -96,6 +96,10 @@ impl Compiler {
             expression_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
+        state.resolutions_tail.copy_node_relations(
+            expression_id.into_global_any(state.module_id),
+            cloned_id.into_global_any(state.module_id),
+        );
 
         cloned_id
     }

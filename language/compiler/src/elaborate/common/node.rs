@@ -69,6 +69,10 @@ impl Compiler {
             origin_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
+        state.resolutions_tail.copy_node_relations(
+            origin_id.into_global_any(state.module_id),
+            cloned_id.into_global_any(state.module_id),
+        );
 
         cloned_id
     }
@@ -182,7 +186,7 @@ impl Compiler {
         );
         let reference_node = reference_id.into_global_any(state.module_id);
         state
-            .types_tail
+            .resolutions_tail
             .set_symbol_resolution(reference_node, target_symbol);
 
         // annotate the reference type

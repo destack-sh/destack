@@ -1836,7 +1836,7 @@ impl Compiler {
         index: usize,
     ) -> Option<LocalTypeId> {
         let value_type_id = state.type_table().get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
-        let value_type_id = state.type_table().unwrap_value_type_id(value_type_id);
+        let value_type_id = state.type_table().unwrap_form_payload_type_id(value_type_id);
         let value_type = state.type_table().get_type(value_type_id);
 
         match value_type {
@@ -1855,11 +1855,11 @@ impl Compiler {
         name: StringId,
     ) -> Option<LocalTypeId> {
         let value_type_id = state.type_table().get_declared_or_inferred_type_id(value.into_global_any(state.tree.module_id))?;
-        let value_type_id = state.type_table().unwrap_value_type_id(value_type_id);
+        let value_type_id = state.type_table().unwrap_form_payload_type_id(value_type_id);
         let value_type = state.type_table().get_type(value_type_id);
 
         match value_type {
-            dir::Type::Object(object) => object
+            dir::Type::Shape(object) => object
                 .fields
                 .iter()
                 .find_map(|field| (field.key == dir::StaticKey::Name(name)).then_some(field.ty)),
