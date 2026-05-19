@@ -4,6 +4,7 @@ export * from "./diagnostic.ds";
 export * from "./foreign.ds";
 export * from "./intrinsic.ds";
 export * from "./memory.ds";
+export * from "./representation.ds";
 export * from "./stability.ds";
 export * from "./system.ds";
 export * from "./taint.ds";

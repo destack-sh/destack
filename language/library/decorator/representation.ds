@@ -1,0 +1,42 @@
+import { type Type } from "destack:reflect/type";
+
+/// Representation policy for a declaration.
+export type Representation = "destack" | "C" | "transparent";
+
+/// Specify the representation for a declaration.
+///
+/// `@repr("destack")` is the default language representation.
+///
+/// ```
+/// @repr(uint8)
+/// enum Color { Red = 1, Green = 2 }
+///
+/// @repr("C")
+/// struct Header { tag: uint8, size: uint32 }
+///
+/// @repr("transparent")
+/// newtype UserId = uint64
+/// ```
+@languageItem("decorator.repr")
+export newtype repr = (Representation,) | (Type,);
+
+/// Specify the minimum alignment for an aggregate declaration.
+///
+/// ```
+/// @align(16)
+/// struct PageHeader { address: usize }
+/// ```
+@languageItem("decorator.align")
+export newtype align = (int,);
+
+/// Specify the maximum field alignment for an aggregate declaration.
+///
+/// `@packed` is the same as `@packed(1)`.
+///
+/// ```
+/// @repr("C")
+/// @packed
+/// struct WireHeader { tag: uint8, size: uint32 }
+/// ```
+@languageItem("decorator.packed")
+export newtype packed = () | (int,);
