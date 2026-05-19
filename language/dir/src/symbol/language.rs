@@ -157,6 +157,12 @@ define_language_items! {
 
     /// Type helpers.
     types {
+        /// `destack:types/option`.
+        option {
+            /// Explicit optional value.
+            Option => (Newtype, "types/option", "Option"),
+        }
+
         /// `destack:types/object`.
         object {
             /// Record alias.

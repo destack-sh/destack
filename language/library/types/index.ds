@@ -1,4 +1,7 @@
 export {
+    Option,
+} from "./option.ds";
+export {
     PropertyKey,
     Record,
     Partial,
