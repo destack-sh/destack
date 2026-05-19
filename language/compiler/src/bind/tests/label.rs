@@ -23,17 +23,17 @@ outer: for (let index = 0; index < 3; index = index + 1) {
         compiler.dir_snapshot("main.ds", DirSnapshotSet::binding()),
         r#"
 let done: boolean = false;
-/// @binding.symbol name=done role=local form=variable scope=<module>@1 mutability=mutable
+/// @binding.symbol key=done role=local form=variable scope=<module>@1 mutability=mutable
 
 outer: for (let index = 0; index < 3; index = index + 1) {
-/// @binding.symbol name=outer role=local form=label scope=<module>@2
+/// @binding.symbol key=outer role=local form=label scope=<module>@2
 /// @binding.scope scope=outer kind=label parent=<module>@3 owner=outer
 /// @binding.scope scope=scope3 kind=block parent=outer@0
-/// @binding.symbol name=index role=local form=variable scope=scope3@0 mutability=mutable
+/// @binding.symbol key=index role=local form=variable scope=scope3@0 mutability=mutable
 /// @binding.scope scope=scope4 kind=block parent=scope3@1
 
     inner: {
-    /// @binding.symbol name=inner role=local form=label scope=scope4@0
+    /// @binding.symbol key=inner role=local form=label scope=scope4@0
     /// @binding.scope scope=inner kind=label parent=scope4@1 owner=inner
     /// @binding.scope scope=scope6 kind=block parent=inner@0
 
@@ -41,7 +41,7 @@ outer: for (let index = 0; index < 3; index = index + 1) {
         break inner;
     }
 }
-/// @binding.symbol name=<module> role=namespace form=variable scope=<module>@end
+/// @binding.symbol key=<module> role=namespace form=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
