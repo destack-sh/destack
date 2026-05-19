@@ -12,6 +12,7 @@ const specificationFixtureDirectory = path.join(repoRoot, "language", "test", "f
 const vscodeFixtureDirectory = path.join(grammarFixtureDirectory, "destack");
 const destackCorpusDirectory = path.join(repoRoot, "language", "grammar", "destack", "test", "corpus");
 const destackGrammarDirectory = path.join(repoRoot, "language", "grammar", "destack", "destack");
+const destackPackageDirectory = path.join(repoRoot, "language", "grammar", "destack");
 const mirCorpusDirectory = path.join(repoRoot, "language", "grammar", "mir", "test", "corpus");
 const mirVscodeFixtureDirectory = path.join(grammarFixtureDirectory, "mir");
 const textmateAssertionPattern = /^\/\/\s*(?:\^|<-)/m;
@@ -238,6 +239,18 @@ function copyDestackFixturesToTemp(files, tempDirectory) {
     });
 }
 
+function writeTreeSitterConfig(tempDirectory) {
+    const parserDirectory = path.join(tempDirectory, "parsers");
+    const parserLink = path.join(parserDirectory, "tree-sitter-destack");
+    const configPath = path.join(tempDirectory, "config.json");
+
+    fs.mkdirSync(parserDirectory);
+    fs.symlinkSync(destackPackageDirectory, parserLink, "dir");
+    fs.writeFileSync(configPath, JSON.stringify({ "parser-directories": [parserDirectory] }));
+
+    return configPath;
+}
+
 function checkDestackFixtureParse(errors) {
     const files = walkFiles(vscodeFixtureDirectory, (filePath) => filePath.endsWith(".txt"));
 
@@ -249,11 +262,17 @@ function checkDestackFixtureParse(errors) {
 
     try {
         const tempFiles = copyDestackFixturesToTemp(files, tempDirectory);
+        const configPath = writeTreeSitterConfig(tempDirectory);
         const result = spawnSync(
             "bunx",
             [
                 "tree-sitter-cli@0.24.4",
                 "parse",
+                "--config-path",
+                configPath,
+                "--scope",
+                "source.ds",
+                "--rebuild",
                 "--quiet",
                 "--stat",
                 ...tempFiles.map((file) => file.tempPath),

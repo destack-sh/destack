@@ -312,12 +312,17 @@ test-grammar-mir:
 test-grammar-destack-node-coverage:
     bun grammar/scripts/check-destack-node-coverage.mjs
 
+# validate shared grammar fixture structure and parse smoke
+test-grammar-fixtures:
+    bun grammar/scripts/check-grammar-fixtures.mjs
+
 # run the grammar validation stack
 test-grammar:
     just test-grammar-corpus-routing
     just test-grammar-destack
     just test-grammar-mir
     just test-grammar-destack-node-coverage
+    just test-grammar-fixtures
     just test-grammar-overlay
 
 # profile tree sitter grammar state deltas
