@@ -60,18 +60,6 @@ impl EventLoop {
         Ok(())
     }
 
-    /// Remove one waiter registered for one resource readiness.
-    pub fn remove_resource_waiter(
-        &mut self,
-        resource_id: ResourceId,
-        readiness: Readiness,
-    ) -> Option<Waiter> {
-        self.waiters.remove(&WakeKey::Resource {
-            resource_id,
-            readiness,
-        })
-    }
-
     /// Return whether one waiter is registered for one resource readiness.
     pub fn has_resource_waiter(&self, resource_id: ResourceId, readiness: Readiness) -> bool {
         self.waiters.contains_key(&WakeKey::Resource {
@@ -93,11 +81,6 @@ impl EventLoop {
         self.waiters.insert(WakeKey::Host(kind), waiter);
 
         Ok(())
-    }
-
-    /// Remove the waiter registered for one host event kind.
-    pub fn remove_host_waiter(&mut self, kind: HostEventKind) -> Option<Waiter> {
-        self.waiters.remove(&WakeKey::Host(kind))
     }
 
     /// Return whether one waiter is registered for the given host event kind.

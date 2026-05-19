@@ -7,14 +7,14 @@ use destack_workspace::{RuntimeOptions, SchedulerOptions};
 use {destack_engine as engine, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::core::{Host, HostQueue, poll_host_events};
 use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
 use crate::host::time::{HostClockSource, TimerClock};
 use crate::host::{
-    HostEvent, HostEventKind, HostSession, LifecycleEvent, LifecycleSourceKind, LifecycleState,
-    ResourceId, default_compile_target_host,
+    HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
 use crate::runtime::engine::{CallContext, Continuation, Engine, Entry, MemoryContext, Outcome};
 use crate::runtime::scheduler::{
@@ -79,17 +79,19 @@ pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
 }
 
 /// Build one native binding call context for runtime tests.
-pub(crate) fn binding_call_context(
+pub(crate) fn binding_call_context<'host>(
     worker: &mut Worker,
-    host: &HostSession,
+    host: &'host dyn Host,
+    host_queue: &'host HostQueue,
     world: &mut WorldState,
-) -> BindingCallContext {
+) -> BindingCallContext<'host> {
     let execution_context = ExecutionContext::new(host.is_process_main_context());
 
     BindingCallContext {
         worker: worker as *mut Worker,
         event_loop: worker.event_loop.as_ref() as *const _,
-        host: host as *const HostSession,
+        host,
+        host_queue,
         world: world as *mut WorldState,
         scope: current_runnable_scope(),
         execution_context,
@@ -193,8 +195,6 @@ pub(crate) struct TestRuntime {
     shared: SharedHeap,
     /// Runtime-owned static bytes used by the worker.
     runtime_static: engine::StaticSpace,
-    /// Wrapped host session under test.
-    host: HostSession,
 }
 
 /// Test harness for multi-worker runtime scheduler tests.
@@ -293,52 +293,14 @@ impl TestWorldRuntime {
 }
 
 impl TestRuntime {
-    /// Create one test worker with default options.
-    pub(crate) fn new() -> Self {
-        let (world, shared, runtime_static, worker, host) =
-            worker_for_options_with_engine(&RuntimeOptions::default(), TestEngine::default());
-
-        Self {
-            world,
-            host_clock_source: None,
-            shared,
-            runtime_static,
-            worker,
-            host,
-        }
-    }
-
-    /// Create one test worker with explicit options and one explicit engine.
-    pub(crate) fn with_options_and_engine(
+    /// Build one test worker runtime.
+    pub(crate) fn build(
         options: &RuntimeOptions,
         engine: impl Into<Engine>,
+        host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> Self {
-        let (world, shared, runtime_static, worker, host) =
-            worker_for_options_with_engine(options, engine);
-
-        Self {
-            world,
-            host_clock_source: None,
-            shared,
-            runtime_static,
-            worker,
-            host,
-        }
-    }
-
-    /// Create one test worker with explicit options, one explicit engine, and one host clock source.
-    pub(crate) fn with_options_engine_and_host_clock_source(
-        options: &RuntimeOptions,
-        engine: impl Into<Engine>,
-        host_clock_source: Arc<dyn HostClockSource>,
-    ) -> Self {
-        let host_clock_source = Some(host_clock_source);
-        let (world, shared, runtime_static, worker, host) =
-            worker_for_options_with_engine_and_host_clock_source(
-                options,
-                engine,
-                host_clock_source.clone(),
-            );
+        let (world, shared, runtime_static, worker) =
+            worker_for_options(options, engine, host_clock_source.clone());
 
         Self {
             world,
@@ -346,7 +308,6 @@ impl TestRuntime {
             shared,
             runtime_static,
             worker,
-            host,
         }
     }
 
@@ -503,7 +464,8 @@ impl TestRuntime {
                 &mut self.world.state,
                 &self.shared,
                 &self.runtime_static,
-                &self.host,
+                self.world.host.as_ref(),
+                &self.world.host_queue,
             )
             .expect("tick should execute runtime work")
     }
@@ -516,7 +478,8 @@ impl TestRuntime {
                 &mut self.world.state,
                 &self.shared,
                 &self.runtime_static,
-                &self.host,
+                self.world.host.as_ref(),
+                &self.world.host_queue,
                 None,
                 None,
                 &mut poller,
@@ -524,46 +487,29 @@ impl TestRuntime {
             .expect("tick until idle should complete");
     }
 
-    /// Run until one task completes.
-    pub(crate) fn run_loop_until_task_complete(
-        &mut self,
-        task_id: u64,
-    ) -> RuntimeResult<engine::Value> {
-        let mut poller = TestPoller::with_host_clock_source(self.host_clock_source.clone());
-
-        let output = self.worker.run_event_loop(
-            &mut self.world.state,
-            &self.shared,
-            &self.runtime_static,
-            &self.host,
-            Some(TaskId::new(task_id)),
-            None,
-            &mut poller,
-        )?;
-        let Some(output) = output else {
-            return Err(RuntimeError::EventLoopIdle { task_id }.boxed());
-        };
-
-        Ok(output)
-    }
-
     /// Run until one task completes or one timeout elapses.
-    pub(crate) fn run_loop_until_task_complete_with_timeout(
+    pub(crate) fn run_loop_until_task_complete(
         &mut self,
         task_id: u64,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<engine::Value>> {
         let mut poller = TestPoller::with_host_clock_source(self.host_clock_source.clone());
 
-        self.worker.run_event_loop(
+        let output = self.worker.run_event_loop(
             &mut self.world.state,
             &self.shared,
             &self.runtime_static,
-            &self.host,
+            self.world.host.as_ref(),
+            &self.world.host_queue,
             Some(TaskId::new(task_id)),
             timeout_nanos,
             &mut poller,
-        )
+        );
+
+        match output {
+            Err(error) if matches!(error.as_ref(), RuntimeError::EventLoopIdle { .. }) => Ok(None),
+            result => result,
+        }
     }
 
     /// Return whether the event loop has pending work.
@@ -594,7 +540,8 @@ impl TestRuntime {
     fn start_continuation(&mut self, entry: &str, value: i32) -> Continuation {
         start_worker_continuation(
             &mut self.worker,
-            &self.host,
+            self.world.host.as_ref(),
+            &self.world.host_queue,
             &mut self.world.state,
             &self.shared,
             &self.runtime_static,
@@ -615,20 +562,14 @@ impl TestRuntime {
 }
 
 impl TestWorldRuntime {
-    /// Create one runtime with explicit options and one explicit engine.
-    pub(crate) fn with_options_and_engine(
-        options: &RuntimeOptions,
-        engine: impl Into<Engine>,
-    ) -> Self {
+    /// Build one test world runtime.
+    pub(crate) fn build(options: &RuntimeOptions, engine: impl Into<Engine>) -> Self {
         let mut world = World::from_options(options).expect("world should build");
         let runtime_id = world
-            .spawn_runtime(Vec::new(), options, engine)
+            .spawn_runtime(destack_workspace::Environment::default(), options, engine)
             .expect("runtime should spawn");
-        world
-            .runtime(runtime_id)
-            .expect("runtime should exist")
-            .host()
-            .poll(Some(0))
+
+        poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
             .expect("host bootstrap events should drain");
 
         Self { world, runtime_id }
@@ -644,10 +585,8 @@ impl TestWorldRuntime {
 
     /// Spawn one additional worker with one explicit engine and return its id.
     pub(crate) fn spawn_worker(&mut self, engine: impl Into<Engine>) -> WorkerId {
-        let options = RuntimeOptions::default();
-
         self.world
-            .spawn_worker(self.runtime_id, &options, WorkerOptions::default(), engine)
+            .spawn_worker(self.runtime_id, WorkerOptions::default(), engine)
             .expect("worker should spawn")
     }
 
@@ -675,11 +614,7 @@ impl TestWorldRuntime {
 
     /// Attach one explicit test poller.
     pub(crate) fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
-        let runtime = self
-            .world
-            .runtime_mut(self.runtime_id)
-            .expect("runtime should exist");
-        runtime.set_poller(poller);
+        self.world.poller = poller;
     }
 
     /// Return current world wall time in nanoseconds.
@@ -705,7 +640,11 @@ impl TestWorldRuntime {
     ) -> Continuation {
         let value = i32::try_from(value).expect("test continuation id should fit int32");
         let World {
-            state, runtimes, ..
+            state,
+            runtimes,
+            host,
+            host_queue,
+            ..
         } = &mut self.world;
         let runtime = runtimes
             .get_mut(&self.runtime_id)
@@ -713,10 +652,11 @@ impl TestWorldRuntime {
             .expect("runtime should exist");
 
         runtime
-            .with_worker_context(worker_id, |host, shared, runtime_static, worker| {
+            .with_worker_context(worker_id, |shared, runtime_static, worker| {
                 start_worker_continuation(
                     worker,
-                    host,
+                    host.as_ref(),
+                    host_queue,
                     state,
                     shared,
                     runtime_static,
@@ -736,20 +676,12 @@ pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Sh
         .expect("runtime shared heap should build")
 }
 
-/// Build one worker configured for runtime tests with one explicit engine.
-fn worker_for_options_with_engine(
-    options: &RuntimeOptions,
-    engine: impl Into<Engine>,
-) -> (World, SharedHeap, engine::StaticSpace, Worker, HostSession) {
-    worker_for_options_with_engine_and_host_clock_source(options, engine, None)
-}
-
-/// Build one worker configured for runtime tests with one explicit engine and one optional host clock source.
-fn worker_for_options_with_engine_and_host_clock_source(
+/// Build one worker configured for runtime tests.
+fn worker_for_options(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, SharedHeap, engine::StaticSpace, Worker, HostSession) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
@@ -762,7 +694,7 @@ fn worker_for_options_with_engine_and_host_clock_source(
 
     let runtime_static = engine::StaticSpace::empty();
     let mut worker = Worker::new_in_world(
-        Vec::new(),
+        destack_workspace::Environment::default(),
         options,
         world_state,
         &shared,
@@ -781,27 +713,25 @@ fn worker_for_options_with_engine_and_host_clock_source(
     // apply runtime options to binding policy state
     worker.bindings.apply_runtime_defaults(options);
 
-    // build the host session for this test worker
-    let host = HostSession::new(default_compile_target_host(), worker.runtime_id);
-
     // drain initial host bootstrap events for deterministic scheduler tests
-    host.poll(Some(0))
+    poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
         .expect("host bootstrap events should drain");
 
-    (world, shared, runtime_static, worker, host)
+    (world, shared, runtime_static, worker)
 }
 
 /// Start one VM continuation in a worker test harness.
 pub(crate) fn start_worker_continuation(
     worker: &mut Worker,
-    host: &HostSession,
+    host: &dyn Host,
+    host_queue: &HostQueue,
     world: &mut WorldState,
     shared: &SharedHeap,
     runtime_static: &engine::StaticSpace,
     entry: &str,
     value: i32,
 ) -> Continuation {
-    let mut call_context = binding_call_context(worker, host, world);
+    let mut call_context = binding_call_context(worker, host, host_queue, world);
     let Worker {
         heap,
         statics,

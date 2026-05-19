@@ -5,7 +5,8 @@ use super::{
     enter_runnable_scope,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostSession;
+use crate::host::Host;
+use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::HostPoller;
 use crate::runtime::SharedHeap;
 use crate::runtime::engine::{Continuation, Entry, Outcome};
@@ -17,35 +18,38 @@ use {destack_engine as engine, destack_heap as heap};
 
 impl Worker {
     /// Build one runtime-owned binding call context.
-    fn binding_call_context(
+    fn binding_call_context<'host>(
         &mut self,
         world: &mut WorldState,
-        host: &HostSession,
-    ) -> BindingCallContext {
+        host: &'host dyn Host,
+        host_queue: &'host HostQueue,
+    ) -> BindingCallContext<'host> {
         BindingCallContext {
             worker: self as *mut Worker,
             event_loop: self.event_loop.as_ref(),
             host,
+            host_queue,
             world,
             scope: current_runnable_scope(),
             execution_context: ExecutionContext::new(host.is_process_main_context()),
         }
     }
 
-    /// Run an entrypoint through the event loop with one external poller.
-    pub(crate) fn run_entrypoint_with_host_and_poller(
+    /// Run one entrypoint through this worker event loop.
+    pub(crate) fn run_entrypoint(
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         entry: &Entry,
         args: &[engine::Value],
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<engine::Value> {
         // execute the entrypoint with yielding enabled
         let _guard = enter_runnable_scope(RunnableScope::empty());
-        let mut call_context = self.binding_call_context(world, host);
+        let mut call_context = self.binding_call_context(world, host, host_queue);
         let Worker {
             heap,
             shared_allocator,
@@ -82,6 +86,7 @@ impl Worker {
                     shared,
                     runtime_static,
                     host,
+                    host_queue,
                     Some(task_id),
                     None,
                     poller,
@@ -106,7 +111,8 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         target_task: Option<TaskId>,
         timeout_nanos: Option<u64>,
         poller: &mut dyn HostPoller,
@@ -130,7 +136,7 @@ impl Worker {
 
             // run one loop tick for the engine
             let (progressed, output) =
-                self.tick_loop_for_target(world, shared, runtime_static, host, target_task)?;
+                self.tick_loop(world, shared, runtime_static, host, host_queue, target_task)?;
             if let Some(output) = output {
                 return Ok(Some(output));
             }
@@ -147,7 +153,13 @@ impl Worker {
             // wait for the next wakeup when no work progressed this tick
             if !progressed
                 && self.event_loop.has_pending_work()
-                && self.wait_for_next_turn(world, host, poller, remaining_timeout_nanos)?
+                && self.wait_for_next_turn(
+                    world,
+                    host,
+                    host_queue,
+                    poller,
+                    remaining_timeout_nanos,
+                )?
             {
                 continue;
             }
@@ -172,21 +184,13 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
-    ) -> RuntimeResult<bool> {
-        self.tick_once(world, shared, runtime_static, host)
-    }
-
-    /// Execute one local worker tick.
-    fn tick_once(
-        &mut self,
-        world: &mut WorldState,
-        shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
     ) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
-        let mut progressed = self.tick_loop(world, shared, runtime_static, host)?;
+        let (progressed, _) =
+            self.tick_loop(world, shared, runtime_static, host, host_queue, None)?;
+        let mut progressed = progressed;
 
         // direct roots: worker execution may reshuffle shared roots
         if progressed && shared.is_marking() {
@@ -340,64 +344,15 @@ impl Worker {
         Ok(progress.made_progress())
     }
 
-    /// Tick the loop once and return whether work progressed.
+    /// Tick the loop once and return a target task output when requested.
     #[inline(never)]
     fn tick_loop(
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
-    ) -> RuntimeResult<bool> {
-        // track whether this tick processed any event loop work
-        let mut progressed = false;
-        let tick_start_mono_nanos = world.mono_nanos();
-
-        // drain microtasks before selecting other work
-        if self.event_loop.has_microtasks() {
-            let (drained, budget_exhausted) =
-                self.drain_microtasks(world, shared, runtime_static, host)?;
-            if drained > 0 {
-                progressed = true;
-            }
-            if budget_exhausted {
-                return Ok(progressed);
-            }
-        }
-        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
-            return Ok(progressed);
-        }
-
-        // run one queued macrotask before pulling external wakes
-        if self.run_ready_task(world, shared, runtime_static, host)? {
-            return Ok(true);
-        }
-
-        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
-            return Ok(progressed);
-        }
-
-        // dispatch one wake into the task queue
-        if self.dispatch_one_wake(world)? {
-            progressed = true;
-        }
-
-        // run one task produced by the dispatched wake
-        if self.run_ready_task(world, shared, runtime_static, host)? {
-            return Ok(true);
-        }
-
-        Ok(progressed)
-    }
-
-    /// Tick the loop once and return output when the target task completes.
-    #[inline(never)]
-    fn tick_loop_for_target(
-        &mut self,
-        world: &mut WorldState,
-        shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<engine::Value>)> {
         // track whether this tick processed any event loop work
@@ -407,7 +362,7 @@ impl Worker {
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
             let (drained, budget_exhausted) =
-                self.drain_microtasks(world, shared, runtime_static, host)?;
+                self.drain_microtasks(world, shared, runtime_static, host, host_queue)?;
             if drained > 0 {
                 progressed = true;
             }
@@ -421,11 +376,12 @@ impl Worker {
 
         // run one queued macrotask before pulling external wakes
         if let Some(task) = self.event_loop.pop_task() {
-            if let Some(output) = self.execute_dequeued_task_for_target(
+            if let Some(output) = self.execute_dequeued_task(
                 world,
                 shared,
                 runtime_static,
                 host,
+                host_queue,
                 task,
                 target_task,
             )? {
@@ -454,11 +410,12 @@ impl Worker {
 
         // run one task produced by the dispatched wake
         if let Some(task) = self.event_loop.pop_task() {
-            if let Some(output) = self.execute_dequeued_task_for_target(
+            if let Some(output) = self.execute_dequeued_task(
                 world,
                 shared,
                 runtime_static,
                 host,
+                host_queue,
                 task,
                 target_task,
             )? {
@@ -469,43 +426,6 @@ impl Worker {
         }
 
         Ok((progressed, None))
-    }
-
-    /// Run one ready task when the queue is non-empty.
-    #[inline(never)]
-    fn run_ready_task(
-        &mut self,
-        world: &mut WorldState,
-        shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
-        host: &HostSession,
-    ) -> RuntimeResult<bool> {
-        let Some(task) = self.event_loop.pop_task() else {
-            return Ok(false);
-        };
-
-        self.execute_dequeued_task(world, shared, runtime_static, host, task)?;
-
-        Ok(true)
-    }
-
-    /// Dispatch one wake into the task queue.
-    #[inline(never)]
-    fn dispatch_one_wake(&mut self, world: &mut WorldState) -> RuntimeResult<bool> {
-        let wall_now = Nanos::new(world.wall_nanos());
-        let mono_now = Nanos::new(world.mono_nanos());
-        let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? else {
-            return Ok(false);
-        };
-
-        if matches!(&wake, Wake::Timer(_)) {
-            self.scenario.on_timer_fire(world)?;
-        }
-        if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
-            self.enqueue_prepared_task(world, task)?;
-        }
-
-        Ok(true)
     }
 
     /// Enqueue one yielded continuation as a task.
@@ -527,85 +447,25 @@ impl Worker {
         self.enqueue_prepared_task(world, task)
     }
 
-    /// Execute one task.
+    /// Execute one dequeued task and return output when it completes the target task.
     fn execute_dequeued_task(
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
-        task: Task,
-    ) -> RuntimeResult<()> {
-        self.scenario.on_task_start(world)?;
-        self.execute_task(world, shared, runtime_static, host, task)
-    }
-
-    /// Execute one task and return output when it completes the target task.
-    fn execute_dequeued_task_for_target(
-        &mut self,
-        world: &mut WorldState,
-        shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
         self.scenario.on_task_start(world)?;
-        self.execute_task_for_target(world, shared, runtime_static, host, task, target_task)
-    }
-
-    /// Execute one task.
-    fn execute_task(
-        &mut self,
-        world: &mut WorldState,
-        shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
-        host: &HostSession,
-        task: Task,
-    ) -> RuntimeResult<()> {
-        // run the task runnable
-        let task_id = task.id;
-        let _guard = enter_runnable_scope(RunnableScope::for_task(task_id));
-        let outcome = self.execute_runnable(
-            world,
-            shared,
-            runtime_static,
-            host,
-            task.runnable,
-            task.resume_value,
-        )?;
-
-        // handle the task outcome
-        if let Outcome::Yielded {
-            continuation,
-            value,
-        } = outcome
-        {
-            self.enqueue_task(world, task_id, continuation, value)?;
-        }
-
-        self.drain_microtasks(world, shared, runtime_static, host)?;
-
-        Ok(())
-    }
-
-    /// Execute one task and return output when it completes the target task.
-    fn execute_task_for_target(
-        &mut self,
-        world: &mut WorldState,
-        shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
-        host: &HostSession,
-        task: Task,
-        target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<engine::Value>> {
-        // run the task runnable
         let _guard = enter_runnable_scope(RunnableScope::for_task(task.id));
         let outcome = self.execute_runnable(
             world,
             shared,
             runtime_static,
             host,
+            host_queue,
             task.runnable,
             task.resume_value,
         )?;
@@ -625,7 +485,7 @@ impl Worker {
             }
         }
 
-        self.drain_microtasks(world, shared, runtime_static, host)?;
+        self.drain_microtasks(world, shared, runtime_static, host, host_queue)?;
 
         Ok(None)
     }
@@ -645,7 +505,8 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         microtask: Microtask,
         max_microtask_depth: usize,
     ) -> RuntimeResult<()> {
@@ -666,6 +527,7 @@ impl Worker {
             shared,
             runtime_static,
             host,
+            host_queue,
             microtask.continuation,
             microtask.resume_value,
         )?;
@@ -686,7 +548,8 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
     ) -> RuntimeResult<(usize, bool)> {
         // resolve the microtask safety limits for this drain cycle
         let microtask_budget = self
@@ -723,6 +586,7 @@ impl Worker {
                 shared,
                 runtime_static,
                 host,
+                host_queue,
                 microtask,
                 max_microtask_depth,
             )?;
@@ -738,11 +602,12 @@ impl Worker {
         world: &mut WorldState,
         shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         runnable: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
-        let mut call_context = self.binding_call_context(world, host);
+        let mut call_context = self.binding_call_context(world, host, host_queue);
         let Worker {
             heap,
             shared_allocator,
@@ -770,18 +635,21 @@ impl Worker {
     fn wait_for_next_turn(
         &mut self,
         world: &mut WorldState,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         poller: &mut dyn HostPoller,
         remaining_timeout_nanos: Option<u64>,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
-        if world.clock().source() == ClockSource::Virtual {
+        if world.clock.source() == ClockSource::Virtual {
             return Ok(false);
         }
 
         // compute one timeout from the next scheduled timer deadline
-        let wall_now = world.wall();
-        let mono_now = world.mono();
+        let (wall_now, mono_now) = match world.clock.source() {
+            ClockSource::Host => (Nanos::new(host.wall_nanos()), Nanos::new(host.mono_nanos())),
+            ClockSource::Virtual => (world.wall(), world.mono()),
+        };
         let timeout_nanos = self.event_loop.timeout_until_next_timer(wall_now, mono_now);
         let timeout_nanos = match (timeout_nanos, remaining_timeout_nanos.map(Nanos::new)) {
             (Some(timer_timeout), Some(loop_timeout)) => Some(timer_timeout.min(loop_timeout)),
@@ -791,7 +659,7 @@ impl Worker {
         };
 
         // drain host ingress before blocking or sleeping
-        let host_event_count = self.drain_host_wakes(host, Some(0))?;
+        let host_event_count = self.drain_host_wakes(host, host_queue, Some(0))?;
         if host_event_count > 0 {
             for _ in 0..host_event_count {
                 self.scenario.on_ingress_ready(world)?;
@@ -818,11 +686,12 @@ impl Worker {
     /// Poll host events and enqueue host wakes.
     fn drain_host_wakes(
         &mut self,
-        host: &HostSession,
+        host: &dyn Host,
+        host_queue: &HostQueue,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<usize> {
         // drain host events
-        let poll_result = host.poll(timeout_nanos)?;
+        let poll_result = poll_host_events(host, host_queue, timeout_nanos)?;
         let host_events = poll_result.events;
 
         // enqueue host wakes

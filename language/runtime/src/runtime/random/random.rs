@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::random::HostRandom;
 use destack_core::{Capture, CaptureMode};
 use destack_workspace::{RandomOptions, RandomSource};
 
@@ -14,8 +13,6 @@ use super::r#virtual::VirtualRandom;
 pub struct Random {
     /// Active randomness source.
     source: RandomSource,
-    /// Host randomness for secure and host-mode draws.
-    host_random: HostRandom,
     /// Deterministic randomness for virtualized runtime draws.
     virtual_random: VirtualRandom,
 }
@@ -75,7 +72,6 @@ impl Random {
     pub fn with_source(source: RandomSource, root_seed: u64) -> Self {
         Self {
             source,
-            host_random: HostRandom::new(),
             virtual_random: VirtualRandom::new(root_seed),
         }
     }
@@ -108,31 +104,6 @@ impl Random {
     /// Fill a buffer with random bytes from a stream.
     pub fn fill_stream_bytes(&self, stream_id: RandomStreamId, buffer: &mut [u8]) {
         self.virtual_random.fill_stream_bytes(stream_id, buffer);
-    }
-
-    /// Fill a buffer with secure host entropy bytes.
-    pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        self.host_random.fill_bytes(buffer)
-    }
-
-    /// Try to fill a buffer with secure host entropy bytes without blocking.
-    pub fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        self.host_random.try_fill_bytes(buffer)
-    }
-
-    /// Return one secure host entropy u64.
-    pub fn next_secure_u64(&self) -> RuntimeResult<u64> {
-        self.host_random.next_u64()
-    }
-
-    /// Return one stable backend label for secure host entropy.
-    pub fn secure_backend_name(&self) -> &'static str {
-        self.host_random.backend_name()
-    }
-
-    /// Return whether secure host entropy may block.
-    pub fn secure_may_block(&self) -> bool {
-        self.host_random.may_block()
     }
 
     /// Reseed the deterministic random stream.
@@ -182,26 +153,6 @@ impl Random {
     ) -> Result<(), StreamStateDecodeError> {
         self.virtual_random
             .import_stream_state_bytes(stream_id, bytes)
-    }
-
-    /// Return the next deterministic u64 value.
-    pub fn next_deterministic_u64(&self) -> u64 {
-        self.virtual_random.next_u64()
-    }
-
-    /// Fill a buffer with deterministic random bytes.
-    pub fn fill_deterministic_bytes(&self, buffer: &mut [u8]) {
-        self.virtual_random.fill_bytes(buffer);
-    }
-
-    /// Return the next deterministic u64 value for a stream.
-    pub fn next_stream_deterministic_u64(&self, stream_id: RandomStreamId) -> u64 {
-        self.virtual_random.next_stream_u64(stream_id)
-    }
-
-    /// Fill a buffer with deterministic random bytes from a stream.
-    pub fn fill_stream_deterministic_bytes(&self, stream_id: RandomStreamId, buffer: &mut [u8]) {
-        self.virtual_random.fill_stream_bytes(stream_id, buffer);
     }
 
     /// Capture one materialized random image.
@@ -302,20 +253,20 @@ mod tests {
         let stream_a = random.new_stream_id();
         let stream_b = random.new_stream_id();
 
-        let a1 = random.next_stream_deterministic_u64(stream_a);
-        let b1 = random.next_stream_deterministic_u64(stream_b);
-        let a2 = random.next_stream_deterministic_u64(stream_a);
-        let b2 = random.next_stream_deterministic_u64(stream_b);
+        let a1 = random.next_stream_u64(stream_a);
+        let b1 = random.next_stream_u64(stream_b);
+        let a2 = random.next_stream_u64(stream_a);
+        let b2 = random.next_stream_u64(stream_b);
 
         // draw each stream without interleaving
         let random = Random::new(0xdead_beef);
         let stream_a = random.new_stream_id();
         let stream_b = random.new_stream_id();
 
-        let a1_isolated = random.next_stream_deterministic_u64(stream_a);
-        let a2_isolated = random.next_stream_deterministic_u64(stream_a);
-        let b1_isolated = random.next_stream_deterministic_u64(stream_b);
-        let b2_isolated = random.next_stream_deterministic_u64(stream_b);
+        let a1_isolated = random.next_stream_u64(stream_a);
+        let a2_isolated = random.next_stream_u64(stream_a);
+        let b1_isolated = random.next_stream_u64(stream_b);
+        let b2_isolated = random.next_stream_u64(stream_b);
 
         // verify stream sequences are unaffected by interleaving
         assert_eq!((a1, a2), (a1_isolated, a2_isolated));
@@ -328,15 +279,15 @@ mod tests {
         let random = Random::new(0xdead_beef);
         let stream = random.new_stream_id();
         random.jump_stream(stream, 3);
-        let jumped_value = random.next_stream_deterministic_u64(stream);
+        let jumped_value = random.next_stream_u64(stream);
 
         // advance one stream manually
         let random = Random::new(0xdead_beef);
         let stream = random.new_stream_id();
-        let _ = random.next_stream_deterministic_u64(stream);
-        let _ = random.next_stream_deterministic_u64(stream);
-        let _ = random.next_stream_deterministic_u64(stream);
-        let manual_value = random.next_stream_deterministic_u64(stream);
+        let _ = random.next_stream_u64(stream);
+        let _ = random.next_stream_u64(stream);
+        let _ = random.next_stream_u64(stream);
+        let manual_value = random.next_stream_u64(stream);
 
         // verify jump semantics match manual advance
         assert_eq!(jumped_value, manual_value);
@@ -347,16 +298,16 @@ mod tests {
         // derive parent and child streams in one runtime
         let random = Random::new(0xdead_beef);
         let parent = random.new_stream_id();
-        let _ = random.next_stream_deterministic_u64(parent);
+        let _ = random.next_stream_u64(parent);
         let child = random.split_stream(parent);
-        let child_value = random.next_stream_deterministic_u64(child);
+        let child_value = random.next_stream_u64(child);
 
         // repeat the same sequence in a fresh runtime
         let random = Random::new(0xdead_beef);
         let parent_repeated = random.new_stream_id();
-        let _ = random.next_stream_deterministic_u64(parent_repeated);
+        let _ = random.next_stream_u64(parent_repeated);
         let child_repeated = random.split_stream(parent_repeated);
-        let child_value_repeated = random.next_stream_deterministic_u64(child_repeated);
+        let child_value_repeated = random.next_stream_u64(child_repeated);
 
         // verify deterministic split ids and values
         assert_eq!(child, child_repeated);
@@ -390,17 +341,17 @@ mod tests {
     fn test_stream_state_export_import_roundtrip_for_default_stream() {
         // step deterministic state and export one stream snapshot
         let random = Random::new(0xdead_beef);
-        let _ = random.next_stream_deterministic_u64(RandomStreamId::DEFAULT);
+        let _ = random.next_stream_u64(RandomStreamId::DEFAULT);
         let state = random.export_stream_state_bytes(RandomStreamId::DEFAULT);
 
         // capture one next value and restore the exported state
-        let expected = random.next_stream_deterministic_u64(RandomStreamId::DEFAULT);
+        let expected = random.next_stream_u64(RandomStreamId::DEFAULT);
         random
             .import_stream_state_bytes(RandomStreamId::DEFAULT, &state)
             .expect("default stream import should succeed");
 
         // imported stream state should replay the same next value
-        let actual = random.next_stream_deterministic_u64(RandomStreamId::DEFAULT);
+        let actual = random.next_stream_u64(RandomStreamId::DEFAULT);
         assert_eq!(actual, expected);
     }
 
@@ -409,17 +360,17 @@ mod tests {
         // allocate one named stream and advance deterministic state
         let random = Random::new(0xdead_beef);
         let stream = random.new_stream_id();
-        let _ = random.next_stream_deterministic_u64(stream);
+        let _ = random.next_stream_u64(stream);
         let state = random.export_stream_state_bytes(stream);
 
         // capture one next value and restore the exported state
-        let expected = random.next_stream_deterministic_u64(stream);
+        let expected = random.next_stream_u64(stream);
         random
             .import_stream_state_bytes(stream, &state)
             .expect("named stream import should succeed");
 
         // imported stream state should replay the same next value
-        let actual = random.next_stream_deterministic_u64(stream);
+        let actual = random.next_stream_u64(stream);
         assert_eq!(actual, expected);
     }
 
