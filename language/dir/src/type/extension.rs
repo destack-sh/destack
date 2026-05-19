@@ -3,7 +3,7 @@ use std::fmt::Display;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalLineageId};
+use crate::{GlobalSymbolId, TypeRelation};
 
 /// Unique identifier for Extensions.
 #[repr(transparent)]
@@ -84,9 +84,8 @@ pub struct Extension {
     pub form: ExtensionForm,
     /// The target type symbol being extended.
     pub target: GlobalSymbolId,
-    /// Lineage added by this extension directly.
-    /// (This is the extension's *own* lineage, not the target's.)
-    pub lineage: Option<LocalLineageId>,
+    /// Interface relations added by this extension directly.
+    pub implements: Vec<TypeRelation>,
 }
 
 impl Extension {
@@ -95,13 +94,13 @@ impl Extension {
         symbol: GlobalSymbolId,
         form: ExtensionForm,
         target: GlobalSymbolId,
-        lineage: Option<LocalLineageId>,
+        implements: Vec<TypeRelation>,
     ) -> Self {
         Self {
             symbol,
             form,
             target,
-            lineage,
+            implements,
         }
     }
 

@@ -7,19 +7,15 @@ use {destack_dir as dir, destack_engine as engine, destack_vm as vm};
 #[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Convert a static expression into an engine boundary value.
-    pub(crate) fn static_expression_to_value(
-        &self,
-        value: &dir::StaticExpression,
-    ) -> Option<engine::Value> {
+    /// Convert a static term into an engine boundary value.
+    pub(crate) fn static_term_to_value(&self, value: &dir::StaticTerm) -> Option<engine::Value> {
         match value {
-            dir::StaticExpression::ScalarLiteral { value } => match value {
+            dir::StaticTerm::ScalarLiteral { value } => match value {
                 dir::ScalarLiteral::Boolean(value) => Some(engine::Value::bool(*value)),
                 dir::ScalarLiteral::Integer(value) => Some(engine::Value::int64(*value)),
                 dir::ScalarLiteral::Bigint(value) => Some(engine::Value::int64(*value)),
                 dir::ScalarLiteral::Float(value) => Some(engine::Value::float64(*value)),
                 dir::ScalarLiteral::Character(value) => Some(engine::Value::char(*value)),
-                // #Incomplete: support more complex static values in comptime
                 dir::ScalarLiteral::Null => None,
                 dir::ScalarLiteral::String(_) => None,
                 dir::ScalarLiteral::RegexString { .. } => None,
@@ -28,13 +24,13 @@ impl Compiler {
         }
     }
 
-    /// Convert an engine boundary value into a static expression.
-    pub(crate) fn value_to_static_expression(
+    /// Convert an engine boundary value into a static term.
+    pub(crate) fn value_to_static_term(
         &self,
         _isolate: &vm::Isolate,
         _heap: &vm::Heap,
         value: &engine::Value,
-    ) -> Option<dir::StaticExpression> {
+    ) -> Option<dir::StaticTerm> {
         let scalar = match value {
             engine::Value::Bool(value) => dir::ScalarLiteral::Boolean(*value),
             engine::Value::Int { value, .. } => {
@@ -49,10 +45,11 @@ impl Compiler {
             engine::Value::Float64 { bits } => dir::ScalarLiteral::Float(f64::from_bits(*bits)),
             engine::Value::Char(value) => dir::ScalarLiteral::Character(*value),
 
-            _ => return None, // #Incomplete: support more complex static values in comptime
+            // #Incomplete: support more complex static values in comptime
+            _ => return None,
         };
 
-        Some(dir::StaticExpression::ScalarLiteral { value: scalar })
+        Some(dir::StaticTerm::ScalarLiteral { value: scalar })
     }
 
     /// Require one type expression node for one local type id.
@@ -67,31 +64,55 @@ impl Compiler {
         scope: (dir::LocalScopeId, dir::LocalScopeMark),
         type_id: dir::LocalTypeId,
     ) -> MaterializeResult<dir::LocalNodeId<dir::TypeExpression>> {
-        // materialize literal types directly when no reusable syntax node exists
-        if let dir::Type::Literal(dir::LiteralType { value }) = types.get_type(type_id) {
-            let expression_any = tree.reserve_from(
-                dir::NodeType::TypeExpression,
-                anchor_id,
-                scope,
-                Some(parent_id),
-            );
-            let expression = dir::TypeExpression::Literal {
+        let expression = match types.get_type(type_id) {
+            dir::Type::Never => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Never,
+            },
+            dir::Type::Any => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Any,
+            },
+            dir::Type::Unknown => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Unknown,
+            },
+            dir::Type::Void => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Void,
+            },
+            dir::Type::Null => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Null,
+            },
+            dir::Type::Undefined => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Undefined,
+            },
+            dir::Type::Object => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Object,
+            },
+            dir::Type::Primitive(primitive) => dir::TypeExpression::Literal {
+                value: (*primitive).into(),
+            },
+            dir::Type::Literal(value) => dir::TypeExpression::ScalarLiteral {
                 value: value.clone(),
-            };
-            let expression_id = tree.insert(expression_any, expression);
+            },
+            dir::Type::Intrinsic(intrinsic) => dir::TypeExpression::Literal {
+                value: dir::TypeLiteral::Intrinsic(*intrinsic),
+            },
+            _ => {
+                return Err(MaterializeError::UnsupportedConstruct {
+                    anchor: anchor_id
+                        .into_global(module_id)
+                        .into_anchored(Some(profile_id)),
+                });
+            }
+        };
 
-            return Ok(expression_id);
-        }
+        let expression_any =
+            tree.reserve_from(dir::NodeType::TypeExpression, anchor_id, scope, Some(parent_id));
+        let expression_id = tree.insert(expression_any, expression);
 
-        let _ = (
-            tree, types, module_id, profile_id, anchor_id, parent_id, scope, type_id,
-        );
-
-        todo!("FUGU #Incomplete: insert comptime types")
+        Ok(expression_id)
     }
 
-    /// Convert a static expression into a DIR expression node.
-    pub(crate) fn static_expression_to_expression(
+    /// Convert a static term into a DIR expression node.
+    pub(crate) fn static_term_to_expression(
         &self,
         tree: &mut dir::Tree,
         types: &dir::TypeTable<'_>,
@@ -100,16 +121,16 @@ impl Compiler {
         anchor_id: dir::LocalNodeIdAny,
         parent_id: dir::LocalNodeIdAny,
         scope: (dir::LocalScopeId, dir::LocalScopeMark),
-        value: &dir::StaticExpression,
+        value: &dir::StaticTerm,
     ) -> MaterializeResult<dir::Expression> {
         match value {
-            dir::StaticExpression::ScalarLiteral { value } => Ok(dir::Expression::ScalarLiteral {
+            dir::StaticTerm::ScalarLiteral { value } => Ok(dir::Expression::ScalarLiteral {
                 value: value.clone(),
             }),
-            dir::StaticExpression::TypeLiteral { value } => Ok(dir::Expression::TypeLiteral {
+            dir::StaticTerm::TypeLiteral { value } => Ok(dir::Expression::TypeLiteral {
                 value: value.clone(),
             }),
-            dir::StaticExpression::Type { ty } => {
+            dir::StaticTerm::Type { ty } => {
                 let value = self.insert_comptime_type_expression_for_type_id(
                     tree, types, module_id, profile_id, anchor_id, parent_id, scope, *ty,
                 )?;
@@ -119,7 +140,7 @@ impl Compiler {
                     resolved_type: *ty,
                 })
             }
-            dir::StaticExpression::ArrayExpression { elements } => {
+            dir::StaticTerm::Array { elements } => {
                 // build positional arguments for array elements
                 let mut argument_ids = Vec::with_capacity(elements.len());
                 for element in elements {
@@ -135,7 +156,7 @@ impl Compiler {
                         scope,
                         Some(argument_any),
                     );
-                    let value_expression = self.static_expression_to_expression(
+                    let value_expression = self.static_term_to_expression(
                         tree, types, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
@@ -148,7 +169,26 @@ impl Compiler {
                     elements: argument_ids,
                 })
             }
-            dir::StaticExpression::TupleExpression { elements } => {
+            dir::StaticTerm::FixedArray { value, length } => {
+                // build the repeated value expression
+                let value_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
+                let value_expression = self.static_term_to_expression(
+                    tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
+                )?;
+                let value = tree.insert(value_any, value_expression);
+
+                // build the fixed length expression
+                let length_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
+                let length_expression = self.static_term_to_expression(
+                    tree, types, module_id, profile_id, anchor_id, length_any, scope, length,
+                )?;
+                let length = tree.insert(length_any, length_expression);
+
+                Ok(dir::Expression::FixedArrayExpression { value, length })
+            }
+            dir::StaticTerm::Tuple { elements } => {
                 // build positional arguments for tuple elements
                 let mut argument_ids = Vec::with_capacity(elements.len());
                 for element in elements {
@@ -164,7 +204,7 @@ impl Compiler {
                         scope,
                         Some(argument_any),
                     );
-                    let value_expression = self.static_expression_to_expression(
+                    let value_expression = self.static_term_to_expression(
                         tree, types, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
@@ -177,7 +217,7 @@ impl Compiler {
                     elements: argument_ids,
                 })
             }
-            dir::StaticExpression::ObjectExpression { properties } => {
+            dir::StaticTerm::Object { properties } => {
                 // build properties for the object expression
                 let mut property_ids = Vec::with_capacity(properties.len());
                 for property in properties {
@@ -205,8 +245,41 @@ impl Compiler {
                     properties: property_ids,
                 })
             }
-            _ => Err(MaterializeError::UnsupportedConstruct {
-                node: anchor_id
+            dir::StaticTerm::Struct { ty, properties } => {
+                let type_expression = self.insert_comptime_type_expression_for_type_id(
+                    tree, types, module_id, profile_id, anchor_id, parent_id, scope, *ty,
+                )?;
+
+                // build properties for the struct expression
+                let mut property_ids = Vec::with_capacity(properties.len());
+                for property in properties {
+                    let property_any = tree.reserve_from(
+                        dir::NodeType::Property,
+                        anchor_id,
+                        scope,
+                        Some(parent_id),
+                    );
+                    let property = self.static_property_to_property(
+                        tree,
+                        types,
+                        module_id,
+                        profile_id,
+                        anchor_id,
+                        property_any,
+                        scope,
+                        property,
+                    )?;
+                    let property_id = tree.insert(property_any, property);
+                    property_ids.push(property_id);
+                }
+
+                Ok(dir::Expression::StructExpression {
+                    ty: type_expression,
+                    properties: property_ids,
+                })
+            }
+            dir::StaticTerm::Declaration { .. } => Err(MaterializeError::UnsupportedConstruct {
+                anchor: anchor_id
                     .into_global(module_id)
                     .into_anchored(Some(profile_id)),
             }),
@@ -226,7 +299,10 @@ impl Compiler {
         property: &dir::StaticProperty,
     ) -> MaterializeResult<dir::Property> {
         match property {
-            dir::StaticProperty::Field { key, value, symbol } => {
+            dir::StaticProperty::Field { key, value } => {
+                let key =
+                    self.static_property_key_to_key(module_id, profile_id, anchor_id, *key)?;
+
                 // build the field value expression
                 let value_any = tree.reserve_from(
                     dir::NodeType::Expression,
@@ -234,24 +310,28 @@ impl Compiler {
                     scope,
                     Some(parent_id),
                 );
-                let value_expression = self.static_expression_to_expression(
+                let value_expression = self.static_term_to_expression(
                     tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;
                 let value_id = tree.insert(value_any, value_expression);
 
                 Ok(dir::Property::Field {
-                    key: *key,
+                    key,
                     value: value_id,
                     is_shorthand: false,
-                    symbol: *symbol,
                 })
             }
             dir::StaticProperty::Method {
                 key,
                 signature,
                 body,
-                symbol,
             } => {
+                let key = key
+                    .map(|key| {
+                        self.static_property_key_to_key(module_id, profile_id, anchor_id, key)
+                    })
+                    .transpose()?;
+
                 // build the method body expression
                 let body_any = tree.reserve_from(
                     dir::NodeType::Expression,
@@ -259,19 +339,18 @@ impl Compiler {
                     scope,
                     Some(parent_id),
                 );
-                let body_expression = self.static_expression_to_expression(
+                let body_expression = self.static_term_to_expression(
                     tree, types, module_id, profile_id, anchor_id, body_any, scope, body,
                 )?;
                 let body_id = tree.insert(body_any, body_expression);
 
                 Ok(dir::Property::Method {
-                    key: *key,
+                    key,
                     signature: signature.clone(),
                     body: Some(body_id),
-                    symbol: *symbol,
                 })
             }
-            dir::StaticProperty::Spread { value, symbol } => {
+            dir::StaticProperty::Spread { value } => {
                 // build the spread value expression
                 let value_any = tree.reserve_from(
                     dir::NodeType::Expression,
@@ -279,18 +358,29 @@ impl Compiler {
                     scope,
                     Some(parent_id),
                 );
-                let value_expression = self.static_expression_to_expression(
+                let value_expression = self.static_term_to_expression(
                     tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;
                 let value_id = tree.insert(value_any, value_expression);
 
-                Ok(dir::Property::Spread {
-                    value: value_id,
-                    symbol: *symbol,
-                })
+                Ok(dir::Property::Spread { value: value_id })
             }
-            dir::StaticProperty::Unevaluated { .. } => Err(MaterializeError::UnsupportedConstruct {
-                node: anchor_id
+        }
+    }
+
+    /// Convert a static property key into a DIR property key.
+    fn static_property_key_to_key(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        anchor_id: dir::LocalNodeIdAny,
+        key: dir::StaticKey,
+    ) -> MaterializeResult<dir::Key> {
+        match key {
+            dir::StaticKey::Name(name) => Ok(dir::Key::Name(dir::Name::String(name))),
+            dir::StaticKey::Number(name) => Ok(dir::Key::Name(dir::Name::Number(name))),
+            dir::StaticKey::Symbol(_) => Err(MaterializeError::UnsupportedConstruct {
+                anchor: anchor_id
                     .into_global(module_id)
                     .into_anchored(Some(profile_id)),
             }),

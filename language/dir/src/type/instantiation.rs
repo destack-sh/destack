@@ -65,14 +65,14 @@ impl Display for LocalInstantiationId {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Instantiation {
     /// The symbol being instantiated.
-    pub target: GlobalSymbolId,
+    pub symbol: GlobalSymbolId,
     /// The static arguments in declaration order.
     pub arguments: Vec<StaticArgument>,
 }
 
 impl Instantiation {
     /// Create a generic instantiation.
-    pub fn new(target: GlobalSymbolId, arguments: Vec<StaticArgument>) -> Self {
-        Self { target, arguments }
+    pub fn new(symbol: GlobalSymbolId, arguments: Vec<StaticArgument>) -> Self {
+        Self { symbol, arguments }
     }
 }

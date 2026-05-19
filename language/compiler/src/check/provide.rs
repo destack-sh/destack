@@ -30,6 +30,9 @@ impl Compiler {
         // FUGU #Incomplete: implement proper type checking
         let checked = DirChecked {
             types: Arc::new(dir::TypeSegment::from_base(&expanded.types)),
+            resolutions: Arc::new(dir::ResolutionSegment::new(module)),
+            instances: Arc::new(dir::InstanceSegment::new(module)),
+            relations: Arc::new(dir::RelationSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::new(module)),
             captures: Arc::new(dir::CaptureSegment::new(module)),
         };

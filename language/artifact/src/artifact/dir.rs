@@ -161,6 +161,12 @@ pub struct DirExported {
 pub struct DirChecked {
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New resolutions.
+    pub resolutions: Arc<dir::ResolutionSegment>,
+    /// New generic instantiations.
+    pub instances: Arc<dir::InstanceSegment>,
+    /// New type relations.
+    pub relations: Arc<dir::RelationSegment>,
     /// New layouts.
     pub layouts: Arc<dir::LayoutSegment>,
     /// New captures.
@@ -175,6 +181,21 @@ impl DirChecked {
             expanded.types.clone(),
             self.types.clone(),
         ])
+    }
+
+    /// Return the cumulative resolution table for checked DIR.
+    pub fn resolution_table(&self) -> dir::ResolutionTable<'static> {
+        dir::ResolutionTable::from_segment(self.resolutions.clone())
+    }
+
+    /// Return the cumulative instance table for checked DIR.
+    pub fn instance_table(&self) -> dir::InstanceTable<'static> {
+        dir::InstanceTable::from_segment(self.instances.clone())
+    }
+
+    /// Return the cumulative relation table for checked DIR.
+    pub fn relation_table(&self) -> dir::RelationTable<'static> {
+        dir::RelationTable::from_segment(self.relations.clone())
     }
 
     /// Return the cumulative capture table for checked DIR.
@@ -197,6 +218,12 @@ pub struct DirMaterialized {
     pub bindings: Arc<dir::BindingSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New resolutions.
+    pub resolutions: Arc<dir::ResolutionSegment>,
+    /// New generic instantiations.
+    pub instances: Arc<dir::InstanceSegment>,
+    /// New type relations.
+    pub relations: Arc<dir::RelationSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
     /// New layouts.
@@ -234,6 +261,24 @@ impl DirMaterialized {
         ])
     }
 
+    /// Return the cumulative resolution table for materialized DIR.
+    pub fn resolution_table(&self, checked: &DirChecked) -> dir::ResolutionTable<'static> {
+        dir::ResolutionTable::from_segments(vec![
+            checked.resolutions.clone(),
+            self.resolutions.clone(),
+        ])
+    }
+
+    /// Return the cumulative instance table for materialized DIR.
+    pub fn instance_table(&self, checked: &DirChecked) -> dir::InstanceTable<'static> {
+        dir::InstanceTable::from_segments(vec![checked.instances.clone(), self.instances.clone()])
+    }
+
+    /// Return the cumulative relation table for materialized DIR.
+    pub fn relation_table(&self, checked: &DirChecked) -> dir::RelationTable<'static> {
+        dir::RelationTable::from_segments(vec![checked.relations.clone(), self.relations.clone()])
+    }
+
     /// Return the cumulative capture table for materialized DIR.
     pub fn capture_table(&self, checked: &DirChecked) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segments(vec![checked.captures.clone(), self.captures.clone()])
@@ -254,6 +299,12 @@ pub struct DirElaborated {
     pub bindings: Arc<dir::BindingSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New resolutions.
+    pub resolutions: Arc<dir::ResolutionSegment>,
+    /// New generic instantiations.
+    pub instances: Arc<dir::InstanceSegment>,
+    /// New type relations.
+    pub relations: Arc<dir::RelationSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
     /// New layouts.
@@ -294,6 +345,45 @@ impl DirElaborated {
             checked.types.clone(),
             materialized.types.clone(),
             self.types.clone(),
+        ])
+    }
+
+    /// Return the cumulative resolution table for elaborated DIR.
+    pub fn resolution_table(
+        &self,
+        checked: &DirChecked,
+        materialized: &DirMaterialized,
+    ) -> dir::ResolutionTable<'static> {
+        dir::ResolutionTable::from_segments(vec![
+            checked.resolutions.clone(),
+            materialized.resolutions.clone(),
+            self.resolutions.clone(),
+        ])
+    }
+
+    /// Return the cumulative instance table for elaborated DIR.
+    pub fn instance_table(
+        &self,
+        checked: &DirChecked,
+        materialized: &DirMaterialized,
+    ) -> dir::InstanceTable<'static> {
+        dir::InstanceTable::from_segments(vec![
+            checked.instances.clone(),
+            materialized.instances.clone(),
+            self.instances.clone(),
+        ])
+    }
+
+    /// Return the cumulative relation table for elaborated DIR.
+    pub fn relation_table(
+        &self,
+        checked: &DirChecked,
+        materialized: &DirMaterialized,
+    ) -> dir::RelationTable<'static> {
+        dir::RelationTable::from_segments(vec![
+            checked.relations.clone(),
+            materialized.relations.clone(),
+            self.relations.clone(),
         ])
     }
 

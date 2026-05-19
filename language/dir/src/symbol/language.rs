@@ -850,6 +850,18 @@ define_language_items! {
             DebugDerive => (Newtype, "decorator/derive", "Debug"),
         }
 
+        /// `destack:decorator/representation`.
+        representation {
+            /// `@repr` marker.
+            ReprDecorator => (Newtype, "decorator/representation", "repr"),
+
+            /// `@align` marker.
+            AlignDecorator => (Newtype, "decorator/representation", "align"),
+
+            /// `@packed` marker.
+            PackedDecorator => (Newtype, "decorator/representation", "packed"),
+        }
+
         /// `destack:decorator/system`.
         system {
             /// `@inline` hint

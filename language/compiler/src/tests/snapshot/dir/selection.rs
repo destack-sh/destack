@@ -7,6 +7,10 @@ pub(crate) struct DirSnapshotSet {
     pub(super) binding_nodes: bool,
     /// Whether to render type table rows.
     pub(super) types: bool,
+    /// Whether to render resolution table rows.
+    pub(super) resolution: bool,
+    /// Whether to render instance table rows.
+    pub(super) instance: bool,
     /// Whether to render dependency table rows.
     pub(super) dependency: bool,
     /// Whether to render export table rows.
@@ -29,6 +33,8 @@ impl DirSnapshotSet {
             binding: false,
             binding_nodes: false,
             types: false,
+            resolution: false,
+            instance: false,
             dependency: false,
             export: false,
             capture: false,
@@ -59,6 +65,8 @@ impl DirSnapshotSet {
             binding: true,
             binding_nodes: false,
             types: true,
+            resolution: true,
+            instance: true,
             dependency: true,
             export: true,
             capture: true,
@@ -71,6 +79,18 @@ impl DirSnapshotSet {
     /// Include type table rows.
     pub(crate) const fn with_types(mut self) -> Self {
         self.types = true;
+        self
+    }
+
+    /// Include resolution table rows.
+    pub(crate) const fn with_resolution(mut self) -> Self {
+        self.resolution = true;
+        self
+    }
+
+    /// Include instance table rows.
+    pub(crate) const fn with_instance(mut self) -> Self {
+        self.instance = true;
         self
     }
 
