@@ -82,6 +82,8 @@ just language/test-conformance-formatter
 just language/update-conformance-catalog
 just language/generate-stress
 just language/test-stress
+just language/test-stress-parser
+just language/test-stress-formatter
 
 # runtime and toolchain lanes
 just language/install-toolchain
@@ -103,5 +105,5 @@ just language/fuzz
 just language/fuzz-lexer
 just language/fuzz-parser
 just language/fuzz-formatter
-just language/list-fuzz-targets
+just language/fuzz-list
 ```
