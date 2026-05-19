@@ -16,7 +16,7 @@ pub enum MaterializeError {
         anchor: DiagnosticAnchor,
         /// Identify the module where execution failed.
         module: ModuleId,
-        /// Report the lowering error.
+        /// Preserve the lower phase diagnostic.
         error: Box<LowerError>,
         /// Describe the lowering failure.
         message: String,
