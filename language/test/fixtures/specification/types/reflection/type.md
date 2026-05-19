@@ -68,9 +68,9 @@ alignment satisfies usize;
 stride satisfies usize;
 ```
 
-### layoutOf returns field layouts
+### layoutOf returns layout shape
 
-`layoutOf<T>()` returns field layout information for the active target.
+`layoutOf<T>()` returns layout shape information for the active target.
 
 ```ds
 struct Header {
@@ -79,5 +79,5 @@ struct Header {
 
 const layout = comptime layoutOf<Header>();
 layout satisfies Layout;
-layout.fields satisfies readonly LayoutField[];
+layout.shape satisfies LayoutShape;
 ```
