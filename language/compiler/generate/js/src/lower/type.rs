@@ -10,7 +10,7 @@ impl ModuleLowerer<'_> {
         let global_id = expression_id.into_global_any(self.module.id);
 
         // lower through the semantic type lane
-        if let Some(type_id) = self.types.get_declared_type_id(global_id) {
+        if let Some(type_id) = self.types.get_node_type_id(global_id) {
             return self.lower_type(type_id);
         }
 
