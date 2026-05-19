@@ -283,7 +283,7 @@ pub(crate) fn resolve_reference_members(
     members
 }
 
-/// Resolve members from a local symbol by using its recorded instance type.
+/// Resolve members from a local symbol by using its checked type.
 fn resolve_local_symbol_members(
     symbol_id: LocalSymbolId,
     types: &TypeTable<'_>,
@@ -304,12 +304,11 @@ fn resolve_local_symbol_members(
     let symbol = symbols.get_symbol(symbol_id);
     let is_enum = symbol.form == SymbolForm::Enum;
 
-    // first: try to get members from the symbol's instance type
-    // this is the primary source for struct/class/interface fields
-    if let Some(instance_type_id) = types.get_instance_type_id(global_symbol_id) {
-        let ty = types.get_type(instance_type_id);
+    // read fields from the symbol type when available
+    if let Some(type_id) = types.get_symbol_type_id(global_symbol_id) {
+        let ty = types.get_type(type_id);
 
-        // if the instance type is an Object, get fields from there
+        // add fields from shape types
         if let Type::Shape(object) = ty {
             for field in &object.fields {
                 // use EnumMember kind for enum variants

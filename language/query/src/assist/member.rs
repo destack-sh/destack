@@ -102,36 +102,17 @@ fn get_expression_symbol(
     expression_symbol_target(dir, expr_id)
 }
 
-/// Keep one concrete type id.
-fn concrete_type_id(
-    types: &dir::TypeTable<'_>,
-    type_id: Option<dir::LocalTypeId>,
-) -> Option<dir::LocalTypeId> {
-    let type_id = type_id?;
-    let _ = types;
-
-    Some(type_id)
-}
-
 /// Get the type of a receiver expression.
-///
-/// Prefer the compiler recorded member lookup type before existing type tables.
 fn get_receiver_type(
     ctx: DirQueryContext<'_>,
     receiver_global: dir::GlobalNodeIdAny,
     receiver_symbol: Option<dir::GlobalSymbolId>,
 ) -> Option<dir::LocalTypeId> {
     let types = ctx.types();
-    let symbol_type_id = receiver_symbol
-        .and_then(|receiver_symbol| types.symbol_type_id(ctx.symbols(), receiver_symbol));
+    let node_type_id = types.get_node_type_id(receiver_global);
+    let symbol_type_id = receiver_symbol.and_then(|symbol| types.get_symbol_type_id(symbol));
 
-    concrete_type_id(
-        types,
-        types
-            .member_receiver_type_id(receiver_global)
-            .or_else(|| types.get_declared_or_inferred_type_id(receiver_global))
-            .or(symbol_type_id),
-    )
+    node_type_id.or(symbol_type_id)
 }
 
 /// Resolve member access context for a receiver position.

@@ -494,8 +494,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     ) -> Option<CompletionValueShape> {
         let ctx = self.ctx.module_context(symbol_id.module_id)?;
         let types = ctx.dir().types();
-        let symbols = ctx.dir().symbols();
-        let type_id = types.symbol_type_id(symbols, symbol_id)?;
+        let type_id = types.get_symbol_type_id(symbol_id)?;
 
         Some(Self::value_shape_for_type(types, type_id))
     }
@@ -525,8 +524,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     ) -> Option<dir::GlobalSymbolId> {
         let ctx = self.ctx.module_context(symbol_id.module_id)?;
         let types = ctx.dir().types();
-        let symbols = ctx.dir().symbols();
-        let type_id = types.symbol_type_id(symbols, symbol_id)?;
+        let type_id = types.get_symbol_type_id(symbol_id)?;
 
         self.type_symbol_for_type(types, type_id)
     }
@@ -548,8 +546,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             return Vec::new();
         };
         let types = ctx.dir().types();
-        let symbols = ctx.dir().symbols();
-        let Some(type_id) = types.symbol_type_id(symbols, symbol_id) else {
+        let Some(type_id) = types.get_symbol_type_id(symbol_id) else {
             return Vec::new();
         };
 
@@ -602,7 +599,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 symbols.push(canonical_symbol);
             }
 
-            if let Some(target_type_id) = types.get_alias_target_type_id(symbol) {
+            if let Some(target_type_id) = types.get_symbol_type_id(symbol) {
                 self.collect_type_symbols(types, target_type_id, seen_types, seen_symbols, symbols);
             }
 
@@ -635,7 +632,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         let types = ctx.dir().types();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let declaration = symbol.declaration?;
-        let type_id = types.get_declared_or_inferred_type_id(declaration)?;
+        let type_id = types.get_node_type_id(declaration)?;
 
         Some(format_local_type(type_id, types, &ctx))
     }

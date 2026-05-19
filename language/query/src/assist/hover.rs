@@ -198,13 +198,13 @@ pub fn hover(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Hover> {
         }
         NodeType::Pattern => {
             // local variable or destructuring pattern
-            format_local_variable_hover(name.as_deref(), symbol_at.symbol_id, symbols, types, ctx)
+            format_local_variable_hover(name.as_deref(), symbol_at.symbol_id, types, ctx)
         }
         _ => format_simple_signature(symbol.form, name.as_deref()),
     };
 
     // resolve type and location metadata
-    let type_text = resolve_hover_type_text(ctx, symbols, hover_node_id, symbol_at.symbol_id);
+    let type_text = resolve_hover_type_text(ctx, hover_node_id, symbol_at.symbol_id);
     let location = hover_location(ctx, symbol_at.span);
     let range = hover_range_for_symbol(ctx, symbol_at.node_id, symbol_at.span);
 
@@ -221,7 +221,6 @@ pub fn hover(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Hover> {
 /// Resolve a type string for a hover target when available.
 fn resolve_hover_type_text(
     ctx: &ModuleQueryContext<'_>,
-    symbols: &dir::BindingTable<'_>,
     hover_node_id: dir::LocalNodeIdAny,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
@@ -230,7 +229,7 @@ fn resolve_hover_type_text(
 
     // map the hover node to a type id
     let type_id = match hover_node_id.ty {
-        NodeType::Pattern => types.symbol_type_id(symbols, symbol_id),
+        NodeType::Pattern => types.get_symbol_type_id(symbol_id),
         NodeType::Member | NodeType::EnumField | NodeType::Parameter => {
             ctx.dir().node_type_id(hover_node_id)
         }
