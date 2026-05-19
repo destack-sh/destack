@@ -22,60 +22,76 @@ Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that 
 The intended use case for Destack is making TS-shaped code optimal and correct, which requires cutting all accumulated dynamic magic that might smuggle in ambiguity or unsoundness at runtime.
 Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically sound, and also removes a few rarely used footguns.
 
-### Expressions
+### Modules
 
-Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not worth carrying forward:
+Destack supports only ESM syntax without namespaces, stringy-modules, and also does not distinguish "type" from "value" imports/exports.
 
-- **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
-  All non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier, `with`, etc., are not supported.
-- **Type-only imports / exports**: `.ds` accepts `import type` and `export type` for TypeScript compatibility, but they mean the same thing as `import` and `export`, and the type-less form is preferred.
-- **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
-- **String module declarations**: Destack source does not support TypeScript-style `declare module "specifier" { ... }`; provide a real module instead.
-- **Namespace declarations**: Destack source does not support TypeScript-style `namespace Name { ... }` internal modules.
-  Use real modules with namespace imports or re-exports instead.
-- **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx` because it might be a TSX tree, and `.ds` inherits this since we support TSX syntax natively.
-  To disambiguate, use `<T,>() => ...`.
-- **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead claims `(A, B, C)` for explicit tuples.
-- **Single-quoted literals**: In `'A'` is a `char`, not a `string`.
-  Use double-quoted string literals for text, while `.ts` and `.tsx` keep TypeScript's ordinary single-quoted strings.
-- **Loose equality coercion**: Object coercion through `==` and `!=` is not allowed.
-- **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
-  Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
-- **Dynamic module loading**: Runtime `import(expr)` is not general module loading in source code.
-  JS output may still use dynamic imports for chunk loading when the target requires it.
-- **Dynamic code generation**: Dynamic _runtime_ `eval` / `new Function` / class generation are in conflict with a strict AOT model and unsupported, **but** Destack supports explicit `comptime eval` / `new Function`.
-- **Exceptions**: Destack does not support _executing_ exceptions in any way - `.ds` still supports `throw`, `try`, `catch`, and `finally` syntax for JS-target compatibility, and try-catch-finally even work with our `Try` / `Result` types, but that's it. No runtime exceptions of any kind.
+| Feature | Example | Compatibility | Reason |
+| --- | --- | --- | --- |
+| **Type-only imports / exports** | `import type { User } from "./user"` | supported as aliases for `import` and `export` | Destack has one static module graph, and the type-less form is preferred |
+| **CommonJS** | `require("x")`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export = value`, `import x = require("x")` | not supported | CommonJS is a legacy mutable runtime module system |
+| **String module declarations** | `declare module "pkg" { ... }` | not supported | source should declare real modules instead |
+| **Namespace declarations** | `namespace Name { ... }` | not supported | use real modules with namespace imports or re-exports |
+| **Dynamic module loading** | `import(expr)` | not source-level module loading | the source graph is statically known, though JS output may still use dynamic imports for chunk loading |
+
+### Syntax
+
+Destack does not support JS/TS syntax that conflicts with either Destack-specific features (like `(A, B)` tuples over sequence expressions) or are just plain legacy like `<T>expr` type assertions.
+
+| Feature | Example | Compatibility | Reason |
+| --- | --- | --- | --- |
+| **Legacy declarations** | `var x` | not supported | legacy `var` scoping is unnecessary with `const` and `let` |
+| **Ambiguous generic arrow** | `<T>() => value` | not supported | ambiguous with TSX tree syntax, use `<T,>() => value` |
+| **Sequence expressions** | `(a, b, c)` | not supported | `.ds` claims parenthesized comma lists for explicit tuples |
+| **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` | `.ds` uses double-quoted strings and single-quoted scalar characters |
+| **Type assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
+| **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics | namespaced tree tags are intrinsic string tag names like `"svg:path"` |
 
 ### Types
 
-Dynamic shapes and unsound types are incompatible with a strict sound compilation model:
+Destack requires sound and predictable types and understands only TypeScript-shaped type syntax.
 
-- **Flow and JSDoc _typing_**: We support TypeScript only.
-  Flow syntax and special JSDoc type analysis are ignored / rejected where they are not valid TS/TS++.
-- **Thenables**: `await` only works on the well known `Promise<T>`, not "anything with `.then`".
-- **`any`**: `.ds` uses `unknown` as the top type which must be explicitly cast before using it.
-  TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
-- **Definite assignment assertions**: `let x!: T` and `field!: T` are rejected in `.ds`.
-  Locals and fields must be actually initialized before use, whether directly with an initializer or just with control flow.
-- **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
-- **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
-- **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
-- **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
-- **Class index signatures**: TypeScript permits structural index signatures inside classes, but Destack classes have fixed declared members.
-  Put index signatures on structural object types or interfaces instead.
-- **Array holes**: Destack does not permit "holes" in arrays like `[1,,3]`.
-- **Generic argument ambiguity**: Destack generic arguments can be types or static values, so object-shaped type arguments require an explicit `type` marker like `Foo<type { value: string }>` to distinguish them from static object value arguments like `Foo<{ value: 2 }>`.
-- **Circular inference**: Destack does not support circular inference _across_ modules.
-  Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
-- **Enum coercion**: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but Destack does _not_ coerce `Level.A` to `number` without an explicit cast for better soundness.
-- **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion.
-- **Symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and other such hooks are not supported.
-  Use typed `iterator()` / `asyncIterator()` protocols.
-- **Callable `Symbol`**: Symbols work, but use `Symbol.create("name")` for fresh symbols and `Symbol.for("name")` for registry symbols (instead of the magic `Symbol("name")` form).
+| Feature | Example | Compatibility | Reason |
+| --- | --- | --- | --- |
+| **Flow and JSDoc typing** | `/** @type {Foo} */` | ignored or rejected when not valid TS/TS++ | TypeScript syntax is the only type syntax |
+| **Import type queries** | `import("pkg").User` | not supported | use ordinary static imports instead |
+| **Thenables** | `await customThenable` | not supported | `await` works on the well known `Promise<T>` only |
+| **`any`** | `let x: any` | rejected in `.ds` | use `unknown`, which must be explicitly cast before use |
+| **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be actually initialized before use |
+| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value arguments and type arguments share generic syntax |
+| **Circular inference** | mutually inferred module exports | not supported across modules | downstream uses do not refine upstream declarations |
+| **Enum coercion** | `Level.A` as `number` | no implicit coercion | enum fields are nominal constants and need explicit conversion |
+
+### Shapes
+
+Destack requires sound static shapes for all object types and thus does not support prototype chains, dynamic declarations, or runtime mutation.
+
+| Feature | Example | Compatibility | Reason |
+| --- | --- | --- | --- |
+| **Declaration expressions** | `const C = class {}` | not supported | runtime type generation conflicts with AOT compilation |
+| **Prototype objects** | `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, `Object.create(proto)` | not supported | prototypes rely on the dynamic JavaScript object model |
+| **Shape mutation** | `delete obj.x`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, shape-changing `Object.assign` | forbidden | object shapes must stay statically known |
+| **Metaobject dispatch** | `Proxy`, most `Reflect.*` APIs | not supported | dynamic interception and emulation hide object behavior from the static model |
+| **Class index signatures** | `class C { [key: string]: T }` | not supported | classes have fixed declared members, use structural object types or interfaces instead |
+| **Array holes** | `[1,,3]` | not supported | dense sequences make indexing and layout predictable |
+
+### Runtime
+
+Destack does not support any unsound, imprecise or dynamic legacy hooks into runtime behavior, and that also means exceptions are banned.
+
+| Feature | Example | Compatibility | Reason |
+| --- | --- | --- | --- |
+| **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode JavaScript / TypeScript |
+| **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
+| **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` / `new Function` | runtime code generation conflicts with AOT compilation |
+| **Exceptions** | executing `throw` / `catch` effects | `throw`, `try`, `catch`, `finally`, and Try / Result integration are supported, runtime exceptions are not | Destack uses `Result`-first error handling |
+| **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion | conversion should be explicit and typed |
+| **Symbol magic** | `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable` | not supported | use typed protocols such as `iterator()` / `asyncIterator()` |
+| **Callable `Symbol`** | `Symbol("name")` | not supported | use `Symbol.create("name")` or `Symbol.for("name")` |
 
 # Language
 
-"TypeScript++" is a superset of "strict modern" TypeScript, which essentially means that existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system.
+"TypeScript++" is a superset of the "strict modern" subset of TypeScript, which essentially means that existing TypeScript (and TSX!) _just works_ **if** it follows our strict TypeScript-based type system _and_ has no exceptions.
 Fortunately, strict TypeScript is already a best practice, and it's what you get when enabling the recommended soundness flags in TSC (mostly).
 TypeScript++ adds some new features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do for frontend-shaped software, but for the entire software stack including "systems software".
 
