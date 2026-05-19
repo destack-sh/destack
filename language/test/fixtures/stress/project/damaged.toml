@@ -1,7 +1,0 @@
-seed = 19
-library_modules = 9
-declarations_per_module = 2
-workspace_queries = 12
-malformed_modules = 3
-include_namespace_imports = true
-include_type_imports = true
