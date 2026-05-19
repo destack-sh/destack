@@ -1654,14 +1654,6 @@ pub fn type_expression_is_equal(
             },
         )
         | (
-            dir::TypeExpression::AsComptime {
-                target_type: left_target,
-            },
-            dir::TypeExpression::AsComptime {
-                target_type: right_target,
-            },
-        )
-        | (
             dir::TypeExpression::Not {
                 target_type: left_target,
             },
@@ -2138,9 +2130,6 @@ pub fn type_expression_has_side_effects(
             target_type: expression,
         }
         | dir::TypeExpression::Must {
-            target_type: expression,
-        }
-        | dir::TypeExpression::AsComptime {
             target_type: expression,
         }
         | dir::TypeExpression::Not {

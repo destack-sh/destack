@@ -812,7 +812,6 @@ impl Parser {
 
                 TypeExpression::Not { target_type }
             }
-            _ => unreachable!(),
         };
 
         let type_expression_id = self.insert_node(expression, self.get_span_from(start));
@@ -2022,7 +2021,6 @@ impl Parser {
 
                 TypeExpression::Not { target_type }
             }
-            _ => unreachable!(),
         };
 
         let type_expression_id = self.insert_node(expression, self.get_span_from(start));

@@ -472,17 +472,6 @@ pub enum TypeExpression {
         target_type: LocalNodeId<TypeExpression>,
     },
 
-    /// `T as comptime`.
-    ///
-    /// Examples:
-    /// ```
-    /// T as comptime
-    /// typeof value as comptime
-    /// ```
-    AsComptime {
-        target_type: LocalNodeId<TypeExpression>,
-    },
-
     /// `!T`.
     ///
     /// Examples:

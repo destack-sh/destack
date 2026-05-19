@@ -146,10 +146,6 @@ pub enum TypeExpression {
     Must {
         target_type: LocalNodeId<TypeExpression>,
     },
-    /// `T as comptime`.
-    AsComptime {
-        target_type: LocalNodeId<TypeExpression>,
-    },
     /// `!T`.
     Not {
         target_type: LocalNodeId<TypeExpression>,

@@ -35,11 +35,6 @@ impl<'a> Printer<'a> {
                 self.print_type_id(*target_type)?;
                 self.write_punct("!");
             }
-            TypeExpression::AsComptime { target_type } => {
-                self.print_type_id(*target_type)?;
-                self.write_punct(" ");
-                self.write_punct("as comptime");
-            }
             TypeExpression::Not { target_type } => {
                 self.write_punct("!");
                 self.print_type_id(*target_type)?;

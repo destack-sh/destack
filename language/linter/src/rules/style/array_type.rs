@@ -311,7 +311,6 @@ fn type_argument_needs_parentheses(expression: &dir::TypeExpression) -> bool {
             | dir::TypeExpression::KeyOf { .. }
             | dir::TypeExpression::TypeOfValue { .. }
             | dir::TypeExpression::Must { .. }
-            | dir::TypeExpression::AsComptime { .. }
             | dir::TypeExpression::Not { .. }
             | dir::TypeExpression::OwnedOf { .. }
             | dir::TypeExpression::BorrowedOf { .. }

@@ -263,24 +263,6 @@ fn test_parse_type_unary_postfix_operator_span() {
 }
 
 #[test]
-fn test_parse_type_unary_postfix_as_comptime_operator_span() {
-    let mut test = TestParser::new("type T = Value as comptime");
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            let unary_id = *value;
-            let main_span = parser
-                .tree
-                .get_main_span(unary_id)
-                .expect("expected type unary postfix operator span");
-            assert_eq!(parser.get_span_str(main_span), "as comptime");
-        });
-    });
-}
-
-#[test]
 fn test_parse_type_binary_operator_span() {
     let mut test = TestParser::new_with_language("Value as Other", LanguageType::TypeScript);
     let mut parser = test.prepare();
