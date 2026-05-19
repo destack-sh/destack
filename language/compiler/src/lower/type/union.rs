@@ -163,9 +163,7 @@ impl TypeLowerer<'_> {
         for element_id in &source_types {
             // null and undefined are tag-only variants
             let element_type = match types.get_type(*element_id) {
-                dir::Type::Literal(dir::LiteralType::Null | dir::LiteralType::Undefined) => {
-                    self.ty_void
-                }
+                dir::Type::Null | dir::Type::Undefined => self.ty_void,
                 _ => self.lower_type(types, *element_id, module_id, node, builder)?,
             };
 
@@ -353,7 +351,7 @@ impl TypeLowerer<'_> {
 
         for element_id in elements {
             match types.get_type(*element_id) {
-                dir::Type::Literal(dir::LiteralType::Null) => {
+                dir::Type::Null => {
                     has_null = true;
                 }
                 _ => {
@@ -587,7 +585,7 @@ impl TypeLowerer<'_> {
         // unwrap alias references before inspecting shape
         let dir_type = types.get_type(type_id);
         match dir_type {
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 if self.symbol_is(reference.symbol, dir::SymbolForm::TypeAlias)
                     && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
@@ -605,7 +603,7 @@ impl TypeLowerer<'_> {
 
                 Ok(None)
             }
-            dir::Type::Object(object) => {
+            dir::Type::Shape(object) => {
                 let mut map = HashMap::new();
                 for field in &object.fields {
                     if field.is_optional {
@@ -644,7 +642,7 @@ impl TypeLowerer<'_> {
 
                 Ok(Some(merged))
             }
-            dir::Type::Value(value) => {
+            dir::Type::Form(value) => {
                 self.discriminant_fields_for_type_inner(types, value.value, node, visited)
             }
             _ => Ok(None),
@@ -679,7 +677,7 @@ impl TypeLowerer<'_> {
         // unwrap alias references
         let dir_type = types.get_type(type_id);
         match dir_type {
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 if self.symbol_is(reference.symbol, dir::SymbolForm::TypeAlias)
                     && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
@@ -688,46 +686,64 @@ impl TypeLowerer<'_> {
 
                 Ok(None)
             }
-            dir::Type::Literal(value) => {
-                let literal = match value {
-                    dir::LiteralType::Null => DiscriminantValue::Null,
-                    dir::LiteralType::Undefined => DiscriminantValue::Undefined,
-                    dir::LiteralType::ScalarLiteral(scalar) => match scalar {
-                        dir::ScalarLiteral::Null => DiscriminantValue::Null,
-                        dir::ScalarLiteral::Boolean(value) => DiscriminantValue::Boolean(*value),
-                        dir::ScalarLiteral::Integer(value) => {
-                            let (bits, number) = DiscriminantKey::canonical_number_bits(
-                                *value as f64,
-                                self.diagnostic_anchor(node),
-                            )?;
-                            return Ok(Some(DiscriminantLiteral {
-                                value: DiscriminantValue::Number { value: number },
-                                type_id,
-                                key: DiscriminantKey::Number(bits),
-                            }));
-                        }
-                        dir::ScalarLiteral::Float(value) => {
-                            let (bits, number) = DiscriminantKey::canonical_number_bits(
-                                *value,
-                                self.diagnostic_anchor(node),
-                            )?;
-                            return Ok(Some(DiscriminantLiteral {
-                                value: DiscriminantValue::Number { value: number },
-                                type_id,
-                                key: DiscriminantKey::Number(bits),
-                            }));
-                        }
-                        dir::ScalarLiteral::Bigint(value) => DiscriminantValue::Bigint(*value),
-                        dir::ScalarLiteral::String(value) => DiscriminantValue::String(*value),
-                        dir::ScalarLiteral::Character(_)
-                        | dir::ScalarLiteral::RegexString { .. } => {
-                            return Ok(None);
-                        }
-                    },
-                    dir::LiteralType::Primitive(dir::PrimitiveType::UniqueSymbol) => {
-                        DiscriminantValue::UniqueSymbol
+            dir::Type::Null => {
+                let literal = DiscriminantValue::Null;
+                let key = DiscriminantKey::from_value(&literal, self.diagnostic_anchor(node))?;
+                Ok(Some(DiscriminantLiteral {
+                    value: literal,
+                    type_id,
+                    key,
+                }))
+            }
+            dir::Type::Undefined => {
+                let literal = DiscriminantValue::Undefined;
+                let key = DiscriminantKey::from_value(&literal, self.diagnostic_anchor(node))?;
+                Ok(Some(DiscriminantLiteral {
+                    value: literal,
+                    type_id,
+                    key,
+                }))
+            }
+            dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol) => {
+                let literal = DiscriminantValue::UniqueSymbol;
+                let key = DiscriminantKey::from_value(&literal, self.diagnostic_anchor(node))?;
+                Ok(Some(DiscriminantLiteral {
+                    value: literal,
+                    type_id,
+                    key,
+                }))
+            }
+            dir::Type::Literal(scalar) => {
+                let literal = match scalar {
+                    dir::ScalarLiteral::Null => DiscriminantValue::Null,
+                    dir::ScalarLiteral::Boolean(value) => DiscriminantValue::Boolean(*value),
+                    dir::ScalarLiteral::Integer(value) => {
+                        let (bits, number) = DiscriminantKey::canonical_number_bits(
+                            *value as f64,
+                            self.diagnostic_anchor(node),
+                        )?;
+                        return Ok(Some(DiscriminantLiteral {
+                            value: DiscriminantValue::Number { value: number },
+                            type_id,
+                            key: DiscriminantKey::Number(bits),
+                        }));
                     }
-                    _ => return Ok(None),
+                    dir::ScalarLiteral::Float(value) => {
+                        let (bits, number) = DiscriminantKey::canonical_number_bits(
+                            *value,
+                            self.diagnostic_anchor(node),
+                        )?;
+                        return Ok(Some(DiscriminantLiteral {
+                            value: DiscriminantValue::Number { value: number },
+                            type_id,
+                            key: DiscriminantKey::Number(bits),
+                        }));
+                    }
+                    dir::ScalarLiteral::Bigint(value) => DiscriminantValue::Bigint(*value),
+                    dir::ScalarLiteral::String(value) => DiscriminantValue::String(*value),
+                    dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => {
+                        return Ok(None);
+                    }
                 };
 
                 let key = DiscriminantKey::from_value(&literal, self.diagnostic_anchor(node))?;
@@ -737,7 +753,7 @@ impl TypeLowerer<'_> {
                     key,
                 }))
             }
-            dir::Type::Value(value) => {
+            dir::Type::Form(value) => {
                 self.discriminant_literal_for_type_inner(types, value.value, node, visited)
             }
             _ => Ok(None),

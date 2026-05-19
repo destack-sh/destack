@@ -95,7 +95,7 @@ impl ModuleLowerer<'_> {
         }
 
         // use nominal naming when the type resolves to a symbol
-        if let dir::Type::Reference(reference) = dir_type
+        if let dir::Type::Named(reference) = dir_type
             && matches!(
                 self.symbol_form(reference.symbol),
                 Some(
@@ -384,7 +384,7 @@ impl ModuleLowerer<'_> {
     fn anonymous_metadata_suffix(&self, dir_type: &dir::Type) -> Option<&'static str> {
         // select a suffix based on the type kind
         match dir_type {
-            dir::Type::Object(_) => Some(OBJECT_METADATA_SUFFIX),
+            dir::Type::Shape(_) => Some(OBJECT_METADATA_SUFFIX),
             dir::Type::Tuple(_) => Some(TUPLE_METADATA_SUFFIX),
             dir::Type::Union(_) => Some(UNION_METADATA_SUFFIX),
             dir::Type::Intersection(_) => Some(INTERSECTION_METADATA_SUFFIX),
@@ -457,36 +457,25 @@ impl ModuleLowerer<'_> {
 
     /// Resolve a metadata name for scalar and literal types.
     fn type_literal_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
-        // only handle type literal nodes
-        let dir::Type::Literal(value) = dir_type else {
-            return None;
-        };
-
-        match value {
-            dir::LiteralType::Never => Some("never".to_string()),
-            dir::LiteralType::Any => Some("any".to_string()),
-            dir::LiteralType::Infer => Some("_".to_string()),
-            dir::LiteralType::Undefined => Some("undefined".to_string()),
-            dir::LiteralType::Unknown => Some("unknown".to_string()),
-            dir::LiteralType::Object => Some("object".to_string()),
-            dir::LiteralType::Void => Some("void".to_string()),
-            dir::LiteralType::Null => Some("null".to_string()),
-            dir::LiteralType::Primitive(primitive) => {
-                Some(self.primitive_metadata_name(*primitive))
-            }
-            dir::LiteralType::Intrinsic(intrinsic) => {
-                Some(self.intrinsic_metadata_name(*intrinsic))
-            }
-            dir::LiteralType::ScalarLiteral(literal) => {
-                Some(self.scalar_literal_metadata_name(literal))
-            }
+        match dir_type {
+            dir::Type::Never => Some("never".to_string()),
+            dir::Type::Any => Some("any".to_string()),
+            dir::Type::Undefined => Some("undefined".to_string()),
+            dir::Type::Unknown => Some("unknown".to_string()),
+            dir::Type::Object => Some("object".to_string()),
+            dir::Type::Void => Some("void".to_string()),
+            dir::Type::Null => Some("null".to_string()),
+            dir::Type::Primitive(primitive) => Some(self.primitive_metadata_name(*primitive)),
+            dir::Type::Intrinsic(intrinsic) => Some(self.intrinsic_metadata_name(*intrinsic)),
+            dir::Type::Literal(literal) => Some(self.scalar_literal_metadata_name(literal)),
+            _ => None,
         }
     }
 
     /// Resolve a metadata name for named reference types.
     fn reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // only handle reference nodes
-        let dir::Type::Reference(reference) = dir_type else {
+        let dir::Type::Named(reference) = dir_type else {
             return None;
         };
 
@@ -512,7 +501,7 @@ impl ModuleLowerer<'_> {
         };
 
         // use the base metadata name when possible
-        let base_name = self.metadata_base_name_for_type(form.base)?;
+        let base_name = self.metadata_base_name_for_type(form.value)?;
         Some(format!("{base_name}{REFERENCE_METADATA_SUFFIX}"))
     }
 
@@ -521,12 +510,12 @@ impl ModuleLowerer<'_> {
         let dir_type = self.types.get_type(type_id);
 
         // unwrap type-as-value nodes
-        if let dir::Type::Value(value) = dir_type {
+        if let dir::Type::Form(value) = dir_type {
             return self.metadata_base_name_for_type(value.value);
         }
 
         // use nominal names without suffix adjustments
-        if let dir::Type::Reference(reference) = dir_type {
+        if let dir::Type::Named(reference) = dir_type {
             return self.qualified_symbol_name(reference.symbol).or_else(|| {
                 let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
                 let bindings = dir.binding_table();

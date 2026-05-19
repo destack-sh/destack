@@ -574,7 +574,7 @@ struct Adder {
     base: int32
 
     add(n: int32): int32 {
-        this.base + n
+        this.value + n
     }
 }
 

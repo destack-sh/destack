@@ -18,7 +18,10 @@ impl FunctionLowerer<'_> {
         let Some(target_type_id) = target_type_id else {
             return self.lower_value_expression(value_id);
         };
-        let target_type_id = self.context.types.unwrap_value_type_id(target_type_id);
+        let target_type_id = self
+            .context
+            .types
+            .unwrap_form_payload_type_id(target_type_id);
 
         if self
             .context
@@ -62,19 +65,25 @@ impl FunctionLowerer<'_> {
         let Some(target_type_id) = target_type_id else {
             return Ok((value, source_mir_type));
         };
-        let target_type_id = self.context.types.unwrap_value_type_id(target_type_id);
+        let target_type_id = self
+            .context
+            .types
+            .unwrap_form_payload_type_id(target_type_id);
         let target_type = self.context.types.get_type(target_type_id);
 
         let source_type_id = self.type_for_expression_or_error(value_id)?;
-        let source_type_id = self.context.types.unwrap_value_type_id(source_type_id);
-        if let dir::Type::Reference(reference) = target_type
+        let source_type_id = self
+            .context
+            .types
+            .unwrap_form_payload_type_id(source_type_id);
+        if let dir::Type::Named(reference) = target_type
             && self
                 .context
                 .symbol_is(reference.symbol, dir::SymbolForm::Interface)
         {
             if matches!(
                 self.context.types.get_type(source_type_id),
-                dir::Type::Reference(source_reference)
+                dir::Type::Named(source_reference)
                     if source_reference.symbol == reference.symbol
             ) {
                 return Ok((value, source_mir_type));
@@ -148,8 +157,14 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<dir::CastOperator> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
-        let source_type_id = self.context.types.unwrap_value_type_id(source_type_id);
-        let target_type_id = self.context.types.unwrap_value_type_id(target_type_id);
+        let source_type_id = self
+            .context
+            .types
+            .unwrap_form_payload_type_id(source_type_id);
+        let target_type_id = self
+            .context
+            .types
+            .unwrap_form_payload_type_id(target_type_id);
 
         if source_type_id == target_type_id {
             return Ok(dir::CastOperator::Identity);
@@ -526,7 +541,7 @@ impl FunctionLowerer<'_> {
         let target_dir_type = self.context.types.get_type(target_type_id);
 
         // handle interface upcasts
-        if let dir::Type::Reference(reference) = target_dir_type
+        if let dir::Type::Named(reference) = target_dir_type
             && self
                 .context
                 .symbol_is(reference.symbol, dir::SymbolForm::Interface)
@@ -584,7 +599,7 @@ impl FunctionLowerer<'_> {
         let source_dir_type = self.context.types.get_type(source_type_id);
 
         // handle Any downcasts by extracting value pointers
-        if let dir::Type::Reference(reference) = source_dir_type
+        if let dir::Type::Named(reference) = source_dir_type
             && self
                 .context
                 .symbol_is(reference.symbol, dir::SymbolForm::Interface)
@@ -737,7 +752,7 @@ impl FunctionLowerer<'_> {
         // resolve literals that do not carry payload data
         let is_nullish_literal = matches!(
             self.context.types.get_type(source_type_id),
-            dir::Type::Literal(dir::LiteralType::Null | dir::LiteralType::Undefined)
+            dir::Type::Null | dir::Type::Undefined
         );
 
         // build the union payload
@@ -877,7 +892,7 @@ impl FunctionLowerer<'_> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         if matches!(
             self.context.types.get_type(source_type_id),
-            dir::Type::Literal(dir::LiteralType::Undefined)
+            dir::Type::Undefined
         ) {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -904,10 +919,8 @@ impl FunctionLowerer<'_> {
         };
 
         // handle null literals without lowering a payload value
-        let is_null_literal = matches!(
-            self.context.types.get_type(source_type_id),
-            dir::Type::Literal(dir::LiteralType::Null)
-        );
+        let is_null_literal =
+            matches!(self.context.types.get_type(source_type_id), dir::Type::Null);
         let value = if is_null_literal {
             let node = expression_id
                 .into_global_any(self.context.module_id)
@@ -1021,7 +1034,7 @@ impl FunctionLowerer<'_> {
         let Some(concrete_symbol) = concrete_symbol else {
             if matches!(
                 source_dir_type,
-                dir::Type::Reference(reference)
+                dir::Type::Named(reference)
                     if self
                         .context
                         .symbol_is(reference.symbol, dir::SymbolForm::Interface)
@@ -1212,7 +1225,7 @@ impl FunctionLowerer<'_> {
     fn concrete_symbol_for_type(&self, type_id: dir::LocalTypeId) -> Option<dir::GlobalSymbolId> {
         // walk the type tree to find a nominal class or struct
         match self.context.types.get_type(type_id) {
-            dir::Type::Reference(reference)
+            dir::Type::Named(reference)
                 if matches!(
                     self.context.symbol_form(reference.symbol),
                     Some(dir::SymbolForm::Class | dir::SymbolForm::Struct)
@@ -1220,7 +1233,7 @@ impl FunctionLowerer<'_> {
             {
                 Some(reference.symbol)
             }
-            dir::Type::Value(value) => self.concrete_symbol_for_type(value.value),
+            dir::Type::Form(value) => self.concrete_symbol_for_type(value.value),
             dir::Type::Intersection(intersection) => intersection
                 .elements
                 .iter()

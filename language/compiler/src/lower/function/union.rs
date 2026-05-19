@@ -513,10 +513,8 @@ impl FunctionLowerer<'_> {
             dir::Expression::Type { .. } => {
                 let type_id = self.type_for_expression(expression_id)?;
                 match self.context.types.get_type(type_id) {
-                    dir::Type::Literal(dir::LiteralType::Null) => Some(UnionLiteralValue::Null),
-                    dir::Type::Literal(dir::LiteralType::Undefined) => {
-                        Some(UnionLiteralValue::Undefined)
-                    }
+                    dir::Type::Null => Some(UnionLiteralValue::Null),
+                    dir::Type::Undefined => Some(UnionLiteralValue::Undefined),
                     _ => None,
                 }
             }
@@ -561,15 +559,11 @@ impl FunctionLowerer<'_> {
             .iter()
             .position(
                 |element| match (self.context.types.get_type(*element), literal) {
-                    (
-                        dir::Type::Literal(dir::LiteralType::ScalarLiteral(value)),
-                        UnionLiteralValue::Scalar(literal),
-                    ) => value == literal,
-                    (dir::Type::Literal(dir::LiteralType::Null), UnionLiteralValue::Null) => true,
-                    (
-                        dir::Type::Literal(dir::LiteralType::Undefined),
-                        UnionLiteralValue::Undefined,
-                    ) => true,
+                    (dir::Type::Literal(value), UnionLiteralValue::Scalar(literal)) => {
+                        value == literal
+                    }
+                    (dir::Type::Null, UnionLiteralValue::Null) => true,
+                    (dir::Type::Undefined, UnionLiteralValue::Undefined) => true,
                     _ => false,
                 },
             )

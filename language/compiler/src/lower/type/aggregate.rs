@@ -30,11 +30,11 @@ impl TypeLowerer<'_> {
     ) -> Option<u64> {
         for _ in 0..MAX_ARRAY_COUNT_UNWRAP_STEPS {
             match types.get_type(type_id) {
-                dir::Type::Literal(dir::LiteralType::ScalarLiteral(
-                    dir::ScalarLiteral::Integer(value),
-                )) => return u64::try_from(*value).ok(),
-                dir::Type::Value(value) => type_id = value.value,
-                dir::Type::Reference(reference) => {
+                dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
+                    return u64::try_from(*value).ok();
+                }
+                dir::Type::Form(value) => type_id = value.value,
+                dir::Type::Named(reference) => {
                     type_id = types.get_value_type_id(reference.symbol)?;
                 }
                 _ => return None,
@@ -148,7 +148,7 @@ impl TypeLowerer<'_> {
         }
 
         // get the integer literal length from the count type
-        let count_type_id = types.unwrap_value_type_id(count);
+        let count_type_id = types.unwrap_form_payload_type_id(count);
         let length = self
             .array_sized_length_from_type(types, count_type_id)
             .ok_or_else(|| LowerError::UnsupportedType {

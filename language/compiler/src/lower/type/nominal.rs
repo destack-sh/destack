@@ -70,12 +70,7 @@ impl ModuleLowerer<'_> {
             .into_global(self.module_id)
             .into_anchored(Some(self.profile));
 
-        // resolve the class base symbol
-        let base_symbol = self
-            .types
-            .symbol_lineage(symbol)
-            .and_then(|lineage| lineage.extends)
-            .filter(|_| self.symbol_is(symbol, dir::SymbolForm::Class));
+        let base_symbol = None;
 
         // predeclare the base layout for derived classes
         if let Some(base_symbol) = base_symbol {

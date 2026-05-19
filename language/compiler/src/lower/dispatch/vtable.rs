@@ -196,11 +196,7 @@ impl ModuleLowerer<'_> {
             // record the current symbol
             lineage.push(current_symbol);
 
-            // advance to the base class
-            current = self
-                .types
-                .symbol_lineage(current_symbol)
-                .and_then(|lineage| lineage.extends);
+            current = None;
         }
 
         // reverse to get base first order

@@ -239,7 +239,7 @@ class Adder {
     base: int32 = 0;
 
     add(n: int32): int32 {
-        return this.base + n;
+        return this.value + n;
     }
 }
 

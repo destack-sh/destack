@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;
@@ -10,7 +9,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         mir_type: mir::LocalNodeId<mir::Type>,
-        anchor: dir::AnchoredGlobalNodeId,
+        _anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::TypeLineage> {
         // skip if metadata already exists
         if let Some(lineage) = self
@@ -24,53 +23,8 @@ impl ModuleLowerer<'_> {
             return Ok(lineage);
         }
 
-        // resolve the lineage data for the symbol
-        let lineage = self.types.symbol_lineage(symbol);
-        let parent_symbol = lineage
-            .and_then(|lineage| lineage.extends)
-            .filter(|_| self.symbol_is(symbol, dir::SymbolForm::Class));
-
-        // resolve the parent mir type when present
-        let parent = if let Some(parent_symbol) = parent_symbol {
-            self.lower_instance_type(parent_symbol, anchor)?
-        } else {
-            None
-        };
-
-        // collect implemented interfaces
-        let mut interface_symbols = Vec::new();
-        let mut seen_interfaces = HashSet::new();
-        if let Some(lineage) = lineage {
-            // include base interface lineage for interfaces
-            if self.symbol_is(symbol, dir::SymbolForm::Interface)
-                && let Some(base) = lineage.extends
-            {
-                self.collect_interface_lineage_symbols(
-                    base,
-                    &mut interface_symbols,
-                    &mut seen_interfaces,
-                );
-            }
-
-            // include implemented interfaces for nominal types
-            for interface_symbol in &lineage.implements {
-                self.collect_interface_lineage_symbols(
-                    *interface_symbol,
-                    &mut interface_symbols,
-                    &mut seen_interfaces,
-                );
-            }
-        }
-
-        // lower interface instance types for metadata
-        let mut interfaces = Vec::new();
-        for interface_symbol in interface_symbols {
-            // skip interfaces that cannot be lowered
-            let Some(interface_type) = self.lower_instance_type(interface_symbol, anchor)? else {
-                continue;
-            };
-            interfaces.push(interface_type);
-        }
+        let parent = None;
+        let interfaces = Vec::new();
 
         // record lineage metadata
         let is_interface = self.symbol_is(symbol, dir::SymbolForm::Interface);
@@ -97,27 +51,5 @@ impl ModuleLowerer<'_> {
             .set_lineage(mir_type, type_lineage.clone());
 
         Ok(type_lineage)
-    }
-
-    /// Collect interface lineage in base to derived order.
-    pub(crate) fn collect_interface_lineage_symbols(
-        &self,
-        interface: dir::GlobalSymbolId,
-        order: &mut Vec<dir::GlobalSymbolId>,
-        seen: &mut HashSet<dir::GlobalSymbolId>,
-    ) {
-        if !seen.insert(interface) {
-            return;
-        }
-
-        // visit the base
-        if let Some(lineage) = self.types.symbol_lineage(interface)
-            && let Some(base) = lineage.extends
-        {
-            self.collect_interface_lineage_symbols(base, order, seen);
-        };
-
-        // append the interface after base types
-        order.push(interface);
     }
 }

@@ -27,7 +27,6 @@ impl Compiler {
         );
 
         state.set_binding_mutability(symbol_id, binding.mutability);
-        state.set_declared_type(node_id.into_any(), binding.declared_type);
         state.declare_symbol(symbol_id, node_id);
     }
 

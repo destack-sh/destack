@@ -45,6 +45,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) symbols: &'a dir::BindingTable<'a>,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable<'a>,
+    /// Provide access to checked resolutions.
+    pub(crate) resolutions: &'a dir::ResolutionTable<'a>,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for closures.
@@ -149,6 +151,7 @@ impl<'a> ModuleLowerer<'a> {
         module_node: dir::LocalNodeIdAny,
         symbols: &'a dir::BindingTable<'a>,
         types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         guards: &'a dir::GuardTable,
         captures: &'a dir::CaptureTable<'a>,
         target: &'a TargetId,
@@ -204,6 +207,7 @@ impl<'a> ModuleLowerer<'a> {
             module_node,
             symbols,
             types,
+            resolutions,
             guards,
             captures,
             runtime_checks,
@@ -529,7 +533,7 @@ impl<'a> ModuleLowerer<'a> {
             let expression = self.dir_tree.get(decorator.expression);
             let decorator_node = decorator.expression.into_global_any(self.module_id);
             if self
-                .types
+                .resolutions
                 .symbol_resolution(decorator_node)
                 .is_some_and(|symbol| symbol == target_symbol)
             {

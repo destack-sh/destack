@@ -35,6 +35,8 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) symbols: &'a dir::BindingTable<'a>,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable<'a>,
+    /// Provide access to checked resolutions.
+    pub(crate) resolutions: &'a dir::ResolutionTable<'a>,
     /// Elaborated type guard entries.
     pub(crate) guards: &'a dir::GuardTable,
     /// Provide access to capture metadata for closures.
@@ -760,7 +762,7 @@ impl<'a> FunctionLowerer<'a> {
         let node_id = expression_id.into_global_any(self.context.module_id);
 
         // read the resolved symbol from the checked DIR tables
-        let Some(symbol) = self.context.types.symbol_resolution(node_id) else {
+        let Some(symbol) = self.context.resolutions.symbol_resolution(node_id) else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(node_id.into_anchored(Some(self.context.profile))),
                 message: "expression is missing symbol resolution".to_string(),

@@ -64,6 +64,8 @@ impl dir::NodeVisitor for ExpressionTypeCollector {
 struct AddressTakenCollector<'a> {
     /// Provide access to inferred type information.
     types: &'a dir::TypeTable<'a>,
+    /// Provide access to checked resolutions.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// Provide access to declaration forms.
     symbols: &'a dir::BindingTable<'a>,
     /// Identify the module for expression lookups.
@@ -80,11 +82,13 @@ impl<'a> AddressTakenCollector<'a> {
     /// Create a new address-taken collector.
     fn new(
         types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         symbols: &'a dir::BindingTable<'a>,
         module_id: destack_source::ModuleId,
     ) -> Self {
         Self {
             types,
+            resolutions,
             symbols,
             module_id,
             locals: HashSet::new(),
@@ -133,7 +137,7 @@ impl<'a> AddressTakenCollector<'a> {
             }
             dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let node_id = expression_id.into_global_any(self.module_id);
-                if let Some(symbol) = self.types.symbol_resolution(node_id) {
+                if let Some(symbol) = self.resolutions.symbol_resolution(node_id) {
                     self.locals.insert(symbol);
                 }
             }
@@ -169,9 +173,8 @@ impl<'a> AddressTakenCollector<'a> {
 
         let ty = self.types.get_type(type_id);
         match ty {
-            dir::Type::Value(value) => self.type_is_reference_like(value.value, visited),
-            dir::Type::Form(form) => self.type_is_reference_like(form.base, visited),
-            dir::Type::Reference(reference) => {
+            dir::Type::Form(form) => self.type_is_reference_like(form.value, visited),
+            dir::Type::Named(reference) => {
                 match self.symbols.get_symbol(reference.symbol.local_id).form {
                     dir::SymbolForm::Class | dir::SymbolForm::Interface => true,
                     dir::SymbolForm::TypeAlias => self
@@ -380,10 +383,7 @@ impl ModuleLowerer<'_> {
             let node_id = expression_id.into_global_any(self.module_id);
             if let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) {
                 let dir_type = self.types.get_type(type_id);
-                if matches!(
-                    dir_type,
-                    dir::Type::Literal(dir::LiteralType::Never) | dir::Type::Value(_)
-                ) {
+                if matches!(dir_type, dir::Type::Never | dir::Type::Form(_)) {
                     continue;
                 }
                 type_sources.entry(type_id).or_insert(node_id);
@@ -397,10 +397,7 @@ impl ModuleLowerer<'_> {
                     continue;
                 };
                 let dir_type = self.types.get_type(resolved_type);
-                if matches!(
-                    dir_type,
-                    dir::Type::Literal(dir::LiteralType::Never) | dir::Type::Value(_)
-                ) {
+                if matches!(dir_type, dir::Type::Never | dir::Type::Form(_)) {
                     continue;
                 }
                 type_sources.entry(resolved_type).or_insert(node_id);
@@ -419,12 +416,9 @@ impl ModuleLowerer<'_> {
                     let Some(type_id) = self.types.get_value_type_id(symbol) else {
                         continue;
                     };
-                    let type_id = self.types.unwrap_value_type_id(type_id);
+                    let type_id = self.types.unwrap_form_payload_type_id(type_id);
                     let dir_type = self.types.get_type(type_id);
-                    if matches!(
-                        dir_type,
-                        dir::Type::Literal(dir::LiteralType::Never) | dir::Type::Value(_)
-                    ) {
+                    if matches!(dir_type, dir::Type::Never | dir::Type::Form(_)) {
                         continue;
                     }
 
@@ -451,7 +445,8 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> AddressTakenBindings {
         // walk the function body to find reference targets
-        let mut collector = AddressTakenCollector::new(self.types, self.symbols, self.module_id);
+        let mut collector =
+            AddressTakenCollector::new(self.types, self.resolutions, self.symbols, self.module_id);
         let expression = self.dir_tree.get(expression_id);
         dir::NodeVisitor::visit_expression(
             &mut collector,
@@ -585,6 +580,7 @@ impl ModuleLowerer<'_> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            resolutions: self.resolutions,
             guards: self.guards,
             captures: self.captures,
             strings: &self.strings,
@@ -1034,6 +1030,7 @@ impl ModuleLowerer<'_> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            resolutions: self.resolutions,
             guards: self.guards,
             captures: self.captures,
             strings: &self.strings,

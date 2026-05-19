@@ -278,9 +278,9 @@ impl FunctionLowerer<'_> {
         // resolve expression and target types
         let (left_value, left_mir_type) = self.lower_value_expression(left)?;
         let left_type_id = self.type_for_expression_or_error(left)?;
-        let left_type_id = self.unwrap_value_type_id(left_type_id);
+        let left_type_id = self.unwrap_form_payload_type_id(left_type_id);
 
-        let target_type_id = self.unwrap_value_type_id(target_type_id);
+        let target_type_id = self.unwrap_form_payload_type_id(target_type_id);
 
         // exact or nominally equivalent matches are always true
         if self.are_type_ids_equivalent(left_type_id, target_type_id) {
