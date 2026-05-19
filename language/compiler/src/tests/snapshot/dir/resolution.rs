@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, value};
+use super::{DirSnapshotBuilder, SnapshotTable, label};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ResolutionSegment {
@@ -21,12 +21,11 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_call_resolution_row(builder, node_id, resolution);
         }
 
-        let rows = self.name_entries().count()
-            + self.label_entries().count()
-            + self.member_entries().count()
-            + self.call_entries().count();
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
-            .field("rows", rows.to_string());
+            .field("names", self.name_entries().count().to_string())
+            .field("labels", self.label_entries().count().to_string())
+            .field("members", self.member_entries().count().to_string())
+            .field("calls", self.call_entries().count().to_string());
         builder.push(row);
     }
 }
@@ -38,8 +37,8 @@ fn add_name_resolution_row(
     resolution: &dir::NameResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "name")
-        .field("node", builder.node_label(node_id))
-        .field("target", value::symbol_label(builder, resolution.symbol));
+        .optional_field("source", builder.node_source(node_id))
+        .field("target", builder.symbol_label(resolution.symbol));
 
     builder.push(row);
 }
@@ -51,12 +50,12 @@ fn add_label_resolution_row(
     resolution: dir::LabelResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "label")
-        .field("node", builder.node_label(node_id));
+        .optional_field("source", builder.node_source(node_id));
 
     let row = match resolution {
         dir::LabelResolution::Symbol(symbol_id) => row
             .field("kind", "symbol")
-            .field("target", value::symbol_label(builder, symbol_id)),
+            .field("target", builder.symbol_label(symbol_id)),
         dir::LabelResolution::Loop => row.field("kind", "loop"),
         dir::LabelResolution::Function => row.field("kind", "function"),
     };
@@ -71,8 +70,11 @@ fn add_member_resolution_row(
     resolution: &dir::MemberResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "member")
-        .field("node", builder.node_label(node_id))
-        .optional_field("receiver", value::optional_type_label(resolution.receiver));
+        .optional_field("source", builder.node_source(node_id))
+        .optional_field(
+            "receiver",
+            resolution.receiver.map(|ty| builder.type_label(ty)),
+        );
 
     let row = match &resolution.target {
         dir::MemberTarget::Intrinsic => row.field("kind", "intrinsic"),
@@ -83,7 +85,7 @@ fn add_member_resolution_row(
             "targets",
             candidates
                 .iter()
-                .map(|candidate| value::member_candidate_label(builder, candidate)),
+                .map(|candidate| label::member_candidate_label(builder, candidate)),
         ),
     };
 
@@ -97,20 +99,23 @@ fn add_call_resolution_row(
     resolution: &dir::CallResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
-        .field("node", builder.node_label(node_id))
+        .optional_field("source", builder.node_source(node_id))
         .list_field(
             "parameters",
             resolution
                 .parameters
                 .iter()
-                .map(|type_id| value::type_label(*type_id)),
+                .map(|type_id| builder.type_label(*type_id)),
         )
-        .optional_field("return", value::optional_type_label(resolution.return_type));
+        .optional_field(
+            "return",
+            resolution.return_type.map(|ty| builder.type_label(ty)),
+        );
 
     let row = match &resolution.target {
         dir::CallTarget::Intrinsic { receiver } => row
             .field("kind", "intrinsic")
-            .optional_field("receiver", value::optional_type_label(*receiver)),
+            .optional_field("receiver", receiver.map(|ty| builder.type_label(ty))),
         dir::CallTarget::Direct(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "direct"), candidate)
         }
@@ -118,7 +123,7 @@ fn add_call_resolution_row(
             "targets",
             candidates
                 .iter()
-                .map(|candidate| value::call_candidate_label(builder, candidate)),
+                .map(|candidate| label::call_candidate_label(builder, candidate)),
         ),
     };
 
@@ -131,12 +136,12 @@ fn add_member_candidate_fields(
     row: SnapshotRow,
     candidate: &dir::MemberCandidate,
 ) -> SnapshotRow {
-    row.field("target", value::member_candidate_label(builder, candidate))
-        .optional_field("receiver", value::optional_type_label(candidate.receiver))
+    row.field("target", label::member_candidate_label(builder, candidate))
         .optional_field(
-            "instance",
-            candidate.instantiation.map(value::instantiation_label),
+            "receiver",
+            candidate.receiver.map(|ty| builder.type_label(ty)),
         )
+        .optional_field("instance", candidate.instance.map(label::instance_label))
 }
 
 /// Add direct call candidate fields.
@@ -145,10 +150,10 @@ fn add_call_candidate_fields(
     row: SnapshotRow,
     candidate: &dir::CallCandidate,
 ) -> SnapshotRow {
-    row.field("target", value::call_candidate_label(builder, candidate))
-        .optional_field("receiver", value::optional_type_label(candidate.receiver))
+    row.field("target", label::call_candidate_label(builder, candidate))
         .optional_field(
-            "instance",
-            candidate.instantiation.map(value::instantiation_label),
+            "receiver",
+            candidate.receiver.map(|ty| builder.type_label(ty)),
         )
+        .optional_field("instance", candidate.instance.map(label::instance_label))
 }

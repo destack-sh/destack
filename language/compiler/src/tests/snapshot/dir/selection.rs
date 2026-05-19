@@ -7,25 +7,28 @@ pub(crate) struct DirSnapshotSet {
     pub(super) binding_nodes: bool,
     /// Whether to render type table rows.
     pub(super) types: bool,
+    /// Whether to render generic table rows.
+    pub(super) generic: bool,
     /// Whether to render resolution table rows.
     pub(super) resolution: bool,
     /// Whether to render instance table rows.
     pub(super) instance: bool,
+    /// Whether to render relation table rows.
+    pub(super) relation: bool,
+    /// Whether to render extension table rows.
+    pub(super) extension: bool,
     /// Whether to render dependency table rows.
     pub(super) dependency: bool,
     /// Whether to render export table rows.
     pub(super) export: bool,
     /// Whether to render capture table rows.
     pub(super) capture: bool,
-    /// Whether to render guard table rows.
-    pub(super) guard: bool,
     /// Whether to render macro table rows.
     pub(super) macros: bool,
     /// Whether to render layout table rows.
     pub(super) layout: bool,
 }
 
-#[allow(dead_code)]
 impl DirSnapshotSet {
     /// Select no tables.
     pub(crate) const fn none() -> Self {
@@ -33,12 +36,14 @@ impl DirSnapshotSet {
             binding: false,
             binding_nodes: false,
             types: false,
+            generic: false,
             resolution: false,
             instance: false,
+            relation: false,
+            extension: false,
             dependency: false,
             export: false,
             capture: false,
-            guard: false,
             macros: false,
             layout: false,
         }
@@ -59,26 +64,15 @@ impl DirSnapshotSet {
         self
     }
 
-    /// Select every DIR table row family.
-    pub(crate) const fn all() -> Self {
-        Self {
-            binding: true,
-            binding_nodes: false,
-            types: true,
-            resolution: true,
-            instance: true,
-            dependency: true,
-            export: true,
-            capture: true,
-            guard: true,
-            macros: true,
-            layout: true,
-        }
-    }
-
     /// Include type table rows.
     pub(crate) const fn with_types(mut self) -> Self {
         self.types = true;
+        self
+    }
+
+    /// Include generic table rows.
+    pub(crate) const fn with_generic(mut self) -> Self {
+        self.generic = true;
         self
     }
 
@@ -91,6 +85,18 @@ impl DirSnapshotSet {
     /// Include instance table rows.
     pub(crate) const fn with_instance(mut self) -> Self {
         self.instance = true;
+        self
+    }
+
+    /// Include relation table rows.
+    pub(crate) const fn with_relation(mut self) -> Self {
+        self.relation = true;
+        self
+    }
+
+    /// Include extension table rows.
+    pub(crate) const fn with_extension(mut self) -> Self {
+        self.extension = true;
         self
     }
 
@@ -112,18 +118,6 @@ impl DirSnapshotSet {
         self
     }
 
-    /// Include guard table rows.
-    pub(crate) const fn with_guard(mut self) -> Self {
-        self.guard = true;
-        self
-    }
-
-    /// Include macro table rows.
-    pub(crate) const fn with_macros(mut self) -> Self {
-        self.macros = true;
-        self
-    }
-
     /// Include layout table rows.
     pub(crate) const fn with_layout(mut self) -> Self {
         self.layout = true;
@@ -138,5 +132,20 @@ impl DirSnapshotSet {
     /// Return whether export rows are selected.
     pub(crate) const fn includes_export(self) -> bool {
         self.export
+    }
+
+    /// Return whether expanded DIR rows are selected.
+    pub(crate) const fn includes_expanded(self) -> bool {
+        self.macros
+    }
+
+    /// Return whether selected rows need semantic type labels.
+    pub(crate) const fn uses_type_labels(self) -> bool {
+        self.types
+            || self.generic
+            || self.resolution
+            || self.instance
+            || self.relation
+            || self.layout
     }
 }

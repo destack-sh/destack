@@ -40,19 +40,6 @@ impl SnapshotRow {
         self.field(key, format!("[{value}]"))
     }
 
-    /// Add one list field when it has values.
-    pub(crate) fn optional_list_field<I>(self, key: &'static str, values: I) -> Self
-    where
-        I: IntoIterator<Item = String>,
-    {
-        let values = values.into_iter().collect::<Vec<_>>();
-        if values.is_empty() {
-            return self;
-        }
-
-        self.list_field(key, values)
-    }
-
     /// Add one optional field to the row.
     pub(crate) fn optional_field(self, key: &'static str, value: Option<String>) -> Self {
         let Some(value) = value else {
