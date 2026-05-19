@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, SegmentView, TypeRelation};
+use crate::{GlobalSymbolId, Relation, RelationKind, SegmentView};
 
-/// Cumulative checked type relations for one DIR module.
+/// Cumulative checked relations for one DIR module.
 #[derive(Debug, Clone)]
 pub struct RelationTable<'a> {
     /// The module id of the relation table.
@@ -57,7 +57,7 @@ impl<'a> RelationTable<'a> {
     }
 
     /// Return the latest parent relation for a symbol.
-    pub fn extends(&self, symbol: GlobalSymbolId) -> Option<TypeRelation> {
+    pub fn extends(&self, symbol: GlobalSymbolId) -> Option<Relation> {
         for segment in self.segments.iter().rev() {
             if let Some(relation) = segment.extends(symbol) {
                 return Some(relation);
@@ -68,7 +68,7 @@ impl<'a> RelationTable<'a> {
     }
 
     /// Iterate visible parent relations.
-    pub fn extends_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, TypeRelation)> + '_ {
+    pub fn extends_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, Relation)> + '_ {
         self.segments
             .iter()
             .enumerate()
@@ -89,14 +89,14 @@ impl<'a> RelationTable<'a> {
     }
 
     /// Return visible implemented relations for a symbol.
-    pub fn implements(&self, symbol: GlobalSymbolId) -> impl Iterator<Item = TypeRelation> + '_ {
+    pub fn implements(&self, symbol: GlobalSymbolId) -> impl Iterator<Item = Relation> + '_ {
         self.segments
             .iter()
             .flat_map(move |segment| segment.implements(symbol))
     }
 
     /// Iterate visible implemented relations.
-    pub fn implements_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, TypeRelation)> + '_ {
+    pub fn implements_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, Relation)> + '_ {
         self.segments
             .iter()
             .flat_map(|segment| segment.implements_entries())
@@ -108,15 +108,15 @@ impl<'a> RelationTable<'a> {
     }
 }
 
-/// Type relations added by one DIR phase.
+/// Relations added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelationSegment {
     /// The module id of the relation segment.
     pub module_id: ModuleId,
     /// Single inheritance parent relation by declaration symbol.
-    pub(crate) extends: IndexMap<GlobalSymbolId, TypeRelation>,
+    pub(crate) extends: IndexMap<GlobalSymbolId, Relation>,
     /// Implemented interface relations by declaration symbol.
-    pub(crate) implements: IndexMap<GlobalSymbolId, Vec<TypeRelation>>,
+    pub(crate) implements: IndexMap<GlobalSymbolId, Vec<Relation>>,
 }
 
 impl RelationSegment {
@@ -130,34 +130,44 @@ impl RelationSegment {
     }
 
     /// Set the parent relation for a declaration symbol.
-    pub fn set_extends(&mut self, symbol: GlobalSymbolId, relation: TypeRelation) {
+    pub fn set_extends(&mut self, symbol: GlobalSymbolId, relation: Relation) {
+        assert_eq!(
+            relation.kind,
+            RelationKind::Extends,
+            "extends relation must have extends kind"
+        );
         self.extends.insert(symbol, relation);
     }
 
     /// Return the parent relation for a declaration symbol.
-    pub fn extends(&self, symbol: GlobalSymbolId) -> Option<TypeRelation> {
+    pub fn extends(&self, symbol: GlobalSymbolId) -> Option<Relation> {
         self.extends.get(&symbol).copied()
     }
 
     /// Iterate parent relations in insertion order.
-    pub fn extends_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, TypeRelation)> + '_ {
+    pub fn extends_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, Relation)> + '_ {
         self.extends
             .iter()
             .map(|(symbol, relation)| (*symbol, *relation))
     }
 
     /// Add one implemented relation for a declaration symbol.
-    pub fn push_implements(&mut self, symbol: GlobalSymbolId, relation: TypeRelation) {
+    pub fn push_implements(&mut self, symbol: GlobalSymbolId, relation: Relation) {
+        assert_eq!(
+            relation.kind,
+            RelationKind::Implements,
+            "implements relation must have implements kind"
+        );
         self.implements.entry(symbol).or_default().push(relation);
     }
 
     /// Return implemented relations for a declaration symbol.
-    pub fn implements(&self, symbol: GlobalSymbolId) -> impl Iterator<Item = TypeRelation> + '_ {
+    pub fn implements(&self, symbol: GlobalSymbolId) -> impl Iterator<Item = Relation> + '_ {
         self.implements.get(&symbol).into_iter().flatten().copied()
     }
 
     /// Iterate implemented relations in insertion order.
-    pub fn implements_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, TypeRelation)> + '_ {
+    pub fn implements_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, Relation)> + '_ {
         self.implements.iter().flat_map(|(symbol, relations)| {
             relations.iter().map(move |relation| (*symbol, *relation))
         })

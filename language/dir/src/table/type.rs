@@ -5,13 +5,12 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Addressability, Arena, BindingTable, EnumBackingType, EnumFieldValue, Extension,
-    GlobalNodeIdAny, GlobalSymbolId, IntersectionType, LocalExtensionId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Node, SegmentView, StaticTerm, SymbolForm, Type, UnionType,
-    VarianceModifier,
+    Addressability, Arena, BindingTable, EnumBackingType, EnumFieldValue, GlobalNodeIdAny,
+    GlobalSymbolId, IntersectionType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Node, SegmentView,
+    StaticTerm, SymbolForm, Type, UnionType, VarianceModifier,
 };
 
-/// Cumulative type slots and relations for one DIR module.
+/// Cumulative type slots for one DIR module.
 #[derive(Debug, Clone)]
 pub struct TypeTable<'a> {
     /// The module id of the type table.
@@ -98,47 +97,6 @@ impl<'a> TypeTable<'a> {
                         (!is_shadowed).then_some((*symbol_id, entry))
                     })
             })
-    }
-
-    /// Get an extension by its id.
-    pub fn get_extension(&self, extension_id: LocalExtensionId) -> &Extension {
-        for segment in self.segments.iter() {
-            if let Some(extension) = segment.get_local_extension(extension_id) {
-                return extension;
-            }
-        }
-
-        panic!("DIR extension {extension_id:?} is not visible")
-    }
-
-    /// Get an extension id by its symbol.
-    pub fn symbol_extension_id(
-        &self,
-        extension_symbol: GlobalSymbolId,
-    ) -> Option<LocalExtensionId> {
-        self.symbol_entry(extension_symbol)
-            .and_then(|entry| entry.extension_id)
-    }
-
-    /// Iterate extensions targeting a specific type symbol.
-    pub fn target_extensions(
-        &self,
-        target_symbol: GlobalSymbolId,
-    ) -> impl Iterator<Item = LocalExtensionId> + '_ {
-        self.segments.iter().flat_map(move |segment| {
-            segment
-                .target_extensions(target_symbol)
-                .into_iter()
-                .flatten()
-                .copied()
-        })
-    }
-
-    /// Iterate over all extensions.
-    pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> + '_ {
-        self.segments
-            .iter()
-            .flat_map(|segment| segment.iter_extensions())
     }
 
     /// Get the declared type id for a node.
@@ -299,14 +257,6 @@ impl<'a> TypeTable<'a> {
             .unwrap_or(0)
     }
 
-    /// Get the number of extensions in the table.
-    pub fn extension_count(&self) -> u32 {
-        self.segments
-            .last()
-            .map(|segment| segment.extension_count())
-            .unwrap_or(0)
-    }
-
     /// Return the number of entries in this table.
     pub fn len(&self) -> u32 {
         self.type_count()
@@ -351,15 +301,13 @@ impl<'a> TypeTable<'a> {
     }
 }
 
-/// Type slots and relations added by one DIR phase.
+/// Type slots added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeSegment {
-    /// The module id of the type store.
+    /// The module id of the type segment.
     pub module_id: ModuleId,
     /// The first type id owned by this table segment.
     pub(crate) first_type_id: u32,
-    /// The first extension id owned by this table segment.
-    pub(crate) first_extension_id: u32,
     /// Canonical type entries.
     pub(crate) types: Arena<Type>,
 
@@ -369,11 +317,6 @@ pub struct TypeSegment {
     pub(crate) nodes: IndexMap<GlobalNodeIdAny, NodeEntry>,
     /// Type attachments keyed by DIR symbol.
     pub(crate) symbols: IndexMap<GlobalSymbolId, SymbolEntry>,
-
-    /// Extension records.
-    pub(crate) extensions: Arena<Extension>,
-    /// Extension ids by target symbol.
-    pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<LocalExtensionId>>,
 }
 
 impl TypeSegment {
@@ -382,13 +325,10 @@ impl TypeSegment {
         Self {
             module_id,
             first_type_id: 0,
-            first_extension_id: 0,
             types: Arena::new(),
             sources: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
-            extensions: Arena::new(),
-            extensions_by_target_symbol: IndexMap::new(),
         }
     }
 
@@ -397,13 +337,10 @@ impl TypeSegment {
         Self {
             module_id: base.module_id,
             first_type_id: base.type_count(),
-            first_extension_id: base.extension_count(),
             types: Arena::new(),
             sources: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
-            extensions: Arena::new(),
-            extensions_by_target_symbol: IndexMap::new(),
         }
     }
 
@@ -530,70 +467,6 @@ impl TypeSegment {
     /// Iterate type attachments keyed by DIR symbol.
     pub fn symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
         self.iter_symbol_entries()
-    }
-
-    /// Insert a new extension.
-    pub fn insert_extension(&mut self, extension: Extension) -> LocalExtensionId {
-        let extension_id = LocalExtensionId::new(self.extension_count());
-        let extension_symbol = extension.symbol;
-
-        // index by target symbol for member lookup
-        let target = extension.target;
-        self.extensions_by_target_symbol
-            .entry(target)
-            .or_default()
-            .push(extension_id);
-
-        // attach to the declaring symbol
-        self.symbol_entry_mut(extension_symbol).extension_id = Some(extension_id);
-
-        self.extensions.allocate(extension);
-
-        extension_id
-    }
-
-    /// Get an extension by its id.
-    pub fn get_extension(&self, extension_id: LocalExtensionId) -> &Extension {
-        self.get_local_extension(extension_id).unwrap_or_else(|| {
-            panic!("DIR extension {extension_id:?} is not allocated in this segment")
-        })
-    }
-
-    /// Get an extension id by its symbol.
-    pub fn symbol_extension_id(
-        &self,
-        extension_symbol: GlobalSymbolId,
-    ) -> Option<LocalExtensionId> {
-        self.symbol_entry(extension_symbol)
-            .and_then(|entry| entry.extension_id)
-    }
-
-    /// Get a mutable extension by its id.
-    pub fn get_extension_mut(&mut self, extension_id: LocalExtensionId) -> &mut Extension {
-        assert!(
-            self.contains_extension_id(extension_id),
-            "DIR extension {extension_id:?} is not mutable in this segment"
-        );
-
-        let slot = extension_id.0 - self.first_extension_id;
-
-        self.extensions.get_mut(slot)
-    }
-
-    /// Get all extensions targeting a specific type symbol.
-    pub fn target_extensions(
-        &self,
-        target_symbol: GlobalSymbolId,
-    ) -> Option<&Vec<LocalExtensionId>> {
-        self.extensions_by_target_symbol.get(&target_symbol)
-    }
-
-    /// Iterate over all extensions.
-    pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> + '_ {
-        (self.first_extension_id..self.extension_count()).map(|index| {
-            let extension_id = LocalExtensionId::new(index);
-            (extension_id, self.get_extension(extension_id))
-        })
     }
 
     /// Set the declared type for a node.
@@ -835,11 +708,6 @@ impl TypeSegment {
         self.first_type_id + self.types.len() as u32
     }
 
-    /// Get the number of extensions in the table.
-    pub fn extension_count(&self) -> u32 {
-        self.first_extension_id + self.extensions.len() as u32
-    }
-
     /// Return the number of entries in this table.
     pub fn len(&self) -> u32 {
         self.type_count()
@@ -850,22 +718,9 @@ impl TypeSegment {
         self.types.is_empty()
     }
 
-    /// Get an extension owned by this table segment.
-    pub(crate) fn get_local_extension(&self, extension_id: LocalExtensionId) -> Option<&Extension> {
-        self.contains_extension_id(extension_id).then(|| {
-            self.extensions
-                .get(extension_id.0 - self.first_extension_id)
-        })
-    }
-
     /// Return whether this segment contains the given type id.
     fn contains_type_id(&self, type_id: LocalTypeId) -> bool {
         type_id.0 >= self.first_type_id && type_id.0 < self.type_count()
-    }
-
-    /// Return whether this segment contains the given extension id.
-    fn contains_extension_id(&self, extension_id: LocalExtensionId) -> bool {
-        extension_id.0 >= self.first_extension_id && extension_id.0 < self.extension_count()
     }
 
     /// Return a node entry when present.
@@ -974,9 +829,6 @@ pub struct SymbolEntry {
     pub enum_backing: Option<EnumBackingType>,
     /// The resolved enum field value.
     pub enum_field_value: Option<EnumFieldValue>,
-
-    /// The extension declared by this symbol.
-    pub extension_id: Option<LocalExtensionId>,
 }
 
 /// The origin of one type slot in the table.

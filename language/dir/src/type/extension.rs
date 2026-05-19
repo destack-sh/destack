@@ -3,20 +3,20 @@ use std::fmt::Display;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, TypeRelation};
+use crate::GlobalSymbolId;
 
-/// Unique identifier for Extensions.
+/// Unique identifier for extensions.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalExtensionId(pub u32);
 
 impl LocalExtensionId {
-    /// Wrap an id as an ExtensionId.
+    /// Wrap an id as a local extension id.
     pub fn new(id: u32) -> Self {
         Self(id)
     }
 
-    /// Turn into a GlobalExtensionId.
+    /// Turn into a global extension id.
     pub fn into_global(self, module_id: ModuleId) -> GlobalExtensionId {
         GlobalExtensionId {
             module_id,
@@ -43,7 +43,7 @@ impl GlobalExtensionId {
         }
     }
 
-    /// Turn into a LocalExtensionId.
+    /// Turn into a local extension id.
     pub fn into_local(self) -> LocalExtensionId {
         self.local_id
     }
@@ -84,23 +84,15 @@ pub struct Extension {
     pub form: ExtensionForm,
     /// The target type symbol being extended.
     pub target: GlobalSymbolId,
-    /// Interface relations added by this extension directly.
-    pub implements: Vec<TypeRelation>,
 }
 
 impl Extension {
     /// Create a new extension.
-    pub fn new(
-        symbol: GlobalSymbolId,
-        form: ExtensionForm,
-        target: GlobalSymbolId,
-        implements: Vec<TypeRelation>,
-    ) -> Self {
+    pub fn new(symbol: GlobalSymbolId, form: ExtensionForm, target: GlobalSymbolId) -> Self {
         Self {
             symbol,
             form,
             target,
-            implements,
         }
     }
 

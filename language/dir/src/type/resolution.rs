@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalInstantiationId, LocalTypeId};
+use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId};
 
 /// Target selected by lexical or path lookup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,8 +61,8 @@ pub struct MemberCandidate {
     pub receiver: Option<LocalTypeId>,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
-    /// The instantiation of the member symbol, if statically applied.
-    pub instantiation: Option<LocalInstantiationId>,
+    /// The instance of the member symbol, if statically applied.
+    pub instance: Option<LocalInstanceId>,
 }
 
 /// Callable selected at a call site.
@@ -112,6 +112,6 @@ pub struct CallCandidate {
     pub receiver: Option<LocalTypeId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
-    /// The instantiation of the callable symbol, if statically applied.
-    pub instantiation: Option<LocalInstantiationId>,
+    /// The instance of the callable symbol, if statically applied.
+    pub instance: Option<LocalInstanceId>,
 }
