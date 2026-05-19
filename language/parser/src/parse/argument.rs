@@ -1067,6 +1067,10 @@ impl Parser {
             {
                 break;
             }
+            // require an explicit separator between adjacent parameter heads
+            else if !self.current_token_is_on_new_line() {
+                break;
+            }
         }
         Ok(parameters)
     }

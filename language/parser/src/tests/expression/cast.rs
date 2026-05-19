@@ -629,6 +629,42 @@ fn test_parse_async_arrow_with_as_parameter() {
     });
 }
 
+/// Reject cast expressions in parenthesized arrow parameters.
+#[test]
+fn test_reject_parenthesized_arrow_parameter_cast() {
+    let mut test = TestParser::new_with_language("(a as T) => {};", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    parser.parse();
+
+    test.assert_error_leaves(
+        &parser,
+        &[
+            (Some(NodeType::Parameter), None, "as"),
+            (None, None, ")"),
+            (Some(NodeType::Expression), None, "}"),
+        ],
+    );
+}
+
+/// Reject cast expressions in async parenthesized arrow parameters.
+#[test]
+fn test_reject_async_parenthesized_arrow_parameter_cast() {
+    let mut test = TestParser::new_with_language("async (a as T) => {};", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    parser.parse();
+
+    test.assert_error_leaves(
+        &parser,
+        &[
+            (Some(NodeType::Parameter), None, "as"),
+            (None, None, ")"),
+            (Some(NodeType::Expression), None, "}"),
+        ],
+    );
+}
+
 /// Parse async arrows with a newline before a return type annotation.
 #[test]
 fn test_parse_async_arrow_with_newline_before_return_type() {

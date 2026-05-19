@@ -119,7 +119,8 @@ impl ParserFlags {
         | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
         | Self::IN_ARROW_RETURN_TYPE_FLAG
         | Self::ALLOW_TYPE_PREDICATE_FLAG
-        | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG;
+        | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG
+        | Self::IN_MATCH_CASE_BODY_FLAG;
     const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
 
     const IN_STATIC_FLAG: u32 = 1 << 0;
@@ -152,6 +153,7 @@ impl ParserFlags {
     const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 27;
     const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 28;
     const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 29;
+    const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 30;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -210,6 +212,11 @@ impl ParserFlags {
     #[inline]
     pub(crate) const fn is_in_match_case(self) -> bool {
         self.has_flag(Self::IN_MATCH_CASE_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_match_case_body(self) -> bool {
+        self.has_flag(Self::IN_MATCH_CASE_BODY_FLAG)
     }
 
     #[inline]
@@ -438,6 +445,11 @@ impl ParserFlags {
     }
 
     #[inline]
+    pub(crate) fn set_in_match_case_body(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_MATCH_CASE_BODY_FLAG, enabled);
+    }
+
+    #[inline]
     pub(crate) fn set_in_arrow_return_type(&mut self, enabled: bool) {
         self.set_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, enabled);
     }
@@ -537,6 +549,12 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn with_match_case(self, enabled: bool) -> Self {
         self.with_flag(Self::IN_MATCH_CASE_FLAG, enabled)
+    }
+
+    /// Set `in_match_case_body` to the given value.
+    #[inline]
+    pub(crate) fn with_match_case_body(self, enabled: bool) -> Self {
+        self.with_flag(Self::IN_MATCH_CASE_BODY_FLAG, enabled)
     }
 
     /// Set `in_union_pattern` to the given value.
@@ -735,6 +753,12 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn in_match_case(self) -> Self {
         self.with_flag(Self::IN_MATCH_CASE_FLAG, true)
+    }
+
+    /// Set `in_match_case_body=true`.
+    #[inline]
+    pub(crate) fn in_match_case_body(self) -> Self {
+        self.with_flag(Self::IN_MATCH_CASE_BODY_FLAG, true)
     }
 
     /// Set `in_union_pattern=true`.
