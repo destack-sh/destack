@@ -87,6 +87,7 @@ Destack does not support any unsound, imprecise or dynamic legacy hooks into run
 | --- | --- | --- | --- |
 | **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode TypeScript |
 | **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
+| **Truthiness** | `if (value)` | only for boolean values | control flow must use explicit boolean tests |
 | **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` / `new Function` | runtime code generation conflicts with AOT compilation |
 | **Exceptions** | executing `throw` / `catch` effects | `throw`, `try`, `catch`, `finally`, and Try / Result integration are supported, runtime exceptions are not | Destack uses `Result`-first error handling |
 | **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion | conversion should be explicit and typed |
