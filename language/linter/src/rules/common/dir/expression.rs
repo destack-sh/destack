@@ -580,6 +580,7 @@ pub fn expression_is_any_typed(
     tree: &dir::Tree,
     symbols: &dir::BindingTable<'_>,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // unwrap parenthesized expressions
@@ -594,7 +595,8 @@ pub fn expression_is_any_typed(
     }
 
     // check declaration type for symbol backed references
-    let Some(target_symbol) = types.symbol_resolution(expression_id.into_global_any(module_id))
+    let Some(target_symbol) =
+        resolutions.symbol_resolution(expression_id.into_global_any(module_id))
     else {
         return false;
     };
@@ -640,6 +642,7 @@ pub fn expression_type_map<T>(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     map: impl FnOnce(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
 ) -> Option<T> {
@@ -651,7 +654,7 @@ pub fn expression_type_map<T>(
         return Some(map(types, type_id));
     }
 
-    let symbol_id = types.symbol_resolution(expression_id.into_global_any(module_id))?;
+    let symbol_id = resolutions.symbol_resolution(expression_id.into_global_any(module_id))?;
     symbol_value_type_map_for(artifacts, profile_id, module_id, types, symbol_id, map)
 }
 
@@ -662,6 +665,7 @@ pub fn expression_type_or_call_return_type_map<T>(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     mut map: impl FnMut(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
 ) -> Option<T> {
@@ -677,7 +681,7 @@ pub fn expression_type_or_call_return_type_map<T>(
     let expression = tree.get(expression_id);
 
     // resolve symbol backed value types
-    if let Some(symbol_id) = types.symbol_resolution(expression_id.into_global_any(module_id))
+    if let Some(symbol_id) = resolutions.symbol_resolution(expression_id.into_global_any(module_id))
         && let Some(mapped_value) = symbol_value_type_map_for(
             artifacts,
             profile_id,
@@ -701,6 +705,7 @@ pub fn expression_type_or_call_return_type_map<T>(
         module_id,
         tree,
         types,
+        resolutions,
         callee_id,
         function_return_type,
     )??;

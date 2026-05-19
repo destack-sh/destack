@@ -86,7 +86,7 @@ pub fn fresh_name_in_symbol_scope_for_rename(
     let reference_expression_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
         ctx.dir.tree(),
-        ctx.types,
+        ctx.resolutions,
         symbol_id,
     );
 

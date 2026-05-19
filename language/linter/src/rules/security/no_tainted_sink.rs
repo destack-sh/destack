@@ -92,6 +92,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.strings,
             &self.ctx.symbols,
             self.ctx.types,
+            self.ctx.resolutions,
             callee_id,
         );
         if sink_labels.is_empty() {
@@ -126,6 +127,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.strings,
             &self.ctx.symbols,
             self.ctx.types,
+            self.ctx.resolutions,
             left,
         );
         if sink_labels.is_empty() {
@@ -153,6 +155,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.strings,
             &self.ctx.symbols,
             self.ctx.types,
+            self.ctx.resolutions,
             &mut self.taint_cache,
             false,
         );

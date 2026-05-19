@@ -120,16 +120,21 @@ fn target_symbol_for_expression(
         return Some(symbol_id);
     }
 
-    // then static dispatch targets
+    // then direct call and member targets
     let global_expression_id = expression_id.into_global_any(ctx.module_id());
-    let resolution = ctx.types.resolution(global_expression_id)?;
-
-    match resolution {
-        dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-            Some(target.symbol)
-        }
-        _ => None,
+    if let Some(resolution) = ctx.resolutions.call_resolution(global_expression_id)
+        && let dir::CallTarget::Direct(candidate) = &resolution.target
+    {
+        return Some(candidate.symbol);
     }
+
+    if let Some(resolution) = ctx.resolutions.member_resolution(global_expression_id)
+        && let dir::MemberTarget::Direct(candidate) = &resolution.target
+    {
+        return Some(candidate.symbol);
+    }
+
+    None
 }
 
 /// One generic parameter default source.

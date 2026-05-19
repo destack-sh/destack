@@ -324,7 +324,7 @@ fn name_is_unused_placeholder(
         return false;
     }
 
-    !local_symbol_has_direct_references(ctx.module_id(), ctx.dir.tree(), ctx.types, symbol_id)
+    !local_symbol_has_direct_references(ctx.module_id(), ctx.dir.tree(), ctx.resolutions, symbol_id)
 }
 
 /// Return true when one actual name matches configured catch naming conventions.

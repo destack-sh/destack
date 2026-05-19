@@ -135,7 +135,7 @@ fn swapped_pair_type_compatible(
     second_index: usize,
 ) -> bool {
     let candidate_symbols =
-        expression_candidate_symbols(ctx.module_id(), ctx.types, callee_expression_id);
+        expression_candidate_symbols(ctx.module_id(), ctx.resolutions, callee_expression_id);
     if candidate_symbols.is_empty() {
         return true;
     }
@@ -284,7 +284,7 @@ fn stable_parameter_names_for_call_target(
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<Option<StringId>>> {
     let candidate_symbols =
-        expression_candidate_symbols(ctx.module_id(), ctx.types, callee_expression_id);
+        expression_candidate_symbols(ctx.module_id(), ctx.resolutions, callee_expression_id);
     if candidate_symbols.is_empty() {
         return None;
     }

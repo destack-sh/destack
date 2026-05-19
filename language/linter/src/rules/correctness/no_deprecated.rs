@@ -130,6 +130,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
             self.ctx.strings,
             &self.ctx.symbols,
             self.ctx.types,
+            self.ctx.resolutions,
             expression_id,
             deprecated_symbol,
             |decorator| Some(decorator.arguments.first().cloned().flatten()),

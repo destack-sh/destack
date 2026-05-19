@@ -36,9 +36,9 @@ impl LintRule for NoUnusedPrivateClassMembers {
     /// Check module DIR nodes for unused private class members.
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let usage = collect_module_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
+        let usage = collect_module_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.resolutions);
         let read_symbols =
-            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
+            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.resolutions);
         let mut used_private_accessor_keys = HashSet::new();
         let mut reported_private_accessor_keys = HashSet::new();
 

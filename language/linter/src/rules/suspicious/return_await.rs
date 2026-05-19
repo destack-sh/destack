@@ -461,6 +461,7 @@ fn expression_thenable_certainty(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         expression_id,
         |_types, _type_id| true,
     )
@@ -473,6 +474,7 @@ fn expression_thenable_certainty(
         ctx.dir.tree(),
         &ctx.symbols,
         ctx.types,
+        ctx.resolutions,
         expression_id,
     ) {
         return ThenableCertainty::Maybe;

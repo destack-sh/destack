@@ -224,6 +224,7 @@ fn expression_is_void_or_never_type(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         expression_id,
         is_void_or_never_type,
     )

@@ -162,7 +162,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
         let reject_references = collect_local_symbol_direct_reference_expression_ids(
             self.ctx.module.id,
             self.ctx.dir.tree(),
-            self.ctx.types,
+            self.ctx.resolutions,
             reject_symbol,
         );
         for reference_id in reject_references {
@@ -241,6 +241,7 @@ fn reject_payload_is_obviously_non_error(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         value_id,
         |types, type_id| {
             is_definitely_non_error_value_type(types, type_id, error_symbol, result_symbol)

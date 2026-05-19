@@ -209,14 +209,15 @@ fn expression_target_module(
     ) {
         return None;
     }
-    let resolution = ctx
-        .types
-        .dependency_resolution(expression_id.into_global_any(ctx.module_id()))?;
 
-    match resolution {
-        dir::DependencyResolution::Module(target) => Some(*target),
-        dir::DependencyResolution::Symbol(_) => None,
-    }
+    let relation = match expression {
+        dir::Expression::Import { .. } => dir::DependencyRelation::Import,
+        dir::Expression::Export { .. } => dir::DependencyRelation::ReExport,
+        _ => unreachable!(),
+    };
+
+    ctx.dependencies
+        .target_for_source(expression_id.into_global_any(ctx.module_id()), relation)
 }
 
 /// Return the first restricted pattern that matches a target specifier.

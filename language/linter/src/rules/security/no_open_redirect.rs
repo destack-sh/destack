@@ -214,6 +214,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             self.ctx.strings,
             &self.ctx.symbols,
             self.ctx.types,
+            self.ctx.resolutions,
             &mut self.taint_cache,
             true,
         );

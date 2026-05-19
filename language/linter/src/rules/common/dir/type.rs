@@ -55,37 +55,10 @@ impl TypeQueryState {
     }
 }
 
-/// Shared traversal state for recursive symbol lineage queries.
-struct SymbolQueryState {
-    /// Symbol ids in the active recursion stack.
-    active_symbol_ids: HashSet<dir::GlobalSymbolId>,
-}
-
-impl SymbolQueryState {
-    /// Build an empty symbol query state.
-    fn new() -> Self {
-        Self {
-            active_symbol_ids: HashSet::new(),
-        }
-    }
-
-    /// Enter one symbol id and return false on recursive cycles.
-    fn enter_symbol_id(&mut self, symbol_id: dir::GlobalSymbolId) -> bool {
-        self.active_symbol_ids.insert(symbol_id)
-    }
-
-    /// Leave one symbol id after query evaluation.
-    fn leave_symbol_id(&mut self, symbol_id: dir::GlobalSymbolId) {
-        let did_remove = self.active_symbol_ids.remove(&symbol_id);
-        debug_assert!(did_remove);
-    }
-}
-
 /// Resolve the next type id for value-like wrappers.
 fn value_like_type_id(ty: &dir::Type) -> Option<dir::LocalTypeId> {
     match ty {
-        dir::Type::Value(value) => Some(value.value),
-        dir::Type::Form(form) => Some(form.base),
+        dir::Type::Form(value) => Some(value.value),
         _ => None,
     }
 }
@@ -177,8 +150,6 @@ enum TypeBooleanQuery<'a> {
         /// Required symbol type.
         symbol_form: dir::SymbolForm,
     },
-    /// Check infer variable compatibility.
-    InferVar,
     /// Check Promise spread element compatibility.
     PromiseSpreadElementCompatible {
         /// Promise symbol for declared library references.
@@ -292,11 +263,11 @@ fn evaluate_boolean_type_query_inner(
     let ty = types.get_type(normalized_type_id);
     let result = if let Some(next_type_id) = value_like_type_id(ty) {
         evaluate_boolean_type_query_inner(types, next_type_id, query, state)
-    } else if let dir::Type::Reference(reference) = ty {
+    } else if let dir::Type::Named(reference) = ty {
         evaluate_reference_boolean_type_query(
             types,
             reference.symbol,
-            reference.generic_arguments.as_deref(),
+            Some(reference.arguments.as_slice()),
             query,
             state,
         )
@@ -323,7 +294,6 @@ fn type_query_composition_policy(
             | TypeBooleanQuery::ExplicitAny
             | TypeBooleanQuery::PromiseOrAny { .. }
             | TypeBooleanQuery::ReferenceSymbolForm { .. }
-            | TypeBooleanQuery::InferVar
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
             | TypeBooleanQuery::HasThisParameter
@@ -335,7 +305,6 @@ fn type_query_composition_policy(
             TypeBooleanQuery::Promise { .. }
             | TypeBooleanQuery::PromiseOrAny { .. }
             | TypeBooleanQuery::ReferenceSymbolForm { .. }
-            | TypeBooleanQuery::InferVar
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
             | TypeBooleanQuery::HasThisParameter
@@ -428,15 +397,15 @@ fn evaluate_reference_boolean_type_query(
             error_symbol,
             result_symbol,
         } => {
-            if error_symbol
-                .is_some_and(|error_symbol| symbol_lineage_contains(types, symbol, error_symbol))
-            {
+            if error_symbol.is_some_and(|error_symbol| {
+                symbol_matches_relation_target(types, symbol, error_symbol)
+            }) {
                 return false;
             }
 
-            if result_symbol
-                .is_some_and(|result_symbol| symbol_lineage_contains(types, symbol, result_symbol))
-            {
+            if result_symbol.is_some_and(|result_symbol| {
+                symbol_matches_relation_target(types, symbol, result_symbol)
+            }) {
                 return true;
             }
         }
@@ -460,10 +429,8 @@ fn evaluate_terminal_boolean_type_query(
     match query {
         TypeBooleanQuery::StrictBoolean => matches!(
             ty,
-            dir::Type::Literal(
-                dir::LiteralType::Primitive(dir::PrimitiveType::Boolean)
-                    | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
-            )
+            dir::Type::Primitive(dir::PrimitiveType::Boolean)
+                | dir::Type::Literal(dir::ScalarLiteral::Boolean(_))
         ),
         TypeBooleanQuery::Array { .. } => matches!(
             ty,
@@ -471,16 +438,12 @@ fn evaluate_terminal_boolean_type_query(
         ),
         TypeBooleanQuery::String { .. } => match ty {
             dir::Type::TemplateLiteral(_) => true,
-            dir::Type::Literal(literal) => type_literal_is_string_like(literal),
-            _ => false,
+            _ => type_is_string_like(ty),
         },
-        TypeBooleanQuery::Float => matches!(
-            ty,
-            dir::Type::Literal(dir::LiteralType::Primitive(dir::PrimitiveType::Float(_)))
-        ),
+        TypeBooleanQuery::Float => matches!(ty, dir::Type::Primitive(dir::PrimitiveType::Float(_))),
         TypeBooleanQuery::Function => match ty {
             dir::Type::Function(_) => true,
-            dir::Type::Object(object) => !object.call_signatures.is_empty(),
+            dir::Type::Shape(object) => !object.call_signatures.is_empty(),
             _ => false,
         },
         TypeBooleanQuery::HasThisParameter => match ty {
@@ -488,17 +451,14 @@ fn evaluate_terminal_boolean_type_query(
             _ => false,
         },
         TypeBooleanQuery::ReferenceSymbolForm { .. } => false,
-        TypeBooleanQuery::InferVar => matches!(ty, dir::Type::InferVariable(_)),
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol } => match ty {
-            dir::Type::Literal(dir::LiteralType::Any | dir::LiteralType::Unknown) => true,
-            dir::Type::Slice(slice) => slice.element.is_some_and(|element_type_id| {
-                evaluate_boolean_type_query_inner(
-                    types,
-                    element_type_id,
-                    TypeBooleanQuery::PromiseOrAny { promise_symbol },
-                    state,
-                )
-            }),
+            dir::Type::Any | dir::Type::Unknown => true,
+            dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
+                types,
+                slice.element,
+                TypeBooleanQuery::PromiseOrAny { promise_symbol },
+                state,
+            ),
             dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
                 types,
                 array.element,
@@ -517,25 +477,20 @@ fn evaluate_terminal_boolean_type_query(
         },
         TypeBooleanQuery::MapWithEmptyValue { .. } => false,
         TypeBooleanQuery::HasUsefulToString => match ty {
-            dir::Type::Literal(literal) => {
-                matches!(
-                    literal,
-                    dir::LiteralType::Primitive(dir::PrimitiveType::String)
-                        | dir::LiteralType::Primitive(dir::PrimitiveType::Boolean)
-                        | dir::LiteralType::Primitive(dir::PrimitiveType::Integer(_))
-                        | dir::LiteralType::Primitive(dir::PrimitiveType::Float(_))
-                        | dir::LiteralType::Primitive(dir::PrimitiveType::Bigint)
-                        | dir::LiteralType::ScalarLiteral(_)
-                )
-            }
-            dir::Type::Slice(slice) => slice.element.is_none_or(|element_type_id| {
-                evaluate_boolean_type_query_inner(
-                    types,
-                    element_type_id,
-                    TypeBooleanQuery::HasUsefulToString,
-                    state,
-                )
-            }),
+            dir::Type::Primitive(
+                dir::PrimitiveType::String
+                | dir::PrimitiveType::Boolean
+                | dir::PrimitiveType::Integer(_)
+                | dir::PrimitiveType::Float(_)
+                | dir::PrimitiveType::Bigint,
+            )
+            | dir::Type::Literal(_) => true,
+            dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
+                types,
+                slice.element,
+                TypeBooleanQuery::HasUsefulToString,
+                state,
+            ),
             dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
                 types,
                 array.element,
@@ -551,13 +506,13 @@ fn evaluate_terminal_boolean_type_query(
                 )
             }),
             dir::Type::Function(_) => true,
-            dir::Type::Object(_) => false,
+            dir::Type::Shape(_) => false,
             dir::Type::Error => true,
             _ => false,
         },
         TypeBooleanQuery::AsyncFunction => match ty {
             dir::Type::Function(function) => function.asynchrony == dir::Asynchrony::Async,
-            dir::Type::Object(object) => object.call_signatures.iter().any(|type_id| {
+            dir::Type::Shape(object) => object.call_signatures.iter().any(|type_id| {
                 evaluate_boolean_type_query_inner(
                     types,
                     *type_id,
@@ -567,126 +522,43 @@ fn evaluate_terminal_boolean_type_query(
             }),
             _ => false,
         },
-        TypeBooleanQuery::Any => matches!(
-            ty,
-            dir::Type::Literal(dir::LiteralType::Any | dir::LiteralType::Unknown)
-        ),
-        TypeBooleanQuery::PromiseOrAny { .. } => matches!(
-            ty,
-            dir::Type::Literal(dir::LiteralType::Any | dir::LiteralType::Unknown)
-        ),
-        TypeBooleanQuery::ExplicitAny => matches!(ty, dir::Type::Literal(dir::LiteralType::Any)),
+        TypeBooleanQuery::Any => matches!(ty, dir::Type::Any | dir::Type::Unknown),
+        TypeBooleanQuery::PromiseOrAny { .. } => matches!(ty, dir::Type::Any | dir::Type::Unknown),
+        TypeBooleanQuery::ExplicitAny => matches!(ty, dir::Type::Any),
         TypeBooleanQuery::Promise { .. } => false,
-        TypeBooleanQuery::VoidOrNever => matches!(
-            ty,
-            dir::Type::Literal(dir::LiteralType::Void | dir::LiteralType::Never)
-        ),
+        TypeBooleanQuery::VoidOrNever => matches!(ty, dir::Type::Void | dir::Type::Never),
         TypeBooleanQuery::TemplateInterpolation { .. } => match ty {
             dir::Type::TemplateLiteral(_) => true,
-            dir::Type::Literal(literal) => {
-                type_literal_is_string_like(literal)
-                    || matches!(
-                        literal,
-                        dir::LiteralType::Primitive(
-                            dir::PrimitiveType::Bigint
-                                | dir::PrimitiveType::Integer(_)
-                                | dir::PrimitiveType::Float(_),
-                        ) | dir::LiteralType::ScalarLiteral(
-                            dir::ScalarLiteral::Integer(_)
-                                | dir::ScalarLiteral::Bigint(_)
-                                | dir::ScalarLiteral::Float(_),
-                        )
-                    )
-            }
-            _ => false,
+            dir::Type::Primitive(
+                dir::PrimitiveType::Bigint
+                | dir::PrimitiveType::Integer(_)
+                | dir::PrimitiveType::Float(_),
+            )
+            | dir::Type::Literal(
+                dir::ScalarLiteral::Integer(_)
+                | dir::ScalarLiteral::Bigint(_)
+                | dir::ScalarLiteral::Float(_),
+            ) => true,
+            _ => type_is_string_like(ty),
         },
-        TypeBooleanQuery::StringLikePropertyKey => match ty {
-            dir::Type::Literal(literal) => type_literal_is_string_like_property_key(literal),
-            _ => false,
-        },
-        TypeBooleanQuery::NumericPropertyKey => match ty {
-            dir::Type::Literal(literal) => type_literal_is_numeric_property_key(literal),
-            _ => false,
-        },
-        TypeBooleanQuery::SymbolLikePropertyKey => match ty {
-            dir::Type::Literal(literal) => type_literal_is_symbol_like_property_key(literal),
-            _ => false,
-        },
+        TypeBooleanQuery::StringLikePropertyKey => type_is_string_like_property_key(ty),
+        TypeBooleanQuery::NumericPropertyKey => type_is_numeric_property_key(ty),
+        TypeBooleanQuery::SymbolLikePropertyKey => type_is_symbol_like_property_key(ty),
         TypeBooleanQuery::DefinitelyNonErrorValue { .. } => matches!(
             ty,
-            dir::Type::Literal(
-                dir::LiteralType::Never
-                    | dir::LiteralType::Undefined
-                    | dir::LiteralType::Void
-                    | dir::LiteralType::Null
-                    | dir::LiteralType::Primitive(_)
-                    | dir::LiteralType::ScalarLiteral(_)
-            )
+            dir::Type::Never
+                | dir::Type::Undefined
+                | dir::Type::Void
+                | dir::Type::Null
+                | dir::Type::Primitive(_)
+                | dir::Type::Literal(_)
         ),
-        TypeBooleanQuery::MaybeNullish => matches!(
-            ty,
-            dir::Type::Literal(
-                dir::LiteralType::Null
-                    | dir::LiteralType::Undefined
-                    | dir::LiteralType::Void
-                    | dir::LiteralType::Any
-                    | dir::LiteralType::Infer
-                    | dir::LiteralType::Unknown
-            ) | dir::Type::InferVariable(_)
-                | dir::Type::Conditional(_)
-                | dir::Type::Mapped(_)
-                | dir::Type::Index(_)
-                | dir::Type::TemplateLiteral(_)
-                | dir::Type::Infer(_)
-                | dir::Type::Predicate(_)
-                | dir::Type::KeyOf(_)
-                | dir::Type::Must(_)
-                | dir::Type::AsComptime(_)
-                | dir::Type::Not(_)
-                | dir::Type::In(_)
-                | dir::Type::Extends(_)
-                | dir::Type::Implements(_)
-                | dir::Type::Error
-                | dir::Type::Unevaluated(_)
-        ),
-        TypeBooleanQuery::HasNonNullishFalsy { strings } => match ty {
-            dir::Type::Literal(literal) => match literal {
-                dir::LiteralType::Null | dir::LiteralType::Undefined | dir::LiteralType::Void => {
-                    false
-                }
-                dir::LiteralType::Never => false,
-                dir::LiteralType::Any | dir::LiteralType::Infer | dir::LiteralType::Unknown => true,
-                dir::LiteralType::Object => false,
-                dir::LiteralType::Primitive(primitive) => matches!(
-                    primitive,
-                    dir::PrimitiveType::Boolean
-                        | dir::PrimitiveType::Bigint
-                        | dir::PrimitiveType::String
-                        | dir::PrimitiveType::Integer(_)
-                        | dir::PrimitiveType::Float(_)
-                ),
-                dir::LiteralType::ScalarLiteral(literal) => match literal {
-                    dir::ScalarLiteral::Null => true,
-                    dir::ScalarLiteral::Boolean(false) => true,
-                    dir::ScalarLiteral::Boolean(true) => false,
-                    dir::ScalarLiteral::Integer(value) => *value == 0,
-                    dir::ScalarLiteral::Bigint(value) => *value == 0,
-                    dir::ScalarLiteral::Float(value) => *value == 0.0,
-                    dir::ScalarLiteral::String(value) => strings.get(*value).is_empty(),
-                    dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => {
-                        true
-                    }
-                },
-                dir::LiteralType::Intrinsic(_) => true,
-            },
-            dir::Type::Slice(_)
-            | dir::Type::FixedArray(_)
-            | dir::Type::Tuple(_)
-            | dir::Type::Object(_)
-            | dir::Type::Function(_) => false,
-            dir::Type::InferVariable(_)
-            | dir::Type::This
-            | dir::Type::Unevaluated(_)
+        TypeBooleanQuery::MaybeNullish => match ty {
+            dir::Type::Null
+            | dir::Type::Undefined
+            | dir::Type::Void
+            | dir::Type::Any
+            | dir::Type::Unknown
             | dir::Type::Conditional(_)
             | dir::Type::Mapped(_)
             | dir::Type::Index(_)
@@ -694,14 +566,52 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
             | dir::Type::KeyOf(_)
-            | dir::Type::Must(_)
-            | dir::Type::AsComptime(_)
-            | dir::Type::Not(_)
-            | dir::Type::In(_)
-            | dir::Type::Extends(_)
-            | dir::Type::Implements(_)
             | dir::Type::Error => true,
             _ => false,
+        },
+        TypeBooleanQuery::HasNonNullishFalsy { strings } => match ty {
+            dir::Type::Null | dir::Type::Undefined | dir::Type::Void | dir::Type::Never => false,
+            dir::Type::Any | dir::Type::Unknown => true,
+            dir::Type::Object => false,
+            dir::Type::Primitive(primitive) => matches!(
+                primitive,
+                dir::PrimitiveType::Boolean
+                    | dir::PrimitiveType::Bigint
+                    | dir::PrimitiveType::String
+                    | dir::PrimitiveType::Integer(_)
+                    | dir::PrimitiveType::Float(_)
+            ),
+            dir::Type::Literal(literal) => match literal {
+                dir::ScalarLiteral::Null => true,
+                dir::ScalarLiteral::Boolean(false) => true,
+                dir::ScalarLiteral::Boolean(true) => false,
+                dir::ScalarLiteral::Integer(value) => *value == 0,
+                dir::ScalarLiteral::Bigint(value) => *value == 0,
+                dir::ScalarLiteral::Float(value) => *value == 0.0,
+                dir::ScalarLiteral::String(value) => strings.get(*value).is_empty(),
+                dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => true,
+            },
+            dir::Type::Intrinsic(_) => true,
+            dir::Type::Slice(_)
+            | dir::Type::FixedArray(_)
+            | dir::Type::Tuple(_)
+            | dir::Type::Shape(_)
+            | dir::Type::Function(_) => false,
+            dir::Type::Parameter(_)
+            | dir::Type::Named(_)
+            | dir::Type::This
+            | dir::Type::Union(_)
+            | dir::Type::Intersection(_)
+            | dir::Type::Conditional(_)
+            | dir::Type::Mapped(_)
+            | dir::Type::Index(_)
+            | dir::Type::TemplateLiteral(_)
+            | dir::Type::Infer(_)
+            | dir::Type::Predicate(_)
+            | dir::Type::KeyOf(_)
+            | dir::Type::Form(_)
+            | dir::Type::ErasedAny(_)
+            | dir::Type::Error => true,
         },
     }
 }
@@ -726,27 +636,22 @@ fn generic_argument_is_void_or_never_type(
     types: &dir::TypeTable<'_>,
     generic_argument: &dir::StaticArgument,
 ) -> bool {
-    match generic_argument {
-        dir::StaticArgument::Evaluated { value, .. } => match value {
-            dir::StaticExpression::Type { ty } => is_void_or_never_type(types, *ty),
-            dir::StaticExpression::TypeLiteral {
-                value: dir::TypeLiteral::Void | dir::TypeLiteral::Never,
-            } => true,
-            _ => false,
-        },
-        dir::StaticArgument::Unevaluated { node } => types
-            .get_declared_or_inferred_type_id(*node)
-            .is_some_and(|type_id| is_void_or_never_type(types, type_id)),
+    match &generic_argument.value {
+        dir::StaticTerm::Type { ty } => is_void_or_never_type(types, *ty),
+        dir::StaticTerm::TypeLiteral {
+            value: dir::TypeLiteral::Void | dir::TypeLiteral::Never,
+        } => true,
+        _ => false,
     }
 }
 
-/// Return true when one type literal is string-like.
-fn type_literal_is_string_like(value: &dir::LiteralType) -> bool {
+/// Return true when one type is string-like.
+fn type_is_string_like(ty: &dir::Type) -> bool {
     matches!(
-        value,
-        dir::LiteralType::Primitive(dir::PrimitiveType::String)
-            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(_))
-            | dir::LiteralType::Intrinsic(
+        ty,
+        dir::Type::Primitive(dir::PrimitiveType::String)
+            | dir::Type::Literal(dir::ScalarLiteral::String(_))
+            | dir::Type::Intrinsic(
                 dir::IntrinsicType::Uppercase
                     | dir::IntrinsicType::Lowercase
                     | dir::IntrinsicType::Capitalize
@@ -755,31 +660,33 @@ fn type_literal_is_string_like(value: &dir::LiteralType) -> bool {
     )
 }
 
-/// Return true when one type literal is string-like for object property keys.
-fn type_literal_is_string_like_property_key(value: &dir::LiteralType) -> bool {
+/// Return true when one type is string-like for object property keys.
+fn type_is_string_like_property_key(ty: &dir::Type) -> bool {
     matches!(
-        value,
-        dir::LiteralType::Primitive(dir::PrimitiveType::String)
-            | dir::LiteralType::Primitive(dir::PrimitiveType::Boolean)
-            | dir::LiteralType::Primitive(dir::PrimitiveType::Character)
-            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(_))
-            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
-            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Character(_))
-            | dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::RegexString { .. })
-            | dir::LiteralType::Null
-            | dir::LiteralType::Undefined
+        ty,
+        dir::Type::Primitive(
+            dir::PrimitiveType::String
+                | dir::PrimitiveType::Boolean
+                | dir::PrimitiveType::Character,
+        ) | dir::Type::Literal(
+            dir::ScalarLiteral::String(_)
+                | dir::ScalarLiteral::Boolean(_)
+                | dir::ScalarLiteral::Character(_)
+                | dir::ScalarLiteral::RegexString { .. },
+        ) | dir::Type::Null
+            | dir::Type::Undefined
     )
 }
 
-/// Return true when one type literal is numeric for object property keys.
-fn type_literal_is_numeric_property_key(value: &dir::LiteralType) -> bool {
+/// Return true when one type is numeric for object property keys.
+fn type_is_numeric_property_key(ty: &dir::Type) -> bool {
     matches!(
-        value,
-        dir::LiteralType::Primitive(
+        ty,
+        dir::Type::Primitive(
             dir::PrimitiveType::Bigint
                 | dir::PrimitiveType::Integer(_)
                 | dir::PrimitiveType::Float(_),
-        ) | dir::LiteralType::ScalarLiteral(
+        ) | dir::Type::Literal(
             dir::ScalarLiteral::Integer(_)
                 | dir::ScalarLiteral::Float(_)
                 | dir::ScalarLiteral::Bigint(_),
@@ -787,12 +694,11 @@ fn type_literal_is_numeric_property_key(value: &dir::LiteralType) -> bool {
     )
 }
 
-/// Return true when one type literal is symbol-like for object property keys.
-fn type_literal_is_symbol_like_property_key(value: &dir::LiteralType) -> bool {
+/// Return true when one type is symbol-like for object property keys.
+fn type_is_symbol_like_property_key(ty: &dir::Type) -> bool {
     matches!(
-        value,
-        dir::LiteralType::Primitive(dir::PrimitiveType::Symbol)
-            | dir::LiteralType::Primitive(dir::PrimitiveType::UniqueSymbol)
+        ty,
+        dir::Type::Primitive(dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol)
     )
 }
 
@@ -823,13 +729,10 @@ pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
         let current_type = types.get_type(current_type_id);
         match current_type {
             dir::Type::Tuple(tuple) => return Some(tuple.elements.len()),
-            dir::Type::Value(value) => {
+            dir::Type::Form(value) => {
                 current_type_id = value.value;
             }
-            dir::Type::Form(form) => {
-                current_type_id = form.base;
-            }
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 current_type_id = reference_symbol_type_id(types, reference.symbol)?;
             }
             _ => return None,
@@ -863,30 +766,21 @@ fn is_string_array_type_inner(
 
     let ty = types.get_type(normalized_type_id);
     let result = match ty {
-        dir::Type::Slice(slice) => slice
-            .element
-            .is_some_and(|element_type_id| is_string_type(types, element_type_id, string_symbol)),
+        dir::Type::Slice(slice) => is_string_type(types, slice.element, string_symbol),
         dir::Type::FixedArray(array) => is_string_type(types, array.element, string_symbol),
         dir::Type::Tuple(tuple) => tuple
             .elements
             .iter()
             .all(|element| is_string_type(types, element.ty, string_symbol)),
-        dir::Type::Reference(reference) => {
+        dir::Type::Named(reference) => {
             if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
-                reference
-                    .generic_arguments
-                    .as_ref()
-                    .is_some_and(|generic_arguments| {
-                        generic_arguments.first().is_some_and(|generic_argument| {
-                            generic_argument_type_id(types, generic_argument).is_some_and(
-                                |element_type_id| {
-                                    is_string_type(types, element_type_id, string_symbol)
-                                },
-                            )
-                        })
-                    })
+                reference.arguments.first().is_some_and(|generic_argument| {
+                    generic_argument_type_id(types, generic_argument).is_some_and(
+                        |element_type_id| is_string_type(types, element_type_id, string_symbol),
+                    )
+                })
             }
         }
         dir::Type::Union(union) => union.elements.iter().all(|element_type_id| {
@@ -903,11 +797,8 @@ fn is_string_array_type_inner(
                 )
             })
         }
-        dir::Type::Value(value) => {
+        dir::Type::Form(value) => {
             is_string_array_type_inner(types, value.value, array_symbol, string_symbol, state)
-        }
-        dir::Type::Form(form) => {
-            is_string_array_type_inner(types, form.base, array_symbol, string_symbol, state)
         }
         _ => false,
     };
@@ -918,15 +809,12 @@ fn is_string_array_type_inner(
 
 /// Resolve one static argument into a concrete type id when available.
 fn generic_argument_type_id(
-    types: &dir::TypeTable<'_>,
+    _types: &dir::TypeTable<'_>,
     generic_argument: &dir::StaticArgument,
 ) -> Option<dir::LocalTypeId> {
-    match generic_argument {
-        dir::StaticArgument::Evaluated { value, .. } => match value {
-            dir::StaticExpression::Type { ty } => Some(*ty),
-            _ => None,
-        },
-        dir::StaticArgument::Unevaluated { node } => types.get_declared_or_inferred_type_id(*node),
+    match &generic_argument.value {
+        dir::StaticTerm::Type { ty } => Some(*ty),
+        _ => None,
     }
 }
 
@@ -982,21 +870,14 @@ fn is_array_like_iteration_type_inner(
                 )
             })
         }
-        dir::Type::Value(value) => is_array_like_iteration_type_inner(
+        dir::Type::Form(value) => is_array_like_iteration_type_inner(
             types,
             strings,
             value.value,
             array_symbol,
             visited_type_ids,
         ),
-        dir::Type::Form(form) => is_array_like_iteration_type_inner(
-            types,
-            strings,
-            form.base,
-            array_symbol,
-            visited_type_ids,
-        ),
-        dir::Type::Object(object) => {
+        dir::Type::Shape(object) => {
             object_has_numeric_index_signature(types, &object.index_signatures)
                 && object_has_array_like_length_field(types, strings, &object.fields)
         }
@@ -1068,11 +949,6 @@ pub fn is_reference_symbol_form(
     )
 }
 
-/// Return true when one type is an infer variable.
-pub fn is_infer_var_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::InferVar)
-}
-
 /// Return true when one type declares a `this` parameter.
 pub fn has_this_parameter_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
     evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::HasThisParameter)
@@ -1107,7 +983,7 @@ fn has_non_void_this_parameter_type_inner(
                     !is_void_or_never_type(types, this_parameter_type_id)
                 })
         }
-        dir::Type::Object(object) => object.call_signatures.iter().any(|signature_type_id| {
+        dir::Type::Shape(object) => object.call_signatures.iter().any(|signature_type_id| {
             has_non_void_this_parameter_type_inner(types, *signature_type_id, visited_type_ids)
         }),
         dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
@@ -1118,13 +994,10 @@ fn has_non_void_this_parameter_type_inner(
                 has_non_void_this_parameter_type_inner(types, *element_type_id, visited_type_ids)
             })
         }
-        dir::Type::Value(value) => {
+        dir::Type::Form(value) => {
             has_non_void_this_parameter_type_inner(types, value.value, visited_type_ids)
         }
-        dir::Type::Form(form) => {
-            has_non_void_this_parameter_type_inner(types, form.base, visited_type_ids)
-        }
-        dir::Type::Reference(reference) => reference_symbol_type_id(types, reference.symbol)
+        dir::Type::Named(reference) => reference_symbol_type_id(types, reference.symbol)
             .is_some_and(|target_type_id| {
                 has_non_void_this_parameter_type_inner(types, target_type_id, visited_type_ids)
             }),
@@ -1372,8 +1245,8 @@ pub fn type_nullishness(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
     type_nullishness_inner(types, type_id, &mut state)
 }
 
-/// Unwrap nested `Type::Value` wrappers to one underlying type.
-pub fn unwrap_value_type_id(
+/// Unwrap nested `Type::Form` wrappers to one underlying type.
+pub fn unwrap_form_payload_type_id(
     types: &dir::TypeTable<'_>,
     mut type_id: dir::LocalTypeId,
 ) -> dir::LocalTypeId {
@@ -1385,7 +1258,7 @@ pub fn unwrap_value_type_id(
         }
 
         let ty = types.get_type(type_id);
-        let dir::Type::Value(value) = ty else {
+        let dir::Type::Form(value) = ty else {
             return type_id;
         };
         type_id = value.value;
@@ -1411,7 +1284,7 @@ fn type_truthiness_inner(
     let ty = types.get_type(normalized_type_id);
     let truthiness = if let Some(next_type_id) = value_like_type_id(ty) {
         type_truthiness_inner(types, strings, next_type_id, state)
-    } else if let dir::Type::Reference(reference) = ty {
+    } else if let dir::Type::Named(reference) = ty {
         if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
             type_truthiness_inner(types, strings, next_type_id, state)
         } else {
@@ -1425,72 +1298,64 @@ fn type_truthiness_inner(
         )
     } else {
         match ty {
+            dir::Type::Never | dir::Type::Any | dir::Type::Unknown => TypeTruthiness::Unknown,
+            dir::Type::Void | dir::Type::Null | dir::Type::Undefined => TypeTruthiness::AlwaysFalsy,
+            dir::Type::Object => TypeTruthiness::AlwaysTruthy,
+            dir::Type::Primitive(primitive) => match primitive {
+                dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => {
+                    TypeTruthiness::AlwaysTruthy
+                }
+                _ => TypeTruthiness::Unknown,
+            },
             dir::Type::Literal(literal) => match literal {
-                dir::LiteralType::Never => TypeTruthiness::Unknown,
-                dir::LiteralType::Any | dir::LiteralType::Infer | dir::LiteralType::Unknown => {
-                    TypeTruthiness::Unknown
+                dir::ScalarLiteral::Null => TypeTruthiness::AlwaysFalsy,
+                dir::ScalarLiteral::Boolean(value) => {
+                    if *value {
+                        TypeTruthiness::AlwaysTruthy
+                    } else {
+                        TypeTruthiness::AlwaysFalsy
+                    }
                 }
-                dir::LiteralType::Void | dir::LiteralType::Null | dir::LiteralType::Undefined => {
-                    TypeTruthiness::AlwaysFalsy
-                }
-                dir::LiteralType::Object => TypeTruthiness::AlwaysTruthy,
-                dir::LiteralType::Primitive(primitive) => match primitive {
-                    dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => {
+                dir::ScalarLiteral::Integer(value) => {
+                    if *value == 0 {
+                        TypeTruthiness::AlwaysFalsy
+                    } else {
                         TypeTruthiness::AlwaysTruthy
                     }
-                    _ => TypeTruthiness::Unknown,
-                },
-                dir::LiteralType::ScalarLiteral(literal) => match literal {
-                    dir::ScalarLiteral::Null => TypeTruthiness::AlwaysFalsy,
-                    dir::ScalarLiteral::Boolean(value) => {
-                        if *value {
-                            TypeTruthiness::AlwaysTruthy
-                        } else {
-                            TypeTruthiness::AlwaysFalsy
-                        }
+                }
+                dir::ScalarLiteral::Bigint(value) => {
+                    if *value == 0 {
+                        TypeTruthiness::AlwaysFalsy
+                    } else {
+                        TypeTruthiness::AlwaysTruthy
                     }
-                    dir::ScalarLiteral::Integer(value) => {
-                        if *value == 0 {
-                            TypeTruthiness::AlwaysFalsy
-                        } else {
-                            TypeTruthiness::AlwaysTruthy
-                        }
+                }
+                dir::ScalarLiteral::Float(value) => {
+                    if *value == 0.0 {
+                        TypeTruthiness::AlwaysFalsy
+                    } else {
+                        TypeTruthiness::AlwaysTruthy
                     }
-                    dir::ScalarLiteral::Bigint(value) => {
-                        if *value == 0 {
-                            TypeTruthiness::AlwaysFalsy
-                        } else {
-                            TypeTruthiness::AlwaysTruthy
-                        }
+                }
+                dir::ScalarLiteral::String(value) => {
+                    if strings.get(*value).is_empty() {
+                        TypeTruthiness::AlwaysFalsy
+                    } else {
+                        TypeTruthiness::AlwaysTruthy
                     }
-                    dir::ScalarLiteral::Float(value) => {
-                        if *value == 0.0 {
-                            TypeTruthiness::AlwaysFalsy
-                        } else {
-                            TypeTruthiness::AlwaysTruthy
-                        }
-                    }
-                    dir::ScalarLiteral::String(value) => {
-                        if strings.get(*value).is_empty() {
-                            TypeTruthiness::AlwaysFalsy
-                        } else {
-                            TypeTruthiness::AlwaysTruthy
-                        }
-                    }
-                    dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => {
-                        TypeTruthiness::Unknown
-                    }
-                },
-                dir::LiteralType::Intrinsic(_) => TypeTruthiness::Unknown,
+                }
+                dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => {
+                    TypeTruthiness::Unknown
+                }
             },
+            dir::Type::Intrinsic(_) => TypeTruthiness::Unknown,
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
-            | dir::Type::Object(_)
+            | dir::Type::Shape(_)
             | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
-            dir::Type::InferVariable(_)
+            dir::Type::Parameter(_)
             | dir::Type::This
-            | dir::Type::Unevaluated(_)
             | dir::Type::Conditional(_)
             | dir::Type::Mapped(_)
             | dir::Type::Index(_)
@@ -1498,14 +1363,12 @@ fn type_truthiness_inner(
             | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
             | dir::Type::KeyOf(_)
-            | dir::Type::Must(_)
-            | dir::Type::AsComptime(_)
-            | dir::Type::Not(_)
-            | dir::Type::In(_)
-            | dir::Type::Extends(_)
-            | dir::Type::Implements(_)
+            | dir::Type::ErasedAny(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
-            _ => TypeTruthiness::Unknown,
+            dir::Type::Named(_)
+            | dir::Type::Form(_)
+            | dir::Type::Union(_)
+            | dir::Type::Intersection(_) => TypeTruthiness::Unknown,
         }
     };
 
@@ -1532,7 +1395,7 @@ fn type_nullishness_inner(
     let ty = types.get_type(normalized_type_id);
     let nullishness = if let Some(next_type_id) = value_like_type_id(ty) {
         type_nullishness_inner(types, next_type_id, state)
-    } else if let dir::Type::Reference(reference) = ty {
+    } else if let dir::Type::Named(reference) = ty {
         if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
             type_nullishness_inner(types, next_type_id, state)
         } else {
@@ -1546,27 +1409,19 @@ fn type_nullishness_inner(
         )
     } else {
         match ty {
-            dir::Type::Literal(literal) => match literal {
-                dir::LiteralType::Null | dir::LiteralType::Undefined | dir::LiteralType::Void => {
-                    TypeNullishness::Always
-                }
-                dir::LiteralType::Never => TypeNullishness::Maybe,
-                dir::LiteralType::Any | dir::LiteralType::Infer | dir::LiteralType::Unknown => {
-                    TypeNullishness::Maybe
-                }
-                dir::LiteralType::Object
-                | dir::LiteralType::Primitive(_)
-                | dir::LiteralType::Intrinsic(_)
-                | dir::LiteralType::ScalarLiteral(_) => TypeNullishness::Never,
-            },
+            dir::Type::Null | dir::Type::Undefined | dir::Type::Void => TypeNullishness::Always,
+            dir::Type::Never | dir::Type::Any | dir::Type::Unknown => TypeNullishness::Maybe,
+            dir::Type::Object
+            | dir::Type::Primitive(_)
+            | dir::Type::Intrinsic(_)
+            | dir::Type::Literal(_) => TypeNullishness::Never,
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
-            | dir::Type::Object(_)
+            | dir::Type::Shape(_)
             | dir::Type::Function(_) => TypeNullishness::Never,
-            dir::Type::InferVariable(_)
+            dir::Type::Parameter(_)
             | dir::Type::This
-            | dir::Type::Unevaluated(_)
             | dir::Type::Conditional(_)
             | dir::Type::Mapped(_)
             | dir::Type::Index(_)
@@ -1574,14 +1429,12 @@ fn type_nullishness_inner(
             | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
             | dir::Type::KeyOf(_)
-            | dir::Type::Must(_)
-            | dir::Type::AsComptime(_)
-            | dir::Type::Not(_)
-            | dir::Type::In(_)
-            | dir::Type::Extends(_)
-            | dir::Type::Implements(_)
+            | dir::Type::ErasedAny(_)
             | dir::Type::Error => TypeNullishness::Maybe,
-            _ => TypeNullishness::Maybe,
+            dir::Type::Named(_)
+            | dir::Type::Form(_)
+            | dir::Type::Union(_)
+            | dir::Type::Intersection(_) => TypeNullishness::Maybe,
         }
     };
 
@@ -1704,9 +1557,9 @@ fn type_may_be_nominal_symbol_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Reference(reference) => {
+        dir::Type::Named(reference) => {
             if reference.symbol == symbol
-                || symbol_lineage_contains(types, reference.symbol, symbol)
+                || symbol_matches_relation_target(types, reference.symbol, symbol)
             {
                 true
             } else if let Some(instance_type_id) = types.get_instance_type_id(reference.symbol) {
@@ -1717,10 +1570,9 @@ fn type_may_be_nominal_symbol_inner(
                 false
             }
         }
-        dir::Type::Value(value) => {
+        dir::Type::Form(value) => {
             type_may_be_nominal_symbol_inner(types, value.value, symbol, state)
         }
-        dir::Type::Form(form) => type_may_be_nominal_symbol_inner(types, form.base, symbol, state),
         dir::Type::Union(union) => union
             .elements
             .iter()
@@ -1736,57 +1588,13 @@ fn type_may_be_nominal_symbol_inner(
     result
 }
 
-/// Return true when one symbol lineage reaches a target symbol.
-fn symbol_lineage_contains(
-    types: &dir::TypeTable<'_>,
+/// Return true when one symbol matches a relation target symbol.
+fn symbol_matches_relation_target(
+    _types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
     target_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    let mut state = SymbolQueryState::new();
-    symbol_lineage_contains_inner(types, symbol, target_symbol, &mut state)
-}
-
-/// Return true when one symbol lineage reaches a target symbol with cycle protection.
-fn symbol_lineage_contains_inner(
-    types: &dir::TypeTable<'_>,
-    symbol: dir::GlobalSymbolId,
-    target_symbol: dir::GlobalSymbolId,
-    state: &mut SymbolQueryState,
-) -> bool {
-    // direct symbol matches are always valid
-    if symbol == target_symbol {
-        return true;
-    }
-
-    // guard against cycles
-    if !state.enter_symbol_id(symbol) {
-        return false;
-    }
-
-    // resolve the lineage edges
-    let result = if let Some(lineage) = types.symbol_lineage(symbol) {
-        // check the extends edge first
-        if lineage.extends.is_some_and(|extends_symbol| {
-            symbol_lineage_contains_inner(types, extends_symbol, target_symbol, state)
-        }) {
-            true
-        } else {
-            // check implemented edges
-            let mut found_match = false;
-            for related_symbol in lineage.implements.iter().copied() {
-                if symbol_lineage_contains_inner(types, related_symbol, target_symbol, state) {
-                    found_match = true;
-                    break;
-                }
-            }
-            found_match
-        }
-    } else {
-        false
-    };
-
-    state.leave_symbol_id(symbol);
-    result
+    symbol == target_symbol
 }
 
 /// Resolve a parameter type for a function type with cycle protection.
@@ -1805,7 +1613,7 @@ fn function_parameter_type_at_inner(
     let ty = types.get_type(type_id);
     let result = match ty {
         dir::Type::Function(function) => function.parameters.get(index).copied(),
-        dir::Type::Object(object) => {
+        dir::Type::Shape(object) => {
             object
                 .call_signatures
                 .first()
@@ -1814,11 +1622,10 @@ fn function_parameter_type_at_inner(
                     function_parameter_type_at_inner(types, first_signature, index, state)
                 })
         }
-        dir::Type::Value(value) => {
+        dir::Type::Form(value) => {
             function_parameter_type_at_inner(types, value.value, index, state)
         }
-        dir::Type::Form(form) => function_parameter_type_at_inner(types, form.base, index, state),
-        dir::Type::Reference(reference) => {
+        dir::Type::Named(reference) => {
             if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
                 function_parameter_type_at_inner(types, next_type_id, index, state)
             } else {
@@ -1855,7 +1662,7 @@ fn function_parameter_types_at_inner(
                 results.push(parameter_type_id);
             }
         }
-        dir::Type::Object(object) => {
+        dir::Type::Shape(object) => {
             for signature_id in &object.call_signatures {
                 function_parameter_types_at_inner(types, *signature_id, index, state, results);
             }
@@ -1870,13 +1677,10 @@ fn function_parameter_types_at_inner(
                 function_parameter_types_at_inner(types, *element_type_id, index, state, results);
             }
         }
-        dir::Type::Value(value) => {
+        dir::Type::Form(value) => {
             function_parameter_types_at_inner(types, value.value, index, state, results);
         }
-        dir::Type::Form(form) => {
-            function_parameter_types_at_inner(types, form.base, index, state, results);
-        }
-        dir::Type::Reference(reference) => {
+        dir::Type::Named(reference) => {
             for_each_reference_symbol_type_id(types, reference.symbol, |next_type_id| {
                 function_parameter_types_at_inner(types, next_type_id, index, state, results);
             });
@@ -1902,14 +1706,13 @@ fn function_return_type_inner(
     let ty = types.get_type(type_id);
     let result = match ty {
         dir::Type::Function(function) => function.return_type,
-        dir::Type::Object(object) => object
+        dir::Type::Shape(object) => object
             .call_signatures
             .first()
             .copied()
             .and_then(|first_signature| function_return_type_inner(types, first_signature, state)),
-        dir::Type::Value(value) => function_return_type_inner(types, value.value, state),
-        dir::Type::Form(form) => function_return_type_inner(types, form.base, state),
-        dir::Type::Reference(reference) => {
+        dir::Type::Form(value) => function_return_type_inner(types, value.value, state),
+        dir::Type::Named(reference) => {
             if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
                 function_return_type_inner(types, next_type_id, state)
             } else {

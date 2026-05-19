@@ -39,7 +39,7 @@ impl LintRule for NoUnusedParameters {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let read_symbols =
-            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.types);
+            collect_module_read_symbol_usage(ctx.module_id(), ctx.dir.tree(), ctx.resolutions);
 
         // inspect all parameters
         for parameter_id in ctx.dir.iter_node_ids_of_type::<dir::Parameter>() {

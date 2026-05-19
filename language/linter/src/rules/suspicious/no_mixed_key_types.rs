@@ -192,6 +192,7 @@ fn key_expression_kind(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         expression_id,
         |types, type_id| {
             if is_symbol_like_property_key_type(types, type_id) {
