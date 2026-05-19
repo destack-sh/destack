@@ -4,7 +4,7 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    argument_expression_id, expression_candidate_symbols, expression_declared_or_inferred_type_id,
+    argument_expression_id, expression_candidate_symbols, expression_type_id,
     expression_unwrap_parenthesized, is_string_type, symbol_declaration_for,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
@@ -177,7 +177,7 @@ fn swapped_pair_type_compatible(
         };
 
         // require stable argument and parameter types before rejecting
-        let Some(first_argument_type_id) = expression_declared_or_inferred_type_id(
+        let Some(first_argument_type_id) = expression_type_id(
             ctx.module_id(),
             ctx.dir.tree(),
             ctx.types,
@@ -185,7 +185,7 @@ fn swapped_pair_type_compatible(
         ) else {
             continue;
         };
-        let Some(second_argument_type_id) = expression_declared_or_inferred_type_id(
+        let Some(second_argument_type_id) = expression_type_id(
             ctx.module_id(),
             ctx.dir.tree(),
             ctx.types,
@@ -193,14 +193,10 @@ fn swapped_pair_type_compatible(
         ) else {
             continue;
         };
-        let Some(first_parameter_type_id) =
-            parameter_declared_or_inferred_type_id(ctx, first_parameter_id)
-        else {
+        let Some(first_parameter_type_id) = parameter_type_id(ctx, first_parameter_id) else {
             continue;
         };
-        let Some(second_parameter_type_id) =
-            parameter_declared_or_inferred_type_id(ctx, second_parameter_id)
-        else {
+        let Some(second_parameter_type_id) = parameter_type_id(ctx, second_parameter_id) else {
             continue;
         };
 
@@ -342,21 +338,21 @@ fn declaration_parameter_names(
     )
 }
 
-/// Return one parameter type from declared annotation or inferred symbol type.
-fn parameter_declared_or_inferred_type_id(
+/// Return the effective type for one parameter.
+fn parameter_type_id(
     ctx: &LintModuleContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
 ) -> Option<dir::LocalTypeId> {
     let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
 
-    // prefer explicit parameter annotation type
-    if let Some(declared_type_id) = ctx.types.get_declared_type_id(global_parameter_id) {
-        return Some(declared_type_id);
+    // prefer the checked parameter node type
+    if let Some(type_id) = ctx.types.get_node_type_id(global_parameter_id) {
+        return Some(type_id);
     }
 
-    // otherwise use bound parameter symbol value type
+    // fall back to the bound parameter symbol
     let parameter_symbol = ctx.symbol_for_node(parameter_id)?;
-    ctx.types.get_value_type_id(parameter_symbol)
+    ctx.types.get_symbol_type_id(parameter_symbol)
 }
 
 /// Return parameter ids for one callable declaration node.

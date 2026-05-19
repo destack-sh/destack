@@ -72,30 +72,22 @@ fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::LocalTypeId]>
     }
 }
 
-/// Resolve the preferred type id for one reference symbol.
-///
-/// This follows instance types first and then value types for aliases.
+/// Resolve the effective type id for one reference symbol.
 fn reference_symbol_type_id(
     types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
 ) -> Option<dir::LocalTypeId> {
-    types
-        .get_instance_type_id(symbol)
-        .or_else(|| types.get_value_type_id(symbol))
+    types.get_symbol_type_id(symbol)
 }
 
-/// Visit all available type ids for one reference symbol.
+/// Visit the effective type id for one reference symbol.
 fn for_each_reference_symbol_type_id(
     types: &dir::TypeTable<'_>,
     symbol: dir::GlobalSymbolId,
     mut visitor: impl FnMut(dir::LocalTypeId),
 ) {
-    if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
-        visitor(instance_type_id);
-    }
-
-    if let Some(value_type_id) = types.get_value_type_id(symbol) {
-        visitor(value_type_id);
+    if let Some(type_id) = types.get_symbol_type_id(symbol) {
+        visitor(type_id);
     }
 }
 
@@ -1566,10 +1558,8 @@ fn type_may_be_nominal_symbol_inner(
                 || symbol_matches_relation_target(types, reference.symbol, symbol)
             {
                 true
-            } else if let Some(instance_type_id) = types.get_instance_type_id(reference.symbol) {
-                type_may_be_nominal_symbol_inner(types, instance_type_id, symbol, state)
-            } else if let Some(value_type_id) = types.get_value_type_id(reference.symbol) {
-                type_may_be_nominal_symbol_inner(types, value_type_id, symbol, state)
+            } else if let Some(type_id) = types.get_symbol_type_id(reference.symbol) {
+                type_may_be_nominal_symbol_inner(types, type_id, symbol, state)
             } else {
                 false
             }

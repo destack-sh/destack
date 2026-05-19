@@ -169,7 +169,7 @@ fn is_void_returning_function_result_position(
             let Some(function_symbol_id) = ctx.symbol_for_node(parent_declaration_id) else {
                 return false;
             };
-            let Some(function_type_id) = ctx.types.get_value_type_id(function_symbol_id) else {
+            let Some(function_type_id) = ctx.types.get_symbol_type_id(function_symbol_id) else {
                 return false;
             };
             let Some(return_type_id) = function_return_type(ctx.types, function_type_id) else {

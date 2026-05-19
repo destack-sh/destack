@@ -5,7 +5,7 @@ use destack_workspace::{ArtifactCache, ProfileId};
 
 /// Symbol type id tied to the module that owns its type table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SymbolValueTypeId {
+pub struct SymbolTypeId {
     /// The module id that owns the type table.
     pub module_id: ModuleId,
     /// The local type id in that module type table.
@@ -508,32 +508,32 @@ fn enclosing_declarator(
     }
 }
 
-/// Read the value type id for a symbol.
-pub fn symbol_value_type_id_for(
+/// Read the checked type id for a symbol.
+pub fn symbol_type_id_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_types: &dir::TypeTable<'_>,
     symbol_id: dir::GlobalSymbolId,
-) -> Option<SymbolValueTypeId> {
+) -> Option<SymbolTypeId> {
     if symbol_id.module_id == local_module_id {
-        let type_id = local_types.get_value_type_id(symbol_id)?;
-        return Some(SymbolValueTypeId {
+        let type_id = local_types.get_symbol_type_id(symbol_id)?;
+        return Some(SymbolTypeId {
             module_id: local_module_id,
             type_id,
         });
     }
 
     let types = checked_type_table_for(artifacts, symbol_id.module_id, profile_id)?;
-    let type_id = types.get_value_type_id(symbol_id)?;
-    Some(SymbolValueTypeId {
+    let type_id = types.get_symbol_type_id(symbol_id)?;
+    Some(SymbolTypeId {
         module_id: symbol_id.module_id,
         type_id,
     })
 }
 
-/// Map one symbol value type from local or remote type tables.
-pub fn symbol_value_type_map_for<T>(
+/// Map one symbol type from local or remote type tables.
+pub fn symbol_type_map_for<T>(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
@@ -541,7 +541,7 @@ pub fn symbol_value_type_map_for<T>(
     symbol_id: dir::GlobalSymbolId,
     map: impl FnOnce(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
 ) -> Option<T> {
-    let value_type_id = symbol_value_type_id_for(
+    let symbol_type_id = symbol_type_id_for(
         artifacts,
         profile_id,
         local_module_id,
@@ -549,12 +549,12 @@ pub fn symbol_value_type_map_for<T>(
         symbol_id,
     )?;
 
-    if value_type_id.module_id == local_module_id {
-        return Some(map(local_types, value_type_id.type_id));
+    if symbol_type_id.module_id == local_module_id {
+        return Some(map(local_types, symbol_type_id.type_id));
     }
 
-    let types = checked_type_table_for(artifacts, value_type_id.module_id, profile_id)?;
-    Some(map(&types, value_type_id.type_id))
+    let types = checked_type_table_for(artifacts, symbol_type_id.module_id, profile_id)?;
+    Some(map(&types, symbol_type_id.type_id))
 }
 
 /// Read checked type state for one module.

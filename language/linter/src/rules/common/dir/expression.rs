@@ -6,8 +6,7 @@ use destack_workspace::{ArtifactCache, ProfileId};
 use crate::ConstValue;
 
 use super::{
-    function_return_type, is_any_type, is_async_function_type, is_promise_type,
-    symbol_value_type_map_for,
+    function_return_type, is_any_type, is_async_function_type, is_promise_type, symbol_type_map_for,
 };
 
 /// Return true when one expression is a numeric scalar literal.
@@ -586,8 +585,7 @@ pub fn expression_is_any_typed(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
     // check inferred or declared expression type first
-    if let Some(type_id) =
-        expression_declared_or_inferred_type_id(module_id, tree, types, expression_id)
+    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id)
         && is_any_type(types, type_id)
     {
         return true;
@@ -614,11 +612,8 @@ pub fn expression_is_any_typed(
     false
 }
 
-/// Resolve the declared or inferred type for an expression.
-///
-/// This prefers declared types so lints can inspect the original semantic type
-/// in places where context can coerce the inferred type.
-pub fn expression_declared_or_inferred_type_id(
+/// Resolve the effective checked type for an expression.
+pub fn expression_type_id(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable<'_>,
@@ -629,12 +624,10 @@ pub fn expression_declared_or_inferred_type_id(
 
     // resolve expression type from type tables
     let global_expression_id = dir::GlobalNodeIdAny::new(module_id, expression_id.into_any());
-    types
-        .get_declared_type_id(global_expression_id)
-        .or_else(|| types.get_inferred_type_id(global_expression_id))
+    types.get_node_type_id(global_expression_id)
 }
 
-/// Map one expression type from local inference or symbol value types.
+/// Map one expression type from node or symbol type tables.
 pub fn expression_type_map<T>(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
@@ -647,17 +640,15 @@ pub fn expression_type_map<T>(
 ) -> Option<T> {
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
-    if let Some(type_id) =
-        expression_declared_or_inferred_type_id(module_id, tree, types, expression_id)
-    {
+    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id) {
         return Some(map(types, type_id));
     }
 
     let symbol_id = resolutions.symbol_resolution(expression_id.into_global_any(module_id))?;
-    symbol_value_type_map_for(artifacts, profile_id, module_id, types, symbol_id, map)
+    symbol_type_map_for(artifacts, profile_id, module_id, types, symbol_id, map)
 }
 
-/// Map one expression type from local inference, symbol value types, or call returns.
+/// Map one expression type from node types, symbol types, or call returns.
 pub fn expression_type_or_call_return_type_map<T>(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
@@ -671,17 +662,15 @@ pub fn expression_type_or_call_return_type_map<T>(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
 
     // resolve direct expression types first
-    if let Some(type_id) =
-        expression_declared_or_inferred_type_id(module_id, tree, types, expression_id)
-    {
+    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id) {
         return Some(map(types, type_id));
     }
 
     let expression = tree.get(expression_id);
 
-    // resolve symbol backed value types
+    // resolve symbol backed types
     if let Some(symbol_id) = resolutions.symbol_resolution(expression_id.into_global_any(module_id))
-        && let Some(mapped_value) = symbol_value_type_map_for(
+        && let Some(mapped_value) = symbol_type_map_for(
             artifacts,
             profile_id,
             module_id,
@@ -724,9 +713,8 @@ pub fn expression_is_promise_like(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
-    // prefer declared or inferred expression types
-    if let Some(type_id) =
-        expression_declared_or_inferred_type_id(module_id, tree, types, expression_id)
+    // prefer expression node types
+    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id)
         && is_promise_type(types, type_id, Some(promise_symbol))
     {
         return true;
@@ -742,9 +730,7 @@ pub fn expression_is_promise_like(
         return false;
     };
 
-    let Some(callee_type_id) =
-        expression_declared_or_inferred_type_id(module_id, tree, types, callee_id)
-    else {
+    let Some(callee_type_id) = expression_type_id(module_id, tree, types, callee_id) else {
         return false;
     };
 

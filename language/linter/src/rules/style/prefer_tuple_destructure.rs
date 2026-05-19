@@ -4,8 +4,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_declared_or_inferred_type_id, expression_target_symbol,
-    expression_unwrap_parenthesized, tuple_type_arity,
+    expression_target_symbol, expression_type_id, expression_unwrap_parenthesized, tuple_type_arity,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -181,12 +180,7 @@ fn tuple_indexed_access(
     let source_text = direct_reference_text(ctx, left_id)?;
 
     // resolve one fixed tuple type for the indexed source
-    let source_type_id = expression_declared_or_inferred_type_id(
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        left_id,
-    )?;
+    let source_type_id = expression_type_id(ctx.module_id(), ctx.dir.tree(), ctx.types, left_id)?;
     let tuple_arity = tuple_type_arity(ctx.types, source_type_id)?;
     let index = integer_literal_index(ctx.dir.tree(), index_expression_id)?;
     if index >= tuple_arity {

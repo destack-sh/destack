@@ -52,7 +52,7 @@ impl LintRule for PreferSetOverEmptyMap {
             let Some(type_symbol) = ctx.symbol_for_node(declaration_id) else {
                 continue;
             };
-            let Some(alias_target_type_id) = ctx.types.get_alias_target_type_id(type_symbol) else {
+            let Some(alias_target_type_id) = ctx.types.get_symbol_type_id(type_symbol) else {
                 continue;
             };
             if !contains_map_with_empty_value_type(ctx.types, alias_target_type_id, map_symbol) {
@@ -76,7 +76,7 @@ impl LintRule for PreferSetOverEmptyMap {
                 // type annotations are lowered as type and value declarations
                 dir::Expression::Type { value } => ctx
                     .types
-                    .get_declared_or_inferred_type_id(value.into_global_any(ctx.module_id()))
+                    .get_node_type_id(value.into_global_any(ctx.module_id()))
                     .is_some_and(|type_id| {
                         contains_map_with_empty_value_type(ctx.types, type_id, map_symbol)
                     }),
