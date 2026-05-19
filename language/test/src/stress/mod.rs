@@ -1,11 +1,9 @@
-mod checker;
-mod core;
-mod ide;
-mod lsp;
+mod case;
+mod formatter;
+mod metric;
 mod parser;
-mod query;
+mod process;
 
-pub use checker::CheckerStressSuite;
-pub use lsp::LspStressSuite;
+pub use case::*;
+pub use formatter::FormatterStressSuite;
 pub use parser::ParserStressSuite;
-pub use query::QueryStressSuite;

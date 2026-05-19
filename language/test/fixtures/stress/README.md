@@ -1,69 +1,51 @@
 # Stress Tests
 
-Stress tests verify that the language toolchain stays sane on large, weird, and sometimes partially damaged projects.
-They are the hostile generated lane, not the exact semantic oracle.
+Stress tests exercise large, weird, and damaged parser/formatter inputs.
+They are replayable robustness tests, not semantic specification fixtures.
+The suite follows the same broad shape as compiler and parser torture suites: generated pathological corpora, isolated per-file execution, and fuzz seeds from the same grammar-shaped generators.
 
-Unlike fuzzing, stress cases are seeded and replayable.
-Unlike query or LSP markdown fixtures, stress cases assert invariants and determinism rather than exact snapshots.
+Stress fixtures are generated under `parser/generated/` and `formatter/generated/`.
+The generated files are ignored by git so they can be inspected locally without becoming source fixtures.
+Each stress case writes a topical folder with several size and shape variants.
+Large cases include multi-megabyte files, extreme nesting, very wide lists, trivia floods, and repeated damaged syntax with recovery sentinels.
+Each stress fixture runs in a child process so stack overflows and aborts are reported as case failures instead of killing the harness.
+Stress output includes byte, line, wall-time, MB/s, and lines/s throughput for each worker.
 
-## Structure
+## Matrix
 
-The stress tree now has two kinds of inputs.
+The corpus is organized around grammar pressure points rather than source examples.
 
-```text
-stress/
-├── generate.sh              # generator entry point for large generated corpora
-├── parser/                  # generated parser throughput fixtures
-├── checker/                 # generated checker fixtures
-└── project/                 # checked in shared project recipes for query and lsp
-```
+| Axis | Coverage |
+| --- | --- |
+| Source kind | `.ds`, `.d.ds`, `.ts`, `.tsx`, `.d.ts` where the syntax family applies |
+| Scale | large, huge, massive, wide, dense, pathological, deep, and damaged variants |
+| Shape | long files, wide lists, deep nesting, dense trivia, ambiguous prefixes, and damaged delimiters |
+| Syntax | declarations, signatures, classes, interfaces, types, expressions, patterns, TSX, modules, decorators, comptime, memory, ranges, sequences, errors, and resource management |
+| Recovery | damaged declarations, expressions, types, TSX, trivia, and delimiter storms with later recovery sentinels |
+| Checks | clean parse, recovery diagnostics, recovery roots, formatter parseability, formatter idempotence, and throughput |
 
-The generated parser and checker corpora are still created on demand.
-The query and LSP lanes use checked in recipe files so the shared corpus shape is reviewable and stable.
+## Invariants
 
-## Project Recipes
+Parser stress checks these invariants:
 
-Project recipes generate one multi file project from a seed.
-The shared stress core then materializes that project for different downstream consumers.
+- valid generated inputs parse without parser errors
+- damaged generated inputs produce parser errors
+- damaged generated inputs recover far enough to keep later roots
 
-The current consumers are:
+Formatter stress checks these invariants:
 
-- direct query stress over one compiled workspace
-- LSP stress over one real in process server workspace
-
-## Query
-
-The query battery runs one fixed set of direct query checks over generated anchors.
-
-The current query battery checks:
-
-- deterministic hover, go to, references, workspace symbol, and completion results
-- in bounds spans and edits
-- non empty results for the generated anchor classes that should resolve
-
-## LSP
-
-The LSP battery uses the same generated project, opens it through the real LSP harness, and compares normalized LSP results against the direct query baseline.
-
-The current LSP battery checks:
-
-- deterministic hover, go to, references, workspace symbol, and completion results
-- exact parity with direct query normalization for those shared surfaces
+- valid generated inputs format without parser errors
+- formatted output parses cleanly
+- formatting is idempotent
+- default and narrow line widths both stay stable
 
 ## Usage
 
 Run these from `language/`.
 
 ```bash
-# generate the large parser and checker corpora
 just generate-stress
-
-# run every stress lane
 just test-stress
-
-# run only the generated query stress lane
-just test-stress-query
-
-# run only the generated lsp stress lane
-just test-stress-lsp
+just test-stress-parser
+just test-stress-formatter
 ```
