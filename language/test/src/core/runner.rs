@@ -32,7 +32,7 @@ impl Runner {
         context: &RunContext<'_>,
         expected_failures: Option<&HashSet<String>>,
         skip_known_failures: bool,
-        skip_ignored: bool,
+        skip_skipped: bool,
         run: &Arc<F>,
     ) -> (usize, Case, CaseResult, Duration)
     where
@@ -42,7 +42,7 @@ impl Runner {
         let case_start = Instant::now();
 
         // resolve skipping before running the case body
-        let result = match skip_reason(case, expected_failures, skip_known_failures, skip_ignored) {
+        let result = match skip_reason(case, expected_failures, skip_known_failures, skip_skipped) {
             Some(reason) => CaseResult::Skipped { reason },
             None => run_case_with_timeout(case, context, run),
         };
@@ -175,7 +175,7 @@ impl Runner {
         let mut summary = RunSummary::new();
         let start = Instant::now();
         let skip_known_failures = !context.options.runs_known_failures();
-        let skip_ignored = !context.options.runs_ignored();
+        let skip_skipped = !context.options.runs_skipped();
         let track_expected_failures = !context.options.runs_known_failures();
         let mut expected_summary =
             track_expected_failures.then(|| ExpectedFailureSummary::new(expected_failures));
@@ -217,7 +217,7 @@ impl Runner {
                                     context,
                                     expected_failures,
                                     skip_known_failures,
-                                    skip_ignored,
+                                    skip_skipped,
                                     &run,
                                 );
 
@@ -258,7 +258,7 @@ impl Runner {
                     context,
                     expected_failures,
                     skip_known_failures,
-                    skip_ignored,
+                    skip_skipped,
                     &run,
                 );
                 let is_timeout = is_timeout_failure(&result);
@@ -429,10 +429,10 @@ fn skip_reason(
     case: &Case,
     expected_failures: Option<&HashSet<String>>,
     skip_known_failures: bool,
-    skip_ignored: bool,
+    skip_skipped: bool,
 ) -> Option<String> {
-    // skip explicitly ignored cases first
-    if case.is_skipped && skip_ignored {
+    // skip explicitly skipped cases first
+    if case.is_skipped && skip_skipped {
         return Some("marked as skipped".to_string());
     }
 

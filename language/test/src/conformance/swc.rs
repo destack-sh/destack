@@ -23,25 +23,12 @@ pub struct SwcSuite {
 impl SwcSuite {
     /// Create one SWC conformance suite.
     pub fn new() -> Self {
-        let suite_dir = suite_fixtures_dir("ecma", "swc");
-        let tests_dir = suite_tests_dir("ecma", "swc");
+        let suite_dir = suite_fixtures_dir("swc");
+        let tests_dir = suite_tests_dir("swc");
         Self {
             tests_dir,
             suite_dir,
         }
-    }
-
-    fn should_skip_test_by_name(name: &str) -> bool {
-        // NOTE: we intentionally exclude non-standard/proposal syntax suites for now
-        // because conformance is focused on JS/TS/JSX that we intend to support.
-        // These categories are typically ahead of the official ECMAScript baseline.
-        name.starts_with("js/explicit-resource-management/")
-            || name.starts_with("js/import-assertions-with-keyword/")
-            || name.starts_with("js/import-assertions/")
-            || name.starts_with("js/import-attributes-deprecatedAssertKeyword/")
-            || name.starts_with("js/import-attributes/")
-            || name.starts_with("js/source-phase-imports/")
-            || name.starts_with("js/deferred-import-evaluation/")
     }
 
     fn discover_recursive(&self, dir: &Path, prefix: &str, category: &str) -> Vec<Case> {
@@ -72,10 +59,6 @@ impl SwcSuite {
                         } else {
                             format!("{prefix}/{stem}.{ext}")
                         };
-
-                        if Self::should_skip_test_by_name(&name) {
-                            continue;
-                        }
 
                         // determine file type based on category and extension
                         let file_type = Self::file_type_for_category(category, &name);
@@ -146,7 +129,7 @@ impl ConformanceDriver for SwcSuite {
         tests
     }
 
-    fn run(&self, test: &Case, _show_diff: bool) -> CaseOutcome {
+    fn run(&self, test: &Case, show_diff: bool) -> CaseOutcome {
         let path = self.tests_dir.join(&test.name);
 
         let content = match std::fs::read_to_string(&path) {
@@ -166,6 +149,7 @@ impl ConformanceDriver for SwcSuite {
             ParseOptions {
                 area,
                 disallow_ambiguous_tree_literal: false,
+                should_print_diagnostics: show_diff,
             },
         );
 
@@ -179,12 +163,9 @@ impl ConformanceDriver for SwcSuite {
 
     fn fetch_instructions(&self) -> String {
         format!(
-            "To download SWC parser tests (version {SWC_VERSION}, commit {SWC_COMMIT}):\n\
+            "To refresh SWC parser tests (version {SWC_VERSION}, commit {SWC_COMMIT}):\n\
              \n\
-               just language/install-conformance-ecma\n\
-             \n\
-             Or manually:\n\
-               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/ecma/swc\n"
+               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/swc\n"
         )
     }
 

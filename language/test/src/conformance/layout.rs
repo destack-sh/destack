@@ -25,25 +25,20 @@ pub fn repo_root_dir() -> PathBuf {
         .to_path_buf()
 }
 
-/// Return one conformance domain fixtures root.
-pub fn domain_fixtures_dir(domain: &str) -> PathBuf {
-    fixtures_dir().join(domain)
-}
-
-/// Return one suite fixtures root under one conformance domain.
-pub fn suite_fixtures_dir(domain: &str, suite: &str) -> PathBuf {
-    domain_fixtures_dir(domain).join(suite)
+/// Return one suite fixtures root.
+pub fn suite_fixtures_dir(suite: &str) -> PathBuf {
+    fixtures_dir().join(suite)
 }
 
 /// Return one runnable tests root under one conformance suite.
-pub fn suite_tests_dir(domain: &str, suite: &str) -> PathBuf {
-    suite_fixtures_dir(domain, suite).join(TESTS_DIRECTORY_NAME)
+pub fn suite_tests_dir(suite: &str) -> PathBuf {
+    suite_fixtures_dir(suite).join(TESTS_DIRECTORY_NAME)
 }
 
 /// Build one outer test case for one conformance suite.
 pub fn suite_case(domain: &str, suite: &str) -> Case {
     let category = format!("destack_test::conformance::{domain}");
-    let path = suite_fixtures_dir(domain, suite);
+    let path = suite_fixtures_dir(suite);
 
     Case::directory(suite, path, category)
 }

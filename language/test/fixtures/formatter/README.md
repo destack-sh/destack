@@ -40,10 +40,10 @@ Run these commands from `language/`.
 just test-formatter
 ```
 
-To install external formatter fixtures:
+To refresh external formatter fixtures:
 
 ```bash
-just install-conformance-formatter
+python3 ./test/fixtures/conformance/fetch-suite.py ./test/fixtures/conformance/oxfmt
 ```
 
 To run a specific test:

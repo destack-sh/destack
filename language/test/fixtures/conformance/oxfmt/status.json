@@ -1,0 +1,184 @@
+{
+  "$schema": "../schema/status.schema.json",
+  "entries": [
+    {
+      "patterns": [
+        "js/ignore/oxfmt.js"
+      ],
+      "status": "excluded",
+      "reason": "legacy",
+      "note": "`with` statement syntax is out of scope"
+    },
+    {
+      "patterns": [
+        "js/arguments/empty-lines.js"
+      ],
+      "status": "known-fail-idempotence",
+      "reason": "idempotence",
+      "note": "source fixture is non-idempotent"
+    },
+    {
+      "patterns": [
+        "js/comments/logical.js"
+      ],
+      "status": "known-fail-idempotence",
+      "reason": "idempotence",
+      "note": "source fixture is non-idempotent"
+    },
+    {
+      "patterns": [
+        "js/comments/calls/last-argument-group.js"
+      ],
+      "status": "excluded",
+      "reason": "legacy-var",
+      "note": "`var` declarations are out of scope"
+    },
+    {
+      "patterns": [
+        "js/comments/import-expression.js"
+      ],
+      "status": "excluded",
+      "reason": "dynamic-import",
+      "note": "dynamic import expressions are out of scope"
+    },
+    {
+      "patterns": [
+        "js/comments/assignments.js",
+        "ts/comments/assignments.ts"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-cast",
+      "note": "mixed fixture contains inline JSDoc `@type` casts"
+    },
+    {
+      "patterns": [
+        "js/comments/type-cast-arrow.js",
+        "js/comments/type-cast-node.js",
+        "js/jsdoc/inline-type-cast.js",
+        "js/typecast/rest_element_comments.js"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-type",
+      "note": "inline JSDoc `@type` casts are out of scope"
+    },
+    {
+      "patterns": [
+        "js/jsdoc/capitalization.js",
+        "js/jsdoc/single-line.js",
+        "js/jsdoc/type-no-capitalize.js"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-type",
+      "note": "mixed fixtures contain JSDoc `@type` annotations"
+    },
+    {
+      "patterns": [
+        "js/jsdoc/type-and-desc-formatting.js",
+        "js/jsdoc/type-normalization.js"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-type",
+      "note": "JSDoc type normalization is out of scope"
+    },
+    {
+      "patterns": [
+        "js/jsdoc/template-default-value.js",
+        "js/jsdoc/typedef-continuation.js",
+        "js/jsdoc/typedef-desc-blank-line.js"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-type",
+      "note": "JSDoc typedef and template type annotations are out of scope"
+    },
+    {
+      "patterns": [
+        "js/jsdoc/default-no-wrap.js",
+        "js/jsdoc/use-tabs/use-tabs.js"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-type",
+      "note": "mixed fixtures contain `var` and JSDoc type annotations"
+    },
+    {
+      "patterns": [
+        "js/jsdoc/import-sorting.js"
+      ],
+      "status": "excluded",
+      "reason": "jsdoc-import",
+      "note": "JSDoc `@import` sorting is out of scope"
+    },
+    {
+      "patterns": [
+        "ts/static-members/non-null-expression.ts"
+      ],
+      "status": "excluded",
+      "reason": "type-assertion",
+      "note": "mixed fixture contains legacy angle-bracket type assertions"
+    },
+    {
+      "patterns": [
+        "ts/directives/issue-16192.ts"
+      ],
+      "status": "excluded",
+      "reason": "namespace",
+      "note": "mixed fixture contains namespace declarations"
+    },
+    {
+      "patterns": [
+        "ts/class/decorators.ts",
+        "ts/class/issue-20519.ts"
+      ],
+      "status": "excluded",
+      "reason": "decorator-policy",
+      "note": "statement-like decorators stay on their own line before the decorated item"
+    },
+    {
+      "patterns": [
+        "ts/parenthesis/type-assertion.ts"
+      ],
+      "status": "excluded",
+      "reason": "type-assertion",
+      "note": "legacy angle-bracket type assertions are out of scope"
+    },
+    {
+      "patterns": [
+        "ts/semicolons/assignment.ts"
+      ],
+      "status": "excluded",
+      "reason": "type-assertion",
+      "note": "mixed fixture contains legacy angle-bracket type assertions"
+    },
+    {
+      "patterns": [
+        "ts/comments/union.ts"
+      ],
+      "status": "known-fail-idempotence",
+      "reason": "idempotence",
+      "note": "source fixture is non-idempotent"
+    },
+    {
+      "patterns": [
+        "ts/variable-declarations/issue-16193.ts"
+      ],
+      "status": "known-fail-idempotence",
+      "reason": "idempotence",
+      "note": "source fixture is non-idempotent"
+    },
+    {
+      "patterns": [
+        "ts/variable-declarations/definite.ts"
+      ],
+      "status": "excluded",
+      "reason": "definite-assignment",
+      "note": "definite assignment assertions on variable declarations are out of scope"
+    },
+    {
+      "patterns": [
+        "ts/union/issue-16902.ts"
+      ],
+      "status": "excluded",
+      "reason": "type-assertion",
+      "note": "legacy angle-bracket type assertions are out of scope"
+    }
+  ]
+}

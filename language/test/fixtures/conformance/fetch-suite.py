@@ -121,7 +121,11 @@ def fetch_suite(suite_directory: Path) -> None:
 def repo_root_for_suite(suite_directory: Path) -> Path:
     """Return the repository root for one suite directory."""
 
-    return suite_directory.parents[5]
+    for parent in suite_directory.parents:
+        if (parent / "Cargo.toml").is_file():
+            return parent
+
+    raise FileNotFoundError(f"failed to find repository root for {suite_directory}")
 
 
 def print_translation_diffs(suite_directory: Path) -> None:

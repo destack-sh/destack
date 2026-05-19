@@ -87,8 +87,7 @@ impl Suite for FormatterConformanceSuite {
 
         let Some(suite_result) = suite_result else {
             return CaseResult::Skipped {
-                reason: "suite not found (run: just language/install-conformance-formatter)"
-                    .to_string(),
+                reason: "suite tests directory not found".to_string(),
             };
         };
 

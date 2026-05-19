@@ -19,7 +19,6 @@ link-env-all:
 # install all dependencies
 install:
     bun install
-    just language/install
 
 # update all dependencies
 update:

@@ -149,12 +149,12 @@
           "const": "translated"
         },
         {
-          "description": "The case is intentionally excluded from Destack execution.",
+          "description": "The case is intentionally excluded from execution.",
           "type": "string",
           "const": "excluded"
         },
         {
-          "description": "The case is maintained as one adapted Destack-native case.",
+          "description": "The case is maintained as one adapted native case.",
           "type": "string",
           "const": "adapted"
         },
@@ -167,11 +167,6 @@
           "description": "The case is a known idempotence-only failure.",
           "type": "string",
           "const": "known-fail-idempotence"
-        },
-        {
-          "description": "The case is intentionally ignored.",
-          "type": "string",
-          "const": "ignore"
         },
         {
           "description": "The case is blocked on environment availability.",

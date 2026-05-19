@@ -78,8 +78,8 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
         }
     };
     let runs_known_failures = options.runs_known_failures();
-    let runs_ignored = options.runs_ignored();
-    let stale_ignored = stale_skipped_patterns(suite, &statuses, &discovered_case_names);
+    let runs_skipped = options.runs_skipped();
+    let stale_skipped = stale_skipped_patterns(suite, &statuses, &discovered_case_names);
 
     let known_failure_count = cases
         .iter()
@@ -92,7 +92,7 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
         .iter()
         .filter(|case| {
             status_for_case(suite, &statuses, &case.name).is_some_and(is_skipped_status)
-                && !runs_ignored
+                && !runs_skipped
         })
         .collect::<Vec<_>>();
     let skipped_count = skipped_cases.len();
@@ -100,7 +100,7 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
         .iter()
         .filter(|case| {
             !status_for_case(suite, &statuses, &case.name).is_some_and(is_skipped_status)
-                || runs_ignored
+                || runs_skipped
         })
         .map(|case| {
             let status = status_for_case(suite, &statuses, &case.name);
@@ -135,20 +135,20 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
         );
     }
 
-    if !stale_ignored.is_empty() {
+    if !stale_skipped.is_empty() {
         println!(
             "  {} stale skipped entries in {}",
-            color::yellow(&stale_ignored.len().to_string()),
+            color::yellow(&stale_skipped.len().to_string()),
             status_path.display()
         );
 
-        let show_count = stale_ignored.len().min(20);
-        for name in stale_ignored.iter().take(show_count) {
+        let show_count = stale_skipped.len().min(20);
+        for name in stale_skipped.iter().take(show_count) {
             println!("    - {name}");
         }
 
-        if stale_ignored.len() > show_count {
-            println!("    ... and {} more", stale_ignored.len() - show_count);
+        if stale_skipped.len() > show_count {
+            println!("    ... and {} more", stale_skipped.len() - show_count);
         }
     }
 
@@ -220,7 +220,7 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
     let mut idempotence_failed = 0;
     let mut read_failed = 0;
     let mut categories: BTreeMap<String, CategoryStats> = BTreeMap::new();
-    let are_ignored_failures_strict = suite.ignored_failures_are_strict();
+    let are_skipped_failures_strict = suite.skipped_failures_are_strict();
 
     // pre-count skipped cases
     for case in skipped_cases {
@@ -233,12 +233,12 @@ pub fn run_conformance_driver<S: ConformanceDriver + 'static>(
     // aggregate executed cases
     for (name, outcome) in results {
         let status = status_for_case(suite, &statuses, &name);
-        let is_skipped = status.is_some_and(is_skipped_status) && !runs_ignored;
+        let is_skipped = status.is_some_and(is_skipped_status) && !runs_skipped;
         let is_known_failure = status.is_some_and(is_known_failure_status) && !runs_known_failures;
         let category = suite.category_for_case(&name);
         let stats = categories.entry(category).or_default();
 
-        if is_skipped && !are_ignored_failures_strict {
+        if is_skipped && !are_skipped_failures_strict {
             skipped += 1;
             stats.skipped += 1;
             continue;
@@ -388,7 +388,7 @@ fn status_for_case<S: ConformanceDriver>(
 fn is_skipped_status(status: CaseStatus) -> bool {
     matches!(
         status,
-        CaseStatus::Ignore | CaseStatus::EnvBlocked | CaseStatus::Manual
+        CaseStatus::Excluded | CaseStatus::EnvBlocked | CaseStatus::Manual
     )
 }
 

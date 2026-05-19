@@ -1,0 +1,35 @@
+{
+  "$schema": "../schema/suite.schema.json",
+  "id": "ecma.biome",
+  "domain": "ecma",
+  "suite": "biome",
+  "title": "ECMA Biome",
+  "origin": {
+    "repo": "https://github.com/biomejs/biome.git",
+    "ref": "9f1b3b06586401b39e0aa886bf7c8484fd2a6ded",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "biome parser",
+        "version": "1.x",
+        "layout": "strip",
+        "include": [
+          "ok/**/*.js",
+          "ok/**/*.jsx",
+          "ok/**/*.ts",
+          "ok/**/*.tsx",
+          "error/**/*.js",
+          "error/**/*.jsx",
+          "error/**/*.ts",
+          "error/**/*.tsx"
+        ],
+        "paths": [
+          "crates/biome_js_parser/tests/js_test_suite"
+        ]
+      }
+    ]
+  }
+}

@@ -24,8 +24,8 @@ pub struct Test262Suite {
 impl Test262Suite {
     /// Create suite with default paths.
     pub fn new() -> Self {
-        let suite_dir = suite_fixtures_dir("ecma", "test262");
-        let tests_dir = suite_tests_dir("ecma", "test262");
+        let suite_dir = suite_fixtures_dir("test262");
+        let tests_dir = suite_tests_dir("test262");
         Self {
             tests_dir,
             suite_dir,
@@ -35,7 +35,7 @@ impl Test262Suite {
     /// Create suite with custom tests_dir.
     pub fn with_tests_dir(tests_dir: impl Into<PathBuf>) -> Self {
         let tests_dir = tests_dir.into();
-        let suite_dir = suite_fixtures_dir("ecma", "test262");
+        let suite_dir = suite_fixtures_dir("test262");
         Self {
             tests_dir,
             suite_dir,
@@ -116,7 +116,7 @@ impl ConformanceDriver for Test262Suite {
         tests
     }
 
-    fn run(&self, test: &Case, _show_diff: bool) -> CaseOutcome {
+    fn run(&self, test: &Case, show_diff: bool) -> CaseOutcome {
         let parts: Vec<&str> = test.name.splitn(2, '/').collect();
         if parts.len() != 2 {
             return CaseOutcome::FailedRead;
@@ -150,6 +150,7 @@ impl ConformanceDriver for Test262Suite {
             ParseOptions {
                 area,
                 disallow_ambiguous_tree_literal: false,
+                should_print_diagnostics: show_diff,
             },
         );
 
@@ -163,12 +164,9 @@ impl ConformanceDriver for Test262Suite {
 
     fn fetch_instructions(&self) -> String {
         format!(
-            "To download test262 parser tests (version {TEST262_VERSION}, commit {TEST262_COMMIT}):\n\
+            "To refresh test262 parser tests (version {TEST262_VERSION}, commit {TEST262_COMMIT}):\n\
              \n\
-               just language/install-conformance-ecma\n\
-             \n\
-             Or manually:\n\
-               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/ecma/test262\n"
+               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/test262\n"
         )
     }
 }

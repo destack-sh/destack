@@ -109,8 +109,8 @@ impl BabelOptions {
 impl BabelSuite {
     /// Create one Babel conformance suite.
     pub fn new() -> Self {
-        let suite_dir = suite_fixtures_dir("ecma", "babel");
-        let tests_dir = suite_tests_dir("ecma", "babel");
+        let suite_dir = suite_fixtures_dir("babel");
+        let tests_dir = suite_tests_dir("babel");
         Self {
             tests_dir,
             suite_dir,
@@ -180,26 +180,19 @@ impl BabelSuite {
             return true;
         }
 
-        // check output.json for "errors" array with content
-        // babel stores expected errors in output.json as: "errors": ["SyntaxError: ..."]
         let output_path = test_dir.join("output.json");
-        if let Ok(content) = std::fs::read_to_string(&output_path) {
-            // look for non-empty errors array: "errors": [ followed by content before ]
-            if let Some(errors_start) = content.find("\"errors\":") {
-                let after_errors = &content[errors_start..];
-                // check if there's actual content in the errors array (not just "errors": [])
-                if let Some(bracket_start) = after_errors.find('[') {
-                    let after_bracket = &after_errors[bracket_start + 1..];
-                    // trim whitespace and check if next char is not ]
-                    let trimmed = after_bracket.trim_start();
-                    if !trimmed.starts_with(']') {
-                        return true;
-                    }
-                }
-            }
-        }
+        let Ok(content) = std::fs::read_to_string(&output_path) else {
+            return false;
+        };
 
-        false
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) else {
+            return false;
+        };
+
+        value
+            .get("errors")
+            .and_then(|errors| errors.as_array())
+            .is_some_and(|errors| !errors.is_empty())
     }
 
     fn disallow_ambiguous_tree_literal(&self, test_dir: &Path) -> bool {
@@ -315,7 +308,7 @@ impl ConformanceDriver for BabelSuite {
         tests
     }
 
-    fn run(&self, test: &Case, _show_diff: bool) -> CaseOutcome {
+    fn run(&self, test: &Case, show_diff: bool) -> CaseOutcome {
         let test_dir = self.tests_dir.join(&test.name);
 
         let Some((input_path, _)) = self.get_input_file(&test_dir) else {
@@ -340,6 +333,7 @@ impl ConformanceDriver for BabelSuite {
             ParseOptions {
                 area,
                 disallow_ambiguous_tree_literal,
+                should_print_diagnostics: show_diff,
             },
         );
 
@@ -353,12 +347,9 @@ impl ConformanceDriver for BabelSuite {
 
     fn fetch_instructions(&self) -> String {
         format!(
-            "To download Babel parser tests (version {BABEL_VERSION}, commit {BABEL_COMMIT}):\n\
+            "To refresh Babel parser tests (version {BABEL_VERSION}, commit {BABEL_COMMIT}):\n\
              \n\
-               just language/install-conformance-ecma\n\
-             \n\
-             Or manually:\n\
-               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/ecma/babel\n"
+               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/babel\n"
         )
     }
 

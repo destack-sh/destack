@@ -9,7 +9,7 @@
       "type": "string"
     },
     "domain": {
-      "description": "The top level compatibility domain.",
+      "description": "The top level conformance domain.",
       "$ref": "#/$defs/ConformanceDomain"
     },
     "suite": {
@@ -44,12 +44,12 @@
       "description": "One conformance domain.",
       "oneOf": [
         {
-          "description": "The ECMA compatibility domain.",
+          "description": "The ECMA conformance domain.",
           "type": "string",
           "const": "ecma"
         },
         {
-          "description": "The formatter compatibility domain.",
+          "description": "The formatter conformance domain.",
           "type": "string",
           "const": "formatter"
         }

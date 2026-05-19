@@ -1,0 +1,32 @@
+{
+  "$schema": "../schema/suite.schema.json",
+  "id": "formatter.oxfmt",
+  "domain": "formatter",
+  "suite": "oxfmt",
+  "title": "Formatter Oxfmt",
+  "origin": {
+    "repo": "https://github.com/oxc-project/oxc.git",
+    "ref": "8c3607060b7432d51bcd0b049cb77bed473d35e3",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "oxfmt formatter",
+        "version": "oxc-main",
+        "layout": "strip",
+        "include": [
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.snap"
+        ],
+        "paths": [
+          "crates/oxc_formatter/tests/fixtures"
+        ]
+      }
+    ]
+  }
+}

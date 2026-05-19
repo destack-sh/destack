@@ -13,9 +13,9 @@ pub const SUITE_JSON_FILE_NAME: &str = "suite.json";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ConformanceDomain {
-    /// The ECMA compatibility domain.
+    /// The ECMA conformance domain.
     Ecma,
-    /// The formatter compatibility domain.
+    /// The formatter conformance domain.
     Formatter,
 }
 
@@ -246,7 +246,7 @@ pub struct FetchMetadata {
 pub struct SuiteMetadata {
     /// The stable suite identifier.
     pub id: String,
-    /// The top level compatibility domain.
+    /// The top level conformance domain.
     pub domain: ConformanceDomain,
     /// The imported suite name.
     #[serde(alias = "corpus")]
@@ -254,7 +254,6 @@ pub struct SuiteMetadata {
     /// The human readable suite title.
     pub title: String,
     /// The origin source metadata.
-    #[serde(alias = "upstream")]
     pub origin: OriginMetadata,
     /// The optional fetch metadata for the suite case tree.
     #[serde(default)]
@@ -286,7 +285,7 @@ impl SuiteMetadata {
             ));
         }
 
-        // validate the expected directory layout
+        // validate the expected suite directory
         let actual_suite = directory
             .file_name()
             .and_then(|name| name.to_str())
@@ -295,19 +294,6 @@ impl SuiteMetadata {
             return Err(format!(
                 "suite '{}' lives in suite directory '{}' instead of '{}'",
                 self.id, actual_suite, self.suite
-            ));
-        }
-
-        let has_domain_ancestor = directory.ancestors().any(|ancestor| {
-            ancestor
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name == self.domain.as_str())
-        });
-        if !has_domain_ancestor {
-            return Err(format!(
-                "suite '{}' does not live under domain directory '{}'",
-                self.id, self.domain
             ));
         }
 
@@ -452,7 +438,7 @@ mod tests {
             fetch: FetchMetadata::default(),
         };
 
-        let result = metadata.validate(Path::new("fixtures/conformance/ecma/test262"));
+        let result = metadata.validate(Path::new("fixtures/conformance/test262"));
         assert!(result.is_ok());
     }
 
@@ -471,12 +457,12 @@ mod tests {
             fetch: FetchMetadata::default(),
         };
 
-        let result = metadata.validate(Path::new("fixtures/conformance/ecma/test262"));
+        let result = metadata.validate(Path::new("fixtures/conformance/test262"));
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_validate_accepts_nested_domain_layout() {
+    fn test_validate_accepts_flat_suite_layout() {
         let metadata = SuiteMetadata {
             id: "formatter.oxfmt".to_string(),
             domain: ConformanceDomain::Formatter,
@@ -490,7 +476,7 @@ mod tests {
             fetch: FetchMetadata::default(),
         };
 
-        let result = metadata.validate(Path::new("fixtures/conformance/formatter/oxfmt"));
+        let result = metadata.validate(Path::new("fixtures/conformance/oxfmt"));
         assert!(result.is_ok());
     }
 }

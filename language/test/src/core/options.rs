@@ -52,10 +52,6 @@ pub struct RunOptions {
     #[arg(long)]
     pub run_known_failures: bool,
 
-    /// Run tests even when they are explicitly marked as skipped.
-    #[arg(long)]
-    pub run_ignored: bool,
-
     /// Run all skipped tests.
     #[arg(long)]
     pub run_skipped: bool,
@@ -76,7 +72,6 @@ impl Default for RunOptions {
             update_known_failures: false,
             update_snapshots: false,
             run_known_failures: false,
-            run_ignored: false,
             run_skipped: false,
         }
     }
@@ -98,9 +93,9 @@ impl RunOptions {
         self.run_skipped || self.run_known_failures || self.update_known_failures
     }
 
-    /// Whether explicitly skipped cases should be executed.
-    pub fn runs_ignored(&self) -> bool {
-        self.run_skipped || self.run_ignored
+    /// Whether skipped cases should be executed.
+    pub fn runs_skipped(&self) -> bool {
+        self.run_skipped
     }
 
     /// Get the parse timeout as a Duration.

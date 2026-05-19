@@ -51,11 +51,11 @@ pub fn print_summary(results: &[ConformanceSuiteResult], baseline: Option<&Readm
 
     // table header
     println!();
-    println!("{}", color::bold("FORMATTER CONFORMANCE SUMMARY"));
+    println!("{}", color::bold("CONFORMANCE SUMMARY"));
     println!();
     println!(
         "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}  {:>10}",
-        "Suite", "Passed", "Failed", "Ignored", "Total", "Rate", "Incl. Rate", "Δ Rate"
+        "Suite", "Passed", "Failed", "Skipped", "Total", "Rate", "Incl. Rate", "Δ Rate"
     );
     println!("  {}", "─".repeat(86));
 
@@ -199,7 +199,7 @@ pub fn print_conformance_result(
     }
 
     if result.skipped > 0 {
-        println!("  {} {:>5}", color::yellow("ignored:"), result.skipped);
+        println!("  {} {:>5}", color::yellow("skipped:"), result.skipped);
     }
 
     // timeout count

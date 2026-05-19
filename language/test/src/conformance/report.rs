@@ -121,14 +121,18 @@ mod tests {
             domain: "ecma".to_string(),
             suite: "test262".to_string(),
             title: "ECMA Test262".to_string(),
-            statuses: "known-fail 2, ignore 1".to_string(),
+            statuses: "excluded 1, known-fail 2".to_string(),
             origin_ref: "deadbeef".to_string(),
         }];
 
         let table = render_conformance_catalog_table(&rows);
-        assert!(
-            table.contains("| ecma | test262 | ECMA Test262 | known-fail 2, ignore 1 | deadbeef |")
-        );
+        let expected = "\
+| Domain | Suite | Title | Status | Origin Ref |
+| --- | --- | --- | --- | --- |
+| ecma | test262 | ECMA Test262 | excluded 1, known-fail 2 | deadbeef |
+";
+
+        assert_eq!(table, expected);
     }
 
     #[test]
