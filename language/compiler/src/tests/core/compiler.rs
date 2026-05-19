@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirExported,
-    DirImported, DirParsed, MemoryCacheStore,
+    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirChecked,
+    DirExpanded, DirExported, DirImported, DirParsed, MemoryCacheStore,
 };
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
@@ -146,6 +146,11 @@ impl TestCompiler {
         self.require_artifact_result(self.dir_exported_key(path))
     }
 
+    /// Provide checked DIR for one module.
+    pub(crate) fn provide_dir_checked(&self, path: &str) -> Result<ArtifactVersion, ProviderError> {
+        self.require_artifact_result(self.dir_checked_key(path))
+    }
+
     /// Return the imported DIR key for one module.
     pub(crate) fn dir_imported_key(&self, path: &str) -> ArtifactKey {
         let entry = self.module_entry(path);
@@ -158,6 +163,13 @@ impl TestCompiler {
         let entry = self.module_entry(path);
 
         ArtifactKey::dir_exported(entry.module.id, entry.profile)
+    }
+
+    /// Return the checked DIR key for one module.
+    pub(crate) fn dir_checked_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+
+        ArtifactKey::dir_checked(entry.module.id, entry.profile)
     }
 
     /// Render diagnostics produced by one artifact key.
@@ -175,6 +187,31 @@ impl TestCompiler {
         let entry = self.module_entry(path);
 
         self.render_module_snapshot(entry, selection)
+    }
+
+    /// Render one checked module DIR snapshot.
+    pub(crate) fn checked_dir_snapshot(&self, path: &str, selection: DirSnapshotSet) -> String {
+        let entry = self.module_entry(path);
+
+        self.render_checked_module_snapshot(entry, selection)
+    }
+
+    /// Render selected checked module DIR snapshots.
+    pub(crate) fn checked_dir_snapshots(
+        &self,
+        paths: &[&str],
+        selection: DirSnapshotSet,
+    ) -> String {
+        paths
+            .iter()
+            .map(|path| {
+                let entry = self.module_entry(path);
+                let body = self.render_checked_module_snapshot(entry, selection);
+
+                format!("=== {path} ===\n{body}")
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
     }
 
     /// Render selected module DIR snapshots.
@@ -331,10 +368,54 @@ impl TestCompiler {
             builder.add_imported(selection, &imported);
         }
 
+        if selection.includes_expanded() {
+            let expanded = self.dir_expanded(entry);
+            builder.add_expanded(selection, &expanded);
+        }
+
         if selection.includes_export() {
             let exported = self.dir_exported(entry);
             builder.add_exported(selection, &exported);
         }
+
+        builder.render()
+    }
+
+    /// Render one checked module snapshot.
+    fn render_checked_module_snapshot(
+        &self,
+        entry: &TestModule,
+        selection: DirSnapshotSet,
+    ) -> String {
+        let parsed = self.dir_parsed(entry);
+        let bound = self.dir_bound(entry);
+        let expanded = self.dir_expanded(entry);
+        let checked = self.dir_checked(entry);
+        let bindings = expanded.binding_table(&bound);
+        let foreign_artifacts = self
+            .modules_by_path
+            .values()
+            .filter(|foreign| foreign.module.id != entry.module.id)
+            .map(|foreign| (self.dir_bound(foreign), self.dir_expanded(foreign)))
+            .collect::<Vec<_>>();
+        let foreign_bindings = foreign_artifacts
+            .iter()
+            .map(|(bound, expanded)| expanded.binding_table(bound))
+            .collect::<Vec<_>>();
+        let mut builder = DirSnapshotBuilder::new(
+            &entry.source,
+            &parsed.tree,
+            self.repository.string_pool().as_ref(),
+        )
+        .with_bindings(&bindings)
+        .with_module_paths(&self.module_path_by_id)
+        .with_foreign_bindings(foreign_bindings);
+
+        if selection.includes_expanded() {
+            builder.add_expanded(selection, &expanded);
+        }
+
+        builder.add_checked(selection, &checked);
 
         builder.render()
     }
@@ -369,6 +450,16 @@ impl TestCompiler {
             .expect("test imported artifact should exist")
     }
 
+    /// Return expanded DIR for one module entry.
+    fn dir_expanded(&self, entry: &TestModule) -> Arc<DirExpanded> {
+        let key = ArtifactKey::dir_expanded(entry.module.id, entry.profile);
+        let version = self.require_artifact(key);
+
+        self.artifacts()
+            .dir_expanded(&version)
+            .expect("test expanded artifact should exist")
+    }
+
     /// Return exported DIR for one module entry.
     fn dir_exported(&self, entry: &TestModule) -> Arc<DirExported> {
         let key = ArtifactKey::dir_exported(entry.module.id, entry.profile);
@@ -377,6 +468,16 @@ impl TestCompiler {
         self.artifacts()
             .dir_exported(&version)
             .expect("test exported artifact should exist")
+    }
+
+    /// Return checked DIR for one module entry.
+    fn dir_checked(&self, entry: &TestModule) -> Arc<DirChecked> {
+        let key = ArtifactKey::dir_checked(entry.module.id, entry.profile);
+        let version = self.require_artifact(key);
+
+        self.artifacts()
+            .dir_checked(&version)
+            .expect("test checked artifact should exist")
     }
 
     /// Require one artifact through the test provider.

@@ -26,6 +26,28 @@ impl<'a> BindingSnapshotName<'a> {
         Self::unnamed_symbol(symbol_id, symbol)
     }
 
+    /// Return one semantic symbol path label.
+    pub(super) fn symbol_path(&self, symbol_id: dir::LocalSymbolId) -> String {
+        let symbol = self.bindings.get_symbol(symbol_id);
+        let label = self.symbol(symbol_id);
+        if !self.symbol_should_qualify(symbol) {
+            return label;
+        }
+
+        let Some(owner) = self.symbol_scope_owner(symbol) else {
+            return label;
+        };
+
+        let owner_symbol = self.bindings.get_symbol(owner);
+        if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
+            return label;
+        }
+
+        let owner = self.symbol_path(owner);
+
+        format!("{owner}.{label}")
+    }
+
     /// Return one scope label.
     pub(super) fn scope(&self, scope_id: dir::LocalScopeId) -> String {
         let scope = self.bindings.get_scope_by_id(scope_id);
@@ -66,6 +88,20 @@ impl<'a> BindingSnapshotName<'a> {
         } else {
             Self::local_symbol(symbol_id)
         }
+    }
+
+    /// Return whether one symbol should be path-qualified.
+    fn symbol_should_qualify(&self, symbol: &dir::Symbol) -> bool {
+        symbol.role == dir::SymbolRole::Item
+            || symbol.role == dir::SymbolRole::Namespace
+            || symbol.form == dir::SymbolForm::TypeAlias
+    }
+
+    /// Return the owner symbol for the symbol scope.
+    fn symbol_scope_owner(&self, symbol: &dir::Symbol) -> Option<dir::LocalSymbolId> {
+        let scope = self.bindings.get_scope_by_id(symbol.scope.id);
+
+        scope.owner
     }
 
     /// Count symbols with one source name.

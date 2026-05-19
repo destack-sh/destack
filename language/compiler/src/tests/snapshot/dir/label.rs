@@ -1,22 +1,16 @@
 use std::fmt::Debug;
 
+use super::DirSnapshotBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use super::DirSnapshotBuilder;
-
-/// Return one optional local type id label.
-pub(super) fn optional_type_label(value: Option<dir::LocalTypeId>) -> Option<String> {
-    value.map(type_label)
-}
-
-/// Return one instantiation id label.
-pub(super) fn instantiation_label(value: dir::LocalInstantiationId) -> String {
+/// Return one instance id label.
+pub(super) fn instance_label(value: dir::LocalInstanceId) -> String {
     value.to_string()
 }
 
-/// Return one debug label as lower snake case.
-pub(super) fn debug_label<T>(value: T) -> String
+/// Return one enum variant label as lower snake case.
+pub(super) fn variant_label<T>(value: T) -> String
 where
     T: Debug,
 {
@@ -25,27 +19,14 @@ where
     lower_snake(&debug)
 }
 
-/// Return one optional debug label.
-pub(super) fn optional_debug_label<T>(value: Option<T>) -> Option<String>
-where
-    T: Debug,
-{
-    value.map(debug_label)
-}
-
 /// Return one local type id label.
-pub(super) fn type_label(type_id: dir::LocalTypeId) -> String {
+pub(super) fn type_id_label(type_id: dir::LocalTypeId) -> String {
     format!("type{}", type_id.0)
 }
 
 /// Return one local layout id label.
 pub(super) fn layout_label(layout_id: dir::LocalLayoutId) -> String {
     format!("layout{}", layout_id.0)
-}
-
-/// Return one optional local layout id label.
-pub(super) fn optional_layout_label(value: Option<dir::LocalLayoutId>) -> Option<String> {
-    value.map(layout_label)
 }
 
 /// Return one layout shape label.
@@ -72,21 +53,6 @@ pub(super) fn local_symbol_label(symbol_id: dir::LocalSymbolId) -> String {
     format!("symbol{}", symbol_id.id)
 }
 
-/// Return one global symbol id label.
-pub(super) fn symbol_label(
-    builder: &DirSnapshotBuilder<'_>,
-    symbol_id: dir::GlobalSymbolId,
-) -> String {
-    if symbol_id.module_id == builder.tree.module_id {
-        builder.symbol_label(symbol_id)
-    } else {
-        let module = builder.module_path(symbol_id.module_id);
-        let symbol = local_symbol_label(symbol_id.local_id);
-
-        format!("{module}::{symbol}")
-    }
-}
-
 /// Return one dependency target field.
 pub(super) fn dependency_target_field(
     builder: &DirSnapshotBuilder<'_>,
@@ -103,7 +69,7 @@ pub(super) fn member_candidate_label(
     builder: &DirSnapshotBuilder<'_>,
     candidate: &dir::MemberCandidate,
 ) -> String {
-    symbol_label(builder, candidate.symbol)
+    builder.symbol_path_label(candidate.symbol)
 }
 
 /// Return one call candidate label.
@@ -111,7 +77,7 @@ pub(super) fn call_candidate_label(
     builder: &DirSnapshotBuilder<'_>,
     candidate: &dir::CallCandidate,
 ) -> String {
-    symbol_label(builder, candidate.symbol)
+    builder.symbol_path_label(candidate.symbol)
 }
 
 /// Return one static argument label.
@@ -119,6 +85,7 @@ pub(super) fn static_argument_label(
     builder: &DirSnapshotBuilder<'_>,
     argument: &dir::StaticArgument,
 ) -> String {
+    // render the argument value before adding an optional name
     let value = static_term_label(builder, &argument.value);
     if let Some(name) = argument.name {
         format!("{}={value}", builder.strings.get(name))
@@ -134,13 +101,13 @@ pub(super) fn static_term_label(
 ) -> String {
     match term {
         dir::StaticTerm::ScalarLiteral { value } => scalar_literal_label(builder, value),
-        dir::StaticTerm::TypeLiteral { value } => debug_label(value),
+        dir::StaticTerm::TypeLiteral { value } => variant_label(value),
         dir::StaticTerm::Declaration {
             declaration,
             generic_arguments,
         } => {
-            let declaration =
-                builder.node_label((*declaration).into_global_any(builder.tree.module_id));
+            // render declaration references with applied static arguments
+            let declaration = builder.declaration_label(*declaration);
             if let Some(arguments) = generic_arguments {
                 let arguments = arguments
                     .iter()
@@ -153,8 +120,9 @@ pub(super) fn static_term_label(
                 declaration
             }
         }
-        dir::StaticTerm::Type { ty } => type_label(*ty),
+        dir::StaticTerm::Type { ty } => builder.type_label(*ty),
         dir::StaticTerm::Array { elements } => {
+            // render array elements recursively
             let elements = elements
                 .iter()
                 .map(|element| static_term_label(builder, element))
@@ -164,12 +132,14 @@ pub(super) fn static_term_label(
             format!("[{elements}]")
         }
         dir::StaticTerm::FixedArray { value, length } => {
+            // render repeated fixed array syntax
             let value = static_term_label(builder, value);
             let length = static_term_label(builder, length);
 
             format!("[{value}; {length}]")
         }
         dir::StaticTerm::Tuple { elements } => {
+            // render tuple elements recursively
             let elements = elements
                 .iter()
                 .map(|element| static_term_label(builder, element))
@@ -179,12 +149,16 @@ pub(super) fn static_term_label(
             format!("({elements})")
         }
         dir::StaticTerm::Object { properties } => {
+            // render object properties recursively
             let properties = static_property_labels(builder, properties);
+
             format!("{{{properties}}}")
         }
         dir::StaticTerm::Struct { ty, properties } => {
+            // render typed struct literal syntax
             let properties = static_property_labels(builder, properties);
-            format!("{} {{{properties}}}", type_label(*ty))
+
+            format!("{} {{{properties}}}", builder.type_label(*ty))
         }
     }
 }
@@ -208,18 +182,24 @@ fn static_property_label(
 ) -> String {
     match property {
         dir::StaticProperty::Field { key, value } => {
+            // render a static key/value field
             let key = builder.static_key(*key);
             let value = static_term_label(builder, value);
+
             format!("{key}: {value}")
         }
         dir::StaticProperty::Method { key, .. } => {
+            // render a static method key without its body
             let key = key
                 .map(|key| builder.static_key(key))
                 .unwrap_or_else(|| "<call>".to_string());
+
             format!("{key}()")
         }
         dir::StaticProperty::Spread { value } => {
+            // render a static spread operand
             let value = static_term_label(builder, value);
+
             format!("...{value}")
         }
     }
@@ -267,15 +247,14 @@ pub(super) fn export_selector_label(
 }
 
 /// Return one captured binding label.
-pub(super) fn optional_capture_binding_label(
+pub(super) fn capture_binding_label(
     builder: &DirSnapshotBuilder<'_>,
-    binding: Option<dir::CapturedBinding>,
-) -> Option<String> {
-    binding.map(|binding| {
-        let symbol = builder.symbol_label(binding.symbol);
-        let mode = debug_label(binding.mode);
-        format!("{symbol}:{mode}")
-    })
+    binding: dir::CapturedBinding,
+) -> String {
+    let symbol = builder.symbol_label(binding.symbol);
+    let mode = variant_label(binding.mode);
+
+    format!("{symbol}:{mode}")
 }
 
 /// Return one macro trigger label.
@@ -285,7 +264,9 @@ pub(super) fn macro_trigger_label(
 ) -> String {
     match trigger {
         dir::MacroTrigger::Decorator(node_id) => {
+            // render the decorator node kind as the trigger
             let node_id = node_id.clone().into_any();
+
             format!("decorator:{}", builder.node_label(node_id))
         }
         dir::MacroTrigger::AutoDerive => "auto_derive".to_string(),
@@ -296,6 +277,7 @@ pub(super) fn macro_trigger_label(
 fn lower_snake(value: &str) -> String {
     let mut result = String::new();
 
+    // split before uppercase letters
     for character in value.chars() {
         if character.is_ascii_uppercase() {
             if !result.is_empty() {

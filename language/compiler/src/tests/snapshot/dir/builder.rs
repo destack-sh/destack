@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-};
+use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -28,15 +26,20 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) strings: &'a StringPool,
     /// The binding table used for human-readable symbol labels.
     pub(super) bindings: Option<&'a dir::BindingTable<'a>>,
+    /// The checked generic table.
+    pub(super) generics: Option<dir::GenericTable<'static>>,
     /// Module paths used in multi-module snapshots.
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
+    /// Foreign symbol labels keyed by module and local symbol.
+    pub(super) foreign_symbol_labels: BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>,
+    /// Semantic type labels keyed by local type id.
+    pub(super) type_labels: BTreeMap<dir::LocalTypeId, String>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
     /// The rows collected so far.
     rows: Vec<SnapshotRow>,
 }
 
-#[allow(dead_code)]
 impl<'a> DirSnapshotBuilder<'a> {
     /// Create a DIR snapshot builder.
     pub(crate) fn new(source: &'a str, tree: &'a dir::Tree, strings: &'a StringPool) -> Self {
@@ -45,7 +48,10 @@ impl<'a> DirSnapshotBuilder<'a> {
             tree,
             strings,
             bindings: None,
+            generics: None,
             module_path_by_id: None,
+            foreign_symbol_labels: BTreeMap::new(),
+            type_labels: BTreeMap::new(),
             binding_nodes: false,
             rows: Vec::new(),
         }
@@ -66,6 +72,25 @@ impl<'a> DirSnapshotBuilder<'a> {
         self
     }
 
+    /// Set binding tables used for foreign symbol labels.
+    pub(crate) fn with_foreign_bindings(
+        mut self,
+        foreign_bindings: Vec<dir::BindingTable<'a>>,
+    ) -> Self {
+        for bindings in &foreign_bindings {
+            let names = BindingSnapshotName::new(bindings, self.strings);
+            let labels = bindings
+                .symbol_ids()
+                .map(|symbol_id| (symbol_id, names.symbol_path(symbol_id)))
+                .collect::<BTreeMap<_, _>>();
+
+            self.foreign_symbol_labels
+                .insert(bindings.module_id, labels);
+        }
+
+        self
+    }
+
     /// Add rows for one table.
     pub(crate) fn add_table<T>(&mut self, table: &T)
     where
@@ -77,6 +102,11 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add selected rows for a bound DIR artifact.
     pub(crate) fn add_bound(&mut self, selection: DirSnapshotSet, bound: &DirBound) {
         self.binding_nodes = selection.binding_nodes;
+
+        if selection.types {
+            let types = dir::TypeTable::from_segment(bound.types.clone());
+            self.add_type_labels(&types);
+        }
 
         if selection.binding {
             self.add_table(bound.bindings.as_ref());
@@ -96,18 +126,6 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add selected rows for an expanded DIR artifact.
     pub(crate) fn add_expanded(&mut self, selection: DirSnapshotSet, expanded: &DirExpanded) {
-        if selection.binding {
-            self.add_table(expanded.bindings.as_ref());
-        }
-
-        if selection.dependency {
-            self.add_table(expanded.dependencies.as_ref());
-        }
-
-        if selection.types {
-            self.add_table(expanded.types.as_ref());
-        }
-
         if selection.macros {
             self.add_table(&expanded.macros);
         }
@@ -122,8 +140,19 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add selected rows for a checked DIR artifact.
     pub(crate) fn add_checked(&mut self, selection: DirSnapshotSet, checked: &DirChecked) {
+        if selection.uses_type_labels() {
+            self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
+
+            let types = dir::TypeTable::from_segment(checked.types.clone());
+            self.add_type_labels(&types);
+        }
+
         if selection.types {
             self.add_table(checked.types.as_ref());
+        }
+
+        if selection.generic {
+            self.add_table(checked.generics.as_ref());
         }
 
         if selection.resolution {
@@ -134,74 +163,20 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.instances.as_ref());
         }
 
+        if selection.relation {
+            self.add_table(checked.relations.as_ref());
+        }
+
+        if selection.extension {
+            self.add_table(checked.extensions.as_ref());
+        }
+
         if selection.layout {
             self.add_table(checked.layouts.as_ref());
         }
 
         if selection.capture {
             self.add_table(checked.captures.as_ref());
-        }
-    }
-
-    /// Add selected rows for a materialized DIR artifact.
-    pub(crate) fn add_materialized(
-        &mut self,
-        selection: DirSnapshotSet,
-        materialized: &DirMaterialized,
-    ) {
-        if selection.binding {
-            self.add_table(materialized.bindings.as_ref());
-        }
-
-        if selection.types {
-            self.add_table(materialized.types.as_ref());
-        }
-
-        if selection.resolution {
-            self.add_table(materialized.resolutions.as_ref());
-        }
-
-        if selection.instance {
-            self.add_table(materialized.instances.as_ref());
-        }
-
-        if selection.capture {
-            self.add_table(materialized.captures.as_ref());
-        }
-
-        if selection.layout {
-            self.add_table(materialized.layouts.as_ref());
-        }
-    }
-
-    /// Add selected rows for an elaborated DIR artifact.
-    pub(crate) fn add_elaborated(&mut self, selection: DirSnapshotSet, elaborated: &DirElaborated) {
-        if selection.binding {
-            self.add_table(elaborated.bindings.as_ref());
-        }
-
-        if selection.types {
-            self.add_table(elaborated.types.as_ref());
-        }
-
-        if selection.resolution {
-            self.add_table(elaborated.resolutions.as_ref());
-        }
-
-        if selection.instance {
-            self.add_table(elaborated.instances.as_ref());
-        }
-
-        if selection.capture {
-            self.add_table(elaborated.captures.as_ref());
-        }
-
-        if selection.layout {
-            self.add_table(elaborated.layouts.as_ref());
-        }
-
-        if selection.guard {
-            self.add_table(&elaborated.guards);
         }
     }
 
@@ -271,13 +246,28 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one symbol id using its source name when possible.
     pub(crate) fn symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
-        let bindings = self.binding_table();
-        assert_eq!(
-            symbol_id.module_id, bindings.module_id,
-            "dir snapshot cannot label foreign symbols"
-        );
+        if symbol_id.module_id != self.tree.module_id {
+            return self.foreign_symbol_label(symbol_id);
+        }
 
         self.binding_names().symbol(symbol_id.local_id)
+    }
+
+    /// Render one semantic symbol path.
+    pub(crate) fn symbol_path_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
+        if symbol_id.module_id != self.tree.module_id {
+            return self.foreign_symbol_label(symbol_id);
+        }
+
+        self.binding_names().symbol_path(symbol_id.local_id)
+    }
+
+    /// Render one type id using semantic type text when possible.
+    pub(crate) fn type_label(&self, type_id: dir::LocalTypeId) -> String {
+        self.type_labels
+            .get(&type_id)
+            .cloned()
+            .unwrap_or_else(|| super::label::type_id_label(type_id))
     }
 
     /// Render one local symbol id using its source name when possible.
@@ -324,6 +314,23 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
+    /// Render one declaration reference.
+    pub(crate) fn declaration_label(
+        &self,
+        declaration: dir::LocalNodeId<dir::Declaration>,
+    ) -> String {
+        // resolve declarations through the binding table
+        let declaration = declaration.into_global_any(self.tree.module_id);
+        if let Some(symbol_id) = self.binding_table().symbol_for_declaration(declaration) {
+            let symbol_id = symbol_id.into_global(self.tree.module_id);
+
+            return self.symbol_path_label(symbol_id);
+        }
+
+        // fall back to the node kind for synthetic declarations
+        self.node_label(declaration)
+    }
+
     /// Render one node id.
     pub(crate) fn node_label(&self, node_id: dir::GlobalNodeIdAny) -> String {
         node_id.local_id.ty.name().replace(' ', "_")
@@ -354,6 +361,14 @@ impl<'a> DirSnapshotBuilder<'a> {
             .unwrap_or_else(|| panic!("missing snapshot module path for {module_id}"))
     }
 
+    /// Add semantic type labels for one visible type table.
+    fn add_type_labels(&mut self, types: &dir::TypeTable<'_>) {
+        for type_id in types.iter_type_ids() {
+            let label = self.semantic_type_label(types, type_id);
+            self.type_labels.insert(type_id, label);
+        }
+    }
+
     /// Return the binding snapshot names.
     fn binding_names(&self) -> BindingSnapshotName<'a> {
         BindingSnapshotName::new(self.binding_table(), self.strings)
@@ -371,5 +386,29 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Return one symbol by local id.
     fn symbol(&self, symbol_id: dir::LocalSymbolId) -> &'a dir::Symbol {
         self.binding_table().get_symbol(symbol_id)
+    }
+
+    /// Render one foreign symbol label.
+    fn foreign_symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
+        let module = self.module_label(symbol_id.module_id);
+        let symbol = self
+            .foreign_symbol_labels
+            .get(&symbol_id.module_id)
+            .and_then(|labels| labels.get(&symbol_id.local_id))
+            .cloned()
+            .unwrap_or_else(|| BindingSnapshotName::local_symbol(symbol_id.local_id));
+
+        format!("{module}.{symbol}")
+    }
+
+    /// Render one module path as a compact qualifier.
+    fn module_label(&self, module_id: ModuleId) -> String {
+        let module = self.module_path(module_id);
+        let module = module.strip_suffix(".ds").unwrap_or(&module);
+        let module = module.trim_start_matches("./");
+        let module = module.trim_start_matches(['/', '\\']);
+        let module = module.replace(['/', '\\'], ".");
+
+        module.trim_matches('.').to_string()
     }
 }

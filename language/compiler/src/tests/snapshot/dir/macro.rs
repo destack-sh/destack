@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, value};
+use super::{DirSnapshotBuilder, SnapshotTable, label};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::MacroTable {
@@ -14,7 +14,7 @@ impl SnapshotTable for dir::MacroTable {
             .field("target", builder.node_label(invocation.target_node))
             .field(
                 "trigger",
-                value::macro_trigger_label(builder, &invocation.trigger),
+                label::macro_trigger_label(builder, &invocation.trigger),
             )
             .field(
                 "implementation",
