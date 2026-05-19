@@ -50,11 +50,6 @@ impl Compiler {
             .unwrap_or_else(|| panic!("missing package for {package_id:?}"))
     }
 
-    /// Return whether one module is a code module in one revision.
-    pub(crate) fn is_code_module(&self, revision: Revision, module_id: ModuleId) -> bool {
-        self.module(revision, module_id).is_code()
-    }
-
     /// Load one package Destack config and record its declaration file dependencies.
     pub(crate) fn destack_for_package(
         &self,
