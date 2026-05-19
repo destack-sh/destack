@@ -265,6 +265,7 @@ impl Parser {
                 Keyword::Export
                     | Keyword::Declare
                     | Keyword::Abstract
+                    | Keyword::Final
                     | Keyword::Shared
                     | Keyword::Static,
             )
