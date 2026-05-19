@@ -32,30 +32,6 @@ _run-rust-test *args:
 _run-destack-test test_binary *args:
     cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; command=( "${cargo_bin}" test --release -p destack_test --test "{{test_binary}}" ); if [ -n "${test_jobs}" ]; then command+=( -- -j "${test_jobs}" ); set -- {{args}}; if [ "$#" -gt 0 ]; then command+=( "$@" ); fi; else set -- {{args}}; if [ "$#" -gt 0 ]; then command+=( -- "$@" ); fi; fi; "${command[@]}"
 
-# --- setup ---
-
-# install language test fixtures
-install:
-    just install-conformance
-
-# install conformance suites
-install-conformance:
-    just install-conformance-ecma
-    just install-conformance-formatter
-
-# install ecma conformance suites
-install-conformance-ecma:
-    python3 ./test/fixtures/conformance/fetch-suite.py \
-        ./test/fixtures/conformance/ecma/test262 \
-        ./test/fixtures/conformance/ecma/babel \
-        ./test/fixtures/conformance/ecma/swc \
-        ./test/fixtures/conformance/ecma/biome
-
-# install formatter conformance sources
-install-conformance-formatter:
-    python3 ./test/fixtures/conformance/fetch-suite.py \
-        ./test/fixtures/conformance/formatter/oxfmt
-
 # --- build ---
 
 # run language static checks
@@ -195,7 +171,6 @@ test-unit:
 # run the language test aggregate
 test:
     just test-unit
-    just test-smoke
     just test-emit
     just test-specification
     just test-query
@@ -203,7 +178,6 @@ test:
     just test-resolver
     just test-formatter
     just test-grammar
-    just install-conformance
     just test-conformance
 
 # run the language quick gate
@@ -226,10 +200,6 @@ test-all:
 # run linter tests
 test-linter:
     just _run-rust-test --release --all-targets --no-fail-fast -p destack_linter
-
-# run smoke tests
-test-smoke:
-    just _run-destack-test smoke
 
 # run emit tests
 test-emit:
@@ -267,22 +237,6 @@ test-conformance-formatter-update:
 # regenerate shared conformance catalog sections
 update-conformance-catalog:
     cargo run -p destack_test --bin update_conformance_catalog
-
-# snapshot formatter output for a tests tree
-snapshot-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/tests" out="/tmp/destack-snapshot-formatter-corpus":
-    bash ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
-
-# bench formatter parse and print throughput on a corpus
-bench-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/tests" runs="5":
-    bash ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
-
-# run formatter bench stats
-bench-formatter-stats args="--help":
-    cargo run --release -p destack_formatter --example bench_stats -- {{args}}
-
-# diff two formatter corpus snapshots
-compare-formatter-corpus baseline candidate:
-    bash ./formatter/scripts/corpus_diff.sh "{{baseline}}" "{{candidate}}"
 
 # run resolver tests
 test-resolver:

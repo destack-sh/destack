@@ -6,16 +6,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::{Compiler, ImportError};
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
-    DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType, LanguageType,
-    MemoryFileSystem, ModuleId, Uri,
+    DiagnosticCollection, DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType,
+    LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
 };
 use destack_workspace::{Environment, Repository, Revision};
 
 use crate::core::{
-    module_artifact_diagnostics, module_id_for_path, profile_id_for_builtin_default_target,
-    provide_workspace_artifacts, write_workspace_file, write_workspace_text_file,
+    format_diagnostics, module_artifact_diagnostics, module_id_for_path,
+    profile_id_for_builtin_default_target, provide_workspace_artifacts, write_workspace_file,
+    write_workspace_text_file,
 };
 
 /// Outcome of checking a file for conformance testing.
@@ -135,6 +136,8 @@ pub(super) struct ParseOptions {
     pub area: TestArea,
     /// Whether to disallow ambiguous tree literal syntax.
     pub disallow_ambiguous_tree_literal: bool,
+    /// Whether failed cases should print diagnostics.
+    pub should_print_diagnostics: bool,
 }
 
 #[derive(Debug)]
@@ -151,7 +154,7 @@ impl SharedConformanceEnvironment {
     /// Create a new shared environment for conformance tests.
     fn new() -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
-        let cwd = PathBuf::from("/test/conformance/ecma");
+        let cwd = PathBuf::from("/test/conformance");
         fs.create_dir_all(&cwd)
             .expect("failed to create conformance workspace root");
         let repository = Arc::new(Repository::new(
@@ -174,7 +177,7 @@ impl SharedConformanceEnvironment {
             .file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("case");
-        PathBuf::from("/test/conformance/ecma").join(format!("{stem}-{id}"))
+        PathBuf::from("/test/conformance").join(format!("{stem}-{id}"))
     }
 
     /// Build a synthetic file path for a test case.
@@ -257,6 +260,17 @@ fn parse_file_with_parser(
         .any(|d| options.area.is_relevant_error(&d.code));
 
     if has_relevant_error {
+        if options.should_print_diagnostics {
+            let file_for_id = |current_file_id| {
+                if current_file_id == file.id {
+                    Some(file.clone())
+                } else {
+                    None
+                }
+            };
+            print_conformance_diagnostics(path, &file_for_id, parser.diagnostics.collect());
+        }
+
         ParseOutcome::Error
     } else {
         ParseOutcome::Ok
@@ -340,6 +354,13 @@ fn parse_file_with_compiler(
 
     // panics during compilation are treated as errors
     if result.is_err() {
+        if options.should_print_diagnostics {
+            println!(
+                "conformance diagnostics for {}:\ncompiler panicked",
+                path.display()
+            );
+        }
+
         return ParseOutcome::Error;
     }
 
@@ -355,10 +376,33 @@ fn parse_file_with_compiler(
         .any(|d| options.area.is_relevant_error(&d.code));
 
     if has_relevant_error {
+        if options.should_print_diagnostics {
+            let file_for_id = |file_id| {
+                program
+                    .file(revision, file_id)
+                    .unwrap_or_else(|error| panic!("failed to load diagnostic file: {error}"))
+            };
+            print_conformance_diagnostics(path, &file_for_id, diagnostics);
+        }
+
         ParseOutcome::Error
     } else {
         ParseOutcome::Ok
     }
+}
+
+/// Print diagnostics for one conformance case.
+fn print_conformance_diagnostics(
+    path: &Path,
+    file_for_id: &impl Fn(FileId) -> Option<Arc<File>>,
+    diagnostics: DiagnosticCollection,
+) {
+    let options = PrintOptions::new().with_colorizer(source_colorizer());
+    let rendered = format_diagnostics(file_for_id, &diagnostics, options);
+    println!(
+        "conformance diagnostics for {}:\n{rendered}",
+        path.display()
+    );
 }
 
 /// Return one workspace path whose extension matches the requested file type.

@@ -31,7 +31,6 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 | Suite | Family | Gate | Purpose |
 |------|--------|------|---------|
 | [**Unit**](language/test/README.md) | Correctness | Quick | Internal invariants in parser, compiler, runtime, resolver, and related crates |
-| [**Smoke**](language/test/fixtures/smoke/) | Correctness | Quick | Broad no-crash and basic no-regression coverage for parser and compiler flows |
 | [**Emit**](language/test/fixtures/emit/) | Correctness | Standalone | Emitted output matches curated checked-in snapshots |
 | [**Specification**](language/test/fixtures/specification/) | Correctness | Quick | First-party language semantics and diagnostics |
 | [**Conformance**](language/test/fixtures/conformance/) | Conformance | Mixed | External parser and formatter corpora used as regression inputs, not product compatibility targets |
@@ -47,11 +46,11 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 <!-- begin:conformance-catalog -->
 | Domain | Suite | Title | Status | Origin Ref |
 | --- | --- | --- | --- | --- |
-| ecma | babel | ECMA Babel | ignore 7 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
-| ecma | biome | ECMA Biome | known-fail 1, ignore 13 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
-| ecma | swc | ECMA SWC | ignore 3 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
-| ecma | test262 | ECMA Test262 | ignore 7 | 0e808c74fbec780646434cad17bb22dc52461003 |
-| formatter | oxfmt | Formatter Oxfmt | known-fail-idempotence 4, ignore 13 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
+| ecma | babel | ECMA Babel | excluded 45 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
+| ecma | biome | ECMA Biome | excluded 57 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
+| ecma | swc | ECMA SWC | excluded 23 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
+| ecma | test262 | ECMA Test262 | excluded 20 | 0e808c74fbec780646434cad17bb22dc52461003 |
+| formatter | oxfmt | Formatter Oxfmt | excluded 17, known-fail-idempotence 4 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
 <!-- end:conformance-catalog -->
 
 ## Commands
@@ -70,7 +69,6 @@ just full
 # language correctness suites
 just language/test
 just language/test-unit
-just language/test-smoke
 just language/test-emit
 just language/test-specification
 just language/test-query

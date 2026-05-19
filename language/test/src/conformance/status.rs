@@ -27,16 +27,14 @@ pub const STATUS_JSON_FILE_NAME: &str = "status.json";
 pub enum CaseStatus {
     /// The case is maintained as one direct sound translation.
     Translated,
-    /// The case is intentionally excluded from Destack execution.
+    /// The case is intentionally excluded from execution.
     Excluded,
-    /// The case is maintained as one adapted Destack-native case.
+    /// The case is maintained as one adapted native case.
     Adapted,
     /// The case is a known failure.
     KnownFail,
     /// The case is a known idempotence-only failure.
     KnownFailIdempotence,
-    /// The case is intentionally ignored.
-    Ignore,
     /// The case is blocked on environment availability.
     EnvBlocked,
     /// The case is flaky.
@@ -54,7 +52,6 @@ impl CaseStatus {
             Self::Adapted => "adapted",
             Self::KnownFail => "known-fail",
             Self::KnownFailIdempotence => "known-fail-idempotence",
-            Self::Ignore => "ignore",
             Self::EnvBlocked => "env-blocked",
             Self::Flaky => "flaky",
             Self::Manual => "manual",
@@ -716,7 +713,7 @@ mod tests {
             entries: vec![StatusEntry {
                 patterns: vec!["pass*/alpha".to_string(), "fail/beta".to_string()],
                 reason: "scope".to_string(),
-                ..status_entry(CaseStatus::Ignore)
+                ..status_entry(CaseStatus::Excluded)
             }],
         };
 

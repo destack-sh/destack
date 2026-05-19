@@ -4,8 +4,8 @@ use destack_source::FileType;
 
 use super::expected::{load_expected_output, load_oxfmt_expected_case};
 use super::fixtures::{
-    expect_error_from_path, is_formattable_file_type, should_skip_directory,
-    should_skip_fixture_file, sibling_with_suffix,
+    expect_error_from_path, is_excluded_directory, is_excluded_fixture_file,
+    is_formattable_file_type, sibling_with_suffix,
 };
 use super::format::{default_conformance_formatter_options, run_formatter_case};
 use crate::conformance::{
@@ -28,8 +28,8 @@ pub struct OxfmtSuite {
 impl OxfmtSuite {
     /// Create one oxfmt conformance suite.
     pub fn new() -> Self {
-        let suite_dir = formatter::suite_fixtures_dir("formatter", "oxfmt");
-        let tests_dir = formatter::suite_tests_dir("formatter", "oxfmt");
+        let suite_dir = formatter::suite_fixtures_dir("oxfmt");
+        let tests_dir = formatter::suite_tests_dir("oxfmt");
         Self {
             tests_dir,
             suite_dir,
@@ -50,13 +50,13 @@ impl OxfmtSuite {
                     .file_name()
                     .and_then(|value| value.to_str())
                     .unwrap_or("");
-                if should_skip_directory(directory_name) {
+                if is_excluded_directory(directory_name) {
                     continue;
                 }
                 self.discover_in_dir(&path, tests);
                 continue;
             }
-            if !path.is_file() || should_skip_fixture_file(&path) {
+            if !path.is_file() || is_excluded_fixture_file(&path) {
                 continue;
             }
 
@@ -152,12 +152,9 @@ impl ConformanceDriver for OxfmtSuite {
 
     fn fetch_instructions(&self) -> String {
         format!(
-            "To download oxfmt fixtures (version {OXFMT_VERSION}, ref {OXFMT_REF}):\n\
+            "To refresh oxfmt fixtures (version {OXFMT_VERSION}, ref {OXFMT_REF}):\n\
              \n\
-               just language/install-conformance-formatter\n\
-             \n\
-             Or manually:\n\
-               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/formatter/oxfmt\n"
+               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/oxfmt\n"
         )
     }
 }

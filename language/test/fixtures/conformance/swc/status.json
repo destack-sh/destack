@@ -1,0 +1,231 @@
+{
+  "$schema": "../schema/status.schema.json",
+  "entries": [
+    {
+      "patterns": [
+        "typescript/cast/need-parentheses/input.ts",
+        "typescript/cast/type-assertion-after-operator/input.ts",
+        "typescript/cast/type-assertion-and-assign/input.ts",
+        "typescript/cast/type-assertion-before-operator/input.ts",
+        "typescript/cast/type-assertion/input.ts",
+        "typescript/custom/issue-374/input.ts",
+        "typescript/custom/issue-401-const-assertion-array-ts/input.ts",
+        "typescript/custom/issue-401-const-assertion-literal-ts/input.ts",
+        "typescript/custom/issue-401-const-assertion-object-ts/input.ts",
+        "typescript/deno/dso/reflect/input.ts",
+        "typescript/issue-11142/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "assertion",
+      "note": "legacy angle-bracket type assertions are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/class/declare/input.ts",
+        "typescript/class/index-signature/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "class index signatures are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/custom/default-followed-by-type/arrow/input.ts",
+        "typescript/declare/var/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "legacy-var",
+      "note": "`var` declarations are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/instantiation-expr/base/input.ts",
+        "typescript/issue-11124/input.ts",
+        "typescript/issue-3862/index.ts",
+        "js/issue-11214/input.js"
+      ],
+      "status": "excluded",
+      "reason": "legacy-var",
+      "note": "mixed fixtures contain `var` declarations"
+    },
+    {
+      "patterns": [
+        "typescript/issue-4911/2/input.ts",
+        "typescript/issue-4911/3/input.ts",
+        "typescript/next/stack-overflow/1/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "legacy-var",
+      "note": "large generated fixtures contain `var` declarations"
+    },
+    {
+      "patterns": [
+        "typescript/stc/0001/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "legacy-var",
+      "note": "mixed fixture contains `var` declarations"
+    },
+    {
+      "patterns": [
+        "typescript/custom/dynamic-import-expr-ctx/input.ts",
+        "typescript/custom/dynamic-import-top-level/input.ts",
+        "typescript/import-assertions/dynamic-import/expr/input.ts",
+        "typescript/import-assertions/dynamic-import/top/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "dynamic import expressions are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/custom/import-type/typeof/as/input.ts",
+        "typescript/custom/import-type/typeof/simple/input.ts",
+        "typescript/ts-import-type/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "dynamic import type queries are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/custom/issue-623/input.ts",
+        "typescript/estree-compat/shorthand-ambient-module/input.ts",
+        "typescript/export/as-namespace/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "namespace-module",
+      "note": "namespace and ambient module declarations are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/export/declare/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "namespace-module",
+      "note": "mixed fixture contains `export declare module` and namespace declarations"
+    },
+    {
+      "patterns": [
+        "typescript/export/equals/input.ts",
+        "typescript/import/not-top-level/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "commonjs",
+      "note": "CommonJS export and nested import syntax are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/export/nested-same-name/input.ts",
+        "typescript/module-namespace/**/input.ts",
+        "typescript/issue-1653/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "namespace-module",
+      "note": "namespace declarations are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/import-assertions/export/test*/input.ts*",
+        "typescript/import-assertions/stmt/test*/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "deprecated assert import attributes are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/import/equals-require/input.ts",
+        "typescript/import/equals-type-only/input.ts",
+        "typescript/import/equals/input.ts",
+        "typescript/import/export-import-require/input.ts",
+        "typescript/import/export-import-type-require/input.ts",
+        "typescript/import/export-import/input.ts",
+        "typescript/issue-8308/2/input.ts",
+        "typescript/issue-8308/3/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "import-equals syntax is out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/issue-947/input.ts",
+        "js/issue-10558/1/index.js"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "`delete` expressions are out of scope"
+    },
+    {
+      "patterns": [
+        "typescript/issue-9802/input.ts",
+        "typescript/vercel/web-875/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "mixed fixtures contain dynamic import type queries"
+    },
+    {
+      "patterns": [
+        "typescript/issue-7403/2/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "syntax",
+      "note": "ambiguous legacy expression syntax is out of parser scope"
+    },
+    {
+      "patterns": [
+        "typescript/variance-annotations/**/input.ts*"
+      ],
+      "status": "excluded",
+      "reason": "typing",
+      "note": "mixed fixtures contain variance semantic checks and invalid modifiers"
+    },
+    {
+      "patterns": [
+        "jsx/basic/issue-6522/input.js"
+      ],
+      "status": "excluded",
+      "reason": "legacy",
+      "note": "mixed JSX fixture contains out-of-scope `var`"
+    },
+    {
+      "patterns": [
+        "js/explicit-resource-management/.valid-for-using-binding-escaped-of-of/input.js"
+      ],
+      "status": "excluded",
+      "reason": "using",
+      "note": "escaped contextual keywords are out of scope"
+    },
+    {
+      "patterns": [
+        "js/import-assertions/**",
+        "js/import-attributes-deprecatedAssertKeyword/**"
+      ],
+      "status": "excluded",
+      "reason": "import-attributes",
+      "note": "deprecated assert import attributes are out of scope"
+    },
+    {
+      "patterns": [
+        "js/import-attributes/dynamic-import-with-valid-syntax/input.js",
+        "js/import-attributes/trailing-comma-dynamic/input.js",
+        "js/import-assertions-with-keyword/dynamic-import-with-valid-syntax/input.js",
+        "js/import-assertions-with-keyword/trailing-comma-dynamic/input.js"
+      ],
+      "status": "excluded",
+      "reason": "import-attributes",
+      "note": "dynamic import attributes are out of scope"
+    },
+    {
+      "patterns": [
+        "js/source-phase-imports/**",
+        "js/deferred-import-evaluation/**"
+      ],
+      "status": "excluded",
+      "reason": "import-phase",
+      "note": "source phase and deferred imports are out of scope"
+    }
+  ]
+}

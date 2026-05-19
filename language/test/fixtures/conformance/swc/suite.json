@@ -1,0 +1,31 @@
+{
+  "$schema": "../schema/suite.schema.json",
+  "id": "ecma.swc",
+  "domain": "ecma",
+  "suite": "swc",
+  "title": "ECMA SWC",
+  "origin": {
+    "repo": "https://github.com/swc-project/swc.git",
+    "ref": "5b9d77c1c89ade5772c6feee429386faf3b93a39",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "swc parser",
+        "version": "1.x",
+        "layout": "strip",
+        "include": [
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "paths": [
+          "crates/swc_ecma_parser/tests"
+        ]
+      }
+    ]
+  }
+}

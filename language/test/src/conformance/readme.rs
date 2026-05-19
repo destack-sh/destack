@@ -407,7 +407,7 @@ fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> Stri
     // table header
     let mut lines = Vec::new();
     lines.push(
-        "| Category             | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |"
+        "| Category             | Passed | Failed | Skipped | Total |  Rate   | Incl. Rate |"
             .to_string(),
     );
     lines.push(
@@ -483,7 +483,7 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     // table header
     let mut lines = Vec::new();
     lines.push(
-        "| Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |".to_string(),
+        "| Suite    | Passed | Failed | Skipped | Total |  Rate   | Incl. Rate |".to_string(),
     );
     lines.push(
         "|:---------|-------:|-------:|--------:|------:|--------:|-----------:|".to_string(),
@@ -517,13 +517,13 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     ));
     lines.push(String::new());
     lines.push(format!(
-        "Total Blended Pass Rate: **{total_rate:.2}%** ({total_rate_with_skipped:.2}% incl. ignored)"
+        "Total Blended Pass Rate: **{total_rate:.2}%** ({total_rate_with_skipped:.2}% incl. skipped)"
     ));
 
     lines.join("\n")
 }
 
-/// Parse one ignored cell from the README table.
+/// Parse one skipped cell from the README table.
 fn parse_readme_skipped_cell(value: &str, line: &str) -> Result<usize, String> {
     if value == "-" {
         return Ok(0);
@@ -531,7 +531,7 @@ fn parse_readme_skipped_cell(value: &str, line: &str) -> Result<usize, String> {
 
     value
         .parse()
-        .map_err(|_| format!("invalid ignored count in README row: {line}"))
+        .map_err(|_| format!("invalid skipped count in README row: {line}"))
 }
 
 /// Parse one percent cell from the README table.

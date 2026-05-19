@@ -1,0 +1,41 @@
+{
+  "$schema": "../schema/suite.schema.json",
+  "id": "ecma.babel",
+  "domain": "ecma",
+  "suite": "babel",
+  "title": "ECMA Babel",
+  "origin": {
+    "repo": "https://github.com/babel/babel.git",
+    "ref": "b8ef443e0a3ee202264fb40edc1cbce8f2352aaa",
+    "kind": "git"
+  },
+  "fetch": {
+    "entries": [
+      {
+        "kind": "source",
+        "label": "babel parser",
+        "version": "7.26",
+        "layout": "strip",
+        "include": [
+          "typescript/**/input.ts",
+          "typescript/**/input.tsx",
+          "typescript/**/input.js",
+          "typescript/**/input.jsx",
+          "typescript/**/input.mjs",
+          "typescript/**/options.json",
+          "typescript/**/output.json",
+          "jsx/**/input.ts",
+          "jsx/**/input.tsx",
+          "jsx/**/input.js",
+          "jsx/**/input.jsx",
+          "jsx/**/input.mjs",
+          "jsx/**/options.json",
+          "jsx/**/output.json"
+        ],
+        "paths": [
+          "packages/babel-parser/test/fixtures"
+        ]
+      }
+    ]
+  }
+}

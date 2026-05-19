@@ -1,0 +1,497 @@
+{
+    "$schema": "../schema/status.schema.json",
+    "entries": [
+        {
+            "patterns": [
+                "typescript/cast/arrow-in-parens",
+                "typescript/cast/arrow-in-parens-with-parens-node",
+                "typescript/cast/destructure-and-assign",
+                "typescript/cast/for-of-lhs",
+                "typescript/cast/need-parentheses",
+                "typescript/cast/parenthesized-type-assertion-and-assign",
+                "typescript/cast/type-assertion",
+                "typescript/cast/type-assertion-after-operator",
+                "typescript/cast/type-assertion-and-assign",
+                "typescript/cast/type-assertion-before-operator",
+                "typescript/type-arguments-bit-shift-left-like/after-bit-shift"
+            ],
+            "status": "excluded",
+            "reason": "assertion",
+            "note": "legacy angle-bracket type assertions are out of scope"
+        },
+        {
+            "patterns": ["typescript/cast/as-const"],
+            "status": "excluded",
+            "reason": "angle-const-assertion",
+            "note": "mixed const assertion fixture contains out-of-scope `<const>x` assertions"
+        },
+        {
+            "patterns": [
+                "typescript/types/invalid-import-type-dynamic-with-jsx-options",
+                "typescript/types/invalid-import-type-options-string-with",
+                "typescript/types/invalid-import-type-options-trailing-comma",
+                "typescript/types/invalid-import-type-options-with-computed-properties",
+                "typescript/types/invalid-import-type-options-with-spread-element",
+                "typescript/types/invalid-import-type-trailing-comma"
+            ],
+            "status": "excluded",
+            "reason": "syntax",
+            "note": "dynamic import type queries are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/exponentiation/await-non-null-before-exponential"
+            ],
+            "status": "excluded",
+            "reason": "syntax",
+            "note": "TypeScript non-null assertion semantics are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/types/variance-annotations",
+                "typescript/types/variance-annotations-with-jsx"
+            ],
+            "status": "excluded",
+            "reason": "typing",
+            "note": "mixed fixtures contain variance semantic checks and invalid modifiers"
+        },
+        {
+            "patterns": ["typescript/module-namespace/*-declare-new-line"],
+            "status": "excluded",
+            "reason": "syntax",
+            "note": "namespace declarations are out of scope"
+        },
+        {
+            "patterns": ["jsx/errors/*sequence-expression"],
+            "status": "excluded",
+            "reason": "permissive",
+            "note": "external JSX container restriction is out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/arrow-function/arrow-like-in-conditional-2"
+            ],
+            "status": "excluded",
+            "reason": "permissive",
+            "note": "external ternary branch restriction is out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/accessor-invalid",
+                "typescript/class/declare-accessor",
+                "typescript/class/declare-method",
+                "typescript/class/generator-method-with-modifiers",
+                "typescript/class/modifiers-incompatible",
+                "typescript/class/optional-generator-method-with-invalid-modifiers"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "declare class accessor and method restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/declare",
+                "typescript/class/declare-field-initializer",
+                "typescript/class/declare-initializer",
+                "typescript/class/declare-readonly-field-initializer-w-annotation",
+                "typescript/const/initializer-ambient-context",
+                "typescript/declare/destructure-new-line"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "ambient initializer restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/declare/function",
+                "typescript/export/export-type-declaration"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "ambient declaration body restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/declare/var",
+                "typescript/declare/var-new-line",
+                "typescript/scope/module-declaration-var-2"
+            ],
+            "status": "excluded",
+            "reason": "legacy-var",
+            "note": "`declare var` forms are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/declare/invalid-await-using-declaration-with-initializer",
+                "typescript/enum/declare-new-line"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "ambient declaration modifier restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/static-blocks/invalid-static-blocks-with-modifer-declare-01",
+                "typescript/static-blocks/invalid-static-blocks-with-modifer-declare-02"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "modifiers on static blocks are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/abstract-method-in-non-abstract-class-1",
+                "typescript/class/abstract-method-in-non-abstract-class-2",
+                "typescript/class/abstract-method-in-non-abstract-class-3",
+                "typescript/class/abstract-method-with-body",
+                "typescript/class/abstract-method-with-body-computed",
+                "typescript/class/abstract-property-initializer"
+            ],
+            "status": "excluded",
+            "reason": "abstract-member",
+            "note": "abstract member restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/constructor-with-type-parameters",
+                "typescript/class/private-fields-modifier-abstract"
+            ],
+            "status": "excluded",
+            "reason": "class-modifier-rule",
+            "note": "constructor generic and private abstract member restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/interface/abstract",
+                "typescript/interface/export-abstract-interface"
+            ],
+            "status": "excluded",
+            "reason": "legacy-modifier",
+            "note": "abstract interface modifiers are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/static-blocks/invalid-static-block-with-modifier-abstract-01",
+                "typescript/static-blocks/invalid-static-block-with-modifier-abstract-02"
+            ],
+            "status": "excluded",
+            "reason": "static-block",
+            "note": "modifiers on static blocks are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/dts/invalid-class-implementation",
+                "typescript/dts/invalid-class-initializer"
+            ],
+            "status": "excluded",
+            "reason": "dts",
+            "note": ".d.ts ambient semantic restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/types/import-type-dynamic",
+                "typescript/types/import-type-dynamic-errors",
+                "typescript/types/import-type-dynamic-with-options",
+                "typescript/types/import-type-dynamic-with-options-trailing-comma",
+                "typescript/types/import-type-dynamic-with-string-options",
+                "typescript/types/import-type-options-with-trailing-comma",
+                "typescript/types/intrinsic-identifier",
+                "typescript/types/intrinsic-keyword-error"
+            ],
+            "status": "excluded",
+            "reason": "import-type-query",
+            "note": "dynamic import type queries are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/arrow-function/async-rest-optional-parameter",
+                "typescript/function/pattern-optional-parameters",
+                "typescript/function/pattern-optional-parameters-arrow",
+                "typescript/types/no-annotation-in-destructuring",
+                "typescript/types/no-optional-in-destructuring",
+                "typescript/types/no-optional-in-destructuring-in-params"
+            ],
+            "status": "excluded",
+            "reason": "binding-syntax",
+            "note": "optional destructuring binding syntax is out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/extends-empty",
+                "typescript/class/extends-implements-empty",
+                "typescript/class/implements-empty",
+                "typescript/interface/invalid-extends"
+            ],
+            "status": "excluded",
+            "reason": "heritage-syntax",
+            "note": "empty heritage clauses are negative grammar fixtures"
+        },
+        {
+            "patterns": [
+                "typescript/interface/export-default",
+                "typescript/type-only-import-export-specifiers/export-invalid-type-only-keyword"
+            ],
+            "status": "excluded",
+            "reason": "export-syntax",
+            "note": "invalid export declaration forms are negative grammar fixtures"
+        },
+        {
+            "patterns": [
+                "typescript/interface/get-set-invalid-optional-parameter",
+                "typescript/interface/get-set-invalid-parameters",
+                "typescript/interface/get-set-invalid-reset-parameter",
+                "typescript/interface/get-set-invalid-reset-parameter-babel-7",
+                "typescript/interface/get-set-invalid-return-types",
+                "typescript/interface/get-set-invalid-this-parameters",
+                "typescript/interface/get-set-type-parameters",
+                "typescript/types/type-literal-get-set"
+            ],
+            "status": "excluded",
+            "reason": "accessor-signature",
+            "note": "getter and setter signature restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/types/tuple-optional-invalid",
+                "typescript/types/tuple-required-after-labeled-optional"
+            ],
+            "status": "excluded",
+            "reason": "tuple-syntax",
+            "note": "invalid tuple optional element ordering is out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/const/no-initializer",
+                "typescript/const/reserved-word",
+                "typescript/types/const-type-parameters-invalid"
+            ],
+            "status": "excluded",
+            "reason": "const-syntax",
+            "note": "invalid `const` declaration and type parameter forms are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/cast/satisfies-const-error",
+                "typescript/decorators/type-arguments-invalid",
+                "typescript/exponentiation/unary-non-null-before-exponential",
+                "typescript/regression/keyword-qualified-type-2"
+            ],
+            "status": "excluded",
+            "reason": "invalid-type-syntax",
+            "note": "miscellaneous negative TypeScript grammar fixtures are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/expect-plugin/export-interface",
+                "typescript/expect-plugin/export-type"
+            ],
+            "status": "excluded",
+            "reason": "javascript-typescript",
+            "note": "TypeScript declarations in JavaScript plugin mode are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/arrow-function/generic-tsx",
+                "typescript/disallow-jsx-ambiguity/type-parameter"
+            ],
+            "status": "excluded",
+            "reason": "jsx-generic-arrow",
+            "note": "mixed TSX fixture contains out-of-scope `<T>` arrow syntax"
+        },
+        {
+            "patterns": [
+                "typescript/class/modifier-name-parameters",
+                "typescript/static-blocks/invalid-static-block-with-accessibility-private-01",
+                "typescript/static-blocks/invalid-static-block-with-accessibility-protected-01",
+                "typescript/static-blocks/invalid-static-block-with-accessibility-public-01",
+                "typescript/static-blocks/invalid-static-block-with-modifier-override-02"
+            ],
+            "status": "excluded",
+            "reason": "legacy-modifier",
+            "note": "legacy accessibility and override modifier edge cases are out of scope"
+        },
+        {
+            "patterns": ["typescript/arrow-function/async-arrow-function-asi"],
+            "status": "excluded",
+            "reason": "mixed-var",
+            "note": "mixed async arrow fixture contains out-of-scope `var`"
+        },
+        {
+            "patterns": [
+                "typescript/declare/valid-namespace-var",
+                "typescript/export/as-namespace",
+                "typescript/export/declare"
+            ],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "mixed fixtures contain namespace or ambient module declarations"
+        },
+        {
+            "patterns": [
+                "typescript/export/equals",
+                "typescript/export/equals-in-unambiguous",
+                "typescript/export/export-value-declaration"
+            ],
+            "status": "excluded",
+            "reason": "commonjs",
+            "note": "CommonJS export assignment and `export var` syntax are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/export/nested-same-name",
+                "typescript/module-namespace/body",
+                "typescript/module-namespace/body-declare",
+                "typescript/module-namespace/body-nested",
+                "typescript/module-namespace/body-nested-declare",
+                "typescript/module-namespace/declare-shorthand",
+                "typescript/module-namespace/global-in-module",
+                "typescript/module-namespace/head",
+                "typescript/module-namespace/head-declare",
+                "typescript/module-namespace/head-export",
+                "typescript/scope/export-func-in-declare-module",
+                "typescript/scope/export-import-in-declare-module",
+                "typescript/scope/export-namespace",
+                "typescript/scope/module-declaration-var",
+                "typescript/scope/redeclaration-in-different-module",
+                "typescript/scope/redeclaration-in-different-module-and-top-level",
+                "typescript/scope/redeclaration-in-nested-module"
+            ],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "namespace and ambient module declarations are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/import/equals",
+                "typescript/import/equals-in-unambiguous",
+                "typescript/import/equals-require",
+                "typescript/import/equals-require-in-unambiguous",
+                "typescript/import/export-import",
+                "typescript/import/export-import-require",
+                "typescript/import/export-import-type-as-identifier",
+                "typescript/import/export-import-type-require",
+                "typescript/import/export-named-import-require",
+                "typescript/import/import-type-as-identifier",
+                "typescript/import/not-top-level",
+                "typescript/import/type-asi",
+                "typescript/import/type-equals-require"
+            ],
+            "status": "excluded",
+            "reason": "import-equals",
+            "note": "import-equals syntax is out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/scope/redeclaration-import-equals-var"
+            ],
+            "status": "excluded",
+            "reason": "import-equals",
+            "note": "mixed fixture contains import-equals and `var`"
+        },
+        {
+            "patterns": [
+                "typescript/declare/eval",
+                "typescript/declare/eval-dts"
+            ],
+            "status": "excluded",
+            "reason": "namespace",
+            "note": "mixed global declaration fixtures contain out-of-scope `export namespace` declarations"
+        },
+        {
+            "patterns": [
+                "typescript/type-arguments/call-optional-chain-invalid",
+                "typescript/type-arguments/instantiation-expression-property-access"
+            ],
+            "status": "excluded",
+            "reason": "optional-chain-rule",
+            "note": "optional-chain and instantiation-expression semantic restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/parameter-properties-binding-patterns",
+                "typescript/class/parameter-properties-not-constructor",
+                "typescript/function/parameter-properties"
+            ],
+            "status": "excluded",
+            "reason": "parameter-property",
+            "note": "invalid parameter property placements are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/index-signature",
+                "typescript/variable-declarator/definite-assignment-not-allowed"
+            ],
+            "status": "excluded",
+            "reason": "class-index-signature",
+            "note": "class index signatures and variable definite assignment are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/class/method-readonly",
+                "typescript/types/read-only-1",
+                "typescript/types/read-only-2",
+                "typescript/types/read-only-3",
+                "typescript/types/read-only-4"
+            ],
+            "status": "excluded",
+            "reason": "readonly-rule",
+            "note": "`readonly` placement restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-01",
+                "typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-02"
+            ],
+            "status": "excluded",
+            "reason": "static-block",
+            "note": "modifiers on static blocks are out of scope"
+        },
+        {
+            "patterns": [
+                "typescript/scope/redeclaration-class-class",
+                "typescript/scope/redeclaration-class-type",
+                "typescript/scope/redeclaration-type-class",
+                "typescript/scope/redeclaration-type-interface",
+                "typescript/scope/redeclaration-type-type"
+            ],
+            "status": "excluded",
+            "reason": "scope-rule",
+            "note": "type and class redeclaration early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/scope/redeclaration-class-enum",
+                "typescript/scope/redeclaration-constenum-enum",
+                "typescript/scope/redeclaration-enum-class",
+                "typescript/scope/redeclaration-enum-constenum",
+                "typescript/scope/redeclaration-enum-function",
+                "typescript/scope/redeclaration-enum-interface",
+                "typescript/scope/redeclaration-enum-let",
+                "typescript/scope/redeclaration-enum-type",
+                "typescript/scope/redeclaration-enum-var",
+                "typescript/scope/redeclaration-function-enum",
+                "typescript/scope/redeclaration-interface-enum",
+                "typescript/scope/redeclaration-let-enum",
+                "typescript/scope/redeclaration-type-enum",
+                "typescript/scope/redeclaration-var-enum",
+                "typescript/scope/redeclaration-var-interface"
+            ],
+            "status": "excluded",
+            "reason": "scope-rule",
+            "note": "enum redeclaration early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "typescript/scope/redeclaration-import-type-type",
+                "typescript/scope/redeclaration-import-type-var",
+                "typescript/scope/redeclaration-import-var",
+                "typescript/scope/redeclaration-interface-var",
+                "typescript/scope/redeclaration-type-var",
+                "typescript/scope/redeclaration-var-type"
+            ],
+            "status": "excluded",
+            "reason": "scope-rule",
+            "note": "import and variable redeclaration early errors are out of parser scope"
+        }
+    ]
+}

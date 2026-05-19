@@ -21,8 +21,8 @@ pub struct BiomeSuite {
 impl BiomeSuite {
     /// Create one Biome conformance suite.
     pub fn new() -> Self {
-        let suite_dir = suite_fixtures_dir("ecma", "biome");
-        let tests_dir = suite_tests_dir("ecma", "biome");
+        let suite_dir = suite_fixtures_dir("biome");
+        let tests_dir = suite_tests_dir("biome");
         Self {
             tests_dir,
             suite_dir,
@@ -98,7 +98,7 @@ impl ConformanceDriver for BiomeSuite {
         tests
     }
 
-    fn run(&self, test: &Case, _show_diff: bool) -> CaseOutcome {
+    fn run(&self, test: &Case, show_diff: bool) -> CaseOutcome {
         let path = self.tests_dir.join(&test.name);
 
         let content = match std::fs::read_to_string(&path) {
@@ -118,6 +118,7 @@ impl ConformanceDriver for BiomeSuite {
             ParseOptions {
                 area,
                 disallow_ambiguous_tree_literal: false,
+                should_print_diagnostics: show_diff,
             },
         );
 
@@ -131,12 +132,9 @@ impl ConformanceDriver for BiomeSuite {
 
     fn fetch_instructions(&self) -> String {
         format!(
-            "To download Biome parser tests (version {BIOME_VERSION}, commit {BIOME_COMMIT}):\n\
+            "To refresh Biome parser tests (version {BIOME_VERSION}, commit {BIOME_COMMIT}):\n\
              \n\
-               just language/install-conformance-ecma\n\
-             \n\
-             Or manually:\n\
-               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/ecma/biome\n"
+               python3 ./language/test/fixtures/conformance/fetch-suite.py ./language/test/fixtures/conformance/biome\n"
         )
     }
 }

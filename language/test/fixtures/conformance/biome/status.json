@@ -1,0 +1,509 @@
+{
+    "$schema": "../schema/status.schema.json",
+    "entries": [
+        {
+            "patterns": [
+                "ok/ts_type_assertion.ts",
+                "ok/ts_type_assertion_expression.ts",
+                "ok/type_assertion_primary_expression.ts"
+            ],
+            "status": "excluded",
+            "reason": "assertion",
+            "note": "legacy angle-bracket type assertions are out of scope"
+        },
+        {
+            "patterns": ["ok/ts_as_assignment.ts"],
+            "status": "excluded",
+            "reason": "assertion",
+            "note": "mixed fixture contains legacy angle-bracket type assertions"
+        },
+        {
+            "patterns": [
+                "error/decorator_async_function_export_default_declaration_clause.ts",
+                "error/decorator_export_default_expression_clause.ts",
+                "error/decorator_function_export_default_declaration_clause.ts",
+                "error/decorator_interface_export_default_declaration_clause.ts"
+            ],
+            "status": "excluded",
+            "reason": "decorator-placement",
+            "note": "decorators before export clauses are parser-permissive"
+        },
+        {
+            "patterns": [
+                "error/decorator_class_declaration.js",
+                "error/decorator_class_declaration_top_level.js",
+                "error/decorator_export.js",
+                "error/decorator_export_class_clause.js"
+            ],
+            "status": "excluded",
+            "reason": "decorator-placement",
+            "note": "decorators before statement-like declarations are parser-permissive"
+        },
+        {
+            "patterns": [
+                "error/ts_decorator_object.ts",
+                "error/ts_decorator_on_class_method.ts",
+                "error/ts_decorator_on_class_setter.ts",
+                "error/ts_static_initialization_block_member_with_decorators.ts"
+            ],
+            "status": "excluded",
+            "reason": "decorator-placement",
+            "note": "decorators on class members are parser-permissive"
+        },
+        {
+            "patterns": [
+                "error/ts_decorator_on_function_declaration.ts",
+                "error/ts_decorator_this_parameter.ts",
+                "error/ts_decorator_this_parameter_option.ts",
+                "error/ts_formal_parameter_decorator.ts",
+                "error/ts_formal_parameter_decorator_option.ts"
+            ],
+            "status": "excluded",
+            "reason": "decorator-placement",
+            "note": "decorators on functions and parameters are parser-permissive"
+        },
+        {
+            "patterns": ["ok/import_defer.js", "ok/import_source.js"],
+            "status": "excluded",
+            "reason": "proposal",
+            "note": "import defer and import source proposal syntax are out of scope"
+        },
+        {
+            "patterns": ["ok/metavar.tsx"],
+            "status": "excluded",
+            "reason": "meta",
+            "note": "Biome metavariables are parser test placeholders"
+        },
+        {
+            "patterns": ["ok/export_named*.js"],
+            "status": "excluded",
+            "reason": "syntax",
+            "note": "string literal export specifier names are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/ts_index_signature_class_member.ts",
+                "ok/ts_index_signature_class_member_can_be_static.ts"
+            ],
+            "status": "excluded",
+            "reason": "syntax",
+            "note": "class index signatures are out of scope"
+        },
+        {
+            "patterns": ["ok/import_call.js"],
+            "status": "excluded",
+            "reason": "dynamic-import",
+            "note": "dynamic import expressions are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/ts_import_type.ts",
+                "ok/ts_import_type_arguments.ts"
+            ],
+            "status": "excluded",
+            "reason": "import-type-query",
+            "note": "dynamic import type queries are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/ts_export_assignment_identifier.ts",
+                "ok/ts_export_assignment_qualified_name.ts"
+            ],
+            "status": "excluded",
+            "reason": "commonjs",
+            "note": "CommonJS export assignment syntax is out of scope"
+        },
+        {
+            "patterns": ["ok/ts_export_namespace_clause.ts"],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "`export as namespace` is out of scope"
+        },
+        {
+            "patterns": ["ok/ts_external_module_declaration.ts"],
+            "status": "excluded",
+            "reason": "string-module",
+            "note": "string module declarations are out of scope"
+        },
+        {
+            "patterns": ["ok/ts_import_equals_declaration.ts"],
+            "status": "excluded",
+            "reason": "import-equals",
+            "note": "import-equals and namespace declarations are out of scope"
+        },
+        {
+            "patterns": ["ok/export_variable_clause.js"],
+            "status": "excluded",
+            "reason": "legacy-var",
+            "note": "mixed fixture contains `export var`"
+        },
+        {
+            "patterns": [
+                "ok/issue_2790.ts",
+                "ok/ts_ambient_var_statement.ts",
+                "ok/var_decl.js"
+            ],
+            "status": "excluded",
+            "reason": "legacy-var",
+            "note": "`var` declarations are out of scope"
+        },
+        {
+            "patterns": ["ok/ts_new_operator.ts"],
+            "status": "excluded",
+            "reason": "legacy-var",
+            "note": "mixed fixture contains `var` constructor examples"
+        },
+        {
+            "patterns": [
+                "ok/exponent_unary_parenthesized.js",
+                "ok/js_unary_expressions.js",
+                "ok/unary_delete.js",
+                "ok/unary_delete_nested.js"
+            ],
+            "status": "excluded",
+            "reason": "legacy-delete",
+            "note": "`delete` expressions are out of scope"
+        },
+        {
+            "patterns": ["ok/jsx_children_expression.jsx"],
+            "status": "excluded",
+            "reason": "legacy-delete",
+            "note": "mixed JSX fixture contains a `delete` expression"
+        },
+        {
+            "patterns": ["ok/ts_instantiation_expressions_new_line.ts"],
+            "status": "excluded",
+            "reason": "legacy-delete",
+            "note": "mixed instantiation fixture contains `delete` and dynamic import"
+        },
+        {
+            "patterns": [
+                "error/class_declare_member.js",
+                "error/class_declare_method.js"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "declare class member bodies are ambient semantic errors"
+        },
+        {
+            "patterns": [
+                "error/ts_ambient_async_method.ts",
+                "error/ts_declare_async_function.ts",
+                "error/ts_declare_function_with_body.ts"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "ambient function body and async restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_annotated_property_initializer_ambient_context.ts",
+                "error/ts_definite_assignment_in_ambient_context.ts",
+                "error/ts_property_initializer_ambient_context.ts"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "ambient property initializer restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_declare_property_private_name.ts",
+                "error/ts_method_signature_generator.ts"
+            ],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "ambient private and generator signatures are out of parser scope"
+        },
+        {
+            "patterns": ["error/ts_declare_const_initializer.ts"],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "decorators after `declare` are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/built_in_module_name.ts",
+                "ok/ts_module_declaration.ts"
+            ],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "namespace-style `module` declarations are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/ts_ambient_function.ts",
+                "ok/ts_declare_const_initializer.ts"
+            ],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "namespace-style `declare module` blocks are out of scope"
+        },
+        {
+            "patterns": ["ok/type_parameter_modifier.ts"],
+            "status": "excluded",
+            "reason": "ambient-declare",
+            "note": "mixed fixture contains a namespace-style `declare module` block"
+        },
+        {
+            "patterns": ["ok/ts_infer_type_allowed.ts"],
+            "status": "excluded",
+            "reason": "import-type-query",
+            "note": "dynamic import type queries are out of scope"
+        },
+        {
+            "patterns": [
+                "error/class_implements.js",
+                "error/enum_in_js.js",
+                "error/js_class_property_with_ts_annotation.js",
+                "error/js_formal_parameter_error.js",
+                "error/js_type_variable_annotation.js",
+                "error/ts_satisfies_expression.js",
+                "error/variable_declaration_statement_err.js"
+            ],
+            "status": "excluded",
+            "reason": "javascript-typescript",
+            "note": "TypeScript syntax in JavaScript mode is out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/unary_delete_parenthesized.js",
+                "ok/ts_instantiation_expressions_1.ts"
+            ],
+            "status": "excluded",
+            "reason": "legacy-delete",
+            "note": "mixed fixtures contain `delete` expressions"
+        },
+        {
+            "patterns": [
+                "error/abstract_class_in_js.js",
+                "error/class_member_modifier.js"
+            ],
+            "status": "excluded",
+            "reason": "legacy-modifier",
+            "note": "invalid abstract modifier positions are out of scope"
+        },
+        {
+            "patterns": [
+                "error/class_constructor_parameter.js",
+                "error/class_constructor_parameter_readonly.js"
+            ],
+            "status": "excluded",
+            "reason": "javascript-typescript",
+            "note": "parameter properties in JavaScript mode are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_property_parameter_pattern.ts"
+            ],
+            "status": "excluded",
+            "reason": "parameter-property",
+            "note": "parameter property binding patterns are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_abstract_property_cannot_be_definite.ts",
+                "error/ts_abstract_property_cannot_have_initiliazers.ts"
+            ],
+            "status": "excluded",
+            "reason": "abstract-member",
+            "note": "abstract member body and initializer restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_class_initializer_with_modifiers.ts",
+                "error/typescript_abstract_classes_invalid_static_abstract_member.ts"
+            ],
+            "status": "excluded",
+            "reason": "static-block",
+            "note": "modifiers on static blocks are out of scope"
+        },
+        {
+            "patterns": [
+                "error/ts_index_signature_interface_member_cannot_be_static.ts",
+                "error/ts_index_signature_interface_member_cannot_have_visibility_modifiers.ts"
+            ],
+            "status": "excluded",
+            "reason": "index-signature",
+            "note": "index signature modifier restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_class_member_accessor_readonly_precedence.ts",
+                "error/ts_readonly_modifier_non_class_or_indexer.ts"
+            ],
+            "status": "excluded",
+            "reason": "readonly-rule",
+            "note": "readonly placement restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_concrete_class_with_abstract_members.ts",
+                "error/typescript_abstract_class_member_should_not_have_body.ts",
+                "error/typescript_abstract_classes_abstract_accessor_precedence.ts",
+                "error/typescript_abstract_classes_invalid_abstract_async_member.ts",
+                "error/typescript_abstract_classes_invalid_abstract_constructor.ts",
+                "error/typescript_abstract_classes_invalid_abstract_private_member.ts"
+            ],
+            "status": "excluded",
+            "reason": "abstract-member",
+            "note": "abstract member restrictions are out of parser scope"
+        },
+        {
+            "patterns": ["error/ts_decorator_constructor.ts"],
+            "status": "excluded",
+            "reason": "decorator-placement",
+            "note": "decorated constructor parameter properties are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/ts_declare_function_export_declaration.ts",
+                "ok/ts_declare_function_export_default_declaration.ts"
+            ],
+            "status": "excluded",
+            "reason": "string-module",
+            "note": "string module declarations are out of scope"
+        },
+        {
+            "patterns": [
+                "ok/ts_namespace_declaration.ts"
+            ],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "namespace declarations are out of scope"
+        },
+        {
+            "patterns": ["ok/ts_global_declaration.ts"],
+            "status": "excluded",
+            "reason": "string-module",
+            "note": "mixed fixture contains string module declarations"
+        },
+        {
+            "patterns": [
+                "ok/ts_parameter_option_binding_pattern.ts",
+                "ok/typescript_members_can_have_no_body_in_ambient_context.ts"
+            ],
+            "status": "excluded",
+            "reason": "namespace-module",
+            "note": "mixed ambient fixtures contain namespace declarations"
+        },
+        {
+            "patterns": [
+                "error/invalid_optional_chain_from_new_expressions.ts",
+                "error/template_after_optional_chain.js"
+            ],
+            "status": "excluded",
+            "reason": "optional-chain-rule",
+            "note": "optional-chain continuation restrictions are out of parser scope"
+        },
+        {
+            "patterns": ["error/jsx_children_expressions_not_accepted.jsx"],
+            "status": "excluded",
+            "reason": "jsx-rule",
+            "note": "Biome JSX child expression restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/super_expression_err.js",
+                "error/super_expression_in_constructor_parameter_list.js"
+            ],
+            "status": "excluded",
+            "reason": "super-rule",
+            "note": "`super` placement restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_instantiation_expression_property_access.ts"
+            ],
+            "status": "excluded",
+            "reason": "instantiation-expression",
+            "note": "instantiation expression continuation restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/await_in_non_async_function.js",
+                "error/break_in_nested_function.js",
+                "error/break_stmt.js",
+                "error/continue_stmt.js",
+                "error/double_label.js",
+                "error/for_of_async_identifier.js",
+                "error/return_stmt_err.js"
+            ],
+            "status": "excluded",
+            "reason": "early-control",
+            "note": "control-flow placement early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/binding_identifier_invalid.js",
+                "error/eval_arguments_assignment.js",
+                "error/function_expression_id_err.js",
+                "error/function_id_err.js",
+                "error/interface_cannot_be_reserved_world.ts",
+                "error/ts_class_name_reserved_as_type.ts",
+                "error/ts_type_alias_cannot_be_reserved_word.ts"
+            ],
+            "status": "excluded",
+            "reason": "reserved-name",
+            "note": "reserved-name early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/export_decl_not_top_level.js",
+                "error/export_default_expression_clause_err.js",
+                "error/import_decl_not_top_level.js",
+                "error/multiple_default_exports_err.js"
+            ],
+            "status": "excluded",
+            "reason": "module-rule",
+            "note": "module placement early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/empty_parenthesized_expression.js",
+                "error/object_shorthand_with_initializer.js",
+                "error/optional_member.js",
+                "error/private_name_presence_check_recursive.js"
+            ],
+            "status": "excluded",
+            "reason": "expression-rule",
+            "note": "expression semantic early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/getter_class_no_body.js",
+                "error/object_expr_setter.js",
+                "error/setter_class_member.js",
+                "error/setter_class_no_body.js",
+                "error/ts_getter_setter_type_parameters.ts",
+                "error/ts_object_setter_return_type.ts",
+                "error/ts_setter_return_type_annotation.ts"
+            ],
+            "status": "excluded",
+            "reason": "accessor-rule",
+            "note": "getter and setter restrictions are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/ts_arrow_function_this_parameter.ts",
+                "error/ts_catch_declaration_non_any_unknown_type_annotation.ts",
+                "error/ts_constructor_this_parameter.ts",
+                "error/ts_decorator_on_arrow_function.ts",
+                "error/ts_decorator_on_function_expression.ts",
+                "error/ts_definite_variable_with_initializer.ts",
+                "error/ts_function_overload_generator.ts",
+                "error/ts_variable_annotation_err.ts"
+            ],
+            "status": "excluded",
+            "reason": "typescript-rule",
+            "note": "TypeScript semantic early errors are out of parser scope"
+        },
+        {
+            "patterns": [
+                "error/await_using_declaration_only_allowed_inside_an_async_function.js"
+            ],
+            "status": "excluded",
+            "reason": "using-rule",
+            "note": "`using` and `await using` context restrictions are out of parser scope"
+        }
+    ]
+}

@@ -32,8 +32,8 @@ pub trait ConformanceDriver: Send + Sync + Clone {
         ConformanceEnvironment::Hostless
     }
 
-    /// Return whether ignored cases should fail loudly if they pass.
-    fn ignored_failures_are_strict(&self) -> bool {
+    /// Return whether skipped cases should fail loudly if they pass.
+    fn skipped_failures_are_strict(&self) -> bool {
         false
     }
 

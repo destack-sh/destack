@@ -14,19 +14,19 @@ pub(super) fn is_formattable_file_type(file_type: FileType) -> bool {
     )
 }
 
-/// Return whether a directory should be ignored during fixture discovery.
-pub(super) fn should_skip_directory(name: &str) -> bool {
+/// Return whether a directory is outside fixture discovery.
+pub(super) fn is_excluded_directory(name: &str) -> bool {
     name.starts_with('.') || name == "node_modules" || name == "__snapshots__" || name == "staging"
 }
 
-/// Return whether a fixture file should be ignored.
-pub(super) fn should_skip_fixture_file(path: &Path) -> bool {
+/// Return whether a fixture file is outside fixture discovery.
+pub(super) fn is_excluded_fixture_file(path: &Path) -> bool {
     let file_name = path
         .file_name()
         .and_then(|value| value.to_str())
         .unwrap_or("");
 
-    // ignore snapshot and helper files
+    // skip snapshot and helper files
     if file_name.ends_with(".snap")
         || file_name.ends_with(".snap.md")
         || file_name.ends_with(".snap-original")
@@ -34,7 +34,7 @@ pub(super) fn should_skip_fixture_file(path: &Path) -> bool {
         return true;
     }
 
-    // ignore suite runner helper scripts
+    // skip suite runner helper scripts
     if matches!(file_name, "format.test.js" | "mod.rs" | "lib.rs") {
         return true;
     }
