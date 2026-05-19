@@ -33,6 +33,9 @@ Destack supports only ESM syntax without namespaces, stringy-modules, and also d
 | **String module declarations** | `declare module "pkg" { ... }` | not supported | source should declare real modules instead |
 | **Namespace declarations** | `namespace Name { ... }` | not supported | use real modules with namespace imports or re-exports |
 | **Dynamic module loading** | `import(expr)` | not source-level module loading | the source graph is statically known, though JS output may still use dynamic imports for chunk loading |
+| **Import defer** | `import defer * as ns from "pkg"`, `import source x from "pkg"` | not supported | not a real ESM imports (also unclear semantics in AOT) |
+| **Import assertions** | `import data from "./data.json" assert { type: "json" }` | not supported | use standardized import attributes with `with { ... }` |
+| **String export names** | `export { value as "name" }` | not supported | export names should be identifiers in source modules |
 
 ### Syntax
 
@@ -40,11 +43,12 @@ Destack does not support JS/TS syntax that conflicts with either Destack-specifi
 
 | Feature | Example | Compatibility | Reason |
 | --- | --- | --- | --- |
-| **Legacy declarations** | `var x` | not supported | legacy `var` scoping is unnecessary with `const` and `let` |
+| **Var declarations** | `var x` | not supported | legacy `var` scoping is unnecessary with `const` and `let` |
 | **Ambiguous generic arrow** | `<T>() => value` | not supported | ambiguous with TSX tree syntax, use `<T,>() => value` |
 | **Sequence expressions** | `(a, b, c)` | not supported | `.ds` claims parenthesized comma lists for explicit tuples |
 | **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` | `.ds` uses double-quoted strings and single-quoted scalar characters |
-| **Type assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
+| **Type angle assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
+| **Non-null assertions** | `value!` | supported as Try / must unwrapping, not as erased TypeScript non-null assertion | non-null opening is an explicit runtime operation |
 | **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics | namespaced tree tags are intrinsic string tag names like `"svg:path"` |
 
 ### Types
@@ -53,12 +57,12 @@ Destack requires sound and predictable types and understands only TypeScript-sha
 
 | Feature | Example | Compatibility | Reason |
 | --- | --- | --- | --- |
-| **Flow and JSDoc typing** | `/** @type {Foo} */` | ignored or rejected when not valid TS/TS++ | TypeScript syntax is the only type syntax |
+| **Flow and JSDoc typing** | `/** @type {Foo} */` | ignored or rejected when not valid TS/TS++ | TypeScript type syntax only |
 | **Import type queries** | `import("pkg").User` | not supported | use ordinary static imports instead |
 | **Thenables** | `await customThenable` | not supported | `await` works on the well known `Promise<T>` only |
 | **`any`** | `let x: any` | rejected in `.ds` | use `unknown`, which must be explicitly cast before use |
-| **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be actually initialized before use |
-| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value arguments and type arguments share generic syntax |
+| **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be initialized before use |
+| **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value and type arguments share generic forms |
 | **Circular inference** | mutually inferred module exports | not supported across modules | downstream uses do not refine upstream declarations |
 | **Enum coercion** | `Level.A` as `number` | no implicit coercion | enum fields are nominal constants and need explicit conversion |
 
@@ -68,7 +72,7 @@ Destack requires sound static shapes for all object types and thus does not supp
 
 | Feature | Example | Compatibility | Reason |
 | --- | --- | --- | --- |
-| **Declaration expressions** | `const C = class {}` | not supported | runtime type generation conflicts with AOT compilation |
+| **Declaration expressions** | `const C = class {}` | not supported | runtime type generation is not statically knowable |
 | **Prototype objects** | `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, `Object.create(proto)` | not supported | prototypes rely on the dynamic JavaScript object model |
 | **Shape mutation** | `delete obj.x`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, shape-changing `Object.assign` | forbidden | object shapes must stay statically known |
 | **Metaobject dispatch** | `Proxy`, most `Reflect.*` APIs | not supported | dynamic interception and emulation hide object behavior from the static model |
@@ -77,11 +81,11 @@ Destack requires sound static shapes for all object types and thus does not supp
 
 ### Runtime
 
-Destack does not support any unsound, imprecise or dynamic legacy hooks into runtime behavior, and that also means exceptions are banned.
+Destack does not support any unsound, imprecise or dynamic legacy hooks into runtime behavior, and that also means exceptions are officially banned (try-catch-finally works with `Result` types though).
 
 | Feature | Example | Compatibility | Reason |
 | --- | --- | --- | --- |
-| **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode JavaScript / TypeScript |
+| **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode TypeScript |
 | **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
 | **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` / `new Function` | runtime code generation conflicts with AOT compilation |
 | **Exceptions** | executing `throw` / `catch` effects | `throw`, `try`, `catch`, `finally`, and Try / Result integration are supported, runtime exceptions are not | Destack uses `Result`-first error handling |
