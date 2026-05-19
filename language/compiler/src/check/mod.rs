@@ -11,3 +11,6 @@ pub use error::*;
 pub use warning::*;
 
 pub use state::*;
+
+#[cfg(test)]
+mod tests;
