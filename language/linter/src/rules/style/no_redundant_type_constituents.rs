@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_dir::{self as dir, LiteralType};
+use destack_dir as dir;
 use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
@@ -110,6 +110,7 @@ fn report_redundant_constituents(
             ctx.module_id(),
             ctx.dir.tree(),
             ctx.types,
+            ctx.resolutions,
             constituent_expression_id,
             |_, type_id| type_id,
         ) else {
@@ -287,8 +288,10 @@ fn mark_top_bottom_redundancies(
     }
 
     for (index, constituent) in constituents.iter().enumerate() {
-        let is_unknown =
-            matches_type_literal(types, constituent.normalized_type_id, LiteralType::Unknown);
+        let is_unknown = matches!(
+            types.get_type(constituent.normalized_type_id),
+            dir::Type::Unknown
+        );
         if chain_kind == TypeConstituentChainKind::Intersection
             && is_unknown
             && constituents.len() > 1
@@ -412,13 +415,13 @@ fn top_rank(
     chain_kind: TypeConstituentChainKind,
 ) -> Option<u8> {
     if chain_kind == TypeConstituentChainKind::Union {
-        if matches_type_literal(types, type_id, LiteralType::Any) {
+        if matches!(types.get_type(type_id), dir::Type::Any) {
             return Some(3);
         }
-        if matches_type_literal(types, type_id, LiteralType::Unknown) {
+        if matches!(types.get_type(type_id), dir::Type::Unknown) {
             return Some(2);
         }
-    } else if matches_type_literal(types, type_id, LiteralType::Any) {
+    } else if matches!(types.get_type(type_id), dir::Type::Any) {
         return Some(3);
     }
 
@@ -432,21 +435,11 @@ fn bottom_rank(
     chain_kind: TypeConstituentChainKind,
 ) -> Option<u8> {
     let _ = chain_kind;
-    if matches_type_literal(types, type_id, LiteralType::Never) {
+    if matches!(types.get_type(type_id), dir::Type::Never) {
         return Some(3);
     }
 
     None
-}
-
-/// Return true when one type id resolves to one exact type literal.
-fn matches_type_literal(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
-    literal: LiteralType,
-) -> bool {
-    let ty = types.get_type(type_id);
-    matches!(ty, dir::Type::Literal(value) if *value == literal)
 }
 
 /// One comparable literal or primitive kind for redundancy checks.
@@ -484,47 +477,27 @@ fn type_literal_kind(
     type_id: dir::LocalTypeId,
 ) -> Option<TypeLiteralKind> {
     let ty = types.get_type(type_id);
-    let dir::Type::Literal(value) = ty else {
-        return None;
-    };
-
-    match value {
-        dir::LiteralType::Primitive(dir::PrimitiveType::Boolean) => {
+    match ty {
+        dir::Type::Primitive(dir::PrimitiveType::Boolean) => {
             Some(TypeLiteralKind::PrimitiveBoolean)
         }
-        dir::LiteralType::Primitive(dir::PrimitiveType::Character) => {
+        dir::Type::Primitive(dir::PrimitiveType::Character) => {
             Some(TypeLiteralKind::PrimitiveCharacter)
         }
-        dir::LiteralType::Primitive(dir::PrimitiveType::String) => {
-            Some(TypeLiteralKind::PrimitiveString)
-        }
-        dir::LiteralType::Primitive(dir::PrimitiveType::Integer(_)) => {
+        dir::Type::Primitive(dir::PrimitiveType::String) => Some(TypeLiteralKind::PrimitiveString),
+        dir::Type::Primitive(dir::PrimitiveType::Integer(_)) => {
             Some(TypeLiteralKind::PrimitiveInteger)
         }
-        dir::LiteralType::Primitive(dir::PrimitiveType::Float(_)) => {
-            Some(TypeLiteralKind::PrimitiveFloat)
-        }
-        dir::LiteralType::Primitive(dir::PrimitiveType::Bigint) => {
-            Some(TypeLiteralKind::PrimitiveBigint)
-        }
-        dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Boolean(_)) => {
-            Some(TypeLiteralKind::ScalarBoolean)
-        }
-        dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Character(_)) => {
+        dir::Type::Primitive(dir::PrimitiveType::Float(_)) => Some(TypeLiteralKind::PrimitiveFloat),
+        dir::Type::Primitive(dir::PrimitiveType::Bigint) => Some(TypeLiteralKind::PrimitiveBigint),
+        dir::Type::Literal(dir::ScalarLiteral::Boolean(_)) => Some(TypeLiteralKind::ScalarBoolean),
+        dir::Type::Literal(dir::ScalarLiteral::Character(_)) => {
             Some(TypeLiteralKind::ScalarCharacter)
         }
-        dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(_)) => {
-            Some(TypeLiteralKind::ScalarString)
-        }
-        dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Integer(_)) => {
-            Some(TypeLiteralKind::ScalarInteger)
-        }
-        dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Float(_)) => {
-            Some(TypeLiteralKind::ScalarFloat)
-        }
-        dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::Bigint(_)) => {
-            Some(TypeLiteralKind::ScalarBigint)
-        }
+        dir::Type::Literal(dir::ScalarLiteral::String(_)) => Some(TypeLiteralKind::ScalarString),
+        dir::Type::Literal(dir::ScalarLiteral::Integer(_)) => Some(TypeLiteralKind::ScalarInteger),
+        dir::Type::Literal(dir::ScalarLiteral::Float(_)) => Some(TypeLiteralKind::ScalarFloat),
+        dir::Type::Literal(dir::ScalarLiteral::Bigint(_)) => Some(TypeLiteralKind::ScalarBigint),
         _ => None,
     }
 }

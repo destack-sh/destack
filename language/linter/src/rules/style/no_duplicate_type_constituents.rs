@@ -100,6 +100,7 @@ fn report_duplicate_constituents(
             ctx.module_id(),
             ctx.dir.tree(),
             ctx.types,
+            ctx.resolutions,
             constituent_expression_id,
             |_, type_id| type_id,
         ) else {

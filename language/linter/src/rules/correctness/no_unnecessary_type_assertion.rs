@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_declared_or_inferred_type_id, expression_target_symbol, is_any_type,
-    symbol_value_type_id_for, unwrap_value_type_id,
+    symbol_value_type_id_for, unwrap_form_payload_type_id,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -118,7 +118,7 @@ fn source_expression_type_id(
         expression_id,
     )?;
 
-    Some(unwrap_value_type_id(ctx.types, type_id))
+    Some(unwrap_form_payload_type_id(ctx.types, type_id))
 }
 
 /// Return true when one source expression is explicitly declared as `any`.
@@ -133,7 +133,7 @@ fn source_expression_is_declared_any(
         ctx.types,
         expression_id,
     ) {
-        let type_id = unwrap_value_type_id(ctx.types, type_id);
+        let type_id = unwrap_form_payload_type_id(ctx.types, type_id);
         return is_any_type(ctx.types, type_id);
     }
 
@@ -153,7 +153,7 @@ fn source_expression_is_declared_any(
 
     // same module
     if source_value_type_id.module_id == ctx.module_id() {
-        let source_type_id = unwrap_value_type_id(ctx.types, source_value_type_id.type_id);
+        let source_type_id = unwrap_form_payload_type_id(ctx.types, source_value_type_id.type_id);
         return is_any_type(ctx.types, source_type_id);
     }
 
@@ -161,7 +161,7 @@ fn source_expression_is_declared_any(
     let Some(types) = ctx.dir_type_table(source_value_type_id.module_id) else {
         return false;
     };
-    let source_type_id = unwrap_value_type_id(&types, source_value_type_id.type_id);
+    let source_type_id = unwrap_form_payload_type_id(&types, source_value_type_id.type_id);
     is_any_type(&types, source_type_id)
 }
 

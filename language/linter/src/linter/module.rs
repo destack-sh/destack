@@ -101,8 +101,12 @@ pub struct LintModuleContext<'a> {
     pub strings: &'a StringPool,
     /// The symbol table.
     pub symbols: dir::BindingTable<'static>,
+    /// The dependency table.
+    pub dependencies: dir::DependencyTable<'static>,
     /// The type table.
     pub types: &'a dir::TypeTable<'static>,
+    /// The resolution table.
+    pub resolutions: &'a dir::ResolutionTable<'static>,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 
@@ -144,7 +148,9 @@ impl<'a> LintModuleContext<'a> {
         expanded: &'a DirExpanded,
         strings: &'a StringPool,
         symbols: dir::BindingTable<'static>,
+        dependencies: dir::DependencyTable<'static>,
         types: &'a dir::TypeTable<'static>,
+        resolutions: &'a dir::ResolutionTable<'static>,
         namespace_scope: dir::LocalScopeId,
         options: &'a LinterOptions,
         compute_fixes: bool,
@@ -162,7 +168,9 @@ impl<'a> LintModuleContext<'a> {
             dir: dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch)),
             strings,
             symbols,
+            dependencies,
             types,
+            resolutions,
             roots: expanded.roots.clone(),
             namespace_scope,
             options,
@@ -321,7 +329,7 @@ impl<'a> LintModuleContext<'a> {
 
         let expression_id = expression_unwrap_transparent(self.dir.tree(), expression_id);
         let global_id = expression_id.into_global_any(self.module.id);
-        let symbol = self.types.symbol_resolution(global_id)?;
+        let symbol = self.resolutions.symbol_resolution(global_id)?;
         if !self.symbol_is_active(symbol.local_id) {
             return None;
         }
@@ -593,7 +601,7 @@ impl<'a> LintModuleContext<'a> {
         callee_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintDirective> {
         let global_callee_id = callee_id.into_global_any(self.module.id);
-        let symbol_id = self.types.symbol_resolution(global_callee_id)?;
+        let symbol_id = self.resolutions.symbol_resolution(global_callee_id)?;
 
         self.lint_directive_for_symbol(symbol_id)
     }

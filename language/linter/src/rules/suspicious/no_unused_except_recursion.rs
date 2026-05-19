@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{is_simple_identifier, rename_local_symbol_fix};
+use crate::rules::common::{
+    is_simple_identifier, rename_local_symbol_fix, resolution_target_symbols,
+};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -102,7 +104,7 @@ fn report_recursive_only_parameters(
 
     // collect recursive and non recursive parameter usages
     let mut visitor = RecursiveParameterUseVisitor::new(
-        ctx.types,
+        ctx.resolutions,
         ctx.module_id(),
         function_symbol.into_global(ctx.module_id()),
         parameter_by_symbol.keys().copied().collect(),
@@ -226,7 +228,7 @@ fn scope_subtree_contains_name(
 /// Collect parameter symbol usage while tracking recursive call argument context.
 struct RecursiveParameterUseVisitor<'a> {
     /// The DIR type table.
-    types: &'a dir::TypeTable<'a>,
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// The current module id.
     module_id: destack_source::ModuleId,
     /// The current callable symbol.
@@ -246,13 +248,13 @@ struct RecursiveParameterUseVisitor<'a> {
 impl<'a> RecursiveParameterUseVisitor<'a> {
     /// Build a visitor for one callable body.
     fn new(
-        types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         module_id: destack_source::ModuleId,
         function_symbol: dir::GlobalSymbolId,
         parameter_symbols: HashSet<dir::LocalSymbolId>,
     ) -> Self {
         Self {
-            types,
+            resolutions,
             module_id,
             function_symbol,
             parameter_symbols,
@@ -266,7 +268,7 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
     /// Record one reference usage when it points at a tracked parameter symbol.
     fn record_parameter_usage(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
         let Some(target_symbol) = self
-            .types
+            .resolutions
             .symbol_resolution(expression_id.into_global_any(self.module_id))
         else {
             return;
@@ -297,28 +299,18 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
     ) -> bool {
         // fast path: direct target symbol match
         if self
-            .types
+            .resolutions
             .symbol_resolution(expression_id.into_global_any(self.module_id))
             .is_some_and(|symbol| symbol == self.function_symbol)
         {
             return true;
         }
 
-        // inspect dispatch candidates
+        // inspect member and call targets
         let global_expression_id = expression_id.into_global_any(self.module_id);
-        let Some(resolution) = self.types.resolution(global_expression_id) else {
-            return false;
-        };
-
-        match resolution {
-            dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-                target.symbol == self.function_symbol
-            }
-            dir::Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => targets
-                .iter()
-                .any(|target| target.symbol == self.function_symbol),
-            _ => false,
-        }
+        resolution_target_symbols(self.resolutions, global_expression_id)
+            .into_iter()
+            .any(|symbol| symbol == self.function_symbol)
     }
 }
 

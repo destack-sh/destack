@@ -304,7 +304,7 @@ fn symbol_has_write_references(ctx: &LintModuleContext<'_>, symbol_id: GlobalSym
     let reference_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
         ctx.dir.tree(),
-        ctx.types,
+        ctx.resolutions,
         symbol_id.local_id,
     );
 
@@ -322,7 +322,7 @@ fn symbol_has_single_const_eligible_assignment(
     let reference_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
         ctx.dir.tree(),
-        ctx.types,
+        ctx.resolutions,
         symbol_id.local_id,
     );
     let mut assignment_expression_id = None;

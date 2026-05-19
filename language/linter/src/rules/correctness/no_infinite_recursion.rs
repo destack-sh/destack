@@ -143,8 +143,8 @@ struct FunctionCallProfile {
 struct FunctionCallCollector<'a> {
     /// The module being scanned.
     module_id: destack_source::ModuleId,
-    /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable<'a>,
+    /// The resolution table carrying semantic targets.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// Whether conditionals were seen while traversing this body.
     has_conditional: bool,
     /// Called function symbols in this body.
@@ -191,7 +191,7 @@ impl NodeVisitor for FunctionCallCollector<'_> {
         // collect call targets for call graph edges
         if let dir::Expression::Call { left, .. } = expression
             && let Some(target_symbol) = self
-                .types
+                .resolutions
                 .symbol_resolution(left.into_global_any(self.module_id))
         {
             self.called_symbols.insert(target_symbol);
@@ -249,7 +249,7 @@ fn analyze_function_calls(
 ) -> FunctionCallProfile {
     let mut collector = FunctionCallCollector {
         module_id: ctx.module_id(),
-        types: ctx.types,
+        resolutions: ctx.resolutions,
         has_conditional: false,
         called_symbols: HashSet::new(),
         options: NodeVisitorOptions::default(),

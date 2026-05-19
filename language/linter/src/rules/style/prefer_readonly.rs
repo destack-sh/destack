@@ -129,7 +129,7 @@ fn collect_mutated_candidate_fields(
     let assigned_symbols = collect_assigned_symbol_usage(
         ctx.module_id(),
         ctx.dir.tree(),
-        ctx.types,
+        ctx.resolutions,
         |assignment_expression_id, assigned_expression_id| {
             !assignment_is_constructor_self_initialization(
                 ctx.dir.tree(),

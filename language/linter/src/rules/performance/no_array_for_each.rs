@@ -265,7 +265,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let mut spans = collect_local_symbol_direct_reference_expression_ids(
             self.ctx.module_id(),
             self.ctx.dir.tree(),
-            self.ctx.types,
+            self.ctx.resolutions,
             parameter_symbol,
         )
         .into_iter()

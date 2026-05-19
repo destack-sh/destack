@@ -104,6 +104,7 @@ fn expression_allows_template_interpolation(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         expression_id,
         |types, type_id| is_template_interpolation_type(types, type_id, Some(string_symbol)),
     )

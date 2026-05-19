@@ -22,22 +22,20 @@ pub struct SymbolDecorator {
 /// Return candidate symbols for an expression usage site.
 pub fn expression_candidate_symbols(
     local_module_id: ModuleId,
-    local_types: &dir::TypeTable<'_>,
+    local_resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
     // include lexical reference targets
     let global_expression_id = expression_id.into_global_any(local_module_id);
-    if let Some(symbol_id) = local_types.symbol_resolution(global_expression_id) {
+    if let Some(symbol_id) = local_resolutions.symbol_resolution(global_expression_id) {
         push_unique_symbol(&mut symbols, symbol_id);
     }
 
-    // include dispatch target symbols
-    if let Some(resolution) = local_types.resolution(global_expression_id) {
-        for symbol_id in resolution_target_symbols(resolution) {
-            push_unique_symbol(&mut symbols, symbol_id);
-        }
+    // include member and call target symbols
+    for symbol_id in resolution_target_symbols(local_resolutions, global_expression_id) {
+        push_unique_symbol(&mut symbols, symbol_id);
     }
 
     symbols
@@ -53,11 +51,12 @@ pub fn expression_symbol_decorator_map<T>(
     local_strings: &StringPool,
     local_symbols: &dir::BindingTable<'_>,
     local_types: &dir::TypeTable<'_>,
+    local_resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
     mut map: impl FnMut(&SymbolDecorator) -> Option<T>,
 ) -> Option<T> {
-    let symbols = expression_candidate_symbols(local_module_id, local_types, expression_id);
+    let symbols = expression_candidate_symbols(local_module_id, local_resolutions, expression_id);
 
     for symbol_id in symbols {
         let decorators = symbol_decorators_for(
@@ -68,6 +67,7 @@ pub fn expression_symbol_decorator_map<T>(
             local_strings,
             local_symbols,
             local_types,
+            local_resolutions,
             symbol_id,
             decorator_symbol,
         );
@@ -92,6 +92,7 @@ pub fn expression_has_symbol_decorator(
     local_strings: &StringPool,
     local_symbols: &dir::BindingTable<'_>,
     local_types: &dir::TypeTable<'_>,
+    local_resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -103,6 +104,7 @@ pub fn expression_has_symbol_decorator(
         local_strings,
         local_symbols,
         local_types,
+        local_resolutions,
         expression_id,
         decorator_symbol,
         |_| Some(()),
@@ -110,37 +112,42 @@ pub fn expression_has_symbol_decorator(
     .is_some()
 }
 
-/// Collect target symbols from a resolution.
-pub fn resolution_target_symbols(resolution: &dir::Resolution) -> Vec<dir::GlobalSymbolId> {
-    match resolution {
-        dir::Resolution::Symbol(symbol) => vec![*symbol],
-        dir::Resolution::Dependency(dependency) => dependency_resolution_target_symbols(dependency),
-        dir::Resolution::Label(_) => Vec::new(),
-        dir::Resolution::Dispatch(dispatch) => dispatch_resolution_target_symbols(dispatch),
-    }
-}
-
-/// Collect target symbols from a dependency resolution.
-pub fn dependency_resolution_target_symbols(
-    resolution: &dir::DependencyResolution,
+/// Collect member and call target symbols for one resolved node.
+pub fn resolution_target_symbols(
+    resolutions: &dir::ResolutionTable<'_>,
+    node_id: dir::GlobalNodeIdAny,
 ) -> Vec<dir::GlobalSymbolId> {
-    match resolution {
-        dir::DependencyResolution::Symbol(symbol) => vec![*symbol],
-        dir::DependencyResolution::Module(_) => Vec::new(),
-    }
-}
+    let mut symbols = Vec::new();
 
-/// Collect target symbols from a dispatch resolution.
-pub fn dispatch_resolution_target_symbols(
-    resolution: &dir::DispatchResolution,
-) -> Vec<dir::GlobalSymbolId> {
-    match resolution {
-        dir::DispatchResolution::Static { target, .. } => vec![target.symbol],
-        dir::DispatchResolution::Dynamic { targets, .. } => {
-            targets.iter().map(|target| target.symbol).collect()
+    if let Some(resolution) = resolutions.member_resolution(node_id) {
+        match &resolution.target {
+            dir::MemberTarget::Direct(candidate) => {
+                push_unique_symbol(&mut symbols, candidate.symbol);
+            }
+            dir::MemberTarget::Select(candidates) => {
+                for candidate in candidates {
+                    push_unique_symbol(&mut symbols, candidate.symbol);
+                }
+            }
+            dir::MemberTarget::Intrinsic => {}
         }
-        dir::DispatchResolution::Builtin { .. } => Vec::new(),
     }
+
+    if let Some(resolution) = resolutions.call_resolution(node_id) {
+        match &resolution.target {
+            dir::CallTarget::Direct(candidate) => {
+                push_unique_symbol(&mut symbols, candidate.symbol);
+            }
+            dir::CallTarget::Select(candidates) => {
+                for candidate in candidates {
+                    push_unique_symbol(&mut symbols, candidate.symbol);
+                }
+            }
+            dir::CallTarget::Intrinsic { .. } => {}
+        }
+    }
+
+    symbols
 }
 
 /// Insert a symbol if it is not already present.
@@ -157,7 +164,8 @@ fn symbol_decorators_in_module(
     tree: &dir::Tree,
     strings: &StringPool,
     symbols: &dir::BindingTable<'_>,
-    types: &dir::TypeTable<'_>,
+    _types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     symbol_id: dir::LocalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Vec<SymbolDecorator> {
@@ -176,7 +184,7 @@ fn symbol_decorators_in_module(
             module_id,
             tree,
             strings,
-            types,
+            resolutions,
             decorator,
             decorator_symbol,
         ) else {
@@ -194,7 +202,7 @@ fn symbol_decorator_from_expression(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     decorator: &dir::Decorator,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Option<SymbolDecorator> {
@@ -210,7 +218,13 @@ fn symbol_decorator_from_expression(
         _ => (expression_id, None),
     };
 
-    if !decorator_expression_matches(module_id, types, expression_id, callee_id, decorator_symbol) {
+    if !decorator_expression_matches(
+        module_id,
+        resolutions,
+        expression_id,
+        callee_id,
+        decorator_symbol,
+    ) {
         return None;
     }
 
@@ -237,13 +251,13 @@ fn unwrap_parenthesized_expression(
 /// Check both the decorator call and callee for a resolved decorator symbol.
 fn decorator_expression_matches(
     module_id: ModuleId,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     callee_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> bool {
     let expression_node = expression_id.into_global_any(module_id);
-    if types
+    if resolutions
         .symbol_resolution(expression_node)
         .is_some_and(|symbol| symbol == decorator_symbol)
     {
@@ -251,7 +265,7 @@ fn decorator_expression_matches(
     }
 
     let callee_node = callee_id.into_global_any(module_id);
-    types
+    resolutions
         .symbol_resolution(callee_node)
         .is_some_and(|symbol| symbol == decorator_symbol)
 }
@@ -314,6 +328,7 @@ pub fn symbol_decorators_for(
     local_strings: &StringPool,
     local_symbols: &dir::BindingTable<'_>,
     local_types: &dir::TypeTable<'_>,
+    local_resolutions: &dir::ResolutionTable<'_>,
     symbol_id: dir::GlobalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Vec<SymbolDecorator> {
@@ -324,6 +339,7 @@ pub fn symbol_decorators_for(
             local_strings,
             local_symbols,
             local_types,
+            local_resolutions,
             symbol_id.local_id,
             decorator_symbol,
         );
@@ -335,8 +351,12 @@ pub fn symbol_decorators_for(
     let Some(parsed) = artifacts.dir_parsed(symbol_id.module_id) else {
         return Vec::new();
     };
+    let Some(checked) = artifacts.dir_checked(symbol_id.module_id, profile_id) else {
+        return Vec::new();
+    };
     let symbols = dir.binding_table();
     let types = dir.type_table();
+    let resolutions = checked.resolution_table();
 
     symbol_decorators_in_module(
         symbol_id.module_id,
@@ -344,6 +364,7 @@ pub fn symbol_decorators_for(
         local_strings,
         &symbols,
         &types,
+        &resolutions,
         symbol_id.local_id,
         decorator_symbol,
     )

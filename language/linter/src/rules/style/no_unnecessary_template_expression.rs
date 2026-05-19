@@ -116,6 +116,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.types,
+            self.ctx.resolutions,
             expression_id,
             |types, type_id| is_string_type(types, type_id, Some(self.string_symbol)),
         )

@@ -180,6 +180,7 @@ fn check_async_callable<T: dir::Node>(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         body_id,
         signature.is_generator,
         promise_symbol,
@@ -238,6 +239,7 @@ fn analyze_async_callable_body(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     body_id: dir::LocalNodeId<dir::Expression>,
     is_generator: bool,
     promise_symbol: Option<dir::GlobalSymbolId>,
@@ -249,6 +251,7 @@ fn analyze_async_callable_body(
         profile_id,
         module_id,
         types,
+        resolutions,
         is_generator,
         promise_symbol,
         async_function_symbols,
@@ -263,6 +266,7 @@ fn analyze_async_callable_body(
             module_id,
             tree,
             types,
+            resolutions,
             promise_symbol,
             async_function_symbols,
             body_id,
@@ -300,6 +304,8 @@ struct RequireAwaitBodyVisitor<'a> {
     module_id: ModuleId,
     /// Type table used for Promise like checks.
     types: &'a dir::TypeTable<'a>,
+    /// Resolution table used for symbol backed references.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// Whether this callable is a generator.
     is_generator: bool,
     /// Known Promise symbol in this module profile.
@@ -323,6 +329,7 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
         profile_id: ProfileId,
         module_id: ModuleId,
         types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         is_generator: bool,
         promise_symbol: Option<dir::GlobalSymbolId>,
         async_function_symbols: &'a HashSet<dir::GlobalSymbolId>,
@@ -333,6 +340,7 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
             profile_id,
             module_id,
             types,
+            resolutions,
             is_generator,
             promise_symbol,
             async_function_symbols,
@@ -384,6 +392,7 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                     self.module_id,
                     tree,
                     self.types,
+                    self.resolutions,
                     self.promise_symbol,
                     self.async_function_symbols,
                     *value_id,
@@ -401,6 +410,7 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                     self.module_id,
                     tree,
                     self.types,
+                    self.resolutions,
                     self.promise_symbol,
                     self.async_function_symbols,
                     *value_id,
@@ -436,6 +446,7 @@ fn expression_is_thenable_return_value(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
     expression_id: dir::LocalNodeId<dir::Expression>,
@@ -455,6 +466,7 @@ fn expression_is_thenable_return_value(
             module_id,
             tree,
             types,
+            resolutions,
             expression_id,
             |types, type_id| is_promise_type(types, type_id, Some(promise_symbol)),
         )
@@ -468,7 +480,7 @@ fn expression_is_thenable_return_value(
     expression_is_async_symbol_call(
         module_id,
         tree,
-        types,
+        resolutions,
         expression_id,
         async_function_symbols,
     )
@@ -481,6 +493,7 @@ fn expression_is_implicit_thenable_return(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     promise_symbol: Option<dir::GlobalSymbolId>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
     body_id: dir::LocalNodeId<dir::Expression>,
@@ -496,6 +509,7 @@ fn expression_is_implicit_thenable_return(
         module_id,
         tree,
         types,
+        resolutions,
         promise_symbol,
         async_function_symbols,
         body_id,
@@ -506,7 +520,7 @@ fn expression_is_implicit_thenable_return(
 fn expression_is_async_symbol_call(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
 ) -> bool {
@@ -519,7 +533,8 @@ fn expression_is_async_symbol_call(
 
     // resolve one direct callee symbol
     let callee_id = expression_unwrap_parenthesized(tree, *left);
-    let Some(symbol_id) = types.symbol_resolution(callee_id.into_global_any(module_id)) else {
+    let Some(symbol_id) = resolutions.symbol_resolution(callee_id.into_global_any(module_id))
+    else {
         return false;
     };
 

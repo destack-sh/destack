@@ -59,7 +59,7 @@ impl ModuleSymbolUsage {
 pub fn collect_module_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
 ) -> ModuleSymbolUsage {
     let mut usage = ModuleSymbolUsage::default();
 
@@ -67,14 +67,12 @@ pub fn collect_module_symbol_usage(
     for (expression_id, _) in tree.iter_nodes_of_type::<dir::Expression>() {
         let global_expression_id = expression_id.into_global_any(module_id);
 
-        if let Some(symbol_id) = types.symbol_resolution(global_expression_id) {
+        if let Some(symbol_id) = resolutions.symbol_resolution(global_expression_id) {
             usage.direct_symbols.insert(symbol_id);
         }
 
-        if let Some(resolution) = types.resolution(global_expression_id) {
-            for symbol_id in resolution_target_symbols(resolution) {
-                usage.candidate_symbols.insert(symbol_id);
-            }
+        for symbol_id in resolution_target_symbols(resolutions, global_expression_id) {
+            usage.candidate_symbols.insert(symbol_id);
         }
     }
 
@@ -84,17 +82,17 @@ pub fn collect_module_symbol_usage(
 /// Resolve the single lexical target symbol for one expression.
 fn expression_target_symbol(
     module_id: ModuleId,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    types.symbol_resolution(expression_id.into_global_any(module_id))
+    resolutions.symbol_resolution(expression_id.into_global_any(module_id))
 }
 
 /// Collect direct reference expression ids for one local symbol in one module.
 pub fn collect_local_symbol_direct_reference_expression_ids(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     symbol_id: dir::LocalSymbolId,
 ) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut references = Vec::new();
@@ -102,7 +100,8 @@ pub fn collect_local_symbol_direct_reference_expression_ids(
 
     // collect direct target symbol references in deterministic tree order
     for (expression_id, _) in tree.iter_nodes_of_type::<dir::Expression>() {
-        if expression_target_symbol(module_id, types, expression_id) == Some(global_symbol_id) {
+        if expression_target_symbol(module_id, resolutions, expression_id) == Some(global_symbol_id)
+        {
             references.push(expression_id);
         }
     }
@@ -114,12 +113,12 @@ pub fn collect_local_symbol_direct_reference_expression_ids(
 pub fn local_symbol_has_direct_references(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
     tree.iter_nodes_of_type::<dir::Expression>()
         .any(|(expression_id, _)| {
-            expression_target_symbol(module_id, types, expression_id)
+            expression_target_symbol(module_id, resolutions, expression_id)
                 == Some(symbol_id.into_global(module_id))
         })
 }
@@ -128,12 +127,12 @@ pub fn local_symbol_has_direct_references(
 pub fn collect_expression_read_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut collector = ReadSymbolCollector {
         module_id,
-        types,
+        resolutions,
         reads: HashSet::new(),
         options: NodeVisitorOptions::default(),
     };
@@ -146,7 +145,7 @@ pub fn collect_expression_read_symbol_usage(
 pub fn collect_module_read_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut reads = HashSet::new();
 
@@ -158,14 +157,12 @@ pub fn collect_module_read_symbol_usage(
 
         let global_expression_id = expression_id.into_global_any(module_id);
 
-        if let Some(symbol_id) = types.symbol_resolution(global_expression_id) {
+        if let Some(symbol_id) = resolutions.symbol_resolution(global_expression_id) {
             reads.insert(symbol_id);
         }
 
-        if let Some(resolution) = types.resolution(global_expression_id) {
-            for symbol_id in resolution_target_symbols(resolution) {
-                reads.insert(symbol_id);
-            }
+        for symbol_id in resolution_target_symbols(resolutions, global_expression_id) {
+            reads.insert(symbol_id);
         }
     }
 
@@ -177,7 +174,7 @@ pub fn collect_module_read_symbol_usage(
 pub fn collect_assigned_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     mut include_assignment: impl FnMut(
         dir::LocalNodeId<dir::Expression>,
         dir::LocalNodeId<dir::Expression>,
@@ -199,7 +196,7 @@ pub fn collect_assigned_symbol_usage(
         }
 
         let candidate_symbols =
-            expression_candidate_symbols(module_id, types, assigned_expression_id);
+            expression_candidate_symbols(module_id, resolutions, assigned_expression_id);
         assigned_symbols.extend(candidate_symbols);
     }
 
@@ -210,8 +207,8 @@ pub fn collect_assigned_symbol_usage(
 struct ReadSymbolCollector<'a> {
     /// The module being scanned.
     module_id: ModuleId,
-    /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable<'a>,
+    /// The resolution table carrying semantic targets.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// Collected symbols read from one expression.
     reads: HashSet<dir::GlobalSymbolId>,
     /// Visitor options.
@@ -261,7 +258,7 @@ impl NodeVisitor for ReadSymbolCollector<'_> {
             return;
         }
 
-        if let Some(symbol_id) = expression_target_symbol(self.module_id, self.types, id) {
+        if let Some(symbol_id) = expression_target_symbol(self.module_id, self.resolutions, id) {
             self.reads.insert(symbol_id);
         }
 

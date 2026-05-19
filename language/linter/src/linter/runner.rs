@@ -340,6 +340,9 @@ impl LintRunner {
         let parsed = artifacts
             .dir_parsed(module.id)
             .expect("lint DIR pass requires committed parsed DIR artifact");
+        let imported = artifacts
+            .dir_imported(module.id, profile.id())
+            .expect("lint DIR pass requires committed imported DIR artifact");
         let expanded = artifacts
             .dir_expanded(module.id, profile.id())
             .expect("lint DIR pass requires committed expanded DIR artifact");
@@ -349,7 +352,9 @@ impl LintRunner {
 
         let strings = repository.string_pool().clone();
         let symbols = expanded.binding_table(&bound);
+        let dependencies = expanded.dependency_table(&imported);
         let types = checked.type_table(&bound, &expanded);
+        let resolutions = checked.resolution_table();
         let mut ctx = LintModuleContext::new(
             repository,
             artifacts,
@@ -361,7 +366,9 @@ impl LintRunner {
             expanded.as_ref(),
             strings.as_ref(),
             symbols,
+            dependencies,
             &types,
+            &resolutions,
             bound.namespace_scope,
             options,
             self.compute_fixes,

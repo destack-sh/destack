@@ -127,6 +127,8 @@ pub struct TaintAnalysis<'a> {
     symbols: &'a dir::BindingTable<'a>,
     /// Active module types.
     types: &'a dir::TypeTable<'a>,
+    /// Active module resolutions.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// Mutable cache reused across checks.
     cache: &'a mut TaintCache,
     /// Whether heuristic taint sources should be included.
@@ -144,6 +146,7 @@ impl<'a> TaintAnalysis<'a> {
         strings: &'a StringPool,
         symbols: &'a dir::BindingTable<'a>,
         types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         cache: &'a mut TaintCache,
         include_heuristic_sources: bool,
     ) -> Self {
@@ -155,6 +158,7 @@ impl<'a> TaintAnalysis<'a> {
             strings,
             symbols,
             types,
+            resolutions,
             cache,
             include_heuristic_sources,
         }
@@ -420,6 +424,7 @@ impl<'a> TaintAnalysis<'a> {
                     self.strings,
                     self.symbols,
                     self.types,
+                    self.resolutions,
                     *left,
                 );
                 labels.apply_sanitizer(&sanitizer_labels);
@@ -626,7 +631,7 @@ impl<'a> TaintAnalysis<'a> {
         }
 
         let candidate_symbols =
-            expression_candidate_symbols(self.module_id, self.types, expression_id);
+            expression_candidate_symbols(self.module_id, self.resolutions, expression_id);
         for symbol_id in candidate_symbols {
             let symbol_labels =
                 self.symbol_taint_labels_inner(symbol_id, expression_stack, symbol_stack);
@@ -663,6 +668,7 @@ impl<'a> TaintAnalysis<'a> {
             self.strings,
             self.symbols,
             self.types,
+            self.resolutions,
             symbol_id,
         );
 
@@ -684,7 +690,7 @@ impl<'a> TaintAnalysis<'a> {
         _expression: &dir::Expression,
     ) -> TaintLabels {
         let candidate_symbols =
-            expression_candidate_symbols(self.module_id, self.types, expression_id);
+            expression_candidate_symbols(self.module_id, self.resolutions, expression_id);
 
         let mut labels = TaintLabels::default();
         for symbol_id in candidate_symbols {
@@ -696,6 +702,7 @@ impl<'a> TaintAnalysis<'a> {
                 self.strings,
                 self.symbols,
                 self.types,
+                self.resolutions,
                 symbol_id,
             );
             labels.merge(&symbol_labels);
@@ -761,6 +768,7 @@ pub fn expression_sink_taint_labels(
     strings: &StringPool,
     symbols: &dir::BindingTable<'_>,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
     let Some(sink_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Sink)
@@ -768,7 +776,7 @@ pub fn expression_sink_taint_labels(
         return TaintLabels::default();
     };
 
-    let candidate_symbols = expression_candidate_symbols(module_id, types, expression_id);
+    let candidate_symbols = expression_candidate_symbols(module_id, resolutions, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
@@ -780,6 +788,7 @@ pub fn expression_sink_taint_labels(
             strings,
             symbols,
             types,
+            resolutions,
             symbol_id,
             sink_symbol,
         );
@@ -799,6 +808,7 @@ pub fn expression_sanitizer_taint_labels(
     strings: &StringPool,
     symbols: &dir::BindingTable<'_>,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
     let Some(sanitizer_symbol) =
@@ -807,7 +817,7 @@ pub fn expression_sanitizer_taint_labels(
         return TaintLabels::default();
     };
 
-    let candidate_symbols = expression_candidate_symbols(module_id, types, expression_id);
+    let candidate_symbols = expression_candidate_symbols(module_id, resolutions, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
@@ -819,6 +829,7 @@ pub fn expression_sanitizer_taint_labels(
             strings,
             symbols,
             types,
+            resolutions,
             symbol_id,
             sanitizer_symbol,
         );
@@ -861,6 +872,7 @@ fn symbol_taint_labels_from_decorators(
     strings: &StringPool,
     symbols: &dir::BindingTable<'_>,
     types: &dir::TypeTable<'_>,
+    resolutions: &dir::ResolutionTable<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {
     let Some(taint_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Taint)
@@ -876,6 +888,7 @@ fn symbol_taint_labels_from_decorators(
         strings,
         symbols,
         types,
+        resolutions,
         symbol_id,
         taint_symbol,
     );

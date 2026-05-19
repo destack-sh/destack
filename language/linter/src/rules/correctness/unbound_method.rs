@@ -103,12 +103,8 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // resolve global id
         let global_id = expression_id.into_global_any(self.ctx.module_id());
-        let Some(resolution) = self.ctx.types.resolution(global_id) else {
-            return;
-        };
-
         // resolve is unbound method
-        let is_unbound_method = resolution_target_symbols(resolution)
+        let is_unbound_method = resolution_target_symbols(self.ctx.resolutions, global_id)
             .into_iter()
             .any(|symbol| self.is_this_bound_method_symbol(symbol));
         if !is_unbound_method {

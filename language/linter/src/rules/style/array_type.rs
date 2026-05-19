@@ -208,6 +208,7 @@ fn expression_is_array_semantic(
         ctx.module_id(),
         ctx.dir.tree(),
         ctx.types,
+        ctx.resolutions,
         expression_id,
         |types, type_id| is_array_type(types, type_id, Some(array_symbol)),
     )

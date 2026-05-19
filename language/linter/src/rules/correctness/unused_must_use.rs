@@ -147,6 +147,7 @@ fn expression_has_must_use(
         ctx.strings,
         &ctx.symbols,
         ctx.types,
+        ctx.resolutions,
         expression_id,
         must_use_symbol,
     )

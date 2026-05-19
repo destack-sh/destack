@@ -310,7 +310,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         // collect all uses of the index variable
         let mut collector = IndexUseCollector {
             module_id: self.ctx.module_id(),
-            types: self.ctx.types,
+            resolutions: self.ctx.resolutions,
             index_symbol,
             array_symbol,
             all_uses_are_indexing: true,
@@ -382,7 +382,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 /// Collector to check how the index variable is used.
 struct IndexUseCollector<'a> {
     module_id: destack_source::ModuleId,
-    types: &'a dir::TypeTable<'a>,
+    resolutions: &'a dir::ResolutionTable<'a>,
     index_symbol: GlobalSymbolId,
     array_symbol: GlobalSymbolId,
     all_uses_are_indexing: bool,
@@ -396,7 +396,7 @@ impl IndexUseCollector<'_> {
         &self,
         expression_id: LocalNodeId<dir::Expression>,
     ) -> Option<GlobalSymbolId> {
-        self.types
+        self.resolutions
             .symbol_resolution(expression_id.into_global_any(self.module_id))
     }
 }

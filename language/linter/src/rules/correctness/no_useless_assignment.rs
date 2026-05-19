@@ -99,7 +99,7 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             let reads = collect_expression_read_symbol_usage(
                 self.ctx.module_id(),
                 self.ctx.dir.tree(),
-                self.ctx.types,
+                self.ctx.resolutions,
                 inner_id,
             );
             for read in &reads {

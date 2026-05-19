@@ -445,7 +445,7 @@ fn callback_body_usage(
     let mut visitor = CallbackBodyUsageVisitor {
         root_expression_id: body_expression_id,
         module_id: ctx.module_id(),
-        types: ctx.types,
+        resolutions: ctx.resolutions,
         function_symbol,
         function_name,
         arguments_name,
@@ -467,8 +467,8 @@ struct CallbackBodyUsageVisitor<'a> {
     root_expression_id: dir::LocalNodeId<dir::Expression>,
     /// The module being scanned.
     module_id: destack_source::ModuleId,
-    /// The type table carrying semantic resolutions.
-    types: &'a dir::TypeTable<'a>,
+    /// The resolution table carrying semantic targets.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// The callback function symbol.
     function_symbol: dir::GlobalSymbolId,
     /// The callback function name when present.
@@ -530,7 +530,7 @@ impl NodeVisitor for CallbackBodyUsageVisitor<'_> {
             self.usage.uses_arguments = true;
         }
         if self
-            .types
+            .resolutions
             .symbol_resolution(expression_id.into_global_any(self.module_id))
             .is_some_and(|symbol| symbol == self.function_symbol)
             || self
