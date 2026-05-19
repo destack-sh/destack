@@ -6,7 +6,6 @@ use parking_lot::{Condvar, Mutex, MutexGuard};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostEvent;
-use crate::host::poller::PollerWakeHandle;
 
 /// Shared host event queue for host event delivery.
 #[derive(Debug, Clone)]
@@ -53,11 +52,6 @@ impl HostQueue {
         self.state.wake.notify_all();
     }
 
-    /// Return one shared wake handle for this queue.
-    pub(crate) fn poll_wake_handle(&self) -> Arc<dyn PollerWakeHandle> {
-        Arc::new(self.clone())
-    }
-
     /// Poll queued host events with one optional timeout in nanoseconds.
     pub(crate) fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<HostEvent>> {
         let mut payload = self.state.queue.lock();
@@ -86,16 +80,6 @@ impl HostQueue {
         }
 
         Ok(drain_events(&mut payload))
-    }
-}
-
-impl PollerWakeHandle for HostQueue {
-    fn wake(&self) -> RuntimeResult<()> {
-        let mut payload = self.state.queue.lock();
-        payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
-        self.state.wake.notify_all();
-
-        Ok(())
     }
 }
 

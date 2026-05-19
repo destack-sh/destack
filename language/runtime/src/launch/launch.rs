@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_engine as engine;
-use destack_workspace::RuntimeOptions;
+use destack_workspace::{Environment, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::engine::{Engine, Entry};
@@ -11,8 +11,8 @@ use crate::world::{RuntimeId, World};
 pub struct Launch {
     /// Runtime options used to construct the initial world and runtime.
     pub options: RuntimeOptions,
-    /// Process arguments exposed to the launched runtime.
-    pub process_args: Arc<[String]>,
+    /// Ambient environment exposed to the launched runtime.
+    pub environment: Arc<Environment>,
     /// Execution backend installed into the initial worker.
     pub engine: Engine,
     /// User entrypoint invoked after runtime bootstrap.
@@ -36,7 +36,7 @@ impl std::fmt::Debug for Launch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Launch")
             .field("options", &self.options)
-            .field("process_args", &self.process_args)
+            .field("environment", &self.environment)
             .field("engine", &"<launch engine>")
             .field("entry", &self.entry)
             .field("entry_args", &self.entry_args)
@@ -49,16 +49,16 @@ impl Launch {
     pub fn new(options: RuntimeOptions, engine: impl Into<Engine>, entry: Entry) -> Self {
         Self {
             options,
-            process_args: Arc::from([]),
+            environment: Arc::new(Environment::default()),
             engine: engine.into(),
             entry,
             entry_args: Vec::new(),
         }
     }
 
-    /// Replace the process arguments.
-    pub fn with_process_args(mut self, process_args: impl Into<Arc<[String]>>) -> Self {
-        self.process_args = process_args.into();
+    /// Replace the ambient environment.
+    pub fn with_environment(mut self, environment: impl Into<Arc<Environment>>) -> Self {
+        self.environment = environment.into();
         self
     }
 
@@ -72,7 +72,7 @@ impl Launch {
     pub fn run(self) -> RuntimeResult<LaunchResult> {
         let Launch {
             options,
-            process_args,
+            environment,
             engine,
             entry,
             entry_args,
@@ -80,7 +80,7 @@ impl Launch {
         let mut world = World::from_options(&options)?;
 
         // bootstrap the initial runtime
-        let runtime_id = world.spawn_runtime(process_args, &options, engine)?;
+        let runtime_id = world.spawn_runtime(environment, &options, engine)?;
         let value = world.run_entrypoint(runtime_id, &entry, &entry_args)?;
 
         // drain work scheduled by the entrypoint

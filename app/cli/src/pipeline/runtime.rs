@@ -1,7 +1,7 @@
 use destack_artifact::ArtifactKey;
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
-use destack_workspace::{Repository, Revision};
+use destack_workspace::{Environment, Repository, Revision};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};
@@ -47,15 +47,16 @@ pub fn create_isolate(
         .map_err(|error| CliError::message(error.to_string()))
 }
 
-/// Build process arguments for the entry source.
-pub fn process_args_for_source(source: &InputSource, args: &[String]) -> Vec<String> {
+/// Build the launch environment for the entry source.
+pub fn environment_for_source(source: &InputSource, args: &[String]) -> Environment {
     // include the entry display name as argv[0]
-    let mut process_args = Vec::with_capacity(args.len().saturating_add(1));
-    process_args.push(entry_display_name(source));
-    process_args.extend(args.iter().cloned());
+    let mut environment = Environment::capture_process();
+    let mut launch_args = Vec::with_capacity(args.len().saturating_add(1));
+    launch_args.push(entry_display_name(source));
+    launch_args.extend(args.iter().cloned());
+    environment.args = launch_args;
 
-    // return the final argv list
-    process_args
+    environment
 }
 
 /// Get a display name for the entry source.

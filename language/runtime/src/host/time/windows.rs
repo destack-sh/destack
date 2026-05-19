@@ -2,7 +2,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core as core_platform;
+use crate::host::core as host_core;
 use crate::host::time::{ClockId, ClockProperties, ClockSource};
 use windows_sys::Win32::Foundation::FILETIME;
 use windows_sys::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
@@ -72,7 +72,7 @@ fn process_cpu_nanos() -> RuntimeResult<u64> {
         )
     };
     if rc == 0 {
-        return Err(core_platform::io_error("GetProcessTimes"));
+        return Err(host_core::io_error("GetProcessTimes"));
     }
 
     // convert one kernel and user pair into nanoseconds
@@ -111,7 +111,7 @@ fn thread_cpu_nanos() -> RuntimeResult<u64> {
         )
     };
     if rc == 0 {
-        return Err(core_platform::io_error("GetThreadTimes"));
+        return Err(host_core::io_error("GetThreadTimes"));
     }
 
     // convert one kernel and user pair into nanoseconds
@@ -127,20 +127,20 @@ fn performance_counter_nanos() -> RuntimeResult<u64> {
     let mut frequency = 0_i64;
     let rc_frequency = unsafe { QueryPerformanceFrequency(&mut frequency) };
     if rc_frequency == 0 {
-        return Err(core_platform::io_error("QueryPerformanceFrequency"));
+        return Err(host_core::io_error("QueryPerformanceFrequency"));
     }
     if frequency <= 0 {
-        return Err(core_platform::io_error("QueryPerformanceFrequency"));
+        return Err(host_core::io_error("QueryPerformanceFrequency"));
     }
 
     // sample one high-resolution counter
     let mut counter = 0_i64;
     let rc_counter = unsafe { QueryPerformanceCounter(&mut counter) };
     if rc_counter == 0 {
-        return Err(core_platform::io_error("QueryPerformanceCounter"));
+        return Err(host_core::io_error("QueryPerformanceCounter"));
     }
     if counter < 0 {
-        return Err(core_platform::io_error("QueryPerformanceCounter"));
+        return Err(host_core::io_error("QueryPerformanceCounter"));
     }
 
     // convert one counter sample to nanoseconds
@@ -156,10 +156,10 @@ fn performance_counter_resolution_nanos() -> RuntimeResult<u64> {
     let mut frequency = 0_i64;
     let rc_frequency = unsafe { QueryPerformanceFrequency(&mut frequency) };
     if rc_frequency == 0 {
-        return Err(core_platform::io_error("QueryPerformanceFrequency"));
+        return Err(host_core::io_error("QueryPerformanceFrequency"));
     }
     if frequency <= 0 {
-        return Err(core_platform::io_error("QueryPerformanceFrequency"));
+        return Err(host_core::io_error("QueryPerformanceFrequency"));
     }
 
     // convert one frequency value to one resolution floor
@@ -229,7 +229,7 @@ pub(crate) fn host_now_nanos(clock: ClockId) -> RuntimeResult<u64> {
     // route the selected clock id
     match clock {
         ClockId::Wall => Ok(wall_nanos()),
-        ClockId::Monotonic => Ok(core_platform::monotonic_now_ns()),
+        ClockId::Monotonic => Ok(host_core::monotonic_now_ns()),
         ClockId::ProcessCpu => process_cpu_nanos(),
         ClockId::ThreadCpu => thread_cpu_nanos(),
         ClockId::Boot => Ok(boot_nanos()),

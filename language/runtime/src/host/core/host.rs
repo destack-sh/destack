@@ -1,6 +1,7 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::{HostEvent, Platform};
-use crate::world::policy::ActionSet;
+use crate::host::HostEvent;
+
+use super::HostQueue;
 
 /// Host poll output containing queued events.
 #[derive(Debug, Default)]
@@ -11,14 +12,6 @@ pub struct HostPollResult {
 
 /// Runtime boundary for process-local host integration.
 pub(crate) trait Host: std::fmt::Debug + Send + Sync {
-    /// Return the target platform for this host.
-    fn platform(&self) -> Platform;
-
-    /// Return static host actions implemented by this host.
-    fn static_actions(&self) -> ActionSet {
-        ActionSet::new()
-    }
-
     /// Return whether the current execution context is the process main context.
     fn is_process_main_context(&self) -> bool {
         false
@@ -29,28 +22,51 @@ pub(crate) trait Host: std::fmt::Debug + Send + Sync {
         Ok(())
     }
 
-    /// Collect session-owned host ingress for one attached session.
-    fn collect_session_events(&self) -> RuntimeResult<Vec<HostEvent>> {
+    /// Collect host events that are ready to enter the runtime.
+    fn collect_events(&self) -> RuntimeResult<Vec<HostEvent>> {
         Ok(Vec::new())
     }
+
+    /// Return one host wall-clock sample in nanoseconds.
+    fn wall_nanos(&self) -> u64;
+
+    /// Return one host monotonic-clock sample in nanoseconds.
+    fn mono_nanos(&self) -> u64;
+
+    /// Sleep on the host for one duration in nanoseconds.
+    fn sleep_nanos(&self, duration_nanos: u64);
+
+    /// Sleep on the host until one wall-clock deadline in nanoseconds.
+    fn sleep_until_wall_nanos(&self, deadline_nanos: u64);
+
+    /// Fill one buffer with host entropy.
+    fn fill_random_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()>;
+
+    /// Try to fill one buffer with host entropy without blocking.
+    fn try_fill_random_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()>;
+
+    /// Return one host entropy u64.
+    fn random_u64(&self) -> RuntimeResult<u64>;
 }
 
-/// Fallback host integration for unsupported compile targets.
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-#[derive(Debug, Default)]
-pub(crate) struct UnsupportedHost;
+/// Advance host-owned events into one queue.
+pub(crate) fn advance_host_events(host: &dyn Host, queue: &HostQueue) -> RuntimeResult<()> {
+    host.advance_events()?;
+    let events = host.collect_events()?;
+    queue.enqueue(events);
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-impl UnsupportedHost {
-    /// Create one fallback host integration.
-    pub(crate) fn new() -> Self {
-        Self
-    }
+    Ok(())
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-impl Host for UnsupportedHost {
-    fn platform(&self) -> Platform {
-        Platform::Unknown
-    }
+/// Poll host events through one queue.
+pub(crate) fn poll_host_events(
+    host: &dyn Host,
+    queue: &HostQueue,
+    timeout_nanos: Option<u64>,
+) -> RuntimeResult<HostPollResult> {
+    advance_host_events(host, queue)?;
+
+    Ok(HostPollResult {
+        events: queue.poll_events(timeout_nanos)?,
+    })
 }

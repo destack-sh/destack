@@ -31,7 +31,7 @@ pub enum HostErrorCode {
     InvalidArgumentType = 1001,
     /// Invalid argument value.
     InvalidArgumentValue = 1002,
-    /// Null pointer passed across the platform boundary.
+    /// Null pointer passed across the host boundary.
     NullPointer = 1100,
     /// Feature is not supported.
     NotSupported = 1200,
@@ -362,7 +362,7 @@ impl HostErrorCode {
 
 /// Host-level system source kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PlatformSystemSourceKind {
+pub enum HostSystemSourceKind {
     /// POSIX-style errno value.
     Errno,
     /// Winsock WSA error value.
@@ -379,9 +379,9 @@ pub enum PlatformSystemSourceKind {
 
 /// Host-level system source metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlatformSystemSource {
+pub struct HostSystemSource {
     /// Host source kind.
-    pub kind: PlatformSystemSourceKind,
+    pub kind: HostSystemSourceKind,
     /// Numeric source value.
     pub value: i32,
     /// Optional symbolic source name.
@@ -390,7 +390,7 @@ pub struct PlatformSystemSource {
 
 /// Path payload encoding for error context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PlatformPathEncoding {
+pub enum HostPathEncoding {
     /// Raw byte payload.
     Bytes,
     /// UTF-16 little-endian payload.
@@ -399,9 +399,9 @@ pub enum PlatformPathEncoding {
 
 /// Path payload attached to an error context.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlatformPathPayload {
+pub struct HostPathPayload {
     /// Path payload encoding.
-    pub encoding: PlatformPathEncoding,
+    pub encoding: HostPathEncoding,
     /// Encoded path bytes.
     pub data: Vec<u8>,
 }
@@ -449,9 +449,9 @@ pub struct HostErrorContext {
     /// Optional syscall or host API name.
     pub syscall: Option<String>,
     /// Optional primary path payload.
-    pub path: Option<PlatformPathPayload>,
+    pub path: Option<HostPathPayload>,
     /// Optional destination path payload.
-    pub dest: Option<PlatformPathPayload>,
+    pub dest: Option<HostPathPayload>,
     /// Optional primary path text fallback.
     pub path_text: Option<String>,
     /// Optional destination path text fallback.
@@ -537,7 +537,7 @@ pub struct HostError {
     /// Optional binding operation name.
     pub op: Option<String>,
     /// Optional host-level system source metadata.
-    pub source: Option<PlatformSystemSource>,
+    pub source: Option<HostSystemSource>,
     /// Optional typed context.
     pub context: Option<HostErrorContext>,
     /// Optional human-readable message.
@@ -638,7 +638,7 @@ impl HostError {
 
         let mapped = errno.and_then(io_error_code_from_errno);
         error.code = code.or(mapped).unwrap_or(HostErrorCode::Io);
-        error.source = source_from_errno(PlatformSystemSourceKind::Errno, errno, system_code);
+        error.source = source_from_errno(HostSystemSourceKind::Errno, errno, system_code);
 
         let mut context = HostErrorContext::with_kind(HostErrorContextKind::Io);
         context.syscall = syscall;
@@ -662,7 +662,7 @@ impl HostError {
 
         let mapped = errno.and_then(net_error_code_from_errno);
         error.code = code.or(mapped).unwrap_or(HostErrorCode::Net);
-        error.source = source_from_errno(PlatformSystemSourceKind::Errno, errno, system_code);
+        error.source = source_from_errno(HostSystemSourceKind::Errno, errno, system_code);
 
         let mut context = HostErrorContext::with_kind(HostErrorContextKind::Net);
         context.syscall = syscall;
@@ -684,8 +684,8 @@ impl HostError {
     ) -> Self {
         let mut error = Self::io(message);
         error.code = code.unwrap_or(HostErrorCode::Process);
-        error.source = system_code.map(|name| PlatformSystemSource {
-            kind: PlatformSystemSourceKind::Other,
+        error.source = system_code.map(|name| HostSystemSource {
+            kind: HostSystemSourceKind::Other,
             value: 0,
             name: Some(name),
         });
@@ -745,11 +745,11 @@ impl HostError {
 
 /// Build a source object from errno fields.
 fn source_from_errno(
-    kind: PlatformSystemSourceKind,
+    kind: HostSystemSourceKind,
     errno: Option<i32>,
     name: Option<String>,
-) -> Option<PlatformSystemSource> {
-    errno.map(|value| PlatformSystemSource { kind, value, name })
+) -> Option<HostSystemSource> {
+    errno.map(|value| HostSystemSource { kind, value, name })
 }
 
 /// Map an errno value to an IO error code when possible.

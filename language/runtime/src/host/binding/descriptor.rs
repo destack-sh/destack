@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::world::policy::{ActionId, ActionSet};
-use crate::world::trace::EntropyKind;
+use crate::world::policy::ActionSet;
 use destack_core::fnv1a_128;
 
 /// Default codec used for binding payloads.
@@ -88,11 +87,6 @@ impl BindingDescriptor {
     /// Return the required actions for this binding.
     pub const fn requires(self) -> &'static [&'static str] {
         self.requires
-    }
-
-    /// Iterate required action identifiers for this binding.
-    pub fn required_action_ids(self) -> impl Iterator<Item = ActionId> + 'static {
-        self.requires.iter().copied().map(ActionId::from_name)
     }
 
     /// Return the first required action missing from one action set.
@@ -226,8 +220,8 @@ pub enum BindingReplayPayload {
 pub enum BindingReplayKind {
     /// Record a generic binding call payload.
     BindingCall,
-    /// Record one entropy event with one specific kind.
-    Entropy(EntropyKind),
+    /// Record one entropy sample.
+    Entropy,
 }
 
 /// Stable identifier for a binding name.
