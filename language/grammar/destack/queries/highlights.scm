@@ -24,7 +24,6 @@
   "implements"
   "interface"
   "keyof"
-  "namespace"
   "private"
   "protected"
   "public"
