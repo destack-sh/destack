@@ -3,6 +3,7 @@ export * from "destack:reflect";
 
 // types
 export {
+    Option,
     PropertyKey,
     Record,
     Partial,
