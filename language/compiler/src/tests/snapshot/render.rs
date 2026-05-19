@@ -231,13 +231,15 @@ impl<'a> SnapshotRenderer<'a> {
         match table {
             "binding" => 0,
             "type" => 1,
-            "dependency" => 2,
-            "export" => 3,
-            "global" => 4,
-            "capture" => 5,
-            "guard" => 6,
-            "macro" => 7,
-            "layout" => 8,
+            "resolution" => 2,
+            "instance" => 3,
+            "dependency" => 4,
+            "export" => 5,
+            "global" => 6,
+            "capture" => 7,
+            "guard" => 8,
+            "macro" => 9,
+            "layout" => 10,
             _ => u8::MAX,
         }
     }
@@ -248,14 +250,20 @@ impl<'a> SnapshotRenderer<'a> {
             "symbol" => 0,
             "scope" => 1,
             "node" => 2,
-            "edge" => 3,
-            "local" => 4,
-            "indirect" => 5,
-            "star" => 6,
-            "module" => 7,
-            "function" => 8,
-            "invocation" => 9,
-            "replaced_symbol" => 10,
+            "entry" => 3,
+            "edge" => 4,
+            "local" => 5,
+            "indirect" => 6,
+            "star" => 7,
+            "module" => 8,
+            "function" => 9,
+            "invocation" => 10,
+            "field" => 11,
+            "element" => 12,
+            "tag" => 13,
+            "variant" => 14,
+            "newtype" => 15,
+            "replaced_symbol" => 16,
             "summary" => u8::MAX,
             _ => 128,
         }
@@ -263,10 +271,12 @@ impl<'a> SnapshotRenderer<'a> {
 
     /// Quote a row field value when needed.
     fn quote_value(value: &str) -> String {
+        let is_list = value.starts_with('[') && value.ends_with(']');
         let needs_quotes = value.is_empty()
-            || value.chars().any(|character| {
-                character.is_whitespace() || character == '"' || character == '\\'
-            });
+            || (!is_list
+                && value.chars().any(|character| {
+                    character.is_whitespace() || character == '"' || character == '\\'
+                }));
 
         if needs_quotes {
             format!("{value:?}")

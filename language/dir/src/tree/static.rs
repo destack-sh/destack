@@ -1,15 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Declaration, Expression, FunctionSignature, GlobalNodeIdAny, Key, LocalNodeId, LocalTypeId,
-    Property, ScalarLiteral, StringId, TypeLiteral,
+    Declaration, FunctionSignature, LocalNodeId, LocalTypeId, ScalarLiteral, StaticKey, StringId,
+    TypeLiteral,
 };
 
-/// Static value form of an expression in a static context.
+/// Static value produced by checked static evaluation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum StaticExpression {
-    /// Unevaluated expression.
-    Unevaluated { node: LocalNodeId<Expression> },
+pub enum StaticTerm {
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
     /// Type literal.
@@ -24,109 +22,70 @@ pub enum StaticExpression {
     /// Type value.
     Type { ty: LocalTypeId },
     /// Array value.
-    ArrayExpression { elements: Vec<StaticExpression> },
+    Array { elements: Vec<StaticTerm> },
+    /// Fixed array value.
+    FixedArray {
+        /// The repeated value.
+        value: Box<StaticTerm>,
+        /// The fixed array length.
+        length: Box<StaticTerm>,
+    },
     /// Tuple value.
-    TupleExpression { elements: Vec<StaticExpression> },
-    /// Object value.
-    ObjectExpression {
-        /// The object type selected for this value.
-        ty: Option<LocalTypeId>,
+    Tuple { elements: Vec<StaticTerm> },
+    /// Structural object value.
+    Object {
         /// The object properties.
+        properties: Vec<StaticProperty>,
+    },
+    /// Nominal struct value.
+    Struct {
+        /// The struct type selected for this value.
+        ty: LocalTypeId,
+        /// The struct properties.
         properties: Vec<StaticProperty>,
     },
 }
 
-impl StaticExpression {
-    /// Return whether this static expression has been evaluated.
-    pub fn is_evaluated(&self) -> bool {
-        match self {
-            StaticExpression::Unevaluated { .. } => false,
-            StaticExpression::ScalarLiteral { .. }
-            | StaticExpression::TypeLiteral { .. }
-            | StaticExpression::Type { .. } => true,
-            StaticExpression::Declaration {
-                generic_arguments, ..
-            } => generic_arguments
-                .as_ref()
-                .is_none_or(|arguments| arguments.iter().all(StaticArgument::is_evaluated)),
-            StaticExpression::ArrayExpression { elements }
-            | StaticExpression::TupleExpression { elements } => {
-                elements.iter().all(StaticExpression::is_evaluated)
-            }
-            StaticExpression::ObjectExpression { properties, .. } => {
-                properties.iter().all(StaticProperty::is_evaluated)
-            }
-        }
-    }
-}
-
-/// Static argument in a static context.
+/// Static argument in a checked static context.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum StaticArgument {
-    /// Unevaluated argument.
-    Unevaluated { node: GlobalNodeIdAny },
-    /// Evaluated static argument.
-    Evaluated {
-        /// The optional argument name.
-        name: Option<StringId>,
-        /// The static value.
-        value: StaticExpression,
-    },
+pub struct StaticArgument {
+    /// The optional argument name.
+    pub name: Option<StringId>,
+    /// The static value.
+    pub value: StaticTerm,
 }
 
 impl StaticArgument {
-    /// Return whether this static argument has been evaluated.
-    pub fn is_evaluated(&self) -> bool {
-        match self {
-            StaticArgument::Unevaluated { .. } => false,
-            StaticArgument::Evaluated { value, .. } => value.is_evaluated(),
-        }
-    }
-
-    /// Build an evaluated static argument from a static expression.
-    pub fn value(value: StaticExpression) -> Self {
-        Self::Evaluated { name: None, value }
+    /// Build a positional static argument.
+    pub fn value(value: StaticTerm) -> Self {
+        Self { name: None, value }
     }
 }
 
-/// Static property in a static context.
+/// Static object property in a checked static context.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticProperty {
-    /// Unevaluated property.
-    Unevaluated { node: LocalNodeId<Property> },
-    /// Evaluated static field.
+    /// Static field.
     Field {
         /// The property key.
-        key: Key,
+        key: StaticKey,
         /// The property value.
-        value: StaticExpression,
+        value: StaticTerm,
     },
-    /// Evaluated static member function.
+    /// Static member function.
     Method {
         /// The optional method key.
-        key: Option<Key>,
+        key: Option<StaticKey>,
         /// The method signature.
         signature: FunctionSignature,
         /// The method body.
-        body: StaticExpression,
+        body: StaticTerm,
     },
-    /// Evaluated static spread.
+    /// Static spread.
     Spread {
         /// The spread value.
-        value: StaticExpression,
+        value: StaticTerm,
     },
-}
-
-impl StaticProperty {
-    /// Return whether this static property has been evaluated.
-    pub fn is_evaluated(&self) -> bool {
-        match self {
-            StaticProperty::Unevaluated { .. } => false,
-            StaticProperty::Field { value, .. }
-            | StaticProperty::Method { body: value, .. }
-            | StaticProperty::Spread { value, .. } => value.is_evaluated(),
-        }
-    }
 }
 
 /// The addressability of an expression.

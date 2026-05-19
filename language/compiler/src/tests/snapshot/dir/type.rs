@@ -15,18 +15,10 @@ impl SnapshotTable for dir::TypeSegment {
                 .optional_field("inferred", value::optional_type_label(entry.inferred))
                 .optional_field("receiver", value::optional_type_label(entry.receiver))
                 .optional_field("contextual", value::optional_type_label(entry.contextual))
-                .optional_field("signature", value::optional_type_label(entry.signature))
-                .optional_field(
-                    "instantiation",
-                    value::optional_instantiation_label(entry.instantiation),
-                );
+                .optional_field("signature", value::optional_type_label(entry.signature));
 
             if let Some(addressability) = entry.addressability {
                 row = row.field("addressability", value::debug_label(addressability));
-            }
-
-            if let Some(resolution) = &entry.resolution {
-                row = row.field("resolution", value::resolution_label(builder, resolution));
             }
 
             builder.push(row);
@@ -79,7 +71,6 @@ impl SnapshotTable for dir::TypeSegment {
             .field("types", self.type_count().to_string())
             .field("nodes", self.node_entries().count().to_string())
             .field("symbols", self.symbol_entries().count().to_string())
-            .field("instantiations", self.instantiation_count().to_string())
             .field("lineages", self.lineage_count().to_string())
             .field("extensions", self.extension_count().to_string());
         builder.push(row);

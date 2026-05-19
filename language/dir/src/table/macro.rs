@@ -1,7 +1,7 @@
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Decorator, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, StaticExpression};
+use crate::{Decorator, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, StaticTerm};
 
 /// Macro expansion state for one DIR module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,9 +47,9 @@ pub struct MacroInvocation {
     /// The resolved `Macro` implementation.
     pub implementation: GlobalSymbolId,
     /// The static macro configuration.
-    pub config: StaticExpression,
+    pub config: StaticTerm,
     /// State carried from expansion to materialization.
-    pub state: Option<StaticExpression>,
+    pub state: Option<StaticTerm>,
 }
 
 /// What caused one macro invocation.

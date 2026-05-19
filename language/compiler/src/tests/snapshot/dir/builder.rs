@@ -126,6 +126,14 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.types.as_ref());
         }
 
+        if selection.resolution {
+            self.add_table(checked.resolutions.as_ref());
+        }
+
+        if selection.instance {
+            self.add_table(checked.instances.as_ref());
+        }
+
         if selection.layout {
             self.add_table(checked.layouts.as_ref());
         }
@@ -149,6 +157,14 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(materialized.types.as_ref());
         }
 
+        if selection.resolution {
+            self.add_table(materialized.resolutions.as_ref());
+        }
+
+        if selection.instance {
+            self.add_table(materialized.instances.as_ref());
+        }
+
         if selection.capture {
             self.add_table(materialized.captures.as_ref());
         }
@@ -166,6 +182,14 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.types {
             self.add_table(elaborated.types.as_ref());
+        }
+
+        if selection.resolution {
+            self.add_table(elaborated.resolutions.as_ref());
+        }
+
+        if selection.instance {
+            self.add_table(elaborated.instances.as_ref());
         }
 
         if selection.capture {

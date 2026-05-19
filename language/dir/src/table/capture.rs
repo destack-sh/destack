@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, SegmentView, StringId};
@@ -74,17 +74,24 @@ impl<'a> CaptureTable<'a> {
     }
 
     /// Iterate visible captures in segment order.
-    pub fn captures(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &Capture)> + '_> {
-        let mut seen = IndexSet::new();
-        let captures = self
-            .segments
+    pub fn captures(&self) -> impl Iterator<Item = (GlobalSymbolId, &Capture)> + '_ {
+        self.segments
             .iter()
-            .rev()
-            .flat_map(|segment| segment.capture_by_function.iter().rev())
-            .filter_map(move |(symbol, capture)| seen.insert(*symbol).then_some((*symbol, capture)))
-            .collect::<Vec<_>>();
+            .enumerate()
+            .flat_map(move |(segment_index, segment)| {
+                segment
+                    .capture_by_function
+                    .iter()
+                    .filter_map(move |(symbol, capture)| {
+                        let is_shadowed = self
+                            .segments
+                            .iter()
+                            .skip(segment_index + 1)
+                            .any(|segment| segment.capture_by_function.contains_key(symbol));
 
-        Box::new(captures.into_iter().rev())
+                        (!is_shadowed).then_some((*symbol, capture))
+                    })
+            })
     }
 }
 

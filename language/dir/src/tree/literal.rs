@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Argument, FloatType, IntegerType, IntrinsicType, LocalNodeId, StringId};
+use crate::{
+    Argument, FloatType, IntegerType, IntrinsicType, LocalNodeId, PrimitiveType, StringId,
+};
 
 /// A ScalarLiteral is literal scalar value.
 ///
@@ -115,4 +117,20 @@ pub enum TypeLiteral {
     UniqueSymbol,
     /// Intrinsic type.
     Intrinsic(IntrinsicType),
+}
+
+impl From<PrimitiveType> for TypeLiteral {
+    /// Convert a semantic primitive type into a source type literal.
+    fn from(primitive: PrimitiveType) -> Self {
+        match primitive {
+            PrimitiveType::Boolean => Self::Boolean,
+            PrimitiveType::Character => Self::Character,
+            PrimitiveType::String => Self::String,
+            PrimitiveType::Bigint => Self::Bigint,
+            PrimitiveType::Integer(integer) => Self::Integer(integer),
+            PrimitiveType::Float(float) => Self::Float(float),
+            PrimitiveType::Symbol => Self::Symbol,
+            PrimitiveType::UniqueSymbol => Self::UniqueSymbol,
+        }
+    }
 }

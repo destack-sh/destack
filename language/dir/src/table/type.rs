@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Addressability, Arena, BindingTable, DependencyResolution, EnumBackingType, EnumFieldValue,
-    Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation, IntersectionType, LabelResolution,
-    Lineage, LiteralType, LocalExtensionId, LocalInstantiationId, LocalLineageId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Node, Resolution, SegmentView, StaticExpression, SymbolForm, Type,
-    UnionType, VarianceModifier,
+    Addressability, Arena, BindingTable, EnumBackingType, EnumFieldValue, Extension,
+    GlobalNodeIdAny, GlobalSymbolId, IntersectionType, LocalExtensionId, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Node, SegmentView, StaticTerm, SymbolForm, Type, UnionType,
+    VarianceModifier,
 };
 
 /// Cumulative type slots and relations for one DIR module.
@@ -63,105 +62,42 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Iterate type attachments keyed by DIR node.
-    pub fn node_entries(&self) -> Box<dyn Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_> {
-        let mut seen = IndexSet::new();
-        let entries = self
-            .segments
+    pub fn node_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_ {
+        self.segments
             .iter()
-            .rev()
-            .flat_map(|segment| segment.nodes.iter().rev())
-            .filter_map(move |(node_id, entry)| seen.insert(*node_id).then_some((*node_id, entry)))
-            .collect::<Vec<_>>();
+            .enumerate()
+            .flat_map(move |(segment_index, segment)| {
+                segment.nodes.iter().filter_map(move |(node_id, entry)| {
+                    let is_shadowed = self
+                        .segments
+                        .iter()
+                        .skip(segment_index + 1)
+                        .any(|segment| segment.nodes.contains_key(node_id));
 
-        Box::new(entries.into_iter().rev())
+                    (!is_shadowed).then_some((*node_id, entry))
+                })
+            })
     }
 
     /// Iterate type attachments keyed by DIR symbol.
-    pub fn symbol_entries(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_> {
-        let mut seen = IndexSet::new();
-        let entries = self
-            .segments
-            .iter()
-            .rev()
-            .flat_map(|segment| segment.symbols.iter().rev())
-            .filter_map(move |(symbol_id, entry)| {
-                seen.insert(*symbol_id).then_some((*symbol_id, entry))
-            })
-            .collect::<Vec<_>>();
-
-        Box::new(entries.into_iter().rev())
-    }
-
-    /// Iterate committed instantiations with their local ids.
-    pub fn iter_instantiations(
-        &self,
-    ) -> impl Iterator<Item = (LocalInstantiationId, &Instantiation)> + '_ {
+    pub fn symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
         self.segments
             .iter()
-            .flat_map(|segment| segment.iter_instantiations())
-    }
+            .enumerate()
+            .flat_map(move |(segment_index, segment)| {
+                segment
+                    .symbols
+                    .iter()
+                    .filter_map(move |(symbol_id, entry)| {
+                        let is_shadowed = self
+                            .segments
+                            .iter()
+                            .skip(segment_index + 1)
+                            .any(|segment| segment.symbols.contains_key(symbol_id));
 
-    /// Return the instantiation attached to a source node.
-    pub fn node_instantiation_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstantiationId> {
-        self.node_entry(node_id)
-            .and_then(|entry| entry.instantiation)
-    }
-
-    /// Find one exact instantiation by shape.
-    pub fn find_instantiation(&self, expected: &Instantiation) -> Option<LocalInstantiationId> {
-        for (instantiation_id, instantiation) in self.iter_instantiations() {
-            if instantiation == expected {
-                return Some(instantiation_id);
-            }
-        }
-
-        None
-    }
-
-    /// Get an instantiation by id.
-    pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
-        for segment in self.segments.iter() {
-            if let Some(instantiation) = segment.get_local_instantiation(instantiation_id) {
-                return instantiation;
-            }
-        }
-
-        panic!("DIR instantiation {instantiation_id:?} is not visible")
-    }
-
-    /// Get a lineage by its id.
-    pub fn get_lineage(&self, lineage_id: LocalLineageId) -> &Lineage {
-        for segment in self.segments.iter() {
-            if let Some(lineage) = segment.get_local_lineage(lineage_id) {
-                return lineage;
-            }
-        }
-
-        panic!("DIR lineage {lineage_id:?} is not visible")
-    }
-
-    /// Get the lineage id for a symbol.
-    pub fn symbol_lineage_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalLineageId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.lineage_id)
-    }
-
-    /// Get the lineage for a symbol directly.
-    pub fn symbol_lineage(&self, symbol_id: GlobalSymbolId) -> Option<&Lineage> {
-        self.symbol_lineage_id(symbol_id)
-            .map(|id| self.get_lineage(id))
-    }
-
-    /// Iterate over all lineages with their associated symbol ids.
-    pub fn iter_lineages(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &Lineage)> + '_> {
-        let local = self.symbol_entries().filter_map(|(symbol_id, entry)| {
-            entry.lineage_id.map(|lineage_id| {
-                let lineage = self.get_lineage(lineage_id);
-                (symbol_id, lineage)
+                        (!is_shadowed).then_some((*symbol_id, entry))
+                    })
             })
-        });
-
-        Box::new(local)
     }
 
     /// Get an extension by its id.
@@ -203,36 +139,6 @@ impl<'a> TypeTable<'a> {
         self.segments
             .iter()
             .flat_map(|segment| segment.iter_extensions())
-    }
-
-    /// Get the resolved target for a node.
-    pub fn resolution(&self, node_id: GlobalNodeIdAny) -> Option<&Resolution> {
-        self.node_entry(node_id)
-            .and_then(|entry| entry.resolution.as_ref())
-    }
-
-    /// Get the lexical symbol resolution for a node.
-    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
-        match self.resolution(node_id) {
-            Some(Resolution::Symbol(symbol_id)) => Some(*symbol_id),
-            _ => None,
-        }
-    }
-
-    /// Get the dependency resolution for a node.
-    pub fn dependency_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&DependencyResolution> {
-        match self.resolution(node_id) {
-            Some(Resolution::Dependency(resolution)) => Some(resolution),
-            _ => None,
-        }
-    }
-
-    /// Get the label resolution for a node.
-    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
-        match self.resolution(node_id) {
-            Some(Resolution::Label(resolution)) => Some(*resolution),
-            _ => None,
-        }
     }
 
     /// Get the declared type id for a node.
@@ -352,12 +258,12 @@ impl<'a> TypeTable<'a> {
         None
     }
 
-    /// Strip value wrapper types to reach the underlying type id.
-    pub fn unwrap_value_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
+    /// Strip outer form types to reach the payload type id.
+    pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
         let mut current = type_id;
         loop {
             match self.get_type(current) {
-                Type::Value(value) => current = value.value,
+                Type::Form(form) => current = form.value,
                 _ => return current,
             }
         }
@@ -390,22 +296,6 @@ impl<'a> TypeTable<'a> {
         self.segments
             .last()
             .map(|segment| segment.type_count())
-            .unwrap_or(0)
-    }
-
-    /// Get the number of instantiations in the table.
-    pub fn instantiation_count(&self) -> u32 {
-        self.segments
-            .last()
-            .map(|segment| segment.instantiation_count())
-            .unwrap_or(0)
-    }
-
-    /// Get the number of lineages in the table.
-    pub fn lineage_count(&self) -> u32 {
-        self.segments
-            .last()
-            .map(|segment| segment.lineage_count())
             .unwrap_or(0)
     }
 
@@ -468,10 +358,6 @@ pub struct TypeSegment {
     pub module_id: ModuleId,
     /// The first type id owned by this table segment.
     pub(crate) first_type_id: u32,
-    /// The first instantiation id owned by this table segment.
-    pub(crate) first_instantiation_id: u32,
-    /// The first lineage id owned by this table segment.
-    pub(crate) first_lineage_id: u32,
     /// The first extension id owned by this table segment.
     pub(crate) first_extension_id: u32,
     /// Canonical type entries.
@@ -483,12 +369,6 @@ pub struct TypeSegment {
     pub(crate) nodes: IndexMap<GlobalNodeIdAny, NodeEntry>,
     /// Type attachments keyed by DIR symbol.
     pub(crate) symbols: IndexMap<GlobalSymbolId, SymbolEntry>,
-
-    /// Interned generic instantiations.
-    pub(crate) instantiations: Arena<Instantiation>,
-
-    /// Nominal lineage records.
-    pub(crate) lineages: Arena<Lineage>,
 
     /// Extension records.
     pub(crate) extensions: Arena<Extension>,
@@ -502,15 +382,11 @@ impl TypeSegment {
         Self {
             module_id,
             first_type_id: 0,
-            first_instantiation_id: 0,
-            first_lineage_id: 0,
             first_extension_id: 0,
             types: Arena::new(),
             sources: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
-            instantiations: Arena::new(),
-            lineages: Arena::new(),
             extensions: Arena::new(),
             extensions_by_target_symbol: IndexMap::new(),
         }
@@ -521,15 +397,11 @@ impl TypeSegment {
         Self {
             module_id: base.module_id,
             first_type_id: base.type_count(),
-            first_instantiation_id: base.instantiation_count(),
-            first_lineage_id: base.lineage_count(),
             first_extension_id: base.extension_count(),
             types: Arena::new(),
             sources: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
-            instantiations: Arena::new(),
-            lineages: Arena::new(),
             extensions: Arena::new(),
             extensions_by_target_symbol: IndexMap::new(),
         }
@@ -578,24 +450,6 @@ impl TypeSegment {
         let origin = self.type_origin(source_type_id);
 
         self.allocate_type(ty, source_id, origin)
-    }
-
-    /// Get or insert a literal type id.
-    pub fn intern_literal_type(
-        &mut self,
-        source_type_id: LocalTypeId,
-        literal: LiteralType,
-    ) -> LocalTypeId {
-        // reuse an existing literal type when available
-        for type_id in self.iter_type_ids() {
-            if let Type::Literal(value) = self.get_type(type_id)
-                && *value == literal
-            {
-                return type_id;
-            }
-        }
-
-        self.insert_type_from_type(Type::Literal(literal), source_type_id)
     }
 
     /// Intern one union type by deterministic structural scan.
@@ -668,27 +522,6 @@ impl TypeSegment {
             .and_then(|entry| entry.generic_parameter_symbols.as_deref())
     }
 
-    /// Insert a generic instantiation.
-    pub fn insert_instantiation(&mut self, instantiation: Instantiation) -> LocalInstantiationId {
-        // reuse existing exact instantiations by deterministic scan
-        if let Some(instantiation_id) = self.find_instantiation(&instantiation) {
-            return instantiation_id;
-        }
-
-        let instantiation_id = LocalInstantiationId::new(self.instantiation_count());
-        self.instantiations.allocate(instantiation);
-
-        instantiation_id
-    }
-
-    /// Get an instantiation by id.
-    pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
-        self.get_local_instantiation(instantiation_id)
-            .unwrap_or_else(|| {
-                panic!("DIR instantiation {instantiation_id:?} is not allocated in this segment")
-            })
-    }
-
     /// Iterate type attachments keyed by DIR node.
     pub fn node_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_ {
         self.nodes.iter().map(|(node_id, entry)| (*node_id, entry))
@@ -697,98 +530,6 @@ impl TypeSegment {
     /// Iterate type attachments keyed by DIR symbol.
     pub fn symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
         self.iter_symbol_entries()
-    }
-
-    /// Iterate committed instantiations with their local ids.
-    pub fn iter_instantiations(
-        &self,
-    ) -> impl Iterator<Item = (LocalInstantiationId, &Instantiation)> + '_ {
-        (self.first_instantiation_id..self.instantiation_count()).map(|index| {
-            let instantiation_id = LocalInstantiationId::new(index);
-            (instantiation_id, self.get_instantiation(instantiation_id))
-        })
-    }
-
-    /// Attach an instantiation to a source node.
-    pub fn set_node_instantiation(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        instantiation_id: LocalInstantiationId,
-    ) {
-        self.node_entry_mut(node_id).instantiation = Some(instantiation_id);
-    }
-
-    /// Return the instantiation attached to a source node.
-    pub fn node_instantiation_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstantiationId> {
-        self.node_entry(node_id)
-            .and_then(|entry| entry.instantiation)
-    }
-
-    /// Find one exact instantiation by shape.
-    pub fn find_instantiation(&self, expected: &Instantiation) -> Option<LocalInstantiationId> {
-        for (instantiation_id, instantiation) in self.iter_instantiations() {
-            if instantiation == expected {
-                return Some(instantiation_id);
-            }
-        }
-
-        None
-    }
-
-    /// Insert a new lineage.
-    pub fn insert_lineage(&mut self, lineage: Lineage) -> LocalLineageId {
-        let lineage_id = LocalLineageId::new(self.lineage_count());
-        self.lineages.allocate(lineage);
-
-        lineage_id
-    }
-
-    /// Get a lineage by its id.
-    pub fn get_lineage(&self, lineage_id: LocalLineageId) -> &Lineage {
-        self.get_local_lineage(lineage_id).unwrap_or_else(|| {
-            panic!("DIR lineage {lineage_id:?} is not allocated in this segment")
-        })
-    }
-
-    /// Get a mutable lineage by its id.
-    pub fn get_lineage_mut(&mut self, lineage_id: LocalLineageId) -> &mut Lineage {
-        assert!(
-            self.contains_lineage_id(lineage_id),
-            "DIR lineage {lineage_id:?} is not mutable in this segment"
-        );
-
-        let slot = lineage_id.0 - self.first_lineage_id;
-
-        self.lineages.get_mut(slot)
-    }
-
-    /// Set the lineage for a symbol.
-    pub fn set_symbol_lineage(&mut self, symbol_id: GlobalSymbolId, lineage_id: LocalLineageId) {
-        self.symbol_entry_mut(symbol_id).lineage_id = Some(lineage_id);
-    }
-
-    /// Get the lineage id for a symbol.
-    pub fn symbol_lineage_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalLineageId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.lineage_id)
-    }
-
-    /// Get the lineage for a symbol directly.
-    pub fn symbol_lineage(&self, symbol_id: GlobalSymbolId) -> Option<&Lineage> {
-        self.symbol_lineage_id(symbol_id)
-            .map(|id| self.get_lineage(id))
-    }
-
-    /// Iterate over all lineages with their associated symbol ids.
-    pub fn iter_lineages(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &Lineage)> + '_> {
-        let local = self.symbols.iter().filter_map(|(symbol_id, entry)| {
-            entry.lineage_id.map(|lineage_id| {
-                let lineage = self.get_lineage(lineage_id);
-                (*symbol_id, lineage)
-            })
-        });
-
-        Box::new(local)
     }
 
     /// Insert a new extension.
@@ -853,60 +594,6 @@ impl TypeSegment {
             let extension_id = LocalExtensionId::new(index);
             (extension_id, self.get_extension(extension_id))
         })
-    }
-
-    /// Set the resolved target for a node.
-    pub fn set_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: Resolution) {
-        self.node_entry_mut(node_id).resolution = Some(resolution);
-    }
-
-    /// Get the resolved target for a node.
-    pub fn resolution(&self, node_id: GlobalNodeIdAny) -> Option<&Resolution> {
-        self.node_entry(node_id)
-            .and_then(|entry| entry.resolution.as_ref())
-    }
-
-    /// Set the lexical symbol resolution for a node.
-    pub fn set_symbol_resolution(&mut self, node_id: GlobalNodeIdAny, symbol_id: GlobalSymbolId) {
-        self.set_resolution(node_id, Resolution::Symbol(symbol_id));
-    }
-
-    /// Get the lexical symbol resolution for a node.
-    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
-        match self.resolution(node_id) {
-            Some(Resolution::Symbol(symbol_id)) => Some(*symbol_id),
-            _ => None,
-        }
-    }
-
-    /// Set the dependency resolution for a node.
-    pub fn set_dependency_resolution(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        resolution: DependencyResolution,
-    ) {
-        self.set_resolution(node_id, Resolution::Dependency(resolution));
-    }
-
-    /// Get the dependency resolution for a node.
-    pub fn dependency_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&DependencyResolution> {
-        match self.resolution(node_id) {
-            Some(Resolution::Dependency(resolution)) => Some(resolution),
-            _ => None,
-        }
-    }
-
-    /// Set the label resolution for a node.
-    pub fn set_label_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: LabelResolution) {
-        self.set_resolution(node_id, Resolution::Label(resolution));
-    }
-
-    /// Get the label resolution for a node.
-    pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
-        match self.resolution(node_id) {
-            Some(Resolution::Label(resolution)) => Some(*resolution),
-            _ => None,
-        }
     }
 
     /// Set the declared type for a node.
@@ -1083,12 +770,12 @@ impl TypeSegment {
             .then(|| self.types.get(type_id.0 - self.first_type_id))
     }
 
-    /// Strip value wrapper types to reach the underlying type id.
-    pub fn unwrap_value_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
+    /// Strip outer form types to reach the payload type id.
+    pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
         let mut current = type_id;
         loop {
             match self.get_type(current) {
-                Type::Value(value) => current = value.value,
+                Type::Form(form) => current = form.value,
                 _ => return current,
             }
         }
@@ -1148,16 +835,6 @@ impl TypeSegment {
         self.first_type_id + self.types.len() as u32
     }
 
-    /// Get the number of instantiations in the table.
-    pub fn instantiation_count(&self) -> u32 {
-        self.first_instantiation_id + self.instantiations.len() as u32
-    }
-
-    /// Get the number of lineages in the table.
-    pub fn lineage_count(&self) -> u32 {
-        self.first_lineage_id + self.lineages.len() as u32
-    }
-
     /// Get the number of extensions in the table.
     pub fn extension_count(&self) -> u32 {
         self.first_extension_id + self.extensions.len() as u32
@@ -1173,23 +850,6 @@ impl TypeSegment {
         self.types.is_empty()
     }
 
-    /// Get an instantiation owned by this table segment.
-    pub(crate) fn get_local_instantiation(
-        &self,
-        instantiation_id: LocalInstantiationId,
-    ) -> Option<&Instantiation> {
-        self.contains_instantiation_id(instantiation_id).then(|| {
-            self.instantiations
-                .get(instantiation_id.0 - self.first_instantiation_id)
-        })
-    }
-
-    /// Get a lineage owned by this table segment.
-    pub(crate) fn get_local_lineage(&self, lineage_id: LocalLineageId) -> Option<&Lineage> {
-        self.contains_lineage_id(lineage_id)
-            .then(|| self.lineages.get(lineage_id.0 - self.first_lineage_id))
-    }
-
     /// Get an extension owned by this table segment.
     pub(crate) fn get_local_extension(&self, extension_id: LocalExtensionId) -> Option<&Extension> {
         self.contains_extension_id(extension_id).then(|| {
@@ -1201,17 +861,6 @@ impl TypeSegment {
     /// Return whether this segment contains the given type id.
     fn contains_type_id(&self, type_id: LocalTypeId) -> bool {
         type_id.0 >= self.first_type_id && type_id.0 < self.type_count()
-    }
-
-    /// Return whether this segment contains the given instantiation id.
-    fn contains_instantiation_id(&self, instantiation_id: LocalInstantiationId) -> bool {
-        instantiation_id.0 >= self.first_instantiation_id
-            && instantiation_id.0 < self.instantiation_count()
-    }
-
-    /// Return whether this segment contains the given lineage id.
-    fn contains_lineage_id(&self, lineage_id: LocalLineageId) -> bool {
-        lineage_id.0 >= self.first_lineage_id && lineage_id.0 < self.lineage_count()
     }
 
     /// Return whether this segment contains the given extension id.
@@ -1240,13 +889,10 @@ impl TypeSegment {
     }
 
     /// Iterate visible symbol entries with local overrides applied.
-    fn iter_symbol_entries(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_> {
-        let local = self
-            .symbols
+    fn iter_symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
+        self.symbols
             .iter()
-            .map(|(symbol_id, entry)| (*symbol_id, entry));
-
-        Box::new(local)
+            .map(|(symbol_id, entry)| (*symbol_id, entry))
     }
 
     /// Assert internal table invariants only in debug builds.
@@ -1305,10 +951,6 @@ pub struct NodeEntry {
     pub signature: Option<LocalTypeId>,
     /// The addressability of the node result.
     pub addressability: Option<Addressability>,
-    /// The resolved target for this node.
-    pub resolution: Option<Resolution>,
-    /// The generic instantiation attached to this node.
-    pub instantiation: Option<LocalInstantiationId>,
 }
 
 /// Type attachments recorded for one DIR symbol.
@@ -1326,15 +968,13 @@ pub struct SymbolEntry {
     /// The target type for alias declarations.
     pub alias_target_type: Option<LocalTypeId>,
     /// Static constant value for comptime declarations.
-    pub static_value: Option<StaticExpression>,
+    pub static_value: Option<StaticTerm>,
 
     /// The backing type for enum declarations.
     pub enum_backing: Option<EnumBackingType>,
     /// The resolved enum field value.
     pub enum_field_value: Option<EnumFieldValue>,
 
-    /// The nominal lineage for this declaration.
-    pub lineage_id: Option<LocalLineageId>,
     /// The extension declared by this symbol.
     pub extension_id: Option<LocalExtensionId>,
 }
