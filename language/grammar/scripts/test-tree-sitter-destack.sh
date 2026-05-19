@@ -28,6 +28,8 @@ generate_dialect() {
 		cd "${dialect_directory}"
 		bunx "${tree_sitter_cli}" generate
 	)
+
+	node "${script_directory}/compact-parser-c.mjs" "${dialect_directory}/src/parser.c"
 }
 
 test_destack() {
@@ -38,6 +40,8 @@ test_destack() {
 		cd "${package_directory}"
 		bunx "${tree_sitter_cli}" test --rebuild
 	)
+
+	node "${script_directory}/compact-parser-c.mjs" "${package_directory}/destack/src/parser.c"
 }
 
 main() {
