@@ -1,8 +1,8 @@
 use destack_dir as dir;
-use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, Resolution};
+use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, MemberTarget};
 
 use super::{expression_symbol_target, is_type_symbol};
-use crate::core::{DirQueryContext, ModuleQueryContext, NominalEntry, NominalRelation};
+use crate::core::{DirQueryContext, ModuleQueryContext, NominalEntry};
 
 /// Return the recorded symbol target for one member access.
 pub(crate) fn member_access_symbol_target(
@@ -54,30 +54,9 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
 
 /// Build nominal index entries for one module.
 pub(crate) fn build_nominal_relations_for_module(
-    ctx: &ModuleQueryContext<'_>,
+    _ctx: &ModuleQueryContext<'_>,
 ) -> Vec<NominalEntry> {
-    let mut entries = Vec::new();
-
-    // collect direct nominal edges from stored lineages
-    for (source_symbol, lineage) in ctx.dir().types().iter_lineages() {
-        if let Some(target_symbol) = lineage.extends {
-            entries.push(NominalEntry {
-                source_symbol,
-                target_symbol,
-                relation: NominalRelation::Extends,
-            });
-        }
-
-        for target_symbol in lineage.implements.iter().copied() {
-            entries.push(NominalEntry {
-                source_symbol,
-                target_symbol,
-                relation: NominalRelation::Implements,
-            });
-        }
-    }
-
-    entries
+    Vec::new()
 }
 
 /// Check whether a symbol represents a nominal type symbol.
@@ -97,41 +76,39 @@ fn recorded_member_resolution(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    let types = dir.types();
     let node_id = GlobalNodeIdAny {
         module_id: dir.module_id(),
         local_id: expression_id.into(),
     };
-    let resolution = types.resolution(node_id)?;
-    match resolution {
-        Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-            if !dir.symbol_is_visible(target.symbol) {
-                return None;
-            }
-
-            Some(target.symbol)
-        }
-        Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => {
-            if targets.len() == 1 {
-                let symbol_id = targets[0].symbol;
-                if !dir.symbol_is_visible(symbol_id) {
+    if let Some(resolution) = dir.resolutions().member_resolution(node_id) {
+        return match &resolution.target {
+            MemberTarget::Direct(candidate) => {
+                if !dir.symbol_is_visible(candidate.symbol) {
                     return None;
                 }
 
-                return Some(symbol_id);
+                Some(candidate.symbol)
             }
+            MemberTarget::Select(candidates) => {
+                if candidates.len() == 1 {
+                    let symbol_id = candidates[0].symbol;
+                    if !dir.symbol_is_visible(symbol_id) {
+                        return None;
+                    }
 
-            None
-        }
-        Resolution::Symbol(symbol_id) => {
-            if !dir.symbol_is_visible(*symbol_id) {
-                return None;
+                    return Some(symbol_id);
+                }
+
+                None
             }
-
-            Some(*symbol_id)
-        }
-        Resolution::Dispatch(dir::DispatchResolution::Builtin { .. })
-        | Resolution::Dependency(_)
-        | Resolution::Label(_) => None,
+            MemberTarget::Intrinsic => None,
+        };
     }
+
+    let resolution = dir.resolutions().name_resolution(node_id)?;
+    if !dir.symbol_is_visible(resolution.symbol) {
+        return None;
+    }
+
+    Some(resolution.symbol)
 }

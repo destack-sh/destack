@@ -16,7 +16,7 @@ pub(crate) fn expression_symbol_target(
         Expression::Parenthesized { expression } => expression_symbol_target(dir, *expression),
         _ => {
             let node_id = expression_id.into_global_any(dir.module_id());
-            let symbol_id = dir.types().symbol_resolution(node_id)?;
+            let symbol_id = dir.resolutions().symbol_resolution(node_id)?;
             if !dir.symbol_is_visible(symbol_id) {
                 return None;
             }
@@ -32,18 +32,13 @@ pub(crate) fn dependency_symbol_target(
     item_id: dir::LocalNodeId<dir::DependencyItem>,
 ) -> Option<GlobalSymbolId> {
     let node_id = item_id.into_global_any(dir.module_id());
-    let resolution = dir.types().dependency_resolution(node_id)?;
+    let symbol_id = dir.resolutions().symbol_resolution(node_id)?;
 
-    match resolution {
-        dir::DependencyResolution::Symbol(symbol_id) => {
-            if !dir.symbol_is_visible(*symbol_id) {
-                return None;
-            }
-
-            Some(*symbol_id)
-        }
-        dir::DependencyResolution::Module(_) => None,
+    if !dir.symbol_is_visible(symbol_id) {
+        return None;
     }
+
+    Some(symbol_id)
 }
 
 /// Return the local symbol introduced by one dependency item.

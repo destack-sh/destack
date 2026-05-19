@@ -510,7 +510,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 is_callable: true,
                 is_constructable: false,
             },
-            dir::Type::Object(object) => CompletionValueShape {
+            dir::Type::Shape(object) => CompletionValueShape {
                 is_callable: !object.call_signatures.is_empty(),
                 is_constructable: !object.construct_signatures.is_empty(),
             },
@@ -586,14 +586,14 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         seen_symbols: &mut HashSet<dir::GlobalSymbolId>,
         symbols: &mut Vec<dir::GlobalSymbolId>,
     ) {
-        let type_id = types.unwrap_value_type_id(type_id);
+        let type_id = types.unwrap_form_payload_type_id(type_id);
         if !seen_types.insert(type_id) {
             return;
         }
 
         let ty = types.get_type(type_id);
 
-        if let dir::Type::Reference(reference) = ty {
+        if let dir::Type::Named(reference) = ty {
             let symbol = reference.symbol;
             let Some(canonical_symbol) = self.canonical_symbol(symbol) else {
                 return;
@@ -620,7 +620,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                     self.collect_type_symbols(types, element_id, seen_types, seen_symbols, symbols);
                 }
             }
-            dir::Type::Value(value) => {
+            dir::Type::Form(value) => {
                 self.collect_type_symbols(types, value.value, seen_types, seen_symbols, symbols);
             }
             _ => {}

@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use destack_dir as dir;
 use destack_dir::{
-    DependencyBinding, DependencyForm, DependencyItem, Expression, GlobalSymbolId, NodeType,
-    Resolution,
+    CallTarget as DirCallTarget, DependencyBinding, DependencyForm, DependencyItem, Expression,
+    GlobalSymbolId, MemberTarget, NodeType,
 };
 use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 
@@ -66,23 +66,31 @@ pub(crate) fn build_reference_targets_for_module(
             insert_reference_target_keys(dir, &mut targets, member_symbol);
         }
 
-        let resolution = dir
-            .types()
-            .resolution(expression_id.into_global_any(dir.module_id()));
-        if let Some(Resolution::Dispatch(dispatch)) = resolution {
-            match dispatch {
-                dir::DispatchResolution::Static { target, .. } => {
-                    insert_reference_target_keys(dir, &mut targets, target.symbol)
+        let node_id = expression_id.into_global_any(dir.module_id());
+        if let Some(resolution) = dir.resolutions().member_resolution(node_id) {
+            match &resolution.target {
+                MemberTarget::Direct(candidate) => {
+                    insert_reference_target_keys(dir, &mut targets, candidate.symbol)
                 }
-                dir::DispatchResolution::Dynamic {
-                    targets: dispatch_targets,
-                    ..
-                } => {
-                    for target in dispatch_targets {
-                        insert_reference_target_keys(dir, &mut targets, target.symbol);
+                MemberTarget::Select(candidates) => {
+                    for candidate in candidates {
+                        insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
                 }
-                dir::DispatchResolution::Builtin { .. } => {}
+                MemberTarget::Intrinsic => {}
+            }
+        }
+        if let Some(resolution) = dir.resolutions().call_resolution(node_id) {
+            match &resolution.target {
+                DirCallTarget::Direct(candidate) => {
+                    insert_reference_target_keys(dir, &mut targets, candidate.symbol)
+                }
+                DirCallTarget::Select(candidates) => {
+                    for candidate in candidates {
+                        insert_reference_target_keys(dir, &mut targets, candidate.symbol);
+                    }
+                }
+                DirCallTarget::Intrinsic { .. } => {}
             }
         }
 
@@ -668,17 +676,20 @@ fn member_resolution_matches_reference_target(
     expression_id: dir::LocalNodeId<Expression>,
     canonical_id: GlobalSymbolId,
 ) -> bool {
-    let types = ctx.types();
     // only genuinely dynamic accesses should reach this path
-    let Some(Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. })) =
-        types.resolution(expression_id.into_global_any(ctx.module_id()))
+    let Some(resolution) = ctx
+        .resolutions()
+        .member_resolution(expression_id.into_global_any(ctx.module_id()))
     else {
         return false;
     };
 
-    targets
-        .iter()
-        .any(|target| ctx.symbol_matches_reference_target(target.symbol, canonical_id))
+    match &resolution.target {
+        MemberTarget::Select(candidates) => candidates
+            .iter()
+            .any(|candidate| ctx.symbol_matches_reference_target(candidate.symbol, canonical_id)),
+        _ => false,
+    }
 }
 
 /// Collect dependency item reference spans.
@@ -801,12 +812,9 @@ fn namespace_import_aliases_for_module(
 
             let local_symbol = ctx.symbol_for_node(item_id.into())?;
             let node_id = item_id.into_global_any(ctx.module_id());
-            let target_module_id = ctx.types().dependency_resolution(node_id).and_then(
-                |resolution| match resolution {
-                    dir::DependencyResolution::Module(target) => Some(*target),
-                    dir::DependencyResolution::Symbol(_) => None,
-                },
-            )?;
+            let target_module_id = ctx
+                .dependencies()
+                .target_for_source(node_id, dir::DependencyRelation::Import)?;
             if target_module_id != module_id {
                 return None;
             }
