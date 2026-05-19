@@ -67,12 +67,10 @@ export enum SchemaKind {
     KeyOf = 30,
     /// Non-null assertion type.
     Must = 31,
-    /// Comptime cast type.
-    AsComptime = 32,
     /// Type negation.
-    Not = 33,
+    Not = 32,
     /// Compiler error type.
-    Error = 34,
+    Error = 33,
 }
 
 /// Schema field.

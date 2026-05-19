@@ -682,17 +682,17 @@ export struct GpuExternalTextureDescriptor {
     /// External-texture format selector.
     format: GpuExternalTextureFormat;
     /// YUV-to-RGBA conversion matrix in column-major order.
-    yuvConversionMatrix: float32[16 as comptime];
+    yuvConversionMatrix: [float32; 16];
     /// Gamut-conversion matrix in column-major order.
-    gamutConversionMatrix: float32[9 as comptime];
+    gamutConversionMatrix: [float32; 9];
     /// Source transfer-function parameters.
     sourceTransferFunction: GpuExternalTextureTransferFunction;
     /// Destination transfer-function parameters.
     destinationTransferFunction: GpuExternalTextureTransferFunction;
     /// Sample-coordinate transform in column-major order.
-    sampleTransform: float32[6 as comptime];
+    sampleTransform: [float32; 6];
     /// Load-coordinate transform in column-major order.
-    loadTransform: float32[6 as comptime];
+    loadTransform: [float32; 6];
 }
 
 /// GPU mapped buffer range.

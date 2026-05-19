@@ -9,7 +9,7 @@ export struct GpuShaderDescriptor {
     /// Debug label.
     label: string;
     /// Native workgroup counts for passthrough shader formats when required.
-    numWorkgroups?: uint32[3 as comptime];
+    numWorkgroups?: [uint32; 3];
     /// Shader runtime-check policy when one nondefault policy is requested.
     runtimeChecks?: GpuShaderRuntimeChecks;
 }
