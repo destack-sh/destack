@@ -5,9 +5,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Addressability, Arena, BindingTable, EnumBackingType, EnumFieldValue, GlobalNodeIdAny,
-    GlobalSymbolId, IntersectionType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Node, SegmentView,
-    StaticTerm, SymbolForm, Type, UnionType, VarianceModifier,
+    Arena, GlobalNodeIdAny, GlobalSymbolId, IntersectionType, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Node, SegmentView, Type, UnionType,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -60,143 +59,54 @@ impl<'a> TypeTable<'a> {
         TypeTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Iterate type attachments keyed by DIR node.
-    pub fn node_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_ {
-        self.segments
-            .iter()
-            .enumerate()
-            .flat_map(move |(segment_index, segment)| {
-                segment.nodes.iter().filter_map(move |(node_id, entry)| {
-                    let is_shadowed = self
-                        .segments
-                        .iter()
-                        .skip(segment_index + 1)
-                        .any(|segment| segment.nodes.contains_key(node_id));
+    /// Iterate effective checked types keyed by DIR node.
+    pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+        let mut entries = IndexMap::new();
 
-                    (!is_shadowed).then_some((*node_id, entry))
-                })
-            })
-    }
-
-    /// Iterate type attachments keyed by DIR symbol.
-    pub fn symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
-        self.segments
-            .iter()
-            .enumerate()
-            .flat_map(move |(segment_index, segment)| {
-                segment
-                    .symbols
-                    .iter()
-                    .filter_map(move |(symbol_id, entry)| {
-                        let is_shadowed = self
-                            .segments
-                            .iter()
-                            .skip(segment_index + 1)
-                            .any(|segment| segment.symbols.contains_key(symbol_id));
-
-                        (!is_shadowed).then_some((*symbol_id, entry))
-                    })
-            })
-    }
-
-    /// Get the declared type id for a node.
-    pub fn get_declared_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.declared)
-    }
-
-    /// Get the inferred type id for a node.
-    pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.inferred)
-    }
-
-    /// Get the declared or inferred type id for a node.
-    pub fn get_declared_or_inferred_type_id(
-        &self,
-        node_id: GlobalNodeIdAny,
-    ) -> Option<LocalTypeId> {
-        let entry = self.node_entry(node_id)?;
-
-        entry.declared.or(entry.inferred)
-    }
-
-    /// Get the member receiver type id for a node.
-    pub fn member_receiver_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.receiver)
-    }
-
-    /// Get the contextual object type id for a node.
-    pub fn contextual_object_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.contextual)
-    }
-
-    /// Get the signature type id for a node.
-    pub fn signature_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.signature)
-    }
-
-    /// Get the addressability for a node.
-    pub fn get_addressability(&self, node_id: GlobalNodeIdAny) -> Option<Addressability> {
-        self.node_entry(node_id)
-            .and_then(|entry| entry.addressability)
-    }
-
-    /// Get the instance type id for a symbol.
-    pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.instance_type)
-    }
-
-    /// Find the symbol that owns an instance type id.
-    pub fn symbol_for_instance_type(
-        &self,
-        instance_type_id: LocalTypeId,
-    ) -> Option<GlobalSymbolId> {
-        self.symbol_entries().find_map(|(symbol, entry)| {
-            (entry.instance_type == Some(instance_type_id)).then_some(symbol)
-        })
-    }
-
-    /// Get the value type id for a symbol.
-    pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.value_type)
-    }
-
-    /// Get the declared target type id for an alias symbol.
-    pub fn get_alias_target_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.alias_target_type)
-    }
-
-    /// Get the backing type for an enum symbol.
-    pub fn get_enum_backing_type(&self, symbol_id: GlobalSymbolId) -> Option<EnumBackingType> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.enum_backing)
-    }
-
-    /// Get the resolved enum field value.
-    pub fn get_enum_field_value(&self, symbol_id: GlobalSymbolId) -> Option<EnumFieldValue> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.enum_field_value)
-    }
-
-    /// Get the type id for a symbol through its declaration form.
-    pub fn symbol_type_id(
-        &self,
-        symbols: &BindingTable<'_>,
-        symbol_id: GlobalSymbolId,
-    ) -> Option<LocalTypeId> {
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-
-        match symbol.form {
-            SymbolForm::TypeAlias => self.get_alias_target_type_id(symbol_id),
-            SymbolForm::Newtype => self
-                .get_instance_type_id(symbol_id)
-                .or_else(|| self.get_alias_target_type_id(symbol_id)),
-            _ => self
-                .get_value_type_id(symbol_id)
-                .or_else(|| self.get_instance_type_id(symbol_id)),
+        // apply later segment values over earlier ones
+        for segment in self.segments.iter() {
+            for (node_id, type_id) in &segment.node_types {
+                entries.insert(*node_id, *type_id);
+            }
         }
+
+        entries.into_iter()
+    }
+
+    /// Iterate solved symbol types.
+    pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalTypeId)> + '_ {
+        let mut entries = IndexMap::new();
+
+        // apply later segment values over earlier ones
+        for segment in self.segments.iter() {
+            for (symbol_id, type_id) in &segment.symbol_types {
+                entries.insert(*symbol_id, *type_id);
+            }
+        }
+
+        entries.into_iter()
+    }
+
+    /// Get the effective checked type id for a node.
+    pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(type_id) = segment.get_node_type_id(node_id) {
+                return Some(type_id);
+            }
+        }
+
+        None
+    }
+
+    /// Get the solved type id for a symbol.
+    pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(type_id) = segment.get_symbol_type_id(symbol_id) {
+                return Some(type_id);
+            }
+        }
+
+        None
     }
 
     /// Get a type by its id.
@@ -267,28 +177,6 @@ impl<'a> TypeTable<'a> {
         self.segments.iter().all(|segment| segment.is_empty())
     }
 
-    /// Return a node entry when present.
-    fn node_entry(&self, node_id: GlobalNodeIdAny) -> Option<&NodeEntry> {
-        for segment in self.segments.iter().rev() {
-            if let Some(entry) = segment.node_entry(node_id) {
-                return Some(entry);
-            }
-        }
-
-        None
-    }
-
-    /// Return a symbol entry when present.
-    fn symbol_entry(&self, symbol_id: GlobalSymbolId) -> Option<&SymbolEntry> {
-        for segment in self.segments.iter().rev() {
-            if let Some(entry) = segment.symbol_entry(symbol_id) {
-                return Some(entry);
-            }
-        }
-
-        None
-    }
-
     /// Return the source for a type id.
     fn type_source(&self, type_id: LocalTypeId) -> TypeSource {
         for segment in self.segments.iter() {
@@ -313,10 +201,10 @@ pub struct TypeSegment {
 
     /// The source for each type id.
     pub(crate) sources: Arena<TypeSource>,
-    /// Type attachments keyed by DIR node.
-    pub(crate) nodes: IndexMap<GlobalNodeIdAny, NodeEntry>,
-    /// Type attachments keyed by DIR symbol.
-    pub(crate) symbols: IndexMap<GlobalSymbolId, SymbolEntry>,
+    /// Effective checked type keyed by DIR node occurrence.
+    pub(crate) node_types: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// Checked declaration type keyed by symbol.
+    pub(crate) symbol_types: IndexMap<GlobalSymbolId, LocalTypeId>,
 }
 
 impl TypeSegment {
@@ -327,8 +215,8 @@ impl TypeSegment {
             first_type_id: 0,
             types: Arena::new(),
             sources: Arena::new(),
-            nodes: IndexMap::new(),
-            symbols: IndexMap::new(),
+            node_types: IndexMap::new(),
+            symbol_types: IndexMap::new(),
         }
     }
 
@@ -339,8 +227,8 @@ impl TypeSegment {
             first_type_id: base.type_count(),
             types: Arena::new(),
             sources: Arena::new(),
-            nodes: IndexMap::new(),
-            symbols: IndexMap::new(),
+            node_types: IndexMap::new(),
+            symbol_types: IndexMap::new(),
         }
     }
 
@@ -426,209 +314,38 @@ impl TypeSegment {
         )
     }
 
-    /// Set generic parameter metadata for a parameter symbol.
-    pub fn set_generic_parameter(
-        &mut self,
-        symbol_id: GlobalSymbolId,
-        parameter: GenericParameterEntry,
-    ) {
-        self.symbol_entry_mut(symbol_id).generic_parameter = Some(parameter);
+    /// Iterate effective checked types keyed by DIR node.
+    pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+        self.node_types
+            .iter()
+            .map(|(node_id, type_id)| (*node_id, *type_id))
     }
 
-    /// Get generic parameter metadata for a parameter symbol.
-    pub fn generic_parameter(&self, symbol_id: GlobalSymbolId) -> Option<&GenericParameterEntry> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.generic_parameter.as_ref())
+    /// Iterate solved symbol types.
+    pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalTypeId)> + '_ {
+        self.symbol_types
+            .iter()
+            .map(|(symbol_id, type_id)| (*symbol_id, *type_id))
     }
 
-    /// Set generic parameter symbols for a generic declaration symbol.
-    pub fn set_generic_parameter_symbols(
-        &mut self,
-        symbol_id: GlobalSymbolId,
-        symbols: Vec<GlobalSymbolId>,
-    ) {
-        self.symbol_entry_mut(symbol_id).generic_parameter_symbols = Some(symbols);
+    /// Set the effective checked type for a node.
+    pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+        self.node_types.insert(node_id, ty);
     }
 
-    /// Get generic parameter symbols for a generic declaration symbol.
-    pub fn generic_parameter_symbols(
-        &self,
-        symbol_id: GlobalSymbolId,
-    ) -> Option<&[GlobalSymbolId]> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.generic_parameter_symbols.as_deref())
+    /// Get the effective checked type id for a node.
+    pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.node_types.get(&node_id).copied()
     }
 
-    /// Iterate type attachments keyed by DIR node.
-    pub fn node_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NodeEntry)> + '_ {
-        self.nodes.iter().map(|(node_id, entry)| (*node_id, entry))
+    /// Set the solved type for a symbol.
+    pub fn set_symbol_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
+        self.symbol_types.insert(symbol_id, ty);
     }
 
-    /// Iterate type attachments keyed by DIR symbol.
-    pub fn symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
-        self.iter_symbol_entries()
-    }
-
-    /// Set the declared type for a node.
-    pub fn set_declared_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.node_entry_mut(node_id).declared = Some(ty);
-    }
-
-    /// Get the declared type id for a node.
-    pub fn get_declared_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.declared)
-    }
-
-    /// Set the inferred type for a node.
-    pub fn set_inferred_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.node_entry_mut(node_id).inferred = Some(ty);
-    }
-
-    /// Get the inferred type id for a node.
-    pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.inferred)
-    }
-
-    /// Get the declared or inferred type id for a node.
-    pub fn get_declared_or_inferred_type_id(
-        &self,
-        node_id: GlobalNodeIdAny,
-    ) -> Option<LocalTypeId> {
-        let entry = self.node_entry(node_id)?;
-
-        entry.declared.or(entry.inferred)
-    }
-
-    /// Set the member receiver type for a node.
-    pub fn set_member_receiver_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.node_entry_mut(node_id).receiver = Some(ty);
-    }
-
-    /// Get the member receiver type id for a node.
-    pub fn member_receiver_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.receiver)
-    }
-
-    /// Set the contextual object type for a node.
-    pub fn set_contextual_object_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.node_entry_mut(node_id).contextual = Some(ty);
-    }
-
-    /// Get the contextual object type id for a node.
-    pub fn contextual_object_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.contextual)
-    }
-
-    /// Set the signature type for a node.
-    pub fn set_signature_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
-        self.node_entry_mut(node_id).signature = Some(ty);
-    }
-
-    /// Get the signature type id for a node.
-    pub fn signature_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
-        self.node_entry(node_id).and_then(|entry| entry.signature)
-    }
-
-    /// Set the addressability for a node.
-    pub fn set_addressability(&mut self, node_id: GlobalNodeIdAny, addressability: Addressability) {
-        self.node_entry_mut(node_id).addressability = Some(addressability);
-    }
-
-    /// Get the addressability for a node.
-    pub fn get_addressability(&self, node_id: GlobalNodeIdAny) -> Option<Addressability> {
-        self.node_entry(node_id)
-            .and_then(|entry| entry.addressability)
-    }
-
-    /// Copy node-owned relations from one node to another.
-    pub fn copy_node_relations(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
-        if let Some(entry) = self.node_entry(source).cloned() {
-            self.nodes.insert(target, entry);
-        }
-    }
-
-    /// Set the instance type for a symbol.
-    pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.symbol_entry_mut(symbol_id).instance_type = Some(ty);
-    }
-
-    /// Get the instance type id for a symbol.
-    pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.instance_type)
-    }
-
-    /// Find the symbol that owns an instance type id.
-    pub fn symbol_for_instance_type(
-        &self,
-        instance_type_id: LocalTypeId,
-    ) -> Option<GlobalSymbolId> {
-        self.iter_symbol_entries().find_map(|(symbol, entry)| {
-            (entry.instance_type == Some(instance_type_id)).then_some(symbol)
-        })
-    }
-
-    /// Set the value type for a symbol.
-    pub fn set_value_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.symbol_entry_mut(symbol_id).value_type = Some(ty);
-    }
-
-    /// Get the value type id for a symbol.
-    pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.value_type)
-    }
-
-    /// Set the declared target type id for an alias symbol.
-    pub fn set_alias_target_type_id(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.symbol_entry_mut(symbol_id).alias_target_type = Some(ty);
-    }
-
-    /// Get the declared target type id for an alias symbol.
-    pub fn get_alias_target_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.alias_target_type)
-    }
-
-    /// Set the backing type for an enum symbol.
-    pub fn set_enum_backing_type(&mut self, symbol_id: GlobalSymbolId, backing: EnumBackingType) {
-        self.symbol_entry_mut(symbol_id).enum_backing = Some(backing);
-    }
-
-    /// Get the backing type for an enum symbol.
-    pub fn get_enum_backing_type(&self, symbol_id: GlobalSymbolId) -> Option<EnumBackingType> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.enum_backing)
-    }
-
-    /// Set the resolved enum field value for a symbol.
-    pub fn set_enum_field_value(&mut self, symbol_id: GlobalSymbolId, value: EnumFieldValue) {
-        self.symbol_entry_mut(symbol_id).enum_field_value = Some(value);
-    }
-
-    /// Get the resolved enum field value for a symbol.
-    pub fn get_enum_field_value(&self, symbol_id: GlobalSymbolId) -> Option<EnumFieldValue> {
-        self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.enum_field_value)
-    }
-
-    /// Get the type id for a symbol through its declaration form.
-    pub fn symbol_type_id(
-        &self,
-        symbols: &BindingTable<'_>,
-        symbol_id: GlobalSymbolId,
-    ) -> Option<LocalTypeId> {
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-
-        match symbol.form {
-            SymbolForm::TypeAlias => self.get_alias_target_type_id(symbol_id),
-            SymbolForm::Newtype => self
-                .get_instance_type_id(symbol_id)
-                .or_else(|| self.get_alias_target_type_id(symbol_id)),
-            _ => self
-                .get_value_type_id(symbol_id)
-                .or_else(|| self.get_instance_type_id(symbol_id)),
-        }
+    /// Get the solved type id for a symbol.
+    pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.symbol_types.get(&symbol_id).copied()
     }
 
     /// Get a type by its id.
@@ -715,39 +432,12 @@ impl TypeSegment {
 
     /// Return true when this table has no entries.
     pub fn is_empty(&self) -> bool {
-        self.types.is_empty()
+        self.types.is_empty() && self.node_types.is_empty() && self.symbol_types.is_empty()
     }
 
     /// Return whether this segment contains the given type id.
     fn contains_type_id(&self, type_id: LocalTypeId) -> bool {
         type_id.0 >= self.first_type_id && type_id.0 < self.type_count()
-    }
-
-    /// Return a node entry when present.
-    fn node_entry(&self, node_id: GlobalNodeIdAny) -> Option<&NodeEntry> {
-        self.nodes.get(&node_id)
-    }
-
-    /// Return a mutable node entry, creating it when needed.
-    fn node_entry_mut(&mut self, node_id: GlobalNodeIdAny) -> &mut NodeEntry {
-        self.nodes.entry(node_id).or_default()
-    }
-
-    /// Return a symbol entry when present.
-    fn symbol_entry(&self, symbol_id: GlobalSymbolId) -> Option<&SymbolEntry> {
-        self.symbols.get(&symbol_id)
-    }
-
-    /// Return a mutable symbol entry, creating it when needed.
-    fn symbol_entry_mut(&mut self, symbol_id: GlobalSymbolId) -> &mut SymbolEntry {
-        self.symbols.entry(symbol_id).or_default()
-    }
-
-    /// Iterate visible symbol entries with local overrides applied.
-    fn iter_symbol_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_ {
-        self.symbols
-            .iter()
-            .map(|(symbol_id, entry)| (*symbol_id, entry))
     }
 
     /// Assert internal table invariants only in debug builds.
@@ -767,68 +457,6 @@ impl TypeSegment {
             "type source slot mismatch in {context}: source={source_slot_count}, types={type_slot_count}",
         );
     }
-}
-
-/// The argument space accepted by one generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GenericParameterSpace {
-    /// The parameter accepts a type argument.
-    Type,
-    /// The parameter accepts a value argument.
-    Value,
-    /// The parameter accepts a lifetime argument.
-    Lifetime,
-}
-
-/// Type entry for one generic parameter symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GenericParameterEntry {
-    /// The argument space accepted by this parameter.
-    pub space: GenericParameterSpace,
-    /// The constraint type for this parameter.
-    pub constraint: Option<LocalTypeId>,
-    /// The variance for this parameter.
-    pub variance: Option<VarianceModifier>,
-}
-
-/// Type attachments recorded for one DIR node.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct NodeEntry {
-    /// The declared type.
-    pub declared: Option<LocalTypeId>,
-    /// The inferred type.
-    pub inferred: Option<LocalTypeId>,
-    /// The normalized member receiver type.
-    pub receiver: Option<LocalTypeId>,
-    /// The contextual object type.
-    pub contextual: Option<LocalTypeId>,
-    /// The signature type.
-    pub signature: Option<LocalTypeId>,
-    /// The addressability of the node result.
-    pub addressability: Option<Addressability>,
-}
-
-/// Type attachments recorded for one DIR symbol.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct SymbolEntry {
-    /// Type metadata when this symbol declares a generic parameter.
-    pub generic_parameter: Option<GenericParameterEntry>,
-    /// Generic parameter symbols declared by this symbol.
-    pub generic_parameter_symbols: Option<Vec<GlobalSymbolId>>,
-
-    /// The instance type for nominal declarations.
-    pub instance_type: Option<LocalTypeId>,
-    /// The value type for value declarations.
-    pub value_type: Option<LocalTypeId>,
-    /// The target type for alias declarations.
-    pub alias_target_type: Option<LocalTypeId>,
-    /// Static constant value for comptime declarations.
-    pub static_value: Option<StaticTerm>,
-
-    /// The backing type for enum declarations.
-    pub enum_backing: Option<EnumBackingType>,
-    /// The resolved enum field value.
-    pub enum_field_value: Option<EnumFieldValue>,
 }
 
 /// The origin of one type slot in the table.
