@@ -17,9 +17,18 @@ export struct Layout {
     align: usize;
     /// The stride in bytes.
     stride: usize;
-    /// The field layouts for aggregate types.
-    fields: readonly LayoutField[];
+    /// The layout shape.
+    shape: LayoutShape;
 }
+
+/// Reflected layout shape.
+@languageItem("reflect.LayoutShape")
+@derive(Tagged)
+export newtype LayoutShape =
+    | { kind: "scalar" }
+    | { kind: "aggregate"; fields: readonly LayoutField[] }
+    | { kind: "variant"; variants: readonly LayoutVariant[] }
+    | { kind: "opaque" };
 
 /// Target-specific layout for one aggregate field.
 @languageItem("reflect.LayoutField")
@@ -34,6 +43,17 @@ export struct LayoutField {
     align: usize;
     /// The field type.
     type: Type<unknown>;
+}
+
+/// Target-specific layout for one variant case.
+@languageItem("reflect.LayoutVariant")
+export struct LayoutVariant {
+    /// The case name when one exists.
+    name?: string;
+    /// The case type.
+    type: Type<unknown>;
+    /// The case layout.
+    layout: Layout;
 }
 
 /// Return the reflected type for a value.

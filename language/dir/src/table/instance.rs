@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalNodeIdAny, Instantiation, LocalInstantiationId, SegmentView};
+use crate::{Arena, GlobalNodeIdAny, Instance, LocalInstanceId, SegmentView};
 
-/// Cumulative generic instantiations for one DIR module.
+/// Cumulative generic instances for one DIR module.
 #[derive(Debug, Clone)]
 pub struct InstanceTable<'a> {
     /// The module id of the instance table.
@@ -56,95 +56,93 @@ impl<'a> InstanceTable<'a> {
         InstanceTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Iterate committed instantiations with their local ids.
-    pub fn iter_instantiations(
-        &self,
-    ) -> impl Iterator<Item = (LocalInstantiationId, &Instantiation)> + '_ {
+    /// Iterate committed instances with their local ids.
+    pub fn iter_instances(&self) -> impl Iterator<Item = (LocalInstanceId, &Instance)> + '_ {
         self.segments
             .iter()
-            .flat_map(|segment| segment.iter_instantiations())
+            .flat_map(|segment| segment.iter_instances())
     }
 
-    /// Return the instantiation attached to a source node.
-    pub fn node_instantiation_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstantiationId> {
+    /// Return the instance attached to a source node.
+    pub fn node_instance_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstanceId> {
         for segment in self.segments.iter().rev() {
-            if let Some(instantiation_id) = segment.node_instantiation_id(node_id) {
-                return Some(instantiation_id);
+            if let Some(instance_id) = segment.node_instance_id(node_id) {
+                return Some(instance_id);
             }
         }
 
         None
     }
 
-    /// Find one exact instantiation by shape.
-    pub fn find_instantiation(&self, expected: &Instantiation) -> Option<LocalInstantiationId> {
-        for (instantiation_id, instantiation) in self.iter_instantiations() {
-            if instantiation == expected {
-                return Some(instantiation_id);
+    /// Find one exact instance by shape.
+    pub fn find_instance(&self, expected: &Instance) -> Option<LocalInstanceId> {
+        for (instance_id, instance) in self.iter_instances() {
+            if instance == expected {
+                return Some(instance_id);
             }
         }
 
         None
     }
 
-    /// Intern one instantiation into a mutable tail segment.
-    pub fn intern_instantiation(
+    /// Intern one instance into a mutable tail segment.
+    pub fn intern_instance(
         &self,
         tail: &mut InstanceSegment,
-        instantiation: Instantiation,
-    ) -> LocalInstantiationId {
+        instance: Instance,
+    ) -> LocalInstanceId {
         assert_eq!(
             self.module_id, tail.module_id,
             "instance table tail belongs to a different module"
         );
 
-        if let Some(instantiation_id) = self.find_instantiation(&instantiation) {
-            return instantiation_id;
+        if let Some(instance_id) = self.find_instance(&instance) {
+            return instance_id;
         }
 
-        if let Some(instantiation_id) = tail.find_instantiation(&instantiation) {
-            return instantiation_id;
+        if let Some(instance_id) = tail.find_instance(&instance) {
+            return instance_id;
         }
 
-        tail.push_instantiation(instantiation)
+        tail.push_instance(instance)
     }
 
-    /// Get an instantiation by id.
-    pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
+    /// Get an instance by id.
+    pub fn get_instance(&self, instance_id: LocalInstanceId) -> &Instance {
         for segment in self.segments.iter() {
-            if let Some(instantiation) = segment.get_local_instantiation(instantiation_id) {
-                return instantiation;
+            if let Some(instance) = segment.get_local_instance(instance_id) {
+                return instance;
             }
         }
 
-        panic!("DIR instantiation {instantiation_id:?} is not visible")
+        panic!("DIR instance {instance_id:?} is not visible")
     }
 
-    /// Get the number of instantiations in the table.
-    pub fn instantiation_count(&self) -> u32 {
+    /// Get the number of instances in the table.
+    pub fn instance_count(&self) -> u32 {
         self.segments
             .last()
-            .map(|segment| segment.instantiation_count())
+            .map(|segment| segment.instance_count())
             .unwrap_or(0)
     }
 
-    /// Return true when this table has no instantiations.
+    /// Return true when this table has no instances.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(|segment| segment.is_empty())
     }
 }
 
-/// Generic instantiations added by one DIR phase.
+/// Generic instances added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstanceSegment {
     /// The module id of the instance segment.
     pub module_id: ModuleId,
-    /// The first instantiation id owned by this table segment.
-    pub(crate) first_instantiation_id: u32,
-    /// Interned generic instantiations.
-    pub(crate) instantiations: Arena<Instantiation>,
-    /// Generic instantiations keyed by DIR node.
-    pub(crate) nodes: IndexMap<GlobalNodeIdAny, LocalInstantiationId>,
+    /// The first instance id owned by this table segment.
+    pub(crate) first_instance_id: u32,
+    /// Interned generic instances.
+    pub(crate) instances: Arena<Instance>,
+    /// Generic instances keyed by DIR node.
+    pub(crate) nodes: IndexMap<GlobalNodeIdAny, LocalInstanceId>,
 }
 
 impl InstanceSegment {
@@ -152,8 +150,8 @@ impl InstanceSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            first_instantiation_id: 0,
-            instantiations: Arena::new(),
+            first_instance_id: 0,
+            instances: Arena::new(),
             nodes: IndexMap::new(),
         }
     }
@@ -162,101 +160,86 @@ impl InstanceSegment {
     pub fn from_base(base: &Self) -> Self {
         Self {
             module_id: base.module_id,
-            first_instantiation_id: base.instantiation_count(),
-            instantiations: Arena::new(),
+            first_instance_id: base.instance_count(),
+            instances: Arena::new(),
             nodes: IndexMap::new(),
         }
     }
 
-    /// Append a generic instantiation to this segment.
-    pub fn push_instantiation(&mut self, instantiation: Instantiation) -> LocalInstantiationId {
-        let instantiation_id = LocalInstantiationId::new(self.instantiation_count());
-        self.instantiations.allocate(instantiation);
+    /// Append a generic instance to this segment.
+    pub fn push_instance(&mut self, instance: Instance) -> LocalInstanceId {
+        let instance_id = LocalInstanceId::new(self.instance_count());
+        self.instances.allocate(instance);
 
-        instantiation_id
+        instance_id
     }
 
-    /// Attach an instantiation to a source node.
-    pub fn set_node_instantiation(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        instantiation_id: LocalInstantiationId,
-    ) {
-        self.nodes.insert(node_id, instantiation_id);
+    /// Attach an instance to a source node.
+    pub fn set_node_instance(&mut self, node_id: GlobalNodeIdAny, instance_id: LocalInstanceId) {
+        self.nodes.insert(node_id, instance_id);
     }
 
-    /// Return the instantiation attached to a source node.
-    pub fn node_instantiation_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstantiationId> {
+    /// Return the instance attached to a source node.
+    pub fn node_instance_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalInstanceId> {
         self.nodes.get(&node_id).copied()
     }
 
-    /// Iterate source nodes with their instantiations.
-    pub fn node_instantiations(
-        &self,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalInstantiationId)> + '_ {
+    /// Iterate source nodes with their instances.
+    pub fn node_instances(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalInstanceId)> + '_ {
         self.nodes
             .iter()
-            .map(|(node_id, instantiation_id)| (*node_id, *instantiation_id))
+            .map(|(node_id, instance_id)| (*node_id, *instance_id))
     }
 
-    /// Return the number of source nodes with instantiations.
-    pub fn node_instantiation_count(&self) -> usize {
+    /// Return the number of source nodes with instances.
+    pub fn node_instance_count(&self) -> usize {
         self.nodes.len()
     }
 
-    /// Find one exact instantiation by shape.
-    pub fn find_instantiation(&self, expected: &Instantiation) -> Option<LocalInstantiationId> {
-        for (instantiation_id, instantiation) in self.iter_instantiations() {
-            if instantiation == expected {
-                return Some(instantiation_id);
+    /// Find one exact instance by shape.
+    pub fn find_instance(&self, expected: &Instance) -> Option<LocalInstanceId> {
+        for (instance_id, instance) in self.iter_instances() {
+            if instance == expected {
+                return Some(instance_id);
             }
         }
 
         None
     }
 
-    /// Get an instantiation by id.
-    pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
-        self.get_local_instantiation(instantiation_id)
-            .unwrap_or_else(|| {
-                panic!("DIR instantiation {instantiation_id:?} is not allocated in this segment")
-            })
-    }
-
-    /// Iterate committed instantiations with their local ids.
-    pub fn iter_instantiations(
-        &self,
-    ) -> impl Iterator<Item = (LocalInstantiationId, &Instantiation)> + '_ {
-        (self.first_instantiation_id..self.instantiation_count()).map(|index| {
-            let instantiation_id = LocalInstantiationId::new(index);
-            (instantiation_id, self.get_instantiation(instantiation_id))
+    /// Get an instance by id.
+    pub fn get_instance(&self, instance_id: LocalInstanceId) -> &Instance {
+        self.get_local_instance(instance_id).unwrap_or_else(|| {
+            panic!("DIR instance {instance_id:?} is not allocated in this segment")
         })
     }
 
-    /// Get the number of instantiations in the segment.
-    pub fn instantiation_count(&self) -> u32 {
-        self.first_instantiation_id + self.instantiations.len() as u32
+    /// Iterate committed instances with their local ids.
+    pub fn iter_instances(&self) -> impl Iterator<Item = (LocalInstanceId, &Instance)> + '_ {
+        (self.first_instance_id..self.instance_count()).map(|index| {
+            let instance_id = LocalInstanceId::new(index);
+            (instance_id, self.get_instance(instance_id))
+        })
     }
 
-    /// Return whether this segment has no instantiations.
+    /// Get the number of instances in the segment.
+    pub fn instance_count(&self) -> u32 {
+        self.first_instance_id + self.instances.len() as u32
+    }
+
+    /// Return whether this segment has no instances.
     pub fn is_empty(&self) -> bool {
-        self.instantiations.is_empty() && self.nodes.is_empty()
+        self.instances.is_empty() && self.nodes.is_empty()
     }
 
-    /// Get an instantiation owned by this table segment.
-    pub(crate) fn get_local_instantiation(
-        &self,
-        instantiation_id: LocalInstantiationId,
-    ) -> Option<&Instantiation> {
-        self.contains_instantiation_id(instantiation_id).then(|| {
-            self.instantiations
-                .get(instantiation_id.0 - self.first_instantiation_id)
-        })
+    /// Get an instance owned by this table segment.
+    pub(crate) fn get_local_instance(&self, instance_id: LocalInstanceId) -> Option<&Instance> {
+        self.contains_instance_id(instance_id)
+            .then(|| self.instances.get(instance_id.0 - self.first_instance_id))
     }
 
-    /// Return whether this segment contains the given instantiation id.
-    fn contains_instantiation_id(&self, instantiation_id: LocalInstantiationId) -> bool {
-        instantiation_id.0 >= self.first_instantiation_id
-            && instantiation_id.0 < self.instantiation_count()
+    /// Return whether this segment contains the given instance id.
+    fn contains_instance_id(&self, instance_id: LocalInstanceId) -> bool {
+        instance_id.0 >= self.first_instance_id && instance_id.0 < self.instance_count()
     }
 }

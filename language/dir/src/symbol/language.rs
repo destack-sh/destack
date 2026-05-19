@@ -356,8 +356,14 @@ define_language_items! {
             /// Target-specific layout.
             Layout => (Struct, "reflect/type", "Layout"),
 
+            /// Reflected layout shape.
+            LayoutShape => (Newtype, "reflect/type", "LayoutShape"),
+
             /// Target-specific field layout.
             LayoutField => (Struct, "reflect/type", "LayoutField"),
+
+            /// Target-specific variant case layout.
+            LayoutVariant => (Struct, "reflect/type", "LayoutVariant"),
 
             /// Runtime type query intrinsic.
             TypeOf => (Function, "reflect/type", "typeOf"),

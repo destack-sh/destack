@@ -1,19 +1,38 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalInstantiationId, LocalTypeId};
+use crate::LocalTypeId;
 
-/// One solved type relationship.
+/// One solved relation between declarations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TypeRelation {
+pub struct Relation {
+    /// The relation kind.
+    pub kind: RelationKind,
     /// The related type after static evaluation.
     pub ty: LocalTypeId,
-    /// The instantiation selected for the relationship, when one exists.
-    pub instantiation: Option<LocalInstantiationId>,
 }
 
-impl TypeRelation {
-    /// Create a solved type relationship.
-    pub fn new(ty: LocalTypeId, instantiation: Option<LocalInstantiationId>) -> Self {
-        Self { ty, instantiation }
+impl Relation {
+    /// Create a solved relation.
+    pub fn new(kind: RelationKind, ty: LocalTypeId) -> Self {
+        Self { kind, ty }
     }
+
+    /// Create a solved extends relationship.
+    pub fn extends(ty: LocalTypeId) -> Self {
+        Self::new(RelationKind::Extends, ty)
+    }
+
+    /// Create a solved implements relationship.
+    pub fn implements(ty: LocalTypeId) -> Self {
+        Self::new(RelationKind::Implements, ty)
+    }
+}
+
+/// The kind of solved relation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RelationKind {
+    /// A single inheritance parent relation.
+    Extends,
+    /// An explicit interface conformance relation.
+    Implements,
 }
