@@ -352,7 +352,7 @@ Destack also supports querying parameters of the effective representation during
 | `sizeOf<T>()` | The byte size of `T`. |
 | `alignOf<T>()` | The required alignment of `T`. |
 | `strideOf<T>()` | The spacing between adjacent array elements of `T`. |
-| `layoutOf<T>()` | The reflected layout record for `T`. |
+| `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T`. |
 
 ### Extensions
 
