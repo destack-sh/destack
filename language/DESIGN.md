@@ -832,7 +832,7 @@ If-let expressions enable nice sugar for matching a value with a refutable patte
 Bindings from the pattern are available in the positive branch:
 
 ```ds
-const result = if (let Some(value) = maybe) {
+const result = if (let value! = maybe) {
     value
 } else {
     0
@@ -1016,7 +1016,7 @@ match (point) {
 }
 
 declare const maybe: Option<int32>;
-let Some(value) = maybe else {
+let value! = maybe else {
     return Result.err("missing value");
 };
 ```
