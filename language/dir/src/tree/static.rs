@@ -87,19 +87,3 @@ pub enum StaticProperty {
         value: StaticTerm,
     },
 }
-
-/// The addressability of an expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Addressability {
-    /// A place expression that refers to storage.
-    Place,
-    /// A value expression that does not refer to storage.
-    Value,
-}
-
-impl Addressability {
-    /// Return whether the expression is a place.
-    pub fn is_place(self) -> bool {
-        matches!(self, Addressability::Place)
-    }
-}
