@@ -318,7 +318,6 @@ export type Type<T = unknown> = TypeBase & (
     | ReadonlyType
     | KeyOfType
     | MustType
-    | AsComptimeType
     | NotType
     | ValueOfType
     | ReferenceOfType
@@ -486,12 +485,6 @@ export interface KeyOfType extends UnaryType {
 export interface MustType extends UnaryType {
     /// The type kind.
     kind: "must";
-}
-
-/// `T as comptime`.
-export interface AsComptimeType extends UnaryType {
-    /// The type kind.
-    kind: "asComptime";
 }
 
 /// `!T`.

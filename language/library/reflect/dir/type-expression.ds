@@ -260,7 +260,6 @@ export type TypeExpression =
     | KeyOfTypeExpression
     | TypeOfValueTypeExpression
     | MustTypeExpression
-    | AsComptimeTypeExpression
     | NotTypeExpression
     | ValueOfTypeExpression
     | ReferenceOfTypeExpression
@@ -523,16 +522,6 @@ export interface MustTypeExpression extends Node {
     nodeKind: "typeExpression";
     /// The type-expression kind.
     kind: "must";
-    /// The target type.
-    targetType: TypeExpression;
-}
-
-/// `T as comptime`.
-export interface AsComptimeTypeExpression extends Node {
-    /// The node kind.
-    nodeKind: "typeExpression";
-    /// The type-expression kind.
-    kind: "asComptime";
     /// The target type.
     targetType: TypeExpression;
 }
