@@ -1,12 +1,14 @@
 use destack_dir as dir;
 use destack_dir::{
-    Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolForm,
+    CallTarget as DirCallTarget, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
+    SymbolForm,
 };
 
 use crate::core::{CallEntry, DirQueryContext, ModuleQueryContext};
 use crate::source::get_node_tree_span;
 
 use super::{expression_symbol_target, member_access_symbol_target};
+
 /// Information about a call target.
 #[derive(Debug, Clone)]
 pub(crate) struct CallTarget {
@@ -128,24 +130,23 @@ fn call_target_symbols(
         module_id: dir.module_id(),
         local_id: expression_id.into(),
     };
-    let Some(resolution) = dir.types().resolution(node_id) else {
+    let Some(resolution) = dir.resolutions().call_resolution(node_id) else {
         return targets;
     };
 
-    let candidates = match resolution {
-        Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-            std::slice::from_ref(target)
+    match &resolution.target {
+        DirCallTarget::Direct(candidate) => {
+            targets.push(candidate.symbol);
+            targets.push(dir.canonical_symbol(candidate.symbol));
         }
-        Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => {
-            targets.as_slice()
+        DirCallTarget::Select(candidates) => {
+            for candidate in candidates {
+                targets.push(candidate.symbol);
+                targets.push(dir.canonical_symbol(candidate.symbol));
+            }
         }
-        _ => return targets,
+        DirCallTarget::Intrinsic { .. } => {}
     };
-
-    for candidate in candidates {
-        targets.push(candidate.symbol);
-        targets.push(dir.canonical_symbol(candidate.symbol));
-    }
 
     targets.sort();
     targets.dedup();

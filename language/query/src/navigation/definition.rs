@@ -9,7 +9,9 @@ use crate::dir::{
     type_definition_span,
 };
 use crate::source::get_node_tree_main_span;
-use destack_dir::{DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution};
+use destack_dir::{
+    CallTarget as DirCallTarget, DependencyItem, Expression, GlobalNodeIdAny, NodeType,
+};
 
 /// Relationship between a navigation origin and target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -262,17 +264,10 @@ fn resolve_nominal_type_symbol(
     type_id: dir::LocalTypeId,
 ) -> Option<dir::GlobalSymbolId> {
     match types.get_type(type_id) {
-        dir::Type::Reference(reference) => Some(reference.symbol),
-        dir::Type::Value(value) => resolve_nominal_type_symbol(types, value.value),
-        dir::Type::KeyOf(unary)
-        | dir::Type::Must(unary)
-        | dir::Type::AsComptime(unary)
-        | dir::Type::Not(unary) => resolve_nominal_type_symbol(types, unary.target_type),
-        dir::Type::Form(form) => resolve_nominal_type_symbol(types, form.base),
-        dir::Type::In(binary) | dir::Type::Extends(binary) | dir::Type::Implements(binary) => {
-            resolve_nominal_type_symbol(types, binary.left)
-                .or_else(|| resolve_nominal_type_symbol(types, binary.right))
-        }
+        dir::Type::Named(reference) => Some(reference.symbol),
+        dir::Type::Form(value) => resolve_nominal_type_symbol(types, value.value),
+        dir::Type::ErasedAny(erased) => resolve_nominal_type_symbol(types, erased.constraint),
+        dir::Type::KeyOf(unary) => resolve_nominal_type_symbol(types, unary.target),
         dir::Type::Conditional(conditional) => resolve_nominal_type_symbol(types, conditional.left)
             .or_else(|| resolve_nominal_type_symbol(types, conditional.right))
             .or_else(|| resolve_nominal_type_symbol(types, conditional.then_type))
@@ -330,16 +325,15 @@ fn overload_definition_span_for_call_site(
 
     // resolve the selected call candidate signature
     {
-        let types = ctx.dir().types();
         let node_id = GlobalNodeIdAny {
             module_id: ctx.module_id(),
             local_id: parent_expression_id.into(),
         };
-        let resolution = types.resolution(node_id)?;
-        match resolution {
-            Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-                let target_symbol = ctx.canonical_symbol(target.symbol);
-                let parameters = target.signature.as_ref()?.parameters.as_slice();
+        let resolution = ctx.dir().resolutions().call_resolution(node_id)?;
+        match &resolution.target {
+            DirCallTarget::Direct(candidate) => {
+                let target_symbol = ctx.canonical_symbol(candidate.symbol);
+                let parameters = resolution.parameters.as_slice();
 
                 // only match declaration signatures within the target symbol module
                 if target_symbol.module_id != ctx.module_id() {

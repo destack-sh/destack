@@ -415,8 +415,11 @@ fn collect_output_symbols(
     if let Some(last_index) = selection.selected_range.clone().last() {
         for expr_id in selection.container_expressions.iter().skip(last_index + 1) {
             let expression = raw_tree.get::<dir::Expression>(*expr_id);
-            let mut visitor =
-                ReferenceCollector::new(ctx.module_id(), ctx.dir().types(), &mut referenced_after);
+            let mut visitor = ReferenceCollector::new(
+                ctx.module_id(),
+                ctx.dir().resolutions(),
+                &mut referenced_after,
+            );
             visitor.visit_expression(raw_tree, *expr_id, expression);
         }
     }
@@ -822,8 +825,8 @@ impl dir::NodeVisitor for AwaitVisitor {
 struct ReferenceCollector<'a> {
     /// The module that owns visited nodes.
     module_id: ModuleId,
-    /// The checked type table.
-    types: &'a dir::TypeTable<'a>,
+    /// The checked resolution table.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// Collected references keyed by symbol id.
     references: &'a mut HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>>,
     /// The visitor options for traversal.
@@ -834,12 +837,12 @@ impl<'a> ReferenceCollector<'a> {
     /// Create a reference collector.
     fn new(
         module_id: ModuleId,
-        types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         references: &'a mut HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>>,
     ) -> Self {
         Self {
             module_id,
-            types,
+            resolutions,
             references,
             options: dir::NodeVisitorOptions::default(),
         }
@@ -860,7 +863,7 @@ impl dir::NodeVisitor for ReferenceCollector<'_> {
         expression: &dir::Expression,
     ) {
         let node_id = id.into_global_any(self.module_id);
-        let target_symbol = self.types.symbol_resolution(node_id);
+        let target_symbol = self.resolutions.symbol_resolution(node_id);
 
         if let Some(target_symbol) = target_symbol {
             self.references.entry(target_symbol).or_insert(id);

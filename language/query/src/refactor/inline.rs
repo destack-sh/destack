@@ -711,7 +711,7 @@ fn collect_captured_symbols(
     let expression = raw_tree.get::<dir::Expression>(value_id);
     let mut visitor = CapturedSymbolVisitor::new(
         ctx,
-        ctx.dir().types(),
+        ctx.dir().resolutions(),
         symbols,
         ctx.module_id(),
         inline_symbol,
@@ -1040,8 +1040,8 @@ fn assign_pattern_target_symbol(
 struct CapturedSymbolVisitor<'a> {
     /// The query context for symbol lookups.
     ctx: &'a ModuleQueryContext<'a>,
-    /// The checked type table.
-    types: &'a dir::TypeTable<'a>,
+    /// The checked resolution table.
+    resolutions: &'a dir::ResolutionTable<'a>,
     /// The symbol table for the current module.
     symbols: &'a dir::BindingTable<'a>,
     /// The module that owns visited nodes.
@@ -1060,7 +1060,7 @@ impl<'a> CapturedSymbolVisitor<'a> {
     /// Create a visitor for captured symbols.
     fn new(
         ctx: &'a ModuleQueryContext<'a>,
-        types: &'a dir::TypeTable<'a>,
+        resolutions: &'a dir::ResolutionTable<'a>,
         symbols: &'a dir::BindingTable<'a>,
         module_id: ModuleId,
         inline_symbol: dir::GlobalSymbolId,
@@ -1069,7 +1069,7 @@ impl<'a> CapturedSymbolVisitor<'a> {
     ) -> Self {
         Self {
             ctx,
-            types,
+            resolutions,
             symbols,
             module_id,
             inline_symbol,
@@ -1098,7 +1098,7 @@ impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
         }
 
         let node_id = id.into_global_any(self.module_id);
-        let target_symbol = self.types.symbol_resolution(node_id);
+        let target_symbol = self.resolutions.symbol_resolution(node_id);
 
         if let Some(target_symbol) = target_symbol {
             let canonical = self.ctx.canonical_symbol(target_symbol);

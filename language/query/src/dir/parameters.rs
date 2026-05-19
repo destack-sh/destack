@@ -245,7 +245,7 @@ fn collect_expected_type_symbols_inner(
     seen_symbols: &mut HashSet<GlobalSymbolId>,
     symbols: &mut Vec<GlobalSymbolId>,
 ) {
-    let type_id = types.unwrap_value_type_id(type_id);
+    let type_id = types.unwrap_form_payload_type_id(type_id);
     if !seen_types.insert(type_id) {
         return;
     }
@@ -253,7 +253,7 @@ fn collect_expected_type_symbols_inner(
     let ty = types.get_type(type_id);
 
     // direct nominal references
-    if let destack_dir::Type::Reference(reference) = ty {
+    if let destack_dir::Type::Named(reference) = ty {
         let symbol = reference.symbol;
         let canonical_symbol = ctx.canonical_symbol(symbol);
         if seen_symbols.insert(canonical_symbol) {
@@ -300,7 +300,7 @@ fn collect_expected_type_symbols_inner(
                 );
             }
         }
-        destack_dir::Type::Value(value) => {
+        destack_dir::Type::Form(value) => {
             collect_expected_type_symbols_inner(
                 ctx,
                 types,
@@ -340,7 +340,7 @@ fn expected_value_shape(types: &destack_dir::TypeTable<'_>, type_id: LocalTypeId
 
     match ty {
         destack_dir::Type::Function(_) => (true, false),
-        destack_dir::Type::Object(object) => (
+        destack_dir::Type::Shape(object) => (
             !object.call_signatures.is_empty(),
             !object.construct_signatures.is_empty(),
         ),

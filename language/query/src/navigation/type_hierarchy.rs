@@ -117,35 +117,9 @@ pub fn supertypes(
     };
     let canonical_id = module_ctx.canonical_symbol(symbol_id);
 
-    // get the lineage for this type
-    let Some(canonical_ctx) = module_ctx.module_context(canonical_id.module_id) else {
-        return Vec::new();
-    };
-    let supertype_ids: Vec<GlobalSymbolId> = {
-        let types = canonical_ctx.dir().types();
-        let Some(lineage) = types.symbol_lineage(canonical_id) else {
-            return Vec::new();
-        };
+    let _ = canonical_id;
 
-        // collect supertype symbol ids
-        let mut supertype_ids: Vec<GlobalSymbolId> = Vec::new();
-
-        // add extended type (parent class or extended interface)
-        if let Some(extends_id) = lineage.extends {
-            supertype_ids.push(extends_id);
-        }
-
-        // add implemented interfaces
-        supertype_ids.extend(lineage.implements.iter().copied());
-
-        supertype_ids
-    };
-
-    // convert to TypeHierarchyItems
-    supertype_ids
-        .into_iter()
-        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(&module_ctx, symbol_id))
-        .collect()
+    Vec::new()
 }
 
 /// Get subtypes of a type hierarchy item.

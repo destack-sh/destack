@@ -102,16 +102,13 @@ fn get_expression_symbol(
     expression_symbol_target(dir, expr_id)
 }
 
-/// Keep one concrete type id and skip unevaluated placeholders.
+/// Keep one concrete type id.
 fn concrete_type_id(
     types: &dir::TypeTable<'_>,
     type_id: Option<dir::LocalTypeId>,
 ) -> Option<dir::LocalTypeId> {
     let type_id = type_id?;
-    let ty = types.get_type(type_id);
-    if ty.is_unevaluated() {
-        return None;
-    }
+    let _ = types;
 
     Some(type_id)
 }

@@ -82,10 +82,10 @@ fn resolve_type_members_inner(
 
     match ty {
         // reference to a declared type: look up symbol's owned scope
-        Type::Reference(reference) => resolve_reference_members(ctx, workspace, reference.symbol),
+        Type::Named(reference) => resolve_reference_members(ctx, workspace, reference.symbol),
 
         // object type: return fields directly
-        Type::Object(object) => {
+        Type::Shape(object) => {
             // initialize the member buffer
             let mut members = Vec::new();
 
@@ -164,9 +164,9 @@ fn resolve_type_members_inner(
             // by looking for a Value<Reference<Enum>> element
             let is_enum_static = intersection.elements.iter().any(|element_id| {
                 let element = types.get_type(*element_id);
-                if let Type::Value(value) = element {
+                if let Type::Form(value) = element {
                     let inner = types.get_type(value.value);
-                    if let Type::Reference(reference) = inner {
+                    if let Type::Named(reference) = inner {
                         // load the symbol and check if it's an enum
                         if let Some(ctx) = ctx.module_context(reference.symbol.module_id) {
                             let symbols_table = ctx.dir().symbols();
@@ -223,15 +223,18 @@ fn resolve_type_members_inner(
             .collect(),
 
         // array type: resolve members from language item Array type
-        Type::Slice(slice) => array_members(ctx, workspace, slice.element),
+        Type::Slice(_) => array_members(ctx, workspace),
 
-        Type::FixedArray(array) => array_members(ctx, workspace, Some(array.element)),
+        Type::FixedArray(_) => array_members(ctx, workspace),
 
-        // primitive types: resolve members from language item types (String, Number, etc.)
-        Type::Literal(literal) => primitive_members(ctx, workspace, literal),
+        // primitive types: resolve members from backing language item types
+        Type::Primitive(primitive) => primitive_members(ctx, workspace, *primitive),
+
+        // scalar literals resolve through their primitive backing type
+        Type::Literal(literal) => literal_members(ctx, workspace, literal),
 
         // follow value types
-        Type::Value(value) => {
+        Type::Form(value) => {
             let inner = types.get_type(value.value);
             resolve_type_members_inner(ctx, workspace, inner, depth + 1)
         }
@@ -307,7 +310,7 @@ fn resolve_local_symbol_members(
         let ty = types.get_type(instance_type_id);
 
         // if the instance type is an Object, get fields from there
-        if let Type::Object(object) = ty {
+        if let Type::Shape(object) = ty {
             for field in &object.fields {
                 // use EnumMember kind for enum variants
                 let kind = if is_enum {
@@ -448,7 +451,6 @@ fn member_names_match(a: &MemberName, b: &MemberName) -> bool {
 fn array_members(
     ctx: &ModuleQueryContext<'_>,
     workspace: &WorkspaceQueryContext<'_>,
-    _element_type: Option<LocalTypeId>,
 ) -> Vec<MemberCandidate> {
     // resolve members from the Array language item symbol
     resolve_language_item_members(ctx, workspace, dir::LanguageItem::Array)
@@ -458,34 +460,41 @@ fn array_members(
 fn primitive_members(
     ctx: &ModuleQueryContext<'_>,
     workspace: &WorkspaceQueryContext<'_>,
-    value: &dir::LiteralType,
+    primitive: dir::PrimitiveType,
 ) -> Vec<MemberCandidate> {
-    // import primitive type helpers
-    use destack_dir::{LanguageItem, LiteralType, PrimitiveType};
+    // map primitive types to their backing language item types
+    let language_item = match primitive {
+        dir::PrimitiveType::String => Some(LanguageItem::String),
+        dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => Some(LanguageItem::Symbol),
+        dir::PrimitiveType::Integer(_)
+        | dir::PrimitiveType::Float(_)
+        | dir::PrimitiveType::Boolean
+        | dir::PrimitiveType::Bigint
+        | dir::PrimitiveType::Character => None,
+    };
 
-    // map primitive type literals to their backing language item types
-    let language_item = match value {
-        LiteralType::Primitive(primitive) => match primitive {
-            PrimitiveType::String => Some(LanguageItem::String),
-            PrimitiveType::Integer(_)
-            | PrimitiveType::Float(_)
-            | PrimitiveType::Boolean
-            | PrimitiveType::Bigint => None,
-            PrimitiveType::Symbol | PrimitiveType::UniqueSymbol => Some(LanguageItem::Symbol),
-            PrimitiveType::Character => None,
-        },
-        // scalar literals use the same backing types
-        LiteralType::ScalarLiteral(scalar) => match scalar {
-            ScalarLiteral::Null => None,
-            ScalarLiteral::String(_) => Some(LanguageItem::String),
-            ScalarLiteral::Integer(_)
-            | ScalarLiteral::Float(_)
-            | ScalarLiteral::Boolean(_)
-            | ScalarLiteral::Bigint(_) => None,
-            ScalarLiteral::Character(_) | ScalarLiteral::RegexString { .. } => None,
-        },
-        // other type literals don't have backing types with members
-        _ => None,
+    // return members for the resolved language item symbol
+    language_item
+        .map(|item| resolve_language_item_members(ctx, workspace, item))
+        .unwrap_or_default()
+}
+
+/// Get members for scalar literals by resolving the backing language item symbol.
+fn literal_members(
+    ctx: &ModuleQueryContext<'_>,
+    workspace: &WorkspaceQueryContext<'_>,
+    literal: &ScalarLiteral,
+) -> Vec<MemberCandidate> {
+    // map scalar literals to their backing language item types
+    let language_item = match literal {
+        ScalarLiteral::String(_) => Some(LanguageItem::String),
+        ScalarLiteral::Null
+        | ScalarLiteral::Integer(_)
+        | ScalarLiteral::Float(_)
+        | ScalarLiteral::Boolean(_)
+        | ScalarLiteral::Bigint(_)
+        | ScalarLiteral::Character(_)
+        | ScalarLiteral::RegexString { .. } => None,
     };
 
     // return members for the resolved language item symbol
