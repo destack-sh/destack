@@ -13,11 +13,13 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
+destack_core = { path = "../../core" }
 destack_parser = { path = ".." }
 destack_source = { path = "../../source" }
+destack_test = { path = "../../test" }
 
-arbitrary = { workspace = true, features = ["derive"] }
-libfuzzer-sys = { workspace = true }
+arbitrary = { version = "1.4.2", features = ["derive"] }
+libfuzzer-sys = "0.4.10"
 
 [[bin]]
 name = "lexer"
