@@ -256,30 +256,27 @@ newtype interface Add<T = this> {
 Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
 Newtype interfaces are used for explicit behavioral traits like operator interfaces (e.g., `Add`, `Compare`), and for capability traits (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
 
-### Representation
+### Erasure
 
 Structural and nominal `interface`s / `type`s are represented as transparent value constraints: any bare `T` of an `interface` or `type` becomes an implicit generic parameter in its declaration that is then substituted ("monomorphized") on application (similar to Rust's `impl T`).
 That means the following interface-like declarations have same structure:
 
 ```ds
-// nominal interface
 newtype interface Writer {
     write(bytes: [uint8]): Result<uint, Error>;
 }
 
-// regular type
-type Writer = {
+interface Writer {
     write(bytes: [uint8]): Result<uint, Error>;
 }
 
-// nominal type
-newtype Writer = {
+type Writer = {
     write(bytes: [uint8]): Result<uint, Error>;
 }
 ```
 
-Type constraints like `type` and `interface` are transparent and give the compiler a lot of optimization freedom in specialising methods and types.
-For example, the following functions declarations are representationally equivalent but specialise for concrete `Writer` implementations:
+Transparent constraints like `type` and `interface` give the compiler a lot of optimization freedom in specialising methods and types.
+For example, the following function declarations are representationally equivalent but specialise for concrete `Writer` implementations:
 
 ```ds
 // use Writer as a regular parameter type, no explicit generics
@@ -293,8 +290,8 @@ function write<T: Writer>(writer: T, bytes: [uint8]): Result<uint, Error> {
 }
 ```
 
-The `newtype` alias, however, defines a new value type (whose representation is defined by a type expression), and thus its representation is not substituted later.
-Specifically, this means `newtype Shape = Rectangle | Circle` creates a concrete tagged union layout, while `type Shape = Rectangle | Circle` creates a structural union layout.
+Nominal declarations like `newtype` aliases, however, define a new nominal value type whose representation is selected from its backing type expression.
+Specifically, this means `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `type Shape = Rectangle | Circle` remains a transparent union constraint until some value or storage boundary asks for representation.
 
 ### Any
 
@@ -319,6 +316,43 @@ struct LoggerFor {
 ```
 
 In general, contract and transparent shapes give the checker room to specialize ordinary TypeScript-looking code, while value declarations, runtime joins, and `Any<T>` are the points where the program asks for a stable representation.
+
+### Representation
+
+Representation is the concrete storage and ABI shape selected for a representable type under the active target, the default representation being `@repr("destack")`.
+The exact layout of a type can be configured via decorators that constrain its representation as needed, the conventions being very similar to Rust's:
+
+| Decorator | Meaning |
+| --- | --- |
+| `@repr("destack")` | Use the native Destack representation. |
+| `@repr("C")` | Use the active target's C ABI layout. |
+| `@repr("transparent")` | Give a single-field declaration the same ABI representation as its field. |
+| `@repr(T)` | Use primitive scalar `T` as an enum backing representation. |
+| `@align(N)` | Raise the minimum aggregate alignment to `N`. |
+| `@packed` / `@packed(N)` | Lower the maximum field alignment, with `@packed` equivalent to `@packed(1)`. |
+
+```ds
+@align(64)
+struct CacheLine {
+    value: uint64;
+}
+
+@repr("C")
+@packed
+struct WireHeader {
+    tag: uint8;
+    size: uint32;
+}
+```
+
+Destack also supports querying parameters of the effective representation during compilation - available as a static term during inference - for conditional branching and storage:
+
+| Intrinsic | Result |
+| --- | --- |
+| `sizeOf<T>()` | The byte size of `T`. |
+| `alignOf<T>()` | The required alignment of `T`. |
+| `strideOf<T>()` | The spacing between adjacent array elements of `T`. |
+| `layoutOf<T>()` | The reflected layout record for `T`. |
 
 ### Extensions
 
