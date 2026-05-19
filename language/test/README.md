@@ -24,7 +24,7 @@ The language suite taxonomy is:
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
 | **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
-| **Stress** | Correctness | Full | `fixtures/stress/` | Shared hostile corpora and invariant-based consumers for parser, checker, query, and LSP |
+| **Stress** | Correctness | Full | `fixtures/stress/` | Hostile generated parser and formatter corpora with recovery and idempotence invariants |
 
 The shared conformance catalog is generated from `suite.json` and `status.json`.
 
@@ -92,8 +92,8 @@ just update-conformance-catalog
 # robustness
 just generate-stress
 just test-stress
-just test-stress-query
-just test-stress-lsp
+just test-stress-parser
+just test-stress-formatter
 ```
 
 ## Mdtest
