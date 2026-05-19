@@ -197,7 +197,7 @@ fn expression_is_array_semantic(
     if let dir::Expression::Type { value } = expression
         && let Some(type_id) = ctx
             .types
-            .get_declared_or_inferred_type_id(value.into_global_any(ctx.module_id()))
+            .get_node_type_id(value.into_global_any(ctx.module_id()))
     {
         return is_array_type(ctx.types, type_id, Some(array_symbol));
     }

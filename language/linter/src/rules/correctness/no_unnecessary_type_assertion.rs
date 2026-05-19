@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_declared_or_inferred_type_id, expression_target_symbol, is_any_type,
-    symbol_value_type_id_for, unwrap_form_payload_type_id,
+    expression_target_symbol, expression_type_id, is_any_type, symbol_type_id_for,
+    unwrap_form_payload_type_id,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -111,12 +111,7 @@ fn source_expression_type_id(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
     // keep this rule aligned with explicit expression types only
-    let type_id = expression_declared_or_inferred_type_id(
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        expression_id,
-    )?;
+    let type_id = expression_type_id(ctx.module_id(), ctx.dir.tree(), ctx.types, expression_id)?;
 
     Some(unwrap_form_payload_type_id(ctx.types, type_id))
 }
@@ -127,12 +122,9 @@ fn source_expression_is_declared_any(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // local expression types are enough when present
-    if let Some(type_id) = expression_declared_or_inferred_type_id(
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        expression_id,
-    ) {
+    if let Some(type_id) =
+        expression_type_id(ctx.module_id(), ctx.dir.tree(), ctx.types, expression_id)
+    {
         let type_id = unwrap_form_payload_type_id(ctx.types, type_id);
         return is_any_type(ctx.types, type_id);
     }
@@ -141,7 +133,7 @@ fn source_expression_is_declared_any(
     let Some(source_symbol_id) = expression_target_symbol(ctx, expression_id) else {
         return false;
     };
-    let Some(source_value_type_id) = symbol_value_type_id_for(
+    let Some(source_value_type_id) = symbol_type_id_for(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
@@ -247,7 +239,7 @@ fn assertion_target_type_id(
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<dir::LocalTypeId> {
     let global_type_expression_id = type_expression_id.into_global_any(ctx.module_id());
-    ctx.types.get_declared_type_id(global_type_expression_id)
+    ctx.types.get_node_type_id(global_type_expression_id)
 }
 
 #[cfg(test)]

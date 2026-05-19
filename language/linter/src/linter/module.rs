@@ -294,7 +294,7 @@ impl<'a> LintModuleContext<'a> {
             .unwrap_or_default()
     }
 
-    /// Resolve the inferred type id for a DIR expression.
+    /// Resolve the checked type id for a DIR expression.
     pub fn expression_type_id(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -308,14 +308,14 @@ impl<'a> LintModuleContext<'a> {
         // build a global id for the expression
         let global_id = dir::GlobalNodeIdAny::new(self.module.id, expression_id.into_any());
 
-        // fetch the inferred type id from the module type table
-        if let Some(type_id) = self.types.get_inferred_type_id(global_id) {
+        // read the expression node type
+        if let Some(type_id) = self.types.get_node_type_id(global_id) {
             return Some(type_id);
         }
 
-        // then use value types for direct references
+        // then use symbol types for direct references
         self.expression_target_symbol(expression_id)
-            .and_then(|symbol| self.types.get_value_type_id(symbol))
+            .and_then(|symbol| self.types.get_symbol_type_id(symbol))
     }
 
     /// Resolve the lexical target symbol for one expression.

@@ -6,9 +6,9 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    expression_declared_or_inferred_type_id, expression_is_promise_like,
-    function_parameter_types_at, function_return_type, is_any_type, is_async_function_type,
-    is_function_type, is_promise_or_any_type, supports_promise_spread_elements,
+    expression_is_promise_like, expression_type_id, function_parameter_types_at,
+    function_return_type, is_any_type, is_async_function_type, is_function_type,
+    is_promise_or_any_type, supports_promise_spread_elements,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -174,7 +174,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // resolve callee type once
-        let Some(callee_type_id) = expression_declared_or_inferred_type_id(
+        let Some(callee_type_id) = expression_type_id(
             self.ctx.module_id(),
             self.ctx.dir.tree(),
             self.ctx.types,
@@ -192,7 +192,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             };
 
             // require optional structure
-            let Some(argument_type_id) = expression_declared_or_inferred_type_id(
+            let Some(argument_type_id) = expression_type_id(
                 self.ctx.module_id(),
                 self.ctx.dir.tree(),
                 self.ctx.types,

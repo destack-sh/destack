@@ -137,7 +137,7 @@ fn function_symbol_returns_promise(
     symbol_id: dir::GlobalSymbolId,
     promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    let Some(function_type_id) = ctx.types.symbol_type_id(&ctx.symbols, symbol_id) else {
+    let Some(function_type_id) = ctx.types.get_symbol_type_id(symbol_id) else {
         return false;
     };
     let Some(return_type_id) = function_return_type(ctx.types, function_type_id) else {
@@ -158,7 +158,7 @@ fn signature_returns_promise(
     };
 
     let global_type_expression_id = return_type_expression_id.into_global_any(ctx.module_id());
-    let Some(return_type_id) = ctx.types.get_declared_type_id(global_type_expression_id) else {
+    let Some(return_type_id) = ctx.types.get_node_type_id(global_type_expression_id) else {
         return false;
     };
 

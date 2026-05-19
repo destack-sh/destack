@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     assign_pattern_contains_expression, call_like_invocation_is_receiver_bound,
     has_non_void_this_parameter_type, member_receiver_text, parent_is_receiver_helper,
-    resolution_target_symbols, symbol_declaration_for, symbol_value_type_id_for,
+    resolution_target_symbols, symbol_declaration_for, symbol_type_id_for,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -391,7 +391,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
     /// Return true when a symbol value type declares a `this` parameter.
     fn symbol_has_this_parameter(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        let Some(symbol_type_id) = symbol_value_type_id_for(
+        let Some(symbol_type_id) = symbol_type_id_for(
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
