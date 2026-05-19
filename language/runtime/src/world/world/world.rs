@@ -6,19 +6,23 @@ use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
+use crate::host::core::HostQueue;
+use crate::host::poller::{HostPoller, create_host_poller};
 use crate::host::time::HostClockSource;
-use crate::host::{Host, HostError, ResourceId, default_compile_target_host};
+use crate::host::{Host, HostError, ResourceId, compile_target_host};
 use crate::runtime::random::{Random, RandomStreamId};
 use crate::runtime::time::{Clock, Instant, Nanos};
 use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
 use crate::simulation::Simulation;
-use crate::world::policy::{Policy, PolicyState};
+use crate::world::policy::Policy;
 use crate::world::scenario::Scenario;
 use crate::world::trace::{
-    EnvironmentConfig, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
+    EntrypointCall, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
     TraceSequence,
 };
-use destack_workspace::{RandomSource, ReplayPayloadMode, RuntimeOptions};
+use destack_workspace::{
+    Environment, PollerBackend, RandomSource, ReplayPayloadMode, RuntimeOptions,
+};
 
 use super::topology::Topology;
 pub(crate) use super::topology::{
@@ -28,16 +32,35 @@ pub(crate) use super::topology::{
 use super::{BranchId, History, Mutation, ROOT_BRANCH, Resource, WorldImage, WorldState};
 
 /// One interconnected runtime world.
-#[derive(Debug)]
 pub struct World {
     /// Host integration shared by live runtimes in this world.
     pub(crate) host: Arc<dyn Host>,
+    /// Host events accepted into this world.
+    pub(crate) host_queue: HostQueue,
+    /// Shared host poller for external resources.
+    pub(crate) poller: Box<dyn HostPoller>,
+    /// Host poller backend used for fork reconstruction.
+    pub(crate) poller_backend: PollerBackend,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Box<Runtime>>,
     /// Shared state used by runtimes and workers.
     pub(crate) state: WorldState,
     /// History-root metadata for this live world.
     pub(crate) history: Arc<RwLock<History>>,
+}
+
+impl std::fmt::Debug for World {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("World")
+            .field("host", &self.host)
+            .field("host_queue", &self.host_queue)
+            .field("poller", &"<host poller>")
+            .field("poller_backend", &self.poller_backend)
+            .field("runtimes", &self.runtimes)
+            .field("state", &self.state)
+            .field("history", &self.history)
+            .finish()
+    }
 }
 
 impl World {
@@ -90,7 +113,7 @@ impl World {
             random_source,
             branch_id,
             replay_payload,
-            ..TraceHeader::new(EnvironmentConfig::default())
+            ..TraceHeader::new(Environment::default())
         };
         if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
             let chunk_bytes = chunk_size_mb.saturating_mul(1024 * 1024);
@@ -101,26 +124,19 @@ impl World {
 
         // live state inputs
         let time_options = options.time_options();
-        let clock = if let Some(host_clock_source) = host_clock_source {
-            Clock::from_options_with_host_clock_source(&time_options, host_clock_source)
-        } else {
-            Clock::from_options(&time_options)
-        };
+        let host = compile_target_host(host_clock_source);
+        let clock = Clock::from_options(&time_options);
         let random = Random::from_options(&options.random_options());
         let policy = Policy::default();
         let scenarios: Vec<Scenario> = Vec::new();
         let trace = Trace::new(execution_mode, trace_header);
         let topology = Topology::new();
-        policy.validate()?;
-        for scenario in &scenarios {
-            scenario.validate_with_kind_catalog(&topology)?;
-        }
 
         // live world state
         let state = WorldState {
             branch_id,
             simulation: Simulation::default(),
-            policy: PolicyState::new(policy),
+            policy,
             scenarios,
             next_runtime_id: 1,
             next_worker_id: 1,
@@ -164,14 +180,19 @@ impl World {
         let history = Arc::new(RwLock::new(History::new_root(
             allocator,
             collector,
-            root_image.clock.virtual_wall,
-            root_image.clock.virtual_mono,
-            root_trace_image.next_sequence,
+            root_image.clock.wall,
+            root_image.clock.monotonic,
+            root_trace_image.next_sequence(),
             root_image,
             root_trace_image,
         )));
+        let poller_backend = options.scheduler.poller_backend;
+        let poller = create_host_poller(poller_backend)?;
         let world = Self {
-            host: default_compile_target_host(),
+            host,
+            host_queue: HostQueue::new(),
+            poller,
+            poller_backend,
             runtimes: BTreeMap::new(),
             state,
             history,
@@ -197,7 +218,7 @@ impl World {
 
     /// Snapshot world policy state.
     pub fn policy(&self) -> Policy {
-        self.state.policy.spec.clone()
+        self.state.policy.clone()
     }
 
     /// Snapshot world entity kind definitions.
@@ -217,6 +238,13 @@ impl World {
 
     /// Return labels for one live runtime.
     pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<BTreeMap<String, String>> {
+        let entity = self.runtime_entity(runtime_id)?;
+
+        Ok(entity.labels)
+    }
+
+    /// Return the topology name for one live runtime.
+    pub fn runtime_name(&self, runtime_id: RuntimeId) -> RuntimeResult<&str> {
         let topology = &self.state.topology;
         let entity = topology.entities().get(&runtime_id.entity_id()).ok_or(
             RuntimeError::RuntimeNotFound {
@@ -224,11 +252,30 @@ impl World {
             },
         )?;
 
-        Ok(entity.labels.clone())
+        Ok(entity.name.as_str())
+    }
+
+    /// Return the topology entity for one live runtime.
+    pub(crate) fn runtime_entity(&self, runtime_id: RuntimeId) -> RuntimeResult<Entity> {
+        let topology = &self.state.topology;
+        let entity = topology.entities().get(&runtime_id.entity_id()).ok_or(
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            },
+        )?;
+
+        Ok(entity.clone())
     }
 
     /// Return labels for one live worker.
     pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<BTreeMap<String, String>> {
+        let entity = self.worker_entity(worker_id)?;
+
+        Ok(entity.labels)
+    }
+
+    /// Return the topology name for one live worker.
+    pub fn worker_name(&self, worker_id: WorkerId) -> RuntimeResult<&str> {
         let topology = &self.state.topology;
         let entity = topology.entities().get(&worker_id.entity_id()).ok_or(
             RuntimeError::WorkerNotFound {
@@ -236,7 +283,19 @@ impl World {
             },
         )?;
 
-        Ok(entity.labels.clone())
+        Ok(entity.name.as_str())
+    }
+
+    /// Return the topology entity for one live worker.
+    pub(crate) fn worker_entity(&self, worker_id: WorkerId) -> RuntimeResult<Entity> {
+        let topology = &self.state.topology;
+        let entity = topology.entities().get(&worker_id.entity_id()).ok_or(
+            RuntimeError::WorkerNotFound {
+                worker_id: worker_id.0,
+            },
+        )?;
+
+        Ok(entity.clone())
     }
 
     /// Snapshot world edges.
@@ -283,7 +342,10 @@ impl World {
 
     /// Return the current world wall time.
     pub fn wall(&self) -> Nanos {
-        self.state.clock.wall()
+        match self.state.clock.source() {
+            destack_workspace::ClockSource::Host => Nanos::new(self.host.wall_nanos()),
+            destack_workspace::ClockSource::Virtual => self.state.clock.wall(),
+        }
     }
 
     /// Return the current world wall time in nanoseconds.
@@ -293,7 +355,10 @@ impl World {
 
     /// Return the current world monotonic time.
     pub fn mono(&self) -> Nanos {
-        self.state.clock.mono()
+        match self.state.clock.source() {
+            destack_workspace::ClockSource::Host => Nanos::new(self.host.mono_nanos()),
+            destack_workspace::ClockSource::Virtual => self.state.clock.mono(),
+        }
     }
 
     /// Return the current world monotonic time in nanoseconds.
@@ -316,7 +381,7 @@ impl World {
             .boxed());
         }
 
-        self.state.random.fill_secure_bytes(buffer)
+        self.host.fill_random_bytes(buffer)
     }
 
     /// Try to fill one buffer with secure world-routed random bytes without blocking.
@@ -329,13 +394,13 @@ impl World {
             .boxed());
         }
 
-        self.state.random.try_fill_secure_bytes(buffer)
+        self.host.try_fill_random_bytes(buffer)
     }
 
     /// Return one world-routed random u64 from one stream.
     pub fn next_stream_u64(&self, stream_id: RandomStreamId) -> RuntimeResult<u64> {
         match self.state.random.source() {
-            RandomSource::Host => self.state.random.next_secure_u64(),
+            RandomSource::Host => self.host.random_u64(),
             RandomSource::Deterministic => Ok(self.state.random.next_stream_u64(stream_id)),
         }
     }
@@ -347,7 +412,7 @@ impl World {
         buffer: &mut [u8],
     ) -> RuntimeResult<()> {
         match self.state.random.source() {
-            RandomSource::Host => self.state.random.fill_secure_bytes(buffer),
+            RandomSource::Host => self.host.fill_random_bytes(buffer),
             RandomSource::Deterministic => {
                 self.state.random.fill_stream_bytes(stream_id, buffer);
                 Ok(())
@@ -365,11 +430,8 @@ impl World {
         self.state.trace.record_mutation(mutation)
     }
 
-    /// Record one runtime entrypoint invocation.
-    pub fn record_entrypoint(
-        &self,
-        invocation: crate::world::trace::EntrypointInvocation,
-    ) -> RuntimeResult<()> {
+    /// Record one runtime entrypoint call.
+    pub fn record_entrypoint(&self, invocation: EntrypointCall) -> RuntimeResult<()> {
         self.state.trace.record_entrypoint(invocation)
     }
 
@@ -380,7 +442,7 @@ impl World {
 
     /// Append one explicit history label to the active trace.
     pub fn label(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
-        self.state.trace.record_anchor(label.into())
+        self.state.trace.record_label(label.into())
     }
 
     /// Resolve one mutation against the replay boundary.
@@ -388,11 +450,11 @@ impl World {
         self.state.trace.resolve_mutation(mutation)
     }
 
-    /// Resolve one runtime entrypoint invocation.
+    /// Resolve one runtime entrypoint call.
     pub(crate) fn resolve_entrypoint(
         &self,
-        invocation: crate::world::trace::EntrypointInvocation,
-    ) -> RuntimeResult<crate::world::trace::EntrypointInvocation> {
+        invocation: EntrypointCall,
+    ) -> RuntimeResult<EntrypointCall> {
         self.state.trace.resolve_entrypoint(invocation)
     }
 }

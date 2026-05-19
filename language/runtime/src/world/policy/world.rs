@@ -18,9 +18,9 @@ impl WorldState {
         descriptor: BindingDescriptor,
     ) -> RuntimeResult<BindingDecision> {
         let subject =
-            Self::policy_subject(self.topology(), runtime_id, worker_id, mode, conditions)?;
+            Self::policy_subject(&self.topology, runtime_id, worker_id, mode, conditions)?;
 
-        let decision = self.policy().decide_binding(subject, descriptor);
+        let decision = self.policy.decide_binding(subject, descriptor);
 
         Ok(decision)
     }

@@ -531,6 +531,11 @@ impl TargetSelector {
     pub fn edge(selector: EdgeSelector) -> Self {
         Self::Edge { selector }
     }
+
+    /// Return true when this selector matches one binding attempt target.
+    pub(crate) fn matches_binding_attempt(&self) -> bool {
+        matches!(self, Self::Any)
+    }
 }
 
 /// Return true when one rule matches one subject and attempt.
@@ -543,7 +548,11 @@ pub(crate) fn matches_rule_selectors(
         return false;
     }
 
-    rule.action.matches(attempt)
+    if !rule.action.matches(attempt) {
+        return false;
+    }
+
+    rule.target.matches_binding_attempt()
 }
 
 /// Return true when one identity selector matches name and labels.

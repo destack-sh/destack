@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceKind;
 use crate::world::policy::{EdgeSelector, EntitySelector};
-use crate::world::topology::Topology;
-use crate::world::{EdgeKind, EntityKind};
+use crate::world::{EdgeKind, EntityKind, Topology};
 
 use super::FaultRule;
 
@@ -927,31 +926,13 @@ impl FaultType {
     }
 }
 
-/// Topology fault-support lookup used for fault compatibility checks.
-pub(crate) trait FaultCatalog {
-    /// Return one entity kind supported fault set by kind id.
-    fn entity_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>>;
-    /// Return one edge kind supported fault set by kind id.
-    fn edge_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>>;
-}
-
-impl FaultCatalog for Topology {
-    fn entity_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>> {
-        self.entity_kind_supported_faults(kind)
-    }
-
-    fn edge_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>> {
-        self.edge_kind_supported_faults(kind)
-    }
-}
-
 /// Validate one fault rule target and fault pair.
 pub(crate) fn validate_fault_rule_compatibility(
     rule: &FaultRule,
-    kind_catalog: &(impl FaultCatalog + ?Sized),
+    topology: &Topology,
 ) -> RuntimeResult<()> {
-    validate_fault_target_compatible(&rule.fault.target, &rule.fault.fault_type, kind_catalog)
-        .map_err(|error| {
+    validate_fault_target_compatible(&rule.fault.target, &rule.fault.fault_type, topology).map_err(
+        |error| {
             RuntimeError::Internal {
                 message: format!(
                     "runtime fault is incompatible with target in fault rule {}: {}",
@@ -960,7 +941,8 @@ pub(crate) fn validate_fault_rule_compatibility(
                 ),
             }
             .boxed()
-        })
+        },
+    )
 }
 
 /// Target kind for fault compatibility validation.
@@ -978,7 +960,7 @@ enum FaultTargetKind {
 fn validate_fault_target_compatible(
     target: &FaultTarget,
     fault_type: &FaultType,
-    kind_catalog: &(impl FaultCatalog + ?Sized),
+    topology: &Topology,
 ) -> RuntimeResult<()> {
     // validate payload invariants first
     fault_type.validate_payload()?;
@@ -999,7 +981,7 @@ fn validate_fault_target_compatible(
     let (target_kind, kind, supported_faults) = match target {
         FaultTarget::Call {} => ("call", "call", None),
         FaultTarget::Entity { kind, .. } => {
-            let Some(supported_faults) = kind_catalog.entity_kind_supported_faults(kind.as_str())
+            let Some(supported_faults) = topology.entity_kind_supported_faults(kind.as_str())
             else {
                 return Err(RuntimeError::Internal {
                     message: format!("unknown topology entity kind: {}", kind.as_str()),
@@ -1010,8 +992,7 @@ fn validate_fault_target_compatible(
             ("entity", kind.as_str(), Some(supported_faults))
         }
         FaultTarget::Edge { kind, .. } => {
-            let Some(supported_faults) = kind_catalog.edge_kind_supported_faults(kind.as_str())
-            else {
+            let Some(supported_faults) = topology.edge_kind_supported_faults(kind.as_str()) else {
                 return Err(RuntimeError::Internal {
                     message: format!("unknown topology edge kind: {}", kind.as_str()),
                 }

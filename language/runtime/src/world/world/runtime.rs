@@ -3,24 +3,25 @@ use std::sync::Arc;
 
 use destack_core::CaptureMode;
 use destack_engine as engine;
-use destack_workspace::{ExecutionMode, RuntimeOptions};
+use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::resource::ResourceRebinders;
 use crate::runtime::engine::{Engine, Entry};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
-use crate::world::trace::{EntrypointInvocation, Outcome, SpawnedWorkerImage};
+use crate::world::trace::{EntrypointCall, Outcome, SpawnedWorkerImage};
 
-use super::{Mutation, RuntimeId, World};
+use super::{Entity, Mutation, RuntimeId, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.
     pub fn spawn_runtime(
         &mut self,
-        process_args: impl Into<Arc<[String]>>,
+        environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<RuntimeId> {
+        let environment = environment.into();
         let mode = self.state.trace.mode();
         let history = self.history.read();
         let allocator = history.allocator();
@@ -28,15 +29,19 @@ impl World {
         drop(history);
         let world = &mut self.state;
         let mut runtime = Runtime::from_options_in_world(
-            process_args,
+            environment.clone(),
             options,
             world,
-            self.host.clone(),
             allocator,
             collector,
             engine,
         )?;
         let runtime_id = runtime.runtime_id();
+        if self.runtimes.is_empty() {
+            self.state
+                .trace
+                .set_environment(environment.as_ref().clone());
+        }
 
         // fast and deterministic modes do not need one structural spawn image
         let replay_image = if mode == ExecutionMode::Record {
@@ -59,28 +64,16 @@ impl World {
 
         // record structural spawn state for replay
         if let Some((runtime, workers)) = replay_image {
-            let runtime_labels = self.runtime_labels(runtime_id)?;
+            let runtime_entity = self.runtime_entity(runtime_id)?;
             let workers = workers
                 .into_iter()
                 .map(|(worker_id, worker)| {
-                    let worker_name = self
-                        .runtimes
-                        .get(&runtime_id)
-                        .and_then(|runtime| runtime.worker(worker_id))
-                        .map(|worker| worker.name().to_string())
-                        .ok_or_else(|| {
-                            RuntimeError::WorkerNotFound {
-                                worker_id: worker_id.0,
-                            }
-                            .boxed()
-                        })?;
-                    let worker_labels = self.worker_labels(worker_id)?;
+                    let worker_entity = self.worker_entity(worker_id)?;
 
                     Ok((
                         worker_id,
                         SpawnedWorkerImage {
-                            name: worker_name,
-                            labels: worker_labels,
+                            entity: worker_entity,
                             image: worker,
                         },
                     ))
@@ -89,17 +82,7 @@ impl World {
 
             self.record_outcome(Outcome::RuntimeSpawned {
                 runtime_id,
-                runtime_name: self
-                    .runtimes
-                    .get(&runtime_id)
-                    .map(|runtime| runtime.name().to_string())
-                    .ok_or_else(|| {
-                        RuntimeError::RuntimeNotFound {
-                            runtime_id: runtime_id.0,
-                        }
-                        .boxed()
-                    })?,
-                runtime_labels,
+                runtime_entity,
                 runtime,
                 workers,
             })?;
@@ -119,7 +102,7 @@ impl World {
             .boxed());
         };
 
-        let runtime = self.do_remove_runtime(runtime_id)?;
+        let runtime = self.remove_stored_runtime(runtime_id)?;
 
         if self.state.trace.mode() == ExecutionMode::Record {
             self.record_mutation(mutation)?;
@@ -132,7 +115,6 @@ impl World {
     pub fn spawn_worker(
         &mut self,
         runtime_id: RuntimeId,
-        options: &RuntimeOptions,
         worker_options: WorkerOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<WorkerId> {
@@ -145,7 +127,7 @@ impl World {
             .boxed()
         })?;
 
-        let worker_id = runtime.spawn_worker(world, options, worker_options, engine)?;
+        let worker_id = runtime.spawn_worker(world, worker_options, engine)?;
 
         // record structural spawn state for replay
         let replay_image = if mode == ExecutionMode::Record {
@@ -155,22 +137,12 @@ impl World {
         };
 
         if let Some(worker) = replay_image {
-            let worker_name = runtime
-                .worker(worker_id)
-                .map(|worker| worker.name().to_string())
-                .ok_or_else(|| {
-                    RuntimeError::WorkerNotFound {
-                        worker_id: worker_id.0,
-                    }
-                    .boxed()
-                })?;
-            let worker_labels = self.worker_labels(worker_id)?;
+            let worker_entity = self.worker_entity(worker_id)?;
 
             self.record_outcome(Outcome::WorkerSpawned {
                 runtime_id,
                 worker_id,
-                worker_name,
-                worker_labels,
+                worker_entity,
                 worker: Arc::new(worker),
             })?;
         }
@@ -185,7 +157,7 @@ impl World {
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
-        let invocation = EntrypointInvocation {
+        let invocation = EntrypointCall {
             runtime_id,
             entry: entry.clone(),
             args: args.to_vec(),
@@ -193,7 +165,7 @@ impl World {
         let invocation = self.resolve_entrypoint(invocation)?;
 
         let result =
-            self.do_run_entrypoint(invocation.runtime_id, &invocation.entry, &invocation.args)?;
+            self.execute_entrypoint(invocation.runtime_id, &invocation.entry, &invocation.args)?;
 
         if self.state.trace.mode() == ExecutionMode::Record {
             self.record_entrypoint(invocation)?;
@@ -233,8 +205,8 @@ impl World {
             })
     }
 
-    /// Remove one stored runtime without tracing the outer invocation.
-    pub(crate) fn do_remove_runtime(
+    /// Remove one stored runtime without recording a new mutation.
+    pub(crate) fn remove_stored_runtime(
         &mut self,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<Box<Runtime>> {
@@ -262,14 +234,13 @@ impl World {
         Ok(runtime)
     }
 
-    /// Run one entrypoint without tracing the outer invocation.
-    pub(crate) fn do_run_entrypoint(
+    /// Execute one entrypoint without recording a new invocation.
+    pub(crate) fn execute_entrypoint(
         &mut self,
         runtime_id: RuntimeId,
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
-        let world = &mut self.state;
         let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -277,15 +248,24 @@ impl World {
             .boxed()
         })?;
 
-        runtime.run_entrypoint(world, entry, args)
+        let worker_id = runtime.default_worker_id();
+
+        runtime.run_entrypoint(
+            &mut self.state,
+            self.host.as_ref(),
+            &self.host_queue,
+            self.poller.as_mut(),
+            worker_id,
+            entry,
+            args,
+        )
     }
 
     /// Restore one runtime image without tracing the outer invocation.
     pub(crate) fn restore_runtime_image(
         &mut self,
         runtime_id: RuntimeId,
-        runtime_name: String,
-        runtime_labels: BTreeMap<String, String>,
+        runtime_entity: Entity,
         runtime_image: &Arc<RuntimeImage>,
         worker_images: &BTreeMap<WorkerId, SpawnedWorkerImage>,
         rebind_context: Option<&ResourceRebinders>,
@@ -300,22 +280,13 @@ impl World {
         }
 
         let world = &mut self.state;
-        world.register_runtime_topology(runtime_id, runtime_name.clone(), runtime_labels)?;
+        world.register_runtime_topology(runtime_id, runtime_entity)?;
 
         // restored worker metadata
         for (worker_id, worker) in worker_images {
-            world.register_worker_topology(
-                runtime_id,
-                *worker_id,
-                worker.name.clone(),
-                worker.labels.clone(),
-            )?;
+            world.register_worker_topology(runtime_id, *worker_id, worker.entity.clone())?;
         }
 
-        let worker_names = worker_images
-            .iter()
-            .map(|(worker_id, worker)| (*worker_id, worker.name.clone()))
-            .collect();
         let worker_images = worker_images
             .iter()
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
@@ -329,11 +300,8 @@ impl World {
             world,
             allocator,
             collector,
-            self.host.clone(),
             runtime_id,
-            runtime_name,
             runtime_image.as_ref(),
-            &worker_names,
             &worker_images,
             rebind_context,
         )?;
@@ -357,12 +325,11 @@ impl World {
         &mut self,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        worker_name: String,
-        worker_labels: BTreeMap<String, String>,
+        worker_entity: Entity,
         worker_image: &Arc<WorkerImage>,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
-        let process_args = self
+        let environment = self
             .runtimes
             .get(&runtime_id)
             .ok_or_else(|| {
@@ -371,15 +338,10 @@ impl World {
                 }
                 .boxed()
             })?
-            .process_args();
+            .environment();
 
         let world = &mut self.state;
-        world.register_worker_topology(
-            runtime_id,
-            worker_id,
-            worker_name.clone(),
-            worker_labels,
-        )?;
+        world.register_worker_topology(runtime_id, worker_id, worker_entity)?;
         let runtime = self.runtimes.get(&runtime_id).ok_or_else(|| {
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -393,8 +355,7 @@ impl World {
                 runtime.statics(),
                 runtime_id,
                 worker_id,
-                worker_name,
-                process_args,
+                environment,
                 worker_image.as_ref(),
                 None,
                 rebind_context,

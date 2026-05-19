@@ -15,8 +15,6 @@ use super::{Fault, FaultRuleId, FaultTarget, RuntimeEvent, RuntimeEventKind, Sce
 pub struct ScenarioRunnerSnapshot {
     /// The next scenario call identifier to allocate.
     pub next_call_id: u64,
-    /// The number of scenario faults deferred to a later scenario executor.
-    pub deferred_faults: u64,
 }
 
 /// One fault accepted by trigger evaluation for one runtime event.
@@ -46,20 +44,15 @@ pub struct ScenarioRunner {
     conditions: ConditionSet,
     /// Next scenario call identifier sequence.
     next_call_id: AtomicU64,
-    /// Total scenario faults deferred to a later scenario executor.
-    deferred_faults: AtomicU64,
 }
 
 impl std::fmt::Debug for ScenarioRunner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let deferred_faults = self.deferred_faults.load(Ordering::Relaxed);
-
         f.debug_struct("ScenarioRunner")
             .field("runtime_id", &self.runtime_id)
             .field("worker_id", &self.worker_id)
             .field("mode", &self.mode)
             .field("conditions", &self.conditions)
-            .field("deferred_faults", &deferred_faults)
             .finish()
     }
 }
@@ -78,7 +71,6 @@ impl ScenarioRunner {
             mode,
             conditions,
             next_call_id: AtomicU64::new(1),
-            deferred_faults: AtomicU64::new(0),
         }
     }
 
@@ -87,60 +79,32 @@ impl ScenarioRunner {
         self.mode
     }
 
-    // capture barrier
-    fn capture_barrier(&self) -> RuntimeResult<()> {
-        // require no deferred scenario faults
-        if self.deferred_faults.load(Ordering::Relaxed) != 0 {
-            return Err(RuntimeError::CaptureBarrier {
-                component: "runtime.scenario".to_string(),
-                mode: "snapshot".to_string(),
-                detail: "scenario faults are still pending".to_string(),
-            }
-            .boxed());
-        }
-
-        Ok(())
-    }
-
     /// Capture one durable scenario runner snapshot.
-    pub(crate) fn snapshot(&self) -> RuntimeResult<ScenarioRunnerSnapshot> {
-        self.capture_barrier()?;
-
-        Ok(ScenarioRunnerSnapshot {
+    pub(crate) fn snapshot(&self) -> ScenarioRunnerSnapshot {
+        ScenarioRunnerSnapshot {
             next_call_id: self.next_call_id.load(Ordering::Relaxed),
-            deferred_faults: self.deferred_faults.load(Ordering::Relaxed),
-        })
+        }
     }
 
     /// Fork one quiescent scenario runner for one child worker.
-    pub(crate) fn try_fork(&self) -> RuntimeResult<Option<Self>> {
-        // require one quiescent scenario runner first
-        let snapshot = match self.snapshot() {
-            Ok(snapshot) => snapshot,
-            Err(_) => return Ok(None),
-        };
+    pub(crate) fn fork(&self) -> Self {
+        let snapshot = self.snapshot();
 
-        // rebuild one fresh runner with the same scalar state
         let forked = Self::new(
             self.runtime_id,
             self.worker_id,
             self.mode,
             self.conditions.clone(),
         );
-        forked.restore_snapshot(&snapshot)?;
+        forked.restore_snapshot(&snapshot);
 
-        Ok(Some(forked))
+        forked
     }
 
     /// Restore one durable scenario runner snapshot.
-    pub(crate) fn restore_snapshot(&self, snapshot: &ScenarioRunnerSnapshot) -> RuntimeResult<()> {
-        self.capture_barrier()?;
+    pub(crate) fn restore_snapshot(&self, snapshot: &ScenarioRunnerSnapshot) {
         self.next_call_id
             .store(snapshot.next_call_id, Ordering::Relaxed);
-        self.deferred_faults
-            .store(snapshot.deferred_faults, Ordering::Relaxed);
-
-        Ok(())
     }
 
     /// Evaluate pre-call scenario events for one binding invocation.
@@ -249,11 +213,6 @@ impl ScenarioRunner {
         )
     }
 
-    /// Return the total number of deferred scenario faults.
-    pub fn deferred_fault_count(&self) -> u64 {
-        self.deferred_faults.load(Ordering::Relaxed)
-    }
-
     /// Evaluate one runtime event.
     fn on_runtime_event(&self, world: &mut WorldState, event: RuntimeEvent) -> RuntimeResult<()> {
         let faults = world.decide_scenario(
@@ -264,55 +223,32 @@ impl ScenarioRunner {
             &event,
         )?;
 
-        self.apply_triggered_faults(&faults);
+        self.apply_triggered_faults(&faults)
+    }
+
+    /// Apply triggered faults for one runtime event.
+    fn apply_triggered_faults(&self, triggered_faults: &[TriggeredFault]) -> RuntimeResult<()> {
+        for triggered_fault in triggered_faults {
+            self.apply_triggered_fault(triggered_fault)?;
+        }
 
         Ok(())
     }
 
-    /// Apply triggered faults for one runtime event.
-    fn apply_triggered_faults(&self, triggered_faults: &[TriggeredFault]) {
-        // short circuit when no actions fired
-        if triggered_faults.is_empty() {
-            return;
-        }
-
-        // apply each accepted rule
-        for triggered_fault in triggered_faults {
-            self.apply_triggered_fault(triggered_fault);
-        }
-    }
-
     /// Apply one triggered fault to host or simulation state.
-    fn apply_triggered_fault(&self, triggered_fault: &TriggeredFault) {
-        match &triggered_fault.fault.target {
-            FaultTarget::Call {} => self.apply_call_fault(triggered_fault),
-            FaultTarget::Entity { kind, .. } => {
-                self.apply_entity_fault(kind.as_str(), triggered_fault)
-            }
-            FaultTarget::Edge { kind, .. } => self.apply_edge_fault(kind.as_str(), triggered_fault),
+    fn apply_triggered_fault(&self, triggered_fault: &TriggeredFault) -> RuntimeResult<()> {
+        let target = match &triggered_fault.fault.target {
+            FaultTarget::Call {} => "call".to_string(),
+            FaultTarget::Entity { kind, .. } => format!("entity:{kind}"),
+            FaultTarget::Edge { kind, .. } => format!("edge:{kind}"),
+        };
+
+        Err(RuntimeError::Internal {
+            message: format!(
+                "scenario rule {} produced unsupported fault target {target}",
+                triggered_fault.rule_id.0
+            ),
         }
-    }
-
-    /// Apply one call-target fault.
-    fn apply_call_fault(&self, _triggered_fault: &TriggeredFault) {
-        // NOTE #Incomplete: call faults need binding interception
-        self.defer_fault();
-    }
-
-    /// Apply one entity-target fault.
-    fn apply_entity_fault(&self, _kind: &str, _triggered_fault: &TriggeredFault) {
-        // NOTE #Incomplete: entity faults need simulation handlers
-        self.defer_fault();
-    }
-
-    /// Apply one edge-target fault.
-    fn apply_edge_fault(&self, _kind: &str, _triggered_fault: &TriggeredFault) {
-        // NOTE #Incomplete: edge faults need simulation handlers
-        self.defer_fault();
-    }
-
-    /// Defer one scenario fault for a later scenario executor.
-    fn defer_fault(&self) {
-        self.deferred_faults.fetch_add(1, Ordering::Relaxed);
+        .boxed())
     }
 }

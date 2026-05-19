@@ -5,13 +5,13 @@ use crate::runtime::random::Random;
 use crate::runtime::time::{Clock, Instant, Nanos};
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::simulation::Simulation;
-use crate::world::policy::PolicyState;
+use crate::world::policy::Policy;
 use crate::world::scenario::{FaultRule, FaultRuleId, Scenario, ScenarioId};
 use crate::world::trace::{Observation, ObservationSequence, Observations, Trace};
 
 use crate::host::ResourceId;
 
-use super::{BranchId, Resource, Topology};
+use super::{BranchId, Entity, Resource, Topology};
 
 /// Shared world state used by runtimes and workers.
 #[derive(Debug)]
@@ -21,7 +21,7 @@ pub(crate) struct WorldState {
     /// Shared simulation state for all runtimes in this world.
     pub(crate) simulation: Simulation,
     /// Active policy state.
-    pub(crate) policy: PolicyState,
+    pub(crate) policy: Policy,
     /// Active scenario scripts.
     pub(crate) scenarios: Vec<Scenario>,
     /// The next scenario id to allocate.
@@ -45,34 +45,13 @@ pub(crate) struct WorldState {
 }
 
 impl WorldState {
-    /// Borrow the live simulation state.
-    #[inline]
-    pub(crate) fn simulation(&self) -> &Simulation {
-        &self.simulation
-    }
-
-    /// Borrow the live policy state.
-    #[inline]
-    pub(crate) fn policy(&self) -> &PolicyState {
-        &self.policy
-    }
-
-    /// Borrow the live topology.
-    #[inline]
-    pub(crate) fn topology(&self) -> &Topology {
-        &self.topology
-    }
-
     /// Register one runtime in world topology.
     pub(crate) fn register_runtime_topology(
         &mut self,
         runtime_id: RuntimeId,
-        runtime_name: String,
-        runtime_labels: BTreeMap<String, String>,
+        runtime_entity: Entity,
     ) -> RuntimeResult<()> {
-        let result = self
-            .topology
-            .add_runtime(runtime_id, runtime_name, runtime_labels);
+        let result = self.topology.add_runtime(runtime_id, runtime_entity);
 
         result.map_err(|message| {
             RuntimeError::Internal {
@@ -87,12 +66,11 @@ impl WorldState {
         &mut self,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        worker_name: String,
-        worker_labels: BTreeMap<String, String>,
+        worker_entity: Entity,
     ) -> RuntimeResult<()> {
         let result = self
             .topology
-            .add_worker(runtime_id, worker_id, worker_name, worker_labels);
+            .add_worker(runtime_id, worker_id, worker_entity);
 
         result.map_err(|message| {
             RuntimeError::Internal {
@@ -103,8 +81,12 @@ impl WorldState {
     }
 
     /// Attach one resource to the world topology and resource table.
-    pub(crate) fn attach_resource(&mut self, resource: Resource) -> RuntimeResult<()> {
-        let result = self.topology.attach_resource(&resource);
+    pub(crate) fn attach_resource(
+        &mut self,
+        resource: Resource,
+        entity: Entity,
+    ) -> RuntimeResult<()> {
+        let result = self.topology.attach_resource(&resource, entity);
         result.map_err(|message| {
             RuntimeError::Internal {
                 message: message.to_string(),
@@ -125,38 +107,14 @@ impl WorldState {
         }
     }
 
-    /// Borrow the shared world clock.
-    #[inline]
-    pub(crate) fn clock(&self) -> &Clock {
-        &self.clock
-    }
-
-    /// Borrow the shared world randomness state.
-    #[inline]
-    pub(crate) fn random(&self) -> &Random {
-        &self.random
-    }
-
-    /// Borrow the shared trace controller.
-    #[inline]
-    pub(crate) fn trace(&self) -> &Trace {
-        &self.trace
-    }
-
-    /// Borrow the emitted observations.
-    #[inline]
-    pub(crate) fn observations(&self) -> &Observations {
-        &self.observations
-    }
-
     /// Return the current live execution coordinate.
     pub(crate) fn moment(&self) -> super::Moment {
-        super::Moment::new(self.branch_id, self.trace().log().next_sequence())
+        super::Moment::new(self.branch_id, self.trace.log().next_sequence())
     }
 
     /// Emit one observation at the current execution coordinate.
     pub(crate) fn observe(&self, observation: Observation) -> ObservationSequence {
-        self.observations().record_at(self.moment(), observation)
+        self.observations.record_at(self.moment(), observation)
     }
 
     /// Allocate one runtime identifier.
@@ -193,7 +151,7 @@ impl WorldState {
             )));
         }
 
-        scenario.validate_with_kind_catalog(&self.topology)?;
+        scenario.validate_with_topology(&self.topology)?;
         self.next_scenario_id = self.next_scenario_id.max(scenario.id.0 + 1);
         self.scenarios.push(scenario);
 
@@ -314,7 +272,7 @@ impl WorldState {
 
     /// Return the current world wall time.
     pub(crate) fn wall(&self) -> Nanos {
-        self.clock().wall()
+        self.clock.wall()
     }
 
     /// Return the current world wall time in nanoseconds.
@@ -324,7 +282,7 @@ impl WorldState {
 
     /// Return the current world monotonic time.
     pub(crate) fn mono(&self) -> Nanos {
-        self.clock().mono()
+        self.clock.mono()
     }
 
     /// Return the current world monotonic time in nanoseconds.
@@ -337,7 +295,7 @@ impl WorldState {
     where
         I: IntoIterator<Item = Option<Instant>>,
     {
-        let mut next_deadline = self.simulation().next_deadline();
+        let mut next_deadline = self.simulation.next_deadline();
 
         for worker_deadline in worker_deadlines {
             next_deadline = match (next_deadline, worker_deadline) {

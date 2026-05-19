@@ -105,24 +105,30 @@ pub struct Entity {
     pub id: EntityId,
     /// Stable entity kind identifier.
     pub kind: EntityKind,
+    /// Stable entity name.
+    pub name: String,
     /// Entity labels.
     pub labels: BTreeMap<String, String>,
 }
 
 impl Entity {
-    /// System label key that stores one runtime display name.
-    pub const LABEL_RUNTIME_NAME: &'static str = "runtime.instance.name";
-
-    /// System label key that stores one worker display name.
-    pub const LABEL_WORKER_NAME: &'static str = "runtime.worker.name";
-
     /// Create one entity payload.
     pub fn new(id: impl Into<EntityId>, kind: impl Into<EntityKind>) -> Self {
+        let id = id.into();
+        let name = id.to_string();
+
         Self {
-            id: id.into(),
+            id,
             kind: kind.into(),
+            name,
             labels: BTreeMap::new(),
         }
+    }
+
+    /// Set the entity name.
+    pub fn named(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
     }
 
     /// Add one label.
@@ -145,6 +151,8 @@ pub struct Edge {
     pub id: EdgeId,
     /// Stable edge kind identifier.
     pub kind: EdgeKind,
+    /// Stable edge name.
+    pub name: String,
     /// Source entity identifier.
     pub from: EntityId,
     /// Destination entity identifier.
@@ -161,13 +169,23 @@ impl Edge {
         from: impl Into<EntityId>,
         to: impl Into<EntityId>,
     ) -> Self {
+        let id = id.into();
+        let name = id.to_string();
+
         Self {
-            id: id.into(),
+            id,
             kind: kind.into(),
+            name,
             from: from.into(),
             to: to.into(),
             labels: BTreeMap::new(),
         }
+    }
+
+    /// Set the edge name.
+    pub fn named(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
     }
 
     /// Add one label.
