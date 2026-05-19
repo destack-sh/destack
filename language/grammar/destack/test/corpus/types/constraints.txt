@@ -58,3 +58,71 @@ type Foo<T extends new (...args: any) => any> = T;
                   (predefined_type))))
             (predefined_type)))))
     (type_identifier)))
+
+==========================================================
+Where accepts one constraint
+:language(destack)
+==========================================================
+
+interface Readable {
+    read(): void;
+}
+
+function clone<T>(value: T): T where T: Readable {
+    return value;
+}
+
+const value: Readable = {
+    read() {},
+};
+clone<Readable>(value);
+
+
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (type_identifier)
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (method_definition
+          (property_identifier)
+          (formal_parameters)
+          (statement_block)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments
+        (identifier)))))

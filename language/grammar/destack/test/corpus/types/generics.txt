@@ -223,3 +223,110 @@ type Value = Box<type string>;
       (type_arguments
         (explicit_type_argument
           (predefined_type))))))
+
+===================================================================
+Aliases require static value arguments
+:language(destack)
+===================================================================
+
+type Buffer<T, comptime N: number> = { value: T };
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, comptime 4> = makeBuffer();
+
+
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (literal_type
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (comptime_type_argument
+              (number)))))
+      (call_expression
+        (identifier)
+        (arguments)))))
+
+=================================================================
+Alias static defaults must be static
+:language(destack)
+=================================================================
+
+type Buffer<T, comptime N: number = comptime 4> = { value: T };
+
+declare function makeBuffer(): Buffer<string>;
+
+let buffer: Buffer<string> = makeBuffer();
+
+
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))
+        (default_type
+          (comptime_default_type
+            (number)))))
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (call_expression
+        (identifier)
+        (arguments)))))

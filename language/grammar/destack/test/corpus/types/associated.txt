@@ -1,0 +1,55 @@
+============================================================
+Associated constants can size fixed arrays
+:language(destack)
+============================================================
+
+class Segment<Row> {
+    comptime const Width: uint = Row extends string ? 8 : 4;
+    type Lane = [uint8; Width];
+}
+
+declare const lane: Segment<string>.Lane;
+lane satisfies [uint8; 8];
+
+
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (associated_const_declaration
+        (type_identifier)
+        (type_annotation
+          (type_identifier))
+        (ternary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (number)
+          (number)))
+      (associated_type_declaration
+        (type_identifier)
+        (tuple_type
+          (type_identifier)
+          (identifier)))))
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (associated_type_projection
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (predefined_type)))
+            (type_identifier))))))
+  (value_satisfies_statement
+    (identifier)
+    (tuple_type
+      (type_identifier)
+      (number))))

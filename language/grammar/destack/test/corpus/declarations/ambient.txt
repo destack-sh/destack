@@ -31,7 +31,7 @@ declare function greet(greeting: string): void;
         name: (identifier)
         type: (type_annotation
           (predefined_type)))))
-  (destack_declare_function_signature
+  (declare_function_signature
     name: (identifier)
     parameters: (formal_parameters
       (required_parameter

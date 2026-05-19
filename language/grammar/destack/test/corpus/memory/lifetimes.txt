@@ -1,0 +1,74 @@
+================================================================
+Shared owned borrow across await is allowed
+:language(destack)
+================================================================
+
+struct Packet {
+    id: int32;
+}
+
+declare function ready(): Promise<void>;
+
+async function read(packet: shared ^Packet): Promise<int32> {
+    let id = &readonly packet.id;
+    await ready();
+    id satisfies shared (&readonly int32);
+    return *id;
+}
+
+
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (placement_type
+            (memory_type
+              (type_identifier))))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (memory_expression
+            (member_expression
+              (identifier)
+              (property_identifier)))))
+      (expression_statement
+        (await_expression
+          (call_expression
+            (identifier)
+            (arguments))))
+      (value_satisfies_statement
+        (identifier)
+        (placement_type
+          (parenthesized_type
+            (memory_type
+              (type_identifier)))))
+      (return_statement
+        (memory_expression
+          (identifier))))))

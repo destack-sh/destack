@@ -235,7 +235,7 @@ Indexed Access Precedence
 :language(destack)
 =========================
 
-// These should generate the same AST aside from the parenthesized_type node
+// These should generate the same tree aside from the parenthesized_type node
 type X1 = typeof Y[keyof typeof Z];
 type X2 = (typeof Y)[keyof typeof Z];
 
@@ -306,3 +306,22 @@ type Value = "name" in Target;
         (string
           (string_fragment)))
       (type_identifier))))
+
+===========================================================
+Implements type parses
+:language(destack)
+===========================================================
+
+type Box<T> = T implements Serializable;
+
+---
+
+(program
+  (type_alias_declaration
+    name: (type_identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    value: (implements_type
+      left: (type_identifier)
+      right: (type_identifier))))
