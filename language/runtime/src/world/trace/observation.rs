@@ -448,7 +448,7 @@ impl ObservationOptions {
 
 /// One recorded observation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ObservationRecord {
+pub struct ObservationEntry {
     /// Observation sequence number.
     pub sequence: ObservationSequence,
     /// Execution coordinate where this observation was emitted.

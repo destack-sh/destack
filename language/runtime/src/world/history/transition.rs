@@ -2,19 +2,19 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
 use crate::world::trace::{Trace, TraceRecord, TraceSequence};
 
-use super::{BranchId, HistoryView, Moment};
+use super::{BranchId, HistoryQuery, Moment};
 
 /// One transition class derived from one authoritative replay record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransitionKind {
     /// One input step.
     Mutation,
-    /// One entrypoint invocation step.
+    /// One entrypoint call step.
     Entrypoint,
     /// One outcome step.
     Outcome,
-    /// One anchor step.
-    Anchor,
+    /// One label step.
+    Label,
 }
 
 /// One derived state transition between two adjacent moments.
@@ -44,9 +44,9 @@ impl Transition {
         matches!(self.kind, TransitionKind::Outcome)
     }
 
-    /// Report whether this transition was caused by one anchor.
-    pub const fn is_anchor(&self) -> bool {
-        matches!(self.kind, TransitionKind::Anchor)
+    /// Report whether this transition was caused by one label.
+    pub const fn is_label(&self) -> bool {
+        matches!(self.kind, TransitionKind::Label)
     }
 }
 
@@ -86,26 +86,6 @@ impl TransitionSet {
         self.transitions
     }
 
-    /// Return the first transition in this set, if any.
-    pub fn first(&self) -> Option<&Transition> {
-        self.transitions.first()
-    }
-
-    /// Return the last transition in this set, if any.
-    pub fn last(&self) -> Option<&Transition> {
-        self.transitions.last()
-    }
-
-    /// Report whether any transition in this set matches one predicate.
-    pub fn any(&self, predicate: impl FnMut(&Transition) -> bool) -> bool {
-        self.transitions.iter().any(predicate)
-    }
-
-    /// Report whether every transition in this set matches one predicate.
-    pub fn all(&self, predicate: impl FnMut(&Transition) -> bool) -> bool {
-        self.transitions.iter().all(predicate)
-    }
-
     /// Keep only transitions of one class.
     pub fn kind(self, kind: TransitionKind) -> Self {
         self.filter(|transition| transition.kind == kind)
@@ -113,7 +93,7 @@ impl TransitionSet {
 
     /// Keep only transitions caused by projected inputs.
     pub fn inputs(self) -> Self {
-        self.kind(TransitionKind::Mutation)
+        self.filter(Transition::is_input)
     }
 
     /// Keep only transitions caused by projected outcomes.
@@ -121,9 +101,9 @@ impl TransitionSet {
         self.kind(TransitionKind::Outcome)
     }
 
-    /// Keep only transitions caused by projected anchors.
-    pub fn anchors(self) -> Self {
-        self.kind(TransitionKind::Anchor)
+    /// Keep only transitions caused by projected labels.
+    pub fn labels(self) -> Self {
+        self.kind(TransitionKind::Label)
     }
 
     /// Keep only transitions that satisfy one predicate.
@@ -131,24 +111,18 @@ impl TransitionSet {
         self.transitions.retain(|transition| predicate(transition));
         self
     }
-
-    /// Return one union of this set with one second transition set.
-    pub fn union(mut self, other: Self) -> Self {
-        self.transitions.extend(other.transitions);
-        Self::new(self.transitions)
-    }
 }
 
 /// One history-rooted committed transition query.
 #[derive(Debug, Clone, Copy)]
 pub struct TransitionQuery<'a> {
-    /// The history view that owns the query.
-    history: HistoryView<'a>,
+    /// The history query root that owns the query.
+    history: HistoryQuery<'a>,
 }
 
 impl<'a> TransitionQuery<'a> {
-    /// Create one committed transition query on one history view.
-    pub(super) const fn new(history: HistoryView<'a>) -> Self {
+    /// Create one committed transition query on one history query root.
+    pub(super) const fn new(history: HistoryQuery<'a>) -> Self {
         Self { history }
     }
 
@@ -221,7 +195,7 @@ impl Trace {
                 TraceRecord::Mutation(_) => TransitionKind::Mutation,
                 TraceRecord::Entrypoint(_) => TransitionKind::Entrypoint,
                 TraceRecord::Outcome(_) => TransitionKind::Outcome,
-                TraceRecord::Anchor(_) => TransitionKind::Anchor,
+                TraceRecord::Label(_) => TransitionKind::Label,
             };
 
             transitions.push(Transition {

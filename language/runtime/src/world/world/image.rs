@@ -12,7 +12,7 @@ use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::simulation::Simulation;
-use crate::world::policy::{Policy, PolicyState};
+use crate::world::policy::Policy;
 use crate::world::scenario::Scenario;
 use crate::world::topology::{Edge, Entity, RuntimeId, Topology};
 
@@ -28,7 +28,7 @@ pub struct WorldImage {
     /// The next scenario id to allocate after restore.
     pub(crate) next_scenario_id: u64,
     /// Captured dynamic policy state.
-    pub(crate) policy: PolicyState,
+    pub(crate) policy: Policy,
     /// Captured dynamic scenario state.
     pub(crate) scenarios: Vec<Scenario>,
     /// Captured topology metadata graph.
@@ -50,7 +50,7 @@ pub struct WorldImage {
 impl WorldImage {
     /// Return the captured world policy specification.
     pub fn policy(&self) -> &Policy {
-        &self.policy.spec
+        &self.policy
     }
 
     /// Return the captured runtimes keyed by runtime id.
@@ -148,14 +148,15 @@ impl WorldImage {
 
     /// Return the topology name for one runtime image.
     pub fn runtime_name(&self, runtime_id: RuntimeId) -> RuntimeResult<&str> {
-        let (name, _) = self.topology.runtime_subject(runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
+        let entity = self
+            .topology
+            .entities()
+            .get(&runtime_id.entity_id())
+            .ok_or(RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
+            })?;
 
-        Ok(name)
+        Ok(entity.name.as_str())
     }
 
     /// Return one worker image by id.
@@ -185,14 +186,13 @@ impl WorldImage {
 
     /// Return the topology name for one worker image.
     pub fn worker_name(&self, worker_id: WorkerId) -> RuntimeResult<&str> {
-        let (name, _) = self.topology.worker_subject(worker_id).ok_or_else(|| {
+        let entity = self.topology.entities().get(&worker_id.entity_id()).ok_or(
             RuntimeError::WorkerNotFound {
                 worker_id: worker_id.0,
-            }
-            .boxed()
-        })?;
+            },
+        )?;
 
-        Ok(name)
+        Ok(entity.name.as_str())
     }
 
     /// Return whether one captured runtime owns one captured worker.
@@ -290,32 +290,12 @@ impl World {
 
             let mut restored_runtimes = BTreeMap::new();
             for (runtime_id, runtime_image) in &image.runtimes {
-                let runtime_name = self
-                    .state
-                    .topology
-                    .runtime_subject(*runtime_id)
-                    .ok_or_else(|| {
-                        RuntimeError::RuntimeNotFound {
-                            runtime_id: runtime_id.0,
-                        }
-                        .boxed()
-                    })?
-                    .0
-                    .to_string();
                 let runtime_worker_images = image
                     .workers
                     .iter()
                     .filter(|(worker_id, _)| image.runtime_owns_worker(*runtime_id, **worker_id))
                     .map(|(worker_id, worker_image)| (*worker_id, worker_image.clone()))
                     .collect::<BTreeMap<_, _>>();
-                let runtime_worker_names = runtime_worker_images
-                    .keys()
-                    .map(|worker_id| {
-                        let worker_name = image.worker_name(*worker_id)?;
-
-                        Ok((*worker_id, worker_name.to_string()))
-                    })
-                    .collect::<RuntimeResult<BTreeMap<_, _>>>()?;
                 let (allocator, collector) = {
                     let history = self.history.read();
                     (history.allocator(), history.collector())
@@ -325,11 +305,8 @@ impl World {
                     &mut self.state,
                     allocator,
                     collector,
-                    self.host.clone(),
                     *runtime_id,
-                    runtime_name,
                     runtime_image.as_ref(),
-                    &runtime_worker_names,
                     &runtime_worker_images,
                     rebind_context,
                 )?;

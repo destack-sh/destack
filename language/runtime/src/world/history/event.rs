@@ -2,24 +2,24 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::world::trace::{
-    EntrypointInvocation, Observation, ObservationCategory, ObservationRecord, ObservationScope,
-    Outcome, Trace, TraceRecord, TraceSequence,
+    EntrypointCall, Observation, ObservationCategory, ObservationEntry, ObservationScope, Outcome,
+    Trace, TraceRecord, TraceSequence,
 };
 use crate::world::{Mutation, World};
 
-use super::{BranchId, HistoryView, Moment};
+use super::{BranchId, HistoryQuery, Moment};
 
 /// Query-visible event class projected from trace and custom event state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventKind {
     /// One input that entered the world.
     Mutation,
-    /// One entrypoint invocation that entered the world.
+    /// One entrypoint call that entered the world.
     Entrypoint,
     /// One observed outcome that replay could not derive.
     Outcome,
-    /// One retained or user-visible history anchor.
-    Anchor,
+    /// One retained or user-visible history label.
+    Label,
     /// One emitted custom event.
     Custom,
 }
@@ -30,12 +30,12 @@ pub enum EventKind {
 pub enum EventPayload {
     /// One projected trace input.
     Mutation(Mutation),
-    /// One projected entrypoint invocation.
-    Entrypoint(EntrypointInvocation),
+    /// One projected entrypoint call.
+    Entrypoint(EntrypointCall),
     /// One projected trace outcome.
     Outcome(Outcome),
-    /// One projected trace anchor.
-    Anchor(String),
+    /// One projected trace label.
+    Label(String),
     /// One emitted custom event payload.
     Custom(Observation),
 }
@@ -62,9 +62,9 @@ impl Event {
         matches!(self.kind, EventKind::Outcome)
     }
 
-    /// Report whether this event is one projected anchor.
-    pub const fn is_anchor(&self) -> bool {
-        matches!(self.kind, EventKind::Anchor)
+    /// Report whether this event is one projected label.
+    pub const fn is_label(&self) -> bool {
+        matches!(self.kind, EventKind::Label)
     }
 
     /// Report whether this event is one emitted custom event.
@@ -80,8 +80,8 @@ impl Event {
         }
     }
 
-    /// Return one projected entrypoint invocation when present.
-    pub const fn entrypoint(&self) -> Option<&EntrypointInvocation> {
+    /// Return one projected entrypoint call when present.
+    pub const fn entrypoint(&self) -> Option<&EntrypointCall> {
         match &self.payload {
             EventPayload::Entrypoint(invocation) => Some(invocation),
             _ => None,
@@ -96,10 +96,10 @@ impl Event {
         }
     }
 
-    /// Return one projected anchor payload when present.
-    pub fn anchor(&self) -> Option<&str> {
+    /// Return one projected label payload when present.
+    pub fn label(&self) -> Option<&str> {
         match &self.payload {
-            EventPayload::Anchor(anchor) => Some(anchor.as_str()),
+            EventPayload::Label(label) => Some(label.as_str()),
             _ => None,
         }
     }
@@ -118,7 +118,7 @@ impl Event {
             EventPayload::Mutation(input) => Some(input.name()),
             EventPayload::Entrypoint(_) => Some("runtime.instance.entrypoint.run"),
             EventPayload::Outcome(outcome) => Some(outcome.name()),
-            EventPayload::Anchor(_) => Some("label"),
+            EventPayload::Label(_) => Some("label"),
             EventPayload::Custom(event) => Some(event.name.as_str()),
         }
     }
@@ -159,16 +159,16 @@ impl Event {
                 kind: EventKind::Outcome,
                 payload: EventPayload::Outcome(outcome),
             },
-            TraceRecord::Anchor(anchor) => Self {
+            TraceRecord::Label(label) => Self {
                 moment,
-                kind: EventKind::Anchor,
-                payload: EventPayload::Anchor(anchor),
+                kind: EventKind::Label,
+                payload: EventPayload::Label(label),
             },
         }
     }
 
     /// Build one projected custom event.
-    pub(super) fn from_observation(record: ObservationRecord) -> Self {
+    pub(super) fn from_observation(record: ObservationEntry) -> Self {
         Self {
             moment: record.moment,
             kind: EventKind::Custom,
@@ -179,10 +179,9 @@ impl Event {
     /// Return the stable event-order rank at one shared moment.
     pub(super) fn order_rank(&self) -> u8 {
         match self.kind {
-            EventKind::Mutation
-            | EventKind::Entrypoint
-            | EventKind::Outcome
-            | EventKind::Anchor => 0,
+            EventKind::Mutation | EventKind::Entrypoint | EventKind::Outcome | EventKind::Label => {
+                0
+            }
             EventKind::Custom => 1,
         }
     }
@@ -229,26 +228,6 @@ impl EventSet {
         self.events
     }
 
-    /// Return the first event in this set, if any.
-    pub fn first(&self) -> Option<&Event> {
-        self.events.first()
-    }
-
-    /// Return the last event in this set, if any.
-    pub fn last(&self) -> Option<&Event> {
-        self.events.last()
-    }
-
-    /// Report whether any event in this set matches one predicate.
-    pub fn any(&self, predicate: impl FnMut(&Event) -> bool) -> bool {
-        self.events.iter().any(predicate)
-    }
-
-    /// Report whether every event in this set matches one predicate.
-    pub fn all(&self, predicate: impl FnMut(&Event) -> bool) -> bool {
-        self.events.iter().all(predicate)
-    }
-
     /// Keep only events of one class.
     pub fn kind(self, kind: EventKind) -> Self {
         self.filter(|event| event.kind == kind)
@@ -256,7 +235,7 @@ impl EventSet {
 
     /// Keep only projected input events.
     pub fn inputs(self) -> Self {
-        self.kind(EventKind::Mutation)
+        self.filter(Event::is_input)
     }
 
     /// Keep only projected outcome events.
@@ -264,9 +243,9 @@ impl EventSet {
         self.kind(EventKind::Outcome)
     }
 
-    /// Keep only projected anchor events.
-    pub fn anchors(self) -> Self {
-        self.kind(EventKind::Anchor)
+    /// Keep only projected label events.
+    pub fn labels(self) -> Self {
+        self.kind(EventKind::Label)
     }
 
     /// Keep only emitted custom events.
@@ -334,24 +313,18 @@ impl EventSet {
         self.events.retain(|event| predicate(event));
         self
     }
-
-    /// Return one union of this set with one second event set.
-    pub fn union(mut self, other: Self) -> Self {
-        self.events.extend(other.events);
-        Self::new(self.events)
-    }
 }
 
 /// One history-rooted committed event query.
 #[derive(Debug, Clone, Copy)]
 pub struct EventQuery<'a> {
-    /// The history view that owns the query.
-    history: HistoryView<'a>,
+    /// The history query root that owns the query.
+    history: HistoryQuery<'a>,
 }
 
 impl<'a> EventQuery<'a> {
-    /// Create one committed event query on one history view.
-    pub(super) const fn new(history: HistoryView<'a>) -> Self {
+    /// Create one committed event query on one history query root.
+    pub(super) const fn new(history: HistoryQuery<'a>) -> Self {
         Self { history }
     }
 

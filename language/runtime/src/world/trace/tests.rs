@@ -12,12 +12,10 @@ use crate::runtime::engine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
 use crate::world::policy::{ActionSelector, Rule};
-use crate::world::trace::{
-    EntropyKind, EntropySubject, EntrypointInvocation, EnvironmentConfig, Trace, TraceError,
-    TraceHeader,
-};
+use crate::world::trace::{EntropySubject, EntrypointCall, Trace, TraceError, TraceHeader};
 use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, Resource, RuntimeId};
 use destack_vm as vm;
+use destack_workspace::Environment;
 use destack_workspace::config::ExecutionMode;
 use serde::{Deserialize, Serialize};
 
@@ -41,7 +39,7 @@ struct BindingErrorReplayPayload {
 
 /// Build one explicit trace header for replay tests.
 fn test_trace_header() -> TraceHeader {
-    TraceHeader::new(EnvironmentConfig::default())
+    TraceHeader::new(Environment::default())
 }
 
 /// Recordable binding calls replay in order.
@@ -175,7 +173,7 @@ fn test_replay_time_read_executes_replay_hook() {
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.time.wall");
     let recorded = record_state
-        .run_time_read(EntropyKind::TimeReadWall, subject, || {}, || Ok(123))
+        .run_time_wall_read(subject, || {}, || Ok(123))
         .expect("record time read");
     assert_eq!(recorded, 123);
 
@@ -184,8 +182,7 @@ fn test_replay_time_read_executes_replay_hook() {
     let hook_count = Arc::new(AtomicU64::new(0));
     let hook_count_2 = Arc::clone(&hook_count);
     let replayed = replay_state
-        .run_time_read(
-            EntropyKind::TimeReadWall,
+        .run_time_wall_read(
             subject,
             move || {
                 let _ = hook_count_2.fetch_add(1, Ordering::Relaxed);
@@ -238,8 +235,7 @@ fn test_replay_entropy_host_error_roundtrip() {
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.time.wall.error");
     let record_error = record_state
-        .run_time_read(
-            EntropyKind::TimeReadWall,
+        .run_time_wall_read(
             subject,
             || {},
             || Err(RuntimeError::from(HostError::time(None, "clock unavailable")).boxed()),
@@ -248,10 +244,10 @@ fn test_replay_entropy_host_error_roundtrip() {
     let record_host_error = record_error.host_error().expect("record host error");
     assert_eq!(record_host_error.code, HostErrorCode::Time);
 
-    // replay the same error from the recorded entropy event
+    // replay the same error from the recorded entropy sample
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let replay_error = replay_state
-        .run_time_read(EntropyKind::TimeReadWall, subject, || {}, || Ok(1))
+        .run_time_wall_read(subject, || {}, || Ok(1))
         .expect_err("replay time read error");
     let replay_host_error = replay_error.host_error().expect("replay host error");
 
@@ -281,7 +277,7 @@ fn test_replay_entropy_runtime_error_roundtrip() {
         )
         .expect_err("record random error");
 
-    // replay the same error from the recorded entropy event
+    // replay the same error from the recorded entropy sample
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let replay_error = replay_state
         .run_random_u64(subject, stream_id, || {}, || Ok(123))
@@ -322,7 +318,7 @@ fn test_replay_entropy_vm_error_roundtrip() {
         )
         .expect_err("record vm error");
 
-    // replay the same vm error from the recorded entropy event
+    // replay the same vm error from the recorded entropy sample
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let replay_error = replay_state
         .run_random_u64(subject, stream_id, || {}, || Ok(321))
@@ -359,21 +355,17 @@ fn test_record_replay_mutations() {
             },
         },
         Mutation::UpsertEntity {
-            entity: Entity {
-                id: "test.program.entity.1".into(),
-                kind: "test.program.entity".into(),
-                labels: Default::default(),
-            },
+            entity: Entity::new("test.program.entity.1", "test.program.entity"),
         },
         Mutation::AddResource {
             resource: Resource::new(
                 ResourceId::new(WorkerId(42), 7),
-                EntityKind::from("host.time.timer"),
                 ResourceBacking::Virtual,
                 ResourceCapture::State,
                 ResourcePortability::Portable,
-            )
-            .label(Resource::LABEL_NAME, "test-timer"),
+            ),
+            entity: Entity::new("runtime.resource.42.7", EntityKind::from("host.time.timer"))
+                .named("test-timer"),
         },
     ];
 
@@ -406,7 +398,7 @@ fn test_record_replay_mutations() {
 /// Mixed entrypoint and world mutations replay in the same order they were recorded.
 #[test]
 fn test_record_replay_entrypoint_and_world_mutation() {
-    let invocation = EntrypointInvocation {
+    let invocation = EntrypointCall {
         runtime_id: RuntimeId(7),
         entry: Entry::new("test.entry"),
         args: vec![destack_engine::Value::Int {
