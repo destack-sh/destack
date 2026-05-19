@@ -24,6 +24,10 @@ pub struct ModuleLowerer<'a> {
     pub(crate) symbols: dir::BindingTable<'static>,
     /// The type table.
     pub(crate) types: &'a dir::TypeTable<'static>,
+    /// The resolution table.
+    pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
+    /// The dependency table.
+    pub(crate) dependencies: dir::DependencyTable<'static>,
     /// The target configuration.
     pub(crate) target: &'a Target,
 
@@ -117,6 +121,8 @@ impl<'a> ModuleLowerer<'a> {
         bound: &'a DirBound,
         symbols: dir::BindingTable<'static>,
         types: &'a dir::TypeTable<'static>,
+        resolutions: &'a dir::ResolutionTable<'static>,
+        dependencies: dir::DependencyTable<'static>,
         target: &'a Target,
     ) -> Self {
         let strings = StringPool::new();
@@ -130,6 +136,8 @@ impl<'a> ModuleLowerer<'a> {
             dir_roots: bound.roots.as_ref(),
             symbols,
             types,
+            resolutions,
+            dependencies,
             target,
             tree: js::Tree::new(),
             roots: Vec::new(),

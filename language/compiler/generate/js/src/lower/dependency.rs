@@ -11,16 +11,14 @@ impl ModuleLowerer<'_> {
         &self,
         source_id: dir::LocalNodeIdAny,
     ) -> Option<ModuleId> {
-        let resolution = self
-            .types
-            .dependency_resolution(source_id.into_global(self.module.id))?;
+        let source = source_id.into_global(self.module.id);
 
-        // dependency bindings are tracked on individual import or export items
-        let dir::DependencyResolution::Module(target) = resolution else {
-            return None;
-        };
-
-        Some(*target)
+        self.dependencies
+            .target_for_source(source, dir::DependencyRelation::Import)
+            .or_else(|| {
+                self.dependencies
+                    .target_for_source(source, dir::DependencyRelation::ReExport)
+            })
     }
 
     /// Lower a dependency form from DIR into JS AST.
@@ -91,17 +89,7 @@ impl ModuleLowerer<'_> {
                         .tree
                         .insert_from_source(item, self.module.id, source_id);
 
-                    // resolved imported/exported bindings use the target symbol
-                    let resolution = self
-                        .types
-                        .dependency_resolution(source_id.into_global_any(self.module.id));
-                    if let Some(dir::DependencyResolution::Symbol(target_symbol)) = resolution {
-                        self.set_global_node_symbol(item_id, *target_symbol);
-                    }
-                    // local declaration items keep their source symbol
-                    else {
-                        self.copy_source_node_symbol(item_id, source_id);
-                    }
+                    self.copy_source_node_symbol(item_id, source_id);
 
                     lowered_item_ids.push(item_id);
                 }

@@ -193,33 +193,6 @@ impl ModuleLowerer<'_> {
         Some(literal)
     }
 
-    /// Lower one canonical type literal value from DIR into JS AST.
-    pub fn lower_literal_type_value(
-        &mut self,
-        literal: &dir::LiteralType,
-    ) -> Option<js::TypeLiteral> {
-        let literal = match literal {
-            dir::LiteralType::Never => js::TypeLiteral::Never,
-            dir::LiteralType::Any => js::TypeLiteral::Any,
-            dir::LiteralType::Infer => return None,
-            dir::LiteralType::Undefined => js::TypeLiteral::Undefined,
-            dir::LiteralType::Unknown => js::TypeLiteral::Unknown,
-            dir::LiteralType::Object => js::TypeLiteral::Object,
-            dir::LiteralType::Void => js::TypeLiteral::Void,
-            dir::LiteralType::Null => js::TypeLiteral::Null,
-            dir::LiteralType::Primitive(primitive) => {
-                let primitive = self.lower_primitive_type_value(*primitive);
-                js::TypeLiteral::Primitive(primitive)
-            }
-            dir::LiteralType::ScalarLiteral(scalar_literal) => {
-                let scalar_literal = self.lower_scalar_literal(scalar_literal);
-                js::TypeLiteral::ScalarLiteral(scalar_literal)
-            }
-            dir::LiteralType::Intrinsic(_) => return None,
-        };
-        Some(literal)
-    }
-
     /// Lower a parsed type literal from DIR into JS AST.
     pub fn lower_type_literal(
         &mut self,
@@ -227,19 +200,6 @@ impl ModuleLowerer<'_> {
         literal: &dir::TypeLiteral,
     ) -> CodegenJsResult<js::TypeLiteral> {
         self.lower_type_literal_value(literal)
-            .ok_or_else(|| CodegenJsError::UnsupportedConstruct {
-                node: source_id.into_global(self.module.id),
-                message: None,
-            })
-    }
-
-    /// Lower one canonical type literal from DIR into JS AST.
-    pub fn lower_literal_type(
-        &mut self,
-        literal: &dir::LiteralType,
-        source_id: dir::LocalNodeIdAny,
-    ) -> CodegenJsResult<js::TypeLiteral> {
-        self.lower_literal_type_value(literal)
             .ok_or_else(|| CodegenJsError::UnsupportedConstruct {
                 node: source_id.into_global(self.module.id),
                 message: None,
@@ -377,19 +337,10 @@ impl ModuleLowerer<'_> {
     fn lower_semantic_static_type_expression(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        value: &dir::StaticExpression,
+        value: &dir::StaticTerm,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
         match value {
-            dir::StaticExpression::Unevaluated { node } => {
-                Err(CodegenJsError::UnsupportedConstruct {
-                    node: node.into_global_any(self.module.id),
-                    message: Some(
-                        "unevaluated static expressions must become JS type expressions before lowering"
-                            .to_string(),
-                    ),
-                })
-            }
-            dir::StaticExpression::ScalarLiteral { value } => {
+            dir::StaticTerm::ScalarLiteral { value } => {
                 let literal = self.lower_scalar_literal(value);
                 let ty = js::TypeExpression::Scalar(js::TypeLiteral::ScalarLiteral(literal));
 
@@ -397,7 +348,7 @@ impl ModuleLowerer<'_> {
                     .tree
                     .insert_from_source_any(ty, self.module.id, source_id))
             }
-            dir::StaticExpression::TypeLiteral { value } => {
+            dir::StaticTerm::TypeLiteral { value } => {
                 let literal = self.lower_type_literal_value(value).ok_or_else(|| {
                     CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
@@ -412,8 +363,8 @@ impl ModuleLowerer<'_> {
                     .tree
                     .insert_from_source_any(ty, self.module.id, source_id))
             }
-            dir::StaticExpression::Type { ty } => self.lower_type(*ty),
-            dir::StaticExpression::Declaration {
+            dir::StaticTerm::Type { ty } => self.lower_type(*ty),
+            dir::StaticTerm::Declaration {
                 declaration,
                 generic_arguments,
             } => {
@@ -433,16 +384,16 @@ impl ModuleLowerer<'_> {
                     generic_arguments.as_deref(),
                 )
             }
-            dir::StaticExpression::ArrayExpression { .. }
-            | dir::StaticExpression::TupleExpression { .. }
-            | dir::StaticExpression::ObjectExpression { .. } => {
-                Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: Some(
-                        "static value arguments do not lower to JS type arguments".to_string(),
-                    ),
-                })
-            }
+            dir::StaticTerm::Array { .. }
+            | dir::StaticTerm::FixedArray { .. }
+            | dir::StaticTerm::Tuple { .. }
+            | dir::StaticTerm::Object { .. }
+            | dir::StaticTerm::Struct { .. } => Err(CodegenJsError::UnsupportedConstruct {
+                node: source_id.into_global(self.module.id),
+                message: Some(
+                    "static value arguments do not lower to JS type arguments".to_string(),
+                ),
+            }),
         }
     }
 
@@ -452,34 +403,7 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         argument: &dir::StaticArgument,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        match argument {
-            dir::StaticArgument::Unevaluated { node } => {
-                if node.module_id != self.module.id {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
-                            "remote unevaluated static arguments need source-backed lowering in JS output"
-                                .to_string(),
-                        ),
-                    });
-                }
-
-                let Ok(argument_id) = node.try_into_local_typed::<dir::GenericArgument>() else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
-                            "static argument is missing local type argument syntax for JS type lowering"
-                                .to_string(),
-                        ),
-                    });
-                };
-
-                self.lower_static_type_argument(argument_id)
-            }
-            dir::StaticArgument::Evaluated { value, .. } => {
-                self.lower_semantic_static_type_expression(source_id, value)
-            }
-        }
+        self.lower_semantic_static_type_expression(source_id, &argument.value)
     }
 
     /// Lower one semantic static argument list into JS type arguments.
@@ -770,24 +694,63 @@ impl ModuleLowerer<'_> {
         let ty = self.types.get_type(ty_id);
 
         let ty_id = match ty {
-            dir::Type::Literal(dir::LiteralType::Intrinsic(intrinsic)) => {
-                self.lower_intrinsic_type(source_id, *intrinsic)?
-            }
-            dir::Type::Literal(literal) => {
-                let literal = self.lower_literal_type(literal, source_id)?;
-                let ty = js::TypeExpression::Scalar(literal);
+            dir::Type::Never => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Never);
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Any => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Any);
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Unknown => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Unknown);
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Void => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Void);
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Null => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Null);
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Undefined => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Undefined);
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Object => {
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Object);
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Primitive(primitive) => {
+                let primitive = self.lower_primitive_type_value(*primitive);
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Primitive(primitive));
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Literal(literal) => {
+                let literal = self.lower_scalar_literal(literal);
+                let ty = js::TypeExpression::Scalar(js::TypeLiteral::ScalarLiteral(literal));
+                self.tree
+                    .insert_from_source_any(ty, self.module.id, source_id)
+            }
+            dir::Type::Intrinsic(intrinsic) => self.lower_intrinsic_type(source_id, *intrinsic)?,
+            dir::Type::Parameter(parameter) => {
+                self.lower_reference_type_from_symbol(source_id, parameter.symbol, None)?
             }
             dir::Type::This => self.tree.insert_from_source_any(
                 js::TypeExpression::This,
                 self.module.id,
                 source_id,
             ),
-            dir::Type::Unevaluated(unevaluated) => {
-                self.lower_type_annotation_expression(unevaluated.expression)?
-            }
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 let type_id = self
                     .try_lower_reference_type_from_source(source_id)?
                     .map_or_else(
@@ -795,7 +758,7 @@ impl ModuleLowerer<'_> {
                             self.lower_reference_type_from_symbol(
                                 source_id,
                                 reference.symbol,
-                                reference.generic_arguments.as_deref(),
+                                Some(reference.arguments.as_slice()),
                             )
                         },
                         Ok,
@@ -803,6 +766,7 @@ impl ModuleLowerer<'_> {
                 self.set_global_node_symbol(type_id, reference.symbol);
                 type_id
             }
+            dir::Type::ErasedAny(erased) => self.lower_type(erased.constraint)?,
             dir::Type::Conditional(conditional) => {
                 let left = self.lower_type(conditional.left)?;
                 let right = self.lower_type(conditional.right)?;
@@ -865,7 +829,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Infer(infer) => {
-                let name = infer.name;
+                let name = infer.name.unwrap_or_else(|| self.strings.intern("_"));
                 let constraint = infer
                     .constraint
                     .map(|constraint| self.lower_type(constraint))
@@ -890,65 +854,15 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
 
-            dir::Type::Form(form) => self.lower_type(form.base)?,
+            dir::Type::Form(form) => self.lower_type(form.value)?,
             dir::Type::KeyOf(unary) => {
-                let target_type = self.lower_type(unary.target_type)?;
+                let target_type = self.lower_type(unary.target)?;
                 let ty = js::TypeExpression::KeyOf { target_type };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Must(unary) => {
-                let target_type = self.lower_type(unary.target_type)?;
-                let ty = js::TypeExpression::Must { target_type };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::AsComptime(unary) => {
-                let target_type = self.lower_type(unary.target_type)?;
-                let ty = js::TypeExpression::AsComptime { target_type };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Not(unary) => {
-                let target_type = self.lower_type(unary.target_type)?;
-                let ty = js::TypeExpression::Not { target_type };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::In(binary) => {
-                let left = self.lower_type(binary.left)?;
-                let right = self.lower_type(binary.right)?;
-                let ty = js::TypeExpression::In { left, right };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Extends(binary) => {
-                let left = self.lower_type(binary.left)?;
-                let right = self.lower_type(binary.right)?;
-                let ty = js::TypeExpression::Extends { left, right };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Implements(binary) => {
-                let left = self.lower_type(binary.left)?;
-                let right = self.lower_type(binary.right)?;
-                let ty = js::TypeExpression::Implements { left, right };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-
             dir::Type::Slice(slice) => {
-                let Some(element) = slice.element else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
-                            "slice element types must be materialized before JS lowering"
-                                .to_string(),
-                        ),
-                    });
-                };
-
-                let element = self.lower_type(element)?;
+                let element = self.lower_type(slice.element)?;
                 let mut array_id = self.tree.insert_from_source_any(
                     js::TypeExpression::Array { element },
                     self.module.id,
@@ -982,7 +896,7 @@ impl ModuleLowerer<'_> {
 
                 array_id
             }
-            dir::Type::Object(object) => {
+            dir::Type::Shape(object) => {
                 let mut members = object
                     .fields
                     .iter()
