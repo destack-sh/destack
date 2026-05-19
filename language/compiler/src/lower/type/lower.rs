@@ -376,17 +376,17 @@ impl<'a> TypeLowerer<'a> {
         }
 
         let mir_type = match dir_type {
-            dir::Type::Reference(reference) => self.lower_reference_type(
+            dir::Type::Named(reference) => self.lower_reference_type(
                 types,
                 type_id,
                 reference.symbol,
-                reference.generic_arguments.as_deref(),
+                Some(reference.arguments.as_slice()),
                 module_id,
                 node,
                 builder,
             )?,
             dir::Type::Form(form) => self.lower_form_type(types, form, module_id, node, builder)?,
-            dir::Type::Object(object) => {
+            dir::Type::Shape(object) => {
                 if !object.index_signatures.is_empty() {
                     return Err(LowerError::UnsupportedType {
                         anchor: self.diagnostic_anchor(node),
@@ -403,17 +403,13 @@ impl<'a> TypeLowerer<'a> {
                 self.lower_tuple_type(types, &tuple.elements, module_id, node, builder)?
             }
             dir::Type::Slice(slice) => {
-                let element = slice.element.ok_or_else(|| LowerError::UnsupportedType {
-                    anchor: self.diagnostic_anchor(node),
-                    ty: type_id.into_global(module_id),
-                    message: "slice without element type".to_string(),
-                })?;
-                let mir_element = self.lower_type(types, element, module_id, node, builder)?;
+                let mir_element =
+                    self.lower_type(types, slice.element, module_id, node, builder)?;
 
                 if mir_element == self.ty_void {
                     return Err(LowerError::UnsupportedType {
                         anchor: self.diagnostic_anchor(node),
-                        ty: element.into_global(module_id),
+                        ty: slice.element.into_global(module_id),
                         message: "void is not allowed in arrays".to_string(),
                     }
                     .into());
@@ -595,22 +591,19 @@ impl<'a> TypeLowerer<'a> {
     fn lower_form_type(
         &mut self,
         types: &dir::TypeTable<'_>,
-        form: &dir::TypeForm,
+        form: &dir::FormType,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        let Some(ownership) = self.string_literal_type(types, form.ownership) else {
-            return self.lower_type(types, form.base, module_id, node, builder);
-        };
-        let ownership = self.strings.get(ownership);
-
-        match ownership.as_ref() {
-            "owned" => {
-                self.lower_value_representation_type(types, form.base, module_id, node, builder)
+        match &form.form {
+            dir::Form::Owned => {
+                self.lower_value_representation_type(types, form.value, module_id, node, builder)
             }
-            "managed" => self.lower_type(types, form.base, module_id, node, builder),
-            "borrowed" => self.lower_form_reference_type(
+            dir::Form::Managed | dir::Form::Placed { .. } | dir::Form::Readonly => {
+                self.lower_type(types, form.value, module_id, node, builder)
+            }
+            dir::Form::Borrowed { .. } => self.lower_form_reference_type(
                 types,
                 form,
                 mir::ReferenceKind::Borrowed,
@@ -618,7 +611,7 @@ impl<'a> TypeLowerer<'a> {
                 node,
                 builder,
             ),
-            "raw" => self.lower_form_reference_type(
+            dir::Form::Raw => self.lower_form_reference_type(
                 types,
                 form,
                 mir::ReferenceKind::Raw,
@@ -626,7 +619,6 @@ impl<'a> TypeLowerer<'a> {
                 node,
                 builder,
             ),
-            _ => self.lower_type(types, form.base, module_id, node, builder),
         }
     }
 
@@ -634,17 +626,17 @@ impl<'a> TypeLowerer<'a> {
     fn lower_form_reference_type(
         &mut self,
         types: &dir::TypeTable<'_>,
-        form: &dir::TypeForm,
+        form: &dir::FormType,
         kind: mir::ReferenceKind,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let base_type =
-            self.lower_value_representation_type(types, form.base, module_id, node, builder)?;
-        let space = self.form_space(types, form.place, module_id, node)?;
+            self.lower_value_representation_type(types, form.value, module_id, node, builder)?;
+        let space = self.form_space(types, form.value, module_id, node)?;
         let access = self
-            .form_access(types, form.access)
+            .form_access(form)
             .unwrap_or_else(|| self.default_reference_access(kind));
 
         Ok(builder.type_reference(kind, base_type, access, space, mir::Nullability::None))
@@ -659,7 +651,7 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        let dir::Type::Reference(reference) = types.get_type(type_id) else {
+        let dir::Type::Named(reference) = types.get_type(type_id) else {
             return self.lower_type(types, type_id, module_id, node, builder);
         };
 
@@ -1067,8 +1059,8 @@ impl<'a> TypeLowerer<'a> {
             }
             .into());
         };
-        let dir::StaticArgument::Evaluated {
-            value: dir::StaticExpression::Type { ty },
+        let dir::StaticArgument {
+            value: dir::StaticTerm::Type { ty },
             ..
         } = argument
         else {
@@ -1142,11 +1134,17 @@ impl<'a> TypeLowerer<'a> {
     fn form_space(
         &self,
         types: &dir::TypeTable<'_>,
-        place_type_id: dir::LocalTypeId,
+        type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Space> {
-        let Some(place) = self.string_literal_type(types, place_type_id) else {
+        let dir::Type::Form(form) = types.get_type(type_id) else {
+            return Ok(mir::Space::Local);
+        };
+        let dir::Form::Placed { place } = &form.form else {
+            return Ok(mir::Space::Local);
+        };
+        let Some(place) = self.static_string_term(place) else {
             return Ok(mir::Space::Local);
         };
         let place_text = self.strings.get(place);
@@ -1158,7 +1156,7 @@ impl<'a> TypeLowerer<'a> {
         mir::Space::from_name(place_text.as_ref()).ok_or_else(|| {
             LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
-                ty: place_type_id.into_global(module_id),
+                ty: type_id.into_global(module_id),
                 message: format!("unknown space '{place_text}'"),
             }
             .into()
@@ -1166,12 +1164,11 @@ impl<'a> TypeLowerer<'a> {
     }
 
     /// Return the access encoded by a resolved `Form` type.
-    fn form_access(
-        &self,
-        types: &dir::TypeTable<'_>,
-        access: dir::LocalTypeId,
-    ) -> Option<mir::Access> {
-        let access = self.string_literal_type(types, access)?;
+    fn form_access(&self, form: &dir::FormType) -> Option<mir::Access> {
+        let dir::Form::Borrowed { access, .. } = &form.form else {
+            return None;
+        };
+        let access = self.static_string_term(access)?;
         let access = self.strings.get(access);
 
         match access.as_ref() {
@@ -1182,16 +1179,12 @@ impl<'a> TypeLowerer<'a> {
         }
     }
 
-    /// Return a string literal encoded as a DIR type.
-    fn string_literal_type(
-        &self,
-        types: &dir::TypeTable<'_>,
-        type_id: dir::LocalTypeId,
-    ) -> Option<dir::StringId> {
-        let dir::Type::Literal(literal) = types.get_type(type_id) else {
-            return None;
-        };
-        let dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(value)) = literal else {
+    /// Return a string literal encoded as a static term.
+    fn static_string_term(&self, term: &dir::StaticTerm) -> Option<dir::StringId> {
+        let dir::StaticTerm::ScalarLiteral {
+            value: dir::ScalarLiteral::String(value),
+        } = term
+        else {
             return None;
         };
 
@@ -1204,9 +1197,9 @@ impl<'a> TypeLowerer<'a> {
         arguments: &[dir::StaticArgument],
         index: usize,
     ) -> Option<dir::StringId> {
-        let dir::StaticArgument::Evaluated {
+        let dir::StaticArgument {
             value:
-                dir::StaticExpression::ScalarLiteral {
+                dir::StaticTerm::ScalarLiteral {
                     value: dir::ScalarLiteral::String(value),
                 },
             ..

@@ -34,10 +34,10 @@ function takeShape(value: Circle | Square): int32 {
         module_id,
         "native",
         r#"
-type takeShape.value#union { tag: uint8, payload: [usize; 1] }
+type takeShape.payload#union { tag: uint8, payload: [usize; 1] }
 
-function takeShape(value0: takeShape.value#union): int32 {
-entry0(value0: takeShape.value#union):
+function takeShape(value0: takeShape.payload#union): int32 {
+entry0(value0: takeShape.payload#union):
     value1: int32 = 0int32
     return value1
 }
@@ -46,7 +46,7 @@ entry0(value0: takeShape.value#union):
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // build the expected union metadata name
-        let union_metadata_name = "test/test:takeShape.value#union";
+        let union_metadata_name = "test/test:takeShape.payload#union";
 
         // find the union struct type
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
@@ -127,10 +127,10 @@ function takeFrame(value: Frame | MegaFrame): int32 {
         module_id,
         "native",
         r#"
-type takeFrame.value#union { tag: uint8, payload: ref<void, managed, readonly> }
+type takeFrame.payload#union { tag: uint8, payload: ref<void, managed, readonly> }
 
-function takeFrame(value0: takeFrame.value#union): int32 {
-entry0(value0: takeFrame.value#union):
+function takeFrame(value0: takeFrame.payload#union): int32 {
+entry0(value0: takeFrame.payload#union):
     value1: int32 = 0int32
     return value1
 }
@@ -139,7 +139,7 @@ entry0(value0: takeFrame.value#union):
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // build the expected union metadata name
-        let union_metadata_name = "test/test:takeFrame.value#union";
+        let union_metadata_name = "test/test:takeFrame.payload#union";
 
         // find the union struct type
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
@@ -301,7 +301,7 @@ entry0(value0: ref<Circle, managed, readonly, nullable>):
         assert_eq!(*return_nullability, mir::Nullability::Null);
 
         // compact reference unions do not need variant metadata
-        let parameter_union = "test/test:acceptNullable.value#union";
+        let parameter_union = "test/test:acceptNullable.payload#union";
         let return_union = "test/test:acceptNullable.return#union";
         let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union);
         let return_union_type = test.type_by_metadata_name(tree, strings, return_union);
@@ -348,20 +348,20 @@ function acceptUnion(value: Circle | null | undefined): Circle | null | undefine
         module_id,
         "native",
         r#"
-type acceptUnion.value#union {
+type acceptUnion.payload#union {
     tag: uint8;
     payload: [usize; 1];
 }
 
-function acceptUnion(value0: acceptUnion.value#union): acceptUnion.value#union {
-entry0(value0: acceptUnion.value#union):
+function acceptUnion(value0: acceptUnion.payload#union): acceptUnion.payload#union {
+entry0(value0: acceptUnion.payload#union):
     return value0
 }"#,
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // resolve the union metadata names
-        let parameter_union_name = "test/test:acceptUnion.value#union";
+        let parameter_union_name = "test/test:acceptUnion.payload#union";
         let return_union_name = "test/test:acceptUnion.return#union";
         let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union_name);
         let return_union_type = test.type_by_metadata_name(tree, strings, return_union_name);
@@ -564,11 +564,11 @@ function takeCircle(value: Circle | Square): Circle {
         module_id,
         "native",
         r#"
-type takeCircle.value#union { tag: uint8, payload: [usize; 1] }
+type takeCircle.payload#union { tag: uint8, payload: [usize; 1] }
 type Circle { value: int32 }
 
-function takeCircle(value0: takeCircle.value#union): Circle {
-entry0(value0: takeCircle.value#union):
+function takeCircle(value0: takeCircle.payload#union): Circle {
+entry0(value0: takeCircle.payload#union):
     value1: [usize; 1] = field.get value0, 1
     value2: ref<[usize; 1], raw, space(frame)> = frame.alloc [usize; 1]
     store value2, value1
@@ -604,10 +604,10 @@ function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): i
         module_id,
         "native",
         r#"
-type select.value#union { tag: uint8, payload: [usize; 1] }
+type select.payload#union { tag: uint8, payload: [usize; 1] }
 
-function select(value0: select.value#union): int32 {
-entry0(value0: select.value#union):
+function select(value0: select.payload#union): int32 {
+entry0(value0: select.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 0uint8
     check variantTag value1, 0uint8 -> block1, block2
@@ -652,10 +652,10 @@ function isNull(value: Circle | null | undefined): boolean {
         module_id,
         "native",
         r#"
-type isNull.value#union { tag: uint8, payload: [usize; 1] }
+type isNull.payload#union { tag: uint8, payload: [usize; 1] }
 
-function isNull(value0: isNull.value#union): boolean {
-entry0(value0: isNull.value#union):
+function isNull(value0: isNull.payload#union): boolean {
+entry0(value0: isNull.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 1uint8
     value3: boolean = int.eq value1, value2
@@ -693,10 +693,10 @@ function isUndefined(value: Circle | null | undefined): boolean {
         module_id,
         "native",
         r#"
-type isUndefined.value#union { tag: uint8, payload: [usize; 1] }
+type isUndefined.payload#union { tag: uint8, payload: [usize; 1] }
 
-function isUndefined(value0: isUndefined.value#union): boolean {
-entry0(value0: isUndefined.value#union):
+function isUndefined(value0: isUndefined.payload#union): boolean {
+entry0(value0: isUndefined.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 2uint8
     value3: boolean = int.eq value1, value2
@@ -730,10 +730,10 @@ function isOne(value: 1 | 2): boolean {
         module_id,
         "native",
         r#"
-type isOne.value#union { tag: uint8, payload: [usize; 1] }
+type isOne.payload#union { tag: uint8, payload: [usize; 1] }
 
-function isOne(value0: isOne.value#union): boolean {
-entry0(value0: isOne.value#union):
+function isOne(value0: isOne.payload#union): boolean {
+entry0(value0: isOne.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 0uint8
     value3: boolean = int.eq value1, value2
@@ -767,10 +767,10 @@ function isReady(value: true | { value: int32 }): boolean {
         module_id,
         "native",
         r#"
-type isReady.value#union { tag: uint8, payload: [usize; 1] }
+type isReady.payload#union { tag: uint8, payload: [usize; 1] }
 
-function isReady(value0: isReady.value#union): boolean {
-entry0(value0: isReady.value#union):
+function isReady(value0: isReady.payload#union): boolean {
+entry0(value0: isReady.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 0uint8
     value3: boolean = int.eq value1, value2
@@ -804,10 +804,10 @@ function isA(value: { kind: 1, value: int32 } | { kind: 0, value: int32 }): bool
         module_id,
         "native",
         r#"
-type isA.value#union { tag: uint8, payload: [usize; 1] }
+type isA.payload#union { tag: uint8, payload: [usize; 1] }
 
-function isA(value0: isA.value#union): boolean {
-entry0(value0: isA.value#union):
+function isA(value0: isA.payload#union): boolean {
+entry0(value0: isA.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 0uint8
     value3: boolean = int.eq value1, value2
@@ -840,10 +840,10 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
     // assert the lowered mir
     let expected = r#"
 ${string_alias}
-type isA.value#union { tag: uint8, payload: [usize; 2] }
+type isA.payload#union { tag: uint8, payload: [usize; 2] }
 readonly global ${string_a}: ref<String, managed, readonly> = "a"
-function isA(value0: isA.value#union): boolean {
-entry0(value0: isA.value#union):
+function isA(value0: isA.payload#union): boolean {
+entry0(value0: isA.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 0uint8
     value3: boolean = int.eq value1, value2
@@ -879,10 +879,10 @@ function isReady(value: { kind: true, value: int32 } | { kind: false, value: int
         module_id,
         "native",
         r#"
-type isReady.value#union { tag: uint8, payload: [usize; 1] }
+type isReady.payload#union { tag: uint8, payload: [usize; 1] }
 
-function isReady(value0: isReady.value#union): boolean {
-entry0(value0: isReady.value#union):
+function isReady(value0: isReady.payload#union): boolean {
+entry0(value0: isReady.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 1uint8
     value3: boolean = int.eq value1, value2
@@ -916,10 +916,10 @@ function isLarge(value: { kind: 1.5, value: int32 } | { kind: 0.5, value: int32 
         module_id,
         "native",
         r#"
-type isLarge.value#union { tag: uint8, payload: [usize; 2] }
+type isLarge.payload#union { tag: uint8, payload: [usize; 2] }
 
-function isLarge(value0: isLarge.value#union): boolean {
-entry0(value0: isLarge.value#union):
+function isLarge(value0: isLarge.payload#union): boolean {
+entry0(value0: isLarge.payload#union):
     value1: uint8 = field.get value0, 0
     value2: uint8 = 1uint8
     value3: boolean = int.eq value1, value2

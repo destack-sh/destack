@@ -51,7 +51,7 @@ impl TypeLowerer<'_> {
         &self,
         node: dir::AnchoredGlobalNodeId,
         generic_arguments: &[dir::StaticArgument],
-    ) -> LowerResult<(dir::StaticExpression, dir::StaticExpression)> {
+    ) -> LowerResult<(dir::StaticTerm, dir::StaticTerm)> {
         let [element_argument, lane_argument] = generic_arguments else {
             return Err(LowerError::InvalidStaticArgument {
                 anchor: self.diagnostic_anchor(node),
@@ -60,7 +60,7 @@ impl TypeLowerer<'_> {
             .into());
         };
 
-        let dir::StaticArgument::Evaluated {
+        let dir::StaticArgument {
             name: None,
             value: element_expression,
         } = element_argument
@@ -72,7 +72,7 @@ impl TypeLowerer<'_> {
             .into());
         };
 
-        let dir::StaticArgument::Evaluated {
+        let dir::StaticArgument {
             name: None,
             value: lane_expression,
         } = lane_argument
@@ -93,11 +93,11 @@ impl TypeLowerer<'_> {
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
-        lane_expression: &dir::StaticExpression,
+        lane_expression: &dir::StaticTerm,
     ) -> LowerResult<u32> {
         // parse lane count literal
         let lane_count = match lane_expression {
-            dir::StaticExpression::ScalarLiteral { value } => match value {
+            dir::StaticTerm::ScalarLiteral { value } => match value {
                 dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value) => *value,
                 _ => {
                     return Err(LowerError::UnsupportedType {
@@ -142,11 +142,11 @@ impl TypeLowerer<'_> {
         type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
-        element_expression: &dir::StaticExpression,
+        element_expression: &dir::StaticTerm,
     ) -> LowerResult<dir::LocalTypeId> {
         // resolve element type argument
         let element_type_id = match element_expression {
-            dir::StaticExpression::Type { ty } => *ty,
+            dir::StaticTerm::Type { ty } => *ty,
             _ => {
                 return Err(LowerError::UnsupportedType {
                     anchor: self.diagnostic_anchor(node),

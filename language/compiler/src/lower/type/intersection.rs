@@ -31,7 +31,7 @@ impl TypeLowerer<'_> {
         for element_id in collected {
             let dir_type = types.get_type(element_id);
             match dir_type {
-                dir::Type::Reference(reference) => {
+                dir::Type::Named(reference) => {
                     if matches!(
                         self.symbol_form(reference.symbol),
                         Some(
@@ -56,7 +56,7 @@ impl TypeLowerer<'_> {
                         }
                     }
                 }
-                dir::Type::Object(_) => {
+                dir::Type::Shape(_) => {
                     if primary_object.is_none() {
                         primary_object = Some(element_id);
                     }

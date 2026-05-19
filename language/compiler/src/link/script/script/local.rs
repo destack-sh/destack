@@ -349,31 +349,14 @@ impl Compiler {
             {
                 symbol.into_global(module_id)
             } else {
-                let checked = artifacts.dir_checked(module_id, profile_id).map_err(|error| {
-                    LinkError::Internal {
-                        anchor: (package_id).into(),
-                        package: package_id,
-                        message: format!(
-                            "missing checked dir for same-output import rewrite module {:?}: {error:?}",
-                            module_id,
-                        ),
-                    }
-                })?;
-                let types = checked.type_table(&source_bound, &source_expanded);
-                let item_node = source_item_id.into_global_any(module_id);
-                let Some(dir::DependencyResolution::Symbol(symbol)) =
-                    types.dependency_resolution(item_node)
-                else {
-                    return Err(LinkError::Internal {
-                        anchor: (package_id).into(),
-                        package: package_id,
-                        message: format!(
-                            "missing target symbol for same-output import rewrite item {:?} in module {:?}",
-                            item_id, module_id
-                        ),
-                    });
-                };
-                *symbol
+                return Err(LinkError::Internal {
+                    anchor: (package_id).into(),
+                    package: package_id,
+                    message: format!(
+                        "missing local symbol for same-output import rewrite item {:?} in module {:?}",
+                        item_id, module_id
+                    ),
+                });
             }
         };
 

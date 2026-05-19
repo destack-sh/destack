@@ -105,7 +105,6 @@ impl Compiler {
             None,
         );
 
-        state.set_declared_type(node_id.into_any(), parameter.declared_type());
         state.declare_symbol(symbol_id, node_id);
     }
 
@@ -115,12 +114,11 @@ impl Compiler {
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
-        declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
+        _declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
     ) {
         let binding = BindingContext {
             export: None,
             mutability: None,
-            declared_type,
         };
 
         // bind pattern in parameter context

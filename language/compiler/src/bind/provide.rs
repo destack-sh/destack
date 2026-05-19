@@ -36,7 +36,7 @@ impl Compiler {
         parsed: &DirParsed,
         conditions: &ConditionSet,
     ) -> CompilerResult<DirBound> {
-        let mut state = BindState::new(self, module, parsed);
+        let mut state = BindState::new(self, module.id, parsed);
 
         // visit code roots
         if module.is_code() {

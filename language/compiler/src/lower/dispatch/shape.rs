@@ -104,13 +104,6 @@ impl ModuleLowerer<'_> {
             return Ok(());
         }
 
-        // visit base interface first
-        if let Some(lineage) = self.types.symbol_lineage(interface)
-            && let Some(base) = lineage.extends
-        {
-            self.collect_interface_slots_inner(base, slots, seen_fields, seen_methods, visited)?;
-        }
-
         // collect local interface members
         let declaration_ids = self.declaration_ids_for_symbol(interface);
         for declaration_id in declaration_ids {

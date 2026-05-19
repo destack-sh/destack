@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::StringId;
@@ -326,38 +325,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn collect_interface_pairs(
         &self,
     ) -> Vec<(dir::GlobalSymbolId, dir::GlobalSymbolId)> {
-        let mut pairs = Vec::new();
-
-        // scan type lineages for concrete symbols
-        for (symbol, lineage) in self.types.iter_lineages() {
-            // skip non nominal types
-            if !matches!(
-                self.symbol_form(symbol),
-                Some(dir::SymbolForm::Class | dir::SymbolForm::Struct)
-            ) {
-                continue;
-            }
-
-            // collect interfaces in declaration order
-            let mut ordered_interfaces = Vec::new();
-            let mut seen_interfaces = HashSet::new();
-
-            // expand interface lineage
-            for interface_symbol in &lineage.implements {
-                self.collect_interface_lineage_symbols(
-                    *interface_symbol,
-                    &mut ordered_interfaces,
-                    &mut seen_interfaces,
-                );
-            }
-
-            // record concrete interface pairs
-            for interface_symbol in ordered_interfaces {
-                pairs.push((symbol, interface_symbol));
-            }
-        }
-
-        pairs
+        Vec::new()
     }
 
     /// Build the static initializer for one interface dispatch table.

@@ -55,7 +55,6 @@ impl Compiler {
                 let binding = BindingContext {
                     export: *export,
                     mutability: Some(*mutability),
-                    declared_type: None,
                 };
                 self.bind_declarators(state, tree, declarators, binding);
             }
@@ -70,7 +69,6 @@ impl Compiler {
                 let binding = BindingContext {
                     export: None,
                     mutability: Some(*mutability),
-                    declared_type: None,
                 };
                 self.bind_declarators(state, tree, &[*declarator], binding);
                 self.visit_expression_by_id(state, tree, *else_branch);
@@ -86,7 +84,6 @@ impl Compiler {
                 let binding = BindingContext {
                     export: *export,
                     mutability: None,
-                    declared_type: None,
                 };
                 self.bind_declarators(state, tree, declarators, binding);
             }
@@ -220,7 +217,6 @@ impl Compiler {
                 let binding = BindingContext {
                     export: None,
                     mutability: None,
-                    declared_type: None,
                 };
                 self.bind_declarators(state, tree, &[*declarator], binding);
                 self.visit_expression_by_id(state, tree, then_expression);
@@ -257,7 +253,6 @@ impl Compiler {
         let binding_context = BindingContext {
             export: None,
             mutability: None,
-            declared_type: None,
         };
         state.push_binding(binding_context);
         match binding {

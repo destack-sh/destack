@@ -25,6 +25,9 @@ impl Compiler {
         let bound = artifacts
             .dir_bound(module_id, profile)
             .map_err(CompilerError::from)?;
+        let imported = artifacts
+            .dir_imported(module_id, profile)
+            .map_err(CompilerError::from)?;
         let expanded = artifacts
             .dir_expanded(module_id, profile)
             .map_err(CompilerError::from)?;
@@ -38,6 +41,7 @@ impl Compiler {
             module.clone(),
             parsed.clone(),
             bound.clone(),
+            imported,
             expanded,
             checked,
             self.repository.string_pool().clone(),

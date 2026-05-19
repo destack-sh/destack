@@ -26,7 +26,7 @@ impl FunctionLowerer<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         let node_id = expression_id.into_global_any(self.context.module_id);
 
-        match self.context.types.label_resolution(node_id) {
+        match self.context.resolutions.label_resolution(node_id) {
             Some(dir::LabelResolution::Symbol(symbol)) => Some(symbol),
             _ => None,
         }
@@ -951,7 +951,7 @@ impl FunctionLowerer<'_> {
         // resolve the analyzed value type for the symbol
         let symbol = symbol_id.into_global(self.context.module_id);
         let type_id = self.value_type_id_for_symbol_or_error(pattern_id.into_any(), symbol)?;
-        let type_id = self.unwrap_value_type_id(type_id);
+        let type_id = self.unwrap_form_payload_type_id(type_id);
 
         // use prelowered aggregate/reference types when available
         if let Some(mir_type) = self.context.type_lowerer.cached_type(type_id) {
@@ -976,10 +976,8 @@ impl FunctionLowerer<'_> {
                 _ => Err(self.missing_type_error(expression_id).into()),
             };
         }
-        if matches!(
-            dir_type,
-            dir::Type::Literal(dir::LiteralType::Primitive(dir::PrimitiveType::String))
-        ) && let Some(string_type) = self.context.type_lowerer.string_type()
+        if matches!(dir_type, dir::Type::Primitive(dir::PrimitiveType::String))
+            && let Some(string_type) = self.context.type_lowerer.string_type()
         {
             return Ok(string_type);
         }

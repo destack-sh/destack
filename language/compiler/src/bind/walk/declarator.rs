@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use super::super::state::{BindState, BindingContext};
+use super::super::state::BindState;
 
 use crate::Compiler;
 
@@ -26,15 +26,11 @@ impl Compiler {
         if let Some(type_id) = declarator.ty {
             let ty = tree.get(type_id);
             state.visit_type_expression(tree, type_id, ty);
-            state.set_declared_type(id.into_any(), Some(type_id));
         }
 
         // bind pattern after type and value
         let binding = state.binding();
-        state.push_binding(BindingContext {
-            declared_type: declarator.ty,
-            ..binding
-        });
+        state.push_binding(binding);
         let pattern = tree.get(declarator.pattern);
         state.visit_pattern(tree, declarator.pattern, pattern);
 

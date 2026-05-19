@@ -1,4 +1,6 @@
-use destack_artifact::{DirBound, DirParsed};
+use std::sync::Arc;
+
+use destack_artifact::{DirBound, DirChecked, DirParsed};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
@@ -82,13 +84,10 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<()> {
         // resolve the static call candidate
         let node_id = expression_id.into_global_any(self.module_id);
-        let Some(resolution) = self.types.resolution(node_id) else {
+        let Some(resolution) = self.resolutions.call_resolution(node_id) else {
             return Ok(());
         };
-        let dir::Resolution::Dispatch(dir::DispatchResolution::Static {
-            target: candidate, ..
-        }) = resolution
-        else {
+        let dir::CallTarget::Direct(candidate) = &resolution.target else {
             return Ok(());
         };
 
@@ -110,20 +109,8 @@ impl ModuleLowerer<'_> {
         }
 
         // require a resolved signature
-        let Some(signature) = candidate.signature.as_ref() else {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                ),
-                message: "missing resolved signature for external call".to_string(),
-            }
-            .into());
-        };
-
         // declare the call target on demand
-        self.declare_external_function(expression_id, target_symbol, signature)?;
+        self.declare_external_function(expression_id, target_symbol, resolution)?;
 
         Ok(())
     }
@@ -133,7 +120,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-        signature: &dir::DispatchSignature,
+        signature: &dir::CallResolution,
     ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         // return the existing declaration when present
         if let Some(function_id) = self.function_for_symbol(target_symbol) {
@@ -255,6 +242,14 @@ impl ModuleLowerer<'_> {
                 module: self.module_id,
                 message: format!("missing parsed DIR artifact for {:?}", symbol.module_id),
             })?;
+        let checked = self
+            .dir_checked_if_present(symbol.module_id)
+            .ok_or_else(|| LowerError::Internal {
+                anchor: (self.module_id).into(),
+                module: self.module_id,
+                message: format!("missing checked DIR artifact for {:?}", symbol.module_id),
+            })?;
+        let resolutions = checked.resolution_table();
         let bindings = dir.binding_table();
         let symbol_entry = bindings.get_symbol(symbol.local_id);
 
@@ -262,6 +257,7 @@ impl ModuleLowerer<'_> {
             expression_id,
             parsed.as_ref(),
             dir.as_ref(),
+            &resolutions,
             symbol_entry,
             dir::LanguageItem::Binding,
         )? {
@@ -275,6 +271,7 @@ impl ModuleLowerer<'_> {
             expression_id,
             parsed.as_ref(),
             dir.as_ref(),
+            &resolutions,
             symbol_entry,
             dir::LanguageItem::Extern,
         )? {
@@ -293,6 +290,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         parsed: &DirParsed,
         bound: &DirBound,
+        resolutions: &dir::ResolutionTable<'_>,
         symbol: &dir::Symbol,
         language_item: dir::LanguageItem,
     ) -> CompilerResult<Option<String>> {
@@ -310,6 +308,7 @@ impl ModuleLowerer<'_> {
                 expression_id,
                 parsed,
                 bound,
+                resolutions,
                 symbol,
                 decorator.expression,
                 language_item,
@@ -331,6 +330,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         parsed: &DirParsed,
         bound: &DirBound,
+        resolutions: &dir::ResolutionTable<'_>,
         symbol: &dir::Symbol,
         decorator_expression: dir::LocalNodeId<dir::Expression>,
         language_item: dir::LanguageItem,
@@ -351,6 +351,7 @@ impl ModuleLowerer<'_> {
         if !host_decorator_matches(
             &parsed.tree,
             bound,
+            resolutions,
             decorator_expression,
             callee,
             language_item,
@@ -451,12 +452,21 @@ impl ModuleLowerer<'_> {
 
         Err(error.into())
     }
+
+    /// Read one committed checked DIR snapshot for a module when available.
+    pub(crate) fn dir_checked_if_present(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
+        self.compiler
+            .artifact_reader(self.context)
+            .dir_checked(module_id, self.profile)
+            .ok()
+    }
 }
 
 /// Return whether one host decorator resolves to the requested language item.
 fn host_decorator_matches(
     tree: &dir::Tree,
     bound: &DirBound,
+    resolutions: &dir::ResolutionTable<'_>,
     decorator_expression: dir::LocalNodeId<dir::Expression>,
     callee: dir::LocalNodeId<dir::Expression>,
     language_item: dir::LanguageItem,
@@ -464,8 +474,7 @@ fn host_decorator_matches(
 ) -> bool {
     let module_id = bound.bindings.module_id;
     let decorator_node = decorator_expression.into_global_any(module_id);
-    if bound
-        .types
+    if resolutions
         .symbol_resolution(decorator_node)
         .is_some_and(|symbol| symbol == decorator_symbol)
     {
@@ -473,8 +482,7 @@ fn host_decorator_matches(
     }
 
     let callee_node = callee.into_global_any(module_id);
-    if bound
-        .types
+    if resolutions
         .symbol_resolution(callee_node)
         .is_some_and(|symbol| symbol == decorator_symbol)
     {

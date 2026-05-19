@@ -91,7 +91,7 @@ fn resolve_union_type_id_inner(
 
     match types.get_type(type_id) {
         dir::Type::Union(_) => Some(type_id),
-        dir::Type::Reference(reference) => {
+        dir::Type::Named(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return resolve_union_type_id_inner(types, target, visited);
             }
@@ -102,7 +102,7 @@ fn resolve_union_type_id_inner(
 
             None
         }
-        dir::Type::Value(value) => resolve_union_type_id_inner(types, value.value, visited),
+        dir::Type::Form(value) => resolve_union_type_id_inner(types, value.value, visited),
         _ => None,
     }
 }
@@ -117,8 +117,8 @@ fn is_void_type_inner(
     }
 
     match types.get_type(type_id) {
-        dir::Type::Literal(dir::LiteralType::Void) => true,
-        dir::Type::Reference(reference) => {
+        dir::Type::Void => true,
+        dir::Type::Named(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return is_void_type_inner(types, target, visited);
             }
@@ -127,7 +127,7 @@ fn is_void_type_inner(
             }
             false
         }
-        dir::Type::Value(value) => is_void_type_inner(types, value.value, visited),
+        dir::Type::Form(value) => is_void_type_inner(types, value.value, visited),
         _ => false,
     }
 }
@@ -151,9 +151,8 @@ fn result_variant_info(
 
     for field in &fields {
         if field.key == kind_key
-            && let dir::Type::Literal(dir::LiteralType::ScalarLiteral(dir::ScalarLiteral::String(
-                literal,
-            ))) = types.get_type(field.ty)
+            && let dir::Type::Literal(dir::ScalarLiteral::String(literal)) =
+                types.get_type(field.ty)
         {
             kind_literal = Some(*literal);
         }
@@ -204,8 +203,8 @@ fn resolve_object_fields_inner(
     }
 
     match types.get_type(type_id) {
-        dir::Type::Object(object) => Some(object.fields.clone()),
-        dir::Type::Reference(reference) => {
+        dir::Type::Shape(object) => Some(object.fields.clone()),
+        dir::Type::Named(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return resolve_object_fields_inner(types, target, visited);
             }
@@ -214,7 +213,7 @@ fn resolve_object_fields_inner(
             }
             None
         }
-        dir::Type::Value(value) => resolve_object_fields_inner(types, value.value, visited),
+        dir::Type::Form(value) => resolve_object_fields_inner(types, value.value, visited),
         _ => None,
     }
 }

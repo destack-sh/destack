@@ -463,8 +463,8 @@ impl FunctionLowerer<'_> {
                 .into());
         };
 
-        let dir::StaticArgument::Evaluated {
-            value: dir::StaticExpression::ArrayExpression { elements },
+        let dir::StaticArgument {
+            value: dir::StaticTerm::Array { elements },
             ..
         } = mask_argument
         else {
@@ -500,11 +500,11 @@ impl FunctionLowerer<'_> {
     fn vector_shuffle_lane(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        element: &dir::StaticExpression,
+        element: &dir::StaticTerm,
         max_lane: u32,
     ) -> CompilerResult<u32> {
         // require scalar integer lane
-        let dir::StaticExpression::ScalarLiteral { value } = element else {
+        let dir::StaticTerm::ScalarLiteral { value } = element else {
             return Err(self
                 .error(expression_id, "shuffle mask lanes must be integers")
                 .into());

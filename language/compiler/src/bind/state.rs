@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{DirBound, DirParsed};
 use destack_dir as dir;
-use destack_workspace::Module;
+use destack_source::ModuleId;
 
 use crate::Compiler;
 
@@ -13,16 +13,12 @@ pub(in crate::bind) struct BindingContext {
     pub(in crate::bind) export: Option<dir::ExportKind>,
     /// The mutability attached to introduced value symbols.
     pub(in crate::bind) mutability: Option<dir::Mutability>,
-    /// The declared type attached to introduced value symbols.
-    pub(in crate::bind) declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
 }
 
 /// State for one bind phase provider run.
 pub(in crate::bind) struct BindState<'a> {
     /// The compiler running the bind pass.
     pub(in crate::bind) compiler: &'a Compiler,
-    /// The module being bound.
-    pub(in crate::bind) module: &'a Module,
     /// The parsed DIR artifact.
     pub(in crate::bind) parsed: &'a DirParsed,
 
@@ -49,11 +45,11 @@ impl<'a> BindState<'a> {
     /// Create bind state for one parsed DIR module.
     pub(in crate::bind) fn new(
         compiler: &'a Compiler,
-        module: &'a Module,
+        module: ModuleId,
         parsed: &'a DirParsed,
     ) -> Self {
         // create root scopes
-        let mut bindings = dir::BindingSegment::new(module.id);
+        let mut bindings = dir::BindingSegment::new(module);
         let namespace_scope = bindings.insert_scope(dir::ScopeKind::Module, None, None);
         let namespace = dir::LocalScope::new(namespace_scope, dir::LocalScopeMark::end());
         let global_scope = bindings.insert_scope(dir::ScopeKind::Global, None, None);
@@ -70,17 +66,15 @@ impl<'a> BindState<'a> {
 
         Self {
             compiler,
-            module,
             parsed,
             options: dir::NodeVisitorOptions::default(),
             scope_stack: vec![namespace_scope],
             binding_stack: vec![BindingContext {
                 export: None,
                 mutability: None,
-                declared_type: None,
             }],
             bindings,
-            types: dir::TypeSegment::new(module.id),
+            types: dir::TypeSegment::new(module),
             roots: Vec::new(),
             namespace_scope,
             global_scope,
@@ -239,29 +233,6 @@ impl<'a> BindState<'a> {
         };
 
         self.bindings.get_symbol_mut(symbol_id).binding_mutability = Some(mutability);
-    }
-
-    /// Attach one declared type expression to one node.
-    pub(in crate::bind) fn set_declared_type(
-        &mut self,
-        node_id: dir::LocalNodeIdAny,
-        declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
-    ) {
-        // ignore untyped declarations
-        let Some(declared_type) = declared_type else {
-            return;
-        };
-
-        // create unevaluated type placeholder
-        let ty = self.types.insert_type_from(
-            dir::Type::Unevaluated(dir::UnevaluatedType {
-                expression: declared_type,
-            }),
-            declared_type,
-        );
-        let node_id = node_id.into_global(self.module.id);
-
-        self.types.set_declared_type(node_id, ty);
     }
 
     /// Return the current scope id.

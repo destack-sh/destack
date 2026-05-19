@@ -155,14 +155,11 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
-        // read the resolution from analyze
-        let resolution = self.get_resolution(expression_id)?;
+        let resolution = self.get_member_resolution(expression_id)?;
 
-        match resolution {
-            dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
-                Some(target.symbol)
-            }
-            _ => None,
+        match &resolution.target {
+            dir::MemberTarget::Direct(candidate) => Some(candidate.symbol),
+            dir::MemberTarget::Intrinsic | dir::MemberTarget::Select(_) => None,
         }
     }
 
@@ -561,7 +558,7 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the left-hand type
         let left_type_id = self.type_for_expression_or_error(left_id)?;
-        let left_type_id = self.unwrap_value_type_id(left_type_id);
+        let left_type_id = self.unwrap_form_payload_type_id(left_type_id);
         let left_mir_type = self.lower_type_for_expression(left_id)?;
 
         // handle array indexing

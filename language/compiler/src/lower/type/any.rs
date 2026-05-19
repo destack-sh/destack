@@ -38,7 +38,7 @@ impl TypeLowerer<'_> {
         }
 
         // load the dir type for validation
-        let dir::Type::Reference(reference) = types.get_type(type_id) else {
+        let dir::Type::Named(reference) = types.get_type(type_id) else {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),

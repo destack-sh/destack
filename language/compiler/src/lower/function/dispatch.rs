@@ -92,14 +92,14 @@ impl FunctionLowerer<'_> {
         // resolve the receiver type
         let dir_type = self.context.types.get_type(receiver_type_id);
         match dir_type {
-            dir::Type::Reference(reference)
+            dir::Type::Named(reference)
                 if self
                     .context
                     .symbol_is(reference.symbol, dir::SymbolForm::Interface) =>
             {
                 Some(reference.symbol)
             }
-            dir::Type::Value(value) => self.interface_symbol_for_type(value.value),
+            dir::Type::Form(value) => self.interface_symbol_for_type(value.value),
             dir::Type::Intersection(intersection) => intersection
                 .elements
                 .iter()

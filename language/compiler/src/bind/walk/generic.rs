@@ -52,7 +52,6 @@ impl Compiler {
                 if let Some(declared_type) = declared_type {
                     let declared_type_node = tree.get(*declared_type);
                     state.visit_type_expression(tree, *declared_type, declared_type_node);
-                    state.set_declared_type(node_id.into_any(), Some(*declared_type));
                 }
 
                 // visit value default

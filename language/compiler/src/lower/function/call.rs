@@ -94,34 +94,30 @@ impl FunctionLowerer<'_> {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         kind: CallKind,
     ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
-        // resolve call resolution (lower requires static resolution)
+        // resolve call operation
         let resolution = self
-            .get_resolution(expression_id)
+            .get_call_resolution(expression_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "call expression missing dir::Resolution (Analyze issue)".to_string(),
+                message: "call expression missing DIR call resolution".to_string(),
             })
             .map_err(CompilerError::from)?;
-        let dir::Resolution::Dispatch(dir::DispatchResolution::Static {
-            receiver: resolution_receiver,
-            target,
-        }) = resolution
-        else {
+        let dir::CallTarget::Direct(target) = &resolution.target else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "call resolution must be static before Lower".to_string(),
+                message: "call resolution must be direct before Lower".to_string(),
             }
             .into());
         };
-        let resolution_receiver = *resolution_receiver;
+        let resolution_receiver = target.receiver;
         let target_symbol = target.symbol;
 
         // resolve intrinsic binding before mutable lowering
@@ -131,11 +127,7 @@ impl FunctionLowerer<'_> {
 
         // lower intrinsic bindings directly
         if let Some(intrinsic_name) = intrinsic_name {
-            let static_arguments = target
-                .signature
-                .as_ref()
-                .map(|signature| signature.generic_arguments.clone())
-                .unwrap_or_default();
+            let static_arguments = Vec::new();
             let result = self.lower_intrinsic_binding_call(
                 expression_id,
                 &intrinsic_name,
@@ -327,7 +319,7 @@ impl FunctionLowerer<'_> {
             argument_values.push(value);
         }
 
-        // emit call when we have a static resolution
+        // emit call after direct operation selection
         let result_type = self.lower_type_for_expression(expression_id)?;
         let returns_void = result_type == self.context.type_lowerer.ty_void;
         let is_binding_call = self.context.binding_abi_lowering
@@ -832,7 +824,7 @@ impl FunctionLowerer<'_> {
         let Some(type_id) = self.context.types.get_value_type_id(symbol) else {
             return Vec::new();
         };
-        let type_id = self.context.types.unwrap_value_type_id(type_id);
+        let type_id = self.context.types.unwrap_form_payload_type_id(type_id);
         let dir::Type::Function(function) = self.context.types.get_type(type_id) else {
             return Vec::new();
         };
@@ -930,7 +922,7 @@ impl FunctionLowerer<'_> {
 
     /// Return whether a DIR type id is a callable value type.
     fn is_function_type(&self, type_id: dir::LocalTypeId) -> bool {
-        let type_id = self.context.types.unwrap_value_type_id(type_id);
+        let type_id = self.context.types.unwrap_form_payload_type_id(type_id);
         matches!(self.context.types.get_type(type_id), dir::Type::Function(_))
     }
 

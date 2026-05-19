@@ -27,8 +27,11 @@ impl Compiler {
             patch: dir::Patch::new(&parsed.tree, "elaborate"),
             bindings: Arc::new(dir::BindingSegment::from_base(&materialized.bindings)),
             types: Arc::new(dir::TypeSegment::from_base(&materialized.types)),
+            resolutions: Arc::new(dir::ResolutionSegment::new(module)),
+            instances: Arc::new(dir::InstanceSegment::from_base(&materialized.instances)),
+            relations: Arc::new(dir::RelationSegment::new(module)),
             captures: Arc::new(dir::CaptureSegment::new(module)),
-            layouts: Arc::new(dir::LayoutSegment::new(module)),
+            layouts: Arc::new(dir::LayoutSegment::from_base(&materialized.layouts)),
             roots: materialized.roots.clone(),
             guards: dir::GuardTable::new(module),
         };

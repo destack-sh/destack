@@ -84,6 +84,7 @@ impl Compiler {
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, target)?;
             let bindings = elaborated.binding_table(&bound, &expanded, &materialized);
             let types = elaborated.type_table(&bound, &expanded, &checked, &materialized);
+            let resolutions = elaborated.resolution_table(&checked, &materialized);
             let captures = elaborated.capture_table(&checked, &materialized);
 
             let mut lowerer = ModuleLowerer::new(
@@ -97,6 +98,7 @@ impl Compiler {
                 bound.module_node,
                 &bindings,
                 &types,
+                &resolutions,
                 &elaborated.guards,
                 &captures,
                 &target_id,

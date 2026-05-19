@@ -33,7 +33,7 @@ impl ModuleLowerer<'_> {
     /// Resolve the binding result metadata for ABI lowering.
     pub(crate) fn binding_result_info(
         &mut self,
-        signature: &dir::DispatchSignature,
+        signature: &dir::CallResolution,
         expression_id: dir::LocalNodeId<dir::Expression>,
         _target_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<BindingResultInfo> {
@@ -289,7 +289,7 @@ impl ModuleLowerer<'_> {
         }
 
         match self.types.get_type(type_id) {
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 if reference.symbol == platform_error_symbol {
                     return true;
                 }
@@ -311,7 +311,7 @@ impl ModuleLowerer<'_> {
                 }
                 false
             }
-            dir::Type::Value(value) => {
+            dir::Type::Form(value) => {
                 self.is_platform_error_type_inner(value.value, platform_error_symbol, visited)
             }
             _ => false,

@@ -668,11 +668,11 @@ impl FunctionLowerer<'_> {
         let Some(type_id) = self.type_for_expression(expression_id) else {
             return Ok(None);
         };
-        let type_id = self.unwrap_value_type_id(type_id);
+        let type_id = self.unwrap_form_payload_type_id(type_id);
 
         // require a nominal reference type
         let symbol = match self.context.types.get_type(type_id) {
-            dir::Type::Reference(reference) => reference.symbol,
+            dir::Type::Named(reference) => reference.symbol,
             _ => return Ok(None),
         };
 
@@ -714,7 +714,7 @@ impl FunctionLowerer<'_> {
         for index in 0..type_count {
             let type_id = dir::LocalTypeId::new(index);
             let dir_type = self.context.types.get_type(type_id);
-            if let dir::Type::Reference(reference) = dir_type
+            if let dir::Type::Named(reference) = dir_type
                 && reference.symbol == symbol
             {
                 return Some(type_id);

@@ -65,7 +65,7 @@ impl FunctionLowerer<'_> {
         node: dir::GlobalNodeIdAny,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // unwrap value wrappers for MIR type lookup
-        let type_id = self.unwrap_value_type_id(type_id);
+        let type_id = self.unwrap_form_payload_type_id(type_id);
 
         // return cached types when available
         if let Some(mir_type) = self.context.type_lowerer.cached_type(type_id) {
@@ -93,10 +93,7 @@ impl FunctionLowerer<'_> {
         }
 
         // resolve primitive string directly
-        if matches!(
-            dir_type,
-            dir::Type::Literal(dir::LiteralType::Primitive(dir::PrimitiveType::String))
-        ) {
+        if matches!(dir_type, dir::Type::Primitive(dir::PrimitiveType::String)) {
             return self
                 .context
                 .type_lowerer
@@ -113,7 +110,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<ScalarType> {
         let type_id = self.type_for_expression(expression_id)?;
-        let type_id = self.unwrap_value_type_id(type_id);
+        let type_id = self.unwrap_form_payload_type_id(type_id);
 
         // handle enum backing scalars
         if let Some(backing) = self.enum_backing_type_for_type(type_id) {
@@ -176,7 +173,7 @@ impl FunctionLowerer<'_> {
         // resolve reference nodes directly through semantic resolution
         if matches!(expression, dir::TypeExpression::Reference { .. }) {
             let node_id = expression_id.into_global_any(self.context.module_id);
-            let Some(target_symbol) = self.context.types.symbol_resolution(node_id) else {
+            let Some(target_symbol) = self.context.resolutions.symbol_resolution(node_id) else {
                 return None;
             };
 
@@ -198,8 +195,8 @@ impl FunctionLowerer<'_> {
             expression_id.into_global_any(self.context.module_id),
         )?;
         match self.context.types.get_type(type_id) {
-            dir::Type::Value(value) => Some(value.value),
-            dir::Type::Reference(reference) => self
+            dir::Type::Form(value) => Some(value.value),
+            dir::Type::Named(reference) => self
                 .context
                 .types
                 .get_instance_type_id(reference.symbol)
@@ -216,7 +213,7 @@ impl FunctionLowerer<'_> {
         // match the dir type to find a class symbol
         match self.context.types.get_type(type_id) {
             // accept direct class references
-            dir::Type::Reference(reference)
+            dir::Type::Named(reference)
                 if self
                     .context
                     .symbol_is(reference.symbol, dir::SymbolForm::Class) =>
@@ -224,7 +221,7 @@ impl FunctionLowerer<'_> {
                 Some(reference.symbol)
             }
             // unwrap value types
-            dir::Type::Value(value) => self.class_symbol_for_type(value.value),
+            dir::Type::Form(value) => self.class_symbol_for_type(value.value),
             // search intersection elements
             dir::Type::Intersection(intersection) => intersection
                 .elements
@@ -236,11 +233,14 @@ impl FunctionLowerer<'_> {
     }
 
     /// Strip value wrapper types from a type id.
-    pub(crate) fn unwrap_value_type_id(&self, type_id: dir::LocalTypeId) -> dir::LocalTypeId {
+    pub(crate) fn unwrap_form_payload_type_id(
+        &self,
+        type_id: dir::LocalTypeId,
+    ) -> dir::LocalTypeId {
         // unwrap value type nodes until a concrete type is reached
         let dir_type = self.context.types.get_type(type_id);
         match dir_type {
-            dir::Type::Value(value) => self.unwrap_value_type_id(value.value),
+            dir::Type::Form(value) => self.unwrap_form_payload_type_id(value.value),
             _ => type_id,
         }
     }
@@ -252,8 +252,8 @@ impl FunctionLowerer<'_> {
         right_type_id: dir::LocalTypeId,
     ) -> bool {
         // unwrap value wrappers before comparison
-        let left_type_id = self.unwrap_value_type_id(left_type_id);
-        let right_type_id = self.unwrap_value_type_id(right_type_id);
+        let left_type_id = self.unwrap_form_payload_type_id(left_type_id);
+        let right_type_id = self.unwrap_form_payload_type_id(right_type_id);
 
         // fast path: structural or nominal equivalence
         if left_type_id == right_type_id {
@@ -262,7 +262,7 @@ impl FunctionLowerer<'_> {
 
         // match nominal references against their instance types
         let left_instance = match self.context.types.get_type(left_type_id) {
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 self.context.types.get_instance_type_id(reference.symbol)
             }
             _ => None,
@@ -275,7 +275,7 @@ impl FunctionLowerer<'_> {
 
         // match instance types against nominal references
         let right_instance = match self.context.types.get_type(right_type_id) {
-            dir::Type::Reference(reference) => {
+            dir::Type::Named(reference) => {
                 self.context.types.get_instance_type_id(reference.symbol)
             }
             _ => None,
@@ -295,7 +295,7 @@ impl FunctionLowerer<'_> {
         type_id: dir::LocalTypeId,
     ) -> Option<dir::EnumBackingType> {
         // accept direct enum references
-        if let dir::Type::Reference(reference) = self.context.types.get_type(type_id)
+        if let dir::Type::Named(reference) = self.context.types.get_type(type_id)
             && self
                 .context
                 .symbol_is(reference.symbol, dir::SymbolForm::Enum)
@@ -357,14 +357,21 @@ impl FunctionLowerer<'_> {
         Ok(binding.clone())
     }
 
-    /// Get the resolution for an expression from the TypeTable.
-    ///
-    /// Returns the dir::Resolution if one is attached to this expression, or None.
-    pub(crate) fn get_resolution(
+    /// Get the call resolution for an expression.
+    pub(crate) fn get_call_resolution(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<&dir::Resolution> {
+    ) -> Option<&dir::CallResolution> {
         let node_id = expression_id.into_global_any(self.context.module_id);
-        self.context.types.resolution(node_id)
+        self.context.resolutions.call_resolution(node_id)
+    }
+
+    /// Get the member resolution for an expression.
+    pub(crate) fn get_member_resolution(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<&dir::MemberResolution> {
+        let node_id = expression_id.into_global_any(self.context.module_id);
+        self.context.resolutions.member_resolution(node_id)
     }
 }

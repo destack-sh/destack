@@ -776,7 +776,7 @@ fn test_links_single_file_array_spread_literal() {
         &js(r#"
 const base = [1, 2];
 
-export const values = [...base, 3];
+export const values = [...value, 3];
 "#),
     );
 
@@ -793,7 +793,7 @@ export const values = [...base, 3];
         },
         entry: linked_entry(
             r#"const base = [1, 2];
-export const values = [...base, 3];
+export const values = [...value, 3];
 "#,
         ),
         manifest: manifest(vec![
