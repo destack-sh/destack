@@ -52,11 +52,6 @@ impl Trivia {
         std::mem::take(&mut self.comments)
     }
 
-    /// Return whether any comments were collected.
-    pub(super) fn has_comments(&self) -> bool {
-        !self.comments.is_empty()
-    }
-
     /// Record one line comment.
     pub(super) fn add_line_comment(&mut self, token_span: TokenSpan, source_text: &str) {
         self.add_comment(token_span, CommentKind::Line, source_text);

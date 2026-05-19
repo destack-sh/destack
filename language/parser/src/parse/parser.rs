@@ -1,15 +1,16 @@
-use crate::{Lexer, LexerSnapshot, is_semantic, keyword_from_identifier};
+use crate::{Lexer, decode_html_entity, is_semantic, keyword_from_identifier};
 use core::fmt;
 use destack_core::StringPool;
 use destack_dir::{
-    BlockForm, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token, TokenLiteral,
-    TokenSpan, TokenType, Tree, TreeMark, TreeStore, TypeExpression,
+    BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token,
+    TokenLiteral, TokenSpan, TokenType, Tree, TreeMark, TreeStore, TypeExpression,
 };
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, ModuleId, MultiSpan,
     NodeSearchMode, NodeSpanBoundary, NodeSpanType, PackageId, Span,
 };
 use std::fmt::Debug;
+use std::mem;
 use std::sync::Arc;
 
 use crate::{ParseError, ParseResult};
@@ -976,8 +977,26 @@ pub struct Parser {
     pub file: Arc<File>,
     /// The source ID.
     pub file_id: FileId,
-    /// The lexer backing the parser.
-    pub(crate) lexer: Lexer,
+    /// The semantic token stream.
+    tokens: Vec<TokenSpan>,
+    /// The tokens committed by parser context-sensitive interpretation.
+    consumed_tokens: Vec<TokenSpan>,
+    /// Virtual tokens produced by splitting or reclassifying the base token stream.
+    pending_tokens: Vec<TokenSpan>,
+    /// The side token stream.
+    side_tokens: Vec<TokenSpan>,
+    /// The structured comments collected during lexing.
+    comments: Vec<Comment>,
+    /// Whether trivia tokens were retained while lexing.
+    retain_trivia_tokens: bool,
+    /// Whether tree literal token interpretation is enabled.
+    allow_tree_literals: bool,
+    /// Whether the next tree attribute value can span lines.
+    in_tree_attribute_value: bool,
+    /// The current semantic token index.
+    token_index: usize,
+    /// Whether the current token was read from pending virtual tokens.
+    current_token_is_pending: bool,
 
     /// The current visible token at the parser cursor.
     current_token: TokenSpan,
@@ -1025,7 +1044,7 @@ impl Parser {
         let start = self.previous_token_end;
         let end = self.current_token.span.start;
 
-        self.lexer.side_tokens().iter().any(|token| {
+        self.side_tokens.iter().any(|token| {
             token.span.start >= start
                 && token.span.end <= end
                 && matches!(
@@ -1063,7 +1082,7 @@ impl Parser {
         let estimated_nodes = estimated_tokens;
         let tree = Tree::with_capacity(module_id, estimated_nodes);
 
-        Self::parser_for_module_tree(file, language, strings, tree)
+        Self::parser_for_module_tree(file, language, strings, tree, ParserOptions::default())
     }
 
     /// Create one parser that appends into an existing DIR tree.
@@ -1072,9 +1091,11 @@ impl Parser {
         language: LanguageType,
         strings: Arc<StringPool>,
         tree: Tree,
+        options: ParserOptions,
     ) -> Self {
-        // initialize the lexer for lazy lexing
-        let lexer = Lexer::new(file.clone(), language);
+        // tokenize the file before parse
+        let lex_result =
+            Lexer::lex_with_options(file.clone(), language, options.retain_trivia_tokens);
 
         // initialize source-local parser state
         let file_id = file.id;
@@ -1082,7 +1103,16 @@ impl Parser {
         Self {
             file,
             file_id,
-            lexer,
+            tokens: lex_result.tokens,
+            consumed_tokens: Vec::new(),
+            pending_tokens: Vec::new(),
+            side_tokens: lex_result.side_tokens,
+            comments: lex_result.comments,
+            retain_trivia_tokens: options.retain_trivia_tokens,
+            allow_tree_literals: language.supports_jsx(),
+            in_tree_attribute_value: false,
+            token_index: 0,
+            current_token_is_pending: false,
             current_token: TokenSpan {
                 token: Token::end(),
                 span: Span::new(file_id, 0, 0),
@@ -1094,7 +1124,7 @@ impl Parser {
             },
             is_finished: false,
             flags: ParserFlags::default(),
-            preserve_parenthesized_wrappers: true,
+            preserve_parenthesized_wrappers: options.preserve_parenthesized_wrappers,
             language,
             tree,
             strings,
@@ -1134,10 +1164,11 @@ impl Parser {
         options: ParserOptions,
         strings: Arc<StringPool>,
     ) -> Self {
-        let mut parser = Self::parser_for_file(file, language, strings);
-        parser
-            .lexer
-            .set_retain_trivia_tokens(options.retain_trivia_tokens);
+        let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+        let source_len = file.text().len();
+        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
+        let tree = Tree::with_capacity(module_id, estimated_tokens);
+        let mut parser = Self::parser_for_module_tree(file, language, strings, tree, options);
         parser.reset();
         parser.apply_options(options);
         parser
@@ -1151,10 +1182,10 @@ impl Parser {
         options: ParserOptions,
         strings: Arc<StringPool>,
     ) -> Self {
-        let mut parser = Self::parser_for_module(file, language, module_id, strings);
-        parser
-            .lexer
-            .set_retain_trivia_tokens(options.retain_trivia_tokens);
+        let source_len = file.text().len();
+        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
+        let tree = Tree::with_capacity(module_id, estimated_tokens);
+        let mut parser = Self::parser_for_module_tree(file, language, strings, tree, options);
         parser.reset();
         parser.apply_options(options);
         parser
@@ -1168,10 +1199,7 @@ impl Parser {
         strings: Arc<StringPool>,
         tree: Tree,
     ) -> Self {
-        let mut parser = Self::parser_for_module_tree(file, language, strings, tree);
-        parser
-            .lexer
-            .set_retain_trivia_tokens(options.retain_trivia_tokens);
+        let mut parser = Self::parser_for_module_tree(file, language, strings, tree, options);
         parser.reset();
         parser.apply_options(options);
         parser
@@ -1183,16 +1211,12 @@ impl Parser {
         self.flags
             .set_disallow_ambiguous_tree_literal(options.disallow_ambiguous_tree_literal);
         self.preserve_parenthesized_wrappers = options.preserve_parenthesized_wrappers;
-        if self.lexer.tokens().is_empty() && self.lexer.side_tokens().is_empty() {
-            self.lexer
-                .set_retain_trivia_tokens(options.retain_trivia_tokens);
-        } else {
-            debug_assert!(
-                self.lexer.retains_trivia_tokens() == options.retain_trivia_tokens,
-                "trivia retention must be configured before lexing starts"
-            );
-        }
+        debug_assert!(
+            self.retain_trivia_tokens == options.retain_trivia_tokens,
+            "trivia retention must be configured before lexing starts"
+        );
     }
+
     /// Get the span of all side annotations.
     #[inline]
     pub fn compute_side_span(&self) -> MultiSpan {
@@ -1209,6 +1233,12 @@ impl Parser {
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.previous_token_end = 0;
+        self.token_index = 0;
+        self.consumed_tokens.clear();
+        self.pending_tokens.clear();
+        self.current_token_is_pending = false;
+        self.in_tree_attribute_value = false;
+        self.allow_tree_literals = self.language.supports_jsx();
         let mut flags = ParserFlags::default();
         flags.set_disallow_ambiguous_tree_literal(
             self.language.supports_jsx() && self.language.is_typescript(),
@@ -1260,7 +1290,7 @@ impl Parser {
     /// Return the current semantic tokens.
     #[inline]
     pub(crate) fn tokens(&self) -> &[TokenSpan] {
-        self.lexer.tokens()
+        &self.tokens
     }
 
     /// Return the innermost expression after skipping parenthesized wrappers.
@@ -1279,13 +1309,13 @@ impl Parser {
     /// Return true when tree literal lexing is enabled.
     #[inline]
     pub(crate) fn allow_tree_literals(&self) -> bool {
-        self.lexer.allow_tree_literals()
+        self.allow_tree_literals
     }
 
     /// Set whether tree literal lexing is enabled.
     #[inline]
     pub(crate) fn set_allow_tree_literals(&mut self, allow: bool) {
-        self.lexer.set_allow_tree_literals(allow);
+        self.allow_tree_literals = allow;
     }
 
     /// Eat a tree opening `<`.
@@ -1302,7 +1332,94 @@ impl Parser {
     /// Enable or disable tree attribute value lexing for the next token.
     #[inline]
     pub(crate) fn set_tree_attribute_value(&mut self, enabled: bool) {
-        self.lexer.set_tree_attribute_value(enabled);
+        self.in_tree_attribute_value = enabled;
+    }
+
+    /// Return whether a source byte starts tree child text.
+    #[inline]
+    fn byte_starts_tree_text(byte: u8) -> bool {
+        !matches!(byte, b'<' | b'>' | b'{' | b'}' | b'&')
+    }
+
+    /// Build one tree child token from a source offset.
+    fn tree_child_token_at_offset(&self, start: u32, is_on_new_line: bool) -> TokenSpan {
+        let source = self.file.text();
+        let start = start as usize;
+        let bytes = source.as_bytes();
+
+        if start >= bytes.len() {
+            return TokenSpan {
+                token: Token::end(),
+                span: self.eof_span(),
+            };
+        }
+
+        let byte = bytes[start];
+        if Self::byte_starts_tree_text(byte) {
+            let mut end = start + 1;
+            while end < bytes.len() && Self::byte_starts_tree_text(bytes[end]) {
+                end += 1;
+            }
+
+            let span = Span::new(self.file_id, start as u32, end as u32);
+            return TokenSpan {
+                token: Token::new(
+                    TokenType::Literal,
+                    span.len(),
+                    Some(TokenLiteral::TreeString),
+                )
+                .with_on_new_line(is_on_new_line),
+                span,
+            };
+        }
+
+        if byte == b'&'
+            && let Some(end) = source[start..].find(';').map(|index| start + index + 1)
+        {
+            let span = Span::new(self.file_id, start as u32, end as u32);
+            let source_text = self.get_span_str(span);
+            if decode_html_entity(source_text).is_some() {
+                return TokenSpan {
+                    token: Token::new(
+                        TokenType::Literal,
+                        span.len(),
+                        Some(TokenLiteral::Character {
+                            is_terminated: true,
+                            is_html_entity: true,
+                        }),
+                    )
+                    .with_on_new_line(is_on_new_line),
+                    span,
+                };
+            }
+        }
+
+        if byte == b'&' {
+            let mut end = start + 1;
+            while end < bytes.len() && !matches!(bytes[end], b'<' | b'>' | b'{' | b'&') {
+                end += 1;
+            }
+
+            let span = Span::new(self.file_id, start as u32, end as u32);
+            return TokenSpan {
+                token: Token::new(
+                    TokenType::Literal,
+                    span.len(),
+                    Some(TokenLiteral::TreeString),
+                )
+                .with_on_new_line(is_on_new_line),
+                span,
+            };
+        }
+
+        self.tokens
+            .get(self.token_index)
+            .copied()
+            .filter(|token| token.span.start == start as u32)
+            .unwrap_or_else(|| TokenSpan {
+                token: Token::new(TokenType::Unknown, 1, None).with_on_new_line(is_on_new_line),
+                span: Span::new(self.file_id, start as u32, start as u32 + 1),
+            })
     }
 
     /// Re-lex the current token as a generic `<`.
@@ -1320,8 +1437,7 @@ impl Parser {
             return false;
         }
 
-        let token = self.lexer.re_lex_as_typed_l_angle(self.current_token);
-        self.lexer.replace_current_token(token);
+        let token = self.split_current_token_prefix(TokenType::LessThan, 1);
         self.current_token = token;
         true
     }
@@ -1345,8 +1461,7 @@ impl Parser {
             return false;
         }
 
-        let token = self.lexer.re_lex_as_r_angle(self.current_token);
-        self.lexer.replace_current_token(token);
+        let token = self.split_current_token_prefix(TokenType::GreaterThan, 1);
         self.current_token = token;
         true
     }
@@ -1368,10 +1483,117 @@ impl Parser {
             return false;
         }
 
-        let token = self.lexer.re_lex_as_regex(self.current_token);
-        self.lexer.replace_current_token(token);
+        let token = self.reclassify_current_divide_as_regex();
         self.current_token = token;
         true
+    }
+
+    /// Split the current compound token and keep one prefix token at the cursor.
+    fn split_current_token_prefix(&mut self, token_type: TokenType, prefix_len: u32) -> TokenSpan {
+        let current = self.current_token;
+        debug_assert!(prefix_len > 0 && prefix_len <= current.token.len);
+
+        let prefix = TokenSpan {
+            token: Token::new(token_type, prefix_len, None)
+                .with_on_new_line(current.token.is_on_new_line),
+            span: Span::new(
+                current.span.file,
+                current.span.start,
+                current.span.start + prefix_len,
+            ),
+        };
+
+        if current.token.len > prefix_len {
+            let rest_start = current.span.start + prefix_len;
+            let rest_token = self.split_remainder_token(current, rest_start);
+            self.pending_tokens.insert(0, rest_token);
+        }
+
+        prefix
+    }
+
+    /// Return the token spelling left after splitting one leading angle token.
+    fn split_remainder_token(&self, current: TokenSpan, rest_start: u32) -> TokenSpan {
+        let text = self.get_span_str(Span::new(current.span.file, rest_start, current.span.end));
+        let token_type = match text {
+            "<" => TokenType::LessThan,
+            "=" => TokenType::Assign,
+            "<<" => TokenType::ShiftLeft,
+            "<=" => TokenType::LessThanOrEqual,
+            ">" => TokenType::GreaterThan,
+            ">=" => TokenType::GreaterThanOrEqual,
+            ">>" => TokenType::ShiftRight,
+            ">>=" => TokenType::ShiftRightAssign,
+            _ => current.token.ty,
+        };
+
+        TokenSpan {
+            token: Token::new(token_type, current.span.end - rest_start, None),
+            span: Span::new(current.span.file, rest_start, current.span.end),
+        }
+    }
+
+    /// Reclassify the current slash token as one regex literal token.
+    fn reclassify_current_divide_as_regex(&mut self) -> TokenSpan {
+        let current = self.current_token;
+        let source = self.file.text();
+        let mut index = current.span.start as usize + 1;
+        let mut escaped = false;
+        let mut in_character_class = false;
+
+        while index < source.len() {
+            let Some(character) = source[index..].chars().next() else {
+                break;
+            };
+            index += character.len_utf8();
+
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if character == '\\' {
+                escaped = true;
+                continue;
+            }
+            if in_character_class {
+                if character == ']' {
+                    in_character_class = false;
+                }
+                continue;
+            }
+            if character == '[' {
+                in_character_class = true;
+                continue;
+            }
+            if character == '/' {
+                break;
+            }
+        }
+
+        let mut has_flags = false;
+        while index < source.len() {
+            let Some(character) = source[index..].chars().next() else {
+                break;
+            };
+            if !character.is_ascii_alphabetic() {
+                break;
+            }
+            has_flags = true;
+            index += character.len_utf8();
+        }
+
+        let end = index as u32;
+        let token = TokenSpan {
+            token: Token::new(
+                TokenType::Literal,
+                end - current.span.start,
+                Some(TokenLiteral::RegexString { has_flags }),
+            )
+            .with_on_new_line(current.token.is_on_new_line),
+            span: Span::new(current.span.file, current.span.start, end),
+        };
+
+        token
     }
 
     /// Eat one typed angle-close token.
@@ -1438,7 +1660,18 @@ impl Parser {
 
     /// Return owned token buffers after lexing to EOF.
     pub fn take_tokens(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
-        self.lexer.take_tokens()
+        let mut tokens = mem::take(&mut self.consumed_tokens);
+        tokens.push(self.current_token);
+        tokens.append(&mut self.pending_tokens);
+
+        let base_start = if self.current_token_is_pending {
+            self.token_index
+        } else {
+            self.token_index.saturating_add(1)
+        };
+        tokens.extend_from_slice(&self.tokens[base_start..]);
+
+        (tokens, mem::take(&mut self.side_tokens))
     }
 
     /// Return the EOF span without forcing a full lex.
@@ -1447,10 +1680,64 @@ impl Parser {
         Span::new(self.file_id, self.file.len, self.file.len)
     }
 
+    /// Return one visible token without moving the parser cursor.
+    fn token_at_offset(&self, offset: usize) -> TokenSpan {
+        if offset == 0 {
+            return self.current_token;
+        }
+
+        let offset = offset - 1;
+        if let Some(token) = self.pending_tokens.get(offset) {
+            return *token;
+        }
+
+        let offset = offset - self.pending_tokens.len();
+        let base_start = if self.current_token_is_pending {
+            self.token_index
+        } else {
+            self.token_index.saturating_add(1)
+        };
+
+        self.tokens
+            .get(base_start + offset)
+            .copied()
+            .unwrap_or_else(|| TokenSpan {
+                token: Token::end(),
+                span: self.eof_span(),
+            })
+    }
+
     /// Read the next token from the lexer cursor.
     #[inline]
     fn read_next_token(&mut self) {
-        self.current_token = self.lexer.next_token();
+        if !self.pending_tokens.is_empty() {
+            self.current_token = self.pending_tokens.remove(0);
+            self.current_token_is_pending = true;
+            return;
+        }
+
+        self.current_token = self
+            .tokens
+            .get(self.token_index)
+            .copied()
+            .unwrap_or_else(|| TokenSpan {
+                token: Token::end(),
+                span: self.eof_span(),
+            });
+        self.current_token_is_pending = false;
+    }
+
+    /// Read the next token as tree child source.
+    fn read_next_tree_child_token(&mut self) {
+        let start = self.previous_token_end;
+        self.pending_tokens.clear();
+
+        let is_on_new_line = self
+            .tokens
+            .get(self.token_index)
+            .is_some_and(|token| token.token.is_on_new_line);
+        self.current_token = self.tree_child_token_at_offset(start, is_on_new_line);
+        self.current_token_is_pending = true;
     }
 
     /// Parse everything as an implicit namespace with optional trivia attachment.
@@ -1496,7 +1783,7 @@ impl Parser {
         expressions: &mut Vec<LocalNodeId<Expression>>,
         consumed_to_end: bool,
     ) {
-        if !self.lexer.retains_trivia_tokens() {
+        if !self.retain_trivia_tokens {
             return;
         }
 
@@ -1505,11 +1792,8 @@ impl Parser {
             return;
         }
 
-        // materialize the full stream before trivia ownership checks
-        self.lexer.lex_to_end();
-
         // skip files without retained comments
-        if !self.lexer.has_comment_tokens() {
+        if self.comments.is_empty() {
             return;
         }
 
@@ -1528,7 +1812,11 @@ impl Parser {
         }
 
         // directive only files with attachable semantic tokens already have stable owners
-        if self.lexer.has_attachable_semantic_tokens() {
+        if self
+            .tokens
+            .iter()
+            .any(|token| token.token.ty != TokenType::End)
+        {
             return;
         }
 
@@ -1539,14 +1827,11 @@ impl Parser {
     /// Attach retained comments after parsing when needed.
     pub fn attach_comments(&mut self) {
         // skip comment output when trivia retention is disabled
-        if !self.lexer.retains_trivia_tokens() {
+        if !self.retain_trivia_tokens {
             return;
         }
 
-        // materialize the stream so comment state is complete
-        self.lexer.lex_to_end();
-
-        if !self.lexer.has_comment_tokens() {
+        if self.comments.is_empty() {
             return;
         }
 
@@ -1556,7 +1841,7 @@ impl Parser {
         }
 
         // finalize raw comments in parse order
-        let comments = self.lexer.take_trivia_comments();
+        let comments = mem::take(&mut self.comments);
         self.tree.comments_mut().extend(comments);
     }
 
@@ -1575,11 +1860,14 @@ impl Parser {
     #[inline(always)]
     pub fn checkpoint(&mut self) -> ParserCheckpoint {
         ParserCheckpoint {
+            token_index: self.token_index,
+            current_token_is_pending: self.current_token_is_pending,
+            pending_tokens: self.pending_tokens.clone(),
+            consumed_tokens_len: self.consumed_tokens.len(),
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
             last_consumed_token: self.last_consumed_token,
             tree_mark: self.tree.mark(),
-            lexer_checkpoint: self.lexer.snapshot(),
             error_count: self.errors.len(),
             diagnostic_count: self.diagnostics.len(),
         }
@@ -1589,10 +1877,13 @@ impl Parser {
     #[inline(always)]
     pub fn cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
         ParserCursorCheckpoint {
+            token_index: self.token_index,
+            current_token_is_pending: self.current_token_is_pending,
+            pending_tokens: self.pending_tokens.clone(),
+            consumed_tokens_len: self.consumed_tokens.len(),
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
             last_consumed_token: self.last_consumed_token,
-            lexer_checkpoint: self.lexer.snapshot(),
         }
     }
 
@@ -1606,14 +1897,23 @@ impl Parser {
 
     /// Rewind the parser cursor to one cursor checkpoint.
     pub fn rewind(&mut self, checkpoint: ParserCursorCheckpoint) {
+        self.token_index = checkpoint.token_index;
+        self.current_token_is_pending = checkpoint.current_token_is_pending;
+        self.pending_tokens = checkpoint.pending_tokens;
+        self.consumed_tokens
+            .truncate(checkpoint.consumed_tokens_len);
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
-        self.lexer.restore(checkpoint.lexer_checkpoint);
     }
 
     /// Restore the parser and tree to one full checkpoint.
     pub fn restore(&mut self, checkpoint: ParserCheckpoint, idx: u32) {
+        self.token_index = checkpoint.token_index;
+        self.current_token_is_pending = checkpoint.current_token_is_pending;
+        self.pending_tokens = checkpoint.pending_tokens;
+        self.consumed_tokens
+            .truncate(checkpoint.consumed_tokens_len);
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
@@ -1621,7 +1921,6 @@ impl Parser {
         self.tree.restore_to_mark(checkpoint.tree_mark);
         self.errors.truncate(checkpoint.error_count);
         self.diagnostics.truncate(checkpoint.diagnostic_count);
-        self.lexer.restore(checkpoint.lexer_checkpoint);
     }
 
     /// Run a closure against a speculative parser cursor.
@@ -1634,29 +1933,25 @@ impl Parser {
 
     /// Return the next parser token without consuming it.
     #[inline]
-    pub(crate) fn next_token(&mut self) -> TokenSpan {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.current_token()
-        })
+    pub(crate) fn next_token(&self) -> TokenSpan {
+        self.token_at_offset(1)
     }
 
     /// Return the next parser token type without consuming it.
     #[inline]
-    pub(crate) fn next_token_type(&mut self) -> TokenType {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.peek_token_type()
-        })
+    pub(crate) fn next_token_type(&self) -> TokenType {
+        self.next_token().token.ty
     }
 
     /// Return the next parser keyword without consuming it.
     #[inline]
-    pub(crate) fn next_keyword(&mut self) -> Option<Keyword> {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.current_keyword()
-        })
+    pub(crate) fn next_keyword(&self) -> Option<Keyword> {
+        let token = self.next_token();
+        if token.token.ty != TokenType::Identifier {
+            return None;
+        }
+
+        keyword_from_identifier(self.get_token_str(token))
     }
 
     /// Insert a node into the DIR tree.
@@ -1832,6 +2127,8 @@ impl Parser {
         let consumed = self.current_token;
         self.last_consumed_token = consumed;
         self.previous_token_end = consumed.span.end;
+        self.consumed_tokens.push(consumed);
+        self.advance_after_current_token();
         self.read_next_token();
 
         Ok(&self.last_consumed_token)
@@ -1844,6 +2141,8 @@ impl Parser {
 
         self.last_consumed_token = self.current_token;
         self.previous_token_end = self.current_token.span.end;
+        self.consumed_tokens.push(self.current_token);
+        self.advance_after_current_token();
         self.read_next_token();
     }
 
@@ -1853,7 +2152,46 @@ impl Parser {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.last_consumed_token = self.current_token;
         self.previous_token_end = self.current_token.span.end;
-        self.current_token = self.lexer.next_tree_child();
+        self.consumed_tokens.push(self.current_token);
+        self.drop_side_tokens_covered_by_current();
+        self.advance_after_current_token();
+        self.read_next_tree_child_token();
+    }
+
+    /// Advance base token index after consuming the current visible token.
+    fn advance_after_current_token(&mut self) {
+        if !self.current_token_is_pending {
+            self.token_index += 1;
+        }
+
+        while self
+            .tokens
+            .get(self.token_index)
+            .is_some_and(|token| token.span.start < self.previous_token_end)
+        {
+            self.token_index += 1;
+        }
+    }
+
+    /// Drop trivia tokens that are now part of a virtual tree child token.
+    fn drop_side_tokens_covered_by_current(&mut self) {
+        let token = self.current_token;
+        let is_tree_text = token.token.ty == TokenType::Literal
+            && matches!(
+                token.token.literal,
+                Some(TokenLiteral::TreeString)
+                    | Some(TokenLiteral::Character {
+                        is_html_entity: true,
+                        ..
+                    })
+            );
+
+        if !is_tree_text {
+            return;
+        }
+
+        self.side_tokens
+            .retain(|side_token| !token.span.contains_span(side_token.span));
     }
 
     /// Peek the next token.
@@ -2523,6 +2861,14 @@ impl Parser {
 /// Full parser checkpoint for speculative parses that allocate nodes.
 #[derive(Debug, Clone)]
 pub struct ParserCheckpoint {
+    /// The parser token index at checkpoint time.
+    token_index: usize,
+    /// Whether the current token came from pending virtual tokens.
+    current_token_is_pending: bool,
+    /// The pending virtual tokens at checkpoint time.
+    pending_tokens: Vec<TokenSpan>,
+    /// The committed token count at checkpoint time.
+    consumed_tokens_len: usize,
     /// The parser owned current token at checkpoint time.
     current_token: TokenSpan,
     /// The previous semantic token end at checkpoint time.
@@ -2531,8 +2877,6 @@ pub struct ParserCheckpoint {
     last_consumed_token: TokenSpan,
     /// Tree allocation snapshot at checkpoint time.
     tree_mark: TreeMark,
-    /// The lexer checkpoint for speculative parsing.
-    lexer_checkpoint: LexerSnapshot,
     /// The parser error count at checkpoint time.
     error_count: usize,
     /// The parser diagnostic count at checkpoint time.
@@ -2542,14 +2886,20 @@ pub struct ParserCheckpoint {
 /// Parser cursor checkpoint for speculative lookahead without node allocation.
 #[derive(Debug, Clone)]
 pub struct ParserCursorCheckpoint {
+    /// The parser token index at checkpoint time.
+    token_index: usize,
+    /// Whether the current token came from pending virtual tokens.
+    current_token_is_pending: bool,
+    /// The pending virtual tokens at checkpoint time.
+    pending_tokens: Vec<TokenSpan>,
+    /// The committed token count at checkpoint time.
+    consumed_tokens_len: usize,
     /// The parser owned current token at checkpoint time.
     current_token: TokenSpan,
     /// The previous semantic token end at checkpoint time.
     previous_token_end: u32,
     /// The last consumed visible token at checkpoint time.
     last_consumed_token: TokenSpan,
-    /// The lexer checkpoint for speculative parsing.
-    lexer_checkpoint: LexerSnapshot,
 }
 
 /// Lightweight parser position used for span construction.
