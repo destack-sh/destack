@@ -37,6 +37,28 @@ const fn = () => {};
 const x: object = fn;
 ```
 
+### object parameter is transparent
+
+Bare `object` parameters specialize like implicit non-primitive constraints.
+
+```ds
+function id(value: object) {
+    return value;
+}
+
+const point = { x: 1 };
+id(point) satisfies { x: int };
+```
+
+### erased object storage
+
+Use `Any<object>` when storage needs one explicit erased representation.
+
+```ds
+let value: Any<object> = { x: 1 };
+value satisfies Any<object>;
+```
+
 ## object rejects primitives
 
 ### number not assignable to object
