@@ -188,7 +188,7 @@ impl ModuleLowerer<'_> {
             dir::TypeLiteral::UniqueSymbol => {
                 js::TypeLiteral::Primitive(js::PrimitiveType::UniqueSymbol)
             }
-            dir::TypeLiteral::Intrinsic(_) => return None,
+            dir::TypeLiteral::BuiltinTypeFunction(_) => return None,
         };
         Some(literal)
     }
@@ -266,21 +266,21 @@ impl ModuleLowerer<'_> {
         Ok(subject)
     }
 
-    /// Lower one intrinsic type reference into a JS path type.
-    fn lower_intrinsic_type(
+    /// Lower one builtin type function reference into a JS path type.
+    fn lower_builtin_type_function(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        intrinsic: dir::IntrinsicType,
+        function: dir::BuiltinTypeFunction,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        let intrinsic_name = match intrinsic {
-            dir::IntrinsicType::Uppercase => "Uppercase",
-            dir::IntrinsicType::Lowercase => "Lowercase",
-            dir::IntrinsicType::Capitalize => "Capitalize",
-            dir::IntrinsicType::Uncapitalize => "Uncapitalize",
-            dir::IntrinsicType::NoInfer => "NoInfer",
-            dir::IntrinsicType::BuiltinIteratorReturn => "BuiltinIteratorReturn",
+        let function_name = match function {
+            dir::BuiltinTypeFunction::Uppercase => "Uppercase",
+            dir::BuiltinTypeFunction::Lowercase => "Lowercase",
+            dir::BuiltinTypeFunction::Capitalize => "Capitalize",
+            dir::BuiltinTypeFunction::Uncapitalize => "Uncapitalize",
+            dir::BuiltinTypeFunction::NoInfer => "NoInfer",
+            dir::BuiltinTypeFunction::BuiltinIteratorReturn => "BuiltinIteratorReturn",
         };
-        let segment = self.strings.intern(intrinsic_name);
+        let segment = self.strings.intern(function_name);
         let path = js::Path {
             segments: smallvec::smallvec![segment],
         };
@@ -741,7 +741,88 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Intrinsic(intrinsic) => self.lower_intrinsic_type(source_id, *intrinsic)?,
+            dir::Type::Operation(operation) => match operation {
+                dir::TypeOperation::BuiltinTypeFunction(function) => {
+                    self.lower_builtin_type_function(source_id, *function)?
+                }
+                dir::TypeOperation::Conditional(conditional) => {
+                    let left = self.lower_type(conditional.left)?;
+                    let right = self.lower_type(conditional.right)?;
+                    let then_type = self.lower_type(conditional.then_type)?;
+                    let else_type = self.lower_type(conditional.else_type)?;
+                    let ty = js::TypeExpression::Conditional {
+                        left,
+                        right,
+                        then_type,
+                        else_type,
+                    };
+                    self.tree
+                        .insert_from_source_any(ty, self.module.id, source_id)
+                }
+                dir::TypeOperation::Mapped(mapped) => {
+                    let name = mapped.parameter.name;
+                    let source_type = self.lower_type(mapped.parameter.constraint)?;
+                    let key_remap = mapped
+                        .parameter
+                        .key_remap
+                        .map(|key_remap| self.lower_type(key_remap))
+                        .transpose()?;
+                    let parameter = js::TypeMappedParameter {
+                        name,
+                        source_type,
+                        key_remap,
+                    };
+                    let modifiers = self.lower_type_mapped_modifiers(mapped.modifiers);
+                    let value = self.lower_type(mapped.value)?;
+                    let ty = js::TypeExpression::Mapped {
+                        parameter,
+                        modifiers,
+                        value: Some(value),
+                    };
+                    self.tree
+                        .insert_from_source_any(ty, self.module.id, source_id)
+                }
+                dir::TypeOperation::Index(index_type) => {
+                    let left = self.lower_type(index_type.left)?;
+                    let index = self.lower_type(index_type.index)?;
+                    let ty = js::TypeExpression::Index { left, index };
+                    self.tree
+                        .insert_from_source_any(ty, self.module.id, source_id)
+                }
+                dir::TypeOperation::TemplateLiteral(template) => {
+                    let strings = template
+                        .strings
+                        .iter()
+                        .map(|string| *string)
+                        .collect::<Vec<_>>();
+                    let spans = template
+                        .spans
+                        .iter()
+                        .map(|span| self.lower_type(*span))
+                        .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                    let template = js::TypeTemplateLiteral { strings, spans };
+                    let ty = js::TypeExpression::TemplateLiteral(template);
+
+                    self.tree
+                        .insert_from_source_any(ty, self.module.id, source_id)
+                }
+                dir::TypeOperation::Infer(infer) => {
+                    let name = infer.name.unwrap_or_else(|| self.strings.intern("_"));
+                    let constraint = infer
+                        .constraint
+                        .map(|constraint| self.lower_type(constraint))
+                        .transpose()?;
+                    let ty = js::TypeExpression::Infer { name, constraint };
+                    self.tree
+                        .insert_from_source_any(ty, self.module.id, source_id)
+                }
+                dir::TypeOperation::KeyOf(unary) => {
+                    let target_type = self.lower_type(unary.target)?;
+                    let ty = js::TypeExpression::KeyOf { target_type };
+                    self.tree
+                        .insert_from_source_any(ty, self.module.id, source_id)
+                }
+            },
             dir::Type::Parameter(parameter) => {
                 self.lower_reference_type_from_symbol(source_id, parameter.symbol, None)?
             }
@@ -767,77 +848,6 @@ impl ModuleLowerer<'_> {
                 type_id
             }
             dir::Type::ErasedAny(erased) => self.lower_type(erased.constraint)?,
-            dir::Type::Conditional(conditional) => {
-                let left = self.lower_type(conditional.left)?;
-                let right = self.lower_type(conditional.right)?;
-                let then_type = self.lower_type(conditional.then_type)?;
-                let else_type = self.lower_type(conditional.else_type)?;
-                let ty = js::TypeExpression::Conditional {
-                    left,
-                    right,
-                    then_type,
-                    else_type,
-                };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Mapped(mapped) => {
-                let name = mapped.parameter.name;
-                let source_type = self.lower_type(mapped.parameter.constraint)?;
-                let key_remap = mapped
-                    .parameter
-                    .key_remap
-                    .map(|key_remap| self.lower_type(key_remap))
-                    .transpose()?;
-                let parameter = js::TypeMappedParameter {
-                    name,
-                    source_type,
-                    key_remap,
-                };
-                let modifiers = self.lower_type_mapped_modifiers(mapped.modifiers);
-                let value = self.lower_type(mapped.value)?;
-                let ty = js::TypeExpression::Mapped {
-                    parameter,
-                    modifiers,
-                    value: Some(value),
-                };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Index(index_type) => {
-                let left = self.lower_type(index_type.left)?;
-                let index = self.lower_type(index_type.index)?;
-                let ty = js::TypeExpression::Index { left, index };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::TemplateLiteral(template) => {
-                let strings = template
-                    .strings
-                    .iter()
-                    .map(|string| *string)
-                    .collect::<Vec<_>>();
-                let spans = template
-                    .spans
-                    .iter()
-                    .map(|span| self.lower_type(*span))
-                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                let template = js::TypeTemplateLiteral { strings, spans };
-                let ty = js::TypeExpression::TemplateLiteral(template);
-
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Infer(infer) => {
-                let name = infer.name.unwrap_or_else(|| self.strings.intern("_"));
-                let constraint = infer
-                    .constraint
-                    .map(|constraint| self.lower_type(constraint))
-                    .transpose()?;
-                let ty = js::TypeExpression::Infer { name, constraint };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
             dir::Type::Predicate(predicate) => {
                 let subject = self.lower_type_predicate_subject(source_id, predicate.subject)?;
                 let target = predicate
@@ -855,12 +865,6 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Type::Form(form) => self.lower_type(form.value)?,
-            dir::Type::KeyOf(unary) => {
-                let target_type = self.lower_type(unary.target)?;
-                let ty = js::TypeExpression::KeyOf { target_type };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
             dir::Type::Slice(slice) => {
                 let element = self.lower_type(slice.element)?;
                 let mut array_id = self.tree.insert_from_source_any(
@@ -895,6 +899,12 @@ impl ModuleLowerer<'_> {
                 }
 
                 array_id
+            }
+            dir::Type::Range(_) => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: source_id.into_global(self.module.id),
+                    message: Some("range types must be reduced before JS lowering".to_string()),
+                });
             }
             dir::Type::Shape(object) => {
                 let mut members = object

@@ -7,9 +7,9 @@ use crate::{
 
 use super::PrimitiveType;
 
-/// Compiler-provided intrinsic type function.
+/// Compiler-provided type function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum IntrinsicType {
+pub enum BuiltinTypeFunction {
     /// Uppercase string intrinsic.
     Uppercase,
     /// Lowercase string intrinsic.
@@ -24,11 +24,11 @@ pub enum IntrinsicType {
     BuiltinIteratorReturn,
 }
 
-impl TryFrom<&str> for IntrinsicType {
+impl TryFrom<&str> for BuiltinTypeFunction {
     /// The error type for intrinsic parsing.
     type Error = ();
 
-    /// Parse an intrinsic type from a standard intrinsic name.
+    /// Parse a builtin type function from its standard name.
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             "Uppercase" => Ok(Self::Uppercase),
@@ -240,6 +240,17 @@ pub struct FixedArrayType {
     pub is_readonly: bool,
 }
 
+/// Compact scalar interval type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RangeType {
+    /// The inclusive lower bound.
+    pub start: Option<ScalarLiteral>,
+    /// The upper bound.
+    pub end: Option<ScalarLiteral>,
+    /// Whether the upper bound is included.
+    pub is_inclusive: bool,
+}
+
 /// Runtime-length homogeneous view type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SliceType {
@@ -302,6 +313,25 @@ pub struct IntersectionType {
     pub elements: Vec<LocalTypeId>,
 }
 
+/// Type-level operation reduced by check.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TypeOperation {
+    /// Compiler-known builtin type function.
+    BuiltinTypeFunction(BuiltinTypeFunction),
+    /// Conditional type expression.
+    Conditional(ConditionalType),
+    /// Mapped type expression.
+    Mapped(MappedType),
+    /// Indexed access type expression.
+    Index(IndexType),
+    /// Template literal type expression.
+    TemplateLiteral(TemplateLiteralType),
+    /// Type infer binding in a conditional type pattern.
+    Infer(InferType),
+    /// `keyof T`.
+    KeyOf(UnaryType),
+}
+
 /// A canonical solved semantic type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
@@ -325,8 +355,6 @@ pub enum Type {
     Primitive(PrimitiveType),
     /// Scalar literal type.
     Literal(ScalarLiteral),
-    /// Compiler-known intrinsic type function.
-    Intrinsic(IntrinsicType),
 
     /// Generic parameter reference.
     Parameter(ParameterType),
@@ -340,23 +368,15 @@ pub enum Type {
     /// Explicit erased runtime `Any<T>` representation.
     ErasedAny(ErasedAnyType),
 
-    /// Conditional type expression.
-    Conditional(ConditionalType),
-    /// Mapped type expression.
-    Mapped(MappedType),
-    /// Indexed access type expression.
-    Index(IndexType),
-    /// Template literal type expression.
-    TemplateLiteral(TemplateLiteralType),
-    /// Type infer binding in a conditional type pattern.
-    Infer(InferType),
     /// Type predicate expression.
     Predicate(PredicateType),
-    /// `keyof T`.
-    KeyOf(UnaryType),
+    /// Type-level operation reduced by check.
+    Operation(TypeOperation),
 
     /// Fixed-length array type.
     FixedArray(FixedArrayType),
+    /// Compact scalar interval type.
+    Range(RangeType),
     /// Runtime-length homogeneous view type.
     Slice(SliceType),
     /// Tuple type.

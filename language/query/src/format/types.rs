@@ -55,7 +55,7 @@ pub fn format_type(
         dir::Type::Object => "object".to_string(),
         dir::Type::Primitive(primitive) => format_primitive_type(primitive),
         dir::Type::Literal(literal) => format_scalar_literal(literal, strings),
-        dir::Type::Intrinsic(intrinsic) => format_type_intrinsic(intrinsic),
+        dir::Type::Operation(operation) => format_type_operation(operation, types, ctx),
         dir::Type::Parameter(parameter) => format_symbol_name(parameter.symbol, ctx),
         dir::Type::This => "this".to_string(),
         dir::Type::Named(reference) => {
@@ -65,52 +65,6 @@ pub fn format_type(
         dir::Type::ErasedAny(erased) => {
             let constraint = format_local_type(erased.constraint, types, ctx);
             format!("Any<{constraint}>")
-        }
-        dir::Type::Conditional(conditional) => {
-            let left = format_local_type(conditional.left, types, ctx);
-            let right = format_local_type(conditional.right, types, ctx);
-            let then_type = format_local_type(conditional.then_type, types, ctx);
-            let else_type = format_local_type(conditional.else_type, types, ctx);
-            format!("{left} extends {right} ? {then_type} : {else_type}")
-        }
-        dir::Type::Mapped(mapped) => {
-            let name = strings.get(mapped.parameter.name).to_string();
-            let constraint = format_local_type(mapped.parameter.constraint, types, ctx);
-            let key_remap = mapped
-                .parameter
-                .key_remap
-                .map(|key_remap| format!(" as {}", format_local_type(key_remap, types, ctx)))
-                .unwrap_or_default();
-            let readonly = format_type_mapped_modifier_prefix(mapped.modifiers.readonly);
-            let optional = format_type_mapped_modifier_suffix(mapped.modifiers.optional);
-            let value = format_local_type(mapped.value, types, ctx);
-            format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
-        }
-        dir::Type::Index(index_type) => {
-            let left = format_local_type(index_type.left, types, ctx);
-            let index = format_local_type(index_type.index, types, ctx);
-            format!("{left}[{index}]")
-        }
-        dir::Type::TemplateLiteral(template) => {
-            let mut result = String::from("`");
-            for (index, string_id) in template.strings.iter().enumerate() {
-                result.push_str(strings.get(*string_id));
-                if let Some(span_id) = template.spans.get(index) {
-                    let span = format_local_type(*span_id, types, ctx);
-                    result.push_str("${");
-                    result.push_str(&span);
-                    result.push('}');
-                }
-            }
-            result.push('`');
-            result
-        }
-        dir::Type::Infer(infer) => {
-            let name = infer.name.map(|name| strings.get(name)).unwrap_or("_");
-            let constraint = infer.constraint.map(|constraint| {
-                format!(" extends {}", format_local_type(constraint, types, ctx))
-            });
-            format!("infer {name}{}", constraint.unwrap_or_default())
         }
         dir::Type::Predicate(predicate) => {
             let subject = format_type_predicate_subject(predicate.subject, ctx);
@@ -124,10 +78,6 @@ pub fn format_type(
                 (false, None) => subject,
             }
         }
-        dir::Type::KeyOf(unary) => {
-            let target_type = format_local_type(unary.target, types, ctx);
-            format!("keyof {target_type}")
-        }
         dir::Type::FixedArray(array) => {
             let elem_str = format_local_type(array.element, types, ctx);
             let needs_parens = matches!(types.get_type(array.element), dir::Type::Union(_));
@@ -138,6 +88,7 @@ pub fn format_type(
                 format!("{readonly_prefix}{elem_str}[]")
             }
         }
+        dir::Type::Range(range) => format_range_type(range, strings),
         dir::Type::Slice(slice) => {
             let readonly_prefix = if slice.is_readonly { "readonly " } else { "" };
             let element = slice.element;
@@ -259,6 +210,70 @@ pub fn format_type(
     }
 }
 
+/// Format a type-level operation.
+pub fn format_type_operation(
+    operation: &dir::TypeOperation,
+    types: &dir::TypeTable<'_>,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    let strings = ctx.dir().strings();
+
+    match operation {
+        dir::TypeOperation::BuiltinTypeFunction(function) => format_builtin_type_function(function),
+        dir::TypeOperation::Conditional(conditional) => {
+            let left = format_local_type(conditional.left, types, ctx);
+            let right = format_local_type(conditional.right, types, ctx);
+            let then_type = format_local_type(conditional.then_type, types, ctx);
+            let else_type = format_local_type(conditional.else_type, types, ctx);
+            format!("{left} extends {right} ? {then_type} : {else_type}")
+        }
+        dir::TypeOperation::Mapped(mapped) => {
+            let name = strings.get(mapped.parameter.name).to_string();
+            let constraint = format_local_type(mapped.parameter.constraint, types, ctx);
+            let key_remap = mapped
+                .parameter
+                .key_remap
+                .map(|key_remap| format!(" as {}", format_local_type(key_remap, types, ctx)))
+                .unwrap_or_default();
+            let readonly = format_type_mapped_modifier_prefix(mapped.modifiers.readonly);
+            let optional = format_type_mapped_modifier_suffix(mapped.modifiers.optional);
+            let value = format_local_type(mapped.value, types, ctx);
+            format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
+        }
+        dir::TypeOperation::Index(index_type) => {
+            let left = format_local_type(index_type.left, types, ctx);
+            let index = format_local_type(index_type.index, types, ctx);
+            format!("{left}[{index}]")
+        }
+        dir::TypeOperation::TemplateLiteral(template) => {
+            let mut result = String::from("`");
+            for (index, string_id) in template.strings.iter().enumerate() {
+                result.push_str(strings.get(*string_id));
+                if let Some(span_id) = template.spans.get(index) {
+                    let span = format_local_type(*span_id, types, ctx);
+                    result.push_str("${");
+                    result.push_str(&span);
+                    result.push('}');
+                }
+            }
+            result.push('`');
+
+            result
+        }
+        dir::TypeOperation::Infer(infer) => {
+            let name = infer.name.map(|name| strings.get(name)).unwrap_or("_");
+            let constraint = infer.constraint.map(|constraint| {
+                format!(" extends {}", format_local_type(constraint, types, ctx))
+            });
+            format!("infer {name}{}", constraint.unwrap_or_default())
+        }
+        dir::TypeOperation::KeyOf(unary) => {
+            let target_type = format_local_type(unary.target, types, ctx);
+            format!("keyof {target_type}")
+        }
+    }
+}
+
 /// Format a PrimitiveType.
 pub fn format_primitive_type(prim: &dir::PrimitiveType) -> String {
     match prim {
@@ -271,6 +286,23 @@ pub fn format_primitive_type(prim: &dir::PrimitiveType) -> String {
         dir::PrimitiveType::Symbol => "symbol".to_string(),
         dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
     }
+}
+
+/// Format a compact scalar interval type.
+pub fn format_range_type(range: &dir::RangeType, strings: &StringPool) -> String {
+    let start = range
+        .start
+        .as_ref()
+        .map(|start| format_scalar_literal(start, strings))
+        .unwrap_or_default();
+    let end = range
+        .end
+        .as_ref()
+        .map(|end| format_scalar_literal(end, strings))
+        .unwrap_or_default();
+    let separator = if range.is_inclusive { "..=" } else { ".." };
+
+    format!("{start}{separator}{end}")
 }
 
 /// Format a canonical memory or access form.
@@ -657,14 +689,14 @@ fn format_static_property(
     }
 }
 
-fn format_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
-    match intrinsic {
-        dir::IntrinsicType::Uppercase => "Uppercase".to_string(),
-        dir::IntrinsicType::Lowercase => "Lowercase".to_string(),
-        dir::IntrinsicType::Capitalize => "Capitalize".to_string(),
-        dir::IntrinsicType::Uncapitalize => "Uncapitalize".to_string(),
-        dir::IntrinsicType::NoInfer => "NoInfer".to_string(),
-        dir::IntrinsicType::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
+fn format_builtin_type_function(function: &dir::BuiltinTypeFunction) -> String {
+    match function {
+        dir::BuiltinTypeFunction::Uppercase => "Uppercase".to_string(),
+        dir::BuiltinTypeFunction::Lowercase => "Lowercase".to_string(),
+        dir::BuiltinTypeFunction::Capitalize => "Capitalize".to_string(),
+        dir::BuiltinTypeFunction::Uncapitalize => "Uncapitalize".to_string(),
+        dir::BuiltinTypeFunction::NoInfer => "NoInfer".to_string(),
+        dir::BuiltinTypeFunction::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
     }
 }
 
@@ -705,19 +737,7 @@ fn format_source_type_literal(lit: &dir::TypeLiteral, _strings: &StringPool) -> 
         dir::TypeLiteral::Float(float) => float.as_str().to_string(),
         dir::TypeLiteral::Symbol => "symbol".to_string(),
         dir::TypeLiteral::UniqueSymbol => "unique symbol".to_string(),
-        dir::TypeLiteral::Intrinsic(intrinsic) => format_source_type_intrinsic(intrinsic),
-    }
-}
-
-/// Format a parsed intrinsic type.
-fn format_source_type_intrinsic(intrinsic: &dir::IntrinsicType) -> String {
-    match intrinsic {
-        dir::IntrinsicType::Uppercase => "Uppercase".to_string(),
-        dir::IntrinsicType::Lowercase => "Lowercase".to_string(),
-        dir::IntrinsicType::Capitalize => "Capitalize".to_string(),
-        dir::IntrinsicType::Uncapitalize => "Uncapitalize".to_string(),
-        dir::IntrinsicType::NoInfer => "NoInfer".to_string(),
-        dir::IntrinsicType::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
+        dir::TypeLiteral::BuiltinTypeFunction(function) => format_builtin_type_function(function),
     }
 }
 
