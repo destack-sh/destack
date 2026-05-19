@@ -128,12 +128,13 @@ generate:
     just generate-lexer
     just generate-schema
     just generate-conformance-schema
+    just generate-stress
 
 # check committed generated source and runtime artifacts for drift
 generate-check:
     bash scripts/check-generated.sh
 
-# check all generated files for drift, including conformance and stress fixtures
+# check all generated files for drift, including conformance metadata
 generate-check-full:
     bash scripts/check-generated.sh full
 
@@ -156,6 +157,10 @@ generate-schema:
 generate-conformance-schema:
     cargo run -p destack_test --bin update_conformance_schema
     @echo "generated language/test/fixtures/conformance/schema/*.json"
+
+# generate parser and formatter stress fixtures
+generate-stress:
+    just _run-destack-test stress --generate
 
 # generate runtime binding catalog
 generate-bindings *args:
@@ -189,7 +194,6 @@ quick:
 # run the language full gate
 full:
     just quick
-    just generate-stress
     just test-stress
 
 # run all crate tests
@@ -291,35 +295,17 @@ test-query:
 test-lsp:
     just _run-destack-test lsp
 
-# run stress tests (requires generated fixtures)
+# run all stress tests
 test-stress:
     just _run-destack-test stress
 
-# run query stress tests
-test-stress-query:
-    just _run-destack-test stress --query
+# run parser stress tests
+test-stress-parser:
+    just _run-destack-test stress --parser
 
-# run lsp stress tests
-test-stress-lsp:
-    just _run-destack-test stress --lsp
-
-# --- stress fixtures ---
-
-# generate all stress test fixtures
-generate-stress:
-    bash ./test/fixtures/stress/generate.sh all
-
-# generate parser stress fixtures
-generate-stress-parser:
-    bash ./test/fixtures/stress/generate.sh parser
-
-# generate resolver stress fixtures
-generate-stress-resolver:
-    bash ./test/fixtures/stress/generate.sh resolver
-
-# generate checker stress fixtures
-generate-stress-checker:
-    bash ./test/fixtures/stress/generate.sh checker
+# run formatter stress tests
+test-stress-formatter:
+    just _run-destack-test stress --formatter
 
 # --- bench ---
 
@@ -370,7 +356,7 @@ fuzz-formatter duration="300":
     cd formatter/fuzz && cargo +nightly fuzz run formatter -- -max_total_time={{duration}}
 
 # list fuzz targets
-list-fuzz-targets:
+fuzz-list:
     @echo "parser/fuzz:"
     @cd parser/fuzz && cargo +nightly fuzz list
     @echo "formatter/fuzz:"
