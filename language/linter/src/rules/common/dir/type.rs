@@ -99,6 +99,30 @@ fn for_each_reference_symbol_type_id(
     }
 }
 
+/// Return whether one type is a template literal operation.
+fn type_is_template_literal_operation(ty: &dir::Type) -> bool {
+    matches!(
+        ty,
+        dir::Type::Operation(dir::TypeOperation::TemplateLiteral(_))
+    )
+}
+
+/// Return whether one type operation still needs check reduction.
+fn type_is_reducible_operation(ty: &dir::Type) -> bool {
+    matches!(
+        ty,
+        dir::Type::Operation(
+            dir::TypeOperation::BuiltinTypeFunction(_)
+                | dir::TypeOperation::Conditional(_)
+                | dir::TypeOperation::Mapped(_)
+                | dir::TypeOperation::Index(_)
+                | dir::TypeOperation::TemplateLiteral(_)
+                | dir::TypeOperation::Infer(_)
+                | dir::TypeOperation::KeyOf(_)
+        )
+    )
+}
+
 /// Composition policy for union or intersection type queries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TypeCompositionPolicy {
@@ -436,10 +460,9 @@ fn evaluate_terminal_boolean_type_query(
             ty,
             dir::Type::Slice(_) | dir::Type::FixedArray(_) | dir::Type::Tuple(_)
         ),
-        TypeBooleanQuery::String { .. } => match ty {
-            dir::Type::TemplateLiteral(_) => true,
-            _ => type_is_string_like(ty),
-        },
+        TypeBooleanQuery::String { .. } => {
+            type_is_template_literal_operation(ty) || type_is_string_like(ty)
+        }
         TypeBooleanQuery::Float => matches!(ty, dir::Type::Primitive(dir::PrimitiveType::Float(_))),
         TypeBooleanQuery::Function => match ty {
             dir::Type::Function(_) => true,
@@ -528,7 +551,7 @@ fn evaluate_terminal_boolean_type_query(
         TypeBooleanQuery::Promise { .. } => false,
         TypeBooleanQuery::VoidOrNever => matches!(ty, dir::Type::Void | dir::Type::Never),
         TypeBooleanQuery::TemplateInterpolation { .. } => match ty {
-            dir::Type::TemplateLiteral(_) => true,
+            ty if type_is_template_literal_operation(ty) => true,
             dir::Type::Primitive(
                 dir::PrimitiveType::Bigint
                 | dir::PrimitiveType::Integer(_)
@@ -551,6 +574,7 @@ fn evaluate_terminal_boolean_type_query(
                 | dir::Type::Void
                 | dir::Type::Null
                 | dir::Type::Primitive(_)
+                | dir::Type::Range(_)
                 | dir::Type::Literal(_)
         ),
         TypeBooleanQuery::MaybeNullish => match ty {
@@ -559,14 +583,9 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Void
             | dir::Type::Any
             | dir::Type::Unknown
-            | dir::Type::Conditional(_)
-            | dir::Type::Mapped(_)
-            | dir::Type::Index(_)
-            | dir::Type::TemplateLiteral(_)
-            | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
-            | dir::Type::KeyOf(_)
             | dir::Type::Error => true,
+            ty if type_is_reducible_operation(ty) => true,
             _ => false,
         },
         TypeBooleanQuery::HasNonNullishFalsy { strings } => match ty {
@@ -591,7 +610,7 @@ fn evaluate_terminal_boolean_type_query(
                 dir::ScalarLiteral::String(value) => strings.get(*value).is_empty(),
                 dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => true,
             },
-            dir::Type::Intrinsic(_) => true,
+            dir::Type::Operation(_) => true,
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
@@ -602,15 +621,10 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::This
             | dir::Type::Union(_)
             | dir::Type::Intersection(_)
-            | dir::Type::Conditional(_)
-            | dir::Type::Mapped(_)
-            | dir::Type::Index(_)
-            | dir::Type::TemplateLiteral(_)
-            | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
-            | dir::Type::KeyOf(_)
             | dir::Type::Form(_)
             | dir::Type::ErasedAny(_)
+            | dir::Type::Range(_)
             | dir::Type::Error => true,
         },
     }
@@ -651,12 +665,12 @@ fn type_is_string_like(ty: &dir::Type) -> bool {
         ty,
         dir::Type::Primitive(dir::PrimitiveType::String)
             | dir::Type::Literal(dir::ScalarLiteral::String(_))
-            | dir::Type::Intrinsic(
-                dir::IntrinsicType::Uppercase
-                    | dir::IntrinsicType::Lowercase
-                    | dir::IntrinsicType::Capitalize
-                    | dir::IntrinsicType::Uncapitalize
-            )
+            | dir::Type::Operation(dir::TypeOperation::BuiltinTypeFunction(
+                dir::BuiltinTypeFunction::Uppercase
+                    | dir::BuiltinTypeFunction::Lowercase
+                    | dir::BuiltinTypeFunction::Capitalize
+                    | dir::BuiltinTypeFunction::Uncapitalize
+            ))
     )
 }
 
@@ -1348,7 +1362,7 @@ fn type_truthiness_inner(
                     TypeTruthiness::Unknown
                 }
             },
-            dir::Type::Intrinsic(_) => TypeTruthiness::Unknown,
+            dir::Type::Operation(_) => TypeTruthiness::Unknown,
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
@@ -1356,14 +1370,9 @@ fn type_truthiness_inner(
             | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Parameter(_)
             | dir::Type::This
-            | dir::Type::Conditional(_)
-            | dir::Type::Mapped(_)
-            | dir::Type::Index(_)
-            | dir::Type::TemplateLiteral(_)
-            | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
-            | dir::Type::KeyOf(_)
             | dir::Type::ErasedAny(_)
+            | dir::Type::Range(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
             dir::Type::Named(_)
             | dir::Type::Form(_)
@@ -1413,7 +1422,7 @@ fn type_nullishness_inner(
             dir::Type::Never | dir::Type::Any | dir::Type::Unknown => TypeNullishness::Maybe,
             dir::Type::Object
             | dir::Type::Primitive(_)
-            | dir::Type::Intrinsic(_)
+            | dir::Type::Range(_)
             | dir::Type::Literal(_) => TypeNullishness::Never,
             dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
@@ -1422,14 +1431,9 @@ fn type_nullishness_inner(
             | dir::Type::Function(_) => TypeNullishness::Never,
             dir::Type::Parameter(_)
             | dir::Type::This
-            | dir::Type::Conditional(_)
-            | dir::Type::Mapped(_)
-            | dir::Type::Index(_)
-            | dir::Type::TemplateLiteral(_)
-            | dir::Type::Infer(_)
             | dir::Type::Predicate(_)
-            | dir::Type::KeyOf(_)
             | dir::Type::ErasedAny(_)
+            | dir::Type::Operation(_)
             | dir::Type::Error => TypeNullishness::Maybe,
             dir::Type::Named(_)
             | dir::Type::Form(_)
