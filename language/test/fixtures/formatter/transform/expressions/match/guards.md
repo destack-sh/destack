@@ -48,3 +48,18 @@ match (x) {
     _ => null
 }
 ```
+
+### tuple guard comparison
+
+Tuple pattern guards keep comparison expressions inside the guard.
+
+```ds
+match (pair) { (_, count) if (count > 0) => count; _ => 0 }
+```
+
+```ds expected
+match (pair) {
+    (_, count) if (count > 0) => count
+    _ => 0
+}
+```
