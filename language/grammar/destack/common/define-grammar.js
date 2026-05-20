@@ -101,6 +101,8 @@ module.exports = function defineGrammar(dialect) {
       [$.primary_expression, $.predefined_type, $.rest_pattern],
       [$.primary_expression, $.primary_type],
       [$.primary_expression, $.generic_type],
+      [$.primary_expression, $._struct_literal_generic_type],
+      [$.primary_expression, $._struct_literal_generic_type, $.generic_type],
       [$.primary_expression, $.predefined_type],
       [$.primary_expression, $.pattern, $.primary_type],
       [$._parameter_name, $.primary_type],
@@ -351,8 +353,16 @@ module.exports = function defineGrammar(dialect) {
       ),
 
       struct_literal_expression: $ => prec('literal', seq(
-        field('type', $.identifier),
+        field('type', choice(
+          $.identifier,
+          alias($._struct_literal_generic_type, $.generic_type),
+        )),
         field('value', $.object),
+      )),
+
+      _struct_literal_generic_type: $ => prec('call', seq(
+        field('name', $.identifier),
+        field('type_arguments', $.type_arguments),
       )),
 
       // If the dialect is regular typescript, we exclude JSX expressions and
@@ -2261,7 +2271,7 @@ module.exports = function defineGrammar(dialect) {
       ),
 
       type_arguments: $ => seq(
-        '<',
+        dialect === 'destack' ? token.immediate(prec(1, '<')) : '<',
         commaSep1(
           dialect === 'destack' ?
             choice(
