@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirChecked,
-    DirExpanded, DirExported, DirImported, DirParsed, MemoryCacheStore,
+    DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
 };
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
@@ -134,6 +134,14 @@ impl TestSession {
         self.require_artifact_result(self.dir_exported_key(path))
     }
 
+    /// Provide resolved DIR for one module.
+    pub(crate) fn provide_dir_resolved(
+        &self,
+        path: &str,
+    ) -> Result<ArtifactVersion, ProviderError> {
+        self.require_artifact_result(self.dir_resolved_key(path))
+    }
+
     /// Return the bound DIR key for one module.
     pub(crate) fn dir_bound_key(&self, path: &str) -> ArtifactKey {
         let entry = self.module_entry(path);
@@ -153,6 +161,13 @@ impl TestSession {
         let entry = self.module_entry(path);
 
         ArtifactKey::dir_exported(entry.module.id, entry.profile)
+    }
+
+    /// Return the resolved DIR key for one module.
+    pub(crate) fn dir_resolved_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+
+        ArtifactKey::dir_resolved(entry.module.id, entry.profile)
     }
 
     /// Return the expanded DIR key for one module.
@@ -202,6 +217,11 @@ impl TestSession {
     /// Assert exported DIR rows for one module.
     pub(crate) fn assert_dir_exported(&self, path: &str, rows: DirRows, expected: &str) {
         self.assert_dir(path, rows, expected, Self::dir_exported_key, false);
+    }
+
+    /// Assert resolved DIR rows for one module.
+    pub(crate) fn assert_dir_resolved(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir(path, rows, expected, Self::dir_resolved_key, false);
     }
 
     /// Assert checked DIR rows for one module.
@@ -341,13 +361,19 @@ impl TestSession {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let bindings = bound.binding_table();
+        let foreign_artifacts = self.foreign_artifacts_for(entry, selection.includes_import());
+        let foreign_bindings = foreign_artifacts
+            .iter()
+            .map(|(bound, expanded)| expanded.binding_table(bound))
+            .collect::<Vec<_>>();
         let mut builder = DirSnapshotBuilder::new(
             &entry.source,
             &parsed.tree,
             self.repository.string_pool().as_ref(),
         )
         .with_bindings(&bindings)
-        .with_module_paths(&self.module_path_by_id);
+        .with_module_paths(&self.module_path_by_id)
+        .with_foreign_bindings(foreign_bindings);
 
         builder.add_bound(selection, &bound);
         if selection.includes_dependency() || selection.includes_export() {
@@ -363,6 +389,11 @@ impl TestSession {
         if selection.includes_export() {
             let exported = self.dir_exported(entry);
             builder.add_exported(selection, &exported);
+        }
+
+        if selection.includes_import() {
+            let resolved = self.dir_resolved(entry);
+            builder.add_resolved(selection, &resolved);
         }
 
         builder.render()
@@ -434,12 +465,7 @@ impl TestSession {
         let expanded = self.dir_expanded(entry);
         let checked = self.dir_checked(entry);
         let bindings = expanded.binding_table(&bound);
-        let foreign_artifacts = self
-            .modules_by_path
-            .values()
-            .filter(|foreign| foreign.module.id != entry.module.id)
-            .map(|foreign| (self.dir_bound(foreign), self.dir_expanded(foreign)))
-            .collect::<Vec<_>>();
+        let foreign_artifacts = self.foreign_artifacts_for(entry, true);
         let foreign_bindings = foreign_artifacts
             .iter()
             .map(|(bound, expanded)| expanded.binding_table(bound))
@@ -458,6 +484,11 @@ impl TestSession {
         }
 
         builder.add_checked(selection, &checked);
+
+        if selection.includes_import() {
+            let resolved = self.dir_resolved(entry);
+            builder.add_resolved(selection, &resolved);
+        }
 
         builder.render()
     }
@@ -512,6 +543,16 @@ impl TestSession {
             .expect("test exported artifact should exist")
     }
 
+    /// Return resolved DIR for one module entry.
+    fn dir_resolved(&self, entry: &TestModule) -> Arc<DirResolved> {
+        let key = ArtifactKey::dir_resolved(entry.module.id, entry.profile);
+        let version = self.require_artifact(key);
+
+        self.artifacts()
+            .dir_resolved(&version)
+            .expect("test resolved artifact should exist")
+    }
+
     /// Return checked DIR for one module entry.
     fn dir_checked(&self, entry: &TestModule) -> Arc<DirChecked> {
         let key = ArtifactKey::dir_checked(entry.module.id, entry.profile);
@@ -542,6 +583,23 @@ impl TestSession {
     /// Return the repository artifact store.
     fn artifacts(&self) -> Arc<ArtifactStore> {
         self.repository.artifact_store().clone()
+    }
+
+    /// Return foreign bound and expanded artifacts needed for labels.
+    fn foreign_artifacts_for(
+        &self,
+        entry: &TestModule,
+        include_foreign: bool,
+    ) -> Vec<(Arc<DirBound>, Arc<DirExpanded>)> {
+        if !include_foreign {
+            return Vec::new();
+        }
+
+        self.modules_by_path
+            .values()
+            .filter(|foreign| foreign.module.id != entry.module.id)
+            .map(|foreign| (self.dir_bound(foreign), self.dir_expanded(foreign)))
+            .collect()
     }
 
     /// Return one module entry by path.

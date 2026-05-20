@@ -12,16 +12,6 @@ pub enum ImportError {
         target: String,
     },
 
-    /// Side-effect import without imported bindings.
-    #[diagnostic(
-        code = "EI201",
-        message = "side-effect import '{target}' is not supported"
-    )]
-    SideEffectImport {
-        anchor: DiagnosticAnchor,
-        target: String,
-    },
-
     /// Invalid loader type in import attributes.
     #[diagnostic(code = "EI203", message = "invalid import attribute type '{value}'")]
     InvalidImportAttributeType {
