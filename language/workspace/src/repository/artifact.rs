@@ -5,9 +5,9 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactStore,
     ArtifactVersion, Data, DirBound, DirChecked, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, GlobalEnvironment, MirLowered, MirOptimized,
-    MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput,
-    WorkspaceLinted, WorkspaceQueryIndex,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
+    MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
+    PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 use destack_source::{DiagnosticCollection, ModuleId, PackageId, ProfileId, TargetId};
 
@@ -128,6 +128,18 @@ impl<'a> ArtifactReader<'a> {
         self.read_required(
             ArtifactKey::dir_exported(module, profile),
             ArtifactStore::dir_exported,
+        )
+    }
+
+    /// Require and read one resolved DIR artifact.
+    pub fn dir_resolved(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirResolved>, ProviderError> {
+        self.read_required(
+            ArtifactKey::dir_resolved(module, profile),
+            ArtifactStore::dir_resolved,
         )
     }
 
@@ -303,6 +315,8 @@ pub struct ArtifactCache {
     dir_expanded: DashMap<(ModuleId, ProfileId), Arc<DirExpanded>>,
     /// Exported DIR artifacts by module and profile.
     dir_exported: DashMap<(ModuleId, ProfileId), Arc<DirExported>>,
+    /// Resolved DIR artifacts by module and profile.
+    dir_resolved: DashMap<(ModuleId, ProfileId), Arc<DirResolved>>,
     /// Checked DIR artifacts by module and profile.
     dir_checked: DashMap<(ModuleId, ProfileId), Arc<DirChecked>>,
     /// Materialized DIR artifacts by module and profile.
@@ -344,6 +358,7 @@ impl ArtifactCache {
             dir_imported: DashMap::new(),
             dir_expanded: DashMap::new(),
             dir_exported: DashMap::new(),
+            dir_resolved: DashMap::new(),
             dir_checked: DashMap::new(),
             dir_materialized: DashMap::new(),
             dir_elaborated: DashMap::new(),
@@ -447,6 +462,20 @@ impl ArtifactCache {
             (module_id, profile_id),
             ArtifactKey::dir_exported(module_id, profile_id),
             |version| self.repository.artifact_store().dir_exported(version),
+        )
+    }
+
+    /// Read one resolved DIR artifact.
+    pub fn dir_resolved(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> Option<Arc<DirResolved>> {
+        self.read_cached(
+            &self.dir_resolved,
+            (module_id, profile_id),
+            ArtifactKey::dir_resolved(module_id, profile_id),
+            |version| self.repository.artifact_store().dir_resolved(version),
         )
     }
 
