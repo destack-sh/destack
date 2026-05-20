@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
-use crate::world::trace::log::{TraceSequence, TraceState, compute_log_hash};
-use crate::world::trace::{TraceRecord, TraceTrailer};
+use crate::world::trace::TraceRecord;
+use crate::world::trace::log::{TraceSequence, TraceState};
 
 use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
 
@@ -82,16 +82,7 @@ impl TraceCursor {
 
     /// Read the next recorded trace record if available.
     pub(crate) fn next_event(&mut self) -> RuntimeResult<Option<TraceRecord>> {
-        // validate the live trailer hash before consuming one event
         let state = self.state.lock();
-        let trailer = state.trailer();
-        let log_hash = compute_log_hash(&trailer.chunks, &trailer.checkpoints);
-        if trailer.log_hash != 0 && trailer.log_hash != log_hash {
-            return Err(RuntimeError::TraceMismatch {
-                name: "log_hash".to_string(),
-            }
-            .boxed());
-        }
 
         // refresh the shared prefix cache for this visible head
         Self::sync_prefix_cache(&state, &mut self.prefix_cache);
@@ -110,7 +101,7 @@ impl TraceCursor {
 
             // validate one chunk the first time this cursor reads it
             if cursor.validated_chunk != Some(chunk_index) {
-                validate_chunk(chunk, trailer)?;
+                validate_chunk(chunk)?;
                 cursor.validated_chunk = Some(chunk_index);
             }
 
@@ -151,7 +142,7 @@ impl TraceCursor {
                     .boxed()
                 })?;
                 if cursor.read_index + 1 == chunk.header.event_count as usize
-                    && chunk.header.sequence_end != sequence
+                    && chunk.sequence_end() != sequence
                 {
                     return Err(RuntimeError::TraceMismatch {
                         name: "sequence".to_string(),
@@ -391,7 +382,7 @@ fn sequence_in_chunk(sequence: TraceSequence, chunk: &TraceChunk) -> bool {
 
     let sequence_value = sequence.get();
     let sequence_start = chunk.header.sequence_start.get();
-    let sequence_end = chunk.header.sequence_end.get();
+    let sequence_end = chunk.sequence_end().get();
 
     sequence_value >= sequence_start && sequence_value <= sequence_end
 }
@@ -416,49 +407,10 @@ fn sequence_offset_in_chunk(
 }
 
 /// Validate chunk integrity against stored metadata.
-fn validate_chunk(chunk: &TraceChunk, trailer: &TraceTrailer) -> RuntimeResult<()> {
-    if chunk.header.byte_length as usize != chunk.bytes.len() {
-        return Err(RuntimeError::TraceMismatch {
-            name: "chunk_length".to_string(),
-        }
-        .boxed());
-    }
+fn validate_chunk(chunk: &TraceChunk) -> RuntimeResult<()> {
     if event_offset_in_chunk(chunk, chunk.header.event_count as usize)? != chunk.bytes.len() {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_offsets".to_string(),
-        }
-        .boxed());
-    }
-
-    // validate the chunk payload checksum
-    let checksum = chunk.payload_checksum();
-    if checksum != chunk.header.checksum {
-        return Err(RuntimeError::TraceMismatch {
-            name: "chunk_checksum".to_string(),
-        }
-        .boxed());
-    }
-
-    // validate the corresponding trailer entry
-    let entry = trailer
-        .chunks
-        .iter()
-        .find(|entry| entry.index == chunk.header.index)
-        .ok_or_else(|| {
-            RuntimeError::TraceMismatch {
-                name: "chunk_index".to_string(),
-            }
-            .boxed()
-        })?;
-    if entry.length != chunk.header.byte_length {
-        return Err(RuntimeError::TraceMismatch {
-            name: "chunk_length".to_string(),
-        }
-        .boxed());
-    }
-    if entry.checksum != chunk.header.checksum {
-        return Err(RuntimeError::TraceMismatch {
-            name: "chunk_checksum".to_string(),
         }
         .boxed());
     }

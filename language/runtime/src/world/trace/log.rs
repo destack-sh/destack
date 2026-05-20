@@ -7,13 +7,13 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
 use crate::world::trace::{
     TRACE_DEFAULT_MAX_CHUNK_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
-    TraceChunkIndex, TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
+    TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
-use destack_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use destack_workspace::Environment;
 use postcard::experimental::serialized_size;
 
 use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
+use super::file::{TraceFile, build_trailer};
 
 /// Sequence number for events within a trace log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -46,10 +46,10 @@ pub(super) struct TraceTail {
 }
 
 impl TraceTail {
-    /// Create one empty tail at the given chunk index and sequence.
-    fn new(index: u32, sequence_start: TraceSequence) -> Self {
+    /// Create one empty tail at the given sequence.
+    fn new(sequence_start: TraceSequence) -> Self {
         Self {
-            active: TraceChunk::new(index, sequence_start),
+            active: TraceChunk::new(sequence_start),
             sealed: Vec::new(),
         }
     }
@@ -67,12 +67,10 @@ impl TraceTail {
 pub(super) struct TraceState {
     /// Trace log header metadata.
     header: TraceHeader,
-    /// Trace log trailer metadata.
-    trailer: TraceTrailer,
+    /// Checkpoints anchored in this trace.
+    checkpoints: Vec<TraceCheckpointIndex>,
     /// Next sequence number to assign.
     next_sequence: TraceSequence,
-    /// Next chunk offset for trailer entries.
-    next_offset: u64,
     /// Shared immutable trace prefix.
     head: Option<Arc<TracePrefix>>,
     /// Mutable local append frontier.
@@ -88,11 +86,6 @@ impl TraceState {
     /// Return the next trace sequence number.
     pub(crate) fn next_sequence(&self) -> TraceSequence {
         self.next_sequence
-    }
-
-    /// Return the trace log trailer.
-    pub(super) fn trailer(&self) -> &TraceTrailer {
-        &self.trailer
     }
 
     /// Return the number of shared immutable chunks.
@@ -123,67 +116,16 @@ impl TraceState {
         self.head_chunk_count() + self.tail.chunk_count()
     }
 
-    /// Return the next chunk index for one new active chunk.
-    fn next_chunk_index(&self) -> u32 {
-        self.chunk_count() as u32
-    }
-
-    /// Append one trailer entry for the active chunk if needed.
-    fn ensure_active_trailer_entry(&mut self) {
-        // skip empty active chunks
-        if self.tail.active.is_empty() {
-            return;
-        }
-
-        let active_index = self.tail.active.header.index;
-        let is_entry_present = self
-            .trailer
-            .chunks
-            .last()
-            .is_some_and(|entry| entry.index == active_index);
-
-        // keep one trailer entry per materialized chunk
-        if is_entry_present {
-            return;
-        }
-
-        self.trailer.chunks.push(TraceChunkIndex {
-            index: active_index,
-            offset: self.next_offset,
-            length: 0,
-            checksum: 0,
-        });
-    }
-
-    /// Refresh the trailer entry for the active chunk.
-    fn update_active_trailer_entry(&mut self) {
-        let Some(entry) = self.trailer.chunks.last_mut() else {
-            return;
-        };
-
-        entry.length = self.tail.active.header.byte_length;
-        entry.checksum = self.tail.active.header.checksum;
-    }
-
     /// Finalize one non-empty active chunk into the local sealed tail.
     fn seal_active_chunk(&mut self, next_sequence_start: TraceSequence) {
         // skip sealing empty chunks
         if self.tail.active.is_empty() {
-            self.tail.active = TraceChunk::new(self.next_chunk_index(), next_sequence_start);
+            self.tail.active = TraceChunk::new(next_sequence_start);
             return;
         }
 
-        // keep the trailer synchronized before moving the chunk
-        self.update_active_trailer_entry();
-        self.next_offset = self
-            .next_offset
-            .saturating_add(self.tail.active.header.byte_length);
-
-        let next_index = self.next_chunk_index();
-        let sealed_chunk = std::mem::replace(
-            &mut self.tail.active,
-            TraceChunk::new(next_index, next_sequence_start),
-        );
+        let sealed_chunk =
+            std::mem::replace(&mut self.tail.active, TraceChunk::new(next_sequence_start));
         self.tail.sealed.push(sealed_chunk);
     }
 
@@ -200,51 +142,22 @@ impl TraceState {
         let parent = self.head.clone();
         let chunks = std::mem::take(&mut self.tail.sealed);
         let prefix = Arc::new(TracePrefix::new(parent, chunks));
-        let next_index = prefix.chunk_count;
 
         self.head = Some(prefix);
-        self.tail.active = TraceChunk::new(next_index, self.next_sequence);
-    }
-}
-
-/// Materialized trace-log image.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct TraceLogImage {
-    /// Trace log header metadata.
-    header: TraceHeader,
-    /// Trace log trailer metadata.
-    trailer: TraceTrailer,
-    /// Next sequence number to assign.
-    next_sequence: TraceSequence,
-    /// Next chunk offset for trailer entries.
-    next_offset: u64,
-    /// Shared immutable trace prefix for this branch image.
-    head: Option<Arc<TracePrefix>>,
-}
-
-#[allow(dead_code)]
-impl TraceLogImage {
-    /// Return the trace header for this image.
-    pub(crate) fn header(&self) -> TraceHeader {
-        self.header.clone()
+        self.tail.active = TraceChunk::new(self.next_sequence);
     }
 
-    /// Return the active branch identifier.
-    pub(super) fn branch_id(&self) -> BranchId {
-        self.header.branch_id
-    }
+    /// Return the visible chunks in trace-file order.
+    fn chunks(&self) -> Vec<TraceChunk> {
+        let mut chunks = Vec::with_capacity(self.chunk_count());
+        collect_prefix_chunks(self.head.as_ref(), &mut chunks);
+        chunks.extend(self.tail.sealed.iter().cloned());
 
-    /// Return the next trace sequence number.
-    pub(super) fn next_sequence(&self) -> TraceSequence {
-        self.next_sequence
-    }
+        if let Some(active) = self.active_chunk() {
+            chunks.push(active.clone());
+        }
 
-    /// Return the total number of stored chunks.
-    pub(super) fn chunk_count(&self) -> usize {
-        self.head
-            .as_ref()
-            .map(|prefix| prefix.chunk_count as usize)
-            .unwrap_or(0)
+        chunks
     }
 }
 
@@ -272,11 +185,10 @@ impl TraceLog {
         Self {
             state: Arc::new(Mutex::new(TraceState {
                 header,
-                trailer: TraceTrailer::default(),
+                checkpoints: Vec::new(),
                 next_sequence,
-                next_offset: 0,
                 head: None,
-                tail: TraceTail::new(0, next_sequence),
+                tail: TraceTail::new(next_sequence),
             })),
         }
     }
@@ -291,10 +203,9 @@ impl TraceLog {
     /// Return the trace log trailer.
     pub fn trailer(&self) -> TraceTrailer {
         let state = self.state.lock();
-        let mut trailer = state.trailer.clone();
+        let chunks = state.chunks();
 
-        trailer.log_hash = compute_log_hash(&trailer.chunks, &trailer.checkpoints);
-        trailer
+        build_trailer(&chunks, state.checkpoints.clone())
     }
 
     /// Return the current branch identifier.
@@ -328,37 +239,42 @@ impl TraceLog {
         state.next_sequence
     }
 
-    /// Capture one full trace-log image.
-    pub(crate) fn image(&self) -> TraceLogImage {
+    /// Capture one full trace file.
+    pub(super) fn file(&self) -> TraceFile {
         let mut state = self.state.lock();
 
         // materialize the current tail so captured images share immutable prefixes
         state.materialize_tail();
 
-        TraceLogImage {
-            header: state.header.clone(),
-            trailer: state.trailer.clone(),
-            next_sequence: state.next_sequence,
-            next_offset: state.next_offset,
-            head: state.head.clone(),
-        }
+        TraceFile::new(
+            state.header.clone(),
+            state.chunks(),
+            state.checkpoints.clone(),
+        )
     }
 
-    /// Restore one full trace-log image.
-    pub(crate) fn restore_image(&self, image: TraceLogImage) {
+    /// Restore one full trace file.
+    pub(super) fn restore_file(&self, file: TraceFile) -> RuntimeResult<()> {
+        file.validate()?;
+
         let mut current = self.state.lock();
+        let next_sequence = file.next_sequence();
+        let (header, chunks, trailer) = file.into_parts();
+        let checkpoints = trailer.checkpoints;
+        let head = (!chunks.is_empty()).then(|| Arc::new(TracePrefix::new(None, chunks)));
 
         // restore one fresh empty tail after the captured immutable history
-        let tail = TraceTail::new(image.chunk_count() as u32, image.next_sequence);
+        let tail = TraceTail::new(next_sequence);
 
         *current = TraceState {
-            header: image.header,
-            trailer: image.trailer,
-            next_sequence: image.next_sequence,
-            next_offset: image.next_offset,
-            head: image.head,
+            header,
+            checkpoints,
+            next_sequence,
+            head,
             tail,
         };
+
+        Ok(())
     }
 
     /// Record one trace record in the log.
@@ -410,20 +326,13 @@ impl TraceLog {
             .len();
         let encoded_end = payload_start + encoded_len;
 
-        chunk.update_checksum_for_range(start, encoded_end);
         chunk.bytes.truncate(encoded_end);
-        chunk.header.byte_length = chunk.bytes.len() as u64;
         chunk.header.event_count += 1;
-        chunk.header.sequence_end = sequence;
-
-        // keep trailer metadata aligned with the active chunk
-        state.ensure_active_trailer_entry();
-        state.update_active_trailer_entry();
 
         Ok(sequence)
     }
 
-    /// Record a checkpoint index entry in trailer metadata.
+    /// Record a checkpoint index entry.
     pub fn record_checkpoint(&self, mut checkpoint: TraceCheckpointIndex) -> RuntimeResult<()> {
         // align the checkpoint with the next trace sequence
         let sequence = self.next_sequence();
@@ -436,40 +345,30 @@ impl TraceLog {
     pub fn record_checkpoint_exact(&self, checkpoint: TraceCheckpointIndex) -> RuntimeResult<()> {
         let sequence = checkpoint.sequence.get();
 
-        // append the checkpoint entry to trailer metadata
+        // append the checkpoint entry in sequence order
         let mut state = self.state.lock();
         let insert_index = state
-            .trailer
             .checkpoints
             .partition_point(|entry| entry.sequence.get() <= sequence);
-        state.trailer.checkpoints.insert(insert_index, checkpoint);
+        state.checkpoints.insert(insert_index, checkpoint);
 
         Ok(())
     }
 }
 
-pub(super) fn compute_log_hash(
-    chunks: &[TraceChunkIndex],
-    checkpoints: &[TraceCheckpointIndex],
-) -> u128 {
-    let mut hash = FNV_OFFSET_BASIS_128;
-    for chunk in chunks {
-        hash = fnv1a_128_update(hash, &chunk.index.to_le_bytes());
-        hash = fnv1a_128_update(hash, &chunk.offset.to_le_bytes());
-        hash = fnv1a_128_update(hash, &chunk.length.to_le_bytes());
-        hash = fnv1a_128_update(hash, &chunk.checksum.to_le_bytes());
+/// Collect prefix chunks from oldest to newest.
+fn collect_prefix_chunks(head: Option<&Arc<TracePrefix>>, chunks: &mut Vec<TraceChunk>) {
+    let mut prefixes = Vec::new();
+    let mut current = head.cloned();
+    while let Some(prefix) = current {
+        current = prefix.parent.clone();
+        prefixes.push(prefix);
     }
 
-    for checkpoint in checkpoints {
-        hash = fnv1a_128_update(hash, &checkpoint.checkpoint_id.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.revision_id.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.sequence.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.size_bytes.to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.hash.to_le_bytes());
-        hash = fnv1a_128_update(hash, checkpoint.path.as_bytes());
+    prefixes.reverse();
+    for prefix in prefixes {
+        chunks.extend(prefix.chunks.iter().cloned());
     }
-
-    hash
 }
 
 #[cfg(test)]
@@ -494,17 +393,13 @@ mod tests {
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
             .expect("record tick");
 
-        let snapshot = log.image();
+        let file = log.file();
         let state = log.state.lock();
 
-        assert_eq!(snapshot.chunk_count(), 1);
+        assert_eq!(file.chunks.len(), 1);
         assert_eq!(state.head_chunk_count(), 1);
         assert!(state.tail.active.is_empty());
         assert!(state.tail.sealed.is_empty());
-        assert!(Arc::ptr_eq(
-            state.head.as_ref().expect("state head"),
-            snapshot.head.as_ref().expect("snapshot head")
-        ));
     }
 
     /// Appending after one captured trace image should keep the shared head stable.
@@ -513,17 +408,14 @@ mod tests {
         let log = TraceLog::new(test_trace_header());
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
             .expect("record first tick");
-        let snapshot = log.image();
-        let snapshot_head = snapshot.head.clone().expect("snapshot head");
+        log.file();
+        let head = log.state.lock().head.clone().expect("state head");
 
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
             .expect("record second tick");
 
         let state = log.state.lock();
-        assert!(Arc::ptr_eq(
-            state.head.as_ref().expect("state head"),
-            &snapshot_head
-        ));
+        assert!(Arc::ptr_eq(state.head.as_ref().expect("state head"), &head));
         assert_eq!(state.tail.active.header.event_count, 1);
         assert_eq!(
             state.tail.active.header.sequence_start,
@@ -573,11 +465,11 @@ mod tests {
             .expect("record first tick");
         let mut cursor = log.reader();
         let cursor_image = cursor.capture_image();
-        let image = log.image();
+        let file = log.file();
 
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
             .expect("record second tick");
-        log.restore_image(image);
+        log.restore_file(file).expect("restore file");
         cursor.restore_image(cursor_image).expect("restore cursor");
 
         let event = cursor.next_event().expect("read restored event");
@@ -594,6 +486,36 @@ mod tests {
                 .expect("read end of restored log")
                 .is_none()
         );
+    }
+
+    /// Appending after restore should keep cursor validation consistent.
+    #[test]
+    fn test_record_after_restore_keeps_cursor_validation_consistent() {
+        let log = TraceLog::new(test_trace_header());
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
+            .expect("record first tick");
+        let file = log.file();
+
+        log.restore_file(file).expect("restore file");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
+            .expect("record second tick");
+        let mut cursor = log.reader();
+
+        let first = cursor.next_event().expect("read first event");
+        match first {
+            Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
+                assert_eq!(deadline, Instant::new(1));
+            }
+            other => panic!("unexpected first event: {other:?}"),
+        }
+
+        let second = cursor.next_event().expect("read second event");
+        match second {
+            Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
+                assert_eq!(deadline, Instant::new(2));
+            }
+            other => panic!("unexpected second event: {other:?}"),
+        }
     }
 
     /// Seeking one cursor should reposition it at the requested sequence boundary.

@@ -5,7 +5,7 @@ use crate::host::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPa
 use crate::runtime::time::Instant;
 use crate::world::trace::{
     BindingCall, EntropySample, EntropySubject, EntrypointCall, Outcome, TraceCursor,
-    TraceCursorImage, TraceHeader, TraceLog, TraceLogImage, TraceRecord, TraceSequence,
+    TraceCursorImage, TraceHeader, TraceLog, TraceRecord, TraceSequence,
 };
 use crate::world::{BranchId, Mutation};
 use destack_workspace::{Environment, ExecutionMode};
@@ -13,6 +13,8 @@ use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+
+use super::file::TraceFile;
 
 /// Trace channel name for entropy records.
 pub(super) const ENTROPY_CHANNEL: &str = "runtime.random.entropy";
@@ -84,19 +86,19 @@ impl Validator {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraceImage {
     /// The active trace execution mode.
-    pub(crate) mode: ExecutionMode,
-    /// The captured trace-log image.
-    pub(crate) log: TraceLogImage,
+    mode: ExecutionMode,
+    /// The captured flat trace file.
+    file: TraceFile,
     /// The captured reader cursor when replay mode is active.
-    pub(crate) cursor: Option<TraceCursorImage>,
+    cursor: Option<TraceCursorImage>,
     /// The captured trace validator state.
-    pub(crate) validator: Validator,
+    validator: Validator,
 }
 
 impl TraceImage {
     /// Return the next sequence number after this trace image.
     pub(crate) fn next_sequence(&self) -> TraceSequence {
-        self.log.next_sequence()
+        self.file.next_sequence()
     }
 }
 
@@ -139,7 +141,7 @@ impl Trace {
 
     /// Create one replay trace from one captured trace image.
     pub(crate) fn replay_from_image(image: &TraceImage) -> RuntimeResult<Self> {
-        let trace = Self::new(ExecutionMode::Replay, image.log.header());
+        let trace = Self::new(ExecutionMode::Replay, image.file.header());
         trace.restore_replay_image(image)?;
 
         Ok(trace)
@@ -178,7 +180,7 @@ impl Trace {
 
         TraceImage {
             mode: self.mode,
-            log: self.log.image(),
+            file: self.log.file(),
             cursor,
             validator,
         }
@@ -229,7 +231,7 @@ impl Trace {
         }
 
         // restore the shared log image first
-        self.log.restore_image(image.log.clone());
+        self.log.restore_file(image.file.clone())?;
 
         // restore the reader cursor when replay is active
         match (&self.reader, image.cursor) {
@@ -555,7 +557,7 @@ impl Trace {
             .boxed());
         }
 
-        self.log.restore_image(image.log.clone());
+        self.log.restore_file(image.file.clone())?;
         self.seek_sequence(TraceSequence::new(0))?;
 
         let mut validator = self.validator.lock();

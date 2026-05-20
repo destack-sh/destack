@@ -66,25 +66,15 @@ impl TraceHeader {
 /// Header metadata for one trace chunk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraceChunkHeader {
-    /// Chunk index in the stream.
-    pub index: u32,
     /// First sequence number in the chunk.
     pub sequence_start: TraceSequence,
-    /// Last sequence number in the chunk.
-    pub sequence_end: TraceSequence,
     /// Number of events stored in the chunk.
     pub event_count: u32,
-    /// Byte length of the chunk payload.
-    pub byte_length: u64,
-    /// Checksum for the chunk payload.
-    pub checksum: u64,
 }
 
 /// Chunk metadata for random access.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceChunkIndex {
-    /// Chunk index in the stream.
-    pub index: u32,
     /// Byte offset of the chunk in the log.
     pub offset: u64,
     /// Byte length of the chunk payload.

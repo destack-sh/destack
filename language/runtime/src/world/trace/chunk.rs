@@ -18,15 +18,11 @@ pub(super) struct TraceChunk {
 
 impl TraceChunk {
     /// Create one empty chunk with initialized metadata.
-    pub(super) fn new(index: u32, sequence_start: TraceSequence) -> Self {
+    pub(super) fn new(sequence_start: TraceSequence) -> Self {
         Self {
             header: TraceChunkHeader {
-                index,
                 sequence_start,
-                sequence_end: sequence_start,
                 event_count: 0,
-                byte_length: 0,
-                checksum: FNV_OFFSET_BASIS_64,
             },
             bytes: Vec::new(),
         }
@@ -45,7 +41,7 @@ impl TraceChunk {
         }
 
         // rotate when byte length would exceed the chunk limit
-        self.header.byte_length.saturating_add(encoded_len) > max_chunk_bytes
+        self.byte_length().saturating_add(encoded_len) > max_chunk_bytes
     }
 
     /// Return whether this chunk currently stores any events.
@@ -53,15 +49,21 @@ impl TraceChunk {
         self.header.event_count == 0
     }
 
-    /// Update this chunk checksum with one encoded payload range.
-    pub(super) fn update_checksum_for_range(&mut self, start: usize, end: usize) {
-        let bytes = &self.bytes[start..end];
-        self.header.checksum = fnv1a_64_update(self.header.checksum, bytes);
-    }
-
     /// Compute this chunk payload checksum from scratch.
     pub(super) fn payload_checksum(&self) -> u64 {
         fnv1a_64_update(FNV_OFFSET_BASIS_64, &self.bytes)
+    }
+
+    /// Return this chunk payload length in bytes.
+    pub(super) fn byte_length(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+
+    /// Return the last sequence number stored in this chunk.
+    pub(super) fn sequence_end(&self) -> TraceSequence {
+        let event_offset = self.header.event_count.saturating_sub(1) as u64;
+
+        TraceSequence::new(self.header.sequence_start.get() + event_offset)
     }
 }
 
@@ -74,8 +76,6 @@ pub(super) struct TracePrefix {
     pub(super) chunks: Box<[TraceChunk]>,
     /// Total number of chunks reachable through this prefix.
     pub(super) chunk_count: u32,
-    /// Total byte length reachable through this prefix.
-    pub(super) byte_count: u64,
 }
 
 impl TracePrefix {
@@ -85,15 +85,12 @@ impl TracePrefix {
             .as_ref()
             .map(|prefix| prefix.chunk_count)
             .unwrap_or(0);
-        let parent_byte_count = parent.as_ref().map(|prefix| prefix.byte_count).unwrap_or(0);
         let local_chunk_count = chunks.len() as u32;
-        let local_byte_count: u64 = chunks.iter().map(|chunk| chunk.header.byte_length).sum();
 
         Self {
             parent,
             chunks: chunks.into_boxed_slice(),
             chunk_count: parent_chunk_count + local_chunk_count,
-            byte_count: parent_byte_count + local_byte_count,
         }
     }
 }
