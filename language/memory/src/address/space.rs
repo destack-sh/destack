@@ -13,10 +13,10 @@ pub struct AddressSpace {
     map: PageMap,
 }
 
-// mappings are synchronized by their owning space
+// SAFETY: mappings are synchronized by their owning space
 unsafe impl Send for AddressSpace {}
 
-// mappings are synchronized by their owning space
+// SAFETY: mappings are synchronized by their owning space
 unsafe impl Sync for AddressSpace {}
 
 impl AddressSpace {
@@ -115,7 +115,7 @@ impl AddressSpace {
     pub unsafe fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
         let target = (self.base_address() + offset) as *mut u8;
 
-        // caller owns the mapped range invariant
+        // SAFETY: caller owns the mapped range invariant
         unsafe {
             copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
         }
@@ -146,7 +146,7 @@ mod tests {
             .expect("address space fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
-        // write through the raw address instead of the mapping API
+        // SAFETY: child_address points at four materialized bytes in the child mapping
         unsafe {
             copy_nonoverlapping([9, 8, 7, 6].as_ptr(), child_address, 4);
         }
@@ -175,7 +175,7 @@ mod tests {
             .expect("address space fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
-        // modify the child mapping
+        // SAFETY: child_address points at four materialized bytes in the child mapping
         unsafe {
             copy_nonoverlapping([9, 8, 7, 6].as_ptr(), child_address, 4);
         }
@@ -205,7 +205,7 @@ mod tests {
             .expect("address space fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
-        // modify the child before re-forking it
+        // SAFETY: child_address points at four materialized bytes in the child mapping
         unsafe {
             copy_nonoverlapping([9, 8, 7, 6].as_ptr(), child_address, 4);
         }
@@ -215,7 +215,7 @@ mod tests {
             .address(0, 4)
             .expect("grandchild address should resolve");
 
-        // mutate both sides after the modified fork
+        // SAFETY: both addresses point at four materialized bytes in their mappings
         unsafe {
             copy_nonoverlapping([2, 2, 2, 2].as_ptr(), child_address, 4);
             copy_nonoverlapping([3, 3, 3, 3].as_ptr(), grandchild_address, 4);
@@ -251,7 +251,7 @@ mod tests {
             .address(0, 4)
             .expect("grandchild address should resolve");
 
-        // modify both shared mappings independently
+        // SAFETY: both addresses point at four materialized bytes in their mappings
         unsafe {
             copy_nonoverlapping([9, 8, 7, 6].as_ptr(), child_address, 4);
             copy_nonoverlapping([4, 3, 2, 1].as_ptr(), grandchild_address, 4);
@@ -276,7 +276,7 @@ mod tests {
             AddressSpace::reserve(frame_bytes, frame_bytes).expect("address space should reserve");
         let address = address_space.address(0, 4).expect("address should resolve");
 
-        // write through the raw address instead of the mapping API
+        // SAFETY: address points at four materialized bytes in the mapping
         unsafe {
             copy_nonoverlapping([5, 6, 7, 8].as_ptr(), address, 4);
         }
