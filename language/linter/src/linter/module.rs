@@ -105,6 +105,8 @@ pub struct LintModuleContext<'a> {
     pub dependencies: dir::DependencyTable<'static>,
     /// The type table.
     pub types: &'a dir::TypeTable<'static>,
+    /// The static table.
+    pub statics: &'a dir::StaticTable<'static>,
     /// The resolution table.
     pub resolutions: &'a dir::ResolutionTable<'static>,
     /// The top-level expressions of the Module.
@@ -150,6 +152,7 @@ impl<'a> LintModuleContext<'a> {
         symbols: dir::BindingTable<'static>,
         dependencies: dir::DependencyTable<'static>,
         types: &'a dir::TypeTable<'static>,
+        statics: &'a dir::StaticTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
         namespace_scope: dir::LocalScopeId,
         options: &'a LinterOptions,
@@ -170,6 +173,7 @@ impl<'a> LintModuleContext<'a> {
             symbols,
             dependencies,
             types,
+            statics,
             resolutions,
             roots: expanded.roots.clone(),
             namespace_scope,

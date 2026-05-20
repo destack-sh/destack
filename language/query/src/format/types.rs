@@ -79,14 +79,11 @@ pub fn format_type(
             }
         }
         dir::Type::FixedArray(array) => {
-            let elem_str = format_local_type(array.element, types, ctx);
-            let needs_parens = matches!(types.get_type(array.element), dir::Type::Union(_));
+            let element = format_local_type(array.element, types, ctx);
+            let count = format_static_id(array.count, ctx);
             let readonly_prefix = if array.is_readonly { "readonly " } else { "" };
-            if needs_parens {
-                format!("{readonly_prefix}({elem_str})[]")
-            } else {
-                format!("{readonly_prefix}{elem_str}[]")
-            }
+
+            format!("{readonly_prefix}[{element}; {count}]")
         }
         dir::Type::Range(range) => format_range_type(range, strings),
         dir::Type::Slice(slice) => {
@@ -319,12 +316,12 @@ pub fn format_form_type(
         dir::Form::Raw => format!("Raw<{value}>"),
         dir::Form::Readonly => format!("Readonly<{value}>"),
         dir::Form::Placed { place } => {
-            let place = format_static_term(place, types, ctx);
+            let place = format_static_id(*place, ctx);
             format!("Placed<{value}, {place}>")
         }
         dir::Form::Borrowed { lifetime, access } => {
-            let lifetime = format_static_term(lifetime, types, ctx);
-            let access = format_static_term(access, types, ctx);
+            let lifetime = format_static_id(*lifetime, ctx);
+            let access = format_static_id(*access, ctx);
             format!("Borrowed<{value}, {lifetime}, {access}>")
         }
     }
@@ -588,18 +585,26 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
 /// Format a StaticArgument.
 pub fn format_static_argument(
     argument: &dir::StaticArgument,
-    types: &dir::TypeTable<'_>,
+    _types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     let strings = ctx.dir().strings();
 
-    let value = format_static_term(&argument.value, types, ctx);
+    let value = format_static_id(argument.value, ctx);
     if let Some(name_id) = argument.name {
         let name = strings.get(name_id);
         format!("{name}: {value}")
     } else {
         value
     }
+}
+
+/// Format a static value by its id.
+pub fn format_static_id(static_id: dir::LocalStaticId, ctx: &ModuleQueryContext<'_>) -> String {
+    let dir = ctx.dir();
+    let term = dir.statics().get_static(static_id);
+
+    format_static_term(term, dir.types(), ctx)
 }
 
 /// Format a StaticTerm.
@@ -612,6 +617,11 @@ pub fn format_static_term(
 
     match term {
         dir::StaticTerm::ScalarLiteral { value } => format_scalar_literal(value, strings),
+        dir::StaticTerm::Symbol { symbol } => format_symbol_name(*symbol, ctx),
+        dir::StaticTerm::Access { access } => format!("{access:?}").to_lowercase(),
+        dir::StaticTerm::Space { space } => format!("{space:?}").to_lowercase(),
+        dir::StaticTerm::Place { place } => format_place(place),
+        dir::StaticTerm::Lifetime { lifetime } => format_lifetime(lifetime, ctx),
         dir::StaticTerm::TypeLiteral { value } => format_source_type_literal(value, strings),
         dir::StaticTerm::Declaration { .. } => "<declaration>".to_string(),
         dir::StaticTerm::Type { ty } => {
@@ -645,6 +655,31 @@ pub fn format_static_term(
             let ty = format_local_type(*ty, types, ctx);
             let properties = format_static_properties(properties, types, ctx);
             format!("{ty} {{{properties}}}")
+        }
+    }
+}
+
+/// Format a normalized place value.
+fn format_place(place: &dir::Place) -> String {
+    match place {
+        dir::Place::Ambient => "ambient".to_string(),
+        dir::Place::Space(space) => format!("{space:?}").to_lowercase(),
+    }
+}
+
+/// Format a normalized lifetime value.
+fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> String {
+    match lifetime {
+        dir::Lifetime::Static => "static".to_string(),
+        dir::Lifetime::Symbol(symbol) => format_symbol_name(*symbol, ctx),
+        dir::Lifetime::Join(elements) => {
+            let elements = elements
+                .iter()
+                .map(|element| format_static_id(*element, ctx))
+                .collect::<Vec<_>>()
+                .join(" | ");
+
+            format!("join({elements})")
         }
     }
 }

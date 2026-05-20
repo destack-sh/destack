@@ -354,6 +354,7 @@ impl LintRunner {
         let symbols = expanded.binding_table(&bound);
         let dependencies = expanded.dependency_table(&imported);
         let types = checked.type_table(&bound, &expanded);
+        let statics = checked.static_table(&bound, &expanded);
         let resolutions = checked.resolution_table();
         let mut ctx = LintModuleContext::new(
             repository,
@@ -368,6 +369,7 @@ impl LintRunner {
             symbols,
             dependencies,
             &types,
+            &statics,
             &resolutions,
             bound.namespace_scope,
             options,

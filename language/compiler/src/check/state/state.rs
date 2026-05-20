@@ -113,6 +113,7 @@ impl<'a> CheckState<'a> {
     pub fn finish(self) -> DirChecked {
         DirChecked {
             types: Arc::new(dir::TypeSegment::from_base(&self.expanded.types)),
+            statics: Arc::new(dir::StaticSegment::from_base(&self.expanded.statics)),
             generics: Arc::new(dir::GenericSegment::new(self.module)),
             resolutions: Arc::new(dir::ResolutionSegment::new(self.module)),
             instances: Arc::new(dir::InstanceSegment::new(self.module)),

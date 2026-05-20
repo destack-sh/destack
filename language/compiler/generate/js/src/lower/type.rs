@@ -364,6 +364,35 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id))
             }
             dir::StaticTerm::Type { ty } => self.lower_type(*ty),
+            dir::StaticTerm::Symbol { symbol } => {
+                self.lower_reference_type_from_symbol(source_id, *symbol, None)
+            }
+            dir::StaticTerm::Access { access } => {
+                self.lower_static_string_type(source_id, &format!("{access:?}").to_lowercase())
+            }
+            dir::StaticTerm::Space { space } => {
+                self.lower_static_string_type(source_id, &format!("{space:?}").to_lowercase())
+            }
+            dir::StaticTerm::Place { place } => {
+                let place = match place {
+                    dir::Place::Ambient => "ambient".to_string(),
+                    dir::Place::Space(space) => format!("{space:?}").to_lowercase(),
+                };
+
+                self.lower_static_string_type(source_id, &place)
+            }
+            dir::StaticTerm::Lifetime { lifetime } => match lifetime {
+                dir::Lifetime::Static => self.lower_static_string_type(source_id, "static"),
+                dir::Lifetime::Symbol(symbol) => {
+                    self.lower_reference_type_from_symbol(source_id, *symbol, None)
+                }
+                dir::Lifetime::Join(_) => Err(CodegenJsError::UnsupportedConstruct {
+                    node: source_id.into_global(self.module.id),
+                    message: Some(
+                        "joined static lifetimes do not lower to JS type arguments".to_string(),
+                    ),
+                }),
+            },
             dir::StaticTerm::Declaration {
                 declaration,
                 generic_arguments,
@@ -403,7 +432,25 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         argument: &dir::StaticArgument,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        self.lower_semantic_static_type_expression(source_id, &argument.value)
+        let value = self.statics.get_static(argument.value);
+
+        self.lower_semantic_static_type_expression(source_id, value)
+    }
+
+    /// Lower one normalized static string into a JS string literal type.
+    fn lower_static_string_type(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        value: &str,
+    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+        let value = self.strings.intern(value);
+        let literal = js::ScalarLiteral::String(value);
+        let literal = js::TypeLiteral::ScalarLiteral(literal);
+        let ty = js::TypeExpression::Scalar(literal);
+
+        Ok(self
+            .tree
+            .insert_from_source_any(ty, self.module.id, source_id))
     }
 
     /// Lower one semantic static argument list into JS type arguments.

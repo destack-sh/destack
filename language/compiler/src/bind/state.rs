@@ -33,6 +33,8 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) bindings: dir::BindingSegment,
     /// The type table being initialized.
     pub(in crate::bind) types: dir::TypeSegment,
+    /// The static table being initialized.
+    pub(in crate::bind) statics: dir::StaticSegment,
     /// The bound module roots.
     pub(in crate::bind) roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The module namespace scope.
@@ -75,6 +77,7 @@ impl<'a> BindState<'a> {
             }],
             bindings,
             types: dir::TypeSegment::new(module),
+            statics: dir::StaticSegment::new(module),
             roots: Vec::new(),
             namespace_scope,
             global_scope,
@@ -91,6 +94,7 @@ impl<'a> BindState<'a> {
         DirBound {
             bindings: Arc::new(self.bindings),
             types: Arc::new(self.types),
+            statics: Arc::new(self.statics),
             roots: self.roots,
             module_node: self.parsed.anchor_expression.into_any(),
             namespace_scope: self.namespace_scope,
