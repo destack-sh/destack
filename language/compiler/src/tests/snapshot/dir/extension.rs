@@ -13,7 +13,7 @@ impl SnapshotTable for dir::ExtensionSegment {
             )
             .field("symbol", builder.symbol_path_label(extension.symbol))
             .field("form", DirSnapshotBuilder::variant_label(extension.form))
-            .field("target", builder.symbol_path_label(extension.target));
+            .field("target", builder.type_label(extension.target_type));
             builder.push(row);
         }
 

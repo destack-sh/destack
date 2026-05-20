@@ -137,7 +137,7 @@ impl ExtensionSegment {
     pub fn insert_extension(&mut self, extension: Extension) -> LocalExtensionId {
         let extension_id = LocalExtensionId::new(self.extension_count());
         let extension_symbol = extension.symbol;
-        let target_symbol = extension.target;
+        let target_symbol = extension.target_symbol;
 
         self.extensions_by_symbol
             .insert(extension_symbol, extension_id);
