@@ -50,7 +50,7 @@ pub(crate) fn build_extension_candidates_for_module(
         entries.push(ExtensionEntry {
             module_id,
             extension_id,
-            target_symbol: ctx.canonical_symbol(extension.target),
+            target_symbol: ctx.canonical_symbol(extension.target_symbol),
         });
     }
 
