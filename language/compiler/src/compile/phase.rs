@@ -10,22 +10,24 @@ pub enum CompilePhase {
     Expand = 3,
     /// Resolve exports over expanded DIR.
     Export = 4,
+    /// Resolve imports into symbol targets.
+    Resolve = 5,
     /// Check expanded DIR.
-    Check = 5,
+    Check = 6,
     /// Materialize comptime and patch DIR.
-    Materialize = 6,
+    Materialize = 7,
     /// Elaborate materialized DIR into lowered DIR form.
-    Elaborate = 7,
+    Elaborate = 8,
     /// Lower patched DIR into MIR.
-    Lower = 8,
+    Lower = 9,
     /// Verify lowered MIR.
-    Verify = 9,
+    Verify = 10,
     /// Optimize MIR.
-    Optimize = 10,
+    Optimize = 11,
     /// Generate emitted artifacts from compiler products.
-    Generate = 11,
+    Generate = 12,
     /// Link emitted artifacts into package artifacts.
-    Link = 12,
+    Link = 13,
 }
 
 impl std::fmt::Display for CompilePhase {
@@ -47,6 +49,7 @@ impl CompilePhase {
             Self::Import => "import",
             Self::Expand => "expand",
             Self::Export => "export",
+            Self::Resolve => "resolve",
             Self::Check => "check",
             Self::Elaborate => "elaborate",
             Self::Materialize => "materialize",
@@ -65,6 +68,7 @@ impl CompilePhase {
             Self::Import => "resolve imports into dependency tables",
             Self::Expand => "expand macros into DIR patches",
             Self::Export => "resolve exports over expanded DIR",
+            Self::Resolve => "resolve imports into symbol targets",
             Self::Check => "check expanded DIR",
             Self::Materialize => "materialize comptime code and patch DIR",
             Self::Elaborate => "desugar and reify DIR",
@@ -83,6 +87,7 @@ impl CompilePhase {
             Self::Import => 'I',
             Self::Expand => 'X',
             Self::Export => 'T',
+            Self::Resolve => 'R',
             Self::Check => 'C',
             Self::Elaborate => 'E',
             Self::Materialize => 'M',
@@ -95,11 +100,12 @@ impl CompilePhase {
     }
 
     /// All phases in build order.
-    pub const ALL: [CompilePhase; 12] = [
+    pub const ALL: [CompilePhase; 13] = [
         Self::Bind,
         Self::Import,
         Self::Expand,
         Self::Export,
+        Self::Resolve,
         Self::Check,
         Self::Materialize,
         Self::Elaborate,

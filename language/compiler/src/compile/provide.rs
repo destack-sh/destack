@@ -41,6 +41,9 @@ impl Compiler {
             ArtifactKey::DirExported { module, profile } => {
                 self.provide_dir_exported(module, profile, context)
             }
+            ArtifactKey::DirResolved { module, profile } => {
+                self.provide_dir_resolved(module, profile, context)
+            }
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)
             }
