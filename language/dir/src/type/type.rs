@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Asynchrony, GlobalSymbolId, LocalStaticId, ScalarLiteral, StaticArgument, StaticKey, StringId,
+    TypeLiteral,
 };
 
-use super::PrimitiveType;
+use super::{FloatType, PrimitiveType};
 
 /// Compiler-provided type function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -390,6 +391,56 @@ pub enum Type {
     Union(UnionType),
     /// Intersection type `A & B & C`.
     Intersection(IntersectionType),
+}
+
+impl From<TypeLiteral> for Type {
+    /// Convert a source type literal into a semantic type.
+    fn from(value: TypeLiteral) -> Self {
+        match value {
+            TypeLiteral::Never => Self::Never,
+            TypeLiteral::Any => Self::Any,
+            TypeLiteral::Undefined => Self::Undefined,
+            TypeLiteral::Unknown => Self::Unknown,
+            TypeLiteral::Object => Self::Object,
+            TypeLiteral::Void => Self::Void,
+            TypeLiteral::Null => Self::Null,
+            TypeLiteral::Boolean => Self::Primitive(PrimitiveType::Boolean),
+            TypeLiteral::Character => Self::Primitive(PrimitiveType::Character),
+            TypeLiteral::String => Self::Primitive(PrimitiveType::String),
+            TypeLiteral::Bigint => Self::Primitive(PrimitiveType::Bigint),
+            TypeLiteral::Number => Self::Primitive(PrimitiveType::Float(FloatType::Float64)),
+            TypeLiteral::Integer(integer) => Self::Primitive(PrimitiveType::Integer(integer)),
+            TypeLiteral::Float(float) => Self::Primitive(PrimitiveType::Float(float)),
+            TypeLiteral::Symbol => Self::Primitive(PrimitiveType::Symbol),
+            TypeLiteral::UniqueSymbol => Self::Primitive(PrimitiveType::UniqueSymbol),
+            TypeLiteral::BuiltinTypeFunction(function) => {
+                Self::Operation(TypeOperation::BuiltinTypeFunction(function))
+            }
+        }
+    }
+}
+
+impl From<ScalarLiteral> for Type {
+    /// Convert a scalar literal expression into its fresh semantic type.
+    fn from(value: ScalarLiteral) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&ScalarLiteral> for Type {
+    /// Convert a scalar literal expression into its fresh semantic type.
+    fn from(value: &ScalarLiteral) -> Self {
+        match value {
+            ScalarLiteral::Null => Self::Null,
+            ScalarLiteral::Boolean(_) => Self::Primitive(PrimitiveType::Boolean),
+            ScalarLiteral::Character(_) => Self::Primitive(PrimitiveType::Character),
+            ScalarLiteral::String(_)
+            | ScalarLiteral::Integer(_)
+            | ScalarLiteral::Float(_)
+            | ScalarLiteral::Bigint(_) => Self::Literal(value.clone()),
+            ScalarLiteral::RegexString { .. } => Self::Object,
+        }
+    }
 }
 
 impl Type {
