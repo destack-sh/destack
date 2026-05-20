@@ -1,9 +1,8 @@
-use crate::tests::TestCompiler;
-use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
+use crate::tests::{DirRows, TestSession, assert_snapshot};
 
 #[test]
 fn test_import_records_static_edge() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -18,8 +17,9 @@ export type Foo = string;
         )
         .build();
 
-    assert_snapshot(
-        compiler.dir_snapshot("main.ds", DirSnapshotSet::none().with_dependency()),
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::imports().with_summaries(),
         r#"
 import { Foo } from "./dep.ds";
 /// @dependency.edge relation=import specifier=./dep.ds module=dep.ds
@@ -31,7 +31,7 @@ import { Foo } from "./dep.ds";
 
 #[test]
 fn test_import_resolves_extensionless_source_path() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -46,8 +46,9 @@ export type Foo = string;
         )
         .build();
 
-    assert_snapshot(
-        compiler.dir_snapshot("main.ds", DirSnapshotSet::none().with_dependency()),
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::imports().with_summaries(),
         r#"
 import { Foo } from "./dep";
 /// @dependency.edge relation=import specifier=./dep module=dep.ds
@@ -59,7 +60,7 @@ import { Foo } from "./dep";
 
 #[test]
 fn test_import_reports_side_effect_import() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -88,7 +89,7 @@ let value = 1;
 
 #[test]
 fn test_import_reports_protocol_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -111,7 +112,7 @@ import { value } from "host:runtime";
 
 #[test]
 fn test_import_renders_multi_module_snapshot() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -126,11 +127,9 @@ export type Foo = string;
         )
         .build();
 
-    assert_snapshot(
-        compiler.dir_snapshots(
-            &["main.ds", "dep.ds"],
-            DirSnapshotSet::none().with_dependency(),
-        ),
+    compiler.assert_dir_imported_many(
+        &["main.ds", "dep.ds"],
+        DirRows::imports().with_summaries(),
         r#"
 === main.ds ===
 import { Foo } from "./dep.ds";
@@ -148,7 +147,7 @@ export type Foo = string;
 
 #[test]
 fn test_import_resolves_relative_parent_path() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "src/main.ds",
             r#"
@@ -163,8 +162,9 @@ export type Foo = string;
         )
         .build();
 
-    assert_snapshot(
-        compiler.dir_snapshot("src/main.ds", DirSnapshotSet::none().with_dependency()),
+    compiler.assert_dir_imported(
+        "src/main.ds",
+        DirRows::imports().with_summaries(),
         r#"
 import { Foo } from "../dep.ds";
 /// @dependency.edge relation=import specifier=../dep.ds module=dep.ds

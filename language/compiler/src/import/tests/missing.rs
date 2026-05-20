@@ -1,9 +1,9 @@
-use crate::tests::TestCompiler;
+use crate::tests::TestSession;
 use crate::tests::snapshot::assert_snapshot;
 
 #[test]
 fn test_import_reports_missing_local_module() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -26,7 +26,7 @@ import { Missing } from "./missing.ds";
 
 #[test]
 fn test_import_reports_bare_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -49,7 +49,7 @@ import { value } from "pkg";
 
 #[test]
 fn test_import_reports_scoped_package_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -72,7 +72,7 @@ import { value } from "@scope/pkg";
 
 #[test]
 fn test_import_reports_hash_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r##"
@@ -95,7 +95,7 @@ import { value } from "#internal";
 
 #[test]
 fn test_import_reports_absolute_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -124,7 +124,7 @@ export let value = 1;
 
 #[test]
 fn test_import_reports_local_query_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -153,7 +153,7 @@ export let value = 1;
 
 #[test]
 fn test_import_reports_conditional_file_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .data(
             "destack.json",
             r#"{ "conditions": { "modes": { "preview": {} } }, "compiler": {}, "policy": {}, "runtime": {}, "formatter": {}, "linter": {} }"#,
@@ -192,7 +192,7 @@ export let preview = true;
 
 #[test]
 fn test_import_reports_ambiguous_extensionless_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -227,7 +227,7 @@ export let value = 2;
 
 #[test]
 fn test_import_reports_cross_package_relative_specifier() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .data(
             "destack.json",
             r#"{ "compiler": {}, "policy": {}, "runtime": {}, "formatter": {}, "linter": {}, "workspace": { "packages": ["packages/*"] } }"#,

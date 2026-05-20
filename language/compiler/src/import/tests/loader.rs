@@ -1,9 +1,8 @@
-use crate::tests::TestCompiler;
-use crate::tests::snapshot::{DirSnapshotSet, assert_snapshot};
+use crate::tests::{DirRows, TestSession, assert_snapshot};
 
 #[test]
 fn test_import_records_loader_attribute() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -13,8 +12,9 @@ import data from "./data.json" with { type: "json" };
         .data("data.json", r#"{ "ok": true }"#)
         .build();
 
-    assert_snapshot(
-        compiler.dir_snapshot("main.ds", DirSnapshotSet::none().with_dependency()),
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::imports().with_summaries(),
         r#"
 import data from "./data.json" with { type: "json" };
 /// @dependency.edge relation=import specifier=./data.json loader=json module=data.json
@@ -26,7 +26,7 @@ import data from "./data.json" with { type: "json" };
 
 #[test]
 fn test_import_applies_loader_extension() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -36,8 +36,9 @@ import data from "./data" with { type: "json" };
         .data("data.json", r#"{ "ok": true }"#)
         .build();
 
-    assert_snapshot(
-        compiler.dir_snapshot("main.ds", DirSnapshotSet::none().with_dependency()),
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::imports().with_summaries(),
         r#"
 import data from "./data" with { type: "json" };
 /// @dependency.edge relation=import specifier=./data loader=json module=data.json
@@ -49,7 +50,7 @@ import data from "./data" with { type: "json" };
 
 #[test]
 fn test_import_reports_invalid_loader_attribute() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -73,7 +74,7 @@ import data from "./data.json" with { type: true };
 
 #[test]
 fn test_import_reports_unknown_loader_attribute() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
