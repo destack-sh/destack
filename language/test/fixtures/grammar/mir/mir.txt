@@ -98,6 +98,14 @@ block2:
 //  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
     call.indirect v0(v1) -> (i64) -> void
 //  ^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+    v2: boolean = select true, false, true
+//                ^^^^^^ keyword.operator.instruction.dsmir
+//                       ^^^^ constant.language.boolean.dsmir
+//                             ^^^^^ constant.language.boolean.dsmir
+    call @log("line\\nvalue", 'x')
+//       ^^^^ entity.name.symbol.dsmir
+//            ^^^^^^^^^^^^^^ string.quoted.double.dsmir
+//                            ^^^ constant.character.quoted.single.dsmir
 block3:
     panic
 //  ^^^^^ keyword.control.flow.dsmir

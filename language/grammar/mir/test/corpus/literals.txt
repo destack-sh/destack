@@ -1,5 +1,5 @@
 ==================================
-Numbers and string literals
+Numbers, booleans, strings, and characters
 ==================================
 
 function @literals() -> void {
@@ -10,7 +10,8 @@ block0:
     v3: f64 = fconst 3.1415
     v4: f64 = fconst 1.25e+10
     v5: i64 = iconst 1_000_000i64
-    call @log("line\\nvalue", 'x', v0, v1, v2, v3, v4, v5) -> () -> void
+    v6: boolean = select true, false, true
+    call @log("line\\nvalue", 'x', v0, v1, v2, v3, v4, v5, v6) -> () -> void
     return
 }
 
@@ -63,12 +64,24 @@ block0:
   (operator)
   (identifier)
   (number_literal)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (operator)
+  (identifier)
+  (boolean_literal)
+  (punctuation)
+  (boolean_literal)
+  (punctuation)
+  (boolean_literal)
   (terminator_keyword)
   (symbol_identifier)
   (punctuation)
   (string_literal)
   (punctuation)
-  (string_literal)
+  (character_literal)
+  (punctuation)
+  (ssa_identifier)
   (punctuation)
   (ssa_identifier)
   (punctuation)
