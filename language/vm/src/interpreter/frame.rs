@@ -45,8 +45,7 @@ pub struct FrameImage {
 // frame should fit in 64 bytes
 const _: () = assert!(std::mem::size_of::<Frame>() <= 64);
 
-// the raw function pointer always points into immutable program data
-// that stays alive for the duration of the owning isolate
+// SAFETY: the raw function pointer always points into immutable isolate-owned program data
 unsafe impl Send for Frame {}
 
 impl Frame {
@@ -72,6 +71,7 @@ impl Frame {
     /// Borrow the lowered function.
     #[inline(always)]
     pub(crate) fn function_ref(&self) -> &Function {
+        // SAFETY: function_ptr is created from immutable program data that outlives this frame
         unsafe { self.function_ptr.as_ref() }
     }
 
@@ -116,12 +116,14 @@ impl Frame {
     /// Return this frame's byte range.
     #[inline]
     pub(crate) fn bytes(&self) -> &[u8] {
+        // SAFETY: base points at byte_len live bytes in the VM stack arena
         unsafe { std::slice::from_raw_parts(self.base, self.byte_len) }
     }
 
     /// Return this frame's byte range mutably.
     #[inline]
     pub(crate) fn bytes_mut(&mut self) -> &mut [u8] {
+        // SAFETY: &mut self guarantees exclusive access to this live VM stack frame
         unsafe { std::slice::from_raw_parts_mut(self.base, self.byte_len) }
     }
 
@@ -137,6 +139,7 @@ impl Frame {
         let address = self.base_address() + offset as usize;
         debug_assert_eq!((address % mem::align_of::<Word>()), 0);
 
+        // SAFETY: lowered frame offsets are word-aligned and point inside this frame
         unsafe { std::ptr::read(address as *const Word) }
     }
 
@@ -146,6 +149,7 @@ impl Frame {
         let address = self.base_address() + offset as usize;
         debug_assert_eq!((address % mem::align_of::<Word>()), 0);
 
+        // SAFETY: lowered frame offsets are word-aligned and point inside this frame
         unsafe {
             std::ptr::write(address as *mut Word, value);
         }
@@ -157,6 +161,7 @@ impl Frame {
         debug_assert!(slot.byte_len as usize >= Word::BYTE_LEN);
         debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Word>()), 0);
 
+        // SAFETY: frame slots are lowered as word-sized aligned storage inside this frame
         unsafe { std::ptr::read(self.slot_address(slot) as *const Word) }
     }
 
@@ -166,6 +171,7 @@ impl Frame {
         debug_assert!(slot.byte_len as usize >= Word::BYTE_LEN);
         debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Word>()), 0);
 
+        // SAFETY: frame slots are lowered as word-sized aligned storage inside this frame
         unsafe {
             std::ptr::write(self.slot_address(slot) as *mut Word, value);
         }

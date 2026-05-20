@@ -21,6 +21,8 @@ fn debug_assert_word_access(access: Projection) {
 #[inline(always)]
 fn scalar_layout(access: Projection) -> WordLayout {
     debug_assert!(access.word_layout.is_some());
+
+    // SAFETY: scalar projections are lowered with a word layout and asserted in debug builds
     unsafe { access.word_layout.unwrap_unchecked() }
 }
 
@@ -69,6 +71,7 @@ fn shared_raw_address(
 /// Load bytes from one native address.
 #[inline(always)]
 fn load_native_bytes(address: usize, destination: *mut u8, destination_len: usize) {
+    // SAFETY: callers pass lowered addresses and destination storage for destination_len bytes
     unsafe {
         ptr::copy_nonoverlapping(address as *const u8, destination, destination_len);
     }
@@ -77,6 +80,7 @@ fn load_native_bytes(address: usize, destination: *mut u8, destination_len: usiz
 /// Store bytes to one native address.
 #[inline(always)]
 fn store_native_bytes(address: usize, bytes: &[u8]) {
+    // SAFETY: callers pass lowered writable addresses for the full byte slice
     unsafe {
         ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
     }
@@ -95,6 +99,7 @@ fn sign_extend_scalar(raw: u64, byte_len: usize) -> u64 {
 fn load_unsigned_raw(address: usize, byte_len: usize) -> u64 {
     let source = address as *const u8;
 
+    // SAFETY: callers pass lowered readable addresses for at least byte_len bytes
     unsafe {
         match byte_len {
             1 => source.read() as u64,
@@ -131,6 +136,7 @@ pub(super) fn store_scalar_at_address<const BYTE_LEN: usize>(address: usize, val
 #[cold]
 #[inline(never)]
 fn load_bytewise_unsigned_raw(source: *const u8, byte_len: usize) -> u64 {
+    // SAFETY: callers pass a readable source range of byte_len bytes
     let source = unsafe { std::slice::from_raw_parts(source, byte_len) };
     let mut raw = 0u64;
 
@@ -146,6 +152,7 @@ fn load_bytewise_unsigned_raw(source: *const u8, byte_len: usize) -> u64 {
 fn store_unsigned_raw(address: usize, raw: u64, byte_len: usize) {
     let destination = address as *mut u8;
 
+    // SAFETY: callers pass lowered writable addresses for at least byte_len bytes
     unsafe {
         match byte_len {
             1 => destination.write(raw as u8),
@@ -165,6 +172,7 @@ fn store_unsigned_raw(address: usize, raw: u64, byte_len: usize) {
 #[cold]
 #[inline(never)]
 fn store_bytewise_unsigned_raw(destination: *mut u8, raw: u64, byte_len: usize) {
+    // SAFETY: callers pass a writable destination range of byte_len bytes
     let destination = unsafe { std::slice::from_raw_parts_mut(destination, byte_len) };
 
     for (index, byte) in destination.iter_mut().enumerate() {
