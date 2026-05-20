@@ -1,34 +1,83 @@
-use super::super::snapshot::assert_check_snapshot;
+use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_check_records_newtype_union_layout() {
-    assert_check_snapshot(
+    let session = TestSession::single(
         r#"
 struct Rectangle {}
 struct Circle {}
 
 newtype Shape = Rectangle | Circle;
 "#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_layout(),
         r#"
 struct Rectangle {}
-/// @type.symbol key=Rectangle value=Rectangle
+/// @type.symbol symbol=Rectangle type=Rectangle
 
 struct Circle {}
-/// @type.symbol key=Circle value=Circle
+/// @type.symbol symbol=Circle type=Circle
 
 newtype Shape = Rectangle | Circle;
-/// @type.symbol key=Shape value=Shape
-/// @layout.type type=Shape layout=layout0 shape=variant
+/// @type.symbol symbol=Shape type=Shape
+/// @layout.type type=Shape shape=variant
+"#,
+    );
+}
 
-/// @layout.entry layout=layout0 shape=variant
-/// @layout.summary layouts=1 types=1
-/// @type.summary types=4 nodes=0 symbols=3
-/// @generic.summary parameters=0 lists=0
-/// @relation.summary extends=0 implements=0
-/// @extension.summary extensions=0
-/// @resolution.summary names=0 labels=0 members=0 calls=0
-/// @instance.summary instances=0 nodes=0
-/// @capture.summary functions=0 bindings=0 directives=0 rules=0
+#[test]
+fn test_check_records_newtype_constructor_resolution() {
+    let session = TestSession::single(
+        r#"
+newtype UserId = int64;
+
+const id = UserId(42);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+newtype UserId = int64;
+/// @type.symbol symbol=UserId type=UserId
+
+const id = UserId(42);
+/// @resolution.name source=UserId target=UserId
+/// @resolution.call source="UserId(42)" parameters=[int64] return=UserId kind=construct target=UserId
+/// @type.symbol symbol=id type=UserId
+"#,
+    );
+}
+
+#[test]
+fn test_check_reports_backing_values_assigned_to_newtypes() {
+    let session = TestSession::single(
+        r#"
+newtype UserId = int64;
+
+const id: UserId = 42;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+newtype UserId = int64;
+/// @type.symbol symbol=UserId type=UserId
+
+const id: UserId = 42;
+/// @resolution.name source=UserId target=UserId
+/// @type.node source=42 type=int64
+/// @type.symbol symbol=id type=UserId
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.label line=4 column=20 source="const id: UserId = 42;"
 "#,
     );
 }

@@ -1,7 +1,17 @@
+mod arrays;
+mod associated;
+mod borrows;
+mod classes;
 mod constraints;
+mod enums;
+mod extensions;
 mod generics;
 mod guards;
+mod lifetimes;
 mod newtypes;
+mod objects;
+mod operators;
 mod relations;
+mod representation;
 mod structs;
 mod unions;
