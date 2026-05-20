@@ -84,7 +84,7 @@ impl<'a> ResolutionTable<'a> {
     /// Get the lexical symbol resolution for a node.
     pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         self.name_resolution(node_id)
-            .map(|resolution| resolution.symbol)
+            .and_then(NameResolution::symbol)
     }
 
     /// Get the name resolution for a node.
@@ -180,7 +180,7 @@ impl ResolutionSegment {
 
     /// Copy node-owned resolutions from one node to another.
     pub fn copy_node_relations(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
-        if let Some(resolution) = self.names.get(&source).copied() {
+        if let Some(resolution) = self.names.get(&source).cloned() {
             self.names.insert(target, resolution);
         }
 
@@ -205,7 +205,7 @@ impl ResolutionSegment {
     /// Get the lexical symbol resolution for a node.
     pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         self.name_resolution(node_id)
-            .map(|resolution| resolution.symbol)
+            .and_then(NameResolution::symbol)
     }
 
     /// Set the name resolution for a node.

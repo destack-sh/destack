@@ -1,18 +1,30 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId};
+use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey};
 
 /// Target selected by lexical or path lookup.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NameResolution {
-    /// The selected symbol.
-    pub symbol: GlobalSymbolId,
+    /// The selected symbols in declaration order.
+    pub symbols: Vec<GlobalSymbolId>,
 }
 
 impl NameResolution {
-    /// Create a name resolution.
+    /// Create a single-symbol name resolution.
     pub fn new(symbol: GlobalSymbolId) -> Self {
-        Self { symbol }
+        Self {
+            symbols: vec![symbol],
+        }
+    }
+
+    /// Create a name resolution from selected symbols.
+    pub fn from_symbols(symbols: Vec<GlobalSymbolId>) -> Self {
+        Self { symbols }
+    }
+
+    /// Return the first selected symbol.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
+        self.symbols.first().copied()
     }
 }
 
@@ -48,6 +60,11 @@ impl MemberResolution {
 pub enum MemberTarget {
     /// Intrinsic primitive member or protocol slot.
     Intrinsic,
+    /// Structural field selected from a shape type.
+    Field {
+        /// The selected field key.
+        key: StaticKey,
+    },
     /// Exactly one member known at compile time.
     Direct(MemberCandidate),
     /// Statically known variant member selection.
