@@ -19,13 +19,11 @@ type Keys = keyof typeof values;
 Static type relations format as infix type expressions.
 
 ```ds
-type HasName = "name" in Person
 type IsNumber = int32 extends number
 type IsDrawable = DrawnPoint implements Drawable
 ```
 
 ```ds expected
-type HasName = "name" in Person;
 type IsNumber = int32 extends number;
 type IsDrawable = DrawnPoint implements Drawable;
 ```
@@ -35,11 +33,11 @@ type IsDrawable = DrawnPoint implements Drawable;
 Static type relations keep composite operands grouped.
 
 ```ds
-type HasEither = "left" in (Left | Right)
-type HasBoth = "left" in (Left & Right)
+type IsEither = (Left | Right) extends Value
+type IsBoth = (Left & Right) implements Drawable
 ```
 
 ```ds expected
-type HasEither = "left" in (Left | Right);
-type HasBoth = "left" in (Left & Right);
+type IsEither = (Left | Right) extends Value;
+type IsBoth = (Left & Right) implements Drawable;
 ```
