@@ -389,7 +389,8 @@ Extensions can also be named for and then referenced explicitly for export and i
 import { User } from "@/model/user";
 
 export extension UserUtils of User {
-    validate(): bool {
+    validate(): boolean {
+        ...
     }
 }
 ```
@@ -725,7 +726,7 @@ At that point the `@if` guards become ordinary yes/no decisions and the concrete
 The same idea applies to guarded statements: while a generic declaration is still open, a guarded statement is checked under its guard, and when the declaration is instantiated the statement is either present or gone.
 
 ```ds
-function size<comptime Wide: bool>(): Wide extends true ? 8 : 4 {
+function size<comptime Wide: boolean>(): Wide extends true ? 8 : 4 {
     @if(Wide)
     return 8;
 
@@ -1791,7 +1792,7 @@ Both branches are analyzed, and the expression type is still the joined branch t
 The compiler may eliminate the untaken branch before final lowering when the condition is computed from static inputs:
 
 ```ds
-function isPowerOfTwo(value: uint): bool {
+function isPowerOfTwo(value: uint): boolean {
     if (value == 0) {
         return false;
     }
@@ -2167,7 +2168,7 @@ function first(a: &Node, b: &Node): &Node {
     return a;
 }
 
-function choose(a: &Node, b: &Node, flag: bool): &Node {
+function choose(a: &Node, b: &Node, flag: boolean): &Node {
     return flag ? a : b;
 }
 ```
@@ -2635,13 +2636,13 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.roles` | active source graph roles | `readonly Role[]` | `["server"]`, `["client"]` |
 | `import.meta.features` | active source graph features | `readonly Feature[]` | `["checkout"]`, `["renderer"]` |
 | `import.meta.tags` | active source graph tags | `readonly Tag[]` | `["preview"]`, `["internal"]` |
-| `import.meta.debug` | `debug` mode shorthand | `bool` | `true`, `false` |
-| `import.meta.dev` | `dev` mode shorthand | `bool` | `true`, `false` |
-| `import.meta.prod` | `prod` mode shorthand | `bool` | `true`, `false` |
-| `import.meta.test` | `test` mode shorthand | `bool` | `true`, `false` |
-| `import.meta.bench` | `bench` mode shorthand | `bool` | `true`, `false` |
-| `import.meta.lint` | `lint` mode shorthand | `bool` | `true`, `false` |
-| `import.meta.env` | configured build environment | `{ readonly [key: string]: string | bool | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
+| `import.meta.debug` | `debug` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.dev` | `dev` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.prod` | `prod` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.test` | `test` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.bench` | `bench` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.lint` | `lint` mode shorthand | `boolean` | `true`, `false` |
+| `import.meta.env` | configured build environment | `{ readonly [key: string]: string | boolean | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
 | `import.meta.tree` | current module tree tag builder | `TreeTagBuilder | undefined` | `HtmlTree` |
 | `import.meta.derive` | current module auto derive providers | `readonly Macro<unknown>[]` | `[Clone, Debug]` |
 | `import.meta.labels` | current module labels | `{ readonly [key: string]: unknown }` | `{ feature: ["checkout"] }` |
