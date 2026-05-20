@@ -2,7 +2,7 @@
 
 ## escaping
 
-### returning a local borrow is rejected
+### local borrow cannot escape a function
 
 Borrowed access cannot outlive the storage it came from.
 
@@ -20,7 +20,7 @@ function escapedPoint(): &Point {
 
 - contains: cannot return reference to local
 
-### returning ownership is allowed
+### owned return can escape a function
 
 Return owned storage when the value must escape.
 
@@ -36,7 +36,7 @@ function returnedPoint(): ^Point {
 }
 ```
 
-## generics
+## named lifetimes
 
 ### static lifetime names static storage
 
@@ -48,9 +48,328 @@ declare const value: Borrowed<int32, "static">;
 value satisfies Borrowed<int32, "static">;
 ```
 
-### managed field borrows infer real lifetimes
+## inference
 
-Borrowing through managed storage infers a lifetime for that specific source place.
+### unused arguments do not constrain returned borrows
+
+Only the returned source has to outlive the result.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+function first(a: &Node, b: &Node): &Node {
+    return a;
+}
+
+function pass(a: &Node): &Node {
+    let local = ^Node { id: 1 };
+    return first(a, &local);
+}
+```
+
+### local returned source cannot escape
+
+A function cannot return a borrow rooted in its own frame.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+function first(a: &Node, b: &Node): &Node {
+    return a;
+}
+
+function escaped(b: &Node): &Node {
+    let local = ^Node { id: 1 };
+    return first(&local, b);
+}
+```
+
+- borrow does not live long enough
+
+### conditional borrow result joins lifetimes
+
+A conditional borrow has the joined lifetime of both branches.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+function choose(a: &Node, b: &Node, flag: bool): &Node {
+    return flag ? a : b;
+}
+
+function pass(a: &Node, b: &Node, flag: bool): &Node {
+    return choose(a, b, flag);
+}
+```
+
+### conditional borrow cannot return local true branch
+
+A returned conditional borrow cannot include a branch rooted in the current function.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+function choose(a: &Node, b: &Node, flag: bool): &Node {
+    return flag ? a : b;
+}
+
+function escaped(b: &Node, flag: bool): &Node {
+    let local = ^Node { id: 1 };
+    return choose(&local, b, flag);
+}
+```
+
+- borrow does not live long enough
+
+### conditional borrow cannot return local false branch
+
+A returned conditional borrow cannot include a branch rooted in the current function.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+function choose(a: &Node, b: &Node, flag: bool): &Node {
+    return flag ? a : b;
+}
+
+function escaped(a: &Node, flag: bool): &Node {
+    let local = ^Node { id: 1 };
+    return choose(a, &local, flag);
+}
+```
+
+- borrow does not live long enough
+
+### single-input declarations return the input lifetime
+
+With one borrowed input, a declaration can elide the returned lifetime.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+declare function only(value: &Node): &Node;
+
+function pass(value: &Node): &Node {
+    return only(value);
+}
+```
+
+### single-input declarations require a live input
+
+The input must outlive the returned borrow.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+declare function only(value: &Node): &Node;
+
+function escaped(): &Node {
+    let local = ^Node { id: 1 };
+    return only(&local);
+}
+```
+
+- borrow does not live long enough
+
+### multi-input declarations need a lifetime relationship
+
+A declaration with several borrowed inputs must state which input roots the result.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+declare function choose(a: &Node, b: &Node): &Node;
+```
+
+- declaration-only borrowed return needs an explicit lifetime relationship
+
+### struct can return a borrowed field from input
+
+A struct with a borrowed field can be returned when the field comes from an input.
+
+```ds
+struct Engine {
+    frame: uint64;
+}
+
+struct EngineBorrow {
+    engine: &Engine;
+}
+
+function borrowEngine(engine: &Engine): EngineBorrow {
+    return EngineBorrow { engine };
+}
+```
+
+### struct cannot return a borrowed field from local
+
+A returned struct cannot contain a borrow rooted in its own function.
+
+```ds
+struct Engine {
+    frame: uint64;
+}
+
+struct EngineBorrow {
+    engine: &Engine;
+}
+
+function escaped(): EngineBorrow {
+    let engine = ^Engine { frame: 1 };
+    return EngineBorrow { engine: &engine };
+}
+```
+
+- borrow does not live long enough
+
+### struct can store several input borrows
+
+A returned struct is valid when every borrowed field comes from an input.
+
+```ds
+struct Engine {
+    frame: uint64;
+}
+
+struct AssetStore {
+    count: uint32;
+}
+
+struct WorldBorrow {
+    engine: &Engine;
+    assets: &AssetStore;
+}
+
+function borrowWorld(engine: &Engine, assets: &AssetStore): WorldBorrow {
+    return WorldBorrow { engine, assets };
+}
+```
+
+### returned struct cannot contain a local borrow
+
+Every borrowed field in a returned struct must outlive the struct.
+
+```ds
+struct Engine {
+    frame: uint64;
+}
+
+struct AssetStore {
+    count: uint32;
+}
+
+struct WorldBorrow {
+    engine: &Engine;
+    assets: &AssetStore;
+}
+
+function escaped(engine: &Engine): WorldBorrow {
+    let assets = ^AssetStore { count: 1 };
+    return WorldBorrow { engine, assets: &assets };
+}
+```
+
+- borrow does not live long enough
+
+### single lifetime parameter applies to borrowed fields
+
+With only one lifetime parameter, borrowed fields are part of that lifetime.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+struct NodeBorrow<L: Lifetime> {
+    node: &Node;
+}
+
+function borrowNode<L: Lifetime>(node: Borrowed<Node, L>): NodeBorrow<L> {
+    return NodeBorrow { node };
+}
+```
+
+### borrowed field must satisfy the struct lifetime
+
+A struct with lifetime `L` cannot store a borrow rooted in the current function.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+struct NodeBorrow<L: Lifetime> {
+    node: &Node;
+}
+
+function escaped<L: Lifetime>(): NodeBorrow<L> {
+    let node = ^Node { id: 1 };
+    return NodeBorrow { node: &node };
+}
+```
+
+- borrow does not live long enough
+
+### bare borrowed fields do not pick among several lifetimes
+
+When several lifetime parameters are in scope, use `Borrowed<T, L>` to pick one.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+struct Pair<A: Lifetime, B: Lifetime> {
+    left: &Node;
+    right: &Node;
+}
+
+function pair<A: Lifetime, B: Lifetime>(left: &Node, right: &Node): Pair<A, B> {
+    return Pair { left, right };
+}
+```
+
+### stored fields can name different lifetimes
+
+Different stored borrow lifetimes are written with `Borrowed<T, L>`.
+
+```ds
+struct Node {
+    id: int32;
+}
+
+struct Pair<A: Lifetime, B: Lifetime> {
+    left: Borrowed<Node, A>;
+    right: Borrowed<Node, B>;
+}
+
+function pair<A: Lifetime, B: Lifetime>(
+    left: Borrowed<Node, A>,
+    right: Borrowed<Node, B>,
+): Pair<A, B> {
+    return Pair { left, right };
+}
+```
+
+### managed field borrow follows the owner
+
+The returned borrow is tied to the managed object.
 
 ```ds
 class User {
@@ -64,9 +383,9 @@ function nameOf(user: User): &readonly string {
 nameOf(new User()) satisfies &readonly string;
 ```
 
-### managed branches join through inference
+### dynamic managed conditionals join lifetimes
 
-Branches can return managed-rooted borrows without naming the lifetime.
+Either managed object can be the returned owner.
 
 ```ds
 class User {
@@ -80,9 +399,9 @@ function pick(flag: boolean, a: User, b: User): &readonly string {
 pick(true, new User(), new User()) satisfies &readonly string;
 ```
 
-### managed arrays keep element borrows precise
+### array element borrow follows the array
 
-Borrowing an array element keeps the array alive without losing the element path.
+An element borrow is tied to the array it came from.
 
 ```ds
 function second<T>(items: Array<T>): &readonly T {
@@ -111,7 +430,7 @@ function nameView(user: User): ReadonlyBorrowed<string, "managed"> {
 
 - contains: lifetime
 
-### boxed field borrows cannot outlive the box
+### boxed field borrow follows the box
 
 A borrow through a box depends on the boxed owner.
 
@@ -127,7 +446,9 @@ function leakedName(user: Box<User>): &readonly string {
 
 - contains: cannot return reference to local
 
-### output borrow can name the input lifetime
+## explicit relationships
+
+### output borrow can name an input lifetime
 
 Explicit lifetime relationships use static parameters.
 
@@ -137,7 +458,7 @@ function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L>
 }
 ```
 
-### item borrow inherits the slice lifetime
+### item borrow follows the slice lifetime
 
 Borrowing through an input keeps the input lifetime.
 
@@ -147,7 +468,7 @@ function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
 }
 ```
 
-### stored borrow carries a lifetime parameter
+### stored borrow can carry a lifetime parameter
 
 Types that store borrowed access carry the lifetime they depend on.
 
@@ -157,7 +478,7 @@ struct View<T, L: Lifetime> {
 }
 ```
 
-### unrelated input lifetime is rejected
+### output borrow must match its declared lifetime
 
 Returned borrowed access must come from the declared lifetime.
 
@@ -174,7 +495,7 @@ function pick<A: Lifetime, B: Lifetime>(
 
 ## suspension
 
-### owned borrow across await is allowed
+### owned borrow can cross await
 
 Owned locals stay alive in a suspended async frame.
 
@@ -189,7 +510,7 @@ async function read(value: int32): Promise<int32> {
 }
 ```
 
-### local managed borrow across await is rejected
+### local managed borrow cannot cross await
 
 Local managed owners can be reached again after suspension, so their interior borrows are current-turn only.
 
@@ -210,7 +531,7 @@ async function read(user: User): Promise<string> {
 
 - contains: suspension
 
-### local managed borrow across yield is rejected
+### local managed borrow cannot cross yield
 
 Generator suspension has the same current-turn boundary as async suspension.
 
@@ -229,7 +550,7 @@ function* read(user: User): Generator<string, void, unknown> {
 
 - contains: suspension
 
-### shared managed borrow across await is rejected
+### shared managed borrow cannot cross await
 
 Shared managed storage can be borrowed non-exclusively, but managed-rooted interior borrows still cannot survive suspension.
 
@@ -250,7 +571,7 @@ async function read(user: shared User): Promise<string> {
 
 - contains: suspension
 
-### mutable parameter borrow across await is source-checked
+### borrowed parameter can cross await
 
 Borrowed parameters may cross suspension when the caller proves the source is suspension-stable.
 
@@ -264,7 +585,7 @@ async function read(value: &int32): Promise<int32> {
 }
 ```
 
-### readonly parameter borrow across await is source-checked
+### readonly parameter borrow can cross await
 
 Readonly borrowed parameters follow the same source proof rule.
 
@@ -278,7 +599,7 @@ async function read(value: &readonly int32): Promise<int32> {
 }
 ```
 
-### async borrow cannot escape its owner
+### async return cannot contain a local borrow
 
 Returned borrowed access still needs an owner that outlives the promise result.
 
@@ -295,7 +616,7 @@ async function read(): Promise<&readonly string> {
 
 - contains: lifetime
 
-### borrow after await is allowed
+### borrow can begin after await
 
 Borrow again after resuming.
 
@@ -310,7 +631,7 @@ async function read(value: int32): Promise<int32> {
 }
 ```
 
-### shared owned borrow across await is allowed
+### shared owned borrow can cross await
 
 Shared placement does not remove the uniqueness proof of owned storage.
 
@@ -329,7 +650,7 @@ async function read(packet: shared ^Packet): Promise<int32> {
 }
 ```
 
-### exclusive borrow across await is rejected
+### exclusive borrow cannot cross await
 
 Exclusive borrowed access must not cross suspension.
 
@@ -344,7 +665,7 @@ async function write(value: &exclusive int32): Promise<void> {
 
 - contains: exclusive
 
-### local exclusive borrow across await is rejected
+### local exclusive borrow cannot cross await
 
 Exclusive borrowed access from a local value must not cross suspension.
 
@@ -360,7 +681,7 @@ async function write(value: int32): Promise<void> {
 
 - contains: exclusive
 
-### exclusive borrow after await is allowed
+### exclusive borrow can begin after await
 
 Exclusive access can begin after resuming.
 
@@ -374,7 +695,7 @@ async function write(value: int32): Promise<void> {
 }
 ```
 
-### owned borrow across yield is allowed
+### owned borrow can cross yield
 
 Owned locals stay alive in a suspended generator frame.
 
@@ -386,7 +707,7 @@ function* read(value: int32): Generator<int32, void, unknown> {
 }
 ```
 
-### borrow after yield is allowed
+### borrow can begin after yield
 
 Borrowed access can begin after resuming.
 
@@ -398,7 +719,7 @@ function* read(value: int32): Generator<int32, void, unknown> {
 }
 ```
 
-### exclusive borrow across yield is rejected
+### exclusive borrow cannot cross yield
 
 Exclusive borrowed access must not cross generator suspension.
 
@@ -411,7 +732,7 @@ function* write(value: &exclusive int32): Generator<void, void, unknown> {
 
 - contains: exclusive
 
-### local exclusive borrow across yield is rejected
+### local exclusive borrow cannot cross yield
 
 Exclusive borrowed access from a local value must not cross generator suspension.
 
