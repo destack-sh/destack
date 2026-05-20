@@ -157,6 +157,12 @@ define_language_items! {
 
     /// Type helpers.
     types {
+        /// `destack:types/function`.
+        function {
+            /// Callable value type.
+            Function => (Newtype, "types/function", "Function"),
+        }
+
         /// `destack:types/option`.
         option {
             /// Explicit optional value.
@@ -314,9 +320,6 @@ define_language_items! {
     macro {
         /// `destack:macro/eval`.
         eval {
-            /// Function class.
-            Function => (Class, "macro/eval", "Function"),
-
             /// Comptime eval function.
             Eval => (Function, "macro/eval", "eval"),
         }
