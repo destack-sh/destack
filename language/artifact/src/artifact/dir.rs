@@ -77,6 +77,8 @@ pub struct DirBound {
     pub bindings: Arc<dir::BindingSegment>,
     /// Source types.
     pub types: Arc<dir::TypeSegment>,
+    /// Source static values.
+    pub statics: Arc<dir::StaticSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Stable module node for module-level state.
@@ -95,6 +97,11 @@ impl DirBound {
     /// Return the cumulative type table for bound DIR.
     pub fn type_table(&self) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segment(self.types.clone())
+    }
+
+    /// Return the cumulative static table for bound DIR.
+    pub fn static_table(&self) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segment(self.statics.clone())
     }
 }
 
@@ -123,6 +130,8 @@ pub struct DirExpanded {
     pub dependencies: Arc<dir::DependencySegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New static values.
+    pub statics: Arc<dir::StaticSegment>,
     /// Expanded macro invocations.
     pub macros: dir::MacroTable,
     /// Top-level expressions.
@@ -147,6 +156,11 @@ impl DirExpanded {
     pub fn type_table(&self, bound: &DirBound) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![bound.types.clone(), self.types.clone()])
     }
+
+    /// Return the cumulative static table for expanded DIR.
+    pub fn static_table(&self, bound: &DirBound) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segments(vec![bound.statics.clone(), self.statics.clone()])
+    }
 }
 
 /// Export table over the expanded view for one profile-scoped module.
@@ -161,6 +175,8 @@ pub struct DirExported {
 pub struct DirChecked {
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New static values.
+    pub statics: Arc<dir::StaticSegment>,
     /// New generic binders.
     pub generics: Arc<dir::GenericSegment>,
     /// New resolutions.
@@ -184,6 +200,19 @@ impl DirChecked {
             bound.types.clone(),
             expanded.types.clone(),
             self.types.clone(),
+        ])
+    }
+
+    /// Return the cumulative static table for checked DIR.
+    pub fn static_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+    ) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segments(vec![
+            bound.statics.clone(),
+            expanded.statics.clone(),
+            self.statics.clone(),
         ])
     }
 
@@ -232,6 +261,8 @@ pub struct DirMaterialized {
     pub bindings: Arc<dir::BindingSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New static values.
+    pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic instances.
@@ -272,6 +303,21 @@ impl DirMaterialized {
             expanded.types.clone(),
             checked.types.clone(),
             self.types.clone(),
+        ])
+    }
+
+    /// Return the cumulative static table for materialized DIR.
+    pub fn static_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        checked: &DirChecked,
+    ) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segments(vec![
+            bound.statics.clone(),
+            expanded.statics.clone(),
+            checked.statics.clone(),
+            self.statics.clone(),
         ])
     }
 
@@ -318,6 +364,8 @@ pub struct DirElaborated {
     pub bindings: Arc<dir::BindingSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
+    /// New static values.
+    pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic instances.
@@ -364,6 +412,23 @@ impl DirElaborated {
             checked.types.clone(),
             materialized.types.clone(),
             self.types.clone(),
+        ])
+    }
+
+    /// Return the cumulative static table for elaborated DIR.
+    pub fn static_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        checked: &DirChecked,
+        materialized: &DirMaterialized,
+    ) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segments(vec![
+            bound.statics.clone(),
+            expanded.statics.clone(),
+            checked.statics.clone(),
+            materialized.statics.clone(),
+            self.statics.clone(),
         ])
     }
 

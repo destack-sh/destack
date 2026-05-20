@@ -285,6 +285,15 @@ impl Compiler {
                     .into_global(module_id)
                     .into_anchored(Some(profile_id)),
             }),
+            dir::StaticTerm::Symbol { .. }
+            | dir::StaticTerm::Access { .. }
+            | dir::StaticTerm::Space { .. }
+            | dir::StaticTerm::Place { .. }
+            | dir::StaticTerm::Lifetime { .. } => Err(MaterializeError::UnsupportedConstruct {
+                anchor: anchor_id
+                    .into_global(module_id)
+                    .into_anchored(Some(profile_id)),
+            }),
         }
     }
 

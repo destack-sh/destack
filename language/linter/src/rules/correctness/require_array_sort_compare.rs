@@ -131,6 +131,7 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         // ignore string arrays because lexicographic ordering is usually intentional
         if is_string_array_type(
             self.ctx.types,
+            self.ctx.statics,
             type_id,
             Some(self.array_symbol),
             Some(self.string_symbol),

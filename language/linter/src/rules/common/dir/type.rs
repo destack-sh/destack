@@ -254,14 +254,25 @@ fn evaluate_boolean_type_query(
     type_id: dir::LocalTypeId,
     query: TypeBooleanQuery<'_>,
 ) -> bool {
+    evaluate_boolean_type_query_with_statics(types, None, type_id, query)
+}
+
+/// Evaluate one boolean type query with static values available.
+fn evaluate_boolean_type_query_with_statics(
+    types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
+    type_id: dir::LocalTypeId,
+    query: TypeBooleanQuery<'_>,
+) -> bool {
     let normalized_type_id = normalized_flow_type_id(types, type_id);
     let mut state = TypeBooleanQueryState::new();
-    evaluate_boolean_type_query_inner(types, normalized_type_id, query, &mut state)
+    evaluate_boolean_type_query_inner(types, statics, normalized_type_id, query, &mut state)
 }
 
 /// Evaluate one boolean type query for one normalized type id.
 fn evaluate_boolean_type_query_inner(
     types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
     type_id: dir::LocalTypeId,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
@@ -278,10 +289,11 @@ fn evaluate_boolean_type_query_inner(
 
     let ty = types.get_type(normalized_type_id);
     let result = if let Some(next_type_id) = value_like_type_id(ty) {
-        evaluate_boolean_type_query_inner(types, next_type_id, query, state)
+        evaluate_boolean_type_query_inner(types, statics, next_type_id, query, state)
     } else if let dir::Type::Named(reference) = ty {
         evaluate_reference_boolean_type_query(
             types,
+            statics,
             reference.symbol,
             Some(reference.arguments.as_slice()),
             query,
@@ -289,9 +301,16 @@ fn evaluate_boolean_type_query_inner(
         )
     } else if let Some(element_type_ids) = union_or_intersection_elements(ty) {
         let composition_policy = type_query_composition_policy(query, ty);
-        aggregate_boolean_query_results(types, element_type_ids, query, composition_policy, state)
+        aggregate_boolean_query_results(
+            types,
+            statics,
+            element_type_ids,
+            query,
+            composition_policy,
+            state,
+        )
     } else {
-        evaluate_terminal_boolean_type_query(types, ty, query, state)
+        evaluate_terminal_boolean_type_query(types, statics, ty, query, state)
     };
 
     state.leave_type_id(normalized_type_id);
@@ -337,24 +356,26 @@ fn type_query_composition_policy(
 /// Aggregate boolean query results across one list of element types.
 fn aggregate_boolean_query_results(
     types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
     element_type_ids: &[dir::LocalTypeId],
     query: TypeBooleanQuery<'_>,
     composition_policy: TypeCompositionPolicy,
     state: &mut TypeBooleanQueryState,
 ) -> bool {
     match composition_policy {
-        TypeCompositionPolicy::All => element_type_ids
-            .iter()
-            .all(|type_id| evaluate_boolean_type_query_inner(types, *type_id, query, state)),
-        TypeCompositionPolicy::Any => element_type_ids
-            .iter()
-            .any(|type_id| evaluate_boolean_type_query_inner(types, *type_id, query, state)),
+        TypeCompositionPolicy::All => element_type_ids.iter().all(|type_id| {
+            evaluate_boolean_type_query_inner(types, statics, *type_id, query, state)
+        }),
+        TypeCompositionPolicy::Any => element_type_ids.iter().any(|type_id| {
+            evaluate_boolean_type_query_inner(types, statics, *type_id, query, state)
+        }),
     }
 }
 
 /// Evaluate one boolean type query for one reference symbol.
 fn evaluate_reference_boolean_type_query(
     types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
     symbol: dir::GlobalSymbolId,
     generic_arguments: Option<&[dir::StaticArgument]>,
     query: TypeBooleanQuery<'_>,
@@ -399,7 +420,7 @@ fn evaluate_reference_boolean_type_query(
         }
         TypeBooleanQuery::MapWithEmptyValue { map_symbol } => {
             if symbol == map_symbol
-                && generic_arguments_contain_empty_map_value(types, generic_arguments)
+                && generic_arguments_contain_empty_map_value(types, statics, generic_arguments)
             {
                 return true;
             }
@@ -429,7 +450,7 @@ fn evaluate_reference_boolean_type_query(
     }
 
     if let Some(next_type_id) = reference_symbol_type_id(types, symbol) {
-        return evaluate_boolean_type_query_inner(types, next_type_id, query, state);
+        return evaluate_boolean_type_query_inner(types, statics, next_type_id, query, state);
     }
 
     matches!(query, TypeBooleanQuery::HasNonNullishFalsy { .. })
@@ -438,6 +459,7 @@ fn evaluate_reference_boolean_type_query(
 /// Evaluate one boolean type query for one terminal type node.
 fn evaluate_terminal_boolean_type_query(
     types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
     ty: &dir::Type,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
@@ -470,12 +492,14 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Any | dir::Type::Unknown => true,
             dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
                 types,
+                statics,
                 slice.element,
                 TypeBooleanQuery::PromiseOrAny { promise_symbol },
                 state,
             ),
             dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
                 types,
+                statics,
                 array.element,
                 TypeBooleanQuery::PromiseOrAny { promise_symbol },
                 state,
@@ -483,6 +507,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Tuple(tuple) => tuple.elements.iter().any(|element| {
                 evaluate_boolean_type_query_inner(
                     types,
+                    statics,
                     element.ty,
                     TypeBooleanQuery::PromiseOrAny { promise_symbol },
                     state,
@@ -502,12 +527,14 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Literal(_) => true,
             dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
                 types,
+                statics,
                 slice.element,
                 TypeBooleanQuery::HasUsefulToString,
                 state,
             ),
             dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
                 types,
+                statics,
                 array.element,
                 TypeBooleanQuery::HasUsefulToString,
                 state,
@@ -515,6 +542,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Tuple(tuple) => tuple.elements.iter().all(|element| {
                 evaluate_boolean_type_query_inner(
                     types,
+                    statics,
                     element.ty,
                     TypeBooleanQuery::HasUsefulToString,
                     state,
@@ -530,6 +558,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Shape(object) => object.call_signatures.iter().any(|type_id| {
                 evaluate_boolean_type_query_inner(
                     types,
+                    statics,
                     *type_id,
                     TypeBooleanQuery::AsyncFunction,
                     state,
@@ -625,6 +654,7 @@ fn evaluate_terminal_boolean_type_query(
 /// Return true when static arguments contain an empty map value argument.
 fn generic_arguments_contain_empty_map_value(
     types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
     generic_arguments: Option<&[dir::StaticArgument]>,
 ) -> bool {
     let Some(generic_arguments) = generic_arguments else {
@@ -634,15 +664,21 @@ fn generic_arguments_contain_empty_map_value(
         return false;
     }
 
-    generic_argument_is_void_or_never_type(types, &generic_arguments[1])
+    generic_argument_is_void_or_never_type(types, statics, &generic_arguments[1])
 }
 
 /// Return true when one static argument resolves to `void` or `never`.
 fn generic_argument_is_void_or_never_type(
     types: &dir::TypeTable<'_>,
+    statics: Option<&dir::StaticTable<'_>>,
     generic_argument: &dir::StaticArgument,
 ) -> bool {
-    match &generic_argument.value {
+    let Some(term) = statics.and_then(|statics| statics.get_static_maybe(generic_argument.value))
+    else {
+        return false;
+    };
+
+    match term {
         dir::StaticTerm::Type { ty } => is_void_or_never_type(types, *ty),
         dir::StaticTerm::TypeLiteral {
             value: dir::TypeLiteral::Void | dir::TypeLiteral::Never,
@@ -749,17 +785,26 @@ pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
 /// Return true when the type is an array or tuple whose elements are strings.
 pub fn is_string_array_type(
     types: &dir::TypeTable<'_>,
+    statics: &dir::StaticTable<'_>,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
     string_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let mut state = TypeQueryState::new();
-    is_string_array_type_inner(types, type_id, array_symbol, string_symbol, &mut state)
+    is_string_array_type_inner(
+        types,
+        statics,
+        type_id,
+        array_symbol,
+        string_symbol,
+        &mut state,
+    )
 }
 
 /// Evaluate string-array compatibility recursively.
 fn is_string_array_type_inner(
     types: &dir::TypeTable<'_>,
+    statics: &dir::StaticTable<'_>,
     type_id: dir::LocalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
     string_symbol: Option<dir::GlobalSymbolId>,
@@ -783,19 +828,27 @@ fn is_string_array_type_inner(
                 false
             } else {
                 reference.arguments.first().is_some_and(|generic_argument| {
-                    generic_argument_type_id(types, generic_argument).is_some_and(
+                    generic_argument_type_id(statics, generic_argument).is_some_and(
                         |element_type_id| is_string_type(types, element_type_id, string_symbol),
                     )
                 })
             }
         }
         dir::Type::Union(union) => union.elements.iter().all(|element_type_id| {
-            is_string_array_type_inner(types, *element_type_id, array_symbol, string_symbol, state)
+            is_string_array_type_inner(
+                types,
+                statics,
+                *element_type_id,
+                array_symbol,
+                string_symbol,
+                state,
+            )
         }),
         dir::Type::Intersection(intersection) => {
             intersection.elements.iter().any(|element_type_id| {
                 is_string_array_type_inner(
                     types,
+                    statics,
                     *element_type_id,
                     array_symbol,
                     string_symbol,
@@ -803,9 +856,14 @@ fn is_string_array_type_inner(
                 )
             })
         }
-        dir::Type::Form(value) => {
-            is_string_array_type_inner(types, value.value, array_symbol, string_symbol, state)
-        }
+        dir::Type::Form(value) => is_string_array_type_inner(
+            types,
+            statics,
+            value.value,
+            array_symbol,
+            string_symbol,
+            state,
+        ),
         _ => false,
     };
 
@@ -815,10 +873,10 @@ fn is_string_array_type_inner(
 
 /// Resolve one static argument into a concrete type id when available.
 fn generic_argument_type_id(
-    _types: &dir::TypeTable<'_>,
+    statics: &dir::StaticTable<'_>,
     generic_argument: &dir::StaticArgument,
 ) -> Option<dir::LocalTypeId> {
-    match &generic_argument.value {
+    match statics.get_static(generic_argument.value) {
         dir::StaticTerm::Type { ty } => Some(*ty),
         _ => None,
     }
@@ -1089,11 +1147,13 @@ pub fn supports_promise_spread_elements(
 /// Return true when one type contains `Map<_, void | never>`.
 pub fn contains_map_with_empty_value_type(
     types: &dir::TypeTable<'_>,
+    statics: &dir::StaticTable<'_>,
     type_id: dir::LocalTypeId,
     map_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    evaluate_boolean_type_query(
+    evaluate_boolean_type_query_with_statics(
         types,
+        Some(statics),
         type_id,
         TypeBooleanQuery::MapWithEmptyValue { map_symbol },
     )

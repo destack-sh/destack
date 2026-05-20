@@ -30,6 +30,7 @@ impl Compiler {
             patch: dir::Patch::new(&parsed.tree, "materialize"),
             bindings: Arc::new(dir::BindingSegment::from_base(&expanded.bindings)),
             types: Arc::new(dir::TypeSegment::from_base(&checked.types)),
+            statics: Arc::new(dir::StaticSegment::from_base(&checked.statics)),
             resolutions: Arc::new(dir::ResolutionSegment::new(module)),
             instances: Arc::new(dir::InstanceSegment::from_base(&checked.instances)),
             relations: Arc::new(dir::RelationSegment::new(module)),

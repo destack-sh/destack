@@ -24,6 +24,8 @@ pub struct ModuleLowerer<'a> {
     pub(crate) symbols: dir::BindingTable<'static>,
     /// The type table.
     pub(crate) types: &'a dir::TypeTable<'static>,
+    /// The static table.
+    pub(crate) statics: &'a dir::StaticTable<'static>,
     /// The resolution table.
     pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
     /// The dependency table.
@@ -121,6 +123,7 @@ impl<'a> ModuleLowerer<'a> {
         bound: &'a DirBound,
         symbols: dir::BindingTable<'static>,
         types: &'a dir::TypeTable<'static>,
+        statics: &'a dir::StaticTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
         dependencies: dir::DependencyTable<'static>,
         target: &'a Target,
@@ -136,6 +139,7 @@ impl<'a> ModuleLowerer<'a> {
             dir_roots: bound.roots.as_ref(),
             symbols,
             types,
+            statics,
             resolutions,
             dependencies,
             target,

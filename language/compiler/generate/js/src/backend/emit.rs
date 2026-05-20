@@ -31,6 +31,7 @@ pub fn lower_module(
     let bindings = expanded.binding_table(bound);
     let dependencies = expanded.dependency_table(imported);
     let types = checked.type_table(bound, expanded);
+    let statics = checked.static_table(bound, expanded);
     let resolutions = checked.resolution_table();
     let mut lowerer = ModuleLowerer::new(
         module,
@@ -39,6 +40,7 @@ pub fn lower_module(
         bound,
         bindings,
         &types,
+        &statics,
         &resolutions,
         dependencies,
         target,

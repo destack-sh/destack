@@ -34,6 +34,7 @@ impl Compiler {
             bindings: Arc::new(dir::BindingSegment::from_base(&bound.bindings)),
             dependencies: Arc::new(dir::DependencySegment::new(module)),
             types: Arc::new(dir::TypeSegment::from_base(&bound.types)),
+            statics: Arc::new(dir::StaticSegment::from_base(&bound.statics)),
             macros: dir::MacroTable::new(module),
             roots: bound.roots.clone(),
         };

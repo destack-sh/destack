@@ -188,8 +188,8 @@ pub enum GenericSlot {
     Static {
         /// The symbol bound by this slot.
         symbol: GlobalSymbolId,
-        /// The static term type accepted by this slot.
-        ty: Option<LocalTypeId>,
+        /// The constraint type for this slot.
+        constraint: Option<LocalTypeId>,
         /// The default static argument.
         default: Option<LocalStaticId>,
     },
