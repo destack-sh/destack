@@ -964,36 +964,6 @@ async function read(user: User): Promise<string> {
 }
 ```
 
-Frame-owned values can also be borrowed across suspension points:
-
-```ds
-async function read(user: ^User): Promise<string> {
-    const name = &readonly user.name;
-    await tick();
-    return name.clone();
-}
-```
-
-Borrowed access is also valid across suspension points _if_ it originates in an owned or static value:
-
-```ds
-async function read(user: &User): Promise<string> {
-    const name = &readonly user.name;
-    await tick();
-    return name.clone();
-}
-```
-
-Borrowed access to managed values can _not_ cross suspension:
-
-```ds
-async function read(user: User): Promise<string> {
-    const name = &readonly user.name;
-    await tick();
-    return name.clone();
-}
-```
-
 ### Patterns
 
 TypeScript has pattern based destructuring for arguments and assignment-like expressions, and Destack extends that idea into `match`, `if (let ...)`, `let ... else`, and `catch match` with a full suite of patterns for every type family:
@@ -1964,21 +1934,24 @@ extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
 
 ## Memory
 
-TypeScript, like most managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some (local) heap, and all value types are copied by default.
-That is convenient and often what we want, but sometimes we need to take direct control of memory, whether for better performance, or just to express invariants in the code.
+TypeScript, like many managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some (local) heap, and all value types are copied by default.
+That is convenient and often what we want, but sometimes we need to take direct control of memory, whether for better performance, or just to express certain invariants in the code.
 
-Destack supports explicit, optional modifiers for controlling memory ownership and placement:
+Destack supports explicit, optional type modifiers for controlling memory _ownership_ and _placement_:
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
-- **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker, `shared` across Workers, `static` for static storage, or `frame` for activation storage.
+- **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker, `shared` across Workers (or `static` for constant and `frame` for activation frames).
 
-Plain `T` behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
+Importantly, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 
 ### Ownership
 
 Ownership determines who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
+The notion of ownership is old but most commonly associated with Rust's explicit ownership system, and that is also the system most similar to Destack's implementation with a few tweaks.
+Really, "ownership" just means that _values_ have an owner and certain rules apply to how we can pass and store values to certain places, depending on which level of mutability and ownership they need.
+
 The usual explanation of "ownership" sounds more complex than it is, especially to developers used to "managed" languages, and _especially_ because Rust tradition (deliberately) unifies "liveness", "exclusivity" and "mutability".
-Unlike in Rust, in Destack we support _both_ multiple mutable borrows (`&T`) and exclusive mutable borrows (`&exclusive T`):
+Unlike Rust, Destack we support _both_ multiple mutable borrows (`&T`) and exclusive mutable borrows (`&exclusive T`):
 
 | Form | Meaning | Mutable? | Exclusive? |
 |------|---------|----------|------------|
@@ -2017,26 +1990,22 @@ let localRequest: Request<Body>;          // ambient, default -> Request is work
 let sharedRequest: shared Request<Body>;  // explicit, shared -> Request is shared heap
 ```
 
-Memory placement is contextual and all types are "ambient" by default, i.e., they come with no inherent placement.
-Aggregate types - types containing other types - are placed wherever their parent is placed until some root either specifies placement explicitly (e.g., `WithPlace<T, ..>`, `local T`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
+Memory placement is contextual: all types are "ambient" by default, i.e., they come with no inherent placement, and types are only placed wherever their parent is placed until someone either specifies placement explicitly (e.g., `local T`, `shared T`) or we reach the top, which - as established - is `local` to the Worker's own local heap by default.
 This "ambient placement" rule is also why we distinguish `Place` from `Space`: `Space` is concrete, while `Place` may also be `"ambient"`.
 
 #### Shared Space
 
-In JavaScript tradition, each "worker" (in the spec also "Agent") has its own isolated local heap that cannot be touched by other works.
-For sharing memory across workers, JavaScript has the `SharedArrayBuffer` concept and plain old message passing with `postMessage`.
+In TypeScript tradition, each "worker" (in the spec also "Agent") has its own isolated local heap that cannot be touched by other works.
+For sharing memory across workers, TypeScript has the `SharedArrayBuffer` concept and plain old message passing with `postMessage`.
 That works, but is architecturally limited and makes it complex to implement more sophisticated parallelism patterns.
 
 Destack supports an explicit, fully featured _shared_ memory space that is visible to all `Worker`s in the same `Runtime` via regular references and objects.
-Basically, `shared T` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal:
-- Local values may point to shared values.
-- Shared values must not point directly into a local heap.
+Basically, `shared T` is the typed, generalized version of the `SharedArrayBuffer` idea with the full type system and object graphs at our disposal with the simple rule that local may point into shared, but shared must not point into local memory.
 
-That's it. 
-It's important to note that _by itself_ shared placement, like any space placement, is **not** a synchronization primitive of any kind and does **not** imply atomic access, locking, `Sync`, or anything like it.
-That is by design; it's up to the standard libraries to require capabilities like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
+It's important to note that _by itself_ shared placement, like any space placement, is **not** a synchronization primitive of and does **not** imply atomic access, locking, `Sync`, or anything like it.
+That is by design; it's up to userland libraries to require capabilities like `Send` and `Sync` for APIs that transfer or publish values for correctness, but `shared` itself is really only about placement.
 
-### Static Space
+#### Static Space
 
 Because Destack inherits the JS/TS Worker model for isolation, module-scoped constants are owned by each _Worker_ and are not actually process-global as they would be in most other languages.
 For genuinely _shared_ process-global state, the binding _itself_ can be declared as `shared`.
@@ -2053,8 +2022,8 @@ There is no `local const` form because ordinary module bindings are already Work
 
 ### Allocator
 
-The primary typed construction path is `new`, which initializes a `T` and produces the ownership form required by the destination type.
-The destination decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
+The primary way to construct new values is `new`, which initializes a `T` and produces the ownership form required by the _destination_ type - `new` is really just an initializer that calls the type's constructor.
+The required destination type decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
 
 ```ds
 let a: User = new User();   // managed
@@ -2087,10 +2056,10 @@ function interruptHandler(input: &[Sample]): Frame {
 
 ### Conversions
 
-The rules for converting references follow from three basic rules:
+The rules for converting references follow from the three basic memory rules established above:
 - References must always be valid (the referent must never be deallocated while the reference is live),
-- Shared memory must not point into local memory (directly or indirectly).
 - Exclusive references must be truly exclusive (no possibly overlapping loan is live).
+- Shared memory must not point into local memory (directly or indirectly).
 
 | From | To | Allow | Explanation |
 |------|----|-------|-------------|
@@ -2120,9 +2089,8 @@ As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is per
 
 ### Borrowing
 
-There are different ways of ensuring memory safety, and - besides supporting GC-managed memory - Destack follows the Rust idea of using lifetimes to describe how borrowed `&T` values relate to their owners.
-When borrowing a value with `&T`, the compiler ensures that the borrow remains valid - that is, `T` must remain alive (must not be deallocated) while _any_ `&T` is active.
-Like in Rust, even when working with borrowed values, most of the time all lifetimes are inferred correctly and we don't need to think too much.
+To ensure memory safety even in unmanaged land, Destack follows the Rust idea of using ownership rules to ensure that _borrowing_ a reference `&T` remains valid - that is, `T` must remain alive (must not be deallocated) while _any_ `&T` is active.
+Much more so than in Rust, Destack infers lifetimes for borrowed values even with complex control flow, so most of the time all lifetimes are inferred correctly and we don't need to think too much.
 
 Unlike in Rust, in Destack, mutability is decoupled from borrowing: we can have multiple mutable borrows `&T` and readonly borrows `&readonly T` of the same `T` _at the same time_, as long as there is no concurrent `&exclusive T` borrow (which mirrors Rust's `&mut T`).
 Importantly, this is still memory safe because all operations that may invalidate a borrow require `&exclusive T` access.
@@ -2178,76 +2146,96 @@ let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
 
-### Unsafe
-
-Safe Destack code can create and carry raw pointers, because there is nothing directly unsafe about just looking at pointers.
-Raw pointers are inert: they do not keep storage alive, do not participate in borrow checking, and do not prove exclusivity.
-
-Converting a borrow to a raw pointer is still safe because it does not touch the pointed-to memory:
-
-```ds
-let user = new User();
-
-let borrow: &User = &user;
-let pointer: *User = borrow; // ok: this only creates a raw pointer value
-```
-
-Unsafe begins when code claims something about the memory behind the pointer that the compiler cannot prove:
-
-| Operation | Example | Safe? | Why |
-|-----------|---------|-------|-----|
-| create or carry raw pointer values | `let pointer: *User = &user`, `pointer == other` | yes | does not touch memory |
-| reinterpret raw pointer values | `pointer as *uint8`, `0x1000 as *uint8` | yes | makes no validity claim |
-| wrapping address arithmetic | `wrappingOffset(pointer, 4)` | yes | makes no allocation claim |
-| allocation-relative pointer math | `offset(pointer, 4)`, `offsetFrom(pointer, origin)` | no | claims same live allocation |
-| access memory through a pointer | `asReference(pointer)`, `read(pointer)`, `write(pointer, value)` | no | bypasses borrow checking |
-| build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
-| raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
-| raw allocation lifecycle | `allocator.allocate(layout)`, `allocator.deallocate(allocation)` | allocate yes, free no | allocation returns an inert token; free must match allocator and layout |
-
-The compiler rejects unsafe operations, like raw pointer stuff, outside explicit `@unsafe` / `@safe` contexts.
-
 ### Lifetimes
 
-The relationship between whoever owns the memory (managed or explicitly owned) and those who want to borrow (reference) it are not always unambiguous to the compiler, and so we need to help the compiler verify this relationship by explicitly spelling out "lifetimes" with `<L: Lifetime>` and `Borrowed<T, L>` generics.
-Destack's lifetimes are conceptually very similar to Rust's `'a`-style lifetime parameters, but as the spelling implies, `<L: Lifetime>`s are full generics that are also available to regular TypeScript-style type algebra:
+The relationship between whoever owns the memory (managed or explicitly owned) and those who want to reference (borrow) is specified via Rust-like lifetimes, implemented as `<L: Lifetime>` and `Borrowed<T, L>` generics.
+Destack's lifetimes are conceptually very similar to Rust, but as the spelling implies, `<L: Lifetime>`s are full generics available to regular TypeScript-style type algebra _and inference including flow typing and narrowing_, which means we very rarely need to spell them out.
 
 ```ds
-function read(user: &User): string {
-    // common borrowed parameters can use the surface `&T` form
-    return user.name;
+function read(user: &User): &string {
+    return &user.name;
 }
 
-function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
-    // returned borrowed access is tied to the `items` lifetime
+function first<T>(items: &[T]): &T {
     return &items[0];
 }
 
-struct View<T, L: Lifetime> {
-    // stored borrowed access makes the type carry the lifetime
-    items: Borrowed<[T], L>;
+struct View<T> {
+    items: &[T];
 }
 ```
 
-The usual failure cases of borrowing rules usually have straightforward solutions, and sometimes simpler than in Rust since we can just bail out to managed ownership:
+Because lifetimes are part of type inference, and type inference also analyses method bodies, lifetime inference also derives from function bodies:
 
 ```ds
-/* INVALID: borrow of a local owned Point cannot escape */
-function escapedPoint(): &Point {
-    let point = ^Point { x: 1, y: 2 };
-    return &point;
+function first(a: &Node, b: &Node): &Node {
+    return a;
 }
 
-/* VALID: owned Point is returned instead of borrowed access */
-function ownedPoint(): ^Point {
-    let point = ^Point { x: 1, y: 2 };
-    return point;
+function choose(a: &Node, b: &Node, flag: bool): &Node {
+    return flag ? a : b;
+}
+```
+
+It follows that declaration-only APIs must spell out their lifetime requirements explicitly when borrows may be ambiguous.
+
+```ds
+declare function only(value: &Node): &Node;
+
+declare function choose<L: Lifetime>(
+    a: Borrowed<Node, L>,
+    b: Borrowed<Node, L>,
+): Borrowed<Node, L>;
+```
+
+Stored borrowed fields use the same idea and get one hidden lifetime parameter, shared by all elided borrowed fields in the declaration:
+
+```ds
+struct EngineView {
+    engine: &Engine;
 }
 
-/* VALID: borrow into a lifetime provided by the caller */
-function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L> {
-    // return borrowed access tied to an input lifetime
-    return point;
+struct WorldView {
+    engine: &Engine;
+    assets: &AssetStore;
+}
+```
+
+Taken together, these mechanisms of elision and inference for lifetimes allow us to implement the vast majority of low level ownership patterns without having to specify lifetimes to the compiler explicitly.
+
+### Suspension
+
+As discussed in [Continuations](###Continuations), values and objects in "managed land" work exactly like in regular TypeScript and can be referenced and mutated freely wherever.
+When _borrowing_ across suspension points (like `yield` or `await`), the compiler must still guarantee that the core safety rules are upheld.
+And because multiple continuations may be active concurrently (even if not in parallel), borrows that must be owned by the current frame to cross suspension points - in other words, borrows coming from managed values must _not_ cross suspension points.
+
+It follows that frame-owned values _can_ be borrowed across suspension points:
+
+```ds
+async function read(user: ^User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
+    return name.clone();
+}
+```
+
+Borrowed access is also valid across suspension points _if_ it originates in an owned or static value:
+
+```ds
+async function read(user: &User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
+    return name.clone();
+}
+```
+
+But borrowed access to managed values can _not_ cross suspension (even non-exclusive):
+
+```ds
+async function read(user: User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
+    return name.clone();
 }
 ```
 
@@ -2296,9 +2284,38 @@ await using connection = await pool.connect();
 Low-level code can of course still control finalization explicitly:
 `drop(value)` ends ownership immediately, `forget(value)` intentionally suppresses automatic drop, `ManuallyDrop<T>` stores a value outside automatic drop handling, and `Box<T>.leak()` turns one owned allocation into a static borrow.
 
+### Unsafe
+
+Safe Destack code can create and carry raw pointers, because there is nothing directly unsafe about just looking at pointers.
+Raw pointers are inert: they do not keep storage alive, do not participate in borrow checking, and do not prove exclusivity.
+
+Converting a borrow to a raw pointer is still safe because it does not touch the pointed-to memory:
+
+```ds
+let user = new User();
+
+let borrow: &User = &user;
+let pointer: *User = borrow; // ok: this only creates a raw pointer value
+```
+
+Unsafe begins when code relies on a memory invariant the compiler cannot prove:
+
+| Operation | Example | Safe? | Why |
+|-----------|---------|-------|-----|
+| create or carry raw pointer values | `let pointer: *User = &user`, `pointer == other` | yes | does not touch memory |
+| reinterpret raw pointer values | `pointer as *uint8`, `0x1000 as *uint8` | yes | makes no validity claim |
+| wrapping address arithmetic | `wrappingOffset(pointer, 4)` | yes | makes no allocation claim |
+| allocation-relative pointer math | `offset(pointer, 4)`, `offsetFrom(pointer, origin)` | no | claims same live allocation |
+| access memory through a pointer | `asReference(pointer)`, `read(pointer)`, `write(pointer, value)` | no | bypasses borrow checking |
+| build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
+| raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
+| raw allocation lifecycle | `allocator.allocate(layout)`, `allocator.deallocate(allocation)` | allocate yes, free no | allocation returns an inert token; free must match allocator and layout |
+
+The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit `@unsafe` / `@safe` contexts.
+
 ### Algebra
 
-Destack's "memory algebra" is a fancy way of saying that the axes of ownership, access, lifetime, and placement are ordinary type-level information that we can perform TypeScript-style algebra over.
+Destack's "memory algebra" is a fancy way of saying that the axes of ownership, access, lifetime, and placement are just types that we can do TypeScript-style algebra and inference with.
 Code can inspect a type's memory form and build a derived form because all the qualified surface forms like `readonly T`, `^T`, `&T`, `*T`, `local T`, and `shared T` correspond to builtin intrinsic types:
 
 ```ds
@@ -2396,8 +2413,7 @@ WithAccess<^User, "readonly"> satisfies ^readonly User;
 WithAccess<&User, "exclusive"> satisfies &exclusive User;
 ```
 
-Except for the intrinsic form constructors, all the rest is just regular TypeScript-shaped type algebra.
-That makes memory qualification just ordinary type-level computation: userland code can introspect and rewrite ownership and placement using the same type system for any other type.
+Because memory qualification is just ordinary type-level computation, userland code can introspect and rewrite ownership and placement using the same type system we already use for all other types.
 Inside a type declaration, `this` in type or static position also carries the current instantiated form of that type to query against with the `*Of` and `Is*` family. 
 
 ```ds
