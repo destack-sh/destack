@@ -129,7 +129,7 @@ pub fn resolution_target_symbols(
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
             }
-            dir::MemberTarget::Intrinsic => {}
+            dir::MemberTarget::Intrinsic | dir::MemberTarget::Field { .. } => {}
         }
     }
 
