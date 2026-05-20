@@ -172,7 +172,7 @@
         },
         {
           "name": "keyword.declaration.type.ds",
-          "match": "\\b(?:const|let|module|global|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
+          "match": "\\b(?:const|let|module|global|type|newtype|struct|class|enum|interface|function|extension|declare|constructor)\\b"
         },
         {
           "name": "keyword.control.using.ds",
@@ -184,7 +184,7 @@
         },
         {
           "name": "keyword.operator.type.ds",
-          "match": "\\b(?:where|asserts|provides)\\b"
+          "match": "\\b(?:where|asserts)\\b"
         },
         {
           "name": "keyword.other.comptime.ds",
@@ -204,7 +204,7 @@
         },
         {
           "name": "keyword.control.flow.ds",
-          "match": "\\b(?:assert|break|continue|debugger|return|yield|goto)\\b"
+          "match": "\\b(?:assert|break|continue|debugger|return|yield)\\b"
         },
         {
           "name": "keyword.control.exception.ds",
@@ -2610,7 +2610,7 @@
       "patterns": [
         {
           "name": "meta.function.call.ds",
-          "match": "(?x)(?<![$\\w])(?!(?:if|else|match|switch|case|while|for|loop|do|with|catch|where|let|const|var|using|function|constructor|class|struct|interface|enum|union|type|newtype|module|global|declare|return|throw|new|await|comptime)\\b)([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s*(?:<[^>]*>\\s*)?\\()",
+          "match": "(?x)(?<![$\\w])(?!(?:if|else|match|switch|case|while|for|loop|do|with|catch|where|let|const|using|function|constructor|class|struct|interface|enum|type|newtype|module|global|declare|return|throw|new|await|comptime)\\b)([$A-Za-z_][$A-Za-z0-9_]*)(?![$\\w])(?=\\s*(?:<[^>]*>\\s*)?\\()",
           "captures": {
             "1": {
               "name": "entity.name.function.call.ds"
