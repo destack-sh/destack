@@ -23,7 +23,9 @@ module.exports = grammar({
         $.block_identifier,
         $.local_identifier,
         $.function_identifier,
+        $.boolean_literal,
         $.number_literal,
+        $.character_literal,
         $.string_literal,
         $.identifier,
         $.punctuation,
@@ -112,7 +114,11 @@ module.exports = grammar({
     number_literal: () =>
       /[+-]?\d(?:[\d_]*\d)?(?:\.(?:\d(?:[\d_]*\d)?))?(?:[eE][+-]?\d(?:[\d_]*\d)?)?(?:(?:int|uint|float)(?:8|16|32|64|128|256)|[iuf](?:8|16|32|64|128))?/,
 
-    string_literal: () => token(choice(seq('"', repeat(choice(/[^"\\\n]+/, /\\./)), '"'), seq("'", repeat(choice(/[^'\\\n]+/, /\\./)), "'"))),
+    boolean_literal: () => token(prec(2, choice("true", "false"))),
+
+    character_literal: () => token(seq("'", repeat(choice(/[^'\\\n]+/, /\\./)), "'")),
+
+    string_literal: () => token(seq('"', repeat(choice(/[^"\\\n]+/, /\\./)), '"')),
 
     identifier: () => /[A-Za-z_][A-Za-z0-9_.]*/,
 
