@@ -5,6 +5,7 @@ export * from "destack:reflect";
 export {
     Exclude,
     Extract,
+    Function,
     MutableFields,
     NonNullable,
     Omit,
