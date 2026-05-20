@@ -77,7 +77,7 @@ pub(crate) fn build_reference_targets_for_module(
                         insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
                 }
-                MemberTarget::Intrinsic => {}
+                MemberTarget::Intrinsic | MemberTarget::Field { .. } => {}
             }
         }
         if let Some(resolution) = dir.resolutions().call_resolution(node_id) {

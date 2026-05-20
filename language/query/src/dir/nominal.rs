@@ -101,14 +101,15 @@ fn recorded_member_resolution(
 
                 None
             }
-            MemberTarget::Intrinsic => None,
+            MemberTarget::Intrinsic | MemberTarget::Field { .. } => None,
         };
     }
 
     let resolution = dir.resolutions().name_resolution(node_id)?;
-    if !dir.symbol_is_visible(resolution.symbol) {
+    let symbol = resolution.symbol()?;
+    if !dir.symbol_is_visible(symbol) {
         return None;
     }
 
-    Some(resolution.symbol)
+    Some(symbol)
 }
