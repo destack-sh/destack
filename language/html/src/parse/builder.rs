@@ -1700,7 +1700,7 @@ impl BuilderInner<'_> {
 fn is_asset_attribute_name(tree: &Tree, element_name: &Name, attribute_name: LocalName) -> bool {
     let element_name = tree.strings.get(element_name.local);
 
-    match element_name.as_ref() {
+    match element_name {
         "img" | "source" | "audio" | "embed" => attribute_name == local_name!("src"),
         "video" => attribute_name == local_name!("src") || attribute_name == local_name!("poster"),
         "object" => attribute_name == local_name!("data"),

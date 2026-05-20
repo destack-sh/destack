@@ -226,7 +226,7 @@ fn decode_inline_atom(data: u64, inline_length: u8) -> String {
         bytes.push(byte);
     }
 
-    // inline atoms are always packed from valid UTF 8 input
+    // SAFETY: inline atoms are always packed from valid UTF 8 input
     unsafe { String::from_utf8_unchecked(bytes) }
 }
 

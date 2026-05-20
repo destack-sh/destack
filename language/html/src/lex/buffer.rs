@@ -91,6 +91,7 @@ impl BufferQueue {
                     let out;
 
                     // matched run
+                    // SAFETY: n is a prefix byte length returned by the same buffer
                     unsafe {
                         out = buffer.unsafe_substring(0, n);
                         buffer.unsafe_pop_front(n);
