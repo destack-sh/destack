@@ -46,6 +46,11 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
+    /// Resolved DIR imports.
+    DirResolved {
+        module: ModuleId,
+        profile: ProfileId,
+    },
     /// Checked DIR.
     DirChecked {
         module: ModuleId,
@@ -118,6 +123,7 @@ impl ArtifactKey {
             | Self::DirImported { .. }
             | Self::DirExpanded { .. }
             | Self::DirExported { .. }
+            | Self::DirResolved { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
             | Self::DirElaborated { .. }
@@ -176,6 +182,11 @@ impl ArtifactKey {
     /// Build one exported DIR artifact key.
     pub fn dir_exported(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirExported { module, profile }
+    }
+
+    /// Build one resolved DIR artifact key.
+    pub fn dir_resolved(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirResolved { module, profile }
     }
 
     /// Build one checked DIR artifact key.
@@ -265,6 +276,7 @@ impl ArtifactKey {
             Self::DirImported { .. } => "dir_imported",
             Self::DirExpanded { .. } => "dir_expanded",
             Self::DirExported { .. } => "dir_exported",
+            Self::DirResolved { .. } => "dir_resolved",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::DirElaborated { .. } => "dir_elaborated",
@@ -290,6 +302,7 @@ impl ArtifactKey {
             | Self::DirImported { module, .. }
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
+            | Self::DirResolved { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::DirElaborated { module, .. }
@@ -317,6 +330,7 @@ impl ArtifactKey {
             | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }
             | Self::DirExported { profile, .. }
+            | Self::DirResolved { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }
             | Self::DirElaborated { profile, .. }

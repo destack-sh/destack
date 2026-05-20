@@ -8,7 +8,7 @@ use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Data,
     DirBound, DirChecked, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
+    DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
     ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
     WorkspaceQueryIndex,
 };
@@ -40,6 +40,8 @@ pub struct ArtifactStore {
     dir_expanded: ArtifactMap<DirExpanded>,
     /// Exported DIR artifacts by module and profile.
     dir_exported: ArtifactMap<DirExported>,
+    /// Resolved DIR artifacts by module and profile.
+    dir_resolved: ArtifactMap<DirResolved>,
     /// Checked DIR artifacts by module and profile.
     dir_checked: ArtifactMap<DirChecked>,
     /// Materialized DIR artifacts by module and profile.
@@ -155,6 +157,7 @@ impl ArtifactStore {
             ArtifactKey::DirImported { .. } => self.dir_imported.contains_key(version),
             ArtifactKey::DirExpanded { .. } => self.dir_expanded.contains_key(version),
             ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
+            ArtifactKey::DirResolved { .. } => self.dir_resolved.contains_key(version),
             ArtifactKey::DirChecked { .. } => self.dir_checked.contains_key(version),
             ArtifactKey::DirMaterialized { .. } => self.dir_materialized.contains_key(version),
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
@@ -247,6 +250,13 @@ impl ArtifactStore {
                 payload,
                 matches!(&version.key, ArtifactKey::DirExported { .. }),
                 "DirExported",
+            ),
+            ArtifactPayload::DirResolved(payload) => Self::insert_payload(
+                &self.dir_resolved,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::DirResolved { .. }),
+                "DirResolved",
             ),
             ArtifactPayload::DirChecked(payload) => Self::insert_payload(
                 &self.dir_checked,
@@ -404,6 +414,13 @@ impl ArtifactStore {
     /// Get one exported DIR artifact.
     pub fn dir_exported(&self, version: &ArtifactVersion) -> Option<Arc<DirExported>> {
         self.dir_exported
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one resolved DIR artifact.
+    pub fn dir_resolved(&self, version: &ArtifactVersion) -> Option<Arc<DirResolved>> {
+        self.dir_resolved
             .get(version)
             .map(|entry| entry.value().clone())
     }
