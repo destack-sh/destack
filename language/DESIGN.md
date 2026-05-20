@@ -889,9 +889,8 @@ const user = do {
 
 ### Closures
 
-Closures conceptually work like TypeScript closures, capturing the surrounding lexical environment and preserving lexical `this` around a generic `Function<Parameters, Return>`.
-Arrow function types are syntax sugar for that form, so `(message: string) => Result<void, IOError>` is the same type as `Function<[string], Result<void, IOError>>`.
-
+Closures in Destack work essentially like TypeScript's closures, capturing the surrounding lexical environment and preserving lexical `this` around a generic `Function<Parameters, Return>`.
+"Arrow function types" are syntax sugar for that form, so `(message: string) => Result<void, IOError>` is the same type as `Function<(string,), Result<void, IOError>>`.
 
 ```ds
 let count = 0;
@@ -901,12 +900,12 @@ const next = () => {
     return count;
 };
 next satisfies () => number;
-next satisfies Function<[], number>;
+next satisfies Function<(), number>;
 
 const read = () => count;
 ```
 
-As with all of Destack, the `Function`s behind closures behave like in TypeScript, with additional control available via the regular memory modifiers like `&Function<[string], void>`. 
+As with all of Destack, the `Function`s behind closures behave like one would expect in TypeScript by default, with additional control available on demand via the regular memory modifiers like `&Function<(string,), void>`. 
 By default, the captured environment is shared for the lexical scope, so multiple closures that share the same binding see the same environment, but this capture policy can be configured via the `@capture` decorator:
 
 | Policy | Meaning |
@@ -922,16 +921,16 @@ Explicit capture forms choose how the callable value itself will be stored in th
 let count = 0;
 
 @capture("borrow")
-let borrowed: &Function<[], int32> = () => count;
+let borrowed: &Function<(), int32> = () => count;
 
 let value = 0;
 
 @capture("move")
-let owned: ^Function<[], int32> = () => value;
+let owned: ^Function<(), int32> = () => value;
 
 let state = 0;
 
-let managed: Function<[], int32> = () => state;
+let managed: Function<(), int32> = () => state;
 ```
 
 The short form for `@capture` sets the default for every captured binding, and the object form overrides selected bindings, including `this`:
