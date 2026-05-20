@@ -67,9 +67,9 @@ impl<'a> Printer<'a> {
         // opening
         self.source.push_str("<!");
         self.source
-            .push_str(&self.tree.string(doctype.doctype_keyword));
+            .push_str(self.tree.string(doctype.doctype_keyword));
         self.source.push(' ');
-        self.source.push_str(&self.tree.string(doctype.name));
+        self.source.push_str(self.tree.string(doctype.name));
 
         // ids
         match doctype.kind {
@@ -77,7 +77,7 @@ impl<'a> Printer<'a> {
             DoctypeKind::Public => {
                 self.source.push(' ');
                 if let Some(kind_keyword) = doctype.kind_keyword {
-                    self.source.push_str(&self.tree.string(kind_keyword));
+                    self.source.push_str(self.tree.string(kind_keyword));
                 } else {
                     self.source.push_str("PUBLIC");
                 }
@@ -102,7 +102,7 @@ impl<'a> Printer<'a> {
             DoctypeKind::System => {
                 self.source.push(' ');
                 if let Some(kind_keyword) = doctype.kind_keyword {
-                    self.source.push_str(&self.tree.string(kind_keyword));
+                    self.source.push_str(self.tree.string(kind_keyword));
                 } else {
                     self.source.push_str("SYSTEM");
                 }

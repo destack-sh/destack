@@ -45,7 +45,7 @@ impl<Parser: LexHandler> Lexer<Parser> {
                         drop(front_buffer);
                         self.pop_except_from(input, set)
                     } else {
-                        // safety: the runtime feature check above guarantees simd support
+                        // SAFETY: the runtime feature check above guarantees simd support
                         let result = unsafe { self.data_state_simd_fast_path(&mut front_buffer) };
 
                         if front_buffer.is_empty() {

@@ -26,7 +26,7 @@ impl<'a> Printer<'a> {
             }
             Content::Instruction(instruction) => {
                 self.source.push_str("<?");
-                self.source.push_str(&self.tree.string(instruction.target));
+                self.source.push_str(self.tree.string(instruction.target));
 
                 if !instruction.contents.is_empty() {
                     self.source.push(' ');
@@ -47,7 +47,7 @@ impl<'a> Printer<'a> {
                 .map(|content| self.tree.get(content).children.clone())
                 .unwrap_or_else(|| element.children.clone());
             let element_name = self.tree.string(element.name.local);
-            let is_raw_text = Self::is_raw_text_element_name(element_name.as_ref());
+            let is_raw_text = Self::is_raw_text_element_name(element_name);
 
             for child in &content {
                 self.print_content_with_mode(*child, is_raw_text);
@@ -59,7 +59,7 @@ impl<'a> Printer<'a> {
         let start_tag_name = self.render_element_start_tag_name(element);
         let end_tag_name = self.render_element_end_tag_name(element);
         let element_name = self.tree.string(element.name.local);
-        let is_void_element = Self::is_void_element_name(element_name.as_ref());
+        let is_void_element = Self::is_void_element_name(element_name);
 
         // content
         let content = element
@@ -91,7 +91,7 @@ impl<'a> Printer<'a> {
                 if self.options.is_minified
                     && matches!(element.name.namespace, Namespace::Html)
                     && is_html_attribute_namespace
-                    && Self::is_boolean_attribute(attribute_local_name.as_ref(), &value.value)
+                    && Self::is_boolean_attribute(attribute_local_name, &value.value)
                 {
                     continue;
                 }
@@ -128,10 +128,7 @@ impl<'a> Printer<'a> {
 
         // children
         for child in &content {
-            self.print_content_with_mode(
-                *child,
-                Self::is_raw_text_element_name(element_name.as_ref()),
-            );
+            self.print_content_with_mode(*child, Self::is_raw_text_element_name(element_name));
         }
 
         // closing tag

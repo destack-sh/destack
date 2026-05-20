@@ -15,16 +15,16 @@ pub(crate) fn write_authored_or_resolved_name(
     if let Some(authored_name) = authored_name {
         let authored_name = tree.string(authored_name);
 
-        return write!(f, [text(authored_name.as_ref())]);
+        return write!(f, [text(authored_name)]);
     }
 
     if let Some(prefix) = name.prefix {
         let prefix = tree.string(prefix);
 
-        write!(f, [text(prefix.as_ref()), text(":")])?;
+        write!(f, [text(prefix), text(":")])?;
     }
 
     let local_name = tree.string(name.local);
 
-    write!(f, [text(local_name.as_ref())])
+    write!(f, [text(local_name)])
 }

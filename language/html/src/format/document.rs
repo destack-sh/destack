@@ -71,7 +71,7 @@ fn write_doctype(
             text("<!"),
             text(&doctype_keyword),
             space(),
-            text(doctype_name.as_ref())
+            text(doctype_name)
         ]
     )?;
 

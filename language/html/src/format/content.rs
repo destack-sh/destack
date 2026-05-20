@@ -24,7 +24,7 @@ pub(crate) fn write_content(
         Content::Instruction(instruction) => {
             let target = tree.string(instruction.target);
 
-            write!(f, [text("<?"), text(target.as_ref())])?;
+            write!(f, [text("<?"), text(target)])?;
 
             if instruction.contents.is_empty() {
                 write!(f, [text("?>")])
@@ -48,7 +48,7 @@ pub(crate) fn write_element(
             .map(|content| tree.get(content).children.clone())
             .unwrap_or_else(|| element.children.clone());
         let element_name = tree.string(element.name.local);
-        let is_raw_text = Printer::is_raw_text_element_name(element_name.as_ref());
+        let is_raw_text = Printer::is_raw_text_element_name(element_name);
 
         for child in &content {
             write_content(tree, *child, is_raw_text, f)?;
@@ -63,7 +63,7 @@ pub(crate) fn write_element(
         .map(|content| tree.get(content).children.clone())
         .unwrap_or_else(|| element.children.clone());
     let element_name = tree.string(element.name.local);
-    let is_raw_text = Printer::is_raw_text_element_name(element_name.as_ref());
+    let is_raw_text = Printer::is_raw_text_element_name(element_name);
 
     // opening tag
     write!(f, [text("<")])?;
@@ -92,7 +92,7 @@ pub(crate) fn write_element(
     write!(f, [text(">")])?;
 
     // void elements
-    if Printer::is_void_element_name(element_name.as_ref()) {
+    if Printer::is_void_element_name(element_name) {
         return Ok(());
     }
 
