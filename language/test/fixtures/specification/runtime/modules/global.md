@@ -2,9 +2,27 @@
 
 ## real globals
 
-### imported global blocks contribute values
+### configured global roots are visible without imports
 
-A `global` block contributes real values when its module is in the graph.
+Configured global roots expose shared runtime globals.
+
+```ds:globals.ds
+global {
+    const runtimeName: string = "test";
+}
+```
+
+```ds:main.ds
+runtimeName satisfies string;
+```
+
+```json:destack.json
+{ "compiler": { "globals": ["./globals.ds"] } }
+```
+
+### side-effect imports do not contribute globals
+
+Bare imports evaluate modules without importing their global value declarations.
 
 ```ds:globals.ds
 global {
@@ -17,6 +35,96 @@ import "./globals.ds";
 
 answer satisfies int32;
 ```
+
+- contains: missing symbol
+
+### named imports do not contribute globals
+
+Ordinary imports resolve exported bindings only.
+
+```ds:globals.ds
+export const value = 1;
+
+global {
+    const answer: int32 = 42;
+}
+```
+
+```ds:main.ds
+import { value } from "./globals.ds";
+
+value satisfies int;
+answer satisfies int32;
+```
+
+- contains: missing symbol
+
+### namespace imports do not contribute globals
+
+Namespace imports expose the target module namespace without importing globals.
+
+```ds:globals.ds
+export const value = 1;
+
+global {
+    const answer: int32 = 42;
+}
+```
+
+```ds:main.ds
+import * as globals from "./globals.ds";
+
+globals.value satisfies int;
+answer satisfies int32;
+```
+
+- contains: missing symbol
+
+### reexports do not contribute globals
+
+Reexport edges do not make target globals visible to importers.
+
+```ds:globals.ds
+export const value = 1;
+
+global {
+    const answer: int32 = 42;
+}
+```
+
+```ds:index.ds
+export { value } from "./globals.ds";
+```
+
+```ds:main.ds
+import { value } from "./index.ds";
+
+value satisfies int;
+answer satisfies int32;
+```
+
+- contains: missing symbol
+
+### type-only imports do not contribute globals
+
+Type-only imports never affect global value visibility.
+
+```ds:globals.ds
+export type Value = int32;
+
+global {
+    const answer: int32 = 42;
+}
+```
+
+```ds:main.ds
+import type { Value } from "./globals.ds";
+
+const value: Value = 1;
+answer satisfies int32;
+```
+
+- contains: missing symbol
 
 ### duplicate global values are rejected
 
@@ -35,31 +143,14 @@ global {
 ```
 
 ```ds:main.ds
-import "./a.ds";
-import "./b.ds";
-
 answer satisfies int32;
 ```
 
-- contains: duplicate
-
-### configured global roots are visible without imports
-
-Configured global roots are part of the module closure.
-
-```ds:globals.ds
-global {
-    const runtimeName: string = "test";
-}
-```
-
-```ds:main.ds
-runtimeName satisfies string;
-```
-
 ```json:destack.json
-{ "compiler": { "globals": ["./globals.ds"] } }
+{ "compiler": { "globals": ["./a.ds", "./b.ds"] } }
 ```
+
+- contains: duplicate
 
 ## declare global
 
