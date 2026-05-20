@@ -467,7 +467,7 @@ impl PageMap {
     /// Return one mapped address without validating the range.
     #[inline(always)]
     fn mapped_address(&self, offset: usize) -> *mut u8 {
-        // callers validate and materialize the range first
+        // SAFETY: callers validate and materialize the range first
         unsafe { self.space.base().add(offset) }
     }
 
@@ -476,7 +476,7 @@ impl PageMap {
     fn copy_mapped_bytes_to(&self, offset: usize, target: &mut [u8]) {
         let source = self.mapped_address(offset);
 
-        // callers only copy from mapped page ranges
+        // SAFETY: callers only copy from mapped page ranges
         unsafe {
             copy_nonoverlapping(source, target.as_mut_ptr(), target.len());
         }
@@ -487,7 +487,7 @@ impl PageMap {
     fn copy_bytes_to_mapped(&self, offset: usize, bytes: &[u8]) {
         let target = self.mapped_address(offset);
 
-        // callers prepare page protections first
+        // SAFETY: callers prepare page protections first
         unsafe {
             copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
         }
@@ -498,7 +498,7 @@ impl PageMap {
     fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
         let target = self.mapped_address(offset);
 
-        // callers prepare page protections first
+        // SAFETY: callers prepare page protections first
         unsafe {
             write_bytes(target, 0, byte_len);
         }
@@ -509,7 +509,7 @@ impl PageMap {
     fn force_private_page(&self, offset: usize) {
         let page_address = self.mapped_address(offset);
 
-        // write one byte after protection changes to trigger private backing
+        // SAFETY: page_address is mapped and writable after protection changes
         unsafe {
             let byte = read_volatile(page_address);
 
