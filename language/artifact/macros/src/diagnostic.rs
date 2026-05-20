@@ -98,6 +98,7 @@ fn phase_letter(phase: &Ident) -> Result<char> {
         "Import" => 'I',
         "Expand" => 'X',
         "Export" => 'T',
+        "Resolve" => 'R',
         "Check" => 'C',
         "Elaborate" => 'E',
         "Materialize" => 'M',

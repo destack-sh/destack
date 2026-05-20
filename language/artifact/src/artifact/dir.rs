@@ -170,6 +170,13 @@ pub struct DirExported {
     pub exports: dir::ExportTable,
 }
 
+/// Resolved import targets for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirResolved {
+    /// Resolved imports.
+    pub imports: dir::ImportTable,
+}
+
 /// Type-checking segment for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirChecked {
