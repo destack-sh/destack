@@ -72,8 +72,6 @@ pub enum Keyword {
     Class,
     /// Declare an Enum.
     Enum,
-    /// Declare a Union.
-    Union,
     /// Declare an Interface.
     Interface,
     /// Declare a Function.
@@ -130,8 +128,6 @@ pub enum Keyword {
     Of,
     /// Using clause for generics or type context
     Using,
-    /// Provides clause for generics or type context
-    Provides,
     /// Compile time evaluation.
     Comptime,
 
@@ -174,8 +170,6 @@ pub enum Keyword {
     Return,
     /// Yield expression.
     Yield,
-    /// Goto expression (reserved).
-    Goto,
 
     // ------------------------------------------------------------
     // Errors
@@ -269,7 +263,6 @@ impl Keyword {
             Keyword::Struct => "struct",
             Keyword::Class => "class",
             Keyword::Enum => "enum",
-            Keyword::Union => "union",
             Keyword::Interface => "interface",
             Keyword::Function => "function",
             Keyword::Extension => "extension",
@@ -298,7 +291,6 @@ impl Keyword {
             Keyword::In => "in",
             Keyword::Of => "of",
             Keyword::Using => "using",
-            Keyword::Provides => "provides",
             Keyword::Comptime => "comptime",
 
             // branching
@@ -320,7 +312,6 @@ impl Keyword {
             Keyword::Debugger => "debugger",
             Keyword::Return => "return",
             Keyword::Yield => "yield",
-            Keyword::Goto => "goto",
 
             // errors
             Keyword::Try => "try",
@@ -377,7 +368,6 @@ impl FromStr for Keyword {
             "struct" => Ok(Keyword::Struct),
             "class" => Ok(Keyword::Class),
             "enum" => Ok(Keyword::Enum),
-            "union" => Ok(Keyword::Union),
             "interface" => Ok(Keyword::Interface),
             "function" => Ok(Keyword::Function),
             "extension" => Ok(Keyword::Extension),
@@ -406,7 +396,6 @@ impl FromStr for Keyword {
             "in" => Ok(Keyword::In),
             "of" => Ok(Keyword::Of),
             "using" => Ok(Keyword::Using),
-            "provides" => Ok(Keyword::Provides),
             "comptime" => Ok(Keyword::Comptime),
 
             // branching
@@ -428,7 +417,6 @@ impl FromStr for Keyword {
             "debugger" => Ok(Keyword::Debugger),
             "return" => Ok(Keyword::Return),
             "yield" => Ok(Keyword::Yield),
-            "goto" => Ok(Keyword::Goto),
 
             // errors
             "try" => Ok(Keyword::Try),

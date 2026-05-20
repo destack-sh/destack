@@ -541,7 +541,6 @@ impl Parser {
             | Keyword::Interface
             | Keyword::Struct
             | Keyword::Extension
-            | Keyword::Union
             | Keyword::Newtype => true,
 
             // enum declarations must stay on the same line as the head keyword
