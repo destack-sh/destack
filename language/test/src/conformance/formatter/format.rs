@@ -7,8 +7,8 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType,
-    PrintOptions, Uri, print_diff,
+    DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
+    print_diff,
 };
 use destack_workspace::{FormatterOptions, OrganizeImports};
 
@@ -132,18 +132,14 @@ fn format_once(
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
+    let diagnostics = parser.diagnostics();
 
-    let has_errors = parser
-        .diagnostics
+    let has_errors = diagnostics
         .to_vec()
         .into_iter()
         .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error);
     if has_errors {
         if show_diff {
-            let mut diagnostics = DiagnosticCollection::new();
-            for diagnostic in parser.diagnostics.to_vec() {
-                diagnostics.insert(diagnostic);
-            }
             let options = PrintOptions::new().with_colorizer(source_colorizer());
             let rendered = format_diagnostics(&file_for_id, &diagnostics, options);
             println!("parse diagnostics for {}:\n{rendered}", path.display());

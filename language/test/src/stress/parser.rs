@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use destack_core::StringPool;
 use destack_dir::{Declaration, Expression, LocalNodeId, Name, Pattern};
 use destack_parser::Parser;
-use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
+use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 
@@ -115,14 +115,12 @@ fn run_parser_stress(test: &StressCase) -> CaseResult {
     let mut parser = Parser::lex_file(file, language_type, strings.clone());
     let roots = parser.parse();
     let elapsed = start.elapsed();
-    let has_errors = parser
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error);
+    let has_errors = !parser.errors.is_empty();
 
     // valid cases must be clean
     if test.expectation == StressExpectation::Valid && has_errors {
         let message = parser
-            .diagnostics
+            .diagnostics()
             .to_vec()
             .into_iter()
             .map(|diagnostic| diagnostic.message)
