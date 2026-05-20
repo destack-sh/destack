@@ -88,7 +88,7 @@ Destack does not support any unsound, imprecise or dynamic legacy hooks into run
 | **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode TypeScript |
 | **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
 | **Truthiness** | `if (value)` | only for boolean values | control flow must use explicit boolean tests |
-| **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` / `new Function` | runtime code generation conflicts with AOT compilation |
+| **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` | runtime code generation conflicts with AOT compilation |
 | **Exceptions** | executing `throw` / `catch` effects | `throw`, `try`, `catch`, `finally`, and Try / Result integration are supported, runtime exceptions are not | Destack uses `Result`-first error handling |
 | **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion | conversion should be explicit and typed |
 | **Symbol magic** | `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable` | not supported | use typed protocols such as `iterator()` / `asyncIterator()` |
@@ -889,34 +889,52 @@ const user = do {
 
 ### Closures
 
-Closures generally work like TypeScript closures, capturing the surrounding lexical environment and preserving lexical `this`.
-Destack supports an additional `@capture` annotation for controlling _how_ the environment is captured (both per closure and per binding):
- - `"borrow"`: captures borrowed access to the original binding (same as `&expr`)
- - `"copy"`: captures a copied value of the original binding (same as `expr.copy()` where `expr: Copy`)
- - `"move"`: transfer the binding into the closure, original becomes unavailable afterwards (same as `^expr`)
+Closures conceptually work like TypeScript closures, capturing the surrounding lexical environment and preserving lexical `this` around a generic `Function<Parameters, Return>`.
+Arrow function types are syntax sugar for that form, so `(message: string) => Result<void, IOError>` is the same type as `Function<[string], Result<void, IOError>>`.
+
+
+```ds
+let count = 0;
+
+const next = () => {
+    count += 1;
+    return count;
+};
+next satisfies () => number;
+next satisfies Function<[], number>;
+
+const read = () => count;
+```
+
+As with all of Destack, the `Function`s behind closures behave like in TypeScript, with additional control available via the regular memory modifiers like `&Function<[string], void>`. 
+By default, the captured environment is shared for the lexical scope, so multiple closures that share the same binding see the same environment, but this capture policy can be configured via the `@capture` decorator:
+
+| Policy | Meaning |
+| --- | --- |
+| `"share"` | share the original binding through the managed lexical environment |
+| `"borrow"` | capture borrowed access to the original binding |
+| `"copy"` | snapshot the current value |
+| `"move"` | move the binding into the closure |
+
+Explicit capture forms choose how the callable value itself will be stored in the closure environment:
 
 ```ds
 let count = 0;
 
 @capture("borrow")
-const next = () => {
-    count += 1;
-    return count;
-};
+let borrowed: &Function<[], int32> = () => count;
 
-let name = "Ada";
-
-@capture("copy")
-const greet = () => `hello ${name}`;
-
-let socket = connect()?;
+let value = 0;
 
 @capture("move")
-const send = (message: string) => socket.write(message);
+let owned: ^Function<[], int32> = () => value;
+
+let state = 0;
+
+let managed: Function<[], int32> = () => state;
 ```
 
-The short form sets the default for every captured binding.
-For more complex cases, the object form of `capture` can override individual bindings, including `this`:
+The short form for `@capture` sets the default for every captured binding, and the object form overrides selected bindings, including `this`:
 
 ```ds
 class Client {
@@ -936,6 +954,8 @@ class Client {
     }
 }
 ```
+
+Closures with custom capture behavior must still follow general ownership rules, for example, if one closure moves a binding, later uses or captures of that binding are rejected.
 
 ### Continuations
 
@@ -1828,16 +1848,16 @@ Plain data such as numbers, strings, arrays, tuples, objects, structs, and enums
 
 #### Dynamic Code
 
-Generating and evaluating arbitrary code is supported via `eval` and `new Function` at _compile-time_ by passing the static term of a string:
+Generating and evaluating arbitrary code is supported via `eval` at _compile-time_ by passing the static term of a string:
 
 ```ds
-const source = comptime renderParser(grammar);
-const parser = comptime eval(source);
+import * as dir from "destack:reflect/dir";
 
-const makeRoute = comptime new Function("request", "context", routeSource);
+const source = comptime renderParser(grammar);
+const parser = comptime eval<dir.FunctionDeclaration>(source);
 ```
 
-The source passed to `eval` or `new Function` must itself be available to comptime evaluation.
+The source passed to `eval` must itself be available to comptime evaluation.
 Generated code is parsed and typechecked as `.ds`, attached to the same module graph as a virtual source file, and tracked for diagnostics and artifact caching.
 
 ### Macros
