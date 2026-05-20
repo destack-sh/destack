@@ -16942,29 +16942,6 @@
       "array"
     ],
     [
-      "call_expression",
-      "instantiation_expression",
-      "binary_expression"
-    ],
-    [
-      "call_expression",
-      "instantiation_expression",
-      "binary_expression",
-      "unary_expression"
-    ],
-    [
-      "call_expression",
-      "instantiation_expression",
-      "binary_expression",
-      "update_expression"
-    ],
-    [
-      "call_expression",
-      "instantiation_expression",
-      "binary_expression",
-      "await_expression"
-    ],
-    [
       "nested_identifier",
       "nested_type_identifier",
       "primary_expression"
@@ -17014,10 +16991,6 @@
     ],
     [
       "primary_expression",
-      "generic_type"
-    ],
-    [
-      "primary_expression",
       "_struct_literal_generic_type"
     ],
     [
@@ -17030,11 +17003,6 @@
       "_struct_literal_generic_type",
       "generic_type",
       "_static_value_call_expression"
-    ],
-    [
-      "primary_expression",
-      "_property_name",
-      "generic_type"
     ],
     [
       "primary_expression",
@@ -17195,16 +17163,6 @@
       "_static_value_call_expression"
     ],
     [
-      "primary_expression",
-      "generic_type",
-      "_static_value_call_expression"
-    ],
-    [
-      "_range_expression_atom",
-      "literal_type"
-    ],
-    [
-      "primary_expression",
       "_range_expression_atom",
       "literal_type"
     ],
@@ -17218,15 +17176,6 @@
     [
       "_range_expression_atom",
       "_interval_type_bound"
-    ],
-    [
-      "primary_expression",
-      "_range_expression_atom",
-      "_interval_type_bound"
-    ],
-    [
-      "primary_expression",
-      "comptime_type_argument"
     ],
     [
       "comptime_block_statement",
