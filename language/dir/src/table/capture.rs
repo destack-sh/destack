@@ -193,6 +193,16 @@ impl CaptureSegment {
         })
     }
 
+    /// Get a mutable capture frame owned by this table segment.
+    pub fn get_frame_mut(&mut self, frame_id: LocalCaptureFrameId) -> &mut CaptureFrame {
+        assert!(
+            self.contains_frame_id(frame_id),
+            "DIR capture frame {frame_id:?} is not allocated in this segment",
+        );
+
+        self.frames.get_mut(frame_id.0 - self.first_frame_id)
+    }
+
     /// Get a capture frame owned by this table segment.
     pub(crate) fn get_local_frame(&self, frame_id: LocalCaptureFrameId) -> Option<&CaptureFrame> {
         self.contains_frame_id(frame_id)
