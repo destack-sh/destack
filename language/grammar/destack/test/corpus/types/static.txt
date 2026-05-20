@@ -4,6 +4,7 @@ Static parameters size arrays
 =======================================================
 
 type Lane<comptime N: uint> = [uint8; N * 2];
+declare function double<comptime N: uint>(): N * 2;
 
 declare const lane: Lane<4>;
 lane satisfies [uint8; 8];
@@ -22,6 +23,18 @@ lane satisfies [uint8; 8];
           (type_identifier))))
     (tuple_type
       (type_identifier)
+      (static_value_argument
+        (identifier)
+        (number))))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters)
+    (static_return_type_annotation
       (static_value_argument
         (identifier)
         (number))))

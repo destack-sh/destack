@@ -3,13 +3,13 @@ Typed variable declarations
 :language(destack)
 ==================================
 
-var a: b;
+let a: b;
 let c: d;
 
 ---
 
 (program
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (type_annotation
@@ -25,14 +25,14 @@ Multi-line variable declarations
 :language(destack)
 ==================================
 
-var a = b
+let a = b
   , c = d
   , e = f
 
 ---
 
 (program
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (identifier))
@@ -91,10 +91,11 @@ using file = open();
 (program
   (using_assignment_statement
     (using_assignment_expression
-      (identifier)
-      (call_expression
+      (using_binding
         (identifier)
-        (arguments)))))
+        (call_expression
+          (identifier)
+          (arguments))))))
 
 ================================
 Dereference assignment statement

@@ -77,17 +77,17 @@ export interface I { }
       (interface_body))))
 
 ==================================
-Variable named 'module'
+Lexical module binding
 :language(destack)
 ==================================
 
-var module;
+let module;
 module;
 
 ---
 
 (program
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)))
   (expression_statement
@@ -146,33 +146,6 @@ export interface UserInterface {}
     (interface_declaration
       (type_identifier)
       (interface_body))))
-
-=========================
-Import in type
-:language(destack)
-=========================
-
-type Foo = import('node:fs').ReadStream & {
-  bar();
-};
-
----
-
-(program
-  (type_alias_declaration
-    (type_identifier)
-    (intersection_type
-      (member_expression
-        (call_expression
-          (import)
-          (arguments
-            (string
-              (string_fragment))))
-        (property_identifier))
-      (object_type
-        (method_signature
-          (property_identifier)
-          (formal_parameters))))))
 
 =========================
 Import attributes

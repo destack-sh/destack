@@ -54,7 +54,6 @@ type T = keyof (Person);
 
 type T = typeof Person;
 type T = typeof Person.P;
-type T = typeof import('person');
 
 type T = keyof typeof Person;
 
@@ -98,14 +97,6 @@ type T = typeof array[number];
       (member_expression
         (identifier)
         (property_identifier))))
-  (type_alias_declaration
-    (type_identifier)
-    (type_query
-      (call_expression
-        (import)
-        (arguments
-          (string
-            (string_fragment))))))
   (type_alias_declaration
     (type_identifier)
     (index_type_query

@@ -1,0 +1,28 @@
+================================================================================
+Owned syntax
+:language(destack)
+================================================================================
+
+let owned: ^User = ^User.create();
+let value = *owned;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (call_expression
+        (memory_expression
+          (member_expression
+            (identifier)
+            (property_identifier)))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (identifier)))))

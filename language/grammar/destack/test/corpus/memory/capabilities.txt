@@ -1,0 +1,39 @@
+================================================================================
+Capability marker syntax
+:language(destack)
+================================================================================
+
+interface Send<T> {}
+
+interface Sync<T> {}
+
+type SharedTask = Task & Send<Task> & Sync<Task>;
+
+--------------------------------------------------------------------------------
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body))
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (interface_body))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (intersection_type
+        (type_identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))))

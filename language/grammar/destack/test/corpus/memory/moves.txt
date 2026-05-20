@@ -1,0 +1,34 @@
+================================================================================
+Move syntax
+:language(destack)
+================================================================================
+
+function take(value: ^User): ^User {
+    let next: ^User = value;
+    return next;
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (memory_type
+            (type_identifier)))))
+    (type_annotation
+      (memory_type
+        (type_identifier)))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (memory_type
+              (type_identifier)))
+          (identifier)))
+      (return_statement
+        (identifier)))))

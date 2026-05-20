@@ -124,7 +124,7 @@ Typeof expressions
 :language(destack)
 ==================================
 
-typeof class {} === "function";
+typeof value === "object";
 
 ---
 
@@ -132,8 +132,7 @@ typeof class {} === "function";
   (expression_statement
     (binary_expression
       (unary_expression
-        (class
-          (class_body)))
+        (identifier))
       (string
         (string_fragment)))))
 

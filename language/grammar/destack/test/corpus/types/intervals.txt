@@ -1,0 +1,59 @@
+================================================================================
+Interval types
+:language(destack)
+================================================================================
+
+type Digit = 0..=9;
+type UserPort = 1024..=65535;
+type LowerAscii = 'a'..='z';
+
+struct InlineBuffer<T, comptime N: 0..=4096> {
+    storage: [T; N];
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (number))
+      (literal_type
+        (number))))
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (number))
+      (literal_type
+        (number))))
+  (type_alias_declaration
+    (type_identifier)
+    (interval_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (interval_type
+            (literal_type
+              (number))
+            (literal_type
+              (number))))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (identifier)))))))
