@@ -126,6 +126,25 @@ const arg = f(encode()?, ready ? left : right);
             (identifier)
             (identifier)))))))
 
+================================
+Await try propagation expression
+:language(destack)
+================================
+
+const user = await? fetchUser(id);
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (await_try_propagation_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier)))))))
+
 =======================================
 Match statement patterns
 :language(destack)

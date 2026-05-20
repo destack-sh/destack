@@ -1,0 +1,22 @@
+================================================================================
+Static member syntax
+:language(destack)
+================================================================================
+
+class Registry {
+    static Default: Registry = new Registry();
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))
+        (new_expression
+          (identifier)
+          (arguments))))))

@@ -1,0 +1,43 @@
+================================================================================
+Using syntax
+:language(destack)
+================================================================================
+
+using file = open(path);
+
+await using connection = await pool.connect();
+
+for (using file of files) {
+    process(file);
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (using_assignment_statement
+    (using_assignment_expression
+      (using_binding
+        (identifier)
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))))
+  (using_assignment_statement
+    (using_assignment_expression
+      (using_binding
+        (identifier)
+        (await_expression
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments))))))
+  (for_in_statement
+    (identifier)
+    (identifier)
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier)))))))

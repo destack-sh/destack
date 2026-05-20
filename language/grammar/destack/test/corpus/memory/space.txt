@@ -1,0 +1,34 @@
+================================================================================
+Storage space syntax
+:language(destack)
+================================================================================
+
+let localBuffer: local Buffer = Buffer.allocate();
+let sharedBuffer: shared Buffer = Buffer.share(localBuffer);
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (placement_type
+          (type_identifier)))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (placement_type
+          (type_identifier)))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (identifier))))))

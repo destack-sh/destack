@@ -1,0 +1,35 @@
+================================================================================
+Borrow syntax
+:language(destack)
+================================================================================
+
+let name: &readonly string = &readonly user.name;
+let writable: &exclusive Buffer = &exclusive buffer;
+let first = *pointer;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (predefined_type)))
+      (memory_expression
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (identifier)))))

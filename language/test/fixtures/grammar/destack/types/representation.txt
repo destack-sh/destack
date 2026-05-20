@@ -1,0 +1,53 @@
+// SYNTAX TEST "source.ds"
+
+// types / representation / repr and layout attributes
+@repr("C")
+// <- entity.name.function.decorator.ds
+struct Header {
+// <- keyword.declaration.type.ds
+    tag: uint8;
+    size: uint32;
+}
+
+@repr("transparent")
+// <- entity.name.function.decorator.ds
+newtype FileDescriptor = int32;
+// <- keyword.declaration.type.ds
+
+@repr(uint8)
+// <- entity.name.function.decorator.ds
+enum Color {
+// <- keyword.declaration.type.ds
+    Red = 1,
+    Green = 2,
+}
+
+@align(64)
+// <- entity.name.function.decorator.ds
+@packed
+// <- entity.name.function.decorator.ds
+struct WireHeader {
+    tag: uint8;
+    size: uint32;
+}
+
+// types / representation / layout intrinsics
+const size = comptime sizeOf<Header>();
+//           ^^^^^^^^ keyword.other.comptime.ds
+//                    ^^^^^^ entity.name.function.call.ds
+
+const alignment = comptime alignOf<Header>();
+//                         ^^^^^^^ entity.name.function.call.ds
+
+const stride = comptime strideOf<Header>();
+//                      ^^^^^^^^ entity.name.function.call.ds
+
+const layout = comptime layoutOf<Header>();
+//                      ^^^^^^^^ entity.name.function.call.ds
+
+declare let bytes: [uint8; sizeOf<Header>()];
+
+type Slots<T, comptime N: usize = strideOf<T>()> = [uint8; N];
+
+declare let erased: Any<Writer>;
+//                  ^^^ entity.name.type.ds

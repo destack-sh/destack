@@ -1,0 +1,27 @@
+================================================================================
+Drop member syntax
+:language(destack)
+================================================================================
+
+class Resource {
+    drop(): void {
+        cleanup();
+    }
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (arguments))))))))

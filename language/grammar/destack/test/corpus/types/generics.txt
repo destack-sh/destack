@@ -73,7 +73,7 @@ interface X {
   x(): Promise<Array<Foo>>;
 }
 
-var y: Map<number, Promise<Map<bool, Map<Foo, Bar>>>>
+let y: Map<number, Promise<Map<bool, Map<Foo, Bar>>>>
 
 ---
 
@@ -92,7 +92,7 @@ var y: Map<number, Promise<Map<bool, Map<Foo, Bar>>>>
                 (type_identifier)
                 (type_arguments
                   (type_identifier)))))))))
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (type_annotation

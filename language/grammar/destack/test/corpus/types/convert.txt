@@ -1,0 +1,42 @@
+================================================================================
+Conversion extensions
+:language(destack)
+================================================================================
+
+newtype UserId = string;
+
+extension of UserId implements From<string> {
+    static from(value: string): UserId {
+        return UserId(value);
+    }
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (predefined_type))
+  (extension_declaration
+    (type_identifier)
+    (implements_clause
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (return_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (identifier)))))))))

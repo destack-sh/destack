@@ -4,6 +4,7 @@ Let else statement
 ==================
 
 let 1 = value else {};
+let value! = maybe else {};
 
 ---
 
@@ -11,6 +12,11 @@ let 1 = value else {};
   (let_else_statement
     (let_else_literal_pattern
       (number))
+    (identifier)
+    (statement_block))
+  (let_else_statement
+    (let_else_must_pattern
+      (identifier))
     (identifier)
     (statement_block)))
 

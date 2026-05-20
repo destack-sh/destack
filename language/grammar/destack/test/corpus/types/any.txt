@@ -1,0 +1,32 @@
+================================================================================
+Any and erased values
+:language(destack)
+================================================================================
+
+let value: any = input;
+
+value satisfies unknown;
+
+declare let erased: Any<Writer>;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (identifier)))
+  (value_satisfies_statement
+    (identifier)
+    (predefined_type))
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier))))))))

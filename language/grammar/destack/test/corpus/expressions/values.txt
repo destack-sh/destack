@@ -74,3 +74,34 @@ const value = do {
             (binary_expression
               left: (identifier)
               right: (number))))))))
+
+=================================================
+Generic struct literal parses
+:language(destack)
+=================================================
+
+const value = Pair<Left, Right> { left: this.right, right: this.left };
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (struct_literal_expression
+        type: (generic_type
+          name: (identifier)
+          type_arguments: (type_arguments
+            (type_identifier)
+            (type_identifier)))
+        value: (object
+          (pair
+            key: (property_identifier)
+            value: (member_expression
+              object: (this)
+              property: (property_identifier)))
+          (pair
+            key: (property_identifier)
+            value: (member_expression
+              object: (this)
+              property: (property_identifier))))))))

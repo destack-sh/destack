@@ -123,6 +123,23 @@ class C {
         (formal_parameters)
         (statement_block)))))
 
+=======================================
+Standalone annotation call expression
+:language(destack)
+=======================================
+
+@trace("checkpoint");
+
+---
+
+(program
+  (expression_statement
+    (annotation_call_expression
+      (identifier)
+      (arguments
+        (string
+          (string_fragment))))))
+
 ============================================================================
 Move capture can capture explicit owned values
 :language(destack)
@@ -171,15 +188,16 @@ function run(): () => int32 {
                   (property_identifier)
                   (number)))))))
       (comment)
-      (expression_statement
-        (annotation_call_expression
-          (identifier)
-          (arguments
-            (string
-              (string_fragment)))))
-      (return_statement
-        (arrow_function
-          (formal_parameters)
-          (member_expression
+      (decorated_statement
+        (decorator
+          (call_expression
             (identifier)
-            (property_identifier)))))))
+            (arguments
+              (string
+                (string_fragment)))))
+        (return_statement
+          (arrow_function
+            (formal_parameters)
+            (member_expression
+              (identifier)
+              (property_identifier))))))))

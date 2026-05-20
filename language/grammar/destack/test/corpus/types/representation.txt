@@ -1,0 +1,199 @@
+================================================================================
+Representation attributes
+:language(destack)
+================================================================================
+
+@repr("C")
+struct Header {
+    tag: uint8;
+    size: uint32;
+}
+
+@repr("transparent")
+newtype FileDescriptor = int32;
+
+@repr(uint8)
+enum Color {
+    Red = 1,
+    Green = 2,
+}
+
+@align(64)
+@packed
+struct WireHeader {
+    tag: uint8;
+    size: uint32;
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (struct_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))
+    (type_identifier)
+    (type_identifier))
+  (enum_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier))))
+    (identifier)
+    (enum_body
+      (enum_assignment
+        (property_identifier)
+        (number))
+      (enum_assignment
+        (property_identifier)
+        (number))))
+  (struct_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (number))))
+    (decorator
+      (identifier))
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))))))
+
+================================================================================
+Layout static values
+:language(destack)
+================================================================================
+
+struct Header {
+    tag: uint8;
+    size: uint32;
+}
+
+const size = comptime sizeOf<Header>();
+const alignment = comptime alignOf<Header>();
+const stride = comptime strideOf<Header>();
+const layout = comptime layoutOf<Header>();
+
+declare let bytes: [uint8; sizeOf<Header>()];
+type Slots<T, comptime N: usize = strideOf<T>()> = [uint8; N];
+declare let erased: Any<Writer>;
+
+--------------------------------------------------------------------------------
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments)))))
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (tuple_type
+            (type_identifier)
+            (static_value_argument
+              (call_expression
+                (identifier)
+                (type_arguments
+                  (type_identifier))
+                (arguments))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))
+        (default_type
+          (static_value_argument
+            (call_expression
+              (identifier)
+              (type_arguments
+                (type_identifier))
+              (arguments))))))
+    (tuple_type
+      (type_identifier)
+      (identifier)))
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier))))))))

@@ -3,20 +3,20 @@ Built-in types
 :language(destack)
 =======================================
 
-var x: string = 'hi';
-var y: number;
+let x: string = 'hi';
+let y: number;
 
 ---
 
 (program
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (type_annotation
         (predefined_type))
       (string
         (string_fragment))))
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (type_annotation
@@ -27,19 +27,19 @@ Parenthesized types
 :language(destack)
 =======================================
 
-var x: (string);
-var x: ({a: any});
+let x: (string);
+let x: ({a: any});
 
 ---
 
 (program
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (type_annotation
         (parenthesized_type
           (predefined_type)))))
-  (variable_declaration
+  (lexical_declaration
     (variable_declarator
       (identifier)
       (type_annotation
