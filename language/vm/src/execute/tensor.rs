@@ -121,7 +121,7 @@ fn clear_tensor_result(
 ) -> Result<Word, Error> {
     let pointer = machine.frame_pointer_at(offset);
 
-    // destination tensor bytes have no meaningful old contents
+    // SAFETY: pointer addresses layout.byte_len writable bytes in the current frame
     unsafe {
         ptr::write_bytes(pointer.address() as *mut u8, 0, layout.byte_len);
     }
@@ -819,12 +819,14 @@ fn contiguous_unary_addresses(
 /// Read one contiguous element.
 #[inline(always)]
 fn read_contiguous<T: Copy>(base: *const T, index: usize) -> T {
+    // SAFETY: callers pass contiguous tensor storage with index in bounds
     unsafe { base.add(index).read() }
 }
 
 /// Write one contiguous element.
 #[inline(always)]
 fn write_contiguous<T>(base: *mut T, index: usize, value: T) {
+    // SAFETY: callers pass contiguous tensor storage with index in bounds
     unsafe {
         base.add(index).write(value);
     }
@@ -927,9 +929,13 @@ fn execute_contiguous_add_u32_unchecked(
 
     // add full vector chunks
     for _ in 0..vector_count {
+        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
         let left_value = unsafe { vld1q_u32(left.add(index)) };
+        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
         let right_value = unsafe { vld1q_u32(right.add(index)) };
+        // SAFETY: NEON integer addition is valid for two loaded u32 vectors
         let result = unsafe { vaddq_u32(left_value, right_value) };
+        // SAFETY: vector_count only covers full four-lane chunks inside the output buffer
         unsafe {
             vst1q_u32(dest.add(index), result);
         }
@@ -960,9 +966,13 @@ fn execute_contiguous_add_u32_unchecked(
 
     // add full vector chunks
     for _ in 0..vector_count {
+        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
         let left_value = unsafe { _mm_loadu_si128(left.add(index).cast::<__m128i>()) };
+        // SAFETY: vector_count only covers full four-lane chunks inside the input buffers
         let right_value = unsafe { _mm_loadu_si128(right.add(index).cast::<__m128i>()) };
+        // SAFETY: SSE2 integer addition is valid for two loaded u32 vectors
         let result = unsafe { _mm_add_epi32(left_value, right_value) };
+        // SAFETY: vector_count only covers full four-lane chunks inside the output buffer
         unsafe {
             _mm_storeu_si128(dest.add(index).cast::<__m128i>(), result);
         }
@@ -3345,7 +3355,7 @@ pub(crate) fn execute_tensor_convolution(
                     }
                     input_pos -= padding_low;
                     if lhs_dilation > 1 {
-                        if input_pos % lhs_dilation != 0 {
+                        if !input_pos.is_multiple_of(lhs_dilation) {
                             is_valid = false;
                             break;
                         }
