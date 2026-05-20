@@ -14,7 +14,7 @@ import data from "./data.json" with { type: "json" };
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::dependencies().with_summaries(),
         r#"
 import data from "./data.json" with { type: "json" };
 /// @dependency.edge relation=import specifier=./data.json loader=json module=data.json
@@ -38,7 +38,7 @@ import data from "./data" with { type: "json" };
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::dependencies().with_summaries(),
         r#"
 import data from "./data" with { type: "json" };
 /// @dependency.edge relation=import specifier=./data loader=json module=data.json

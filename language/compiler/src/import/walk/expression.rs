@@ -14,16 +14,12 @@ impl Compiler {
         match expression {
             // collect direct dependency edge
             dir::Expression::Import {
-                target,
-                items,
-                attributes,
-                ..
+                target, attributes, ..
             } => {
                 self.collect_binding_dependency(
                     state,
                     expression_id,
                     *target,
-                    items.as_deref(),
                     attributes.as_ref(),
                     dir::DependencyRelation::Import,
                 )?;

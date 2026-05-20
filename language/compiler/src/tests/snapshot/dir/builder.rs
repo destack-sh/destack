@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
-use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported};
+use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -144,6 +144,15 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.dependency {
             self.add_table(imported.dependencies.as_ref());
+        }
+    }
+
+    /// Add selected rows for a resolved DIR artifact.
+    pub(crate) fn add_resolved(&mut self, selection: DirRows, resolved: &DirResolved) {
+        self.summaries = selection.summaries;
+
+        if selection.import {
+            self.add_table(&resolved.imports);
         }
     }
 

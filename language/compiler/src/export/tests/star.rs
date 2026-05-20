@@ -19,7 +19,7 @@ export let value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::imports().with_export().with_summaries(),
+        DirRows::dependencies().with_export().with_summaries(),
         r#"
 export * from "./dep.ds";
 /// @dependency.edge relation=re_export specifier=./dep.ds module=dep.ds
@@ -50,7 +50,7 @@ export let value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::imports().with_export().with_summaries(),
+        DirRows::dependencies().with_export().with_summaries(),
         r#"
 export * as dep from "./dep.ds";
 /// @dependency.edge relation=re_export specifier=./dep.ds module=dep.ds

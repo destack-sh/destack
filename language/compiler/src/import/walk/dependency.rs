@@ -13,20 +13,11 @@ impl Compiler {
         state: &mut ImportState<'_>,
         expression_id: dir::LocalNodeId<dir::Expression>,
         specifier: dir::StringId,
-        items: Option<&[dir::LocalNodeId<dir::DependencyItem>]>,
         attributes: Option<&dir::ImportAttributeClause>,
         relation: dir::DependencyRelation,
     ) -> CompilerResult<()> {
-        // collect the dependency edge even when policy rejects the import form
+        // collect the dependency edge
         self.collect_dependency(state, expression_id, specifier, attributes, relation)?;
-
-        // report side effect imports without blocking the dependency table
-        if items.is_none() {
-            state.push_diagnostic(ImportError::SideEffectImport {
-                anchor: state.anchor_node(expression_id.id)?,
-                target: state.strings().get(specifier).to_string(),
-            });
-        }
 
         Ok(())
     }

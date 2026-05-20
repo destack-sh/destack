@@ -5,6 +5,7 @@ mod dependency;
 mod export;
 mod extension;
 mod generic;
+mod import;
 mod instance;
 mod layout;
 mod r#macro;

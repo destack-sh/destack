@@ -19,7 +19,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::dependencies().with_summaries(),
         r#"
 import { Foo } from "./dep.ds";
 /// @dependency.edge relation=import specifier=./dep.ds module=dep.ds
@@ -48,7 +48,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::dependencies().with_summaries(),
         r#"
 import { Foo } from "./dep";
 /// @dependency.edge relation=import specifier=./dep module=dep.ds
@@ -59,7 +59,7 @@ import { Foo } from "./dep";
 }
 
 #[test]
-fn test_import_reports_side_effect_import() {
+fn test_import_records_side_effect_edge() {
     let compiler = TestSession::new()
         .module(
             "main.ds",
@@ -75,14 +75,14 @@ let value = 1;
         )
         .build();
 
-    compiler
-        .provide_dir_imported("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_imported_key("main.ds")),
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::dependencies().with_summaries(),
         r#"
-/// @diagnostic.error code=EI201 message="side-effect import './dep.ds' is not supported"
-/// @diagnostic.label line=2 column=1 source="import \"./dep.ds\";"
+import "./dep.ds";
+/// @dependency.edge relation=import specifier=./dep.ds module=dep.ds
+
+/// @dependency.summary edges=1
 "#,
     );
 }
@@ -129,7 +129,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported_many(
         &["main.ds", "dep.ds"],
-        DirRows::imports().with_summaries(),
+        DirRows::dependencies().with_summaries(),
         r#"
 === main.ds ===
 import { Foo } from "./dep.ds";
@@ -164,7 +164,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "src/main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::dependencies().with_summaries(),
         r#"
 import { Foo } from "../dep.ds";
 /// @dependency.edge relation=import specifier=../dep.ds module=dep.ds
