@@ -103,6 +103,7 @@ fn fill_with_getrandom_flags(buffer: &mut [u8], flags: u32) -> io::Result<()> {
         let remaining = &mut buffer[offset..];
 
         // use the libc symbol on linux
+        // SAFETY: remaining is a valid writable byte slice for the requested length
         let read = unsafe {
             libc::getrandom(
                 remaining.as_mut_ptr().cast::<libc::c_void>(),
@@ -146,6 +147,7 @@ fn fill_with_getentropy(buffer: &mut [u8]) -> io::Result<()> {
 
     for chunk in buffer.chunks_mut(MAX_CHUNK_BYTES) {
         loop {
+            // SAFETY: chunk is a valid writable byte slice and getentropy accepts this length
             let status =
                 unsafe { libc::getentropy(chunk.as_mut_ptr().cast::<libc::c_void>(), chunk.len()) };
             if status == 0 {

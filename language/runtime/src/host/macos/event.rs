@@ -26,6 +26,7 @@ unsafe extern "C" {
 
 /// Return whether the current execution context is the process main context.
 pub(crate) fn is_process_main_context() -> bool {
+    // SAFETY: pthread_main_np has no arguments and only reads process thread state
     unsafe { libc::pthread_main_np() == 1 }
 }
 
@@ -35,6 +36,7 @@ pub(crate) fn drain_ready_events() -> bool {
 
     loop {
         // dispatch one immediately ready source when available
+        // SAFETY: kCFRunLoopDefaultMode is a CoreFoundation static and the timeout is finite
         let status = unsafe { CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.0, true) };
         if status == KCF_RUN_LOOP_RUN_HANDLED_SOURCE {
             dispatched_any = true;

@@ -25,8 +25,13 @@ impl Worker {
         host_queue: &'host HostQueue,
     ) -> BindingCallContext<'host> {
         BindingCallContext {
-            worker: self as *mut Worker,
-            event_loop: self.event_loop.as_ref(),
+            runtime_id: self.runtime_id,
+            worker_id: self.id,
+            environment: self.environment.clone(),
+            options: self.options.clone(),
+            diagnostics: self.diagnostics.clone(),
+            scenario: self.scenario.clone(),
+            bindings: &self.bindings,
             host,
             host_queue,
             world,

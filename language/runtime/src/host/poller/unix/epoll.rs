@@ -329,6 +329,7 @@ impl HostPoller for EpollPoller {
 
 /// Create one epoll descriptor.
 fn create_epoll_fd() -> RuntimeResult<RawFd> {
+    // SAFETY: epoll_create1 has no pointer arguments and returns either an fd or errno
     let fd = unsafe { epoll_create1(libc::EPOLL_CLOEXEC) };
     if fd < 0 {
         return Err(io_error("poller.epoll_create1", None));
@@ -339,16 +340,19 @@ fn create_epoll_fd() -> RuntimeResult<RawFd> {
 
 /// Create one nonblocking event descriptor.
 fn create_event_fd() -> RawFd {
+    // SAFETY: eventfd has no pointer arguments and returns either an fd or errno
     unsafe { libc::eventfd(0, libc::EFD_NONBLOCK | libc::EFD_CLOEXEC) }
 }
 
 /// Close one file descriptor.
 fn close_fd(fd: RawFd) {
+    // SAFETY: callers pass file descriptors owned by this poller or setup path
     let _ = unsafe { libc::close(fd) };
 }
 
 /// Control one epoll registration.
 fn epoll_control(epoll_fd: RawFd, operation: c_int, fd: RawFd, event: *mut epoll_event) -> c_int {
+    // SAFETY: caller passes either a valid epoll_event pointer or null for EPOLL_CTL_DEL
     unsafe { epoll_ctl(epoll_fd, operation, fd, event) }
 }
 
@@ -359,16 +363,19 @@ fn epoll_wait_ready(
     max_events: c_int,
     timeout_ms: c_int,
 ) -> c_int {
+    // SAFETY: events points to a buffer with at least max_events epoll_event entries
     unsafe { epoll_wait(epoll_fd, events, max_events, timeout_ms) }
 }
 
 /// Read one u64 from a descriptor.
 fn read_u64(fd: RawFd, value: &mut u64) -> isize {
+    // SAFETY: value is a valid writable u64 buffer for the requested byte count
     unsafe { libc::read(fd, value as *mut u64 as *mut _, std::mem::size_of::<u64>()) }
 }
 
 /// Write one u64 to a descriptor.
 fn write_u64(fd: RawFd, value: &u64) -> isize {
+    // SAFETY: value is a valid readable u64 buffer for the requested byte count
     unsafe {
         libc::write(
             fd,
@@ -549,6 +556,8 @@ mod tests {
         let mut poller = EpollPoller::new().expect("poller should initialize");
 
         let mut fds = [0; 2];
+
+        // SAFETY: fds points to two writable file descriptor slots
         let result = unsafe { libc::pipe(fds.as_mut_ptr()) };
         assert!(result == 0);
 
@@ -567,12 +576,15 @@ mod tests {
             .expect("register should succeed");
 
         let payload = [1u8];
+
+        // SAFETY: payload points to a readable byte buffer for the requested length
         let wrote = unsafe { libc::write(write_fd, payload.as_ptr() as *const _, payload.len()) };
         assert!(wrote >= 0);
 
         let events = poller.poll(Some(0)).expect("poll should return events");
         assert!(!events.is_empty());
 
+        // SAFETY: closing test-owned descriptors at the end of the test
         unsafe {
             libc::close(read_fd);
             libc::close(write_fd);

@@ -274,36 +274,43 @@ impl HostPoller for UnixPoller {
 
 /// Close one file descriptor.
 fn close_fd(fd: RawFd) {
+    // SAFETY: callers pass file descriptors owned by this poller or setup path
     let _ = unsafe { libc::close(fd) };
 }
 
 /// Read bytes from one descriptor.
 fn read_fd(fd: RawFd, buffer: &mut [u8]) -> isize {
+    // SAFETY: buffer is a valid writable byte slice for the requested length
     unsafe { libc::read(fd, buffer.as_mut_ptr() as *mut _, buffer.len()) }
 }
 
 /// Write bytes to one descriptor.
 fn write_fd(fd: RawFd, bytes: &[u8]) -> isize {
+    // SAFETY: bytes is a valid readable byte slice for the requested length
     unsafe { libc::write(fd, bytes.as_ptr() as *const _, bytes.len()) }
 }
 
 /// Create one pipe.
 fn pipe_fds(fds: &mut [RawFd; 2]) -> c_int {
+    // SAFETY: fds points to two writable file descriptor slots
     unsafe { libc::pipe(fds.as_mut_ptr()) }
 }
 
 /// Read one descriptor control value.
 fn fcntl_get(fd: RawFd, command: c_int) -> c_int {
+    // SAFETY: fcntl with this form has no pointer arguments
     unsafe { libc::fcntl(fd, command) }
 }
 
 /// Set one descriptor control value.
 fn fcntl_set(fd: RawFd, command: c_int, value: c_int) -> c_int {
+    // SAFETY: fcntl with this form passes one integer value and has no pointer arguments
     unsafe { libc::fcntl(fd, command, value) }
 }
 
 /// Wait for poll readiness.
 fn poll_ready(fds: *mut pollfd, len: libc::nfds_t, timeout_ms: c_int) -> c_int {
+    // SAFETY: fds points to len pollfd records owned by the caller
     unsafe { poll(fds, len, timeout_ms) }
 }
 

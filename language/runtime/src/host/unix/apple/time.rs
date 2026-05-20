@@ -32,6 +32,7 @@ fn apple_timebase_info() -> Option<&'static MachTimebaseInfo> {
         let mut info = MachTimebaseInfo { numer: 0, denom: 0 };
 
         // resolve the host-time conversion ratio once for the process
+        // SAFETY: mach_timebase_info writes one small POD payload to the provided out pointer
         let status = unsafe { mach_timebase_info(&mut info) };
         if status != KERN_SUCCESS || info.denom == 0 {
             return MachTimebaseInfo { numer: 0, denom: 0 };
@@ -46,6 +47,7 @@ fn apple_timebase_info() -> Option<&'static MachTimebaseInfo> {
 ///
 /// CoreAudio host time and `mach_absolute_time` share the same underlying clock domain.
 pub(crate) fn apple_host_time_now() -> u64 {
+    // SAFETY: mach_absolute_time has no arguments and only samples the host monotonic clock
     unsafe { mach_absolute_time() }
 }
 

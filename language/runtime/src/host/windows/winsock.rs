@@ -1,3 +1,4 @@
+use std::mem::MaybeUninit;
 use std::sync::OnceLock;
 
 use windows_sys::Win32::Networking::WinSock::{WSADATA, WSAStartup};
@@ -14,8 +15,10 @@ pub(crate) fn initialize_winsock() -> RuntimeResult<()> {
 
     // initialize Winsock once per process
     let rc = *INIT.get_or_init(|| {
-        let mut data = unsafe { std::mem::zeroed::<WSADATA>() };
-        unsafe { WSAStartup(WINSOCK_VERSION, &mut data) }
+        let mut data = MaybeUninit::<WSADATA>::uninit();
+
+        // SAFETY: the requested version is constant and the out pointer is valid
+        unsafe { WSAStartup(WINSOCK_VERSION, data.as_mut_ptr()) }
     });
     if rc != 0 {
         let message = format!("WSAStartup failed: {rc}");

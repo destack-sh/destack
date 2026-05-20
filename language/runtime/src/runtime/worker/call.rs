@@ -1,30 +1,41 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{
-    BindingAccess, BindingAffinity, BindingDescriptor, BindingReplayPayload, BindingRoute,
-    RuntimeAccess,
+    BindingAccess, BindingAffinity, BindingDescriptor, BindingRegistry, BindingReplayPayload,
+    BindingRoute, RuntimeAccess,
 };
 use crate::host::core::{Host, HostQueue, advance_host_events};
 use crate::host::{HostError, core as host_core};
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
+use crate::runtime::scheduler::{MicrotaskId, TaskId};
 use crate::simulation::Simulation;
-use crate::world::WorldState;
 use crate::world::policy::BindingDecision;
 use crate::world::scenario::{ScenarioCallId, ScenarioRunner};
 use crate::world::trace::{EntropySubject, Trace};
+use crate::world::{RuntimeId, WorldState};
 
-use super::{ExecutionContext, RunnableScope, Worker, binding_affinity_name};
-use destack_workspace::{ClockSource, RuntimeDiagnosticLevel};
+use super::{ExecutionContext, RunnableScope, WorkerId, binding_affinity_name};
+use destack_workspace::{ClockSource, Environment, RuntimeDiagnosticLevel, RuntimeOptions};
 
 /// TLS payload for native runtime calls.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct BindingCallContext<'host> {
-    /// Worker state for host bindings.
-    pub(crate) worker: *mut Worker,
-    /// Event loop for task queues and timers.
-    pub(crate) event_loop: *const EventLoop,
+    /// Runtime owner identifier in world topology.
+    pub(crate) runtime_id: RuntimeId,
+    /// Worker identifier in world topology.
+    pub(crate) worker_id: WorkerId,
+    /// Immutable ambient environment for host bindings.
+    pub(crate) environment: Arc<Environment>,
+    /// Immutable runtime options.
+    pub(crate) options: Arc<RuntimeOptions>,
+    /// Runtime diagnostics storage.
+    pub(crate) diagnostics: Arc<DiagnosticStore>,
+    /// Worker scenario runner.
+    pub(crate) scenario: Arc<ScenarioRunner>,
+    /// External binding registry and policy enforcement.
+    pub(crate) bindings: *const BindingRegistry,
     /// Host integration for callbacks.
     pub(crate) host: &'host dyn Host,
     /// Host event queue for callbacks.
@@ -57,16 +68,17 @@ impl Drop for BindingCallGuard<'_> {
 
 #[allow(clippy::mut_from_ref)]
 impl BindingCallContext<'_> {
-    /// Borrow the worker state.
+    /// Borrow the binding registry.
     #[inline]
-    pub fn worker(&self) -> &Worker {
-        unsafe { &*self.worker }
+    fn bindings(&self) -> &BindingRegistry {
+        // SAFETY: the pointer targets a worker field that is not mutably borrowed during calls
+        unsafe { &*self.bindings }
     }
 
     /// Borrow the runtime diagnostics store.
     #[inline]
     pub fn diagnostics(&self) -> &DiagnosticStore {
-        self.worker().diagnostics.as_ref()
+        self.diagnostics.as_ref()
     }
 
     /// Record one runtime diagnostic event.
@@ -99,16 +111,10 @@ impl BindingCallContext<'_> {
         );
     }
 
-    /// Borrow the event loop.
-    #[inline]
-    pub fn event_loop(&self) -> &EventLoop {
-        unsafe { &*self.event_loop }
-    }
-
     /// Borrow immutable launch arguments.
     #[inline]
     pub fn arguments(&self) -> &[String] {
-        self.worker().arguments()
+        self.environment.args.as_slice()
     }
 
     /// Borrow the trace state.
@@ -120,14 +126,14 @@ impl BindingCallContext<'_> {
     /// Borrow the binding access for this worker.
     #[inline]
     fn access(&self) -> parking_lot::RwLockReadGuard<'_, BindingAccess> {
-        self.worker().bindings.access().read()
+        self.bindings().access().read()
     }
 
     /// Build one entropy replay subject for the current call and one binding.
     pub fn entropy_subject(&self, spec: BindingDescriptor) -> EntropySubject {
         EntropySubject {
-            runtime_id: self.worker().runtime_id,
-            worker_id: self.worker().id,
+            runtime_id: self.runtime_id,
+            worker_id: self.worker_id,
             binding_id: spec.id,
             task_id: self.task_id(),
             microtask_id: self.microtask_id(),
@@ -137,7 +143,7 @@ impl BindingCallContext<'_> {
     /// Borrow the scenario runner for this worker.
     #[inline]
     pub fn scenario(&self) -> &ScenarioRunner {
-        self.worker().scenario.as_ref()
+        self.scenario.as_ref()
     }
 
     /// Borrow the host integration.
@@ -155,6 +161,7 @@ impl BindingCallContext<'_> {
     /// Borrow the shared runtime world.
     #[inline]
     pub(crate) fn world(&self) -> &mut WorldState {
+        // SAFETY: the worker tick owns exclusive world access while this context is active
         unsafe { &mut *self.world }
     }
 
@@ -228,8 +235,7 @@ impl BindingCallContext<'_> {
     /// Return the current random stream identifier.
     pub fn random_stream_id(&self) -> RandomStreamId {
         // resolve runtime and worker scoped stream selection policy
-        let worker = self.worker();
-        let is_per_runnable = worker.options.random_options().per_runnable;
+        let is_per_runnable = self.options.random_options().per_runnable;
         let task_id = if is_per_runnable {
             self.scope.task_id().map(TaskId::get)
         } else {
@@ -243,8 +249,8 @@ impl BindingCallContext<'_> {
 
         // resolve one stable world scoped stream id
         self.world().random.scoped_stream_id(
-            worker.runtime_id.0,
-            worker.id.0,
+            self.runtime_id.0,
+            self.worker_id.0,
             task_id,
             microtask_id,
         )
@@ -458,9 +464,9 @@ impl BindingCallContext<'_> {
     fn decide_binding(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
         self.world().decide_binding(
             self.scenario().execution_mode(),
-            &self.worker().options.conditions,
-            self.worker().runtime_id,
-            self.worker().id,
+            &self.options.conditions,
+            self.runtime_id,
+            self.worker_id,
             spec,
         )
     }

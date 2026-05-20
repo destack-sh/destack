@@ -154,7 +154,7 @@ impl IoUringPoller {
             .build()
             .user_data(token.0);
 
-        // safety: we only push entries while holding &mut self
+        // SAFETY: the submission queue is only accessed while holding exclusive poller state
         unsafe {
             self.ring
                 .submission()
@@ -168,7 +168,7 @@ impl IoUringPoller {
     fn submit_poll_remove(&mut self, token: PollerToken) -> RuntimeResult<()> {
         let entry = opcode::PollRemove::new(token.0).build().user_data(token.0);
 
-        // safety: we only push entries while holding &mut self
+        // SAFETY: the submission queue is only accessed while holding exclusive poller state
         unsafe {
             self.ring
                 .submission()
@@ -184,7 +184,7 @@ impl IoUringPoller {
             .build()
             .user_data(TIMEOUT_TOKEN.0);
 
-        // safety: we only push entries while holding &mut self
+        // SAFETY: the submission queue is only accessed while holding exclusive poller state
         unsafe {
             self.ring
                 .submission()
@@ -207,7 +207,7 @@ impl IoUringPoller {
             .build()
             .user_data(TIMEOUT_TOKEN.0);
 
-        // safety: timespec lives until the submission queue is flushed
+        // SAFETY: timeout_spec is stored on self and lives until the submission queue is flushed
         unsafe {
             self.ring
                 .submission()
@@ -246,6 +246,7 @@ impl IoUringPoller {
 
 impl Drop for IoUringPoller {
     fn drop(&mut self) {
+        // SAFETY: wake_fd is owned by this poller
         unsafe {
             libc::close(self.wake_fd);
         }
@@ -497,6 +498,8 @@ impl HostPoller for IoUringPoller {
 /// Write one wake value into one eventfd.
 fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
     let value: u64 = 1;
+
+    // SAFETY: value is a valid readable u64 buffer for the requested byte count
     let result = unsafe {
         libc::write(
             fd,
@@ -564,6 +567,7 @@ fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
 }
 
 fn create_wake_eventfd() -> RuntimeResult<RawFd> {
+    // SAFETY: eventfd has no pointer arguments and returns either an fd or errno
     let fd = unsafe { libc::eventfd(0, libc::EFD_NONBLOCK | libc::EFD_CLOEXEC) };
     if fd < 0 {
         return Err(io_error("poller.eventfd", None));
@@ -574,6 +578,7 @@ fn create_wake_eventfd() -> RuntimeResult<RawFd> {
 fn drain_eventfd(fd: RawFd) {
     let mut value = 0u64;
     loop {
+        // SAFETY: value is a valid writable u64 buffer for the requested byte count
         let result = unsafe {
             libc::read(
                 fd,

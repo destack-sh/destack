@@ -88,8 +88,13 @@ pub(crate) fn binding_call_context<'host>(
     let execution_context = ExecutionContext::new(host.is_process_main_context());
 
     BindingCallContext {
-        worker: worker as *mut Worker,
-        event_loop: worker.event_loop.as_ref() as *const _,
+        runtime_id: worker.runtime_id,
+        worker_id: worker.id,
+        environment: worker.environment.clone(),
+        options: worker.options.clone(),
+        diagnostics: worker.diagnostics.clone(),
+        scenario: worker.scenario.clone(),
+        bindings: &worker.bindings,
         host,
         host_queue,
         world: world as *mut WorldState,

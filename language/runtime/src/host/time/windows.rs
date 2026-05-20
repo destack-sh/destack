@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-#![allow(clippy::missing_safety_doc)]
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core as host_core;
@@ -34,6 +33,8 @@ fn wall_nanos() -> u64 {
         dwLowDateTime: 0,
         dwHighDateTime: 0,
     };
+
+    // SAFETY: the Win32 call writes one FILETIME to the provided out pointer
     unsafe {
         GetSystemTimePreciseAsFileTime(&mut filetime);
     }
@@ -62,6 +63,8 @@ fn process_cpu_nanos() -> RuntimeResult<u64> {
         dwLowDateTime: 0,
         dwHighDateTime: 0,
     };
+
+    // SAFETY: pseudo process handles are valid for the current process and outputs are live
     let rc = unsafe {
         GetProcessTimes(
             GetCurrentProcess(),
@@ -101,6 +104,8 @@ fn thread_cpu_nanos() -> RuntimeResult<u64> {
         dwLowDateTime: 0,
         dwHighDateTime: 0,
     };
+
+    // SAFETY: pseudo thread handles are valid for the current thread and outputs are live
     let rc = unsafe {
         GetThreadTimes(
             GetCurrentThread(),
@@ -125,6 +130,8 @@ fn thread_cpu_nanos() -> RuntimeResult<u64> {
 fn performance_counter_nanos() -> RuntimeResult<u64> {
     // sample one high-resolution frequency
     let mut frequency = 0_i64;
+
+    // SAFETY: the Win32 call writes one counter frequency to the provided out pointer
     let rc_frequency = unsafe { QueryPerformanceFrequency(&mut frequency) };
     if rc_frequency == 0 {
         return Err(host_core::io_error("QueryPerformanceFrequency"));
@@ -135,6 +142,8 @@ fn performance_counter_nanos() -> RuntimeResult<u64> {
 
     // sample one high-resolution counter
     let mut counter = 0_i64;
+
+    // SAFETY: the Win32 call writes one counter sample to the provided out pointer
     let rc_counter = unsafe { QueryPerformanceCounter(&mut counter) };
     if rc_counter == 0 {
         return Err(host_core::io_error("QueryPerformanceCounter"));
@@ -154,6 +163,8 @@ fn performance_counter_nanos() -> RuntimeResult<u64> {
 fn performance_counter_resolution_nanos() -> RuntimeResult<u64> {
     // sample one high-resolution frequency
     let mut frequency = 0_i64;
+
+    // SAFETY: the Win32 call writes one counter frequency to the provided out pointer
     let rc_frequency = unsafe { QueryPerformanceFrequency(&mut frequency) };
     if rc_frequency == 0 {
         return Err(host_core::io_error("QueryPerformanceFrequency"));
@@ -171,7 +182,9 @@ fn performance_counter_resolution_nanos() -> RuntimeResult<u64> {
 
 /// Sample one boot clock in nanoseconds.
 fn boot_nanos() -> u64 {
+    // SAFETY: GetTickCount64 has no pointer arguments and is safe to call at any time
     let milliseconds = unsafe { GetTickCount64() };
+
     milliseconds.saturating_mul(NANOS_PER_MILLISECOND)
 }
 

@@ -57,6 +57,7 @@ impl WakeSockets {
         // ensure Winsock is initialized before creating sockets
         host_windows::initialize_winsock()?;
 
+        // SAFETY: socket has no pointer arguments and returns either a socket or INVALID_SOCKET
         let receiver = unsafe { socket(AF_INET.into(), SOCK_DGRAM, IPPROTO_UDP) };
         if receiver == INVALID_SOCKET {
             return Err(last_net_error("socket"));
@@ -70,6 +71,8 @@ impl WakeSockets {
             },
             sin_zero: [0; 8],
         };
+
+        // SAFETY: addr is a valid socket address payload for the provided length
         let rc = unsafe {
             bind(
                 receiver,
@@ -78,6 +81,7 @@ impl WakeSockets {
             )
         };
         if rc != 0 {
+            // SAFETY: receiver is a socket created by this function
             unsafe {
                 closesocket(receiver);
             }
@@ -86,25 +90,35 @@ impl WakeSockets {
 
         let mut storage = std::mem::MaybeUninit::<SOCKADDR_STORAGE>::uninit();
         let mut length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
+
+        // SAFETY: storage and length are valid writable out parameters for getsockname
         let rc =
             unsafe { getsockname(receiver, storage.as_mut_ptr() as *mut SOCKADDR, &mut length) };
         if rc != 0 {
+            // SAFETY: receiver is a socket created by this function
             unsafe {
                 closesocket(receiver);
             }
             return Err(last_net_error("getsockname"));
         }
+
+        // SAFETY: rc == 0 means getsockname initialized the socket address storage
         let storage = unsafe { storage.assume_init() };
 
+        // SAFETY: socket has no pointer arguments and returns either a socket or INVALID_SOCKET
         let sender = unsafe { socket(AF_INET.into(), SOCK_DGRAM, IPPROTO_UDP) };
         if sender == INVALID_SOCKET {
+            // SAFETY: receiver is a socket created by this function
             unsafe {
                 closesocket(receiver);
             }
             return Err(last_net_error("socket"));
         }
+
+        // SAFETY: storage contains the bound receiver address returned by getsockname
         let rc = unsafe { connect(sender, &storage as *const _ as *const SOCKADDR, length) };
         if rc != 0 {
+            // SAFETY: sender and receiver are sockets created by this function
             unsafe {
                 closesocket(sender);
                 closesocket(receiver);
@@ -124,6 +138,7 @@ impl WakeSockets {
     fn drain(&self) {
         let mut buffer = [0u8; 32];
         loop {
+            // SAFETY: buffer is a valid writable byte slice for the requested length
             let rc = unsafe {
                 recv(
                     self.receiver,
@@ -144,6 +159,7 @@ impl WakeSockets {
 
 impl Drop for WakeSockets {
     fn drop(&mut self) {
+        // SAFETY: both sockets are owned by this wake pair
         unsafe {
             closesocket(self.sender);
             closesocket(self.receiver);
@@ -337,6 +353,7 @@ impl HostPoller for WindowsPoller {
             self.entries.push(Some((*resource_id, *entry)));
         }
 
+        // SAFETY: pollfds points to len initialized WSAPOLLFD records owned by this poller
         let result = unsafe {
             WSAPoll(
                 self.pollfds.as_mut_ptr(),
@@ -438,6 +455,8 @@ fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
 /// Send one wake byte through one wake socket.
 fn wake_socket(sender: SOCKET) -> RuntimeResult<()> {
     let buffer = [0u8; 1];
+
+    // SAFETY: buffer is a valid readable byte slice for the requested length
     let rc = unsafe { send(sender, buffer.as_ptr() as *const _, 1, 0) };
     if rc < 0 {
         return Err(last_net_error("send"));

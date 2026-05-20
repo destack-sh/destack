@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-#![allow(clippy::missing_safety_doc)]
 
 use std::mem::MaybeUninit;
 
@@ -76,12 +75,14 @@ fn read_clock_timespec(
     operation: &str,
 ) -> RuntimeResult<libc::timespec> {
     let mut spec = MaybeUninit::<libc::timespec>::uninit();
+
+    // SAFETY: clock_gettime writes one timespec to the provided out pointer on success
     let rc = unsafe { libc::clock_gettime(clock_id, spec.as_mut_ptr()) };
     if rc != 0 {
         return Err(host_core::io_error(operation, None));
     }
 
-    // clock_gettime initialized the output timespec on success
+    // SAFETY: rc == 0 means clock_gettime initialized the output timespec
     Ok(unsafe { spec.assume_init() })
 }
 
@@ -90,14 +91,15 @@ fn read_clock_resolution_timespec(
     clock_id: libc::clockid_t,
     operation: &str,
 ) -> RuntimeResult<libc::timespec> {
-    // query one host resolution timespec
     let mut spec = MaybeUninit::<libc::timespec>::uninit();
+
+    // SAFETY: clock_getres writes one timespec to the provided out pointer on success
     let rc = unsafe { libc::clock_getres(clock_id, spec.as_mut_ptr()) };
     if rc != 0 {
         return Err(host_core::io_error(operation, None));
     }
 
-    // clock_getres initialized the output timespec on success
+    // SAFETY: rc == 0 means clock_getres initialized the output timespec
     Ok(unsafe { spec.assume_init() })
 }
 

@@ -456,7 +456,7 @@ impl RuntimeError {
     /// Return the numeric error code.
     #[inline]
     pub fn code(&self) -> u16 {
-        // Safety: repr(u16) ensures the discriminant is valid.
+        // SAFETY: repr(u16) ensures the discriminant is valid.
         unsafe { *(self as *const Self as *const u16) }
     }
 
