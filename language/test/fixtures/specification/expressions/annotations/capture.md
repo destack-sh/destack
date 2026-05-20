@@ -1,12 +1,68 @@
 # Capture
 
-`@capture` is a compiler-known annotation for closure environments.
+`@capture` is the builtin annotation for controlling closure environments.
 
 ## policy
 
+### share is the default
+
+Shared captures preserve binding identity.
+
+```ds
+let a = 0;
+let b = 0;
+let c = 0;
+
+const foo = () => {
+    a += 1;
+    b += 1;
+};
+
+const boo = () => {
+    b += 1;
+    c += 1;
+};
+
+foo();
+boo();
+
+b satisfies int32;
+```
+
+### share preserves mutations across closures
+
+Shared closures observe the same binding.
+
+```ds
+let count = 0;
+
+const inc = () => {
+    count += 1;
+};
+
+const read = () => count;
+
+inc();
+read() satisfies int32;
+```
+
+### share composes with owned callable forms
+
+The callable value can be owned while captured bindings remain shared.
+
+```ds
+let count = 0;
+
+const tick: ^Function<(), void> = () => {
+    count += 1;
+};
+
+tick();
+```
+
 ### borrow keeps the original binding
 
-Borrow captures give the closure borrowed access and keep the original binding live.
+Borrow captures keep the original binding live.
 
 ```ds
 struct Packet {
@@ -16,14 +72,14 @@ struct Packet {
 function run(): void {
     let packet = Packet { sequence: 1 };
 
-    // `read` captures a borrowed reference to `packet`
+    // `read` captures borrowed access to `packet`
     @capture("borrow")
     const read = () => packet.sequence;
 
-    // `packet` is still owned after the closure is called
+    // `packet` remains usable while the closure is alive
     packet.sequence satisfies int32;
 
-    // `read` returns the value via the borrowed reference
+    // `read` returns through the captured borrow
     read() satisfies int32;
 }
 ```
@@ -58,7 +114,7 @@ function run(): void {
 
 ### copy snapshots the binding value
 
-Copy captures duplicate values that implement `Copy` and keep the original binding usable.
+Copy captures snapshot values that implement `Copy`.
 
 ```ds
 let count: int32 = 1;
@@ -154,7 +210,7 @@ function run(): void {
 
 ### object directives configure individual bindings
 
-Object directives set a default policy and override selected captures.
+Object directives set a default policy and override selected bindings.
 
 ```ds
 struct Socket {
@@ -163,14 +219,16 @@ struct Socket {
 
 function run(): () => int32 {
     let prefix: int32 = 10;
+    let count: int32 = 0;
     let socket = Socket { fd: 1 };
 
-    // copy `prefix`, move `socket`
+    // share `count`, copy `prefix`, move `socket`
     @capture({
-        default: "copy",
+        default: "share",
+        prefix: "copy",
         socket: "move",
     })
-    return () => prefix + socket.fd;
+    return () => count + prefix + socket.fd;
 }
 ```
 

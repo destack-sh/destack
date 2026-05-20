@@ -31,15 +31,13 @@ const declarations = comptime eval<Declaration[]>(source);
 declarations satisfies Declaration[];
 ```
 
-### comptime Function accepts generated bodies
+### eval can produce function declarations
 
 ```ds
-const body = comptime "return target + suffix;";
-const makeName = comptime new Function<(target: string, suffix: string) => string>(
-    "target",
-    "suffix",
-    body,
-);
+import * as dir from "destack:reflect/dir";
 
-makeName("user", "Id") satisfies string;
+const source = comptime "function makeName(target: string, suffix: string): string { return target + suffix; }";
+const makeName = comptime eval<dir.FunctionDeclaration>(source);
+
+makeName satisfies dir.FunctionDeclaration;
 ```
