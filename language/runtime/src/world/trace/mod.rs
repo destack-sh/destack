@@ -1,5 +1,6 @@
 mod chunk;
 mod error;
+mod file;
 mod header;
 mod log;
 mod observation;
