@@ -9,8 +9,8 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
-    LanguageType, PrintOptions, Uri, print_diff,
+    DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle, LanguageType,
+    PrintOptions, Uri, print_diff,
 };
 use destack_workspace::FormatterOptions;
 
@@ -91,18 +91,14 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
+    let diagnostics = parser.diagnostics();
 
     // bail on parse errors
-    let has_errors = parser
-        .diagnostics
+    let has_errors = diagnostics
         .to_vec()
         .into_iter()
         .any(|d| d.severity == DiagnosticSeverity::Error);
     if has_errors {
-        let mut diagnostics = DiagnosticCollection::new();
-        for d in parser.diagnostics.to_vec() {
-            diagnostics.insert(d);
-        }
         let options = PrintOptions::new().with_colorizer(source_colorizer());
         let rendered = format_diagnostics(&file_for_id, &diagnostics, options);
         return CaseResult::Failed {

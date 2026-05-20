@@ -247,10 +247,10 @@ fn parse_file_with_parser(
         Arc::new(StringPool::new()),
     );
     let _ = parser.parse();
+    let diagnostics = parser.diagnostics();
 
     // collect parse errors for relevance checks
-    let errors: Vec<_> = parser
-        .diagnostics
+    let errors: Vec<_> = diagnostics
         .to_vec()
         .into_iter()
         .filter(|d| d.severity == DiagnosticSeverity::Error)
@@ -268,7 +268,7 @@ fn parse_file_with_parser(
                     None
                 }
             };
-            print_conformance_diagnostics(path, &file_for_id, parser.diagnostics.collect());
+            print_conformance_diagnostics(path, &file_for_id, diagnostics);
         }
 
         ParseOutcome::Error

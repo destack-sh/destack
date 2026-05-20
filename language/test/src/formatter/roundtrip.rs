@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, RunOptions, check_diagnostics};
+use crate::core::{Case, CaseResult, RunOptions, check_diagnostic_collection};
 use destack_core::StringPool;
 use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
@@ -61,7 +61,8 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
-    let parse_result = check_diagnostics(test, &file_for_id, &parser.diagnostics);
+    let diagnostics = parser.diagnostics();
+    let parse_result = check_diagnostic_collection(test, &file_for_id, &diagnostics);
     if parse_result.is_failed() {
         return parse_result;
     }
