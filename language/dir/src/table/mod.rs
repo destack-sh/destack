@@ -11,6 +11,7 @@ mod r#macro;
 mod relation;
 mod resolution;
 mod segment;
+mod r#static;
 mod r#type;
 
 pub use binding::*;
@@ -26,4 +27,5 @@ pub use r#macro::*;
 pub use relation::*;
 pub use resolution::*;
 pub use segment::*;
+pub use r#static::*;
 pub use r#type::*;

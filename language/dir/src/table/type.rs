@@ -139,9 +139,9 @@ impl<'a> TypeTable<'a> {
 
     /// Iterate over all type ids.
     pub fn iter_type_ids(&self) -> impl Iterator<Item = LocalTypeId> + '_ {
-        let end = self.type_count();
-
-        (0..end).map(LocalTypeId::new)
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_type_ids())
     }
 
     /// Return the origin for a type id.
