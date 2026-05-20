@@ -1,6 +1,6 @@
-/// Tables to render into a DIR snapshot.
+/// Rows to render into a DIR snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DirSnapshotSet {
+pub(crate) struct DirRows {
     /// Whether to render binding table rows.
     pub(super) binding: bool,
     /// Whether to render binding node scope rows.
@@ -9,6 +9,8 @@ pub(crate) struct DirSnapshotSet {
     pub(super) types: bool,
     /// Whether to render generic table rows.
     pub(super) generic: bool,
+    /// Whether to render static table rows.
+    pub(super) statics: bool,
     /// Whether to render resolution table rows.
     pub(super) resolution: bool,
     /// Whether to render instance table rows.
@@ -27,9 +29,12 @@ pub(crate) struct DirSnapshotSet {
     pub(super) macros: bool,
     /// Whether to render layout table rows.
     pub(super) layout: bool,
+    /// Whether to render summary rows.
+    pub(super) summaries: bool,
 }
 
-impl DirSnapshotSet {
+#[allow(dead_code)]
+impl DirRows {
     /// Select no tables.
     pub(crate) const fn none() -> Self {
         Self {
@@ -37,6 +42,7 @@ impl DirSnapshotSet {
             binding_nodes: false,
             types: false,
             generic: false,
+            statics: false,
             resolution: false,
             instance: false,
             relation: false,
@@ -46,6 +52,7 @@ impl DirSnapshotSet {
             capture: false,
             macros: false,
             layout: false,
+            summaries: false,
         }
     }
 
@@ -57,6 +64,44 @@ impl DirSnapshotSet {
         }
     }
 
+    /// Select dependency rows.
+    pub(crate) const fn imports() -> Self {
+        Self {
+            dependency: true,
+            ..Self::none()
+        }
+    }
+
+    /// Select export rows.
+    pub(crate) const fn exports() -> Self {
+        Self {
+            export: true,
+            ..Self::none()
+        }
+    }
+
+    /// Select macro expansion rows.
+    pub(crate) const fn macros() -> Self {
+        Self {
+            macros: true,
+            ..Self::none()
+        }
+    }
+
+    /// Select the standard checked DIR rows.
+    pub(crate) const fn checked() -> Self {
+        Self {
+            types: true,
+            generic: true,
+            resolution: true,
+            instance: true,
+            relation: true,
+            extension: true,
+            capture: true,
+            ..Self::none()
+        }
+    }
+
     /// Include binding node scope rows.
     pub(crate) const fn with_binding_nodes(mut self) -> Self {
         self.binding = true;
@@ -64,45 +109,9 @@ impl DirSnapshotSet {
         self
     }
 
-    /// Include type table rows.
-    pub(crate) const fn with_types(mut self) -> Self {
-        self.types = true;
-        self
-    }
-
-    /// Include generic table rows.
-    pub(crate) const fn with_generic(mut self) -> Self {
-        self.generic = true;
-        self
-    }
-
-    /// Include resolution table rows.
-    pub(crate) const fn with_resolution(mut self) -> Self {
-        self.resolution = true;
-        self
-    }
-
-    /// Include instance table rows.
-    pub(crate) const fn with_instance(mut self) -> Self {
-        self.instance = true;
-        self
-    }
-
-    /// Include relation table rows.
-    pub(crate) const fn with_relation(mut self) -> Self {
-        self.relation = true;
-        self
-    }
-
-    /// Include extension table rows.
-    pub(crate) const fn with_extension(mut self) -> Self {
-        self.extension = true;
-        self
-    }
-
-    /// Include dependency table rows.
-    pub(crate) const fn with_dependency(mut self) -> Self {
-        self.dependency = true;
+    /// Include static table rows.
+    pub(crate) const fn with_statics(mut self) -> Self {
+        self.statics = true;
         self
     }
 
@@ -112,15 +121,15 @@ impl DirSnapshotSet {
         self
     }
 
-    /// Include capture table rows.
-    pub(crate) const fn with_capture(mut self) -> Self {
-        self.capture = true;
-        self
-    }
-
     /// Include layout table rows.
     pub(crate) const fn with_layout(mut self) -> Self {
         self.layout = true;
+        self
+    }
+
+    /// Include summary rows.
+    pub(crate) const fn with_summaries(mut self) -> Self {
+        self.summaries = true;
         self
     }
 
@@ -143,6 +152,7 @@ impl DirSnapshotSet {
     pub(crate) const fn uses_type_labels(self) -> bool {
         self.types
             || self.generic
+            || self.statics
             || self.resolution
             || self.instance
             || self.relation

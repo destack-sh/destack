@@ -9,21 +9,21 @@ use destack_artifact::{
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
 
-use crate::tests::snapshot::{DirSnapshotBuilder, DirSnapshotSet, render_diagnostics};
+use crate::tests::snapshot::{DirRows, DirSnapshotBuilder, assert_snapshot, render_diagnostics};
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::provider::TestProvider;
 
-/// A compiler test builder.
+/// A test session builder.
 #[derive(Debug, Default)]
-pub(crate) struct TestCompilerBuilder {
+pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
     files: BTreeMap<String, FileContent>,
     /// Global module logical paths.
     globals: Vec<String>,
 }
 
-impl TestCompilerBuilder {
+impl TestSessionBuilder {
     /// Add one source module.
     pub(crate) fn module(mut self, path: &str, source: &str) -> Self {
         self.files.insert(
@@ -61,15 +61,15 @@ impl TestCompilerBuilder {
         self
     }
 
-    /// Build the test compiler.
-    pub(crate) fn build(self) -> TestCompiler {
-        TestCompiler::build(self.files, self.globals)
+    /// Build the test session.
+    pub(crate) fn build(self) -> TestSession {
+        TestSession::build(self.files, self.globals)
     }
 }
 
-/// A compiler test harness.
+/// A compiler test session.
 #[derive(Debug)]
-pub(crate) struct TestCompiler {
+pub(crate) struct TestSession {
     /// The repository under test.
     repository: Arc<Repository>,
     /// The immutable test revision.
@@ -84,13 +84,19 @@ pub(crate) struct TestCompiler {
     globals: Vec<String>,
 }
 
-impl TestCompiler {
-    /// Create a new test compiler builder.
-    pub(crate) fn new() -> TestCompilerBuilder {
-        TestCompilerBuilder::default()
+#[allow(dead_code)]
+impl TestSession {
+    /// Create a new test session builder.
+    pub(crate) fn new() -> TestSessionBuilder {
+        TestSessionBuilder::default()
     }
 
-    /// Build one test compiler from source files.
+    /// Build a single-module test session.
+    pub(crate) fn single(source: &str) -> Self {
+        Self::new().module("main.ds", source).build()
+    }
+
+    /// Build one test session from source files.
     fn build(files: BTreeMap<String, FileContent>, globals: Vec<String>) -> Self {
         let repository = Arc::new(Repository::new(
             PathBuf::new(),
@@ -146,9 +152,11 @@ impl TestCompiler {
         self.require_artifact_result(self.dir_exported_key(path))
     }
 
-    /// Provide checked DIR for one module.
-    pub(crate) fn provide_dir_checked(&self, path: &str) -> Result<ArtifactVersion, ProviderError> {
-        self.require_artifact_result(self.dir_checked_key(path))
+    /// Return the bound DIR key for one module.
+    pub(crate) fn dir_bound_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+
+        ArtifactKey::dir_bound(entry.module.id, entry.profile)
     }
 
     /// Return the imported DIR key for one module.
@@ -163,6 +171,13 @@ impl TestCompiler {
         let entry = self.module_entry(path);
 
         ArtifactKey::dir_exported(entry.module.id, entry.profile)
+    }
+
+    /// Return the expanded DIR key for one module.
+    pub(crate) fn dir_expanded_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+
+        ArtifactKey::dir_expanded(entry.module.id, entry.profile)
     }
 
     /// Return the checked DIR key for one module.
@@ -182,50 +197,54 @@ impl TestCompiler {
         render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
     }
 
-    /// Render one module DIR snapshot.
-    pub(crate) fn dir_snapshot(&self, path: &str, selection: DirSnapshotSet) -> String {
-        let entry = self.module_entry(path);
-
-        self.render_module_snapshot(entry, selection)
+    /// Assert bound DIR rows for one module.
+    pub(crate) fn assert_dir_bound(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir(path, rows, expected, Self::dir_bound_key, false);
     }
 
-    /// Render one checked module DIR snapshot.
-    pub(crate) fn checked_dir_snapshot(&self, path: &str, selection: DirSnapshotSet) -> String {
-        let entry = self.module_entry(path);
-
-        self.render_checked_module_snapshot(entry, selection)
+    /// Assert imported DIR rows for one module.
+    pub(crate) fn assert_dir_imported(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir(path, rows, expected, Self::dir_imported_key, false);
     }
 
-    /// Render selected checked module DIR snapshots.
-    pub(crate) fn checked_dir_snapshots(
+    /// Assert imported DIR rows for multiple modules.
+    pub(crate) fn assert_dir_imported_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
+        self.assert_dir_many(paths, rows, expected, Self::dir_imported_key, false);
+    }
+
+    /// Assert expanded DIR rows for one module.
+    pub(crate) fn assert_dir_expanded(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir(path, rows, expected, Self::dir_expanded_key, false);
+    }
+
+    /// Assert exported DIR rows for one module.
+    pub(crate) fn assert_dir_exported(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir(path, rows, expected, Self::dir_exported_key, false);
+    }
+
+    /// Assert checked DIR rows for one module.
+    pub(crate) fn assert_dir_checked(&self, path: &str, rows: DirRows, expected: &str) {
+        self.assert_dir(path, rows, expected, Self::dir_checked_key, true);
+    }
+
+    /// Assert checked DIR rows and diagnostics for one module.
+    pub(crate) fn assert_dir_checked_and_diagnostics(
         &self,
-        paths: &[&str],
-        selection: DirSnapshotSet,
-    ) -> String {
-        paths
-            .iter()
-            .map(|path| {
-                let entry = self.module_entry(path);
-                let body = self.render_checked_module_snapshot(entry, selection);
+        path: &str,
+        rows: DirRows,
+        expected_dir: &str,
+        expected_diagnostics: &str,
+    ) {
+        let dir = self.render_dir_snapshots(&[path], rows, true);
+        let diagnostics = self.diagnostic_snapshot(self.dir_checked_key(path));
 
-                format!("=== {path} ===\n{body}")
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n")
+        assert_snapshot(dir, expected_dir);
+        assert_snapshot(diagnostics, expected_diagnostics);
     }
 
-    /// Render selected module DIR snapshots.
-    pub(crate) fn dir_snapshots(&self, paths: &[&str], selection: DirSnapshotSet) -> String {
-        paths
-            .iter()
-            .map(|path| {
-                let entry = self.module_entry(path);
-                let body = self.render_module_snapshot(entry, selection);
-
-                format!("=== {path} ===\n{body}")
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n")
+    /// Assert checked DIR rows for multiple modules.
+    pub(crate) fn assert_dir_checked_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
+        self.assert_dir_many(paths, rows, expected, Self::dir_checked_key, true);
     }
 
     /// Render global environment rows.
@@ -350,7 +369,7 @@ impl TestCompiler {
     }
 
     /// Render one module snapshot.
-    fn render_module_snapshot(&self, entry: &TestModule, selection: DirSnapshotSet) -> String {
+    fn render_module_snapshot(&self, entry: &TestModule, selection: DirRows) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let bindings = bound.binding_table();
@@ -381,12 +400,67 @@ impl TestCompiler {
         builder.render()
     }
 
-    /// Render one checked module snapshot.
-    fn render_checked_module_snapshot(
+    /// Assert one rendered DIR snapshot.
+    fn assert_dir(
         &self,
-        entry: &TestModule,
-        selection: DirSnapshotSet,
-    ) -> String {
+        path: &str,
+        rows: DirRows,
+        expected: &str,
+        artifact_key: fn(&Self, &str) -> ArtifactKey,
+        is_checked: bool,
+    ) {
+        self.assert_dir_many(&[path], rows, expected, artifact_key, is_checked);
+    }
+
+    /// Assert rendered DIR snapshots.
+    fn assert_dir_many(
+        &self,
+        paths: &[&str],
+        rows: DirRows,
+        expected: &str,
+        artifact_key: fn(&Self, &str) -> ArtifactKey,
+        is_checked: bool,
+    ) {
+        let dir = self.render_dir_snapshots(paths, rows, is_checked);
+
+        // require diagnostic free artifacts by default
+        for path in paths {
+            let key = artifact_key(self, path);
+            assert_snapshot(self.diagnostic_snapshot(key), "");
+        }
+
+        assert_snapshot(dir, expected);
+    }
+
+    /// Render selected DIR snapshots.
+    fn render_dir_snapshots(&self, paths: &[&str], rows: DirRows, is_checked: bool) -> String {
+        if paths.len() == 1 {
+            let entry = self.module_entry(paths[0]);
+            if is_checked {
+                return self.render_checked_module_snapshot(entry, rows);
+            }
+
+            return self.render_module_snapshot(entry, rows);
+        }
+
+        paths
+            .iter()
+            .map(|path| {
+                let entry = self.module_entry(path);
+                let body = if is_checked {
+                    self.render_checked_module_snapshot(entry, rows)
+                } else {
+                    self.render_module_snapshot(entry, rows)
+                };
+
+                format!("=== {path} ===\n{body}")
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    }
+
+    /// Render one checked module snapshot.
+    fn render_checked_module_snapshot(&self, entry: &TestModule, selection: DirRows) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let expanded = self.dir_expanded(entry);
