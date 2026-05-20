@@ -38,10 +38,6 @@ _run-destack-test test_binary *args:
 check:
     cargo clippy --release {{ packages }} --no-deps
 
-# audit unsafe source usage
-unsafe-audit *args:
-    @python3 scripts/audit-unsafe.py {{args}}
-
 # run privileged runtime platform tests for process, fs, and net
 test-runtime-privileged:
     bash scripts/test-runtime-privileged.sh
