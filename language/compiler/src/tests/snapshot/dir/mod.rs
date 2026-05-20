@@ -6,15 +6,15 @@ mod export;
 mod extension;
 mod generic;
 mod instance;
-mod label;
 mod layout;
 mod r#macro;
 mod name;
 mod relation;
 mod resolution;
-mod selection;
+mod rows;
+mod r#static;
 mod r#type;
 mod type_label;
 
 pub(crate) use builder::*;
-pub(crate) use selection::*;
+pub(crate) use rows::*;

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 
 use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported};
 use destack_core::StringPool;
@@ -6,7 +7,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use super::name::BindingSnapshotName;
-use super::selection::DirSnapshotSet;
+use super::rows::DirRows;
 use crate::tests::snapshot::render::SnapshotRenderer;
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
@@ -28,14 +29,24 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) bindings: Option<&'a dir::BindingTable<'a>>,
     /// The checked generic table.
     pub(super) generics: Option<dir::GenericTable<'static>>,
+    /// The checked instance table.
+    pub(super) instances: Option<dir::InstanceTable<'static>>,
+    /// The visible type table used by layout anchors.
+    pub(super) types: Option<dir::TypeTable<'static>>,
+    /// The visible static table used by type labels.
+    pub(super) statics: Option<dir::StaticTable<'static>>,
     /// Module paths used in multi-module snapshots.
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
     /// Foreign symbol labels keyed by module and local symbol.
     pub(super) foreign_symbol_labels: BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>,
     /// Semantic type labels keyed by local type id.
     pub(super) type_labels: BTreeMap<dir::LocalTypeId, String>,
+    /// Semantic static labels keyed by local static id.
+    pub(super) static_labels: BTreeMap<dir::LocalStaticId, String>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
+    /// Whether to render table summary rows.
+    summaries: bool,
     /// The rows collected so far.
     rows: Vec<SnapshotRow>,
 }
@@ -49,10 +60,15 @@ impl<'a> DirSnapshotBuilder<'a> {
             strings,
             bindings: None,
             generics: None,
+            instances: None,
+            types: None,
+            statics: None,
             module_path_by_id: None,
             foreign_symbol_labels: BTreeMap::new(),
             type_labels: BTreeMap::new(),
+            static_labels: BTreeMap::new(),
             binding_nodes: false,
+            summaries: true,
             rows: Vec::new(),
         }
     }
@@ -100,11 +116,16 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Add selected rows for a bound DIR artifact.
-    pub(crate) fn add_bound(&mut self, selection: DirSnapshotSet, bound: &DirBound) {
+    pub(crate) fn add_bound(&mut self, selection: DirRows, bound: &DirBound) {
         self.binding_nodes = selection.binding_nodes;
+        self.summaries = selection.summaries;
 
         if selection.types {
             let types = dir::TypeTable::from_segment(bound.types.clone());
+            let statics = dir::StaticTable::from_segment(bound.statics.clone());
+            self.types = Some(types.clone());
+            self.statics = Some(statics.clone());
+            self.add_static_labels(&statics);
             self.add_type_labels(&types);
         }
 
@@ -118,32 +139,45 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Add selected rows for an imported DIR artifact.
-    pub(crate) fn add_imported(&mut self, selection: DirSnapshotSet, imported: &DirImported) {
+    pub(crate) fn add_imported(&mut self, selection: DirRows, imported: &DirImported) {
+        self.summaries = selection.summaries;
+
         if selection.dependency {
             self.add_table(imported.dependencies.as_ref());
         }
     }
 
     /// Add selected rows for an expanded DIR artifact.
-    pub(crate) fn add_expanded(&mut self, selection: DirSnapshotSet, expanded: &DirExpanded) {
+    pub(crate) fn add_expanded(&mut self, selection: DirRows, expanded: &DirExpanded) {
+        self.summaries = selection.summaries;
+
         if selection.macros {
             self.add_table(&expanded.macros);
         }
     }
 
     /// Add selected rows for an exported DIR artifact.
-    pub(crate) fn add_exported(&mut self, selection: DirSnapshotSet, exported: &DirExported) {
+    pub(crate) fn add_exported(&mut self, selection: DirRows, exported: &DirExported) {
+        self.summaries = selection.summaries;
+
         if selection.export {
             self.add_table(&exported.exports);
         }
     }
 
     /// Add selected rows for a checked DIR artifact.
-    pub(crate) fn add_checked(&mut self, selection: DirSnapshotSet, checked: &DirChecked) {
+    pub(crate) fn add_checked(&mut self, selection: DirRows, checked: &DirChecked) {
+        self.summaries = selection.summaries;
+
         if selection.uses_type_labels() {
             self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
+            self.instances = Some(dir::InstanceTable::from_segment(checked.instances.clone()));
 
             let types = dir::TypeTable::from_segment(checked.types.clone());
+            let statics = dir::StaticTable::from_segment(checked.statics.clone());
+            self.types = Some(types.clone());
+            self.statics = Some(statics.clone());
+            self.add_static_labels(&statics);
             self.add_type_labels(&types);
         }
 
@@ -153,6 +187,10 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.generic {
             self.add_table(checked.generics.as_ref());
+        }
+
+        if selection.statics {
+            self.add_table(checked.statics.as_ref());
         }
 
         if selection.resolution {
@@ -182,7 +220,34 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add one row.
     pub(crate) fn push(&mut self, row: SnapshotRow) {
+        if row.tag.entry == "summary" && !self.summaries {
+            return;
+        }
+
         self.rows.push(row);
+    }
+
+    /// Return the debug label for one checked instance.
+    pub(super) fn instance_label(&self, instance_id: dir::LocalInstanceId) -> String {
+        let Some(instances) = &self.instances else {
+            panic!("dir snapshot missing instance table for {instance_id:?}");
+        };
+
+        // render the solved semantic application
+        let instance = instances.get_instance(instance_id);
+        let symbol = self.symbol_path_label(instance.symbol);
+        if instance.arguments.is_empty() {
+            return symbol;
+        }
+
+        let arguments = instance
+            .arguments
+            .iter()
+            .map(|argument| self.static_argument_label(argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!("{symbol}<{arguments}>")
     }
 
     /// Return the source anchor for one DIR node.
@@ -208,6 +273,17 @@ impl<'a> DirSnapshotBuilder<'a> {
         } else {
             SnapshotAnchor::End
         }
+    }
+
+    /// Return the source anchor for one type.
+    pub(crate) fn anchor_type(&self, type_id: dir::LocalTypeId) -> SnapshotAnchor {
+        let Some(types) = &self.types else {
+            return SnapshotAnchor::End;
+        };
+
+        let node_id = types.get_type_source(type_id).into_global(types.module_id);
+
+        self.anchor_node(node_id)
     }
 
     /// Return the source anchor for one scope.
@@ -267,7 +343,15 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.type_labels
             .get(&type_id)
             .cloned()
-            .unwrap_or_else(|| super::label::type_id_label(type_id))
+            .unwrap_or_else(|| panic!("dir snapshot missing type label for {type_id:?}"))
+    }
+
+    /// Render one static id using semantic static text when possible.
+    pub(crate) fn static_label(&self, static_id: dir::LocalStaticId) -> String {
+        self.static_labels
+            .get(&static_id)
+            .cloned()
+            .unwrap_or_else(|| panic!("dir snapshot missing static label for {static_id:?}"))
     }
 
     /// Render one local symbol id using its source name when possible.
@@ -311,6 +395,180 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
             dir::StaticKey::Number(name) => format!("#number({})", self.strings.get(name)),
             dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings),
+        }
+    }
+
+    /// Render one enum variant label as lower snake case.
+    pub(crate) fn variant_label<T>(value: T) -> String
+    where
+        T: Debug,
+    {
+        let debug = format!("{value:?}");
+
+        Self::lower_snake(&debug)
+    }
+
+    /// Render one layout shape label.
+    pub(crate) fn layout_shape_label(shape: &dir::LayoutShape) -> String {
+        match shape {
+            dir::LayoutShape::None => "none".to_string(),
+            dir::LayoutShape::Scalar => "scalar".to_string(),
+            dir::LayoutShape::Any => "any".to_string(),
+            dir::LayoutShape::Struct(_) => "struct".to_string(),
+            dir::LayoutShape::Tuple(_) => "tuple".to_string(),
+            dir::LayoutShape::Variant(_) => "variant".to_string(),
+            dir::LayoutShape::Newtype(_) => "newtype".to_string(),
+            dir::LayoutShape::Function => "function".to_string(),
+        }
+    }
+
+    /// Render one optional integer label.
+    pub(crate) fn optional_u32_label(value: Option<u32>) -> Option<String> {
+        value.map(|value| value.to_string())
+    }
+
+    /// Return one dependency target field.
+    pub(crate) fn dependency_target_field(
+        &self,
+        target: Option<ModuleId>,
+    ) -> (&'static str, String) {
+        match target {
+            Some(module_id) => ("module", self.module_path(module_id)),
+            None => ("target", "<unresolved>".to_string()),
+        }
+    }
+
+    /// Render one member candidate label.
+    pub(crate) fn member_candidate_label(&self, candidate: &dir::MemberCandidate) -> String {
+        self.symbol_path_label(candidate.symbol)
+    }
+
+    /// Render one call candidate label.
+    pub(crate) fn call_candidate_label(&self, candidate: &dir::CallCandidate) -> String {
+        self.symbol_path_label(candidate.symbol)
+    }
+
+    /// Render one static argument label.
+    pub(crate) fn static_argument_label(&self, argument: &dir::StaticArgument) -> String {
+        // render the argument value before adding an optional name
+        let value = self.static_label(argument.value);
+        if let Some(name) = argument.name {
+            format!("{}={value}", self.strings.get(name))
+        } else {
+            value
+        }
+    }
+
+    /// Render one static term label.
+    pub(crate) fn static_term_label(&self, term: &dir::StaticTerm) -> String {
+        match term {
+            dir::StaticTerm::Symbol { symbol } => self.symbol_path_label(*symbol),
+            dir::StaticTerm::Access { access } => Self::variant_label(access),
+            dir::StaticTerm::Space { space } => Self::variant_label(space),
+            dir::StaticTerm::Place { place } => Self::place_label(place),
+            dir::StaticTerm::Lifetime { lifetime } => self.lifetime_label(lifetime),
+            dir::StaticTerm::ScalarLiteral { value } => self.scalar_literal_label(value),
+            dir::StaticTerm::TypeLiteral { value } => Self::variant_label(value),
+            dir::StaticTerm::Declaration {
+                declaration,
+                generic_arguments,
+            } => self.static_declaration_label(*declaration, generic_arguments.as_deref()),
+            dir::StaticTerm::Type { ty } => self.type_label(*ty),
+            dir::StaticTerm::Array { elements } => {
+                // render array elements recursively
+                let elements = elements
+                    .iter()
+                    .map(|element| self.static_term_label(element))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                format!("[{elements}]")
+            }
+            dir::StaticTerm::FixedArray { value, length } => {
+                // render repeated fixed array syntax
+                let value = self.static_term_label(value);
+                let length = self.static_term_label(length);
+
+                format!("[{value}; {length}]")
+            }
+            dir::StaticTerm::Tuple { elements } => {
+                // render tuple elements recursively
+                let elements = elements
+                    .iter()
+                    .map(|element| self.static_term_label(element))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                format!("({elements})")
+            }
+            dir::StaticTerm::Object { properties } => {
+                // render object properties recursively
+                let properties = self.static_property_labels(properties);
+
+                format!("{{{properties}}}")
+            }
+            dir::StaticTerm::Struct { ty, properties } => {
+                // render typed struct literal syntax
+                let properties = self.static_property_labels(properties);
+
+                format!("{} {{{properties}}}", self.type_label(*ty))
+            }
+        }
+    }
+
+    /// Render one scalar literal label.
+    pub(crate) fn scalar_literal_label(&self, literal: &dir::ScalarLiteral) -> String {
+        match literal {
+            dir::ScalarLiteral::Null => "null".to_string(),
+            dir::ScalarLiteral::Boolean(value) => value.to_string(),
+            dir::ScalarLiteral::Integer(value) => value.to_string(),
+            dir::ScalarLiteral::Bigint(value) => format!("{value}n"),
+            dir::ScalarLiteral::Float(value) => value.to_string(),
+            dir::ScalarLiteral::Character(value) => format!("'{value}'"),
+            dir::ScalarLiteral::String(value) => format!("{:?}", self.strings.get(*value)),
+            dir::ScalarLiteral::RegexString { content, flags } => {
+                let flags = flags.map(|flags| self.strings.get(flags)).unwrap_or("");
+
+                format!("/{}/{flags}", self.strings.get(*content))
+            }
+        }
+    }
+
+    /// Render one export key label.
+    pub(crate) fn export_key_label(&self, key: dir::ExportKey) -> String {
+        match key {
+            dir::ExportKey::Default => "<default>".to_string(),
+            dir::ExportKey::Named(name) => self.static_key(name),
+        }
+    }
+
+    /// Render one export selector label.
+    pub(crate) fn export_selector_label(&self, selector: dir::ExportSelector) -> String {
+        match selector {
+            dir::ExportSelector::Default => "<default>".to_string(),
+            dir::ExportSelector::Named(name) => self.static_key(name),
+            dir::ExportSelector::Namespace => "<namespace>".to_string(),
+        }
+    }
+
+    /// Render one captured binding label.
+    pub(crate) fn capture_binding_label(&self, binding: dir::CapturedBinding) -> String {
+        let symbol = self.symbol_label(binding.symbol);
+        let mode = Self::variant_label(binding.mode);
+
+        format!("{symbol}:{mode}")
+    }
+
+    /// Render one macro trigger label.
+    pub(crate) fn macro_trigger_label(&self, trigger: &dir::MacroTrigger) -> String {
+        match trigger {
+            dir::MacroTrigger::Decorator(node_id) => {
+                // render the decorator node kind as the trigger
+                let node_id = node_id.clone().into_any();
+
+                format!("decorator:{}", self.node_label(node_id))
+            }
+            dir::MacroTrigger::AutoDerive => "auto_derive".to_string(),
         }
     }
 
@@ -369,6 +627,97 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
+    /// Add semantic static labels for one visible static table.
+    fn add_static_labels(&mut self, statics: &dir::StaticTable<'_>) {
+        for static_id in statics.iter_static_ids() {
+            let term = statics.get_static(static_id);
+            let label = self.static_term_label(term);
+            self.static_labels.insert(static_id, label);
+        }
+    }
+
+    /// Render one static declaration term label.
+    fn static_declaration_label(
+        &self,
+        declaration: dir::LocalNodeId<dir::Declaration>,
+        generic_arguments: Option<&[dir::StaticArgument]>,
+    ) -> String {
+        // render declaration references with applied static arguments
+        let declaration = self.declaration_label(declaration);
+        if let Some(arguments) = generic_arguments {
+            let arguments = arguments
+                .iter()
+                .map(|argument| self.static_argument_label(argument))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            format!("{declaration}<{arguments}>")
+        } else {
+            declaration
+        }
+    }
+
+    /// Render one normalized place label.
+    fn place_label(place: &dir::Place) -> String {
+        match place {
+            dir::Place::Ambient => "ambient".to_string(),
+            dir::Place::Space(space) => Self::variant_label(space),
+        }
+    }
+
+    /// Render one normalized lifetime label.
+    fn lifetime_label(&self, lifetime: &dir::Lifetime) -> String {
+        match lifetime {
+            dir::Lifetime::Static => "static".to_string(),
+            dir::Lifetime::Symbol(symbol) => self.symbol_path_label(*symbol),
+            dir::Lifetime::Join(elements) => {
+                let elements = elements
+                    .iter()
+                    .map(|element| self.static_label(*element))
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+
+                format!("join({elements})")
+            }
+        }
+    }
+
+    /// Render static property labels.
+    fn static_property_labels(&self, properties: &[dir::StaticProperty]) -> String {
+        properties
+            .iter()
+            .map(|property| self.static_property_label(property))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// Render one static property label.
+    fn static_property_label(&self, property: &dir::StaticProperty) -> String {
+        match property {
+            dir::StaticProperty::Field { key, value } => {
+                // render a static key/value field
+                let key = self.static_key(*key);
+                let value = self.static_term_label(value);
+
+                format!("{key}: {value}")
+            }
+            dir::StaticProperty::Method { key, .. } => {
+                // render a static method key without its body
+                let key = key
+                    .map(|key| self.static_key(key))
+                    .unwrap_or_else(|| "<call>".to_string());
+
+                format!("{key}()")
+            }
+            dir::StaticProperty::Spread { value } => {
+                // render a static spread operand
+                let value = self.static_term_label(value);
+
+                format!("...{value}")
+            }
+        }
+    }
+
     /// Return the binding snapshot names.
     fn binding_names(&self) -> BindingSnapshotName<'a> {
         BindingSnapshotName::new(self.binding_table(), self.strings)
@@ -410,5 +759,24 @@ impl<'a> DirSnapshotBuilder<'a> {
         let module = module.replace(['/', '\\'], ".");
 
         module.trim_matches('.').to_string()
+    }
+
+    /// Convert one CamelCase-ish debug string to lower snake case.
+    fn lower_snake(value: &str) -> String {
+        let mut result = String::new();
+
+        // split before uppercase letters
+        for character in value.chars() {
+            if character.is_ascii_uppercase() {
+                if !result.is_empty() {
+                    result.push('_');
+                }
+                result.push(character.to_ascii_lowercase());
+            } else {
+                result.push(character);
+            }
+        }
+
+        result
     }
 }

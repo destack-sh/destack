@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, label};
+use super::DirSnapshotBuilder;
 
 impl DirSnapshotBuilder<'_> {
     /// Return one semantic type label.
@@ -27,9 +27,9 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Undefined => "undefined".to_string(),
             dir::Type::Object => "object".to_string(),
             dir::Type::Primitive(primitive) => Self::primitive_type_label(*primitive),
-            dir::Type::Literal(literal) => label::scalar_literal_label(self, literal),
+            dir::Type::Literal(literal) => self.scalar_literal_label(literal),
             dir::Type::Parameter(parameter) => self.symbol_label(parameter.symbol),
-            dir::Type::Named(named) => self.named_type_label(types, named),
+            dir::Type::Named(named) => self.named_type_label(named),
             dir::Type::This => "this".to_string(),
             dir::Type::Form(form) => self.form_type_label(types, form),
             dir::Type::ErasedAny(any) => {
@@ -72,7 +72,7 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one named type label.
-    fn named_type_label(&self, types: &dir::TypeTable<'_>, named: &dir::NamedType) -> String {
+    fn named_type_label(&self, named: &dir::NamedType) -> String {
         // render the source declaration path first
         let symbol = self.symbol_path_label(named.symbol);
         if named.arguments.is_empty() {
@@ -80,7 +80,7 @@ impl DirSnapshotBuilder<'_> {
         }
 
         // render static arguments only when the reference is applied
-        let arguments = self.static_argument_list_label(types, &named.arguments);
+        let arguments = self.static_argument_list_label(&named.arguments);
 
         format!("{symbol}<{arguments}>")
     }
@@ -95,116 +95,18 @@ impl DirSnapshotBuilder<'_> {
             dir::Form::Managed => format!("Managed<{value}>"),
             dir::Form::Owned => format!("Owned<{value}>"),
             dir::Form::Borrowed { lifetime, access } => {
-                let lifetime = self.static_term_label(types, lifetime);
-                let access = self.static_term_label(types, access);
+                let lifetime = self.static_label(*lifetime);
+                let access = self.static_label(*access);
 
                 format!("Borrowed<{value}, {lifetime}, {access}>")
             }
             dir::Form::Raw => format!("Raw<{value}>"),
             dir::Form::Placed { place } => {
-                let place = self.static_term_label(types, place);
+                let place = self.static_label(*place);
 
                 format!("Placed<{value}, {place}>")
             }
             dir::Form::Readonly => format!("Readonly<{value}>"),
-        }
-    }
-
-    /// Return one static argument label through a type table.
-    fn static_argument_label(
-        &self,
-        types: &dir::TypeTable<'_>,
-        argument: &dir::StaticArgument,
-    ) -> String {
-        // render the argument value first
-        let value = self.static_term_label(types, &argument.value);
-
-        // preserve named static arguments
-        if let Some(name) = argument.name {
-            format!("{}={value}", self.strings.get(name))
-        } else {
-            value
-        }
-    }
-
-    /// Return one static term label through a type table.
-    fn static_term_label(&self, types: &dir::TypeTable<'_>, term: &dir::StaticTerm) -> String {
-        match term {
-            dir::StaticTerm::Type { ty } => self.type_id_label(types, *ty),
-            dir::StaticTerm::Declaration {
-                declaration,
-                generic_arguments,
-            } => {
-                // render the source declaration and its static arguments
-                let declaration = self.declaration_label(*declaration);
-                if let Some(arguments) = generic_arguments {
-                    let arguments = self.static_argument_list_label(types, arguments);
-
-                    format!("{declaration}<{arguments}>")
-                } else {
-                    declaration
-                }
-            }
-            dir::StaticTerm::Array { elements } => {
-                let elements = self.static_term_list_label(types, elements, ", ");
-
-                format!("[{elements}]")
-            }
-            dir::StaticTerm::FixedArray { value, length } => {
-                let value = self.static_term_label(types, value);
-                let length = self.static_term_label(types, length);
-
-                format!("[{value}; {length}]")
-            }
-            dir::StaticTerm::Tuple { elements } => {
-                let elements = self.static_term_list_label(types, elements, ", ");
-
-                format!("({elements})")
-            }
-            dir::StaticTerm::Object { properties } => {
-                let properties = self.static_property_list_label(types, properties);
-
-                format!("{{{properties}}}")
-            }
-            dir::StaticTerm::Struct { ty, properties } => {
-                let ty = self.type_id_label(types, *ty);
-                let properties = self.static_property_list_label(types, properties);
-
-                format!("{ty} {{{properties}}}")
-            }
-            dir::StaticTerm::ScalarLiteral { value } => label::scalar_literal_label(self, value),
-            dir::StaticTerm::TypeLiteral { value } => label::variant_label(value),
-        }
-    }
-
-    /// Return one static property label through a type table.
-    fn static_property_label(
-        &self,
-        types: &dir::TypeTable<'_>,
-        property: &dir::StaticProperty,
-    ) -> String {
-        match property {
-            dir::StaticProperty::Field { key, value } => {
-                // render a static key/value field
-                let key = self.static_key(*key);
-                let value = self.static_term_label(types, value);
-
-                format!("{key}: {value}")
-            }
-            dir::StaticProperty::Method { key, .. } => {
-                // render a static method key without its body
-                let key = key
-                    .map(|key| self.static_key(key))
-                    .unwrap_or_else(|| "<call>".to_string());
-
-                format!("{key}()")
-            }
-            dir::StaticProperty::Spread { value } => {
-                // render a static spread operand
-                let value = self.static_term_label(types, value);
-
-                format!("...{value}")
-            }
         }
     }
 
@@ -381,7 +283,7 @@ impl DirSnapshotBuilder<'_> {
     ) -> String {
         // render element and count
         let element = self.type_id_label(types, array.element);
-        let count = self.type_id_label(types, array.count);
+        let count = self.static_label(array.count);
         let prefix = if array.is_readonly { "readonly " } else { "" };
 
         format!("{prefix}[{element}; {count}]")
@@ -393,12 +295,12 @@ impl DirSnapshotBuilder<'_> {
         let start = range
             .start
             .as_ref()
-            .map(|literal| label::scalar_literal_label(self, literal))
+            .map(|literal| self.scalar_literal_label(literal))
             .unwrap_or_default();
         let end = range
             .end
             .as_ref()
-            .map(|literal| label::scalar_literal_label(self, literal))
+            .map(|literal| self.scalar_literal_label(literal))
             .unwrap_or_default();
         let operator = if range.is_inclusive { "..=" } else { ".." };
 
@@ -607,12 +509,12 @@ impl DirSnapshotBuilder<'_> {
             let symbol = self.symbol_label(parameter.symbol);
 
             if let Some(generics) = self.generics.as_ref()
-                && let Some(dir::GenericParameterShape::Type {
+                && let Some(dir::GenericSlot::Type {
                     constraint: Some(constraint),
                     ..
-                }) = generics.get_parameter(parameter.symbol)
+                }) = generics.slot(parameter.symbol)
             {
-                let constraint = self.type_id_label(types, constraint);
+                let constraint = self.type_id_label(types, *constraint);
 
                 return format!("{symbol}: {constraint}");
             }
@@ -640,41 +542,10 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one static argument list label.
-    fn static_argument_list_label(
-        &self,
-        types: &dir::TypeTable<'_>,
-        arguments: &[dir::StaticArgument],
-    ) -> String {
+    fn static_argument_list_label(&self, arguments: &[dir::StaticArgument]) -> String {
         arguments
             .iter()
-            .map(|argument| self.static_argument_label(types, argument))
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
-    /// Return one static term list label.
-    fn static_term_list_label(
-        &self,
-        types: &dir::TypeTable<'_>,
-        terms: &[dir::StaticTerm],
-        separator: &'static str,
-    ) -> String {
-        terms
-            .iter()
-            .map(|term| self.static_term_label(types, term))
-            .collect::<Vec<_>>()
-            .join(separator)
-    }
-
-    /// Return one static property list label.
-    fn static_property_list_label(
-        &self,
-        types: &dir::TypeTable<'_>,
-        properties: &[dir::StaticProperty],
-    ) -> String {
-        properties
-            .iter()
-            .map(|property| self.static_property_label(types, property))
+            .map(|argument| self.static_argument_label(argument))
             .collect::<Vec<_>>()
             .join(", ")
     }

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, label};
+use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::DependencySegment {
@@ -8,15 +8,17 @@ impl SnapshotTable for dir::DependencySegment {
         for dependency in self.iter() {
             let row =
                 SnapshotRow::new(builder.anchor_node(dependency.source), "dependency", "edge")
-                    .field("relation", label::variant_label(dependency.relation))
+                    .field(
+                        "relation",
+                        DirSnapshotBuilder::variant_label(dependency.relation),
+                    )
                     .field("specifier", builder.strings.get(dependency.specifier));
             let row = if let Some(loader) = dependency.loader {
                 row.field("loader", loader.as_str())
             } else {
                 row
             };
-            let (target_key, target_value) =
-                label::dependency_target_field(builder, dependency.target);
+            let (target_key, target_value) = builder.dependency_target_field(dependency.target);
             let row = row.field(target_key, target_value);
             builder.push(row);
         }

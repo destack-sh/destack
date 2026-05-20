@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, label};
+use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::RelationSegment {
@@ -13,9 +13,15 @@ impl SnapshotTable for dir::RelationSegment {
             add_relation_row(builder, symbol_id, relation);
         }
 
+        let extends_count = self.extends_entries().count();
+        let implements_count = self.implements_entries().count();
+        if extends_count == 0 && implements_count == 0 {
+            return;
+        }
+
         let row = SnapshotRow::new(SnapshotAnchor::End, "relation", "summary")
-            .field("extends", self.extends_entries().count().to_string())
-            .field("implements", self.implements_entries().count().to_string());
+            .count_field("extends", extends_count)
+            .count_field("implements", implements_count);
         builder.push(row);
     }
 }
@@ -27,8 +33,8 @@ fn add_relation_row(
     relation: dir::Relation,
 ) {
     let row = SnapshotRow::new(builder.anchor_symbol(symbol_id), "relation", "entry")
-        .field("key", builder.symbol_path_label(symbol_id))
-        .field("kind", label::variant_label(relation.kind))
+        .field("symbol", builder.symbol_path_label(symbol_id))
+        .field("kind", DirSnapshotBuilder::variant_label(relation.kind))
         .field("type", builder.type_label(relation.ty));
 
     builder.push(row);

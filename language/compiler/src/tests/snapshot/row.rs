@@ -1,4 +1,5 @@
 use destack_source::Span;
+use std::fmt::Display;
 
 /// One table row rendered into an annotated source snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,6 +48,18 @@ impl SnapshotRow {
         };
 
         self.field(key, value)
+    }
+
+    /// Add one count field when it is nonzero.
+    pub(crate) fn count_field<T>(self, key: &'static str, value: T) -> Self
+    where
+        T: Copy + Display + PartialEq + From<u8>,
+    {
+        if value == T::from(0) {
+            return self;
+        }
+
+        self.field(key, value.to_string())
     }
 }
 

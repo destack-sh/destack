@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::{DirSnapshotBuilder, SnapshotTable, label};
+use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ResolutionSegment {
@@ -21,11 +21,19 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_call_resolution_row(builder, node_id, resolution);
         }
 
+        let name_count = self.name_entries().count();
+        let label_count = self.label_entries().count();
+        let member_count = self.member_entries().count();
+        let call_count = self.call_entries().count();
+        if name_count == 0 && label_count == 0 && member_count == 0 && call_count == 0 {
+            return;
+        }
+
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
-            .field("names", self.name_entries().count().to_string())
-            .field("labels", self.label_entries().count().to_string())
-            .field("members", self.member_entries().count().to_string())
-            .field("calls", self.call_entries().count().to_string());
+            .count_field("names", name_count)
+            .count_field("labels", label_count)
+            .count_field("members", member_count)
+            .count_field("calls", call_count);
         builder.push(row);
     }
 }
@@ -85,7 +93,7 @@ fn add_member_resolution_row(
             "targets",
             candidates
                 .iter()
-                .map(|candidate| label::member_candidate_label(builder, candidate)),
+                .map(|candidate| builder.member_candidate_label(candidate)),
         ),
     };
 
@@ -123,7 +131,7 @@ fn add_call_resolution_row(
             "targets",
             candidates
                 .iter()
-                .map(|candidate| label::call_candidate_label(builder, candidate)),
+                .map(|candidate| builder.call_candidate_label(candidate)),
         ),
     };
 
@@ -136,12 +144,15 @@ fn add_member_candidate_fields(
     row: SnapshotRow,
     candidate: &dir::MemberCandidate,
 ) -> SnapshotRow {
-    row.field("target", label::member_candidate_label(builder, candidate))
+    row.field("target", builder.member_candidate_label(candidate))
         .optional_field(
             "receiver",
             candidate.receiver.map(|ty| builder.type_label(ty)),
         )
-        .optional_field("instance", candidate.instance.map(label::instance_label))
+        .optional_field(
+            "instance",
+            candidate.instance.map(|id| builder.instance_label(id)),
+        )
 }
 
 /// Add direct call candidate fields.
@@ -150,10 +161,13 @@ fn add_call_candidate_fields(
     row: SnapshotRow,
     candidate: &dir::CallCandidate,
 ) -> SnapshotRow {
-    row.field("target", label::call_candidate_label(builder, candidate))
+    row.field("target", builder.call_candidate_label(candidate))
         .optional_field(
             "receiver",
             candidate.receiver.map(|ty| builder.type_label(ty)),
         )
-        .optional_field("instance", candidate.instance.map(label::instance_label))
+        .optional_field(
+            "instance",
+            candidate.instance.map(|id| builder.instance_label(id)),
+        )
 }
