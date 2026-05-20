@@ -2,7 +2,7 @@ use destack_core::StringId;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
-use destack_source::{ModuleId, NodeSourceMap, NodeSpanType, Span};
+use destack_source::{ModuleId, NodeSourceMap, NodeSourceMapMark, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -62,6 +62,12 @@ impl NodeIndexEntry {
         self.packed & Self::LOCAL_ID_MASK
     }
 
+    /// Return whether this entry is a reserved slot without arena storage.
+    #[inline]
+    pub(crate) fn is_placeholder(self) -> bool {
+        self.local_id() == Self::LOCAL_ID_MASK
+    }
+
     /// Return the concrete node type for this entry.
     #[inline]
     pub(crate) fn node_type(self) -> NodeType {
@@ -95,61 +101,17 @@ impl NodeIndexEntry {
     }
 }
 
-/// Snapshot of tree allocation lengths for speculative parser restores.
+/// Snapshot of tree allocation state for speculative restores.
 #[derive(Debug, Copy, Clone)]
 pub struct TreeMark {
     /// The global node id cursor.
     next_global_id: u32,
-    /// The expression arena length.
-    expressions_len: usize,
-    /// The type expression arena length.
-    type_expressions_len: usize,
-    /// The block arena length.
-    blocks_len: usize,
-    /// The catch arena length.
-    catches_len: usize,
-    /// The declaration arena length.
-    declarations_len: usize,
-    /// The declarator arena length.
-    declarators_len: usize,
-    /// The property arena length.
-    properties_len: usize,
-    /// The type field arena length.
-    type_members_len: usize,
-    /// The mapped type parameter arena length.
-    type_mapped_parameters_len: usize,
-    /// The member arena length.
-    members_len: usize,
-    /// The enum field arena length.
-    enum_fields_len: usize,
-    /// The where clause arena length.
-    where_clauses_len: usize,
-    /// The dependency item arena length.
-    dependency_items_len: usize,
-    /// The generic parameter arena length.
-    generic_parameters_len: usize,
-    /// The parameter arena length.
-    parameters_len: usize,
-    /// The argument arena length.
-    arguments_len: usize,
-    /// The generic argument arena length.
-    generic_arguments_len: usize,
-    /// The tuple element arena length.
-    tuple_elements_len: usize,
-    /// The match case arena length.
-    match_cases_len: usize,
-    /// The pattern arena length.
-    patterns_len: usize,
-    /// The pattern field arena length.
-    pattern_fields_len: usize,
-    /// The assign pattern arena length.
-    assign_patterns_len: usize,
-    /// The assign pattern field arena length.
-    assign_pattern_fields_len: usize,
+    /// The source map sparse side span mark.
+    source_map_mark: NodeSourceMapMark,
     /// The comment list length.
     comments_len: usize,
-    /// The decorator arena length.
-    decorators_len: usize,
+    /// The decorator attachment log length.
+    decorator_attachments_len: usize,
 }
 
 impl TreeMark {
@@ -215,12 +177,26 @@ pub struct Tree {
     alias_node_id_by_node_id: BTreeMap<u32, u32>,
     /// The decorators attached to nodes.
     decorators_by_node_id: BTreeMap<u32, Vec<LocalNodeId<Decorator>>>,
+    /// Decorator attachments in insertion order for rollback.
+    #[serde(skip)]
+    decorator_attachments: Vec<DecoratorAttachment>,
     /// The normalized documentation attached to nodes.
     documentation_by_node_id: BTreeMap<u32, Documentation>,
     /// The final source span by node id when known.
     source_span_by_node_id: Vec<Option<Span>>,
     /// The detached node ids.
     detached_node_ids: BTreeSet<u32>,
+}
+
+/// One decorator attachment side-table insertion.
+#[derive(Debug, Copy, Clone)]
+struct DecoratorAttachment {
+    /// The decorated node id.
+    target_id: u32,
+    /// The decorator node id.
+    decorator_id: LocalNodeId<Decorator>,
+    /// The parent slot value before attachment.
+    previous_parent_id: Option<u32>,
 }
 
 impl Debug for Tree {
@@ -278,6 +254,7 @@ impl Tree {
             alias_node_id_by_source_id: BTreeMap::new(),
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
+            decorator_attachments: Vec::new(),
             documentation_by_node_id: BTreeMap::new(),
             source_span_by_node_id: Vec::with_capacity(capacity),
             detached_node_ids: BTreeSet::new(),
@@ -343,90 +320,133 @@ impl Tree {
         LocalNodeId::new(global_id)
     }
 
-    /// Snapshot tree allocation lengths for speculative parser restores.
+    /// Snapshot tree allocation state for speculative restores.
     #[inline]
     pub fn mark(&self) -> TreeMark {
         TreeMark {
             next_global_id: self.next_global_id,
-            expressions_len: self.expressions.len(),
-            type_expressions_len: self.type_expressions.len(),
-            blocks_len: self.blocks.len(),
-            catches_len: self.catches.len(),
-            declarations_len: self.declarations.len(),
-            declarators_len: self.declarators.len(),
-            properties_len: self.properties.len(),
-            type_members_len: self.type_members.len(),
-            type_mapped_parameters_len: self.type_mapped_parameters.len(),
-            members_len: self.members.len(),
-            enum_fields_len: self.enum_fields.len(),
-            where_clauses_len: self.where_clauses.len(),
-            dependency_items_len: self.dependency_items.len(),
-            generic_parameters_len: self.generic_parameters.len(),
-            parameters_len: self.parameters.len(),
-            arguments_len: self.arguments.len(),
-            generic_arguments_len: self.generic_arguments.len(),
-            tuple_elements_len: self.tuple_elements.len(),
-            match_cases_len: self.match_cases.len(),
-            patterns_len: self.patterns.len(),
-            pattern_fields_len: self.pattern_fields.len(),
-            assign_patterns_len: self.assign_patterns.len(),
-            assign_pattern_fields_len: self.assign_pattern_fields.len(),
+            source_map_mark: self.source_map.mark(),
             comments_len: self.comments.len(),
-            decorators_len: self.decorators.len(),
+            decorator_attachments_len: self.decorator_attachments.len(),
         }
     }
 
-    /// Restore tree allocation lengths from a speculative mark.
+    /// Restore tree allocation state from a speculative mark.
     #[inline]
     pub fn restore_to_mark(&mut self, mark: TreeMark) {
-        self.node_index_by_node_id
-            .truncate(mark.next_global_id as usize);
-        self.parent_id_by_node_id
-            .truncate(mark.next_global_id as usize);
-        self.source_id_by_node_id
-            .truncate(mark.next_global_id as usize);
-        self.source_span_by_node_id
-            .truncate(mark.next_global_id as usize);
-        self.source_map.prune_from(mark.next_global_id);
+        self.restore_arena_tail(mark.next_global_id);
+
+        let retained_node_count = self.node_count_at_global_id(mark.next_global_id);
+        self.node_index_by_node_id.truncate(retained_node_count);
+        self.parent_id_by_node_id.truncate(retained_node_count);
+        self.source_id_by_node_id.truncate(retained_node_count);
+        self.source_span_by_node_id.truncate(retained_node_count);
+        self.source_map.prune_from(
+            retained_node_count,
+            mark.next_global_id,
+            mark.source_map_mark,
+        );
         self.next_global_id = mark.next_global_id;
 
-        self.expressions.truncate(mark.expressions_len);
-        self.type_expressions.truncate(mark.type_expressions_len);
-        self.blocks.truncate(mark.blocks_len);
-        self.catches.truncate(mark.catches_len);
-        self.declarations.truncate(mark.declarations_len);
-        self.declarators.truncate(mark.declarators_len);
-        self.properties.truncate(mark.properties_len);
-        self.type_members.truncate(mark.type_members_len);
-        self.type_mapped_parameters
-            .truncate(mark.type_mapped_parameters_len);
-        self.members.truncate(mark.members_len);
-        self.enum_fields.truncate(mark.enum_fields_len);
-        self.where_clauses.truncate(mark.where_clauses_len);
-        self.dependency_items.truncate(mark.dependency_items_len);
-        self.generic_parameters
-            .truncate(mark.generic_parameters_len);
-        self.parameters.truncate(mark.parameters_len);
-        self.arguments.truncate(mark.arguments_len);
-        self.generic_arguments.truncate(mark.generic_arguments_len);
-        self.tuple_elements.truncate(mark.tuple_elements_len);
-        self.match_cases.truncate(mark.match_cases_len);
-        self.patterns.truncate(mark.patterns_len);
-        self.pattern_fields.truncate(mark.pattern_fields_len);
-        self.assign_patterns.truncate(mark.assign_patterns_len);
-        self.assign_pattern_fields
-            .truncate(mark.assign_pattern_fields_len);
         self.comments.truncate(mark.comments_len);
-        self.decorators.truncate(mark.decorators_len);
+        self.restore_decorator_attachments(mark);
+        self.prune_node_side_tables(mark.next_global_id);
+    }
 
-        self.decorators_by_node_id
-            .retain(|target_id, decorator_ids| {
-                if *target_id >= mark.next_global_id {
-                    return false;
-                }
-                decorator_ids.retain(|decorator_id| decorator_id.id < mark.next_global_id);
-                !decorator_ids.is_empty()
-            });
+    /// Return the retained node count before one global node id.
+    #[inline]
+    fn node_count_at_global_id(&self, node_id: u32) -> usize {
+        node_id
+            .checked_sub(self.first_global_id)
+            .unwrap_or_else(|| panic!("DIR node id {node_id} is before this tree")) as usize
+    }
+
+    /// Restore typed arenas by replaying the global allocation tail.
+    fn restore_arena_tail(&mut self, next_global_id: u32) {
+        let retained_node_count = self.node_count_at_global_id(next_global_id);
+
+        for index in (retained_node_count..self.node_index_by_node_id.len()).rev() {
+            let entry = self.node_index_by_node_id[index];
+
+            if !entry.is_placeholder() {
+                self.truncate_arena(entry.node_type(), entry.local_id() as usize);
+            }
+        }
+    }
+
+    /// Truncate the arena that owns one node type.
+    fn truncate_arena(&mut self, node_type: NodeType, len: usize) {
+        match node_type {
+            NodeType::Expression => self.expressions.truncate(len),
+            NodeType::TypeExpression => self.type_expressions.truncate(len),
+            NodeType::Block => self.blocks.truncate(len),
+            NodeType::Catch => self.catches.truncate(len),
+            NodeType::Declaration => self.declarations.truncate(len),
+            NodeType::Declarator => self.declarators.truncate(len),
+            NodeType::Property => self.properties.truncate(len),
+            NodeType::TypeMember => self.type_members.truncate(len),
+            NodeType::TypeMappedParameter => self.type_mapped_parameters.truncate(len),
+            NodeType::Member => self.members.truncate(len),
+            NodeType::EnumField => self.enum_fields.truncate(len),
+            NodeType::WhereClause => self.where_clauses.truncate(len),
+            NodeType::DependencyItem => self.dependency_items.truncate(len),
+            NodeType::GenericParameter => self.generic_parameters.truncate(len),
+            NodeType::Parameter => self.parameters.truncate(len),
+            NodeType::GenericArgument => self.generic_arguments.truncate(len),
+            NodeType::TupleElement => self.tuple_elements.truncate(len),
+            NodeType::Argument => self.arguments.truncate(len),
+            NodeType::MatchCase => self.match_cases.truncate(len),
+            NodeType::Pattern => self.patterns.truncate(len),
+            NodeType::PatternField => self.pattern_fields.truncate(len),
+            NodeType::AssignPattern => self.assign_patterns.truncate(len),
+            NodeType::AssignPatternField => self.assign_pattern_fields.truncate(len),
+            NodeType::Decorator => self.decorators.truncate(len),
+        }
+    }
+
+    /// Restore decorator side-table attachments after one mark.
+    fn restore_decorator_attachments(&mut self, mark: TreeMark) {
+        while self.decorator_attachments.len() > mark.decorator_attachments_len {
+            let Some(attachment) = self.decorator_attachments.pop() else {
+                break;
+            };
+
+            self.remove_decorator_attachment(attachment);
+        }
+    }
+
+    /// Remove one decorator side-table attachment.
+    fn remove_decorator_attachment(&mut self, attachment: DecoratorAttachment) {
+        if let Some(decorator_ids) = self.decorators_by_node_id.get_mut(&attachment.target_id) {
+            if decorator_ids.last() == Some(&attachment.decorator_id) {
+                decorator_ids.pop();
+            } else {
+                decorator_ids.retain(|decorator_id| *decorator_id != attachment.decorator_id);
+            }
+
+            if decorator_ids.is_empty() {
+                self.decorators_by_node_id.remove(&attachment.target_id);
+            }
+        }
+
+        if attachment.decorator_id.id < self.next_global_id {
+            let index = self.node_index(attachment.decorator_id.id);
+            if let Some(parent_slot) = self.parent_id_by_node_id.get_mut(index) {
+                *parent_slot = attachment.previous_parent_id;
+            }
+        }
+    }
+
+    /// Prune side tables that point at nodes allocated after one mark.
+    fn prune_node_side_tables(&mut self, next_global_id: u32) {
+        self.alias_node_id_by_source_id
+            .retain(|_, alias_id| *alias_id < next_global_id);
+        self.alias_node_id_by_node_id
+            .retain(|node_id, alias_id| *node_id < next_global_id && *alias_id < next_global_id);
+        self.documentation_by_node_id
+            .retain(|node_id, _| *node_id < next_global_id);
+        self.detached_node_ids
+            .retain(|node_id| *node_id < next_global_id);
     }
 
     /// Return the local metadata index for one global node id.
@@ -1450,11 +1470,23 @@ impl Tree {
     pub fn append_decorator(&mut self, target_id: u32, decorator: LocalNodeId<Decorator>) {
         debug_assert!(target_id < self.next_global_id);
 
+        let previous_parent_id = if decorator.id != target_id {
+            let index = self.node_index(decorator.id);
+            self.parent_id_by_node_id.get(index).copied().flatten()
+        } else {
+            None
+        };
+
         // track decorators for the target node
         self.decorators_by_node_id
             .entry(target_id)
             .or_default()
             .push(decorator);
+        self.decorator_attachments.push(DecoratorAttachment {
+            target_id,
+            decorator_id: decorator,
+            previous_parent_id,
+        });
 
         // attach the decorator to its target for parent lookups
         if decorator.id != target_id {
@@ -1571,4 +1603,65 @@ impl_tree_stores! {
     AssignPattern => assign_patterns,
     AssignPatternField => assign_pattern_fields,
     Decorator => decorators,
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_source::{FileId, ModuleId, PackageId, Span};
+
+    use crate::{Decorator, DecoratorPosition, Expression, Tree, TypeExpression};
+
+    fn test_module_id() -> ModuleId {
+        ModuleId::new(PackageId::new(1), 1)
+    }
+
+    fn test_span(start: u32) -> Span {
+        Span::new(FileId(1), start, start + 1)
+    }
+
+    #[test]
+    fn test_restore_mark_replays_typed_arena_tail() {
+        let mut tree = Tree::new(test_module_id());
+        let owner = tree.insert(Expression::Stub, test_span(0));
+        let mark = tree.mark();
+
+        let ty = tree.insert(TypeExpression::Missing, test_span(1));
+        let decorator_expression = tree.insert(Expression::Stub, test_span(2));
+        let decorator = tree.insert(
+            Decorator {
+                expression: decorator_expression,
+                position: DecoratorPosition::LinePrefix,
+            },
+            test_span(3),
+        );
+        tree.append_decorator(owner.id, decorator);
+
+        assert_eq!(tree.get_decorators(owner.id), vec![decorator]);
+
+        tree.restore_to_mark(mark);
+
+        assert!(tree.get_decorators(owner.id).is_empty());
+        assert!(!tree.has_node_id(ty.id));
+        assert!(!tree.has_node_id(decorator_expression.id));
+        assert!(!tree.has_node_id(decorator.id));
+        assert_eq!(tree.next_global_id(), mark.next_global_id());
+    }
+
+    #[test]
+    fn test_restore_mark_uses_tail_tree_local_node_count() {
+        let mut base = Tree::new(test_module_id());
+        base.insert(Expression::Stub, test_span(0));
+        base.insert(Expression::Stub, test_span(1));
+
+        let mut tree = Tree::from_base(&base, 4);
+        let retained = tree.insert(Expression::Stub, test_span(2));
+        let mark = tree.mark();
+        let removed = tree.insert(TypeExpression::Missing, test_span(3));
+
+        tree.restore_to_mark(mark);
+
+        assert!(tree.has_node_id(retained.id));
+        assert!(!tree.has_node_id(removed.id));
+        assert_eq!(tree.next_global_id(), removed.id);
+    }
 }

@@ -1,7 +1,9 @@
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::hash_map::Entry;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::interval::IntervalTree;
 use crate::{FileId, Span};
@@ -108,6 +110,13 @@ impl SourcePartKey {
     }
 }
 
+/// Sparse side span insertion mark.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct NodeSourceMapMark {
+    /// The insertion log length.
+    side_span_order_len: usize,
+}
+
 /// Side index of spans into a Tree.
 #[derive(Debug)]
 pub struct NodeSourceMap {
@@ -121,6 +130,8 @@ pub struct NodeSourceMap {
     side_span_flags: Vec<u8>,
     /// Extra side spans for non-main/type spans (sparse).
     side_spans: FxHashMap<SourcePartKey, Span>,
+    /// Sparse side span insertion order for cheap truncation.
+    side_span_order: Vec<SourcePartKey>,
     /// Interval tree for O(log n + k) enclosing span queries.
     /// Built lazily on first lookup and invalidated on enclosing span mutations.
     interval_tree: RwLock<Option<IntervalTree>>,
@@ -136,6 +147,7 @@ impl Clone for NodeSourceMap {
             type_spans: self.type_spans.clone(),
             side_span_flags: self.side_span_flags.clone(),
             side_spans: self.side_spans.clone(),
+            side_span_order: self.side_span_order.clone(),
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
         }
@@ -226,6 +238,7 @@ impl<'de> Deserialize<'de> for NodeSourceMap {
             main_spans,
             type_spans,
             side_span_flags,
+            side_span_order: data.side_spans.keys().copied().collect(),
             side_spans: data.side_spans,
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
@@ -264,6 +277,7 @@ impl NodeSourceMap {
             type_spans: Vec::with_capacity(capacity / 8),
             side_span_flags: Vec::with_capacity(capacity / 4),
             side_spans: FxHashMap::default(),
+            side_span_order: Vec::new(),
             interval_tree: RwLock::new(None),
             interval_tree_ready: AtomicBool::new(false),
         }
@@ -339,14 +353,27 @@ impl NodeSourceMap {
         }
     }
 
-    /// Prune spans from the map (used during parse backtracking).
+    /// Snapshot sparse side span insertion state.
     #[inline]
-    pub fn prune_from(&mut self, from_idx: u32) {
-        self.enclosing_spans.truncate(from_idx as usize);
-        self.main_spans.truncate(from_idx as usize);
-        self.type_spans.truncate(from_idx as usize);
-        self.side_span_flags.truncate(from_idx as usize);
-        self.side_spans.retain(|key, _| key.source_id < from_idx);
+    pub fn mark(&self) -> NodeSourceMapMark {
+        NodeSourceMapMark {
+            side_span_order_len: self.side_span_order.len(),
+        }
+    }
+
+    /// Prune spans from the map after one mark.
+    #[inline]
+    pub fn prune_from(
+        &mut self,
+        retained_node_count: usize,
+        first_pruned_node_id: u32,
+        mark: NodeSourceMapMark,
+    ) {
+        self.enclosing_spans.truncate(retained_node_count);
+        self.main_spans.truncate(retained_node_count);
+        self.type_spans.truncate(retained_node_count);
+        self.side_span_flags.truncate(retained_node_count);
+        self.prune_sparse_side_spans(first_pruned_node_id, mark);
         self.invalidate_position_index();
     }
 
@@ -382,8 +409,29 @@ impl NodeSourceMap {
                 self.side_span_flags[index] |= TYPE_SPAN_FLAG;
             }
             _ => {
-                self.side_spans
-                    .insert(SourcePartKey::new(node_id, span_type), span);
+                let key = SourcePartKey::new(node_id, span_type);
+                match self.side_spans.entry(key) {
+                    Entry::Occupied(mut entry) => {
+                        entry.insert(span);
+                    }
+                    Entry::Vacant(entry) => {
+                        self.side_span_order.push(key);
+                        entry.insert(span);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Prune sparse side spans inserted after one mark.
+    fn prune_sparse_side_spans(&mut self, from_idx: u32, mark: NodeSourceMapMark) {
+        while self.side_span_order.len() > mark.side_span_order_len {
+            let Some(key) = self.side_span_order.pop() else {
+                break;
+            };
+
+            if key.source_id >= from_idx {
+                self.side_spans.remove(&key);
             }
         }
     }
