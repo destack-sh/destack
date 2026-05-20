@@ -2,7 +2,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GlobalSymbolId, ScalarLiteral, StaticArgument, StaticKey, StaticTerm, StringId,
+    Asynchrony, GlobalSymbolId, LocalStaticId, ScalarLiteral, StaticArgument, StaticKey, StringId,
 };
 
 use super::PrimitiveType;
@@ -118,17 +118,17 @@ pub enum Form {
     Owned,
     /// Borrowed value.
     Borrowed {
-        /// The solved borrow lifetime term.
-        lifetime: StaticTerm,
-        /// The solved borrow access term.
-        access: StaticTerm,
+        /// The solved borrow lifetime value.
+        lifetime: LocalStaticId,
+        /// The solved borrow access value.
+        access: LocalStaticId,
     },
     /// Raw pointer value.
     Raw,
     /// Placed value.
     Placed {
-        /// The solved concrete or ambient place term.
-        place: StaticTerm,
+        /// The solved concrete or ambient place value.
+        place: LocalStaticId,
     },
     /// Readonly view.
     Readonly,
@@ -234,8 +234,8 @@ pub struct UnaryType {
 pub struct FixedArrayType {
     /// The element type.
     pub element: LocalTypeId,
-    /// The length type.
-    pub count: LocalTypeId,
+    /// The static array length.
+    pub count: LocalStaticId,
     /// Whether the array is readonly.
     pub is_readonly: bool,
 }

@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalTypeId, SegmentView, StaticTerm, VarianceModifier};
+use crate::{GlobalSymbolId, LocalStaticId, LocalTypeId, SegmentView, VarianceModifier};
 
-/// Cumulative checked generic parameters for one DIR module.
+/// Cumulative checked generic slots for one DIR module.
 #[derive(Debug, Clone)]
 pub struct GenericTable<'a> {
     /// The module id of the generic table.
@@ -56,52 +56,43 @@ impl<'a> GenericTable<'a> {
         GenericTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Iterate effective generic parameters keyed by parameter symbol.
-    pub fn parameters(&self) -> impl Iterator<Item = (GlobalSymbolId, GenericParameterShape)> + '_ {
-        let mut entries = IndexMap::new();
+    /// Iterate effective generic slots keyed by owner declaration symbol.
+    pub fn declarations(&self) -> impl Iterator<Item = (GlobalSymbolId, &GenericSlots)> + '_ {
+        self.segments
+            .iter()
+            .enumerate()
+            .flat_map(move |(segment_index, segment)| {
+                segment
+                    .declarations
+                    .iter()
+                    .filter_map(move |(owner, slots)| {
+                        let is_shadowed = self
+                            .segments
+                            .iter()
+                            .skip(segment_index + 1)
+                            .any(|segment| segment.declarations.contains_key(owner));
 
-        // apply later segment values over earlier ones
-        for segment in self.segments.iter() {
-            for (symbol_id, parameter) in &segment.parameters {
-                entries.insert(*symbol_id, parameter.clone());
-            }
-        }
-
-        entries.into_iter()
+                        (!is_shadowed).then_some((*owner, slots))
+                    })
+            })
     }
 
-    /// Iterate effective generic parameter lists keyed by declaration symbol.
-    pub fn parameter_lists(
-        &self,
-    ) -> impl Iterator<Item = (GlobalSymbolId, GenericParameterList)> + '_ {
-        let mut entries = IndexMap::new();
-
-        // apply later segment values over earlier ones
-        for segment in self.segments.iter() {
-            for (symbol_id, parameter_list) in &segment.parameter_lists {
-                entries.insert(*symbol_id, parameter_list.clone());
-            }
-        }
-
-        entries.into_iter()
-    }
-
-    /// Get checked generic parameter metadata for a parameter symbol.
-    pub fn get_parameter(&self, symbol_id: GlobalSymbolId) -> Option<GenericParameterShape> {
+    /// Get checked generic slots for a declaration symbol.
+    pub fn slots(&self, owner: GlobalSymbolId) -> Option<&GenericSlots> {
         for segment in self.segments.iter().rev() {
-            if let Some(parameter) = segment.get_parameter(symbol_id) {
-                return Some(parameter);
+            if let Some(slots) = segment.slots(owner) {
+                return Some(slots);
             }
         }
 
         None
     }
 
-    /// Get a generic parameter list by declaration symbol.
-    pub fn get_parameter_list(&self, symbol_id: GlobalSymbolId) -> Option<GenericParameterList> {
-        for segment in self.segments.iter().rev() {
-            if let Some(parameter_list) = segment.get_parameter_list(symbol_id) {
-                return Some(parameter_list.clone());
+    /// Get the checked generic slot for a parameter symbol.
+    pub fn slot(&self, symbol_id: GlobalSymbolId) -> Option<&GenericSlot> {
+        for (_, slots) in self.declarations() {
+            if let Some(slot) = slots.slot(symbol_id) {
+                return Some(slot);
             }
         }
 
@@ -114,15 +105,13 @@ impl<'a> GenericTable<'a> {
     }
 }
 
-/// Generic binders added by one DIR phase.
+/// Generic slots added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenericSegment {
     /// The module id of the generic segment.
     pub module_id: ModuleId,
-    /// Generic parameter metadata keyed by parameter symbol.
-    pub(crate) parameters: IndexMap<GlobalSymbolId, GenericParameterShape>,
-    /// Generic parameter lists keyed by declaration symbol.
-    pub(crate) parameter_lists: IndexMap<GlobalSymbolId, GenericParameterList>,
+    /// Checked generic slots keyed by owner declaration symbol.
+    pub(crate) declarations: IndexMap<GlobalSymbolId, GenericSlots>,
 }
 
 impl GenericSegment {
@@ -130,81 +119,87 @@ impl GenericSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            parameters: IndexMap::new(),
-            parameter_lists: IndexMap::new(),
+            declarations: IndexMap::new(),
         }
     }
 
-    /// Set generic parameter metadata for a parameter symbol.
-    pub fn set_parameter(&mut self, symbol_id: GlobalSymbolId, parameter: GenericParameterShape) {
-        self.parameters.insert(symbol_id, parameter);
+    /// Set checked generic slots for a declaration symbol.
+    pub fn set_slots(&mut self, owner: GlobalSymbolId, slots: GenericSlots) {
+        self.declarations.insert(owner, slots);
     }
 
-    /// Get checked generic parameter metadata for a parameter symbol.
-    pub fn get_parameter(&self, symbol_id: GlobalSymbolId) -> Option<GenericParameterShape> {
-        self.parameters.get(&symbol_id).cloned()
+    /// Get checked generic slots for a declaration symbol.
+    pub fn slots(&self, owner: GlobalSymbolId) -> Option<&GenericSlots> {
+        self.declarations.get(&owner)
     }
 
-    /// Set the generic parameter list for a declaration symbol.
-    pub fn set_parameter_list(
-        &mut self,
-        symbol_id: GlobalSymbolId,
-        parameter_list: GenericParameterList,
-    ) {
-        self.parameter_lists.insert(symbol_id, parameter_list);
-    }
-
-    /// Get a generic parameter list by declaration symbol.
-    pub fn get_parameter_list(&self, symbol_id: GlobalSymbolId) -> Option<&GenericParameterList> {
-        self.parameter_lists.get(&symbol_id)
-    }
-
-    /// Iterate generic parameters keyed by parameter symbol.
-    pub fn parameters(&self) -> impl Iterator<Item = (GlobalSymbolId, GenericParameterShape)> + '_ {
-        self.parameters
+    /// Iterate generic slots keyed by owner declaration symbol.
+    pub fn declarations(&self) -> impl Iterator<Item = (GlobalSymbolId, &GenericSlots)> + '_ {
+        self.declarations
             .iter()
-            .map(|(symbol_id, parameter)| (*symbol_id, parameter.clone()))
-    }
-
-    /// Iterate generic parameter lists keyed by declaration symbol.
-    pub fn parameter_lists(
-        &self,
-    ) -> impl Iterator<Item = (GlobalSymbolId, &GenericParameterList)> + '_ {
-        self.parameter_lists
-            .iter()
-            .map(|(symbol_id, parameter_list)| (*symbol_id, parameter_list))
+            .map(|(owner, slots)| (*owner, slots))
     }
 
     /// Return true when this segment has no entries.
     pub fn is_empty(&self) -> bool {
-        self.parameters.is_empty() && self.parameter_lists.is_empty()
+        self.declarations.is_empty()
     }
 }
 
-/// Checked metadata for one generic parameter symbol.
+/// Checked generic slots for one declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum GenericParameterShape {
-    /// Type parameter.
+pub struct GenericSlots {
+    /// The declaration's formal generic slots in application order.
+    pub slots: Vec<GenericSlot>,
+}
+
+impl GenericSlots {
+    /// Create checked generic slots from ordered slots.
+    pub fn new(slots: Vec<GenericSlot>) -> Self {
+        Self { slots }
+    }
+
+    /// Get the slot for a parameter symbol.
+    pub fn slot(&self, symbol_id: GlobalSymbolId) -> Option<&GenericSlot> {
+        self.slots.iter().find(|slot| slot.symbol() == symbol_id)
+    }
+
+    /// Return true when this slot list has no entries.
+    pub fn is_empty(&self) -> bool {
+        self.slots.is_empty()
+    }
+}
+
+/// One checked formal generic slot.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GenericSlot {
+    /// Type generic slot.
     Type {
-        /// The constraint type for this parameter.
+        /// The symbol bound by this slot.
+        symbol: GlobalSymbolId,
+        /// The constraint type for this slot.
         constraint: Option<LocalTypeId>,
         /// The default type argument.
         default: Option<LocalTypeId>,
-        /// The variance for this parameter.
+        /// The variance for this slot.
         variance: Option<VarianceModifier>,
     },
-    /// Static parameter.
+    /// Static generic slot.
     Static {
-        /// The static term type accepted by this parameter.
+        /// The symbol bound by this slot.
+        symbol: GlobalSymbolId,
+        /// The static term type accepted by this slot.
         ty: Option<LocalTypeId>,
         /// The default static argument.
-        default: Option<StaticTerm>,
+        default: Option<LocalStaticId>,
     },
 }
 
-/// Checked generic parameters owned by one declaration symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GenericParameterList {
-    /// The ordered generic parameter symbols.
-    pub parameters: Vec<GlobalSymbolId>,
+impl GenericSlot {
+    /// Return the symbol bound by this slot.
+    pub fn symbol(&self) -> GlobalSymbolId {
+        match self {
+            Self::Type { symbol, .. } | Self::Static { symbol, .. } => *symbol,
+        }
+    }
 }
