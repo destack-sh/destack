@@ -274,6 +274,10 @@ test-grammar-destack-node-coverage:
 test-grammar-fixtures:
     bun grammar/scripts/check-grammar-fixtures.mjs
 
+# validate design and specification code fences parse and tokenize
+test-grammar-fences:
+    cd grammar/destack && npm run report:specification -- --fail
+
 # run the grammar validation stack
 test-grammar:
     just test-grammar-corpus-routing
@@ -282,6 +286,7 @@ test-grammar:
     just test-grammar-destack-node-coverage
     just test-grammar-fixtures
     just test-grammar-overlay
+    just test-grammar-fences
 
 # profile tree sitter grammar state deltas
 profile-grammar-delta args="--target destack --baseline tsx --top 30":

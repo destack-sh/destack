@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDirectory, "..", "..", "..");
 const specificationRoot = path.join(repoRoot, "language", "test", "fixtures", "specification");
+const designPath = path.join(repoRoot, "language", "DESIGN.md");
 const bridgeVscodeRoot = path.join(repoRoot, "bridge", "vscode");
 const require = createRequire(import.meta.url);
 const languages = {
@@ -31,6 +32,15 @@ const languages = {
             {
                 name: "type",
                 wrap: (source) => `type __DestackGrammarType = ${source.trim()};\n`,
+            },
+            {
+                name: "type-lines",
+                wrap: (source) => source
+                    .split(/\r?\n/u)
+                    .map((line) => line.replace(/\/\/.*$/u, "").trim())
+                    .filter(Boolean)
+                    .map((line, index) => `type __DestackGrammarType${index} = ${line};`)
+                    .join("\n"),
             },
             {
                 name: "statement",
@@ -101,12 +111,18 @@ function printHelp() {
     console.log("  --limit <n>  number of failed fence samples to print (default: 100)");
 }
 
-function collectMarkdownFiles(directory) {
-    const entries = fs.readdirSync(directory, { withFileTypes: true });
+function collectMarkdownFiles(sourcePath) {
+    const stat = fs.statSync(sourcePath);
+
+    if (stat.isFile()) {
+        return sourcePath.endsWith(".md") ? [sourcePath] : [];
+    }
+
+    const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
     const files = [];
 
     for (const entry of entries) {
-        const entryPath = path.join(directory, entry.name);
+        const entryPath = path.join(sourcePath, entry.name);
 
         if (entry.isDirectory()) {
             files.push(...collectMarkdownFiles(entryPath));
@@ -132,7 +148,7 @@ function fenceLanguage(info) {
 
 function collectLanguageFences(filePath) {
     const source = fs.readFileSync(filePath, "utf8");
-    const relativePath = path.relative(specificationRoot, filePath);
+    const relativePath = path.relative(repoRoot, filePath);
     const fences = [];
     const expression = /^```([^\n]*)\n([\s\S]*?)^```/gm;
     let match;
@@ -361,7 +377,10 @@ function printTextMateBreakdown(language, fences, failures, limit) {
 
 async function main() {
     const options = parseArgs(process.argv.slice(2));
-    const markdownFiles = collectMarkdownFiles(specificationRoot);
+    const markdownFiles = [
+        ...collectMarkdownFiles(designPath),
+        ...collectMarkdownFiles(specificationRoot),
+    ];
     const fences = markdownFiles.flatMap(collectLanguageFences).map((fence, index) => ({ ...fence, index }));
     const fencesByLanguage = new Map(languageList.map((language) => [
         language.name,
@@ -371,7 +390,7 @@ async function main() {
     let hasFailures = false;
 
     try {
-        console.log("specification fence parse:");
+        console.log("language fence parse:");
         for (const language of languageList) {
             const languageFences = fencesByLanguage.get(language.name) ?? [];
             const result = parseFences(languageFences, language, tempDirectory);
@@ -380,7 +399,7 @@ async function main() {
         }
 
         console.log("");
-        console.log("specification TextMate smoke:");
+        console.log("language TextMate smoke:");
         const textMateFailures = await smokeTextMateFences(fencesByLanguage);
         for (const language of languageList) {
             const languageFences = fencesByLanguage.get(language.name) ?? [];
