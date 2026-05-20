@@ -80,11 +80,6 @@ module.exports = grammar(JavaScript, {
     .filter((conflict) => !sameConflict(conflict, ['class_static_block', '_property_name']))
     .filter((conflict) => !sameConflict(conflict, ['_initializer', 'binary_expression']))
     .concat([
-      [$.call_expression, $.instantiation_expression, $.binary_expression],
-      [$.call_expression, $.instantiation_expression, $.binary_expression, $.unary_expression],
-      [$.call_expression, $.instantiation_expression, $.binary_expression, $.update_expression],
-      [$.call_expression, $.instantiation_expression, $.binary_expression, $.await_expression],
-
       [$.nested_identifier, $.nested_type_identifier, $.primary_expression],
       [$.nested_identifier, $.nested_type_identifier],
       [$.primary_expression, $.nested_identifier],
@@ -97,11 +92,9 @@ module.exports = grammar(JavaScript, {
       [$.primary_expression, $.literal_type, $.rest_pattern],
       [$.primary_expression, $.predefined_type, $.rest_pattern],
       [$.primary_expression, $.primary_type],
-      [$.primary_expression, $.generic_type],
       [$.primary_expression, $._struct_literal_generic_type],
       [$.primary_expression, $._struct_literal_generic_type, $.generic_type],
       [$.primary_expression, $._struct_literal_generic_type, $.generic_type, $._static_value_call_expression],
-      [$.primary_expression, $._property_name, $.generic_type],
       [$.primary_expression, $.predefined_type],
       [$.primary_expression, $.pattern, $.primary_type],
       [$._augmented_assignment_lhs, $.dereference_assignment_statement],
@@ -143,14 +136,10 @@ module.exports = grammar(JavaScript, {
       [$.primary_expression, $._range_expression_atom],
       [$.primary_expression, $._range_expression_atom, $._static_value_operand],
       [$.primary_expression, $._static_value_call_expression],
-      [$.primary_expression, $.generic_type, $._static_value_call_expression],
       [$._range_expression_atom, $.literal_type],
-      [$.primary_expression, $._range_expression_atom, $.literal_type],
       [$.range_expression, $.interval_type],
       [$._range_expression_bound],
       [$._range_expression_atom, $._interval_type_bound],
-      [$.primary_expression, $._range_expression_atom, $._interval_type_bound],
-      [$.primary_expression, $.comptime_type_argument],
     ]).concat([
       [$.comptime_block_statement, $.comptime_expression],
       [$.optional_type, $.index_type_query],
