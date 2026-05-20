@@ -29,7 +29,7 @@ pub(crate) struct KqueuePoller {
     events: Vec<libc::kevent>,
 }
 
-// safety: the poller only stores owned kevent buffers and raw fds
+// SAFETY: the poller only stores owned kevent buffers and raw fds
 unsafe impl Send for KqueuePoller {}
 
 /// Kqueue registration state for a resource.
@@ -308,6 +308,7 @@ impl HostPoller for KqueuePoller {
 
 /// Create one kqueue descriptor.
 fn create_kqueue_fd() -> RuntimeResult<RawFd> {
+    // SAFETY: kqueue has no pointer arguments and returns either an fd or errno
     let fd = unsafe { libc::kqueue() };
     if fd < 0 {
         return Err(io_error("poller.kqueue", None));
@@ -318,16 +319,19 @@ fn create_kqueue_fd() -> RuntimeResult<RawFd> {
 
 /// Close one file descriptor.
 fn close_fd(fd: RawFd) {
+    // SAFETY: callers pass file descriptors owned by this poller or setup path
     let _ = unsafe { libc::close(fd) };
 }
 
 /// Return one empty kqueue event.
 fn empty_kevent() -> libc::kevent {
+    // SAFETY: kevent is a plain C event payload and zero is its empty state
     unsafe { std::mem::zeroed() }
 }
 
 /// Apply kqueue registration changes.
 fn kevent_apply(kqueue_fd: RawFd, changes: &[libc::kevent]) -> c_int {
+    // SAFETY: changes points to changes.len initialized kevent records and no output is requested
     unsafe {
         kevent_sys(
             kqueue_fd,
@@ -347,18 +351,21 @@ fn kevent_wait(
     max_events: c_int,
     timeout: *const timespec,
 ) -> c_int {
+    // SAFETY: events points to max_events writable kevent records and timeout is null or valid
     unsafe { kevent_sys(kqueue_fd, std::ptr::null(), 0, events, max_events, timeout) }
 }
 
 /// Create one pipe.
 #[cfg(test)]
 fn pipe_fds(fds: &mut [RawFd; 2]) -> c_int {
+    // SAFETY: fds points to two writable file descriptor slots
     unsafe { libc::pipe(fds.as_mut_ptr()) }
 }
 
 /// Write bytes to one descriptor.
 #[cfg(test)]
 fn write_fd(fd: RawFd, bytes: &[u8]) -> isize {
+    // SAFETY: bytes is a valid readable byte slice for the requested length
     unsafe { libc::write(fd, bytes.as_ptr() as *const _, bytes.len()) }
 }
 

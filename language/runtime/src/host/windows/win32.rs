@@ -14,11 +14,13 @@ static QPC_MONOTONIC_EPOCH_TICKS: OnceLock<u64> = OnceLock::new();
 
 /// Return the last Winsock error code.
 pub(crate) fn last_wsa_error_code() -> i32 {
+    // SAFETY: WSAGetLastError has no arguments and reads thread-local Winsock state
     unsafe { WSAGetLastError() }
 }
 
 /// Build an I/O runtime error from the last Win32 error value.
 pub(crate) fn io_error(syscall: &str) -> Box<RuntimeError> {
+    // SAFETY: GetLastError has no arguments and reads thread-local Win32 state
     let errno = unsafe { GetLastError() } as i32;
     let message = error_message(syscall, errno);
     RuntimeError::from(HostError::io_with(
@@ -52,6 +54,8 @@ fn qpc_frequency_hz() -> u64 {
 
     *QPC_FREQUENCY_HZ.get_or_init(|| {
         let mut frequency = 0i64;
+
+        // SAFETY: the Win32 call writes one counter frequency to the provided out pointer
         let status = unsafe { QueryPerformanceFrequency(&mut frequency) };
         if status == 0 || frequency <= 0 {
             return 0;
@@ -79,6 +83,8 @@ fn qpc_process_epoch_ticks() -> Option<u64> {
 /// Read one QueryPerformanceCounter tick value.
 fn qpc_now_ticks() -> Option<u64> {
     let mut counter = 0i64;
+
+    // SAFETY: the Win32 call writes one counter sample to the provided out pointer
     let status = unsafe { QueryPerformanceCounter(&mut counter) };
     if status == 0 || counter < 0 {
         return None;

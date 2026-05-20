@@ -15,6 +15,7 @@ pub(crate) fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     })?;
 
     // use system preferred rng with null algorithm handle
+    // SAFETY: buffer is valid for length bytes and the system RNG mode permits a null handle
     let status = unsafe {
         BCryptGenRandom(
             std::ptr::null_mut(),

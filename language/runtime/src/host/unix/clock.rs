@@ -18,11 +18,13 @@ fn unix_monotonic_clock_now_ns() -> Option<u64> {
     let mut spec = MaybeUninit::<libc::timespec>::uninit();
 
     // sample one host monotonic timespec
+    // SAFETY: clock_gettime writes one timespec to the provided out pointer on success
     let status = unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, spec.as_mut_ptr()) };
     if status != 0 {
         return None;
     }
 
+    // SAFETY: status == 0 means clock_gettime initialized the output timespec
     let spec = unsafe { spec.assume_init() };
     timespec_to_nanos(spec)
 }
