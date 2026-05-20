@@ -390,7 +390,6 @@ import { User } from "@/model/user";
 
 export extension UserUtils of User {
     validate(): bool {
-        ...
     }
 }
 ```
@@ -748,7 +747,7 @@ interface Iterator {
     next(): Option<this.Item>;
 }
 
-function collect<I: Iterator>(iter: I): I.Item[] { ... }
+function collect<I: Iterator>(iter: I): I.Item[] {}
 ```
 
 Associated types are type aliases scoped to some struct, class, or interface and can also reference the owner's generic parameters.
@@ -831,7 +830,6 @@ This also works for generic APIs that operate on types as static values:
 
 ```ds
 function parse<comptime T: Type>(raw: string): T {
-    ...
 }
 
 const user = parse<User>("...");
@@ -955,7 +953,7 @@ As in TypeScript, `await` and `yield` are the suspension points for the `Promise
 In pure managed land, suspension works as before, and managed values can be stored in parked frames because it's all - well - managed.
 
 ```ds
-type User = { name: string, /* ... * / };
+type User = { name: string; };
 
 async function read(user: User): Promise<string> {
     const name = user.name;
@@ -1320,11 +1318,11 @@ If all variants resolve to the same implementation, the call is static; otherwis
 
 ```ds
 struct TcpStream {
-    write(chunk: [byte]): Result<usize, IOError> { ... }
+    write(chunk: [byte]): Result<usize, IOError> {}
 }
 
 struct MemoryBuffer {
-    write(chunk: [byte]): Result<usize, never> { ... }
+    write(chunk: [byte]): Result<usize, never> {}
 }
 
 function writeAll(sink: TcpStream | MemoryBuffer, chunk: [byte]) {
@@ -1547,19 +1545,19 @@ Destack (`.ds`) natively supports `.tsx` like constructs with the same rules:
 <Wall id={1}>
     <Block name="foo" color={Color.RED} />
     <Block name="bar" color={Color.BLUE} />
-</Wall>
+</Wall>;
 
 // Prompt.ds
 <Prompt>
     <System>You are a helpful assistant.</System>
     <User>{userMessage}</User>
-</Prompt>
+</Prompt>;
 
 // Level.ds
 <Level difficulty={3}>
     <Player position={spawn} />
     {enemies.map(e => <Enemy {...e} />)}
-</Level>
+</Level>;
 ```
 
 Unlike in TypeScript, in Destack types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
@@ -1821,8 +1819,6 @@ function blockMultiply<comptime Width: uint>(a: int32, b: int32): int32 {
     comptime {
         assert isPowerOfTwo(Width);
     }
-
-    // ...
 }
 ```
 
@@ -1855,7 +1851,6 @@ newtype memoize = {
 
 @memoize({ capacity: 1024 })
 function load(id: UserId): Result<User, Error> {
-    ...
 }
 ```
 
