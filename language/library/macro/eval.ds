@@ -2,11 +2,3 @@
 @intrinsic("comptime.eval")
 @languageItem("macro.eval")
 export declare function eval<T = unknown>(source: string): T;
-
-/// Compile source code into a comptime function.
-@intrinsic("comptime.function")
-@languageItem("macro.Function")
-export declare class Function<T = unknown> {
-    /// Create a comptime function from parameter names and body source.
-    constructor(...source: string[]);
-}

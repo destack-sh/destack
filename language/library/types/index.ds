@@ -1,3 +1,4 @@
+export { Function } from "./function.ds";
 export { Option } from "./option.ds";
 export {
     Exclude,
