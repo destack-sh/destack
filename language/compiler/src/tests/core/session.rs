@@ -19,8 +19,6 @@ use super::provider::TestProvider;
 pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
     files: BTreeMap<String, FileContent>,
-    /// Global module logical paths.
-    globals: Vec<String>,
 }
 
 impl TestSessionBuilder {
@@ -48,22 +46,9 @@ impl TestSessionBuilder {
         self
     }
 
-    /// Add one global source module.
-    pub(crate) fn global(mut self, path: &str, source: &str) -> Self {
-        self.globals.push(path.to_string());
-        self.files.insert(
-            path.to_string(),
-            FileContent::Text {
-                content: source.to_string(),
-            },
-        );
-
-        self
-    }
-
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
-        TestSession::build(self.files, self.globals)
+        TestSession::build(self.files)
     }
 }
 
@@ -80,8 +65,6 @@ pub(crate) struct TestSession {
     modules_by_path: BTreeMap<String, TestModule>,
     /// Module paths keyed by module id.
     module_path_by_id: BTreeMap<ModuleId, String>,
-    /// Global module logical paths.
-    globals: Vec<String>,
 }
 
 #[allow(dead_code)]
@@ -97,7 +80,7 @@ impl TestSession {
     }
 
     /// Build one test session from source files.
-    fn build(files: BTreeMap<String, FileContent>, globals: Vec<String>) -> Self {
+    fn build(files: BTreeMap<String, FileContent>) -> Self {
         let repository = Arc::new(Repository::new(
             PathBuf::new(),
             Arc::new(MemoryCacheStore::new()),
@@ -132,7 +115,6 @@ impl TestSession {
             provider,
             modules_by_path,
             module_path_by_id,
-            globals,
         }
     }
 
@@ -245,20 +227,6 @@ impl TestSession {
     /// Assert checked DIR rows for multiple modules.
     pub(crate) fn assert_dir_checked_many(&self, paths: &[&str], rows: DirRows, expected: &str) {
         self.assert_dir_many(paths, rows, expected, Self::dir_checked_key, true);
-    }
-
-    /// Render global environment rows.
-    pub(crate) fn global_environment_snapshot(&self) -> String {
-        let mut lines = Vec::new();
-        for path in &self.globals {
-            lines.push(format!("/// @global.module path={path}"));
-        }
-        lines.push(format!(
-            "/// @global.summary modules={}",
-            self.globals.len()
-        ));
-
-        lines.join("\n")
     }
 
     /// Build code module entries.

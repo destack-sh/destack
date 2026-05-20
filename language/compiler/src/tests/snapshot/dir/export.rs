@@ -16,14 +16,14 @@ impl SnapshotTable for dir::ExportTable {
                         builder.anchor_symbol(symbol_id)
                     };
                     let row = SnapshotRow::new(anchor, "export", "local")
-                        .field("name", builder.export_key_label(export.key))
+                        .field("key", builder.export_key_label(export.key))
                         .field("source", builder.local_symbol_label(export.source));
                     builder.push(row);
                 }
                 dir::ExportEntry::Indirect(export) => {
                     let node_id = export.item.into_global(builder.tree.module_id).into_any();
                     let row = SnapshotRow::new(builder.anchor_node(node_id), "export", "indirect")
-                        .field("name", builder.export_key_label(export.key))
+                        .field("key", builder.export_key_label(export.key))
                         .field("imported", builder.export_selector_label(export.imported));
                     let (target_key, target_value) = builder.dependency_target_field(export.target);
                     let row = row.field(target_key, target_value);

@@ -1,9 +1,9 @@
-use crate::tests::TestCompiler;
+use crate::tests::TestSession;
 use crate::tests::snapshot::assert_snapshot;
 
 #[test]
 fn test_export_reports_duplicate_key() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -27,7 +27,7 @@ export { value };
 
 #[test]
 fn test_export_merges_type_spelling_into_same_key() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
@@ -52,7 +52,7 @@ export type { Foo };
 
 #[test]
 fn test_export_reports_missing_local_binding() {
-    let compiler = TestCompiler::new()
+    let compiler = TestSession::new()
         .module(
             "main.ds",
             r#"
