@@ -1735,6 +1735,7 @@ import.meta.labels.feature satisfies readonly ["search", "billing"];
 
 TypeScript supports ambient global typings, which were designed for typing the "magic" global objects provided by embedders, but it has no way to contribute _value_ globals in userland.
 Destack supports "real" value `global { ... }` declarations that can then be automatically included everywhere by (explicit) reference in the compiler / target configuration.
+The active set of modules to consider for `global` declarations is configured via the `globals` field in the compiler / target configuration.
 
 ```ds
 // browser-globals.ds
