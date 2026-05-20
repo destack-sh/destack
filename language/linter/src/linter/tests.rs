@@ -1017,6 +1017,7 @@ impl TestProgram {
                 ArtifactKey::dir_imported(module_id, profile_id),
                 ArtifactKey::dir_expanded(module_id, profile_id),
                 ArtifactKey::dir_exported(module_id, profile_id),
+                ArtifactKey::dir_resolved(module_id, profile_id),
                 ArtifactKey::dir_checked(module_id, profile_id),
             ];
 
