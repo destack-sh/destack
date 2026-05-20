@@ -21,6 +21,14 @@
           "named": true
         },
         {
+          "type": "boolean_literal",
+          "named": true
+        },
+        {
+          "type": "character_literal",
+          "named": true
+        },
+        {
           "type": "declaration_keyword",
           "named": true
         },
@@ -97,6 +105,14 @@
   },
   {
     "type": "block_identifier",
+    "named": true
+  },
+  {
+    "type": "boolean_literal",
+    "named": true
+  },
+  {
+    "type": "character_literal",
     "named": true
   },
   {

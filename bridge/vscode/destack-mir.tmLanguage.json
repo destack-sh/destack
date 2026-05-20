@@ -40,6 +40,12 @@
           "include": "#variable"
         },
         {
+          "include": "#boolean"
+        },
+        {
+          "include": "#string"
+        },
+        {
           "include": "#number"
         }
       ]
@@ -189,6 +195,60 @@
         {
           "name": "constant.numeric.dsmir",
           "match": "(?x)(?<![A-Za-z0-9_])[+-]?\\d+(?:_\\d+)*(?:\\.(?:\\d[\\d_]*))?(?:[eE][+-]?\\d[\\d_]*)?(?:(?:int|uint|float)\\d+)?\\b"
+        }
+      ]
+    },
+    "boolean": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.dsmir",
+          "match": "\\b(?:true|false)\\b"
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.dsmir",
+          "begin": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.dsmir"
+            }
+          },
+          "end": "\"",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.dsmir"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.dsmir",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "constant.character.quoted.single.dsmir",
+          "begin": "'",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.character.begin.dsmir"
+            }
+          },
+          "end": "'",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.character.end.dsmir"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.dsmir",
+              "match": "\\\\."
+            }
+          ]
         }
       ]
     }
