@@ -351,7 +351,7 @@ impl StringPool {
             state.get_ptr(id)
         };
 
-        // interned strings are append-only boxed allocations owned by this pool
+        // SAFETY: interned strings are append-only boxed allocations owned by this pool
         unsafe { &*ptr }
     }
 
@@ -364,7 +364,7 @@ impl StringPool {
             state.get_maybe_ptr(id)
         }?;
 
-        // interned strings are append-only boxed allocations owned by this pool
+        // SAFETY: interned strings are append-only boxed allocations owned by this pool
         Some(unsafe { &*ptr })
     }
 
@@ -474,7 +474,7 @@ impl StringPool {
 
         ptrs.into_iter()
             .map(|(id, ptr)| {
-                // interned strings are append-only boxed allocations owned by this pool
+                // SAFETY: interned strings are append-only boxed allocations owned by this pool
                 (id, unsafe { &*ptr })
             })
             .collect()
