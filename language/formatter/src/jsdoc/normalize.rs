@@ -33,13 +33,10 @@ pub(super) fn normalize_markdown_emphasis(text: &str) -> Cow<'_, str> {
         return Cow::Borrowed(text);
     }
 
-    let mut bytes = text.as_bytes().to_vec();
+    let normalized = replace_double_underscore(text);
+    let normalized = replace_single_asterisk(&normalized);
 
-    replace_double_underscore(&mut bytes);
-    replace_single_asterisk(&mut bytes);
-
-    // safety: bytes came from utf-8 text and only ascii marker bytes were rewritten
-    Cow::Owned(unsafe { String::from_utf8_unchecked(bytes) })
+    Cow::Owned(normalized)
 }
 
 /// Return whether markdown emphasis normalization would change the bytes.
@@ -100,51 +97,59 @@ fn emphasis_needs_change(bytes: &[u8]) -> bool {
 }
 
 /// Replace double underscores with markdown bold asterisks outside inline code.
-fn replace_double_underscore(bytes: &mut [u8]) {
+fn replace_double_underscore(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
     let mut index = 0;
     let mut is_in_code = false;
 
     while index < bytes.len() {
         if bytes[index] == b'`' {
             is_in_code = !is_in_code;
+            output.push('`');
             index += 1;
             continue;
         }
 
         if is_in_code {
-            index += 1;
+            push_next_char(text, &mut output, &mut index);
             continue;
         }
 
         if index + 1 < bytes.len() && bytes[index] == b'_' && bytes[index + 1] == b'_' {
-            bytes[index] = b'*';
-            bytes[index + 1] = b'*';
+            output.push_str("**");
             index += 2;
             continue;
         }
 
-        index += 1;
+        push_next_char(text, &mut output, &mut index);
     }
+
+    output
 }
 
 /// Replace single asterisk emphasis with underscores outside inline code.
-fn replace_single_asterisk(bytes: &mut [u8]) {
+fn replace_single_asterisk(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut output = String::with_capacity(text.len());
     let mut index = 0;
     let mut is_in_code = false;
 
     while index < bytes.len() {
         if bytes[index] == b'`' {
             is_in_code = !is_in_code;
+            output.push('`');
             index += 1;
             continue;
         }
 
         if is_in_code {
-            index += 1;
+            push_next_char(text, &mut output, &mut index);
             continue;
         }
 
         if index + 1 < bytes.len() && bytes[index] == b'*' && bytes[index + 1] == b'*' {
+            output.push_str("**");
             index += 2;
             continue;
         }
@@ -152,14 +157,27 @@ fn replace_single_asterisk(bytes: &mut [u8]) {
         if bytes[index] == b'*'
             && let Some(close_index) = closing_single_asterisk(bytes, index)
         {
-            bytes[index] = b'_';
-            bytes[close_index] = b'_';
+            output.push('_');
+            output.push_str(&text[index + 1..close_index]);
+            output.push('_');
             index = close_index + 1;
             continue;
         }
 
-        index += 1;
+        push_next_char(text, &mut output, &mut index);
     }
+
+    output
+}
+
+/// Push the next UTF-8 character from one byte cursor.
+fn push_next_char(text: &str, output: &mut String, index: &mut usize) {
+    let Some(character) = text[*index..].chars().next() else {
+        return;
+    };
+
+    output.push(character);
+    *index += character.len_utf8();
 }
 
 /// Return whether one single asterisk starts a balanced emphasis span.
