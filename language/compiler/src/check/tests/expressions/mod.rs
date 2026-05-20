@@ -1,6 +1,9 @@
 mod assignment;
 mod calls;
+mod freshness;
 mod lambdas;
 mod literals;
 mod members;
+mod narrowing;
+mod operators;
 mod references;

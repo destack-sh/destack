@@ -170,7 +170,9 @@ impl ModuleLowerer<'_> {
                     mir::Nullability::None,
                 )
             }
-            dir::CaptureMode::Copy | dir::CaptureMode::Move => value_type,
+            dir::CaptureMode::Copy | dir::CaptureMode::Move => {
+                value_type
+            }
         };
 
         // compute size and alignment for layout

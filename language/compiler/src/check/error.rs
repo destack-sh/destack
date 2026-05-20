@@ -84,13 +84,24 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Assignment attempts to mutate readonly storage.
-    #[diagnostic(code = "EC204", message = "cannot mutate readonly value")]
-    MutateReadonly {
+    /// Assignment writes through a target that is not writable.
+    #[diagnostic(code = "EC204", message = "assignment target is not writable")]
+    NotWritable {
         /// Report the mutation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
+    },
+
+    /// Fresh object literal contains a property that the target cannot accept.
+    #[diagnostic(code = "EC205", message = "excess property '{key}'")]
+    ExcessProperty {
+        /// Report the extra property.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The extra property key.
+        key: String,
     },
 
     // -------------------------------------------------------------------------

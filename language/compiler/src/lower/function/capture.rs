@@ -131,7 +131,10 @@ impl FunctionLowerer<'_> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
         // copy or move: load the field directly
-        if matches!(field.mode, dir::CaptureMode::Copy | dir::CaptureMode::Move) {
+        if matches!(
+            field.mode,
+            dir::CaptureMode::Copy | dir::CaptureMode::Move
+        ) {
             let value = self.state.builder.load(field_addr, field.ty);
             return Ok((value, field.ty));
         }
@@ -170,7 +173,10 @@ impl FunctionLowerer<'_> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
         // copy or move: store directly into the env field
-        if matches!(field.mode, dir::CaptureMode::Copy | dir::CaptureMode::Move) {
+        if matches!(
+            field.mode,
+            dir::CaptureMode::Copy | dir::CaptureMode::Move
+        ) {
             self.state.builder.store(field_addr, value);
             return Ok(());
         }
