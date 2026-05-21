@@ -121,12 +121,9 @@ fn format_parser_file_source(
     parser.attach_comments();
 
     // fail loudly on parse errors
-    if parser
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
-        let message = parser
-            .diagnostics
+    let diagnostics = parser.diagnostics();
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+        let message = diagnostics
             .to_vec()
             .into_iter()
             .map(|diagnostic| diagnostic.message.clone())

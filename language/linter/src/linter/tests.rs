@@ -223,7 +223,7 @@ fn parse_code_dir(
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
-    context.emit_collection(parser.diagnostics.collect());
+    context.emit_collection(parser.diagnostics());
 
     let (tokens, side_tokens) = parser.take_tokens();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);

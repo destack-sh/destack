@@ -120,7 +120,7 @@ impl SessionState {
             tree_in,
         );
         let roots = parser.parse();
-        attempt.emit_collection(parser.diagnostics.collect());
+        attempt.emit_collection(parser.diagnostics());
 
         // preserve parser side data in the artifact payload
         let token_start = tokens.len() as u32;

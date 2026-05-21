@@ -243,7 +243,7 @@ pub(super) fn format_range(
 
     // bail if parse errors
     if parser
-        .diagnostics
+        .diagnostics()
         .has_diagnostics_of_severity(DiagnosticSeverity::Error)
     {
         return None;
