@@ -16,7 +16,7 @@ impl Compiler {
         // scan explicit export declarations
         for root in roots {
             let expression = state.view.get(*root);
-            self.collect_expression_exports(state, *root, expression)?;
+            self.collect_expression_exports(state, *root, expression, false)?;
         }
 
         Ok(())

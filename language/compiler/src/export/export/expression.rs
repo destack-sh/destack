@@ -11,14 +11,52 @@ impl Compiler {
         state: &mut ExportState<'_>,
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
+        is_global: bool,
     ) -> ExportResult<()> {
         match expression {
+            // collect exports inside a global block
+            dir::Expression::Declaration(declaration_id) => {
+                let declaration = state.view.get(*declaration_id);
+                let dir::Declaration::Global(declaration) = declaration else {
+                    return Ok(());
+                };
+
+                for expression_id in &declaration.expressions {
+                    let expression = state.view.get(*expression_id);
+                    self.collect_expression_exports(state, *expression_id, expression, true)?;
+                }
+
+                Ok(())
+            }
+
+            // collect ambient re-exports
+            dir::Expression::Export {
+                target: Some(_),
+                items,
+                ..
+            } if is_global => self.collect_global_reexports(state, expression_id, items),
+
             // collect exports from another module
             dir::Expression::Export {
                 target: Some(_),
                 items,
                 ..
             } => self.collect_reexports(state, expression_id, items),
+
+            // reject local export clauses inside global blocks
+            dir::Expression::Export {
+                target: None,
+                items,
+                ..
+            } if is_global => {
+                for item_id in items {
+                    state.report_diagnostic(ExportError::UnsupportedGlobalExport {
+                        anchor: state.anchor_node(item_id.id)?,
+                    });
+                }
+
+                Ok(())
+            }
 
             // collect exports from this module
             dir::Expression::Export {
@@ -48,7 +86,7 @@ impl Compiler {
             // export one local binding
             _ => {
                 let Some(source_key) = item.export_source_key() else {
-                    state.push_diagnostic(ExportError::MissingExportBinding {
+                    state.report_diagnostic(ExportError::MissingExportBinding {
                         anchor: state.anchor_node(item_id.id)?,
                         name: "default".to_string(),
                     });
@@ -57,7 +95,7 @@ impl Compiler {
                 };
 
                 let Some(source) = state.find_module_symbol(source_key) else {
-                    state.push_diagnostic(ExportError::MissingExportBinding {
+                    state.report_diagnostic(ExportError::MissingExportBinding {
                         anchor: state.anchor_node(item_id.id)?,
                         name: state.static_key_text(source_key),
                     });
@@ -95,7 +133,96 @@ impl Compiler {
             // insert local export if the item creates one
             if let Some(export) = export {
                 let anchor = state.anchor_node(item_id.id)?;
-                state.insert(export, anchor)?;
+                state.insert_export(export, anchor)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return one global re-export entry from a dependency item.
+    fn global_reexport_entry(
+        &self,
+        state: &mut ExportState<'_>,
+        item_id: dir::LocalNodeId<dir::DependencyItem>,
+        target: Option<ModuleId>,
+    ) -> ExportResult<Option<dir::IndirectGlobalEntry>> {
+        let item = state.view.get(item_id);
+
+        match item {
+            // skip parser recovery items
+            dir::DependencyItem::Error => Ok(None),
+
+            // export one imported name into the global table
+            _ => {
+                let key = match item.export_key(state.strings()) {
+                    Some(key) => Ok(key),
+                    None => Err(ExportError::Internal {
+                        anchor: state.anchor_node(item_id.id)?,
+                        module: state.view.tree().module_id,
+                        message: format!("global re-export item {item_id:?} has no export key"),
+                    }),
+                }?;
+
+                let Some(key) = key.named_key() else {
+                    state.report_diagnostic(ExportError::UnsupportedGlobalExport {
+                        anchor: state.anchor_node(item_id.id)?,
+                    });
+
+                    return Ok(None);
+                };
+
+                let imported = match item.export_selector() {
+                    Some(imported) => Ok(imported),
+                    None => Err(ExportError::Internal {
+                        anchor: state.anchor_node(item_id.id)?,
+                        module: state.view.tree().module_id,
+                        message: format!(
+                            "global re-export item {item_id:?} has no export selector"
+                        ),
+                    }),
+                }?;
+
+                Ok(Some(dir::IndirectGlobalEntry {
+                    key,
+                    item: item_id,
+                    target,
+                    imported,
+                }))
+            }
+        }
+    }
+
+    /// Export a global re-export clause.
+    fn collect_global_reexports(
+        &self,
+        state: &mut ExportState<'_>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        items: &[dir::LocalNodeId<dir::DependencyItem>],
+    ) -> ExportResult<()> {
+        let target = state.reexport_target(expression_id)?;
+        for item_id in items {
+            let item = state.view.get(*item_id);
+
+            match item {
+                // skip parser recovery items
+                dir::DependencyItem::Error => {}
+
+                // reject ambient star re-exports
+                _ if matches!(item.export_selector(), Some(dir::ExportSelector::Namespace)) => {
+                    state.report_diagnostic(ExportError::UnsupportedGlobalExport {
+                        anchor: state.anchor_node(item_id.id)?,
+                    });
+                }
+
+                // add named ambient re-export
+                _ => {
+                    let entry = self.global_reexport_entry(state, *item_id, target)?;
+
+                    if let Some(entry) = entry {
+                        state.globals.push_indirect(entry);
+                    }
+                }
             }
         }
 
@@ -176,7 +303,7 @@ impl Compiler {
 
                     if let Some(export) = export {
                         let anchor = state.anchor_node(item_id.id)?;
-                        state.insert(export, anchor)?;
+                        state.insert_export(export, anchor)?;
                     }
                 }
             }

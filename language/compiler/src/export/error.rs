@@ -20,6 +20,10 @@ pub enum ExportError {
         key: String,
     },
 
+    /// Global export uses a form that cannot contribute an ambient name.
+    #[diagnostic(code = "ET102", message = "unsupported global export")]
+    UnsupportedGlobalExport { anchor: DiagnosticAnchor },
+
     /// Internal export failure.
     #[diagnostic(code = "ET900", message = "internal error: {message}")]
     Internal {
