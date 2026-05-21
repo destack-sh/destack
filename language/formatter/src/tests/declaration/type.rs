@@ -348,6 +348,77 @@ letlonglongRunningProvider4 = class implements languages.SignatureHelpProvider<H
     );
 }
 
+/// Extension heritage lists should indent every broken item under `implements`.
+#[test]
+fn test_format_extension_implements_list_layout() {
+    assert_format_program_reference_widths(
+        r#"extension<T> of Deque<T> implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&readonly T>,
+    Extend<T, "exclusive">
+{
+    index(index: number): T;
+}
+"#,
+        FileType::Destack,
+        &[
+            (
+                80,
+                r#"extension<T> of Deque<T> implements
+  Index<number>,
+  IndexSet<number, T>,
+  Iterable<T>,
+  Iterable<&readonly T>,
+  Extend<T, "exclusive"> {
+  index(index: number): T;
+}
+"#,
+            ),
+            (
+                160,
+                r#"extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive"> {
+  index(index: number): T;
+}
+"#,
+            ),
+        ],
+    );
+}
+
+/// Generic heritage items should break inside the indented heritage list.
+#[test]
+fn test_format_extension_implements_generic_item_layout() {
+    assert_format_program_reference_widths(
+        r#"extension<R> of X implements IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>> where R: Copy {
+    indexSet(coordinate: VeryLongCoordinateName<R>, value: VeryLongSliceName<R>): void;
+}
+"#,
+        FileType::Destack,
+        &[
+            (
+                80,
+                r#"extension<R> of X implements
+  IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>> where R: Copy {
+  indexSet(
+    coordinate: VeryLongCoordinateName<R>,
+    value: VeryLongSliceName<R>,
+  ): void;
+}
+"#,
+            ),
+            (
+                120,
+                r#"extension<R> of X implements IndexSet<VeryLongCoordinateName<R>, VeryLongSliceName<R>> where R: Copy {
+  indexSet(coordinate: VeryLongCoordinateName<R>, value: VeryLongSliceName<R>): void;
+}
+"#,
+            ),
+        ],
+    );
+}
+
 /// Member decorators should stay on their own line in class bodies.
 #[test]
 fn test_format_class_decorator_layout() {

@@ -30,6 +30,27 @@ Generic type arguments have no internal spacing.
 extension of Vector2 implements Add<Vector2> {}
 ```
 
+### extension with multiline implements
+
+Long implements lists break after the keyword and indent each implemented type.
+
+```ds line-width=80
+extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive"> {
+    index(index: number): T;
+}
+```
+
+```ds expected
+extension<T> of Deque<T> implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&readonly T>,
+    Extend<T, "exclusive"> {
+    index(index: number): T;
+}
+```
+
 ## Named Extensions
 
 ### named extension
