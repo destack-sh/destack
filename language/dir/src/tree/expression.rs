@@ -833,6 +833,15 @@ impl Expression {
         }
     }
 
+    /// Return whether this expression only references another value.
+    #[inline]
+    pub fn is_reference(&self) -> bool {
+        matches!(
+            self,
+            Self::Identifier { .. } | Self::QualifiedReference { .. } | Self::This | Self::Super
+        )
+    }
+
     /// Return explicit generic arguments carried by this expression.
     #[inline]
     pub fn generic_arguments(&self) -> Option<&[LocalNodeId<GenericArgument>]> {
