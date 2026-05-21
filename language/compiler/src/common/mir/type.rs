@@ -116,8 +116,13 @@ pub enum TypeKey {
     },
     /// Function pointer type.
     FunctionPointer { signature: Box<TypeKey> },
-    /// Callable closure value type.
-    Callable { signature: Box<TypeKey> },
+    /// Closure value type.
+    Closure {
+        /// The bare function signature.
+        signature: Box<TypeKey>,
+        /// The captured environment representation.
+        environment: Box<TypeKey>,
+    },
     /// Recursive reference to a previously visited type id.
     Recursive { id: mir::LocalNodeId<mir::Type> },
 }
@@ -326,8 +331,12 @@ impl TypeKey {
             mir::Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: Box::new(Self::from_type_reference(*signature, tree)),
             },
-            mir::Type::Callable { signature } => TypeKey::Callable {
+            mir::Type::Closure {
+                signature,
+                environment,
+            } => TypeKey::Closure {
                 signature: Box::new(Self::from_type_reference(*signature, tree)),
+                environment: Box::new(Self::from_type_reference(*environment, tree)),
             },
         };
 
@@ -616,9 +625,19 @@ fn types_are_equal_inner(
             mir::Type::FunctionPointer { signature: s2 },
         ) => type_references_are_equal(*s1, *s2, tree, visiting),
 
-        // function values: compare signatures
-        (mir::Type::Callable { signature: s1 }, mir::Type::Callable { signature: s2 }) => {
+        // closures: compare signature and environment
+        (
+            mir::Type::Closure {
+                signature: s1,
+                environment: e1,
+            },
+            mir::Type::Closure {
+                signature: s2,
+                environment: e2,
+            },
+        ) => {
             type_references_are_equal(*s1, *s2, tree, visiting)
+                && type_references_are_equal(*e1, *e2, tree, visiting)
         }
 
         // different type cases are never equal
