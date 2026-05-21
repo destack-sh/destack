@@ -88,6 +88,8 @@ export interface NamedParameter extends Node {
     isReadonly: boolean;
     /// Whether the parameter is optional.
     isOptional: boolean;
+    /// Whether the parameter must be a static call-site argument.
+    isComptime: boolean;
     /// The declared type when present.
     declaredType?: TypeExpression;
     /// The default expression when present.
@@ -106,6 +108,8 @@ export interface PatternParameter extends Node {
     pattern: Pattern;
     /// Whether the parameter is optional.
     isOptional: boolean;
+    /// Whether the parameter must be a static call-site argument.
+    isComptime: boolean;
     /// The declared type when present.
     declaredType?: TypeExpression;
     /// The default expression when present.
@@ -126,6 +130,8 @@ export interface VariadicNamedParameter extends Node {
     visibility?: Visibility;
     /// Whether the parameter is readonly.
     isReadonly: boolean;
+    /// Whether the parameter must be a static call-site argument.
+    isComptime: boolean;
     /// The declared type when present.
     declaredType?: TypeExpression;
     /// The parameter symbol.
@@ -140,6 +146,8 @@ export interface VariadicPatternParameter extends Node {
     kind: "variadicPattern";
     /// The binding pattern.
     pattern: Pattern;
+    /// Whether the parameter must be a static call-site argument.
+    isComptime: boolean;
     /// The declared type when present.
     declaredType?: TypeExpression;
     /// The parameter symbol.
