@@ -1211,6 +1211,7 @@ module.exports = function defineGrammar(dialect) {
 
       function_signature: $ => seq(
         repeat(field('decorator', $.decorator)),
+        ...(dialect === 'destack' ? [optional('comptime')] : []),
         optional('async'),
         'function',
         field('name', $.identifier),
@@ -1227,6 +1228,7 @@ module.exports = function defineGrammar(dialect) {
         return seq(
           repeat(field('decorator', $.decorator)),
           'declare',
+          optional('comptime'),
           optional('async'),
           'function',
           field('name', $.identifier),
@@ -1240,6 +1242,7 @@ module.exports = function defineGrammar(dialect) {
         return seq(
           repeat(field('decorator', $.decorator)),
           'declare',
+          optional('comptime'),
           optional('async'),
           'function',
           '*',
@@ -1257,6 +1260,7 @@ module.exports = function defineGrammar(dialect) {
 
         return prec.right('declaration', seq(
           repeat(field('decorator', $.decorator)),
+          optional('comptime'),
           optional('async'),
           'function',
           field('name', $.identifier),
@@ -1274,6 +1278,7 @@ module.exports = function defineGrammar(dialect) {
 
         return prec.right('declaration', seq(
           repeat(field('decorator', $.decorator)),
+          optional('comptime'),
           optional('async'),
           'function',
           '*',
@@ -2360,6 +2365,7 @@ module.exports = function defineGrammar(dialect) {
           seq(
             optional(choice('const', 'comptime')),
             optional(choice('in', 'out')),
+            ...(dialect === 'destack' ? [optional('...')] : []),
             field('name', $._type_identifier),
             field('constraint', optional($.constraint)),
             field('value', optional($.default_type)),
