@@ -10,3 +10,6 @@ declare let value: Buffer<4, "fast">;
 declare let sized: Buffer<2 + 2, "sum">;
 
 type Tagged<comptime Tag: string> = { tag: Tag };
+
+type Shape<comptime ...Dims: usize> = [usize; Dims];
+//         ^^^^^^^^ keyword.other.comptime.ds
