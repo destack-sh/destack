@@ -1111,12 +1111,12 @@ pub enum YieldCardinality {
 /// ```
 /// T: int32
 /// Self: geom.Mesh<T>
-/// T.Item: Copy
+/// BaseOf<T>: Copy
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WhereClause {
-    /// The target to constrain (like `T` in `T: int32`).
-    pub left: StringId,
+    /// The target type to constrain (like `T` in `T: int32`).
+    pub left: LocalNodeId<TypeExpression>,
     /// The constraint type (like `int32` in `T: int32`).
     pub right: LocalNodeId<TypeExpression>,
 }

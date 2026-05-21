@@ -1705,6 +1705,8 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
     where_clause: &WhereClause,
 ) {
     visitor.visit_any(tree, NodeType::WhereClause, id.id);
+    let left_expression = tree.get(where_clause.left);
+    visitor.visit_type_expression(tree, where_clause.left, left_expression);
     let right_expression = tree.get(where_clause.right);
     visitor.visit_type_expression(tree, where_clause.right, right_expression);
 }
