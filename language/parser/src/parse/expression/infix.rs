@@ -1,0 +1,730 @@
+use crate::parse::expression::operator::ExpressionInfixOperator;
+use crate::parse::scope::{CONDITIONAL_PRECEDENCE, ExpressionScope};
+use crate::parse::r#type::operator::{TypeBinaryOperator, TypeInfixOperator};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use destack_dir::{
+    Expression, IfCondition, IfForm, Keyword, LocalNodeId, NodeType, OperatorPrecedence, RangeEnd,
+    TokenType, TypeExpression,
+};
+use destack_source::Span;
+
+/// One value infix continuation with any already parsed type-space left side.
+enum ValueInfixOperator {
+    /// A value-space operator.
+    Value(ExpressionInfixOperator),
+    /// A type-space operator parsed from value position.
+    Type {
+        /// The parsed type binary operator.
+        operator: TypeBinaryOperator,
+        /// The left type expression.
+        left_type: LocalNodeId<TypeExpression>,
+    },
+}
+
+impl ValueInfixOperator {
+    /// Return this operator precedence.
+    fn precedence(&self) -> u16 {
+        match self {
+            Self::Value(operator) => operator.precedence(),
+            Self::Type { operator, .. } => operator.precedence(),
+        }
+    }
+}
+
+impl Parser {
+    /// Eat binary operators with Pratt binding.
+    ///
+    /// Examples:
+    /// ```ds
+    /// left + right * other
+    /// value as const
+    /// start..end
+    /// ```
+    pub(in crate::parse::expression) fn eat_binary(
+        &mut self,
+        start: &ParserSpanStart,
+        scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let (left, is_parenthesized) = self.eat_value_prefix_or_primary(start)?;
+        let (left, is_parenthesized) = self.eat_postfix(start, left, is_parenthesized, scope)?;
+
+        self.eat_binary_rest(start, left, is_parenthesized, scope)
+    }
+
+    /// Eat binary operators after an already parsed left value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// + right
+    /// as Type
+    /// ..end
+    /// ```
+    pub(in crate::parse::expression) fn eat_binary_rest(
+        &mut self,
+        start: &ParserSpanStart,
+        mut left: LocalNodeId<Expression>,
+        _left_is_parenthesized: bool,
+        scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        loop {
+            // select the next infix continuation
+            let Some(operator) = self.eat_next_value_infix_operator(left, scope)? else {
+                break;
+            };
+
+            // parse the right side and fold the operator
+            let operator_span = self.eat_value_infix_operator_span();
+            let right_scope = ExpressionScope::from_flags(self.flags.not_in_position())
+                .at_precedence(Some(operator.precedence()));
+            left =
+                self.eat_value_infix_expression(start, left, operator, operator_span, right_scope)?;
+        }
+
+        Ok(left)
+    }
+
+    /// Eat the next value infix operator when the current grammar owns it.
+    ///
+    /// Examples:
+    /// ```ds
+    /// + right
+    /// as Type
+    /// extends Type
+    /// ```
+    fn eat_next_value_infix_operator(
+        &mut self,
+        left: LocalNodeId<Expression>,
+        scope: ExpressionScope,
+    ) -> ParseResult<Option<ValueInfixOperator>> {
+        if self.value_infix_is_boundary(left, scope) {
+            return Ok(None);
+        }
+
+        let is_on_new_line = self.current_token_is_on_new_line();
+        let Some(operator) = self.peek_infix_operator_maybe() else {
+            return Ok(None);
+        };
+
+        if is_on_new_line && matches!(operator, ExpressionInfixOperator::Range(_)) {
+            return Ok(None);
+        }
+
+        if self.current_token_is_on_new_line() && self.can_start_tree_literal() {
+            if scope.is_statement_position {
+                return Ok(None);
+            }
+
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        if is_on_new_line
+            && matches!(
+                operator,
+                ExpressionInfixOperator::As | ExpressionInfixOperator::Satisfies
+            )
+        {
+            return Ok(None);
+        }
+
+        if scope.stops_before(operator) {
+            return Ok(None);
+        }
+
+        if matches!(operator, ExpressionInfixOperator::Assign(_)) {
+            return Ok(None);
+        }
+
+        if let ExpressionInfixOperator::TypeBinary(operator) = operator {
+            let Some(left_type) = self.static_type_left(left) else {
+                return Ok(None);
+            };
+
+            return Ok(Some(ValueInfixOperator::Type {
+                operator,
+                left_type,
+            }));
+        }
+
+        Ok(Some(ValueInfixOperator::Value(operator)))
+    }
+
+    /// Return the static type left side for one type relation.
+    ///
+    /// Examples:
+    /// ```ds
+    /// TypeA extends TypeB
+    /// namespace.Type implements Contract
+    /// Row extends string ? 4 : 2
+    /// ```
+    fn static_type_left(
+        &mut self,
+        left: LocalNodeId<Expression>,
+    ) -> Option<LocalNodeId<TypeExpression>> {
+        if let Expression::Type { value } = self.tree.get(left) {
+            return Some(*value);
+        }
+
+        self.language
+            .is_destack()
+            .then(|| self.static_type_head_from_expression(left))
+            .flatten()
+    }
+
+    /// Eat the current value infix operator span.
+    ///
+    /// Examples:
+    /// ```ds
+    /// +
+    /// as
+    /// ..
+    /// ```
+    fn eat_value_infix_operator_span(&mut self) -> Span {
+        let operator_start = self.span_start();
+        self.bump();
+
+        self.get_span_from(&operator_start)
+    }
+
+    /// Eat one value infix operator after the operator token was consumed.
+    ///
+    /// Examples:
+    /// ```ds
+    /// left + right
+    /// value satisfies Shape
+    /// TypeA | TypeB
+    /// ```
+    fn eat_value_infix_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<Expression>,
+        operator: ValueInfixOperator,
+        operator_span: Span,
+        right_scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        match operator {
+            ValueInfixOperator::Value(
+                operator @ (ExpressionInfixOperator::As | ExpressionInfixOperator::Satisfies),
+            ) => self.eat_value_assertion_expression(
+                start,
+                left,
+                operator,
+                operator_span,
+                right_scope,
+            ),
+            ValueInfixOperator::Value(ExpressionInfixOperator::Is) => {
+                self.eat_value_predicate_expression(start, left, operator_span, right_scope)
+            }
+            ValueInfixOperator::Value(ExpressionInfixOperator::Range(end_kind)) => {
+                self.eat_value_range_operator(start, left, end_kind, operator_span, right_scope)
+            }
+            ValueInfixOperator::Type {
+                operator: TypeBinaryOperator::Extends,
+                left_type,
+            } => {
+                let type_id = self.eat_type_conditional_rest(start, left_type, operator_span)?;
+
+                Ok(self.insert_value_infix_expression(
+                    start,
+                    Expression::Type { value: type_id },
+                    operator_span,
+                    None,
+                ))
+            }
+            ValueInfixOperator::Type {
+                operator,
+                left_type,
+            } => self.eat_value_type_binary_operator(
+                start,
+                operator,
+                left_type,
+                operator_span,
+                right_scope,
+            ),
+            ValueInfixOperator::Value(operator) => {
+                let right = self.eat_value_operand(right_scope)?;
+                let expression = self.make_value_infix_expression(left, operator, right)?;
+
+                Ok(self.insert_value_infix_expression(start, expression, operator_span, None))
+            }
+        }
+    }
+
+    /// Insert one folded value infix expression.
+    fn insert_value_infix_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        expression: Expression,
+        main_span: Span,
+        head_span: Option<Span>,
+    ) -> LocalNodeId<Expression> {
+        let expression_id = self.insert_node(expression, self.get_span_from(start));
+        self.tree.set_main_span(expression_id, main_span);
+        if let Some(span) = head_span {
+            self.tree.set_head_span(expression_id, span);
+        }
+
+        expression_id
+    }
+
+    /// Eat an assertion operator in value space.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value as string
+    /// value as const
+    /// value satisfies Shape
+    /// ```
+    fn eat_value_assertion_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<Expression>,
+        operator: ExpressionInfixOperator,
+        operator_span: Span,
+        right_scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let target_type = self.eat_type_expression_or_recover_missing(
+            self.flags
+                .with_type(true)
+                .with_expression_context(right_scope.flags),
+            NodeType::Expression,
+        )?;
+
+        let (expression, main_span, head_span) = if operator == ExpressionInfixOperator::As {
+            let expression = Expression::As {
+                expression: left,
+                target_type,
+            };
+            if matches!(self.tree.get(target_type), TypeExpression::Const) {
+                let target_span = self.tree.get_span(target_type);
+                let main_span = Span::new(operator_span.file, operator_span.start, target_span.end);
+
+                (expression, main_span, Some(self.expression_head_span(left)))
+            } else {
+                (expression, operator_span, None)
+            }
+        } else {
+            let expression = Expression::Satisfies {
+                expression: left,
+                target_type,
+            };
+
+            (expression, operator_span, None)
+        };
+
+        Ok(self.insert_value_infix_expression(start, expression, main_span, head_span))
+    }
+
+    /// Eat a runtime type predicate in value space.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value is string
+    /// value is Ready
+    /// value is { id: string }
+    /// ```
+    fn eat_value_predicate_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<Expression>,
+        operator_span: Span,
+        right_scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let target_type = self.eat_type_expression_or_recover_missing(
+            self.flags
+                .with_type(true)
+                .with_expression_context(right_scope.flags),
+            NodeType::Expression,
+        )?;
+        self.set_node_leading_span(target_type, operator_span.end);
+
+        Ok(self.insert_value_infix_expression(
+            start,
+            Expression::Is {
+                value: left,
+                target_type,
+            },
+            operator_span,
+            None,
+        ))
+    }
+
+    /// Eat a range operator in value space.
+    ///
+    /// Examples:
+    /// ```ds
+    /// start..end
+    /// start..
+    /// start..=end
+    /// ```
+    fn eat_value_range_operator(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<Expression>,
+        end_kind: RangeEnd,
+        operator_span: Span,
+        right_scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let end = self.eat_value_range_end(end_kind, right_scope)?;
+
+        Ok(self.insert_value_infix_expression(
+            start,
+            Expression::RangeExpression {
+                start: Some(left),
+                end,
+                end_kind,
+            },
+            operator_span,
+            None,
+        ))
+    }
+
+    /// Eat the optional end expression of a value range.
+    ///
+    /// Examples:
+    /// ```ds
+    /// end
+    /// call()
+    /// value + offset
+    /// ```
+    fn eat_value_range_end(
+        &mut self,
+        end_kind: RangeEnd,
+        right_scope: ExpressionScope,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if self.current_token_is_on_new_line()
+            || Self::is_expression_slot_boundary_token(self.peek_token_type())
+        {
+            if end_kind == RangeEnd::Inclusive {
+                return Ok(Some(
+                    self.recover_missing_expression_here(NodeType::Expression),
+                ));
+            }
+
+            return Ok(None);
+        }
+
+        let end = self.eat_value_operand(right_scope)?;
+
+        Ok(Some(end))
+    }
+
+    /// Eat a type binary operator from value space.
+    ///
+    /// Examples:
+    /// ```ds
+    /// A | B
+    /// A & B
+    /// A extends B ? C : D
+    /// ```
+    fn eat_value_type_binary_operator(
+        &mut self,
+        start: &ParserSpanStart,
+        operator: TypeBinaryOperator,
+        left_type: LocalNodeId<TypeExpression>,
+        operator_span: Span,
+        right_scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let right = self.eat_type_expression_or_recover_missing(
+            self.flags
+                .with_type(true)
+                .with_expression_context(right_scope.flags),
+            NodeType::Expression,
+        )?;
+        let type_id = self.make_type_infix_expression(
+            self.get_span_from(start),
+            self.type_expression_head_span(left_type),
+            left_type,
+            TypeInfixOperator::Relation(operator),
+            operator_span,
+            right,
+        )?;
+
+        Ok(self.insert_value_infix_expression(
+            start,
+            Expression::Type { value: type_id },
+            operator_span,
+            None,
+        ))
+    }
+
+    /// Return whether the current token belongs to an outer value grammar boundary.
+    fn value_infix_is_boundary(
+        &mut self,
+        left: LocalNodeId<Expression>,
+        scope: ExpressionScope,
+    ) -> bool {
+        if scope.is_new_receiver {
+            return true;
+        }
+
+        if scope.is_static && Self::starts_type_angle_close(self.peek_token_type()) {
+            return true;
+        }
+
+        if scope.is_typeof_query && self.current_token_is_on_new_line() {
+            return true;
+        }
+
+        if self.peek_is(TokenType::Maybe) {
+            return true;
+        }
+
+        if scope.owns_colon_boundary && self.peek_is(TokenType::Colon) {
+            return true;
+        }
+
+        if self.current_token_is_on_new_line()
+            && (scope.is_statement_position || scope.is_match_case_body)
+            && self.tree.get(left).ends_statement_on_newline()
+        {
+            return true;
+        }
+
+        if scope.owns_for_each_boundary
+            && matches!(self.current_keyword(), Some(Keyword::In | Keyword::Of))
+        {
+            return true;
+        }
+
+        matches!(self.tree.get(left), Expression::Declaration(_))
+    }
+
+    /// Eat a conditional expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// condition ? then : else
+    /// left + right
+    /// value as Type
+    /// ```
+    pub(in crate::parse::expression) fn eat_conditional(
+        &mut self,
+        start: &ParserSpanStart,
+        scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let left = self.eat_binary(start, scope)?;
+
+        self.eat_conditional_rest(start, left, scope)
+    }
+
+    /// Eat a conditional expression after an already parsed condition.
+    ///
+    /// Examples:
+    /// ```ds
+    /// ? then : else
+    /// ? call() : fallback
+    /// ? yes : other ? nested : fallback
+    /// ```
+    pub(in crate::parse::expression) fn eat_conditional_rest(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<Expression>,
+        scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let left = if self.current_token_starts_conditional(scope) {
+            self.eat_conditional_expression(start, left)?
+        } else {
+            left
+        };
+
+        // tree literal boundary
+        if !scope.is_statement_position
+            && self.current_token_is_on_new_line()
+            && self.can_start_tree_literal()
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        Ok(left)
+    }
+
+    /// Return whether a conditional expression can be parsed here.
+    fn current_token_starts_conditional(&mut self, scope: ExpressionScope) -> bool {
+        scope
+            .minimum_precedence
+            .is_none_or(|precedence| precedence < CONDITIONAL_PRECEDENCE)
+            && self.peek_is(TokenType::Maybe)
+    }
+
+    /// Eat one conditional expression after its condition.
+    ///
+    /// Examples:
+    /// ```ds
+    /// ? then : else
+    /// ? then() : else()
+    /// ? yes : other ? nested : fallback
+    /// ```
+    fn eat_conditional_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        condition: LocalNodeId<Expression>,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.bump();
+        let then_expression = self.eat_conditional_then()?;
+        self.eat_colon()?;
+        let else_expression = self.eat_conditional_right()?;
+        let else_span = self.tree.get_source_extent(else_expression);
+        let span = Span::new(self.file_id, start.token_start(), else_span.end);
+        let expression = Expression::If {
+            form: IfForm::Ternary,
+            condition: IfCondition::Expression { condition },
+            then_expression,
+            else_expression: Some(else_expression),
+        };
+
+        Ok(self.insert_node(expression, span))
+    }
+
+    /// Eat the true branch of a conditional expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// then
+    /// call()
+    /// a ? b : c
+    /// ```
+    fn eat_conditional_then(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_expression(
+            self.flags
+                .not_in_position()
+                .in_ternary_condition()
+                .not_in_sequence_expression(),
+        )
+    }
+
+    /// Eat the false branch of a conditional expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// else
+    /// call()
+    /// (a ? b : c)
+    /// ```
+    fn eat_conditional_right(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())
+    }
+
+    /// Eat a sequence expression after one parsed expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// first, second
+    /// first, second, third
+    /// first, call(second)
+    /// ```
+    pub(crate) fn eat_sequence_rest(
+        &mut self,
+        start: &ParserSpanStart,
+        mut left: LocalNodeId<Expression>,
+        scope: ExpressionScope,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        if scope.minimum_precedence.is_some()
+            || !scope.allows_sequence
+            || !(self.language.is_javascript() || self.language.is_typescript())
+            || !self.peek_is(TokenType::Comma)
+        {
+            return Ok(left);
+        }
+
+        let expressions = self.eat_sequence_expressions(left)?;
+        left = self.insert_node(
+            Expression::SequenceExpression { expressions },
+            self.get_span_from(start),
+        );
+
+        Ok(left)
+    }
+
+    /// Eat sequence expression operands after the first expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// , second
+    /// , second, third
+    /// , call(second)
+    /// ```
+    fn eat_sequence_expressions(
+        &mut self,
+        first: LocalNodeId<Expression>,
+    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        let mut expressions = vec![first];
+        while self.peek_is(TokenType::Comma) {
+            self.bump();
+            let expression =
+                self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
+            expressions.push(expression);
+        }
+
+        Ok(expressions)
+    }
+
+    /// Parse a startless value range.
+    ///
+    /// Examples:
+    /// ```ds
+    /// ..end
+    /// ..
+    /// ..=end
+    /// ```
+    pub(in crate::parse::expression) fn eat_value_startless_range(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let end_kind = if self.peek_is(TokenType::RangeInclusive) {
+            RangeEnd::Inclusive
+        } else {
+            RangeEnd::Open
+        };
+        self.bump();
+
+        let right_scope = ExpressionScope::from_flags(self.flags.not_in_position())
+            .at_precedence(Some(OperatorPrecedence::Range as u16));
+        let end = self.eat_value_range_end(end_kind, right_scope)?;
+
+        Ok(self.insert_node(
+            Expression::RangeExpression {
+                start: None,
+                end,
+                end_kind,
+            },
+            self.get_span_from(start),
+        ))
+    }
+
+    /// Parse Destack reference operators in value space.
+    ///
+    /// Examples:
+    /// ```ds
+    /// &mut value
+    /// &shared value
+    /// ^local value
+    /// ```
+    pub(in crate::parse::expression) fn eat_value_reference_operator(
+        &mut self,
+        start: &ParserSpanStart,
+        token_type: TokenType,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.bump();
+        let mutability = self.eat_reference_mutability_maybe()?;
+        let variance = self.eat_variance_bound_if_present()?;
+        let right_scope =
+            ExpressionScope::from_flags(self.flags.not_in_position().not_in_before_block())
+                .at_precedence(Some(OperatorPrecedence::Prefix as u16));
+        let right = self.eat_value_operand(right_scope)?;
+        let expression = if token_type == TokenType::ElementwiseAnd {
+            Expression::BorrowOf {
+                mutability,
+                variance,
+                right,
+            }
+        } else {
+            Expression::MoveOf {
+                mutability,
+                variance,
+                right,
+            }
+        };
+
+        Ok(self.insert_node(expression, self.get_span_from(start)))
+    }
+}

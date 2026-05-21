@@ -1,579 +1,436 @@
+use crate::parse::{DeclarationHeader, PendingDecorators, is_declaration_keyword};
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
-
 use destack_dir::{
-    Asynchrony, DependencyBinding, ExportKind, Expression, Keyword, TokenLiteral, TokenType,
+    Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, EnumKind,
+    ExportKind, Expression, Keyword, LocalNodeId, TokenType, TypeKind,
 };
 
-use super::super::PendingDecorators;
-use super::common::{
-    DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead, is_declaration_keyword,
-};
+/// The outcome of parsing an `export` declaration prefix.
+enum ExportPrefix {
+    /// The prefix belongs to a following declaration.
+    Declaration,
+    /// The prefix starts a standalone export expression.
+    Expression,
+    /// The prefix ended before a declaration head.
+    LineBreak,
+}
 
 impl Parser {
-    /// Return true when the current identifier can start a global declaration.
-    fn can_start_global_declaration(&mut self) -> bool {
-        if !self.peek_is(TokenType::Identifier) {
-            return false;
-        }
-
-        if !self.is_global_identifier() {
-            return false;
-        }
-
-        let next_token = self.next_token();
-        if next_token.token.is_on_new_line {
-            return false;
-        }
-
-        let can_parse_global = self.language.is_destack()
-            || self.language.is_declaration()
-            || self.flags.is_in_declare_context();
-
-        can_parse_global && next_token.token.ty == TokenType::OpenBrace
-    }
-
-    /// Return true when the current identifier can start a module declaration.
-    fn can_start_module_declaration(&mut self) -> bool {
-        if !self.peek_is(TokenType::Identifier) {
-            return false;
-        }
-
-        if !self.language.is_destack() || !self.is_module_identifier() {
-            return false;
-        }
-
-        let next_token = self.next_token();
-        if next_token.token.is_on_new_line {
-            return false;
-        }
-
-        next_token.token.ty == TokenType::OpenBrace
-    }
-
-    /// Return true when declaration modifier parsing is needed in this context.
-    #[inline]
-    pub(crate) fn should_parse_declaration_descriptor(&mut self) -> bool {
-        if self.flags.is_in_type()
-            || self.flags.is_in_variant()
-            || self.flags.is_in_declare_context()
-            || self.language.is_declaration()
-        {
-            return true;
-        }
-
-        if !self.peek_is(TokenType::Identifier) {
-            return false;
-        }
-
-        let keyword = self.current_keyword();
-        if matches!(
-            keyword,
-            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static,)
-        ) {
-            return true;
-        }
-        if self.language.is_destack() && keyword == Some(Keyword::Final) {
-            return true;
-        }
-        if self.language.is_destack() && keyword == Some(Keyword::Shared) {
-            return true;
-        }
-
-        // recognize contextual declaration heads
-        self.can_start_global_declaration() || self.can_start_module_declaration()
-    }
-
-    /// Decide whether one `{` in statement position starts an object literal.
-    ///
-    /// Examples:
-    /// ```
-    /// { value: 1 }
-    /// { [key]: value }
-    /// { ...spread }
-    /// ```
-    pub(crate) fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
-        // only allow this when statement-position object literals are enabled
-        if !self.language.is_destack() {
-            return false;
-        }
-
-        // avoid object literals when a block is expected
-        if self.flags.is_in_before_block() {
-            return false;
-        }
-
-        let next_token = self.next_token();
-
-        // spread property start
-        if next_token.token.ty == TokenType::Spread {
-            return true;
-        }
-
-        // computed key start: require a clear property marker after the closing bracket
-        if next_token.token.ty == TokenType::OpenBracket {
-            return self.lookahead(|parser| {
-                parser.bump();
-                let Some(close_bracket_span) = parser
-                    .find_matching_close_maybe(TokenType::OpenBracket, TokenType::CloseBracket)
-                else {
-                    return false;
-                };
-
-                while parser.current_token().span.start <= close_bracket_span.start {
-                    parser.bump();
-                }
-
-                matches!(
-                    parser.peek_token_type(),
-                    TokenType::Colon | TokenType::Maybe
-                )
-            });
-        }
-
-        // identifier or literal key with an explicit value marker
-        if next_token.token.ty == TokenType::Identifier || next_token.token.ty == TokenType::Literal
-        {
-            // only allow string or number literal keys
-            if next_token.token.ty == TokenType::Literal {
-                let literal = next_token.token.literal;
-                let is_key_literal = matches!(
-                    literal,
-                    Some(
-                        TokenLiteral::String { .. }
-                            | TokenLiteral::Int { .. }
-                            | TokenLiteral::Float { .. }
-                    )
-                );
-                if !is_key_literal {
-                    return false;
-                }
-            }
-
-            let after_key_token_type = self.lookahead(|parser| {
-                parser.bump();
-                parser.bump();
-                parser.peek_token_type()
-            });
-            return matches!(after_key_token_type, TokenType::Colon | TokenType::Maybe);
-        }
-
-        false
-    }
-
-    /// Return true when tokens can plausibly start a using declarator.
-    fn can_start_using_declarator(&mut self, asynchrony: Asynchrony) -> bool {
-        let Some(declarator_token_type) = self.using_binding_head_token(asynchrony) else {
-            return false;
-        };
-
-        // using declarations require lexical binding heads
-        self.token_can_start_using_binding_pattern(declarator_token_type)
-    }
-
-    /// Return true when a using declarator has a required initializer.
-    fn using_declarator_has_required_initializer(&mut self, asynchrony: Asynchrony) -> bool {
-        self.lookahead(|parser| {
-            if asynchrony == Asynchrony::Async {
-                parser.bump();
-            }
-            if !parser.is_keyword(Keyword::Using) {
-                return false;
-            }
-
-            parser.bump();
-            if parser.current_token().token.is_on_new_line {
-                return false;
-            }
-
-            let mut depth = 0_u32;
-            loop {
-                let token_type = parser.peek_token_type();
-
-                if depth == 0 && token_type == TokenType::Assign {
-                    return true;
-                }
-
-                if depth == 0
-                    && matches!(
-                        token_type,
-                        TokenType::Comma
-                            | TokenType::Semicolon
-                            | TokenType::End
-                            | TokenType::CloseBrace
-                            | TokenType::CloseParenthesis
-                    )
-                {
-                    return false;
-                }
-
-                match token_type {
-                    TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket => {
-                        depth += 1;
-                    }
-                    TokenType::CloseParenthesis
-                    | TokenType::CloseBrace
-                    | TokenType::CloseBracket => {
-                        depth = depth.saturating_sub(1);
-                    }
-                    TokenType::End => return false,
-                    _ => {}
-                }
-
-                parser.bump();
-            }
-        })
-    }
-
-    /// Check whether a using declaration can be parsed at the current position.
-    pub(super) fn can_parse_using_declaration(
-        &mut self,
-        _header: &DeclarationHeader,
-        asynchrony: Asynchrony,
-    ) -> bool {
-        // reject impossible using starts with scanner-level checks
-        if !self.can_start_using_declarator(asynchrony) {
-            return false;
-        }
-
-        self.using_declarator_has_required_initializer(asynchrony)
-    }
-
-    /// Eat declaration modifiers and return a descriptor or a parsed expression.
-    pub(super) fn eat_declaration_descriptor(
+    /// Build a declaration expression from an already parsed declaration.
+    pub(in crate::parse::expression) fn declaration_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<DescriptorHead> {
-        let descriptor_start = self.cursor_checkpoint();
-        let mut header: DeclarationHeader = DeclarationHeader::default();
-        let mut decorators = PendingDecorators::new();
+        declaration: LocalNodeId<Declaration>,
+    ) -> LocalNodeId<Expression> {
+        self.insert_node(
+            Expression::Declaration(declaration),
+            self.get_span_from(start),
+        )
+    }
 
-        // decorators parse as expressions only
-        if self.flags.is_in_decorator() {
-            return Ok(DescriptorHead::Header { header, decorators });
-        }
-
-        // declaration modifiers only start on identifiers
-        if !self.peek_is(TokenType::Identifier) {
-            return Ok(DescriptorHead::Header { header, decorators });
-        }
-
-        // check for a modifier keyword or contextual declaration identifier
-        let keyword = self.current_keyword();
-        let is_modifier_keyword = matches!(
+    /// Eat a declaration prefix primary when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// export function value() {}
+    /// declare class Value {}
+    /// @sealed export class Value {}
+    /// ```
+    pub(in crate::parse::expression) fn eat_declaration_prefix_primary(
+        &mut self,
+        start: &ParserSpanStart,
+        keyword: Keyword,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        let is_declaration_prefix = matches!(
             keyword,
-            Some(
-                Keyword::Export
-                    | Keyword::Declare
-                    | Keyword::Abstract
-                    | Keyword::Final
-                    | Keyword::Shared
-                    | Keyword::Static,
-            )
-        );
-        let is_contextual_declaration_identifier = !is_modifier_keyword
-            && (self.can_start_global_declaration() || self.can_start_module_declaration());
-        let is_global_identifier =
-            is_contextual_declaration_identifier && self.is_global_identifier();
-        let is_module_identifier =
-            is_contextual_declaration_identifier && self.is_module_identifier();
-
-        if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
-            return Ok(DescriptorHead::Header { header, decorators });
+            Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Final
+        ) || self.language.is_destack() && keyword == Keyword::Shared;
+        if !is_declaration_prefix {
+            return Ok(None);
         }
 
-        // export modifier
-        if self.is_keyword(Keyword::Export) {
-            self.bump(); // eat export
-            let export_mode = if self.is_keyword(Keyword::Default) {
-                self.bump(); // eat default
-                Some(DependencyBinding::Default)
-            } else if self.peek_is(TokenType::Assign) {
-                self.bump(); // eat assign
-                Some(DependencyBinding::Namespace)
-            } else {
-                Some(DependencyBinding::Named)
-            };
+        self.eat_declaration_prefixed_expression(start)
+    }
 
-            // export dependencies handled by export statement parsing
-            let current_keyword = self.current_keyword();
-            let current_token_type = self.peek_token_type();
-            let has_decorator_declaration_head = current_token_type == TokenType::At
-                && export_mode != Some(DependencyBinding::Default);
-            let has_declaration_keyword = current_keyword.is_some_and(is_declaration_keyword)
-                || has_decorator_declaration_head;
+    /// Parse declaration shaped keyword expressions.
+    ///
+    /// Examples:
+    /// ```ds
+    /// class Value {}
+    /// function value() {}
+    /// interface Shape {}
+    /// ```
+    pub(in crate::parse::expression) fn eat_keyword_declaration_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        keyword: Keyword,
+        header: DeclarationHeader,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        // functions
+        if keyword == Keyword::Function
+            && matches!(
+                self.token_type_at_offset(1),
+                TokenType::Identifier
+                    | TokenType::Multiply
+                    | TokenType::OpenParenthesis
+                    | TokenType::LessThan
+            )
+        {
+            let declaration = self.eat_function(start, header)?;
 
-            // reject export default enum declarations
-            if export_mode == Some(DependencyBinding::Default) && self.is_keyword(Keyword::Enum) {
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // structs and classes
+        else if matches!(keyword, Keyword::Struct | Keyword::Class)
+            && (matches!(
+                self.token_type_at_offset(1),
+                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+            ) || self.keyword_at_offset(1) == Some(Keyword::Extends))
+        {
+            let is_class = keyword == Keyword::Class;
+            let declaration = self.eat_struct_or_class(start, header, is_class)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // enum declarations
+        else if keyword == Keyword::Enum {
+            if !matches!(
+                self.token_type_at_offset(1),
+                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+            ) {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
-            let is_export_type_binding = self.is_keyword(Keyword::Type)
-                && (self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_is(TokenType::OpenBrace)
-                }) || self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_is(TokenType::Multiply)
-                }) || self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_is(TokenType::Semicolon)
-                }) || self.lookahead(|parser| {
-                    parser.bump();
-                    parser.current_token_is_on_new_line()
-                }) || self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_is(TokenType::End)
-                }));
-            let is_invalid_export_form = !has_declaration_keyword
-                && !self.peek_is(TokenType::At)
-                && !self.peek_dependency_binding_is()
-                && !self.is_keyword(Keyword::Import);
-            let is_export_dependency = export_mode == Some(DependencyBinding::Namespace)
-                || is_export_type_binding
-                || (!has_declaration_keyword && self.peek_dependency_binding_is())
-                || (export_mode == Some(DependencyBinding::Default) && !has_declaration_keyword)
-                || is_invalid_export_form;
-            if is_export_dependency {
-                self.rewind(descriptor_start.clone());
-                let export = self.eat_export()?;
-                return Ok(DescriptorHead::Expression(export));
-            }
+            let declaration = self.eat_enum(start, EnumKind::Enum, header)?;
 
-            header.export = match export_mode {
-                Some(DependencyBinding::Default) => Some(ExportKind::Default),
-                Some(DependencyBinding::Named) => Some(ExportKind::Named),
-                Some(DependencyBinding::Namespace) | None => None,
-            };
-
-            // parse decorators after export so descriptor modifiers still parse correctly
-            if self.peek_is(TokenType::At) {
-                let export_decorators = self.eat_decorators_maybe()?;
-                decorators.extend(export_decorators);
-            }
+            Ok(Some(self.declaration_expression(start, declaration)))
         }
-
-        // skip newlines after export before declaration-style heads
-        if header.export.is_some() && self.current_token_is_on_new_line() {
-            let next_token_type = self.peek_token_type();
-            let next_keyword = self.current_keyword();
-            let is_after_export_declaration_head = next_keyword.is_some_and(is_declaration_keyword)
-                || next_token_type == TokenType::At
-                || self.is_global_identifier();
-            if is_after_export_declaration_head {
-                // parse decorators after export when they follow skipped newlines
-                if self.peek_is(TokenType::At) {
-                    let mut export_decorators = self.eat_decorators_maybe()?;
-                    decorators.append(&mut export_decorators);
-                }
-            }
-        }
-
-        // declare modifier
-        let is_declare = self.is_keyword(Keyword::Declare);
-
-        // locate a declare target
-        let declare_has_target = is_declare
-            && self.lookahead(|parser| {
-                parser.bump();
-                if parser.current_token_starts_declare_target() {
-                    true
-                } else if parser.current_keyword() == Some(Keyword::Abstract) {
-                    parser.bump();
-                    !parser.current_token_is_on_new_line()
-                        && parser.current_token_starts_declare_target()
-                } else {
-                    false
-                }
-            });
-
-        // report newline errors for declare forms that must be contiguous
-        let declare_newline_error_span = is_declare
-            .then(|| {
-                self.lookahead(|parser| {
-                    parser.bump();
-                    if parser.current_keyword() == Some(Keyword::Abstract) {
-                        parser.bump();
-                        if parser.current_token_is_on_new_line()
-                            && parser.current_token_starts_declare_target()
-                        {
-                            return Some(parser.current_token().span);
-                        }
-                    } else if parser.current_keyword() == Some(Keyword::Type) {
-                        parser.bump();
-                        if parser.current_token_is_on_new_line()
-                            && parser.peek_is(TokenType::Identifier)
-                        {
-                            return Some(parser.current_token().span);
-                        }
-                    }
-
-                    None
-                })
-            })
-            .flatten();
-
-        if let Some(span) = declare_newline_error_span {
-            let error = ParseError::unexpected(span);
-            self.error(&error);
-        }
-
-        (header.is_ambient, header.declare_span) = if is_declare && declare_has_target {
-            let declare_span = self.peek()?.span;
-            self.bump(); // eat declare
-            (true, Some(declare_span))
-        } else {
-            (false, None)
-        };
-
-        // abstraction modifier
-        header.is_abstract = self.is_keyword(Keyword::Abstract)
-            && !self.flags.is_in_variant()
-            && !self.lookahead(|parser| {
-                parser.bump();
-                parser.current_token_is_on_new_line()
-            })
-            && self
-                .peek_next_any_keyword()
-                .is_ok_and(is_declaration_keyword);
-        if header.is_abstract {
-            self.bump(); // eat abstract
-        }
-
-        // final modifier
-        header.is_final = self.language.is_destack()
-            && self.is_keyword(Keyword::Final)
-            && !self.flags.is_in_variant()
-            && !self.lookahead(|parser| {
-                parser.bump();
-                parser.current_token_is_on_new_line()
-            })
-            && self
-                .peek_next_any_keyword()
-                .is_ok_and(|keyword| keyword == Keyword::Class);
-        if header.is_final {
-            self.bump(); // eat final
-        }
-
-        // shared placement modifier
-        header.is_shared = self.language.is_destack()
-            && self.is_keyword(Keyword::Shared)
-            && self.lookahead(|parser| {
-                parser.bump();
-                !parser.current_token_is_on_new_line()
-                    && matches!(
-                        parser.current_keyword(),
-                        Some(Keyword::Const | Keyword::Let)
-                    )
-            });
-        if header.is_shared {
-            self.bump(); // eat shared
-        }
-
-        // module declaration
-        let can_parse_module = self.language.is_destack()
-            && self.flags.is_in_statement_position()
-            && header.export.is_none()
-            && !header.is_ambient
-            && self.is_module_identifier()
-            && self.next_token_type() == TokenType::OpenBrace;
-        if can_parse_module {
-            let module_id = self.eat_module(start)?;
-            let expression_id = self.insert_node(
-                Expression::Declaration(module_id),
-                self.get_span_from(start),
-            );
-            return Ok(DescriptorHead::Expression(expression_id));
-        }
-
-        // global declaration
-        let can_parse_destack_global =
-            self.language.is_destack() && self.flags.is_in_statement_position();
-        let can_parse_ambient_global = header.is_ambient
-            || self.language.is_declaration()
-            || self.flags.is_in_declare_context();
-        if (can_parse_destack_global || can_parse_ambient_global)
-            && self.is_global_identifier()
-            && self.next_token_type() == TokenType::OpenBrace
+        // const enum declarations
+        else if keyword == Keyword::Const
+            && self.next_keyword() == Some(Keyword::Enum)
+            && !self.next_token().token.is_on_new_line
         {
-            let mut global_header = header;
-            global_header.is_ambient = !self.language.is_destack() || header.is_ambient;
-            let global_id = self.eat_global(start, global_header)?;
-            let expression_id = self.insert_node(
-                Expression::Declaration(global_id),
-                self.get_span_from(start),
-            );
-            return Ok(DescriptorHead::Expression(expression_id));
-        }
+            self.eat_keyword(Keyword::Const)?;
+            let declaration = self.eat_enum(start, EnumKind::Const, header)?;
 
-        Ok(DescriptorHead::Header { header, decorators })
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // interface declarations
+        else if keyword == Keyword::Interface
+            && matches!(
+                self.token_type_at_offset(1),
+                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+            )
+        {
+            let declaration = self.eat_interface(start, header, TypeKind::Structural)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // extension declarations
+        else if keyword == Keyword::Extension
+            && matches!(
+                self.token_type_at_offset(1),
+                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+            )
+        {
+            let declaration = self.eat_extension(start, header)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // binding declarations
+        else if matches!(keyword, Keyword::Let | Keyword::Const) {
+            self.eat_let_from_keyword(start, header, keyword).map(Some)
+        }
+        // nominal interfaces
+        else if keyword == Keyword::Newtype && self.next_keyword() == Some(Keyword::Interface) {
+            self.eat_keyword(Keyword::Newtype)?;
+            let declaration = self.eat_interface(start, header, TypeKind::Nominal)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // using declarations
+        else if keyword == Keyword::Using
+            && self.can_parse_using_declaration(&header, Asynchrony::Sync)
+        {
+            self.eat_using(start, header, Asynchrony::Sync).map(Some)
+        }
+        // async function declarations
+        else if keyword == Keyword::Async
+            && self.next_keyword() == Some(Keyword::Function)
+            && !self.next_token().token.is_on_new_line
+        {
+            let declaration = self.eat_function(start, header)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
+        // not a declaration expression
+        else {
+            Ok(None)
+        }
     }
 
-    /// Check whether the current token starts a declare target keyword.
-    pub(super) fn current_token_starts_declare_keyword_target(&mut self) -> bool {
-        let Some(keyword) = self.current_keyword() else {
-            return false;
-        };
+    /// Parse declaration prefix modifiers before a keyword expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// export default value
+    /// declare export class Value {}
+    /// @sealed export default class Value {}
+    /// ```
+    fn eat_declaration_prefixed_expression(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        let checkpoint = self.checkpoint();
+        let mark = self.tree.next_id();
+        let mut header = DeclarationHeader::default();
 
-        if keyword == Keyword::Declare || !is_declaration_keyword(keyword) {
-            return false;
+        // export prefix
+        match self.eat_export_prefix(&mut header)? {
+            ExportPrefix::Declaration => {}
+            ExportPrefix::Expression => {
+                self.restore(checkpoint, mark);
+                let expression = self.eat_export()?;
+
+                return Ok(Some(expression));
+            }
+            ExportPrefix::LineBreak => return Ok(None),
         }
 
-        let next_token = self.next_token();
-        let next_token_type = next_token.token.ty;
-        let next_has_line_break = next_token.token.is_on_new_line;
-        let next_keyword = self.next_keyword();
-        let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
+        // decorators and modifiers
+        let mut decorators = if self.peek_is(TokenType::At) {
+            self.eat_decorators_maybe()?
+        } else {
+            PendingDecorators::new()
+        };
+        self.eat_declaration_prefix_modifiers(&mut header)?;
 
-        match keyword {
-            // is_ambient async heads only exist for `async function`
-            Keyword::Async => {
-                !next_has_line_break
-                    && next_token_type == TokenType::Identifier
-                    && next_keyword == Some(Keyword::Function)
+        // modifier line boundary
+        if header.has_modifier() && self.current_token_is_on_new_line() {
+            self.restore(checkpoint, mark);
+            return Ok(None);
+        }
+
+        // declaration keyword
+        let Some(keyword) = self.current_keyword() else {
+            if let Some(expression) = self.eat_prefixed_global_expression(start, header)? {
+                return Ok(Some(expression));
             }
 
-            // ambient const and let declarations commit immediately
-            Keyword::Const | Keyword::Let => true,
+            self.restore(checkpoint, mark);
+            return Ok(None);
+        };
 
-            // is_ambient nominal and structural declarations keep their existing heads
-            Keyword::Class
-            | Keyword::Function
-            | Keyword::Interface
-            | Keyword::Struct
-            | Keyword::Extension
-            | Keyword::Newtype => true,
+        // invalid default enum
+        if keyword == Keyword::Enum && header.export == Some(ExportKind::Default) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
 
-            // enum declarations must stay on the same line as the head keyword
-            Keyword::Enum => is_declaration_start && !next_has_line_break,
+        // ambient enum split by newline
+        if keyword == Keyword::Enum
+            && header.declare_span.is_some()
+            && self.token_at_offset(1).token.is_on_new_line
+        {
+            self.restore(checkpoint, mark);
+            return Ok(None);
+        }
 
-            // type aliases require a contiguous identifier name
-            Keyword::Type => !next_has_line_break && next_token_type == TokenType::Identifier,
+        // keyword declaration
+        let expression = self.eat_keyword_expression_with_header(start, keyword, header)?;
+        if let Some(expression_id) = expression {
+            self.attach_pending_decorators_to_expression(&mut decorators, expression_id);
 
-            // the remaining declaration keywords are contextual modifiers, not is_ambient heads
-            _ => false,
+            let wraps_default_export = header.export == Some(ExportKind::Default)
+                && !matches!(self.tree.get(expression_id), Expression::Declaration(_));
+            if wraps_default_export {
+                return Ok(Some(
+                    self.wrap_default_export_expression(start, expression_id),
+                ));
+            }
+
+            return Ok(Some(expression_id));
+        }
+
+        self.restore(checkpoint, mark);
+
+        Ok(None)
+    }
+
+    /// Parse an optional export prefix before a declaration.
+    ///
+    /// Examples:
+    /// ```ds
+    /// export default
+    /// export type
+    /// export
+    /// ```
+    fn eat_export_prefix(&mut self, header: &mut DeclarationHeader) -> ParseResult<ExportPrefix> {
+        if self.current_keyword() != Some(Keyword::Export) {
+            return Ok(ExportPrefix::Declaration);
+        }
+
+        // export kind
+        self.bump();
+        if self.current_keyword() == Some(Keyword::Default) {
+            self.bump();
+            header.export = Some(ExportKind::Default);
+        } else if self.peek_is(TokenType::Assign) {
+            return Ok(ExportPrefix::Expression);
+        } else {
+            header.export = Some(ExportKind::Named);
+        }
+
+        // export clause
+        if self.current_export_type_starts_clause() {
+            return Ok(ExportPrefix::Expression);
+        }
+
+        // declaration head
+        if self.current_token_starts_exported_declaration() {
+            return Ok(ExportPrefix::Declaration);
+        }
+
+        // line boundary
+        if self.current_token_is_on_new_line() {
+            return Ok(ExportPrefix::LineBreak);
+        }
+
+        Ok(ExportPrefix::Expression)
+    }
+
+    /// Return whether `export type` starts an export clause.
+    fn current_export_type_starts_clause(&mut self) -> bool {
+        self.current_keyword() == Some(Keyword::Type)
+            && matches!(
+                self.token_type_at_offset(1),
+                TokenType::OpenBrace | TokenType::Multiply | TokenType::End
+            )
+    }
+
+    /// Return whether the current cursor starts an exported declaration.
+    fn current_token_starts_exported_declaration(&mut self) -> bool {
+        let keyword = self.current_keyword();
+        let starts_async_function = (keyword == Some(Keyword::Async)
+            || self.current_identifier_str_is("async"))
+            && self.next_keyword() == Some(Keyword::Function);
+
+        keyword.is_some_and(is_declaration_keyword)
+            || starts_async_function
+            || self.peek_is(TokenType::At)
+    }
+
+    /// Parse declaration modifiers after export and decorators.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare abstract
+    /// export default
+    /// async function
+    /// ```
+    fn eat_declaration_prefix_modifiers(
+        &mut self,
+        header: &mut DeclarationHeader,
+    ) -> ParseResult<()> {
+        while let Some(keyword) = self.current_keyword() {
+            if !self.eat_declaration_prefix_modifier(header, keyword)? {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parse one declaration prefix modifier.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare
+    /// export
+    /// async
+    /// ```
+    fn eat_declaration_prefix_modifier(
+        &mut self,
+        header: &mut DeclarationHeader,
+        keyword: Keyword,
+    ) -> ParseResult<bool> {
+        match keyword {
+            Keyword::Declare => {
+                let span = self.eat_keyword(Keyword::Declare)?.span;
+                header.is_ambient = true;
+                header.declare_span = Some(span);
+
+                Ok(true)
+            }
+            Keyword::Abstract => {
+                self.bump();
+                header.is_abstract = true;
+
+                Ok(true)
+            }
+            Keyword::Final if self.language.is_destack() => {
+                self.bump();
+                header.is_final = true;
+
+                Ok(true)
+            }
+            Keyword::Shared if self.language.is_destack() => {
+                self.bump();
+                header.is_shared = true;
+
+                Ok(true)
+            }
+            _ => Ok(false),
         }
     }
 
-    /// Check whether the current token starts a declare identifier target.
-    pub(super) fn current_token_starts_declare_identifier(&mut self) -> bool {
-        if !self.peek_is(TokenType::Identifier) {
-            return false;
+    /// Parse a prefixed global declaration expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare global {}
+    /// global {}
+    /// export global {}
+    /// ```
+    fn eat_prefixed_global_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        if !self.is_global_identifier() || self.next_token_type() != TokenType::OpenBrace {
+            return Ok(None);
         }
-        self.is_global_identifier()
+
+        let declaration = self.eat_global(start, header)?;
+        let expression = self.declaration_expression(start, declaration);
+
+        Ok(Some(expression))
     }
 
-    /// Check whether the current token starts a declare await using target.
-    pub(super) fn current_token_starts_declare_await_using(&mut self) -> bool {
-        if self.current_keyword() != Some(Keyword::Await) {
-            return false;
-        }
-        self.next_keyword() == Some(Keyword::Using)
-    }
+    /// Wrap an expression in an `export default` dependency expression.
+    fn wrap_default_export_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        value: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let item = self.insert_node(
+            DependencyItem::Binding {
+                binding: DependencyBinding::Default,
+                form: Some(DependencyForm::Plain),
+                name: None,
+                alias: None,
+                value: Some(value),
+            },
+            self.get_span_from(start),
+        );
 
-    /// Check whether the current token starts a declare target.
-    pub(super) fn current_token_starts_declare_target(&mut self) -> bool {
-        self.current_token_starts_declare_keyword_target()
-            || self.current_token_starts_declare_identifier()
-            || self.current_token_starts_declare_await_using()
+        self.insert_node(
+            Expression::Export {
+                form: DependencyForm::Plain,
+                target: None,
+                items: vec![item],
+                attributes: None,
+            },
+            self.get_span_from(start),
+        )
     }
 }
