@@ -13,6 +13,7 @@ pub(crate) fn format_jsdoc_comment<'ast>(
     // only declaration documentation is reformatted
     if !comment.is_jsdoc()
         || comment.is_legal()
+        || comment.is_line()
         || !comment_documents_declaration(f.context(), comment)
     {
         return Ok(false);

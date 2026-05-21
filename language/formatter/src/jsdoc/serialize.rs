@@ -106,17 +106,16 @@ impl<'o> JsdocFormatter<'o> {
         let inner = &source_text[jsdoc_span.start as usize..jsdoc_span.end as usize];
         let jsdoc = Jsdoc::new(inner, jsdoc_span);
 
-        let jsdoc_text = jsdoc.comment();
+        let (jsdoc_text, tags) = jsdoc.parse();
         let description = jsdoc_text.parsed_preserving_whitespace();
 
         // empty docs have no description and no tags
-        if description.trim().is_empty() && jsdoc.tags().is_empty() {
+        if description.trim().is_empty() && tags.is_empty() {
             return Some(FormattedJsdoc::Empty);
         }
 
         // collect the logical description and non-description tags
-        let (description, effective_tags) =
-            collect_effective_tags(description.trim(), jsdoc.tags())?;
+        let (description, effective_tags) = collect_effective_tags(description.trim(), &tags)?;
 
         // emit the merged description before tags
         self.format_description(&description);

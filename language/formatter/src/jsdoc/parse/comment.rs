@@ -1,5 +1,3 @@
-use std::cell::OnceCell;
-
 use destack_source::Span;
 
 use super::model::JsdocText;
@@ -11,8 +9,6 @@ type ParsedJsdoc<'a> = (JsdocText<'a>, Vec<JsdocTag<'a>>);
 #[derive(Debug, Clone)]
 pub(in crate::jsdoc) struct Jsdoc<'a> {
     raw: &'a str,
-    /// The cached parsed Jsdoc comment and tags.
-    cached: OnceCell<ParsedJsdoc<'a>>,
     /// The source span of the Jsdoc comment body.
     pub(in crate::jsdoc) span: Span,
 }
@@ -22,23 +18,13 @@ impl<'a> Jsdoc<'a> {
     pub(in crate::jsdoc) fn new(comment_content: &'a str, span: Span) -> Jsdoc<'a> {
         Self {
             raw: comment_content,
-            cached: OnceCell::new(),
             span,
         }
     }
 
-    /// Return the leading description.
-    pub(in crate::jsdoc) fn comment(&self) -> JsdocText<'a> {
-        self.parse().0
-    }
-
-    /// Return all parsed tags.
-    pub(in crate::jsdoc) fn tags(&self) -> &[JsdocTag<'a>] {
-        &self.parse().1
-    }
-
-    fn parse(&self) -> &ParsedJsdoc<'a> {
-        self.cached.get_or_init(|| parse_jsdoc(self.raw, self.span))
+    /// Parse this Jsdoc body into its description and tags.
+    pub(in crate::jsdoc) fn parse(&self) -> ParsedJsdoc<'a> {
+        parse_jsdoc(self.raw, self.span)
     }
 }
 
@@ -65,7 +51,8 @@ mod test {
         let file_id = FileId::from_source_bytes(source.as_bytes());
         #[expect(clippy::cast_possible_truncation)]
         let jsdoc = super::Jsdoc::new(source, Span::new(file_id, 0, source.len() as u32));
-        let tags = jsdoc.tags();
+        let (_, tags) = jsdoc.parse();
+
         assert_eq!(tags.len(), 4);
         assert_eq!(tags[0].kind.parsed(), "param");
         assert_eq!(tags[1].kind.parsed(), "param");
@@ -84,7 +71,8 @@ mod test {
         let file_id = FileId::from_source_bytes(source.as_bytes());
         #[expect(clippy::cast_possible_truncation)]
         let jsdoc = super::Jsdoc::new(source, Span::new(file_id, 0, source.len() as u32));
-        let tags = jsdoc.tags();
+        let (_, tags) = jsdoc.parse();
+
         assert_eq!(tags.len(), 3);
         assert_eq!(tags[0].kind.parsed(), "param");
         assert_eq!(tags[1].kind.parsed(), "param");
