@@ -259,7 +259,13 @@ impl Declaration {
             Declaration::Struct(_) => Some(SymbolForm::Struct),
             Declaration::Class(_) => Some(SymbolForm::Class),
             Declaration::Enum(_) => Some(SymbolForm::Enum),
-            Declaration::Interface(_) => Some(SymbolForm::Interface),
+            Declaration::Interface(declaration) => {
+                if declaration.is_nominal {
+                    Some(SymbolForm::NewtypeInterface)
+                } else {
+                    Some(SymbolForm::Interface)
+                }
+            }
             Declaration::Extension(_) => Some(SymbolForm::Extension),
             Declaration::Function(_) => Some(SymbolForm::Function),
         }
