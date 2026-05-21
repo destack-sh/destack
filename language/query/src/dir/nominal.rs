@@ -82,7 +82,7 @@ fn recorded_member_resolution(
     };
     if let Some(resolution) = dir.resolutions().member_resolution(node_id) {
         return match &resolution.target {
-            MemberTarget::Direct(candidate) => {
+            MemberTarget::Symbol(candidate) => {
                 if !dir.symbol_is_visible(candidate.symbol) {
                     return None;
                 }
@@ -101,7 +101,7 @@ fn recorded_member_resolution(
 
                 None
             }
-            MemberTarget::Intrinsic | MemberTarget::Field { .. } => None,
+            MemberTarget::Builtin(_) | MemberTarget::Field(_) => None,
         };
     }
 

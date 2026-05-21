@@ -346,7 +346,7 @@ fn overload_definition_span_for_call_site(
         };
         let resolution = ctx.dir().resolutions().call_resolution(node_id)?;
         match &resolution.target {
-            DirCallTarget::Direct(candidate) => {
+            DirCallTarget::Symbol(candidate) => {
                 let target_symbol = ctx.canonical_symbol(candidate.symbol);
                 let parameters = resolution.parameters.as_slice();
 
