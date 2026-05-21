@@ -3,7 +3,7 @@ use crate::annotation::{
     prefix_annotations,
 };
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
-use crate::context::{MemoizeFormatExt, MemoizedFormat};
+use crate::context::PreparedFormat;
 use crate::expression::write_type_expression_node;
 use crate::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
@@ -16,7 +16,7 @@ use destack_dir::{
     Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeStore, TypeExpression,
     VarianceModifier, Visibility, WhereClause,
 };
-use destack_fir::format::{FormatNodes, FormatResult};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -426,16 +426,13 @@ pub(crate) fn function_grouping_generic_parameter_is_plain(
 }
 
 /// Return whether parameters should group separately from the return type.
-pub(crate) fn should_group_parameters_with_return_type<'ast, T>(
+pub(crate) fn should_group_parameters_with_return_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     parameter_count: usize,
     return_type: Option<LocalNodeId<TypeExpression>>,
-    formatted_return_type: &MemoizedFormat<T>,
-) -> FormatResult<bool>
-where
-    T: Format<DestackFormatContext<'ast>>,
-{
+    formatted_return_type: &PreparedFormat,
+) -> FormatResult<bool> {
     match generic_parameters {
         [] => {}
         [generic_parameter_id]
@@ -455,11 +452,7 @@ where
         return Ok(true);
     }
 
-    let will_break = formatted_return_type
-        .inspect(f)?
-        .is_some_and(|return_type| return_type.will_break());
-
-    Ok(will_break)
+    Ok(formatted_return_type.will_break())
 }
 
 /// Write type parameters, parameters, and return type using grouped signature layout.
@@ -468,9 +461,9 @@ pub(crate) fn write_grouped_parameters_with_return_type<'ast, H, P, R>(
     generic_parameters: &[LocalNodeId<GenericParameter>],
     parameter_count: usize,
     return_type: Option<LocalNodeId<TypeExpression>>,
-    format_parameter_head: &MemoizedFormat<H>,
-    format_parameters: &MemoizedFormat<P>,
-    format_return_type: &MemoizedFormat<R>,
+    format_parameter_head: H,
+    format_parameters: P,
+    format_return_type: R,
     should_expand_parameters: bool,
     should_group_return_type: bool,
 ) -> FormatResult<()>
@@ -479,8 +472,9 @@ where
     P: Format<DestackFormatContext<'ast>>,
     R: Format<DestackFormatContext<'ast>>,
 {
-    format_parameter_head.inspect(f)?;
-    format_parameters.inspect(f)?;
+    let format_parameter_head = PreparedFormat::new(f, format_parameter_head)?;
+    let format_parameters = PreparedFormat::new(f, format_parameters)?;
+    let format_return_type = PreparedFormat::new(f, format_return_type)?;
 
     let should_group_parameters = should_expand_parameters
         || should_group_parameters_with_return_type(
@@ -488,7 +482,7 @@ where
             generic_parameters,
             parameter_count,
             return_type,
-            format_return_type,
+            &format_return_type,
         )?;
 
     if should_group_parameters {
@@ -504,7 +498,7 @@ where
     }
 
     if should_group_return_type {
-        write!(f, [group(format_return_type)])?;
+        write!(f, [group(&format_return_type)])?;
     } else {
         write!(f, [format_return_type])?;
     }
@@ -552,23 +546,23 @@ fn write_named_parameter<'ast>(
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let left = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // prefixes
-        write_visibility_prefix(f, visibility)?;
-        write_readonly_prefix(f, is_readonly)?;
+    let left = PreparedFormat::new(
+        f,
+        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            // prefixes
+            write_visibility_prefix(f, visibility)?;
+            write_readonly_prefix(f, is_readonly)?;
 
-        // name
-        write!(f, [name])?;
-        write_optional_suffix(f, is_optional)?;
+            // name
+            write!(f, [name])?;
+            write_optional_suffix(f, is_optional)?;
 
-        // trailers
-        write_parameter_type(f, parameter_id, declared_type)
-    })
-    .memoized();
+            // trailers
+            write_parameter_type(f, parameter_id, declared_type)
+        }),
+    )?;
 
     if let Some(default) = default {
-        left.inspect(f)?;
-
         let leading_comments = f
             .context()
             .comments()
@@ -594,19 +588,19 @@ fn write_pattern_parameter<'ast>(
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let left = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        // pattern
-        write!(f, [pattern])?;
-        write_optional_suffix(f, is_optional)?;
+    let left = PreparedFormat::new(
+        f,
+        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            // pattern
+            write!(f, [pattern])?;
+            write_optional_suffix(f, is_optional)?;
 
-        // trailers
-        write_parameter_type(f, parameter_id, declared_type)
-    })
-    .memoized();
+            // trailers
+            write_parameter_type(f, parameter_id, declared_type)
+        }),
+    )?;
 
     if let Some(default) = default {
-        left.inspect(f)?;
-
         let leading_comments = f
             .context()
             .comments()

@@ -1,8 +1,7 @@
 use super::options::DestackFormatOptions;
 use super::source::SourceText;
-use crate::file::comment_text_has_ignore_directive_marker;
-use rustc_hash::FxHashMap;
-use std::cell::OnceCell;
+use super::{FormatElementCache, FormatSourceIndex};
+use std::rc::Rc;
 
 use destack_core::StringPool;
 pub use destack_dir::Decorator;
@@ -10,11 +9,11 @@ use destack_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     LocalNodeIdAny, MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
-    PatternField, Property, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TypeExpression,
+    PatternField, Property, TokenSpan, Tree, TreeStore, TupleElement, TypeExpression,
     TypeMappedParameter, TypeMember, WhereClause,
 };
 use destack_fir::format::{
-    Buffer, Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
+    Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
 };
 use destack_source::{File, MultiSpan, Span};
 
@@ -58,18 +57,12 @@ pub struct DestackFormatContext<'a> {
     pub parents: NodeParentIndex,
     /// The string pool.
     pub strings: &'a StringPool,
-    /// Cached newline byte offsets in file text.
-    pub newline_offsets: OnceCell<Vec<u32>>,
-    /// Cached sorted comment tokens for ignore-range scans.
-    pub comment_tokens_sorted: OnceCell<Vec<TokenSpan>>,
-    /// Cached sorted tokens across main and side streams.
-    pub all_tokens_sorted: OnceCell<Vec<TokenSpan>>,
-    /// Cached formatted elements keyed by source span.
-    pub cached_elements: FxHashMap<Span, FirNode>,
+    /// The immutable source index shared by cloned contexts.
+    pub source_index: Rc<FormatSourceIndex>,
+    /// The formatted element cache for this formatter pass.
+    pub element_cache: FormatElementCache,
     /// The start position of the following sibling for the node currently being formatted.
     pub current_following_span_start: u32,
-    /// Whether file text contains formatter ignore directive markers.
-    pub has_ignore_directive_markers: bool,
     /// The comment cursor for this formatting pass.
     pub comments: Comments<'a>,
 }
@@ -86,16 +79,7 @@ impl<'a> DestackFormatContext<'a> {
         strings: &'a StringPool,
         parents: NodeParentIndex,
     ) -> Self {
-        // ignore directives
-        let has_ignore_directive_markers = tokens.iter().chain(side_tokens.iter()).any(|token| {
-            matches!(
-                token.token.ty,
-                TokenType::LineComment
-                    | TokenType::DocLineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocBlockComment
-            ) && comment_text_has_ignore_directive_marker(file.span_str(token.span))
-        });
+        let source_index = Rc::new(FormatSourceIndex::new(file, tokens, side_tokens));
 
         Self {
             options,
@@ -106,12 +90,9 @@ impl<'a> DestackFormatContext<'a> {
             tree,
             parents,
             strings,
-            newline_offsets: OnceCell::new(),
-            comment_tokens_sorted: OnceCell::new(),
-            all_tokens_sorted: OnceCell::new(),
-            cached_elements: FxHashMap::default(),
+            source_index,
+            element_cache: FormatElementCache::default(),
             current_following_span_start: 0,
-            has_ignore_directive_markers,
             comments: Comments::new(SourceText::new(file.text()), tree.comments()),
         }
     }
@@ -128,12 +109,12 @@ impl<'a> DestackFormatContext<'a> {
 
     /// Return one cached formatted element for one source span.
     pub fn get_cached_element(&self, span: &Span) -> Option<FirNode> {
-        self.cached_elements.get(span).cloned()
+        self.element_cache.get(span)
     }
 
     /// Cache one formatted element for one source span.
     pub fn cache_element(&mut self, span: &Span, node: FirNode) {
-        self.cached_elements.insert(*span, node);
+        self.element_cache.insert(*span, node);
     }
 
     /// Return the current following sibling start used for trailing comment ownership.
@@ -160,69 +141,6 @@ impl FormatContext for DestackFormatContext<'_> {
         self.file
     }
 }
-
-/// The memoized formatted content for one formatter payload.
-pub(crate) struct MemoizedFormat<T> {
-    /// The content to format.
-    content: T,
-    /// The cached formatted node.
-    cached: OnceCell<Option<FirNode>>,
-}
-
-impl<T> MemoizedFormat<T> {
-    /// Construct one memoized formatter payload.
-    pub(crate) fn new(content: T) -> Self {
-        Self {
-            content,
-            cached: OnceCell::new(),
-        }
-    }
-
-    /// Inspect the formatted content without formatting it twice.
-    pub(crate) fn inspect<'ast>(
-        &self,
-        f: &mut DestackFormatter<'ast, '_>,
-    ) -> FormatResult<Option<FirNode>>
-    where
-        T: Format<DestackFormatContext<'ast>>,
-    {
-        // cached
-        if let Some(cached) = self.cached.get() {
-            return Ok(cached.clone());
-        }
-
-        // fresh
-        let interned = f.intern(&self.content)?;
-        let _ = self.cached.set(interned.clone());
-
-        Ok(interned)
-    }
-}
-
-impl<'ast, T> Format<DestackFormatContext<'ast>> for MemoizedFormat<T>
-where
-    T: Format<DestackFormatContext<'ast>>,
-{
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        // cached content
-        let Some(cached) = self.inspect(f)? else {
-            return Ok(());
-        };
-
-        f.write_node(cached);
-        Ok(())
-    }
-}
-
-/// Memoize one formatting payload for reuse and inspection.
-pub(crate) trait MemoizeFormatExt<'ast>: Format<DestackFormatContext<'ast>> + Sized {
-    /// Return one memoized wrapper around this payload.
-    fn memoized(self) -> MemoizedFormat<Self> {
-        MemoizedFormat::new(self)
-    }
-}
-
-impl<'ast, T> MemoizeFormatExt<'ast> for T where T: Format<DestackFormatContext<'ast>> + Sized {}
 
 /// Speculative formatting helpers for one Destack formatter.
 pub(crate) trait DestackFormatterSpeculationExt<'ast> {

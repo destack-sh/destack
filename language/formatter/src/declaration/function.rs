@@ -2,7 +2,6 @@ use super::lambda::{FunctionCacheMode, write_lambda_arrow_with_infix_annotations
 use crate::annotation::{block_infix_annotations, postfix_annotations};
 use crate::call::expression_is_test_call;
 use crate::collection::TrailingSeparator;
-use crate::context::MemoizeFormatExt;
 use crate::declaration::declaration::write_declaration_export_head_comments;
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
@@ -353,23 +352,20 @@ fn write_function_parameters_and_return_type<'ast>(
         function_parameter_container_span(f.context(), node_id),
         format_parameters,
         cache_mode,
-    )
-    .memoized();
+    );
     let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_cached_function_return_type(f, node_id, signature, body, parameters, cache_mode)
     });
-    let format_return_type = format_return_type.memoized();
-    let format_parameter_head =
-        format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(())).memoized();
+    let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
 
     write_grouped_parameters_with_return_type(
         f,
         &signature.generic_parameters,
         parameters.len(),
         signature.return_type,
-        &format_parameter_head,
-        &format_parameters,
-        &format_return_type,
+        format_parameter_head,
+        format_parameters,
+        format_return_type,
         false,
         false,
     )
