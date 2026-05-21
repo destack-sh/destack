@@ -2,14 +2,16 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion,
-    DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError, DiagnosticLike,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider,
+    ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
+    DiagnosticLike,
 };
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
 };
 use destack_workspace::{ProviderContext, ProviderError, Repository, Revision};
 
+use super::module::{parse_module, parsed_dependencies};
 use crate::Compiler;
 
 /// Synchronous compiler artifact provider used by crate-local tests.
@@ -57,13 +59,54 @@ impl TestProvider {
     fn provide(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         // run provider against this attempt context
         let context = TestProviderContext::new(self, key);
-        let result = self.compiler.provide(&context);
+        let result = match key.provider() {
+            ArtifactProvider::Loader => self.provide_loader(key),
+            ArtifactProvider::Compiler => self.compiler.provide(&context),
+            ArtifactProvider::Linter | ArtifactProvider::Query => Err(Box::new(
+                ProviderError::internal(format!("unsupported test artifact key: {key:?}")),
+            )),
+        };
 
         // publish the attempt outcome
         match result {
             Ok(payload) => self.complete_ready(key, &context, payload),
             Err(error) => self.complete_failed(key, &context, *error),
         }
+    }
+
+    /// Provide one loader-owned artifact.
+    fn provide_loader(&self, key: ArtifactKey) -> Result<ArtifactPayload, Box<ProviderError>> {
+        match key {
+            ArtifactKey::DirParsed { module } => self.provide_dir_parsed(module),
+            ArtifactKey::Data { .. } => Err(Box::new(ProviderError::internal(format!(
+                "unsupported test loader artifact key: {key:?}"
+            )))),
+            _ => Err(Box::new(ProviderError::internal(format!(
+                "non loader artifact key reached test loader: {key:?}"
+            )))),
+        }
+    }
+
+    /// Provide one parsed DIR artifact.
+    fn provide_dir_parsed(&self, module: ModuleId) -> Result<ArtifactPayload, Box<ProviderError>> {
+        // load repository module
+        let module = self
+            .repository
+            .module(self.revision, module)
+            .map_err(|error| ProviderError::internal(error.to_string()))?
+            .ok_or_else(|| ProviderError::internal(format!("missing module: {module:?}")))?;
+
+        // parse code modules
+        if module.is_code() {
+            let dir = parse_module(module.as_ref(), self.repository.as_ref(), self.revision);
+
+            return Ok(ArtifactPayload::DirParsed(dir));
+        }
+
+        Err(Box::new(ProviderError::internal(format!(
+            "module has no parsed DIR payload: {:?}",
+            module.id
+        ))))
     }
 
     /// Complete one ready provider attempt.
@@ -74,7 +117,23 @@ impl TestProvider {
         payload: ArtifactPayload,
     ) -> Result<ArtifactVersion, ProviderError> {
         // collect attempt output
-        let dependencies = context.dependencies();
+        let mut dependencies = context.dependencies();
+        if let ArtifactPayload::DirParsed(_) = &payload {
+            if let ArtifactKey::DirParsed { module } = key {
+                let module = self
+                    .repository
+                    .module(self.revision, module)
+                    .map_err(|error| ProviderError::internal(error.to_string()))?
+                    .ok_or_else(|| {
+                        ProviderError::internal(format!("missing module: {module:?}"))
+                    })?;
+                dependencies.extend(parsed_dependencies(
+                    self.repository.as_ref(),
+                    self.revision,
+                    module.as_ref(),
+                ));
+            }
+        }
         let diagnostics = context.diagnostics();
         let version = ArtifactVersion::new(key, dependencies.iter().cloned());
 
