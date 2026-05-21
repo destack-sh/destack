@@ -7,6 +7,7 @@ use destack_dir::{
 };
 use destack_source::LanguageType;
 
+use crate::parse::TypeMemberBodyMode;
 use crate::tests::TestParser;
 use crate::{
     assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
@@ -156,7 +157,7 @@ port2 = {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
     let member_id = parser.eat_member().unwrap();
 
     // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
@@ -595,7 +596,7 @@ foo(): string;"#,
 fn test_parse_property_with_value() {
     let mut test = TestParser::new("x: int32");
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
     let property = parser.eat_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
         assert_string!(parser, *name, "x");
@@ -683,7 +684,9 @@ comptime: number"#,
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let members = parser.eat_type_members().unwrap();
+    let members = parser
+        .eat_type_members(TypeMemberBodyMode::SignatureOnly)
+        .unwrap();
 
     assert_eq!(members.len(), 2);
     assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
@@ -702,7 +705,7 @@ comptime: number"#,
 fn test_parse_property_with_value_and_default_value() {
     let mut test = TestParser::new("x: int32 = 42");
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
     let property = parser.eat_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
         assert_string!(parser, *name, "x");
@@ -724,7 +727,7 @@ fn test_parse_properties_recover_error_slot() {
     // +\ny: int32
     let mut test = TestParser::new("+\ny: int32");
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
     let properties = parser.eat_properties().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
@@ -880,7 +883,7 @@ fn test_parse_member_computed_optional_method() {
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
 
     let member_id = parser.eat_member().unwrap();
     assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Expression(key)), signature, is_optional, .. } => {
@@ -1126,7 +1129,7 @@ fn test_parse_member_method_with_multiline_return_type() {
         LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
 
     let member_id = parser.eat_member().unwrap();
     assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, .. } => {
@@ -1144,7 +1147,7 @@ fn test_parse_member_method_with_type_predicate_return_type() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
 
     let member_id = parser.eat_member().unwrap();
     assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {

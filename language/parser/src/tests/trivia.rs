@@ -62,7 +62,7 @@ fn parse_property_source(
 ) -> (Parser, LocalNodeId<Property>) {
     let mut test = TestParser::new_with_language(source, language);
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(is_in_variant);
+    parser.flags = parser.flags.with_variant(is_in_variant);
     let property_id = parser
         .eat_property()
         .expect("expected property in test source");

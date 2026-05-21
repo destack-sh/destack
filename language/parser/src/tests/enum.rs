@@ -5,7 +5,9 @@ use destack_dir::{
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
-use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
+use crate::{
+    TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+};
 
 #[test]
 fn test_parse_enum_with_extends_types() {
@@ -237,7 +239,7 @@ enum Foo where Requirement: Interface {
 
         // where Requirement: Interface
         assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
-            assert_string!(parser, *left, "Requirement");
+            assert_expression_path!(parser, parser.tree.get(*left), "Requirement");
             assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Interface");
             });

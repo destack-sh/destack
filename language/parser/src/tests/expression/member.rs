@@ -477,7 +477,7 @@ fn test_reject_hex_integer_member_separator() {
 fn test_parse_this_member_expression_in_variant_context() {
     let mut test = TestParser::new_with_language("this.port1.onmessage", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // this.port1.onmessage
@@ -498,7 +498,7 @@ fn test_parse_call_argument_this_member_expression_in_variant_context() {
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.flags.set_in_variant(true);
+    parser.flags = parser.flags.in_variant();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // setTimeout(this.port1.onmessage, 0)
