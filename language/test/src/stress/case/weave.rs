@@ -2,7 +2,7 @@ use super::StressMode;
 use super::generator::{Generator, emit};
 
 /// Generate interwoven TypeScript-shaped source.
-pub(super) fn woven_script_forms(mode: StressMode, scale: usize, width: usize) -> String {
+pub(super) fn woven_source_forms(mode: StressMode, scale: usize, width: usize) -> String {
     let mut generator = Generator::new(mode, scale, width, scale * 780);
     generator.emit("export interface WovenInput<T> {\n");
     generator.emit("    readonly items: readonly T[];\n");
@@ -12,14 +12,14 @@ pub(super) fn woven_script_forms(mode: StressMode, scale: usize, width: usize) -
     generator.emit("    constructor(readonly input: WovenInput<T>) {}\n\n");
 
     for index in 0..generator.scale() {
-        emit_script_method(&mut generator, index);
+        emit_source_method(&mut generator, index);
     }
 
     generator.emit("}\n\n");
     emit_width_marker(&mut generator);
 
     for index in 0..generator.scale() {
-        emit_script_expression(&mut generator, index);
+        emit_source_expression(&mut generator, index);
     }
 
     generator.finish()
@@ -82,7 +82,7 @@ fn emit_width_marker(generator: &mut Generator) {
 }
 
 /// Write one generic class method.
-fn emit_script_method(generator: &mut Generator, index: usize) {
+fn emit_source_method(generator: &mut Generator, index: usize) {
     emit!(
         generator,
         "    read{index}<Value extends T>(index: number, fallback: Value): Value {{\n"
@@ -93,7 +93,7 @@ fn emit_script_method(generator: &mut Generator, index: usize) {
 }
 
 /// Write one expression/object pair.
-fn emit_script_expression(generator: &mut Generator, index: usize) {
+fn emit_source_expression(generator: &mut Generator, index: usize) {
     emit!(
         generator,
         "const wovenValue{index} = store.read{index}({index}, fallback).id satisfies string;\n"
