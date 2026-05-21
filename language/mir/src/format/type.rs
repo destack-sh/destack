@@ -446,7 +446,7 @@ fn format_type_inner<'a>(
             write!(f, [token(")"), space(), token("->"), space(), result])?;
             format_borrow_obligations(borrow_obligations, f)
         }
-        Type::FunctionPointer { signature } | Type::Callable { signature, .. } => {
+        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_type = f.context().tree.get(signature);
                 if let Type::FunctionSignature {
@@ -464,7 +464,7 @@ fn format_type_inner<'a>(
                     }
                     let arrow = match ty {
                         Type::FunctionPointer { .. } => "->",
-                        Type::Callable { .. } => "=>",
+                        Type::Closure { .. } => "=>",
                         _ => unreachable!(),
                     };
                     write!(f, [token(")"), space(), token(arrow), space(), result])?;

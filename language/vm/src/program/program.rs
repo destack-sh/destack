@@ -793,7 +793,7 @@ impl ProgramBuilder {
                     context: format!("missing program layout for heap type {type_id:?}"),
                 })?;
             let module_layout = match self.tree.get(*type_id) {
-                mir::Type::Callable { .. } => {
+                mir::Type::Closure { .. } => {
                     callable_object_layout(self.tree.pointer_bytes() as usize).table_layout()
                 }
                 _ => mir::Layout {

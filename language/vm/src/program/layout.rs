@@ -408,7 +408,7 @@ fn build_layout(
             access: _,
             ..
         } => build_slice_layout(tree, *kind, space.clone())?,
-        mir::Type::Callable { .. } => {
+        mir::Type::Closure { .. } => {
             scalar_layout(tree.pointer_bytes() as usize, tree.pointer_bytes() as usize)
         }
         mir::Type::Vector {
@@ -523,7 +523,7 @@ fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         mir::Type::TypeDescriptor
         | mir::Type::TypeId
         | mir::Type::Reference { .. }
-        | mir::Type::Callable { .. }
+        | mir::Type::Closure { .. }
         | mir::Type::FunctionPointer { .. } => {
             let byte_len = tree.pointer_bytes() as usize;
 
@@ -830,7 +830,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
     let ty = concrete_repr_type(tree, ty)?;
 
     match tree.get(ty) {
-        mir::Type::Callable { .. } => Ok(true),
+        mir::Type::Closure { .. } => Ok(true),
         mir::Type::Struct { fields, .. } => {
             for field_id in fields {
                 let field_type = tree.get(*field_id).ty;
@@ -883,7 +883,7 @@ fn heap_reference_space(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Op
         mir::Type::Reference { kind, space, .. } if is_heap_reference_kind(*kind) => {
             Some(space.clone())
         }
-        mir::Type::Callable { .. } => Some(mir::Space::Local),
+        mir::Type::Closure { .. } => Some(mir::Space::Local),
         _ => None,
     }
 }

@@ -80,7 +80,7 @@ impl Program {
                 space: mir::Space::Local,
                 ..
             }
-            | mir::Type::Callable { .. } => {
+            | mir::Type::Closure { .. } => {
                 Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits))))
             }
             mir::Type::Reference {

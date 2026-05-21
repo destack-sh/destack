@@ -449,7 +449,7 @@ fn should_alias_type(ty: &Type) -> bool {
     // allow aliasing for common aggregate shapes
     matches!(
         ty,
-        Type::Struct { .. } | Type::Tuple { .. } | Type::Variant { .. } | Type::Callable { .. }
+        Type::Struct { .. } | Type::Tuple { .. } | Type::Variant { .. } | Type::Closure { .. }
     )
 }
 
@@ -524,7 +524,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Atomic { .. } => "Atomic",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Function",
-        Type::Callable { .. } => "Callable",
+        Type::Closure { .. } => "Closure",
         _ => "Type",
     }
 }
@@ -894,11 +894,22 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, result, counts, visited);
         }
-        Type::FunctionPointer { signature } | Type::Callable { signature } => {
+        Type::FunctionPointer { signature } => {
             let TypeReference::Type(signature) = *signature else {
                 return;
             };
             record_type_use_inner(tree, signature, counts, visited);
+        }
+        Type::Closure {
+            signature,
+            environment,
+        } => {
+            if let TypeReference::Type(signature) = *signature {
+                record_type_use_inner(tree, signature, counts, visited);
+            }
+            if let TypeReference::Type(environment) = *environment {
+                record_type_use_inner(tree, environment, counts, visited);
+            }
         }
         Type::Void
         | Type::Boolean
@@ -1361,8 +1372,21 @@ fn collect_alias_dependencies(
                 }
                 record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::FunctionPointer { signature } | Type::Callable { signature } => {
+            Type::FunctionPointer { signature } => {
                 record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
+            }
+            Type::Closure {
+                signature,
+                environment,
+            } => {
+                record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(
+                    *environment,
+                    root,
+                    alias_types,
+                    &mut dependencies,
+                    &mut stack,
+                );
             }
             Type::Void
             | Type::Boolean

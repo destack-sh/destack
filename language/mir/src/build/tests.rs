@@ -608,7 +608,7 @@ fn test_type_construction() {
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
-    let callable_type = module.type_callable(signature);
+    let callable_type = module.type_closure(signature);
 
     // verify types
     let (tree, _strings) = module.finish();
@@ -646,7 +646,7 @@ fn test_type_construction() {
         tree.get(function_pointer_type),
         Type::FunctionPointer { .. }
     ));
-    assert!(matches!(tree.get(callable_type), Type::Callable { .. }));
+    assert!(matches!(tree.get(callable_type), Type::Closure { .. }));
 }
 
 /// seal_all_blocks seals all blocks at once.

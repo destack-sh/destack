@@ -149,7 +149,7 @@ impl<'a> FunctionBuilder<'a> {
                 .and_then(|layout| layout.fields.get(index as usize))
                 .map(|field| field.ty)
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::Callable { .. } => panic!("field access does not support callable"),
+            Type::Closure { .. } => panic!("field access does not support closures"),
             _ => panic!("field access expects struct or tuple"),
         }
     }
@@ -222,7 +222,7 @@ impl<'a> FunctionBuilder<'a> {
             Type::FunctionSignature { result, .. } => {
                 concrete_type_reference(*result, "function result")
             }
-            Type::FunctionPointer { .. } | Type::Callable { .. } => {
+            Type::FunctionPointer { .. } | Type::Closure { .. } => {
                 let signature = callable_signature(signature_type)
                     .and_then(TypeReference::ty)
                     .unwrap_or_else(|| panic!("callable must carry a function signature"));
