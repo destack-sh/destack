@@ -50,31 +50,17 @@ impl Parser {
         self.eat_token(TokenType::Comma)
     }
 
-    /// Peek an arrow.
-    #[inline]
-    pub fn peek_arrow(&mut self) -> ParseResult<&TokenSpan> {
-        let token = self.peek()?;
-        if token.token.ty == TokenType::ArrowWide || token.token.ty == TokenType::Arrow {
-            Ok(token)
-        } else {
-            Err(ParseError::expected(token.span, TokenType::ArrowWide))
-        }
-    }
-
     /// Return true when the next token is an arrow.
     #[inline]
     pub fn peek_arrow_is(&mut self) -> bool {
-        matches!(
-            self.peek_token_type(),
-            TokenType::ArrowWide | TokenType::Arrow
-        )
+        matches!(self.peek_token_type(), TokenType::ArrowWide)
     }
 
     /// Eat an arrow.
     #[inline]
     pub fn eat_arrow(&mut self) -> ParseResult<&TokenSpan> {
         let token = self.eat()?;
-        if token.token.ty == TokenType::ArrowWide || token.token.ty == TokenType::Arrow {
+        if token.token.ty == TokenType::ArrowWide {
             Ok(token)
         } else {
             Err(ParseError::expected(token.span, TokenType::ArrowWide))

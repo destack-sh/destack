@@ -33,7 +33,7 @@ impl Parser {
         )
     }
 
-    /// Return true when a committed expression child slot can recover a missing node here.
+    /// Return true when an expression child can recover a missing node here.
     #[inline]
     pub(crate) const fn is_expression_slot_boundary_token(token_type: TokenType) -> bool {
         Self::is_close_delimiter_token(token_type)
@@ -43,13 +43,13 @@ impl Parser {
             )
     }
 
-    /// Return true when a committed close delimiter can recover a missing token here.
+    /// Return true when a close delimiter can recover a missing token here.
     #[inline]
     pub(crate) const fn is_close_delimiter_boundary_token(token_type: TokenType) -> bool {
         Self::is_close_delimiter_token(token_type) || Self::is_statement_stop_token(token_type)
     }
 
-    /// Return true when a committed type expression can recover a missing child here.
+    /// Return true when a type expression can recover a missing child here.
     #[inline]
     pub(crate) const fn is_type_expression_boundary_token(token_type: TokenType) -> bool {
         matches!(
@@ -58,7 +58,6 @@ impl Parser {
                 | TokenType::Semicolon
                 | TokenType::Colon
                 | TokenType::Assign
-                | TokenType::Arrow
                 | TokenType::ArrowWide
                 | TokenType::GreaterThan
                 | TokenType::Maybe
@@ -66,7 +65,7 @@ impl Parser {
         ) || Self::is_close_delimiter_token(token_type)
     }
 
-    /// Return true when a committed type container can recover a missing close token here.
+    /// Return true when a type container can recover a missing close token here.
     #[inline]
     pub(crate) const fn is_type_container_boundary_token(token_type: TokenType) -> bool {
         Self::is_type_expression_boundary_token(token_type)
@@ -76,7 +75,7 @@ impl Parser {
             )
     }
 
-    /// Return true when a committed type expression can recover a missing child here.
+    /// Return true when a type expression can recover a missing child here.
     #[inline]
     pub(crate) fn is_type_expression_boundary(&mut self) -> bool {
         Self::is_type_expression_boundary_token(self.peek_token_type())
@@ -113,11 +112,9 @@ impl Parser {
     /// Return true when the next token is any stop.
     #[inline]
     pub fn is_next_any_stop(&mut self) -> bool {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.current_token_is_on_new_line()
-                || Self::is_any_stop_token(parser.peek_token_type())
-        })
+        let token = self.next_token();
+
+        token.token.is_on_new_line || Self::is_any_stop_token(token.token.ty)
     }
 
     /// Peek an item stop.
@@ -266,10 +263,7 @@ impl Parser {
     #[inline]
     pub fn is_next_any_close_parenthesis(&mut self) -> bool {
         matches!(
-            self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_token_type()
-            }),
+            self.token_type_at_offset(1),
             TokenType::CloseParenthesis | TokenType::CloseBracket | TokenType::CloseBrace
         )
     }
