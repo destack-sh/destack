@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-use super::{SnapshotAnchor, SnapshotField, SnapshotRow};
+use super::{SnapshotAnchor, SnapshotField, SnapshotFieldStyle, SnapshotRow};
 
 /// Assert rendered snapshot text.
 pub(crate) fn assert_snapshot(actual: String, expected: &str) {
@@ -94,7 +94,7 @@ impl<'a> SnapshotRenderer<'a> {
     pub(super) fn render_fields(fields: &[SnapshotField]) -> String {
         fields
             .iter()
-            .map(|field| format!("{}={}", field.key, Self::quote_value(&field.value)))
+            .map(|field| format!("{}={}", field.key, Self::quote_field_value(field)))
             .collect::<Vec<_>>()
             .join(" ")
     }
@@ -287,6 +287,14 @@ impl<'a> SnapshotRenderer<'a> {
     }
 
     /// Quote a row field value when needed.
+    fn quote_field_value(field: &SnapshotField) -> String {
+        match field.style {
+            SnapshotFieldStyle::Plain => Self::quote_value(&field.value),
+            SnapshotFieldStyle::Type => field.value.to_string(),
+        }
+    }
+
+    /// Quote a plain row field value when needed.
     fn quote_value(value: &str) -> String {
         let is_list = value.starts_with('[') && value.ends_with(']');
         let needs_quotes = value.is_empty()

@@ -186,8 +186,8 @@ impl<'a> DirSnapshotBuilder<'a> {
             let statics = dir::StaticTable::from_segment(checked.statics.clone());
             self.types = Some(types.clone());
             self.statics = Some(statics.clone());
-            self.add_static_labels(&statics);
             self.add_type_labels(&types);
+            self.add_static_labels(&statics);
         }
 
         if selection.types {
@@ -363,6 +363,19 @@ impl<'a> DirSnapshotBuilder<'a> {
             .unwrap_or_else(|| panic!("dir snapshot missing static label for {static_id:?}"))
     }
 
+    /// Render a type value stored in a static term.
+    fn static_type_label(&self, type_id: dir::LocalTypeId) -> String {
+        if let Some(label) = self.type_labels.get(&type_id) {
+            return label.clone();
+        }
+        let types = self
+            .types
+            .as_ref()
+            .unwrap_or_else(|| panic!("dir snapshot missing type table for {type_id:?}"));
+
+        self.type_table_label(types, type_id)
+    }
+
     /// Render one local symbol id using its source name when possible.
     pub(crate) fn local_symbol_label(&self, symbol_id: dir::LocalSymbolId) -> String {
         self.binding_names().symbol(symbol_id)
@@ -371,6 +384,24 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one local scope id.
     pub(crate) fn scope_label(&self, scope_id: dir::LocalScopeId) -> String {
         self.binding_names().scope(scope_id)
+    }
+
+    /// Render one global scope id.
+    pub(crate) fn global_scope_label(&self, scope_id: dir::GlobalScopeId) -> String {
+        if scope_id.module_id == self.tree.module_id {
+            return self.scope_label(scope_id.local_id);
+        }
+
+        let module = self.module_label(scope_id.module_id);
+
+        format!("{module}.scope{}", scope_id.local_id.0)
+    }
+
+    /// Render one local capture frame id.
+    pub(crate) fn capture_frame_label(&self, frame_id: dir::LocalCaptureFrameId) -> String {
+        let module = self.module_label(self.tree.module_id);
+
+        format!("{module}.<frame{}>", frame_id.0)
     }
 
     /// Render one local scope cursor.
@@ -460,12 +491,26 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one static argument label.
     pub(crate) fn static_argument_label(&self, argument: &dir::StaticArgument) -> String {
         // render the argument value before adding an optional name
-        let value = self.static_label(argument.value);
+        let value = self.static_argument_value_label(argument.value);
         if let Some(name) = argument.name {
             format!("{}={value}", self.strings.get(name))
         } else {
             value
         }
+    }
+
+    /// Render one static argument value.
+    fn static_argument_value_label(&self, static_id: dir::LocalStaticId) -> String {
+        if let Some(label) = self.static_labels.get(&static_id) {
+            return label.clone();
+        }
+        let statics = self
+            .statics
+            .as_ref()
+            .unwrap_or_else(|| panic!("dir snapshot missing static table for {static_id:?}"));
+        let term = statics.get_static(static_id);
+
+        self.static_term_label(term)
     }
 
     /// Render one static term label.
@@ -482,7 +527,7 @@ impl<'a> DirSnapshotBuilder<'a> {
                 declaration,
                 generic_arguments,
             } => self.static_declaration_label(*declaration, generic_arguments.as_deref()),
-            dir::StaticTerm::Type { ty } => self.type_label(*ty),
+            dir::StaticTerm::Type { ty } => self.static_type_label(*ty),
             dir::StaticTerm::Array { elements } => {
                 // render array elements recursively
                 let elements = elements
@@ -560,14 +605,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Render one captured binding label.
-    pub(crate) fn capture_binding_label(&self, binding: dir::CapturedBinding) -> String {
-        let symbol = self.symbol_label(binding.symbol);
-        let mode = Self::variant_label(binding.mode);
-
-        format!("{symbol}:{mode}")
-    }
-
     /// Render one macro trigger label.
     pub(crate) fn macro_trigger_label(&self, trigger: &dir::MacroTrigger) -> String {
         match trigger {
@@ -631,7 +668,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add semantic type labels for one visible type table.
     fn add_type_labels(&mut self, types: &dir::TypeTable<'_>) {
         for type_id in types.iter_type_ids() {
-            let label = self.semantic_type_label(types, type_id);
+            let label = self.type_table_label(types, type_id);
             self.type_labels.insert(type_id, label);
         }
     }

@@ -172,6 +172,7 @@ impl DirRows {
             || self.resolution
             || self.instance
             || self.relation
+            || self.capture
             || self.layout
     }
 }

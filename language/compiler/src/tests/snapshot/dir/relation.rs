@@ -35,7 +35,7 @@ fn add_relation_row(
     let row = SnapshotRow::new(builder.anchor_symbol(symbol_id), "relation", "entry")
         .field("symbol", builder.symbol_path_label(symbol_id))
         .field("kind", DirSnapshotBuilder::variant_label(relation.kind))
-        .field("type", builder.type_label(relation.ty));
+        .type_field("type", builder.type_label(relation.ty));
 
     builder.push(row);
 }

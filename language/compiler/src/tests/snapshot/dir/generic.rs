@@ -19,8 +19,11 @@ impl SnapshotTable for dir::GenericSegment {
                         .field("symbol", builder.symbol_path_label(symbol))
                         .field("index", index.to_string())
                         .field("kind", "type")
-                        .optional_field("constraint", constraint.map(|ty| builder.type_label(ty)))
-                        .optional_field("default", default.map(|ty| builder.type_label(ty)))
+                        .optional_type_field(
+                            "constraint",
+                            constraint.map(|ty| builder.type_label(ty)),
+                        )
+                        .optional_type_field("default", default.map(|ty| builder.type_label(ty)))
                         .optional_field(
                             "variance",
                             variance.map(DirSnapshotBuilder::variant_label),
@@ -33,7 +36,10 @@ impl SnapshotTable for dir::GenericSegment {
                         .field("symbol", builder.symbol_path_label(symbol))
                         .field("index", index.to_string())
                         .field("kind", "static")
-                        .optional_field("constraint", constraint.map(|ty| builder.type_label(ty)))
+                        .optional_type_field(
+                            "constraint",
+                            constraint.map(|ty| builder.type_label(ty)),
+                        )
                         .optional_field("default", default.map(|term| builder.static_label(term))),
                 };
                 builder.push(row);
