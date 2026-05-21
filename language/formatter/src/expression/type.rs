@@ -1744,9 +1744,7 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             }
 
             match context.tree.get(parent_id) {
-                TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
-                    elements.len() > 1
-                }
+                TypeExpression::Intersection { elements } => elements.len() > 1,
                 _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
             }
         }
@@ -1756,9 +1754,7 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             }
 
             match context.tree.get(parent_id) {
-                TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
-                    elements.len() > 1
-                }
+                TypeExpression::Union { .. } | TypeExpression::Intersection { .. } => false,
                 _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
             }
         }
