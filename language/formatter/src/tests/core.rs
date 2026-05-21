@@ -5,7 +5,7 @@ use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::Format;
-use destack_parser::{ParseResult, Parser, ParserOptions};
+use destack_parser::{ParseResult, Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
 };
@@ -72,6 +72,7 @@ impl TestFormatter {
                 file.clone(),
                 language,
                 ParserOptions {
+                    trivia_mode: ParserTriviaMode::Full,
                     preserve_parenthesized_wrappers: false,
                     ..ParserOptions::default()
                 },

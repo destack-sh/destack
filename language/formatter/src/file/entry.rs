@@ -7,7 +7,7 @@ use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{DiagnosticSeverity, File, FileType, LanguageType};
 use destack_workspace::FormatterOptions;
 
@@ -110,6 +110,7 @@ fn format_parser_file_source(
         parser_file.clone(),
         language_type,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
