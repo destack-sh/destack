@@ -1849,10 +1849,18 @@ pub fn generic_argument_is_equal(
         (
             dir::GenericArgument::Type { value: left_type },
             dir::GenericArgument::Type { value: right_type },
+        )
+        | (
+            dir::GenericArgument::SpreadType { value: left_type },
+            dir::GenericArgument::SpreadType { value: right_type },
         ) => type_expression_is_equal(ctx, *left_type, *right_type),
         (
             dir::GenericArgument::Value { value: left_value },
             dir::GenericArgument::Value { value: right_value },
+        )
+        | (
+            dir::GenericArgument::SpreadValue { value: left_value },
+            dir::GenericArgument::SpreadValue { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
         (dir::GenericArgument::Error, dir::GenericArgument::Error) => true,
         _ => false,
@@ -2175,10 +2183,12 @@ pub fn type_expression_has_side_effects(
                 || generic_arguments.iter().any(|argument_id| {
                     let argument = ctx.dir.get(*argument_id);
                     match argument {
-                        dir::GenericArgument::Type { value } => {
+                        dir::GenericArgument::Type { value }
+                        | dir::GenericArgument::SpreadType { value } => {
                             type_expression_has_side_effects(ctx, *value)
                         }
-                        dir::GenericArgument::Value { value } => {
+                        dir::GenericArgument::Value { value }
+                        | dir::GenericArgument::SpreadValue { value } => {
                             expression_has_side_effects(ctx, *value)
                         }
                         dir::GenericArgument::Error => true,

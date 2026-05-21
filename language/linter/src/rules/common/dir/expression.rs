@@ -926,10 +926,10 @@ fn generic_argument_contains_reference_segment(
     let generic_argument = tree.get(generic_argument_id);
 
     match generic_argument {
-        dir::GenericArgument::Type { value } => {
+        dir::GenericArgument::Type { value } | dir::GenericArgument::SpreadType { value } => {
             type_expression_contains_reference_segment(tree, *value, target_segment)
         }
-        dir::GenericArgument::Value { value } => {
+        dir::GenericArgument::Value { value } | dir::GenericArgument::SpreadValue { value } => {
             expression_contains_reference_segment(tree, *value, target_segment)
         }
         dir::GenericArgument::Error => false,
