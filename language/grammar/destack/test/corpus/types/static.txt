@@ -53,3 +53,31 @@ lane satisfies [uint8; 8];
     (tuple_type
       (type_identifier)
       (number))))
+
+=======================================================
+Variadic static parameters
+:language(destack)
+=======================================================
+
+type Tuple<...T> = T;
+type Shape<comptime ...Dims: usize> = [usize; Dims];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type_identifier))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (tuple_type
+      (type_identifier)
+      (identifier))))
