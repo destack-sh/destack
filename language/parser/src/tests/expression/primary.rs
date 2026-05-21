@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::tests::*;
 use crate::{
-    Parser, ParserOptions, assert_expression_path, assert_node, assert_path,
+    Parser, ParserOptions, ParserTriviaMode, assert_expression_path, assert_node, assert_path,
     assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
 use destack_core::StringPool;
@@ -187,6 +187,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
         test.file.clone(),
         test.language,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },

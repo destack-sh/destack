@@ -385,10 +385,11 @@ fn test_parse_call_with_shift_left_generic_arguments_in_decorator_context() {
     let flags = parser
         .flags
         .not_in_position()
-        .in_left_precedence(u16::MAX)
         .not_in_sequence_expression()
         .in_decorator();
-    let expr_id = parser.eat_expression(flags).unwrap();
+    let expr_id = parser
+        .eat_expression_at_precedence(flags, u16::MAX)
+        .unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "f");
         assert!(arguments.is_empty());
