@@ -403,7 +403,7 @@ interface Baz<T> where Requirement: Interface {
         // where Requirement: Interface
         assert_eq!(where_clauses.len(), 1);
         assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
-            assert_string!(parser, *left, "Requirement");
+            assert_expression_path!(parser, parser.tree.get(*left), "Requirement");
             assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Interface");
             });
@@ -600,6 +600,106 @@ interface Iterator<T, TReturn = any, TNext = any> {
                 });
             });
             assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "IteratorResult");
+        });
+    });
+}
+
+/// Parse TypeScript interface members that use semicolon separators.
+#[test]
+fn test_parse_interface_semicolon_member_separators() {
+    let mut test = TestParser::new_with_language(
+        r#"
+interface MacroContext {
+    readonly trigger: MacroTrigger;
+    readonly symbol?: Symbol;
+    resolve(name: string): Symbol | undefined;
+}
+"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+
+    let start = parser.span_start();
+    let interface_id = parser
+        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .unwrap();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
+        assert_eq!(members.len(), 3);
+
+        // readonly trigger: MacroTrigger;
+        assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, is_readonly, is_optional, .. } => {
+            assert_string!(parser, *name, "trigger");
+            assert!(*is_readonly);
+            assert!(!*is_optional);
+            assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "MacroTrigger");
+        });
+
+        // readonly symbol?: Symbol;
+        assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, is_readonly, is_optional, .. } => {
+            assert_string!(parser, *name, "symbol");
+            assert!(*is_readonly);
+            assert!(*is_optional);
+            assert_expression_path!(parser, parser.tree.get(declared_type.expect("expected declared type")), "Symbol");
+        });
+
+        // resolve(name: string): Symbol | undefined;
+        assert_node!(parser.tree, members[2], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, body, .. } => {
+            assert_string!(parser, *name, "resolve");
+            assert!(body.is_none());
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+            });
+        });
+    });
+}
+
+/// Parse TypeScript index signatures on structural interfaces.
+#[test]
+fn test_parse_interface_index_signature_members() {
+    let mut test = TestParser::new_with_language(
+        r#"
+interface ImportMetaEnv {
+    readonly [key: string]: string | undefined;
+    length: number;
+}
+"#,
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+
+    let start = parser.span_start();
+    let interface_id = parser
+        .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
+        .unwrap();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
+        assert_eq!(members.len(), 2);
+
+        // readonly [key: string]: string | undefined;
+        assert_node!(parser.tree, members[0], TypeMember::IndexSignature { is_readonly, is_optional, name, key_type, value_type } => {
+            assert!(*is_readonly);
+            assert!(!*is_optional);
+            assert_string!(parser, *name, "key");
+            assert_node!(parser.tree, *key_type, TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::String);
+            });
+            assert_node!(parser.tree, *value_type, TypeExpression::Union { elements } => {
+                assert_eq!(elements.len(), 2);
+            });
+        });
+
+        // length: number;
+        assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
+            assert_string!(parser, *name, "length");
+            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Number);
+            });
         });
     });
 }
@@ -841,6 +941,42 @@ export newtype interface Add<T, R = this> {
             assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
                 assert_string!(parser, *name, "add");
                 assert_eq!(signature.parameters.len(), 1);
+            });
+        });
+    });
+}
+
+/// Parse Destack default method bodies on nominal interfaces.
+#[test]
+fn test_parse_newtype_interface_default_method_body() {
+    let mut test = TestParser::new(
+        r#"
+newtype interface Error {
+    source(): Any<Error> | undefined {
+        undefined
+    }
+}
+"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { is_nominal, members, .. }) => {
+            assert!(*is_nominal);
+            assert_eq!(members.len(), 1);
+
+            // source(): Any<Error> | undefined { undefined }
+            assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, body: Some(body), .. } => {
+                assert_string!(parser, *name, "source");
+                assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
+                    assert_eq!(elements.len(), 2);
+                });
+                assert_node!(parser.tree, *body, Expression::Block(_));
             });
         });
     });

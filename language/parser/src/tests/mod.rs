@@ -1,5 +1,6 @@
 mod argument;
 mod block;
+mod corpus;
 mod dependency;
 mod r#enum;
 mod expression;

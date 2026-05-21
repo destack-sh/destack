@@ -102,7 +102,7 @@ const shapes = (
 fn test_parse_anonymous_struct_literal() {
     let mut test = TestParser::new("{ }");
     let mut parser = test.prepare();
-    parser.flags.set_in_statement_position(true);
+    parser.flags = parser.flags.in_statement_position();
     let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block { .. });
 }
@@ -112,7 +112,7 @@ fn test_parse_anonymous_struct_literal() {
 fn test_parse_statement_position_object_literal_with_comment() {
     let mut test = TestParser::new("{ /* key */ a: 1 }");
     let mut parser = test.prepare();
-    parser.flags.set_in_statement_position(true);
+    parser.flags = parser.flags.in_statement_position();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
@@ -128,7 +128,7 @@ fn test_parse_statement_position_object_literal_with_comment() {
 fn test_parse_statement_position_object_literal_computed_key() {
     let mut test = TestParser::new("{ [key]: value }");
     let mut parser = test.prepare();
-    parser.flags.set_in_statement_position(true);
+    parser.flags = parser.flags.in_statement_position();
     let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
         assert_eq!(properties.len(), 1);
@@ -196,7 +196,7 @@ fn test_parse_parenthesized_object_literal_computed_field_without_value() {
 fn test_parse_statement_position_block_with_assignment() {
     let mut test = TestParser::new("{ step = step + 1; return base + step; }");
     let mut parser = test.prepare();
-    parser.flags.set_in_statement_position(true);
+    parser.flags = parser.flags.in_statement_position();
     let expr_id = parser.eat_expression(parser.flags.in_type()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
         assert_node!(parser.tree, *block_id, Block { leading_expressions, tail_expression, .. } => {
@@ -213,7 +213,7 @@ fn test_parse_statement_position_block_with_assignment() {
 fn test_parse_statement_position_block_with_array_literal() {
     let mut test = TestParser::new("{ [] }");
     let mut parser = test.prepare();
-    parser.flags.set_in_statement_position(true);
+    parser.flags = parser.flags.in_statement_position();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
         assert_node!(parser.tree, *block_id, Block { .. } => {
@@ -288,7 +288,7 @@ fn test_parse_fixed_array_literal_recovers_missing_close_bracket() {
 fn test_parse_statement_position_computed_method_as_block() {
     let mut test = TestParser::new("{ [key]()\n{} }");
     let mut parser = test.prepare();
-    parser.flags.set_in_statement_position(true);
+    parser.flags = parser.flags.in_statement_position();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Block(_) => {});
 }

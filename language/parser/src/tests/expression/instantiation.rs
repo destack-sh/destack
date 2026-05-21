@@ -314,7 +314,7 @@ await fetchListResult<{
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    parser.flags.set_in_before_block(true);
+    parser.flags = parser.flags.in_before_block();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {

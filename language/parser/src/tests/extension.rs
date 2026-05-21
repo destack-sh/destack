@@ -287,7 +287,7 @@ extension of Foo where Guard: Limit {
 
         // where Guard: Limit
         assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
-            assert_string!(parser, *left, "Guard");
+            assert_expression_path!(parser, parser.tree.get(*left), "Guard");
             assert_expression_path!(parser, parser.tree.get(*right), "Limit");
         });
 
