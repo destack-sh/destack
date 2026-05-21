@@ -172,8 +172,9 @@ impl ParseError {
         let content = source.content_id();
 
         let token_at_primary_span = tokens
-            .iter()
-            .find(|token| token.span.start == span.start)
+            .binary_search_by_key(&span.start, |token| token.span.start)
+            .ok()
+            .and_then(|index| tokens.get(index))
             .map(|token| token.token.ty)
             .unwrap_or(TokenType::End);
         let in_node_str = match node_type {

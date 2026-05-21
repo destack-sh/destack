@@ -1,14 +1,15 @@
-use crate::{Lexer, decode_html_entity, is_semantic, keyword_from_identifier};
+use crate::{Lexer, LexerCheckpoint, ParserTriviaMode, is_semantic, keyword_from_identifier};
 use core::fmt;
 use destack_core::StringPool;
 use destack_dir::{
-    BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token,
-    TokenLiteral, TokenSpan, TokenType, Tree, TreeMark, TreeStore, TypeExpression,
+    BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token, TokenLiteral,
+    TokenSpan, TokenType, Tree, TreeMark, TreeStore,
 };
 use destack_source::{
-    DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, ModuleId, MultiSpan,
-    NodeSearchMode, NodeSpanBoundary, NodeSpanType, PackageId, Span,
+    DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType, ModuleId, MultiSpan,
+    NodeSearchMode, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, PackageId, Span,
 };
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::mem;
 use std::sync::Arc;
@@ -17,955 +18,25 @@ use crate::{ParseError, ParseResult};
 
 use super::state::ParserState;
 
-const ESTIMATED_TOKEN_BYTES: usize = 6;
+use super::constants::{
+    ESTIMATED_STRING_TOKEN_DIVISOR, ESTIMATED_TOKEN_BYTES, MAX_RECURSIVE_DESCENT_DEPTH,
+};
+use super::flags::ParserFlags;
+use super::identifier::TypeLiteralIdentifiers;
+use super::mode::ContextualLexMode;
+use super::options::ParserOptions;
 
-/// Cached string ids for type literal identifiers.
-#[allow(dead_code)]
-#[derive(Debug)]
-pub(crate) struct TypeLiteralIdentifiers {
-    pub(crate) undefined: StringId,
-    pub(crate) unknown: StringId,
-    pub(crate) object: StringId,
-    pub(crate) null_: StringId,
-    pub(crate) any: StringId,
-    pub(crate) never: StringId,
-    pub(crate) boolean: StringId,
-    pub(crate) void: StringId,
-    pub(crate) char_: StringId,
-    pub(crate) string: StringId,
-    pub(crate) bigint: StringId,
-    pub(crate) number: StringId,
-    pub(crate) int: StringId,
-    pub(crate) isize: StringId,
-    pub(crate) uint: StringId,
-    pub(crate) usize: StringId,
-    pub(crate) float: StringId,
-    pub(crate) symbol: StringId,
-    pub(crate) unique: StringId,
-}
+type ParseErrorKey = (Span, Option<NodeType>, Option<TokenType>);
 
-impl TypeLiteralIdentifiers {
-    /// Create cached ids for the current string pool.
-    fn new(strings: &StringPool) -> Self {
-        Self {
-            undefined: strings.intern("undefined"),
-            unknown: strings.intern("unknown"),
-            object: strings.intern("object"),
-            null_: strings.intern("null"),
-            any: strings.intern("any"),
-            never: strings.intern("never"),
-            boolean: strings.intern("boolean"),
-            void: strings.intern("void"),
-            char_: strings.intern("char"),
-            string: strings.intern("string"),
-            bigint: strings.intern("bigint"),
-            number: strings.intern("number"),
-            int: strings.intern("int"),
-            isize: strings.intern("isize"),
-            uint: strings.intern("uint"),
-            usize: strings.intern("usize"),
-            float: strings.intern("float"),
-            symbol: strings.intern("symbol"),
-            unique: strings.intern("unique"),
-        }
-    }
-}
-
-/// Internal parser context flags.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct ParserFlags {
-    /// Packed parser context and behavior flags.
-    flags: u32,
-    /// The left precedence preceding (i.e. before) the expression.
-    /// Determines expression operator lifting and grouping.
-    pub(crate) left_precedence: Option<u16>,
-}
-
-impl Default for ParserFlags {
-    fn default() -> Self {
-        Self {
-            flags: Self::ALLOW_SEQUENCE_EXPRESSION_FLAG,
-            left_precedence: None,
-        }
-    }
-}
-
-/// Parser options that can be configured externally.
+/// One cached parser lookahead token.
 #[derive(Debug, Copy, Clone)]
-pub struct ParserOptions {
-    /// Whether ambiguous tree literal syntax is disallowed.
-    pub disallow_ambiguous_tree_literal: bool,
-    /// Whether token side tokens should be retained for formatter and comment output.
-    pub retain_trivia_tokens: bool,
-    /// Whether transparent parenthesized wrappers should be preserved in the tree.
-    pub preserve_parenthesized_wrappers: bool,
-}
-
-impl Default for ParserOptions {
-    fn default() -> Self {
-        Self {
-            disallow_ambiguous_tree_literal: false,
-            retain_trivia_tokens: true,
-            preserve_parenthesized_wrappers: true,
-        }
-    }
-}
-
-#[allow(unused)]
-impl ParserFlags {
-    const EXPRESSION_FLAG_MASK: u32 = Self::IN_PARENTHESIS_FLAG
-        | Self::IN_STATEMENT_POSITION_FLAG
-        | Self::IN_TERNARY_CONDITION_FLAG
-        | Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG
-        | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
-        | Self::IN_ARROW_RETURN_TYPE_FLAG
-        | Self::ALLOW_TYPE_PREDICATE_FLAG
-        | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG
-        | Self::IN_MATCH_CASE_BODY_FLAG;
-    const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
-
-    const IN_STATIC_FLAG: u32 = 1 << 0;
-    const IN_COMPTIME_FLAG: u32 = 1 << 1;
-    const IN_TYPE_FLAG: u32 = 1 << 2;
-    const IN_SUPER_TYPE_FLAG: u32 = 1 << 3;
-    const IN_VARIANT_FLAG: u32 = 1 << 4;
-    const IN_BEFORE_TYPE_FLAG: u32 = 1 << 5;
-    const IN_MATCH_CASE_FLAG: u32 = 1 << 6;
-    const IN_UNION_PATTERN_FLAG: u32 = 1 << 7;
-    const IN_DECLARE_CONTEXT_FLAG: u32 = 1 << 8;
-    const IN_PARENTHESIS_FLAG: u32 = 1 << 9;
-    const IN_STATEMENT_POSITION_FLAG: u32 = 1 << 10;
-    const IN_STATEMENT_CONTEXT_FLAG: u32 = 1 << 11;
-    const IN_BEFORE_BLOCK_FLAG: u32 = 1 << 12;
-    const IN_TREE_LITERAL_FLAG: u32 = 1 << 13;
-    const IN_DECORATOR_FLAG: u32 = 1 << 14;
-    const IN_TERNARY_CONDITION_FLAG: u32 = 1 << 15;
-    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u32 = 1 << 16;
-    const IN_ARROW_RETURN_TYPE_FLAG: u32 = 1 << 17;
-    const ALLOW_TYPE_PREDICATE_FLAG: u32 = 1 << 18;
-    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 19;
-    const IN_FOR_EACH_FLAG: u32 = 1 << 20;
-    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 21;
-    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 22;
-    const IN_GENERATOR_FLAG: u32 = 1 << 23;
-    const FORBID_YIELD_FLAG: u32 = 1 << 24;
-    const FORBID_AWAIT_FLAG: u32 = 1 << 25;
-    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 26;
-    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 27;
-    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 28;
-    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 29;
-    const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 30;
-
-    #[inline]
-    const fn has_flag(self, flag: u32) -> bool {
-        (self.flags & flag) != 0
-    }
-
-    #[inline]
-    fn with_flag(mut self, flag: u32, enabled: bool) -> Self {
-        if enabled {
-            self.flags |= flag;
-        } else {
-            self.flags &= !flag;
-        }
-        self
-    }
-
-    #[inline]
-    fn set_flag(&mut self, flag: u32, enabled: bool) {
-        if enabled {
-            self.flags |= flag;
-        } else {
-            self.flags &= !flag;
-        }
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_static(self) -> bool {
-        self.has_flag(Self::IN_STATIC_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_comptime(self) -> bool {
-        self.has_flag(Self::IN_COMPTIME_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_type(self) -> bool {
-        self.has_flag(Self::IN_TYPE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_super_type(self) -> bool {
-        self.has_flag(Self::IN_SUPER_TYPE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_variant(self) -> bool {
-        self.has_flag(Self::IN_VARIANT_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_before_type(self) -> bool {
-        self.has_flag(Self::IN_BEFORE_TYPE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_match_case(self) -> bool {
-        self.has_flag(Self::IN_MATCH_CASE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_match_case_body(self) -> bool {
-        self.has_flag(Self::IN_MATCH_CASE_BODY_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_union_pattern(self) -> bool {
-        self.has_flag(Self::IN_UNION_PATTERN_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_declare_context(self) -> bool {
-        self.has_flag(Self::IN_DECLARE_CONTEXT_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_parenthesis(self) -> bool {
-        self.has_flag(Self::IN_PARENTHESIS_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_statement_position(self) -> bool {
-        self.has_flag(Self::IN_STATEMENT_POSITION_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_statement_context(self) -> bool {
-        self.has_flag(Self::IN_STATEMENT_CONTEXT_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_before_block(self) -> bool {
-        self.has_flag(Self::IN_BEFORE_BLOCK_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_tree_literal(self) -> bool {
-        self.has_flag(Self::IN_TREE_LITERAL_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_decorator(self) -> bool {
-        self.has_flag(Self::IN_DECORATOR_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_ternary_condition(self) -> bool {
-        self.has_flag(Self::IN_TERNARY_CONDITION_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_type_conditional_right(self) -> bool {
-        self.has_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_disallow_type_conditional(self) -> bool {
-        self.has_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_arrow_return_type(self) -> bool {
-        self.has_flag(Self::IN_ARROW_RETURN_TYPE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn allows_type_predicate(self) -> bool {
-        self.has_flag(Self::ALLOW_TYPE_PREDICATE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_type_mapped_constraint(self) -> bool {
-        self.has_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_for_each(self) -> bool {
-        self.has_flag(Self::IN_FOR_EACH_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_new_receiver(self) -> bool {
-        self.has_flag(Self::IN_NEW_RECEIVER_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_typeof_query(self) -> bool {
-        self.has_flag(Self::IN_TYPEOF_QUERY_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_generator(self) -> bool {
-        self.has_flag(Self::IN_GENERATOR_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_forbid_yield(self) -> bool {
-        self.has_flag(Self::FORBID_YIELD_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_forbid_await(self) -> bool {
-        self.has_flag(Self::FORBID_AWAIT_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn allows_sequence_expression(self) -> bool {
-        self.has_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn allows_private_hash_key(self) -> bool {
-        self.has_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_disallow_ambiguous_tree_literal(self) -> bool {
-        self.has_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG)
-    }
-
-    /// Replace the hot expression-local portion of these flags.
-    #[inline]
-    pub(crate) fn with_expression_context(mut self, context: ParserFlags) -> Self {
-        self.flags = (self.flags & !Self::EXPRESSION_FLAG_MASK)
-            | (context.flags & Self::EXPRESSION_FLAG_MASK);
-        if context.is_in_statement_position() {
-            self.set_in_statement_context(true);
-        }
-        self.left_precedence = context.left_precedence;
-        self
-    }
-
-    /// Replace the ambient parser portion of these flags.
-    #[inline]
-    pub(crate) fn with_ambient_context(mut self, context: ParserFlags) -> Self {
-        self.flags =
-            (self.flags & !Self::AMBIENT_FLAG_MASK) | (context.flags & Self::AMBIENT_FLAG_MASK);
-        self
-    }
-
-    #[inline]
-    pub(crate) fn set_in_static(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_STATIC_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_comptime(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_COMPTIME_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_type(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TYPE_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_super_type(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_SUPER_TYPE_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_variant(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_VARIANT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_before_type(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_BEFORE_TYPE_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_match_case(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_MATCH_CASE_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_union_pattern(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_UNION_PATTERN_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_declare_context(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_DECLARE_CONTEXT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_parenthesis(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_PARENTHESIS_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_statement_position(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_STATEMENT_POSITION_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_statement_context(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_STATEMENT_CONTEXT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_before_block(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_BEFORE_BLOCK_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_tree_literal(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TREE_LITERAL_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_decorator(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_DECORATOR_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_ternary_condition(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TERNARY_CONDITION_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_type_conditional_right(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_disallow_type_conditional(&mut self, enabled: bool) {
-        self.set_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_match_case_body(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_MATCH_CASE_BODY_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_arrow_return_type(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_type_mapped_constraint(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_for_each(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_FOR_EACH_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_new_receiver(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_NEW_RECEIVER_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_typeof_query(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TYPEOF_QUERY_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_generator(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_GENERATOR_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_forbid_yield(&mut self, enabled: bool) {
-        self.set_flag(Self::FORBID_YIELD_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_forbid_await(&mut self, enabled: bool) {
-        self.set_flag(Self::FORBID_AWAIT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_allow_sequence_expression(&mut self, enabled: bool) {
-        self.set_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_allow_private_hash_key(&mut self, enabled: bool) {
-        self.set_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_disallow_ambiguous_tree_literal(&mut self, enabled: bool) {
-        self.set_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG, enabled);
-    }
-
-    /// Set `in_static` to the given value.
-    #[inline]
-    pub(crate) fn with_static(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_STATIC_FLAG, enabled)
-    }
-
-    /// Set `in_comptime` to the given value.
-    #[inline]
-    pub(crate) fn with_comptime(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_COMPTIME_FLAG, enabled)
-    }
-
-    /// Set `in_type` to the given value.
-    #[inline]
-    pub(crate) fn with_type(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_TYPE_FLAG, enabled)
-    }
-
-    /// Set `in_super_type` to the given value.
-    #[inline]
-    pub(crate) fn with_super_type(self, enabled: bool) -> Self {
-        let flags = self.with_flag(Self::IN_SUPER_TYPE_FLAG, enabled);
-        if enabled {
-            flags.with_type(true)
-        } else {
-            flags
-        }
-    }
-
-    /// Set `in_variant` to the given value.
-    #[inline]
-    pub(crate) fn with_variant(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_VARIANT_FLAG, enabled)
-    }
-
-    /// Set `in_before_type` to the given value.
-    #[inline]
-    pub(crate) fn with_before_type(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_BEFORE_TYPE_FLAG, enabled)
-    }
-
-    /// Set `in_match_case` to the given value.
-    #[inline]
-    pub(crate) fn with_match_case(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_MATCH_CASE_FLAG, enabled)
-    }
-
-    /// Set `in_match_case_body` to the given value.
-    #[inline]
-    pub(crate) fn with_match_case_body(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_MATCH_CASE_BODY_FLAG, enabled)
-    }
-
-    /// Set `in_union_pattern` to the given value.
-    #[inline]
-    pub(crate) fn with_union_pattern(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_UNION_PATTERN_FLAG, enabled)
-    }
-
-    /// Set `in_declare_context` to the given value.
-    #[inline]
-    pub(crate) fn with_declare_context(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_DECLARE_CONTEXT_FLAG, enabled)
-    }
-
-    /// Set `in_parenthesis` to the given value.
-    #[inline]
-    pub(crate) fn with_parenthesis(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_PARENTHESIS_FLAG, enabled)
-    }
-
-    /// Set `in_statement_position` to the given value.
-    #[inline]
-    pub(crate) fn with_statement_position(self, enabled: bool) -> Self {
-        let flags = self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, enabled);
-        if enabled {
-            flags.with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, true)
-        } else {
-            flags
-        }
-    }
-
-    /// Set `in_statement_context` to the given value.
-    #[inline]
-    pub(crate) fn with_statement_context(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, enabled)
-    }
-
-    /// Set `in_before_block` to the given value.
-    #[inline]
-    pub(crate) fn with_before_block(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_BEFORE_BLOCK_FLAG, enabled)
-    }
-
-    /// Set `in_tree_literal` to the given value.
-    #[inline]
-    pub(crate) fn with_tree_literal(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_TREE_LITERAL_FLAG, enabled)
-    }
-
-    /// Set `in_decorator` to the given value.
-    #[inline]
-    pub(crate) fn with_decorator(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_DECORATOR_FLAG, enabled)
-    }
-
-    /// Set `in_ternary_condition` to the given value.
-    #[inline]
-    pub(crate) fn with_ternary_condition(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_TERNARY_CONDITION_FLAG, enabled)
-    }
-
-    /// Set `in_type_conditional_right` to the given value.
-    #[inline]
-    pub(crate) fn with_type_conditional_right(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, enabled)
-    }
-
-    /// Set `in_type_conditional_right=false`.
-    #[inline]
-    pub(crate) fn not_in_type_conditional_right(self) -> Self {
-        self.with_type_conditional_right(false)
-    }
-
-    /// Set `disallow_type_conditional` to the given value.
-    #[inline]
-    pub(crate) fn with_disallow_type_conditional(self, enabled: bool) -> Self {
-        self.with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, enabled)
-    }
-
-    /// Set `in_arrow_return_type` to the given value.
-    #[inline]
-    pub(crate) fn with_arrow_return_type(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, enabled)
-    }
-
-    /// Set `in_type_mapped_constraint` to the given value.
-    #[inline]
-    pub(crate) fn with_type_mapped_constraint(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, enabled)
-    }
-
-    /// Set `in_for_each` to the given value.
-    #[inline]
-    pub(crate) fn with_for_each(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_FOR_EACH_FLAG, enabled)
-    }
-
-    /// Set `in_new_receiver` to the given value.
-    #[inline]
-    pub(crate) fn with_new_receiver(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_NEW_RECEIVER_FLAG, enabled)
-    }
-
-    /// Set `in_typeof_query` to the given value.
-    #[inline]
-    pub(crate) fn with_typeof_query(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_TYPEOF_QUERY_FLAG, enabled)
-    }
-
-    /// Set `forbid_await` to the given value.
-    #[inline]
-    pub(crate) fn with_forbid_await(self, enabled: bool) -> Self {
-        self.with_flag(Self::FORBID_AWAIT_FLAG, enabled)
-    }
-
-    /// Set `allow_sequence_expression` to the given value.
-    #[inline]
-    pub(crate) fn with_sequence_expression(self, enabled: bool) -> Self {
-        self.with_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, enabled)
-    }
-
-    /// Set `allow_private_hash_key` to the given value.
-    #[inline]
-    pub(crate) fn with_allow_private_hash_key(self, enabled: bool) -> Self {
-        self.with_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, enabled)
-    }
-
-    /// Set `in_static=true`.
-    #[inline]
-    pub(crate) fn in_static(self) -> Self {
-        self.with_flag(Self::IN_STATIC_FLAG, true)
-    }
-
-    /// Set `in_comptime=true`.
-    #[inline]
-    pub(crate) fn in_comptime(self) -> Self {
-        self.with_flag(Self::IN_COMPTIME_FLAG, true)
-    }
-
-    /// Set `in_type=true`.
-    #[inline]
-    pub(crate) fn in_type(self) -> Self {
-        self.with_flag(Self::IN_TYPE_FLAG, true)
-    }
-
-    /// Set `in_type=false`.
-    #[inline]
-    pub(crate) fn not_in_type(self) -> Self {
-        self.with_flag(Self::IN_TYPE_FLAG, false)
-    }
-
-    /// Set `in_super_type=true`.
-    #[inline]
-    pub(crate) fn in_super_type(self) -> Self {
-        self.with_flag(Self::IN_TYPE_FLAG, true)
-            .with_flag(Self::IN_SUPER_TYPE_FLAG, true)
-    }
-
-    /// Set `in_generator` to the given value.
-    #[inline]
-    pub(crate) fn with_generator(self, in_generator: bool) -> Self {
-        self.with_flag(Self::IN_GENERATOR_FLAG, in_generator)
-    }
-
-    /// Set `forbid_yield` to the given value.
-    #[inline]
-    pub(crate) fn with_forbid_yield(self, forbid_yield: bool) -> Self {
-        self.with_flag(Self::FORBID_YIELD_FLAG, forbid_yield)
-    }
-
-    /// Set `forbid_await=true`.
-    #[inline]
-    pub(crate) fn forbid_await(self) -> Self {
-        self.with_flag(Self::FORBID_AWAIT_FLAG, true)
-    }
-
-    /// Set `in_variant=true`.
-    #[inline]
-    pub(crate) fn in_variant(self) -> Self {
-        self.with_flag(Self::IN_VARIANT_FLAG, true)
-    }
-
-    /// Set `in_variant=false`.
-    #[inline]
-    pub(crate) fn not_in_variant(self) -> Self {
-        self.with_flag(Self::IN_VARIANT_FLAG, false)
-    }
-
-    /// Set `in_before_type=true`.
-    #[inline]
-    pub(crate) fn in_before_type(self) -> Self {
-        self.with_flag(Self::IN_BEFORE_TYPE_FLAG, true)
-    }
-
-    /// Set `in_match_case=true`.
-    #[inline]
-    pub(crate) fn in_match_case(self) -> Self {
-        self.with_flag(Self::IN_MATCH_CASE_FLAG, true)
-    }
-
-    /// Set `in_match_case_body=true`.
-    #[inline]
-    pub(crate) fn in_match_case_body(self) -> Self {
-        self.with_flag(Self::IN_MATCH_CASE_BODY_FLAG, true)
-    }
-
-    /// Set `in_union_pattern=true`.
-    #[inline]
-    pub(crate) fn in_union_pattern(self) -> Self {
-        self.with_flag(Self::IN_UNION_PATTERN_FLAG, true)
-    }
-
-    /// Set `in_declare_context=true`.
-    #[inline]
-    pub(crate) fn in_declare_context(self) -> Self {
-        self.with_flag(Self::IN_DECLARE_CONTEXT_FLAG, true)
-    }
-
-    /// Set `in_parenthesis=true`.
-    #[inline]
-    pub(crate) fn in_parenthesis(self) -> Self {
-        self.with_flag(Self::IN_PARENTHESIS_FLAG, true)
-    }
-
-    /// Set `in_parenthesis=false`.
-    #[inline]
-    pub(crate) fn not_in_parenthesis(self) -> Self {
-        self.with_flag(Self::IN_PARENTHESIS_FLAG, false)
-    }
-
-    /// Set `in_statement_position=true`.
-    #[inline]
-    pub(crate) fn in_statement_position(self) -> Self {
-        self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, true)
-            .with_flag(Self::IN_STATEMENT_CONTEXT_FLAG, true)
-    }
-
-    /// Set `in_statement_position=false`.
-    #[inline]
-    pub(crate) fn not_in_statement_position(self) -> Self {
-        self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
-    }
-
-    /// Set `in_before_block=true`.
-    #[inline]
-    pub(crate) fn in_before_block(self) -> Self {
-        self.with_flag(Self::IN_BEFORE_BLOCK_FLAG, true)
-    }
-
-    /// Set `in_tree_literal=true`.
-    #[inline]
-    pub(crate) fn in_tree_literal(self) -> Self {
-        self.with_flag(Self::IN_TREE_LITERAL_FLAG, true)
-    }
-
-    /// Set `in_tree_literal=false`.
-    #[inline]
-    pub(crate) fn not_in_tree_literal(self) -> Self {
-        self.with_flag(Self::IN_TREE_LITERAL_FLAG, false)
-    }
-
-    /// Set `in_before_block=false`.
-    #[inline]
-    pub(crate) fn not_in_before_block(self) -> Self {
-        self.with_flag(Self::IN_BEFORE_BLOCK_FLAG, false)
-    }
-
-    /// Set `in_ternary_condition=true`.
-    #[inline]
-    pub(crate) fn in_ternary_condition(self) -> Self {
-        self.with_flag(Self::IN_TERNARY_CONDITION_FLAG, true)
-    }
-
-    /// Set `in_ternary_condition=false`.
-    #[inline]
-    pub(crate) fn not_in_ternary_condition(self) -> Self {
-        self.with_flag(Self::IN_TERNARY_CONDITION_FLAG, false)
-    }
-
-    /// Set `in_type_conditional_right=true`.
-    #[inline]
-    pub(crate) fn in_type_conditional_right(self) -> Self {
-        self.with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, true)
-    }
-
-    /// Set `disallow_type_conditional=true`.
-    #[inline]
-    pub(crate) fn disallow_type_conditional(self) -> Self {
-        self.with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, true)
-    }
-
-    /// Set `in_arrow_return_type=true`.
-    #[inline]
-    pub(crate) fn in_arrow_return_type(self) -> Self {
-        self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, true)
-    }
-
-    /// Set `allow_type_predicate=true`.
-    #[inline]
-    pub(crate) fn allow_type_predicate(self) -> Self {
-        self.with_flag(Self::ALLOW_TYPE_PREDICATE_FLAG, true)
-    }
-
-    /// Set `in_type_mapped_constraint=true`.
-    #[inline]
-    pub(crate) fn in_type_mapped_constraint(self) -> Self {
-        self.with_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, true)
-    }
-
-    /// Set `in_for_each=true`.
-    #[inline]
-    pub(crate) fn in_for_each(self) -> Self {
-        self.with_flag(Self::IN_FOR_EACH_FLAG, true)
-    }
-
-    /// Set `in_new_receiver=true`.
-    #[inline]
-    pub(crate) fn in_new_receiver(self) -> Self {
-        self.with_flag(Self::IN_NEW_RECEIVER_FLAG, true)
-    }
-
-    /// Set `in_new_receiver=false`.
-    #[inline]
-    pub(crate) fn not_in_new_receiver(self) -> Self {
-        self.with_flag(Self::IN_NEW_RECEIVER_FLAG, false)
-    }
-
-    /// Set `in_typeof_query=true`.
-    #[inline]
-    pub(crate) fn in_typeof_query(self) -> Self {
-        self.with_flag(Self::IN_TYPEOF_QUERY_FLAG, true)
-    }
-
-    /// Set `allow_private_hash_key=true`.
-    #[inline]
-    pub(crate) fn allow_private_hash_key(self) -> Self {
-        self.with_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, true)
-    }
-
-    /// Set `in_generator=true`.
-    #[inline]
-    pub(crate) fn in_generator(self) -> Self {
-        self.with_flag(Self::IN_GENERATOR_FLAG, true)
-    }
-
-    /// Set `in_decorator=true`.
-    #[inline]
-    pub(crate) fn in_decorator(self) -> Self {
-        self.with_flag(Self::IN_DECORATOR_FLAG, true)
-    }
-
-    /// Set `in_decorator=false`.
-    #[inline]
-    pub(crate) fn not_in_decorator(self) -> Self {
-        self.with_flag(Self::IN_DECORATOR_FLAG, false)
-    }
-
-    /// Set `left_precedence=precedence`.
-    #[inline]
-    pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
-        Self {
-            left_precedence: Some(precedence),
-            ..self
-        }
-    }
-
-    /// Clear `left_precedence` to allow all operators.
-    #[inline]
-    pub(crate) fn not_in_left_precedence(self) -> Self {
-        Self {
-            left_precedence: None,
-            ..self
-        }
-    }
-
-    /// Disallow sequence expressions (comma operator).
-    #[inline]
-    pub(crate) fn not_in_sequence_expression(self) -> Self {
-        self.with_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, false)
-    }
-
-    /// Disallow arrow return type shielding for nested expressions.
-    #[inline]
-    pub(crate) fn not_in_arrow_return_type(self) -> Self {
-        self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, false)
-    }
-
-    /// Not previous position.
-    #[inline]
-    pub(crate) fn not_in_position(self) -> Self {
-        self.with_flag(Self::IN_PARENTHESIS_FLAG, false)
-            .with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
-            .with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, false)
-            .with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, false)
-    }
-
-    /// Reset position-related flags but preserve context flags like `in_generator`.
-    pub(crate) fn nested(self) -> Self {
-        let mut flags = Self::default();
-        flags.set_in_generator(self.is_in_generator());
-        flags.set_in_comptime(self.is_in_comptime());
-        flags.set_forbid_yield(self.is_forbid_yield());
-        flags.set_forbid_await(self.is_forbid_await());
-        flags.set_allow_sequence_expression(self.allows_sequence_expression());
-        flags.set_in_decorator(self.is_in_decorator());
-        flags.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
-        flags.set_in_declare_context(self.is_in_declare_context());
-        flags.set_in_statement_context(self.is_in_statement_context());
-        flags
-    }
+struct ParserLookaheadToken {
+    /// The current token span that owns the cache.
+    current_span: Span,
+    /// The contextual lexing mode used to produce the lookahead token.
+    mode: ContextualLexMode,
+    /// The lookahead token.
+    token: TokenSpan,
 }
 
 /// A parser for a single source file.
@@ -977,26 +48,20 @@ pub struct Parser {
     pub file: Arc<File>,
     /// The source ID.
     pub file_id: FileId,
-    /// The semantic token stream.
-    tokens: Vec<TokenSpan>,
-    /// The tokens committed by parser context-sensitive interpretation.
+    /// The live lexer cursor.
+    lexer: Lexer,
+    /// The tokens consumed by parser context-sensitive interpretation.
     consumed_tokens: Vec<TokenSpan>,
-    /// Virtual tokens produced by splitting or reclassifying the base token stream.
-    pending_tokens: Vec<TokenSpan>,
     /// The side token stream.
     side_tokens: Vec<TokenSpan>,
     /// The structured comments collected during lexing.
     comments: Vec<Comment>,
-    /// Whether trivia tokens were retained while lexing.
-    retain_trivia_tokens: bool,
+    /// The parser trivia retention mode.
+    trivia_mode: ParserTriviaMode,
     /// Whether tree literal token interpretation is enabled.
     allow_tree_literals: bool,
-    /// Whether the next tree attribute value can span lines.
-    in_tree_attribute_value: bool,
-    /// The current semantic token index.
-    token_index: usize,
-    /// Whether the current token was read from pending virtual tokens.
-    current_token_is_pending: bool,
+    /// The lexing mode for the next token read.
+    contextual_lex_mode: ContextualLexMode,
 
     /// The current visible token at the parser cursor.
     current_token: TokenSpan,
@@ -1004,12 +69,16 @@ pub struct Parser {
     previous_token_end: u32,
     /// The last consumed visible token.
     last_consumed_token: TokenSpan,
+    /// The cached next visible token.
+    next_token_cache: Option<ParserLookaheadToken>,
     /// Whether the parser is finished.
     is_finished: bool,
     /// The parser context flags.
     pub(crate) flags: ParserFlags,
     /// Whether transparent parenthesized wrappers should be preserved in the tree.
     preserve_parenthesized_wrappers: bool,
+    /// The current nested recursive descent depth.
+    recursive_descent_depth: u16,
 
     /// The Node DIR tree.
     pub tree: Tree,
@@ -1018,10 +87,10 @@ pub struct Parser {
 
     /// The language type for parsing behavior.
     pub language: LanguageType,
-    /// The diagnostic collector.
-    pub diagnostics: DiagnosticCollector,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParseError>,
+    /// The parser error keys encountered so far.
+    error_keys: HashSet<ParseErrorKey>,
     /// Semantic parser bookkeeping.
     pub(crate) state: ParserState,
 }
@@ -1039,22 +108,42 @@ impl Parser {
         self.current_token.token.is_on_new_line
     }
 
+    /// Return true when source trivia before the offset token contains a line break.
+    #[inline]
+    pub(crate) fn token_at_offset_has_leading_line_break(&mut self, offset: usize) -> bool {
+        self.token_at_offset(offset).token.is_on_new_line
+    }
+
     /// Return true when comments appear between the previous token and current token.
     pub(crate) fn current_token_has_leading_comment(&self) -> bool {
-        let start = self.previous_token_end;
-        let end = self.current_token.span.start;
+        self.source_range_has_comment(self.previous_token_end, self.current_token.span.start)
+    }
 
-        self.side_tokens.iter().any(|token| {
-            token.span.start >= start
-                && token.span.end <= end
-                && matches!(
-                    token.token.ty,
-                    TokenType::LineComment
-                        | TokenType::BlockComment
-                        | TokenType::DocLineComment
-                        | TokenType::DocBlockComment
-                )
-        })
+    /// Return true when comments appear before one peeked token.
+    pub(crate) fn token_has_leading_comment_after(
+        &self,
+        previous_end: u32,
+        token: TokenSpan,
+    ) -> bool {
+        self.source_range_has_comment(previous_end, token.span.start)
+    }
+
+    /// Return true when one source range contains a line or block comment.
+    fn source_range_has_comment(&self, start: u32, end: u32) -> bool {
+        let bytes = self.file.text().as_bytes();
+        let mut offset = start as usize;
+        let end = end as usize;
+
+        // scan trivia bytes between visible tokens
+        while offset + 1 < end {
+            if bytes[offset] == b'/' && matches!(bytes[offset + 1], b'/' | b'*') {
+                return true;
+            }
+
+            offset += 1;
+        }
+
+        false
     }
 
     /// Return true when transparent parenthesized wrappers stay in the parsed tree.
@@ -1063,56 +152,64 @@ impl Parser {
         self.preserve_parenthesized_wrappers
     }
 
-    /// Create one parser for a file before lexing begins.
-    fn parser_for_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
-        let module_id = ModuleId::new(PackageId::new(0), file.id.0);
+    /// Run one parser descent under the shared recursion budget.
+    #[inline(always)]
+    pub(crate) fn with_recursive_descent<T>(
+        &mut self,
+        owner: NodeType,
+        parse: impl FnOnce(&mut Self) -> ParseResult<T>,
+    ) -> ParseResult<T> {
+        if self.recursive_descent_depth >= MAX_RECURSIVE_DESCENT_DEPTH {
+            return Err(ParseError::unexpected_for(self.peek()?.span, owner));
+        }
 
-        Self::parser_for_module(file, language, module_id, strings)
-    }
+        self.recursive_descent_depth += 1;
+        let result = parse(self);
+        self.recursive_descent_depth -= 1;
 
-    /// Create one parser for a source module before lexing begins.
-    fn parser_for_module(
-        file: Arc<File>,
-        language: LanguageType,
-        module_id: ModuleId,
-        strings: Arc<StringPool>,
-    ) -> Self {
-        let source_len = file.text().len();
-        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
-        let estimated_nodes = estimated_tokens;
-        let tree = Tree::with_capacity(module_id, estimated_nodes);
-
-        Self::parser_for_module_tree(file, language, strings, tree, ParserOptions::default())
+        result
     }
 
     /// Create one parser that appends into an existing DIR tree.
-    fn parser_for_module_tree(
+    fn parser_with_tree(
         file: Arc<File>,
         language: LanguageType,
         strings: Arc<StringPool>,
         tree: Tree,
         options: ParserOptions,
     ) -> Self {
-        // tokenize the file before parse
-        let lex_result =
-            Lexer::lex_with_options(file.clone(), language, options.retain_trivia_tokens);
+        let source_len = file.text().len();
+        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
+        let estimated_side_tokens = if options.trivia_mode.keeps_side_tokens() {
+            estimated_tokens / 2
+        } else {
+            0
+        };
+        let estimated_comments = if options.trivia_mode.keeps_comments() {
+            estimated_tokens / 16
+        } else {
+            0
+        };
+        let estimated_strings = estimated_tokens / ESTIMATED_STRING_TOKEN_DIVISOR;
+
+        // create the live lexer cursor
+        let mut lexer = Lexer::new(file.clone(), language);
+        lexer.set_trivia_mode(options.trivia_mode);
 
         // initialize source-local parser state
         let file_id = file.id;
+        strings.reserve(estimated_strings);
         let type_literal_identifiers = TypeLiteralIdentifiers::new(strings.as_ref());
         Self {
             file,
             file_id,
-            tokens: lex_result.tokens,
-            consumed_tokens: Vec::new(),
-            pending_tokens: Vec::new(),
-            side_tokens: lex_result.side_tokens,
-            comments: lex_result.comments,
-            retain_trivia_tokens: options.retain_trivia_tokens,
+            lexer,
+            consumed_tokens: Vec::with_capacity(estimated_tokens),
+            side_tokens: Vec::with_capacity(estimated_side_tokens),
+            comments: Vec::with_capacity(estimated_comments),
+            trivia_mode: options.trivia_mode,
             allow_tree_literals: language.supports_jsx(),
-            in_tree_attribute_value: false,
-            token_index: 0,
-            current_token_is_pending: false,
+            contextual_lex_mode: ContextualLexMode::Normal,
             current_token: TokenSpan {
                 token: Token::end(),
                 span: Span::new(file_id, 0, 0),
@@ -1122,25 +219,28 @@ impl Parser {
                 token: Token::end(),
                 span: Span::new(file_id, 0, 0),
             },
+            next_token_cache: None,
             is_finished: false,
             flags: ParserFlags::default(),
             preserve_parenthesized_wrappers: options.preserve_parenthesized_wrappers,
+            recursive_descent_depth: 0,
             language,
             tree,
             strings,
-            diagnostics: DiagnosticCollector::new(),
-            errors: Vec::new(),
+            errors: Vec::with_capacity(4),
+            error_keys: HashSet::with_capacity(4),
             state: ParserState::new(type_literal_identifiers),
         }
     }
 
     /// Create a new parser from a text File and tokenize it.
     pub fn lex_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
-        let mut parser = Self::parser_for_file(file, language, strings);
+        let options = ParserOptions {
+            trivia_mode: ParserTriviaMode::Documentation,
+            ..ParserOptions::default()
+        };
 
-        // reset parser state to start
-        parser.reset();
-        parser
+        Self::lex_file_with_options(file, language, options, strings)
     }
 
     /// Create a new parser from a module text File and tokenize it.
@@ -1150,11 +250,12 @@ impl Parser {
         language: LanguageType,
         strings: Arc<StringPool>,
     ) -> Self {
-        let mut parser = Self::parser_for_module(file, language, module_id, strings);
+        let options = ParserOptions {
+            trivia_mode: ParserTriviaMode::Documentation,
+            ..ParserOptions::default()
+        };
 
-        // reset parser state to start
-        parser.reset();
-        parser
+        Self::lex_module_with_options(module_id, file, language, options, strings)
     }
 
     /// Lex a file and apply parser options.
@@ -1165,13 +266,8 @@ impl Parser {
         strings: Arc<StringPool>,
     ) -> Self {
         let module_id = ModuleId::new(PackageId::new(0), file.id.0);
-        let source_len = file.text().len();
-        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
-        let tree = Tree::with_capacity(module_id, estimated_tokens);
-        let mut parser = Self::parser_for_module_tree(file, language, strings, tree, options);
-        parser.reset();
-        parser.apply_options(options);
-        parser
+
+        Self::lex_module_with_options(module_id, file, language, options, strings)
     }
 
     /// Lex a module text File and apply parser options.
@@ -1185,10 +281,8 @@ impl Parser {
         let source_len = file.text().len();
         let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
         let tree = Tree::with_capacity(module_id, estimated_tokens);
-        let mut parser = Self::parser_for_module_tree(file, language, strings, tree, options);
-        parser.reset();
-        parser.apply_options(options);
-        parser
+
+        Self::lex_module_tree_with_options(file, language, options, strings, tree)
     }
 
     /// Lex a module text File into an existing DIR tree and apply parser options.
@@ -1199,7 +293,7 @@ impl Parser {
         strings: Arc<StringPool>,
         tree: Tree,
     ) -> Self {
-        let mut parser = Self::parser_for_module_tree(file, language, strings, tree, options);
+        let mut parser = Self::parser_with_tree(file, language, strings, tree, options);
         parser.reset();
         parser.apply_options(options);
         parser
@@ -1212,7 +306,7 @@ impl Parser {
             .set_disallow_ambiguous_tree_literal(options.disallow_ambiguous_tree_literal);
         self.preserve_parenthesized_wrappers = options.preserve_parenthesized_wrappers;
         debug_assert!(
-            self.retain_trivia_tokens == options.retain_trivia_tokens,
+            self.trivia_mode == options.trivia_mode,
             "trivia retention must be configured before lexing starts"
         );
     }
@@ -1233,11 +327,12 @@ impl Parser {
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.previous_token_end = 0;
-        self.token_index = 0;
         self.consumed_tokens.clear();
-        self.pending_tokens.clear();
-        self.current_token_is_pending = false;
-        self.in_tree_attribute_value = false;
+        self.side_tokens.clear();
+        self.comments.clear();
+        self.lexer = Lexer::new(self.file.clone(), self.language);
+        self.lexer.set_trivia_mode(self.trivia_mode);
+        self.contextual_lex_mode = ContextualLexMode::Normal;
         self.allow_tree_literals = self.language.supports_jsx();
         let mut flags = ParserFlags::default();
         flags.set_disallow_ambiguous_tree_literal(
@@ -1245,6 +340,7 @@ impl Parser {
         );
         self.flags = flags;
         self.errors.clear();
+        self.error_keys.clear();
         self.state.reset();
 
         self.read_next_token();
@@ -1253,6 +349,7 @@ impl Parser {
             token: Token::end(),
             span: Span::new(self.file_id, 0, 0),
         };
+        self.next_token_cache = None;
     }
 
     /// Swap parser flags and return the previous value.
@@ -1277,20 +374,23 @@ impl Parser {
         flags: ParserFlags,
         func: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        if self.flags == flags {
-            return func(self);
-        }
+        let result = if self.flags == flags {
+            func(self)
+        } else {
+            let old_flags = self.swap_flags(flags);
+            let result = func(self);
+            self.restore_flags(old_flags);
 
-        let old_flags = self.swap_flags(flags);
-        let result = func(self);
-        self.restore_flags(old_flags);
+            result
+        };
+
         result
     }
 
     /// Return the current semantic tokens.
     #[inline]
     pub(crate) fn tokens(&self) -> &[TokenSpan] {
-        &self.tokens
+        &self.consumed_tokens
     }
 
     /// Return the innermost expression after skipping parenthesized wrappers.
@@ -1325,101 +425,43 @@ impl Parser {
             return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
         }
 
-        self.bump();
+        self.bump_tree_opening_angle();
         Ok(())
+    }
+
+    /// Advance past a tree opening `<`.
+    #[inline]
+    fn bump_tree_opening_angle(&mut self) {
+        self.contextual_lex_mode = ContextualLexMode::TreeTag;
+        self.next_token_cache = None;
+        self.bump();
     }
 
     /// Enable or disable tree attribute value lexing for the next token.
     #[inline]
     pub(crate) fn set_tree_attribute_value(&mut self, enabled: bool) {
-        self.in_tree_attribute_value = enabled;
+        self.contextual_lex_mode = if enabled {
+            ContextualLexMode::TreeAttributeValue
+        } else {
+            ContextualLexMode::Normal
+        };
+        self.next_token_cache = None;
     }
 
-    /// Return whether a source byte starts tree child text.
+    /// Read the next token in tree tag mode.
     #[inline]
-    fn byte_starts_tree_text(byte: u8) -> bool {
-        !matches!(byte, b'<' | b'>' | b'{' | b'}' | b'&')
+    pub(crate) fn set_tree_tag_follow(&mut self) {
+        self.contextual_lex_mode = ContextualLexMode::TreeTag;
+        self.next_token_cache = None;
     }
 
-    /// Build one tree child token from a source offset.
-    fn tree_child_token_at_offset(&self, start: u32, is_on_new_line: bool) -> TokenSpan {
-        let source = self.file.text();
-        let start = start as usize;
-        let bytes = source.as_bytes();
-
-        if start >= bytes.len() {
-            return TokenSpan {
-                token: Token::end(),
-                span: self.eof_span(),
-            };
-        }
-
-        let byte = bytes[start];
-        if Self::byte_starts_tree_text(byte) {
-            let mut end = start + 1;
-            while end < bytes.len() && Self::byte_starts_tree_text(bytes[end]) {
-                end += 1;
-            }
-
-            let span = Span::new(self.file_id, start as u32, end as u32);
-            return TokenSpan {
-                token: Token::new(
-                    TokenType::Literal,
-                    span.len(),
-                    Some(TokenLiteral::TreeString),
-                )
-                .with_on_new_line(is_on_new_line),
-                span,
-            };
-        }
-
-        if byte == b'&'
-            && let Some(end) = source[start..].find(';').map(|index| start + index + 1)
-        {
-            let span = Span::new(self.file_id, start as u32, end as u32);
-            let source_text = self.get_span_str(span);
-            if decode_html_entity(source_text).is_some() {
-                return TokenSpan {
-                    token: Token::new(
-                        TokenType::Literal,
-                        span.len(),
-                        Some(TokenLiteral::Character {
-                            is_terminated: true,
-                            is_html_entity: true,
-                        }),
-                    )
-                    .with_on_new_line(is_on_new_line),
-                    span,
-                };
-            }
-        }
-
-        if byte == b'&' {
-            let mut end = start + 1;
-            while end < bytes.len() && !matches!(bytes[end], b'<' | b'>' | b'{' | b'&') {
-                end += 1;
-            }
-
-            let span = Span::new(self.file_id, start as u32, end as u32);
-            return TokenSpan {
-                token: Token::new(
-                    TokenType::Literal,
-                    span.len(),
-                    Some(TokenLiteral::TreeString),
-                )
-                .with_on_new_line(is_on_new_line),
-                span,
-            };
-        }
-
-        self.tokens
-            .get(self.token_index)
-            .copied()
-            .filter(|token| token.span.start == start as u32)
-            .unwrap_or_else(|| TokenSpan {
-                token: Token::new(TokenType::Unknown, 1, None).with_on_new_line(is_on_new_line),
-                span: Span::new(self.file_id, start as u32, start as u32 + 1),
-            })
+    /// Bump the current token and read the next one in a contextual lexer mode.
+    #[inline]
+    pub(crate) fn bump_with_contextual_lex_mode(&mut self, mode: ContextualLexMode) {
+        self.contextual_lex_mode = mode;
+        self.next_token_cache = None;
+        self.drop_side_tokens_covered_by_current();
+        self.bump();
     }
 
     /// Re-lex the current token as a generic `<`.
@@ -1490,6 +532,7 @@ impl Parser {
 
     /// Split the current compound token and keep one prefix token at the cursor.
     fn split_current_token_prefix(&mut self, token_type: TokenType, prefix_len: u32) -> TokenSpan {
+        self.next_token_cache = None;
         let current = self.current_token;
         debug_assert!(prefix_len > 0 && prefix_len <= current.token.len);
 
@@ -1505,36 +548,15 @@ impl Parser {
 
         if current.token.len > prefix_len {
             let rest_start = current.span.start + prefix_len;
-            let rest_token = self.split_remainder_token(current, rest_start);
-            self.pending_tokens.insert(0, rest_token);
+            self.lexer.set_position(rest_start as usize);
         }
 
         prefix
     }
 
-    /// Return the token spelling left after splitting one leading angle token.
-    fn split_remainder_token(&self, current: TokenSpan, rest_start: u32) -> TokenSpan {
-        let text = self.get_span_str(Span::new(current.span.file, rest_start, current.span.end));
-        let token_type = match text {
-            "<" => TokenType::LessThan,
-            "=" => TokenType::Assign,
-            "<<" => TokenType::ShiftLeft,
-            "<=" => TokenType::LessThanOrEqual,
-            ">" => TokenType::GreaterThan,
-            ">=" => TokenType::GreaterThanOrEqual,
-            ">>" => TokenType::ShiftRight,
-            ">>=" => TokenType::ShiftRightAssign,
-            _ => current.token.ty,
-        };
-
-        TokenSpan {
-            token: Token::new(token_type, current.span.end - rest_start, None),
-            span: Span::new(current.span.file, rest_start, current.span.end),
-        }
-    }
-
     /// Reclassify the current slash token as one regex literal token.
     fn reclassify_current_divide_as_regex(&mut self) -> TokenSpan {
+        self.next_token_cache = None;
         let current = self.current_token;
         let source = self.file.text();
         let mut index = current.span.start as usize + 1;
@@ -1583,7 +605,9 @@ impl Parser {
         }
 
         let end = index as u32;
-        let token = TokenSpan {
+        self.lexer.set_position(end as usize);
+
+        TokenSpan {
             token: Token::new(
                 TokenType::Literal,
                 end - current.span.start,
@@ -1591,9 +615,7 @@ impl Parser {
             )
             .with_on_new_line(current.token.is_on_new_line),
             span: Span::new(current.span.file, current.span.start, end),
-        };
-
-        token
+        }
     }
 
     /// Eat one typed angle-close token.
@@ -1662,14 +684,24 @@ impl Parser {
     pub fn take_tokens(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
         let mut tokens = mem::take(&mut self.consumed_tokens);
         tokens.push(self.current_token);
-        tokens.append(&mut self.pending_tokens);
 
-        let base_start = if self.current_token_is_pending {
-            self.token_index
-        } else {
-            self.token_index.saturating_add(1)
-        };
-        tokens.extend_from_slice(&self.tokens[base_start..]);
+        if self.current_token.token.ty == TokenType::End {
+            self.drain_lexer_side_tokens();
+
+            return (tokens, mem::take(&mut self.side_tokens));
+        }
+
+        self.contextual_lex_mode = ContextualLexMode::Normal;
+        loop {
+            let token = self.lexer.next_semantic_token();
+            let is_end = token.token.ty == TokenType::End;
+            tokens.push(token);
+
+            if is_end {
+                break;
+            }
+        }
+        self.drain_lexer_side_tokens();
 
         (tokens, mem::take(&mut self.side_tokens))
     }
@@ -1681,67 +713,134 @@ impl Parser {
     }
 
     /// Return one visible token without moving the parser cursor.
-    fn token_at_offset(&self, offset: usize) -> TokenSpan {
+    #[inline(always)]
+    fn cached_next_token(&self) -> Option<TokenSpan> {
+        let cached = self.next_token_cache.as_ref()?;
+        let cache_matches_current = cached.current_span == self.current_token.span;
+        let cache_matches_mode = cached.mode == self.contextual_lex_mode;
+
+        (cache_matches_current && cache_matches_mode).then_some(cached.token)
+    }
+
+    /// Return one visible token without moving the parser cursor.
+    pub(crate) fn token_at_offset(&mut self, offset: usize) -> TokenSpan {
         if offset == 0 {
             return self.current_token;
         }
 
-        let offset = offset - 1;
-        if let Some(token) = self.pending_tokens.get(offset) {
-            return *token;
+        if offset == 1 {
+            if let Some(token) = self.cached_next_token() {
+                return token;
+            }
         }
 
-        let offset = offset - self.pending_tokens.len();
-        let base_start = if self.current_token_is_pending {
-            self.token_index
-        } else {
-            self.token_index.saturating_add(1)
-        };
+        let lexer_checkpoint = self.lexer.checkpoint();
+        let contextual_lex_mode = self.contextual_lex_mode;
+        let side_tokens_len = self.side_tokens.len();
+        let mut token = self.current_token;
+        self.lexer.set_cursor_trivia_mode(ParserTriviaMode::Ignore);
 
-        self.tokens
-            .get(base_start + offset)
-            .copied()
-            .unwrap_or_else(|| TokenSpan {
-                token: Token::end(),
-                span: self.eof_span(),
-            })
+        for _ in 0..offset {
+            token = self.read_token_from_lexer();
+        }
+
+        self.lexer.restore(lexer_checkpoint);
+        self.contextual_lex_mode = contextual_lex_mode;
+        self.side_tokens.truncate(side_tokens_len);
+
+        if offset == 1 {
+            self.next_token_cache = Some(ParserLookaheadToken {
+                current_span: self.current_token.span,
+                mode: contextual_lex_mode,
+                token,
+            });
+        }
+
+        token
+    }
+
+    /// Return one visible token type without moving the parser cursor.
+    #[inline(always)]
+    pub(crate) fn token_type_at_offset(&mut self, offset: usize) -> TokenType {
+        if offset == 0 {
+            return self.current_token.token.ty;
+        }
+
+        if offset == 1
+            && let Some(token) = self.cached_next_token()
+        {
+            return token.token.ty;
+        }
+
+        self.token_at_offset(offset).token.ty
+    }
+
+    /// Return one visible token as a keyword without moving the parser cursor.
+    #[inline(always)]
+    pub(crate) fn keyword_at_offset(&mut self, offset: usize) -> Option<Keyword> {
+        if offset == 0 {
+            if self.current_token.token.ty != TokenType::Identifier {
+                return None;
+            }
+
+            return keyword_from_identifier(self.get_token_str(self.current_token));
+        }
+
+        if offset == 1
+            && let Some(token) = self.cached_next_token()
+        {
+            if token.token.ty != TokenType::Identifier {
+                return None;
+            }
+
+            return keyword_from_identifier(self.get_token_str(token));
+        }
+
+        let token = self.token_at_offset(offset);
+        if token.token.ty != TokenType::Identifier {
+            return None;
+        }
+
+        keyword_from_identifier(self.get_token_str(token))
     }
 
     /// Read the next token from the lexer cursor.
     #[inline]
     fn read_next_token(&mut self) {
-        if !self.pending_tokens.is_empty() {
-            self.current_token = self.pending_tokens.remove(0);
-            self.current_token_is_pending = true;
-            return;
+        self.next_token_cache = None;
+        self.current_token = self.read_token_from_lexer();
+    }
+
+    /// Read one token from the live lexer in the current contextual mode.
+    fn read_token_from_lexer(&mut self) -> TokenSpan {
+        let token = match self.contextual_lex_mode {
+            ContextualLexMode::Normal => self.lexer.next_semantic_token(),
+            ContextualLexMode::TreeTag => self.lexer.next_tree_tag_token(),
+            ContextualLexMode::TreeChild => self.lexer.next_tree_child_token(),
+            ContextualLexMode::TreeAttributeValue => self
+                .lexer
+                .next_tree_attribute_value_token()
+                .unwrap_or_else(|| self.lexer.next_semantic_token()),
+        };
+
+        if self.contextual_lex_mode == ContextualLexMode::TreeAttributeValue {
+            self.contextual_lex_mode = ContextualLexMode::Normal;
         }
 
-        self.current_token = self
-            .tokens
-            .get(self.token_index)
-            .copied()
-            .unwrap_or_else(|| TokenSpan {
-                token: Token::end(),
-                span: self.eof_span(),
-            });
-        self.current_token_is_pending = false;
+        if self.trivia_mode.keeps_side_tokens() {
+            self.drain_lexer_side_tokens();
+        }
+
+        token
     }
 
-    /// Read the next token as tree child source.
-    fn read_next_tree_child_token(&mut self) {
-        let start = self.previous_token_end;
-        self.pending_tokens.clear();
-
-        let is_on_new_line = self
-            .tokens
-            .get(self.token_index)
-            .is_some_and(|token| token.token.is_on_new_line);
-        self.current_token = self.tree_child_token_at_offset(start, is_on_new_line);
-        self.current_token_is_pending = true;
+    /// Move produced side tokens into the parser output buffer.
+    fn drain_lexer_side_tokens(&mut self) {
+        self.lexer.drain_side_tokens_into(&mut self.side_tokens);
     }
 
-    /// Parse everything as an implicit namespace with optional trivia attachment.
-    fn parse_root_expressions(&mut self, attach_trivia: bool) -> Vec<LocalNodeId<Expression>> {
+    /// Parse root expressions as an implicit namespace.
+    fn parse_roots(&mut self, attach_comments: bool) -> Vec<LocalNodeId<Expression>> {
         let start = self.span_start();
         let mut expressions = self.with_token_recovery(
             &start,
@@ -1749,12 +848,13 @@ impl Parser {
             Vec::new(),
             TokenType::End,
         );
+        self.drain_lexer_trivia();
 
         // ensure one stable owner for trivia only files
         self.ensure_trivia_anchor_maybe(&mut expressions, false);
 
         // attach comments only in the full parse pipeline
-        if attach_trivia {
+        if attach_comments {
             self.attach_comments();
             self.is_finished = true;
         }
@@ -1764,7 +864,7 @@ impl Parser {
 
     /// Parse everything as an implicit namespace.
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
-        self.parse_root_expressions(true)
+        self.parse_roots(true)
     }
 
     /// Return whether the parser finished one full parse pipeline.
@@ -1772,9 +872,9 @@ impl Parser {
         self.is_finished
     }
 
-    /// Parse everything as an implicit namespace without attaching trivia.
-    pub fn parse_without_trivia(&mut self) -> Vec<LocalNodeId<Expression>> {
-        self.parse_root_expressions(false)
+    /// Parse everything as an implicit namespace without attaching comments.
+    pub fn parse_without_attaching_comments(&mut self) -> Vec<LocalNodeId<Expression>> {
+        self.parse_roots(false)
     }
 
     /// Ensure one stable owner for comment trivia in comment only files.
@@ -1783,7 +883,7 @@ impl Parser {
         expressions: &mut Vec<LocalNodeId<Expression>>,
         consumed_to_end: bool,
     ) {
-        if !self.retain_trivia_tokens {
+        if !self.trivia_mode.keeps_comments() {
             return;
         }
 
@@ -1813,7 +913,7 @@ impl Parser {
 
         // directive only files with attachable semantic tokens already have stable owners
         if self
-            .tokens
+            .consumed_tokens
             .iter()
             .any(|token| token.token.ty != TokenType::End)
         {
@@ -1826,8 +926,10 @@ impl Parser {
 
     /// Attach retained comments after parsing when needed.
     pub fn attach_comments(&mut self) {
+        self.drain_lexer_trivia();
+
         // skip comment output when trivia retention is disabled
-        if !self.retain_trivia_tokens {
+        if !self.trivia_mode.keeps_comments() {
             return;
         }
 
@@ -1845,31 +947,56 @@ impl Parser {
         self.tree.comments_mut().extend(comments);
     }
 
+    /// Move produced lexer trivia into parser output buffers.
+    fn drain_lexer_trivia(&mut self) {
+        self.drain_lexer_side_tokens();
+        self.lexer.drain_trivia_comments_into(&mut self.comments);
+    }
+
     /// Handle an error as a Diagnostic.
     /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
-    #[inline]
+    #[cold]
+    #[inline(never)]
     pub(crate) fn error(&mut self, e: &ParseError) {
-        if !self.errors.iter().any(|d| d.eq_content(e)) {
+        let key = e.leaf_content();
+        if self.error_keys.insert(key) {
             self.errors.push(e.clone());
-            let diagnostic = e.to_diagnostic(self.file.as_ref(), self.tokens());
-            self.diagnostics.insert(diagnostic);
         }
+    }
+
+    /// Build source diagnostics from parser errors.
+    pub fn diagnostics(&self) -> DiagnosticCollection {
+        let diagnostics = self
+            .errors
+            .iter()
+            .map(|error| error.to_diagnostic(self.file.as_ref(), self.tokens()))
+            .collect();
+
+        DiagnosticCollection::from_diagnostics(diagnostics)
+    }
+
+    /// Rebuild parser error keys after speculative rollback.
+    #[cold]
+    #[inline(never)]
+    fn rebuild_error_keys(&mut self) {
+        self.error_keys.clear();
+        self.error_keys
+            .extend(self.errors.iter().map(ParseError::leaf_content));
     }
 
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.
     #[inline(always)]
     pub fn checkpoint(&mut self) -> ParserCheckpoint {
         ParserCheckpoint {
-            token_index: self.token_index,
-            current_token_is_pending: self.current_token_is_pending,
-            pending_tokens: self.pending_tokens.clone(),
+            lexer_checkpoint: self.lexer.checkpoint(),
+            contextual_lex_mode: self.contextual_lex_mode,
             consumed_tokens_len: self.consumed_tokens.len(),
+            side_tokens_len: self.side_tokens.len(),
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
             last_consumed_token: self.last_consumed_token,
             tree_mark: self.tree.mark(),
             error_count: self.errors.len(),
-            diagnostic_count: self.diagnostics.len(),
         }
     }
 
@@ -1877,10 +1004,10 @@ impl Parser {
     #[inline(always)]
     pub fn cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
         ParserCursorCheckpoint {
-            token_index: self.token_index,
-            current_token_is_pending: self.current_token_is_pending,
-            pending_tokens: self.pending_tokens.clone(),
+            lexer_checkpoint: self.lexer.checkpoint(),
+            contextual_lex_mode: self.contextual_lex_mode,
             consumed_tokens_len: self.consumed_tokens.len(),
+            side_tokens_len: self.side_tokens.len(),
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
             last_consumed_token: self.last_consumed_token,
@@ -1897,61 +1024,60 @@ impl Parser {
 
     /// Rewind the parser cursor to one cursor checkpoint.
     pub fn rewind(&mut self, checkpoint: ParserCursorCheckpoint) {
-        self.token_index = checkpoint.token_index;
-        self.current_token_is_pending = checkpoint.current_token_is_pending;
-        self.pending_tokens = checkpoint.pending_tokens;
+        self.lexer.restore(checkpoint.lexer_checkpoint);
+        self.contextual_lex_mode = checkpoint.contextual_lex_mode;
         self.consumed_tokens
             .truncate(checkpoint.consumed_tokens_len);
+        self.side_tokens.truncate(checkpoint.side_tokens_len);
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
+        self.next_token_cache = None;
     }
 
     /// Restore the parser and tree to one full checkpoint.
     pub fn restore(&mut self, checkpoint: ParserCheckpoint, idx: u32) {
-        self.token_index = checkpoint.token_index;
-        self.current_token_is_pending = checkpoint.current_token_is_pending;
-        self.pending_tokens = checkpoint.pending_tokens;
+        self.lexer.restore(checkpoint.lexer_checkpoint);
+        self.contextual_lex_mode = checkpoint.contextual_lex_mode;
         self.consumed_tokens
             .truncate(checkpoint.consumed_tokens_len);
+        self.side_tokens.truncate(checkpoint.side_tokens_len);
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
+        self.next_token_cache = None;
         debug_assert_eq!(checkpoint.tree_mark.next_global_id(), idx);
         self.tree.restore_to_mark(checkpoint.tree_mark);
         self.errors.truncate(checkpoint.error_count);
-        self.diagnostics.truncate(checkpoint.diagnostic_count);
+        self.rebuild_error_keys();
     }
 
     /// Run a closure against a speculative parser cursor.
     pub(crate) fn lookahead<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> T {
         let checkpoint = self.cursor_checkpoint();
+        self.lexer.set_cursor_trivia_mode(ParserTriviaMode::Ignore);
         let result = func(self);
         self.rewind(checkpoint);
+
         result
     }
 
     /// Return the next parser token without consuming it.
     #[inline]
-    pub(crate) fn next_token(&self) -> TokenSpan {
+    pub(crate) fn next_token(&mut self) -> TokenSpan {
         self.token_at_offset(1)
     }
 
     /// Return the next parser token type without consuming it.
     #[inline]
-    pub(crate) fn next_token_type(&self) -> TokenType {
-        self.next_token().token.ty
+    pub(crate) fn next_token_type(&mut self) -> TokenType {
+        self.token_type_at_offset(1)
     }
 
     /// Return the next parser keyword without consuming it.
     #[inline]
-    pub(crate) fn next_keyword(&self) -> Option<Keyword> {
-        let token = self.next_token();
-        if token.token.ty != TokenType::Identifier {
-            return None;
-        }
-
-        keyword_from_identifier(self.get_token_str(token))
+    pub(crate) fn next_keyword(&mut self) -> Option<Keyword> {
+        self.keyword_at_offset(1)
     }
 
     /// Insert a node into the DIR tree.
@@ -1999,6 +1125,26 @@ impl Parser {
             node_id,
             NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
             trailing_span,
+        );
+    }
+
+    /// Attach one transparent wrapper span owned by a node.
+    pub(crate) fn set_node_wrapper_span<T>(&mut self, node_id: LocalNodeId<T>, wrapper_span: Span)
+    where
+        T: Node,
+    {
+        let node_id = node_id.id;
+        let wrapper_span = self
+            .tree
+            .get_side_span_by_id(node_id, NodeSpanType::Region(NodeSpanRegion::Wrapper))
+            .map_or(wrapper_span, |existing_span| {
+                existing_span.merge(wrapper_span)
+            });
+
+        self.tree.set_side_span_by_id(
+            node_id,
+            NodeSpanType::Region(NodeSpanRegion::Wrapper),
+            wrapper_span,
         );
     }
 
@@ -2128,7 +1274,6 @@ impl Parser {
         self.last_consumed_token = consumed;
         self.previous_token_end = consumed.span.end;
         self.consumed_tokens.push(consumed);
-        self.advance_after_current_token();
         self.read_next_token();
 
         Ok(&self.last_consumed_token)
@@ -2142,35 +1287,7 @@ impl Parser {
         self.last_consumed_token = self.current_token;
         self.previous_token_end = self.current_token.span.end;
         self.consumed_tokens.push(self.current_token);
-        self.advance_after_current_token();
         self.read_next_token();
-    }
-
-    /// Advance the next token as a tree child token.
-    #[inline]
-    pub(crate) fn bump_tree_child(&mut self) {
-        debug_assert!(!self.is_finished, "parser is already finished");
-        self.last_consumed_token = self.current_token;
-        self.previous_token_end = self.current_token.span.end;
-        self.consumed_tokens.push(self.current_token);
-        self.drop_side_tokens_covered_by_current();
-        self.advance_after_current_token();
-        self.read_next_tree_child_token();
-    }
-
-    /// Advance base token index after consuming the current visible token.
-    fn advance_after_current_token(&mut self) {
-        if !self.current_token_is_pending {
-            self.token_index += 1;
-        }
-
-        while self
-            .tokens
-            .get(self.token_index)
-            .is_some_and(|token| token.span.start < self.previous_token_end)
-        {
-            self.token_index += 1;
-        }
     }
 
     /// Drop trivia tokens that are now part of a virtual tree child token.
@@ -2245,29 +1362,14 @@ impl Parser {
         }
     }
 
-    /// Expect a token and advance the next token as a tree child token.
-    #[inline]
-    pub(crate) fn expect_tree_child(&mut self, token_type: TokenType) -> ParseResult<()> {
-        if !self.peek_is(token_type) {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        self.bump_tree_child();
-        Ok(())
-    }
-
     /// Eat one tree tag close token and advance in the requested mode.
     #[inline]
-    pub(crate) fn eat_tree_tag_close(&mut self, in_tree_child: bool) -> ParseResult<()> {
+    pub(crate) fn eat_tree_tag_close(&mut self, follow_mode: ContextualLexMode) -> ParseResult<()> {
         if !self.re_lex_r_angle() {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        if in_tree_child {
-            self.bump_tree_child();
-        } else {
-            self.bump();
-        }
+        self.bump_with_contextual_lex_mode(follow_mode);
 
         Ok(())
     }
@@ -2296,460 +1398,6 @@ impl Parser {
         } else {
             Ok(None)
         }
-    }
-
-    /// Attempt a function with token recovery.
-    pub fn with_token_recovery<T>(
-        &mut self,
-        start: &ParserSpanStart,
-        func: impl FnOnce(&mut Self) -> ParseResult<T>,
-        default: T,
-        bail: TokenType,
-    ) -> T {
-        match func(self) {
-            Ok(result) => result,
-            Err(err) => {
-                let _ = self.try_recover(start, bail, Some(err));
-                default
-            }
-        }
-    }
-
-    /// Attempt a function with statement recovery.
-    pub fn with_statement_recovery<T>(
-        &mut self,
-        start: &ParserSpanStart,
-        func: impl FnOnce(&mut Self) -> ParseResult<T>,
-        default: T,
-    ) -> T {
-        match func(self) {
-            Ok(result) => result,
-            Err(err) => {
-                let _ = self.try_recover_in_statement(start, Some(err));
-                default
-            }
-        }
-    }
-
-    /// Recover until the expected token.
-    /// Everything from start to then is an error.
-    pub fn try_recover(
-        &mut self,
-        start: &ParserSpanStart,
-        recover: TokenType,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
-        while let Ok(token) = self.peek() {
-            if token.token.ty == TokenType::End {
-                break;
-            }
-
-            // recover from here (but report error)
-            if token.token.ty == recover {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
-            } else {
-                // keep going
-                self.bump();
-            }
-        }
-        // error if we didn't hit the expected token
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-        Err(error)
-    }
-
-    /// Recover within one list item until a separator or terminator boundary.
-    pub fn try_recover_in_item_list(
-        &mut self,
-        start: &ParserSpanStart,
-        terminator: TokenType,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            // recover from here and keep the separator or terminator for the caller
-            if start.is_before(token.span) && token.token.is_on_new_line
-                || self.token_matches_terminator(token_type, terminator)
-                || Self::is_item_stop_token(token_type)
-                || Self::is_close_delimiter_token(token_type)
-            {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
-            }
-
-            self.bump();
-        }
-
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-        Err(error)
-    }
-
-    /// Recover within one statement until a statement boundary.
-    pub fn try_recover_in_statement(
-        &mut self,
-        start: &ParserSpanStart,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            // recover from here and keep the boundary token for the caller
-            if start.is_before(token.span) && token.token.is_on_new_line
-                || Self::is_statement_stop_token(token_type)
-                || token_type == TokenType::CloseBrace
-            {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
-            }
-
-            self.bump();
-        }
-
-        // eof is also a valid statement boundary
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-        Ok(())
-    }
-
-    /// Recover within one statement from an existing source span.
-    pub fn try_recover_in_statement_from_span(
-        &mut self,
-        start_span: Span,
-        error: Option<ParseError>,
-    ) -> ParseResult<Span> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            // recover from here and keep the boundary token for the caller
-            if start_span.start < token.span.start && token.token.is_on_new_line
-                || Self::is_statement_stop_token(token_type)
-                || token_type == TokenType::CloseBrace
-            {
-                let recovered_span = self.recovered_span_from(start_span);
-                let error = ParseError::from_source_maybe(recovered_span, error);
-                self.error(&error);
-                return Ok(recovered_span);
-            }
-
-            self.bump();
-        }
-
-        // eof is also a valid statement boundary
-        let recovered_span = self.recovered_span_from(start_span);
-        let error = ParseError::from_source_maybe(recovered_span, error);
-        self.error(&error);
-
-        Ok(recovered_span)
-    }
-
-    /// Return true when a recovered list item may continue parsing another item.
-    pub(crate) fn can_continue_after_recovered_item(
-        &mut self,
-        terminator: TokenType,
-        is_recovered_item: bool,
-    ) -> bool {
-        if !is_recovered_item {
-            return false;
-        }
-
-        let token_type = self.peek_token_type();
-        !self.token_matches_terminator(token_type, terminator)
-            && !Self::is_close_delimiter_token(token_type)
-            && token_type != TokenType::End
-    }
-
-    /// Return true when one token satisfies one recovery terminator.
-    #[inline]
-    fn token_matches_terminator(&self, token_type: TokenType, terminator: TokenType) -> bool {
-        if terminator == TokenType::GreaterThan {
-            return Self::starts_type_angle_close(token_type);
-        }
-
-        token_type == terminator
-    }
-
-    /// Recover within a property or member body until a boundary token.
-    pub fn try_recover_in_body(
-        &mut self,
-        start: &ParserSpanStart,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            // recover from here and keep the boundary token for the caller
-            if start.is_before(token.span) && token.token.is_on_new_line
-                || token_type == TokenType::CloseBrace
-                || Self::is_any_stop_token(token_type)
-            {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
-            }
-
-            self.bump();
-        }
-
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-        Err(error)
-    }
-
-    /// Recover within a property or member body from an existing source span.
-    pub fn try_recover_in_body_from_span(
-        &mut self,
-        start_span: Span,
-        error: Option<ParseError>,
-    ) -> ParseResult<Span> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            // recover from here and keep the boundary token for the caller
-            if start_span.start < token.span.start && token.token.is_on_new_line
-                || token_type == TokenType::CloseBrace
-                || Self::is_any_stop_token(token_type)
-            {
-                let recovered_span = self.recovered_span_from(start_span);
-                let error = ParseError::from_source_maybe(recovered_span, error);
-                self.error(&error);
-                return Ok(recovered_span);
-            }
-
-            self.bump();
-        }
-
-        let recovered_span = self.recovered_span_from(start_span);
-        let error = ParseError::from_source_maybe(recovered_span, error);
-        self.error(&error);
-
-        Err(error)
-    }
-
-    /// Return a recovered span from one source span start to the previous token.
-    #[inline]
-    fn recovered_span_from(&self, start_span: Span) -> Span {
-        let end = self.previous_token_end.max(start_span.start);
-        Span::new(start_span.file, start_span.start, end)
-    }
-
-    /// Eat the expected token.
-    /// If we don't get the token, it's an error, but:
-    ///  1) If we do hit the expected token later, we recover from there.
-    ///  2) Otherwise, we try to recover forward until the bail token.
-    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParseResult<()> {
-        // we're good if it's the expected token
-        if self.peek_is(expected) {
-            self.bump();
-            return Ok(());
-        }
-
-        // try to recover
-        let start = self.span_start();
-        while let Ok(token) = self.peek()
-            && token.token.ty != bail
-        {
-            if token.token.ty == TokenType::End {
-                break;
-            }
-
-            // ok with error if we finally hit the expected token
-            if token.token.ty == expected {
-                let error = ParseError::unexpected(self.get_span_from(&start));
-                self.bump();
-                self.error(&error);
-                return Ok(());
-            }
-            // keep going
-            else {
-                self.bump();
-            }
-        }
-
-        // error if we didn't hit the expected token, we're either at recovery or EOF
-        let error = ParseError::unexpected(self.get_span_from(&start));
-        self.error(&error);
-        Err(error)
-    }
-
-    /// Insert one missing expression node at the current cursor position.
-    pub(crate) fn insert_missing_expression_here(&mut self) -> LocalNodeId<Expression> {
-        let anchor_span = self.anchor_span_here();
-        let missing_span = Span::new(anchor_span.file, anchor_span.start, anchor_span.start);
-
-        self.insert_node(Expression::Missing, missing_span)
-    }
-
-    /// Insert one missing type expression node at the current cursor position.
-    pub(crate) fn insert_missing_type_expression_here(&mut self) -> LocalNodeId<TypeExpression> {
-        let anchor_span = self.anchor_span_here();
-        let missing_span = Span::new(anchor_span.file, anchor_span.start, anchor_span.start);
-
-        self.insert_node(TypeExpression::Missing, missing_span)
-    }
-
-    /// Return the best local anchor span at the current cursor position.
-    pub(crate) fn anchor_span_here(&mut self) -> Span {
-        if let Ok(token) = self.peek() {
-            token.span
-        } else {
-            self.eof_span()
-        }
-    }
-
-    /// Report one unexpected node slot at the current cursor position.
-    pub(crate) fn report_unexpected_for_here(&mut self, owner: NodeType) {
-        let error = ParseError::unexpected_for(self.anchor_span_here(), owner);
-
-        self.error(&error);
-    }
-
-    /// Recover one committed missing token at the current cursor position.
-    pub(crate) fn recover_missing_token_here(
-        &mut self,
-        expected: TokenType,
-        owner: NodeType,
-        is_recoverable_boundary: bool,
-    ) -> ParseResult<()> {
-        if !is_recoverable_boundary {
-            return Err(ParseError::expected(self.anchor_span_here(), expected));
-        }
-
-        self.report_unexpected_for_here(owner);
-        Ok(())
-    }
-
-    /// Report one committed missing expression slot and insert the missing node.
-    pub(crate) fn recover_missing_expression_here(
-        &mut self,
-        owner: NodeType,
-    ) -> LocalNodeId<Expression> {
-        self.report_unexpected_for_here(owner);
-        self.insert_missing_expression_here()
-    }
-
-    /// Report one committed missing type expression slot and insert the missing node.
-    pub(crate) fn recover_missing_type_expression_here(
-        &mut self,
-        owner: NodeType,
-    ) -> LocalNodeId<TypeExpression> {
-        self.report_unexpected_for_here(owner);
-        self.insert_missing_type_expression_here()
-    }
-
-    /// Eat one committed type expression or recover one missing child at a type boundary.
-    pub(crate) fn eat_type_expression_or_recover_missing(
-        &mut self,
-        flags: ParserFlags,
-        owner: NodeType,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        if self.is_type_expression_boundary() {
-            return Ok(self.recover_missing_type_expression_here(owner));
-        }
-
-        self.with_flags(flags, |parser| parser.eat_type_expression())
-    }
-
-    /// Eat one committed type expression node or recover one missing child at a type boundary.
-    pub(crate) fn eat_type_expression_node_or_recover_missing(
-        &mut self,
-        flags: ParserFlags,
-        owner: NodeType,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        self.eat_type_expression_or_recover_missing(flags, owner)
-    }
-
-    /// Eat one committed expression or recover one missing child at an expression boundary.
-    pub(crate) fn eat_expression_or_recover_missing(
-        &mut self,
-        flags: ParserFlags,
-        owner: NodeType,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
-            return Ok(self.recover_missing_expression_here(owner));
-        }
-
-        self.eat_expression(flags)
-    }
-
-    /// Eat one close token or recover one committed missing close delimiter.
-    pub(crate) fn eat_close_token_or_recover_missing(
-        &mut self,
-        expected: TokenType,
-        owner: NodeType,
-    ) -> ParseResult<()> {
-        self.eat_close_token_or_recover_missing_with(expected, owner, |_, token_type| {
-            Self::is_close_delimiter_boundary_token(token_type)
-        })
-    }
-
-    /// Eat one close token or recover one committed missing close delimiter with custom boundaries.
-    pub(crate) fn eat_close_token_or_recover_missing_with(
-        &mut self,
-        expected: TokenType,
-        owner: NodeType,
-        is_recoverable_boundary: impl FnOnce(&mut Self, TokenType) -> bool,
-    ) -> ParseResult<()> {
-        if self.peek_is(expected) {
-            self.bump();
-            return Ok(());
-        }
-
-        let token_type = self.peek_token_type();
-        let is_recoverable_boundary = is_recoverable_boundary(self, token_type);
-
-        self.recover_missing_token_here(expected, owner, is_recoverable_boundary)
-    }
-
-    /// Eat one committed list close token or recover one missing delimiter in place.
-    pub(crate) fn eat_list_close_token_or_recover_missing(
-        &mut self,
-        expected: TokenType,
-        owner: NodeType,
-    ) -> ParseResult<()> {
-        if self.peek_is(expected) {
-            self.bump();
-            return Ok(());
-        }
-
-        self.report_unexpected_for_here(owner);
-        Ok(())
-    }
-
-    /// Eat one committed type close token or recover one missing delimiter at a type boundary.
-    pub(crate) fn eat_type_token_or_recover_missing(
-        &mut self,
-        expected: TokenType,
-        owner: NodeType,
-    ) -> ParseResult<()> {
-        self.eat_close_token_or_recover_missing_with(expected, owner, |_, token_type| {
-            Self::is_type_container_boundary_token(token_type)
-        })
     }
 
     /// Get the node starting at a token.
@@ -2859,16 +1507,16 @@ impl Parser {
     }
 }
 /// Full parser checkpoint for speculative parses that allocate nodes.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ParserCheckpoint {
-    /// The parser token index at checkpoint time.
-    token_index: usize,
-    /// Whether the current token came from pending virtual tokens.
-    current_token_is_pending: bool,
-    /// The pending virtual tokens at checkpoint time.
-    pending_tokens: Vec<TokenSpan>,
-    /// The committed token count at checkpoint time.
+    /// The lexer checkpoint at parser checkpoint time.
+    lexer_checkpoint: LexerCheckpoint,
+    /// The contextual lexing mode at checkpoint time.
+    contextual_lex_mode: ContextualLexMode,
+    /// The consumed token count at checkpoint time.
     consumed_tokens_len: usize,
+    /// The side token count at checkpoint time.
+    side_tokens_len: usize,
     /// The parser owned current token at checkpoint time.
     current_token: TokenSpan,
     /// The previous semantic token end at checkpoint time.
@@ -2879,21 +1527,19 @@ pub struct ParserCheckpoint {
     tree_mark: TreeMark,
     /// The parser error count at checkpoint time.
     error_count: usize,
-    /// The parser diagnostic count at checkpoint time.
-    diagnostic_count: usize,
 }
 
 /// Parser cursor checkpoint for speculative lookahead without node allocation.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ParserCursorCheckpoint {
-    /// The parser token index at checkpoint time.
-    token_index: usize,
-    /// Whether the current token came from pending virtual tokens.
-    current_token_is_pending: bool,
-    /// The pending virtual tokens at checkpoint time.
-    pending_tokens: Vec<TokenSpan>,
-    /// The committed token count at checkpoint time.
+    /// The lexer checkpoint at parser checkpoint time.
+    lexer_checkpoint: LexerCheckpoint,
+    /// The contextual lexing mode at checkpoint time.
+    contextual_lex_mode: ContextualLexMode,
+    /// The consumed token count at checkpoint time.
     consumed_tokens_len: usize,
+    /// The side token count at checkpoint time.
+    side_tokens_len: usize,
     /// The parser owned current token at checkpoint time.
     current_token: TokenSpan,
     /// The previous semantic token end at checkpoint time.
@@ -2910,6 +1556,24 @@ pub struct ParserSpanStart {
 }
 
 impl ParserSpanStart {
+    /// Return the token span that started this source span.
+    #[inline]
+    pub(crate) fn token_span(&self) -> Span {
+        self.current_token.span
+    }
+
+    /// Return the start of the token that started this span.
+    #[inline]
+    pub(crate) fn token_start(&self) -> u32 {
+        self.current_token.span.start
+    }
+
+    /// Return the end of the token that started this span.
+    #[inline]
+    pub(crate) fn token_end(&self) -> u32 {
+        self.current_token.span.end
+    }
+
     /// Return whether this span start is before one token span.
     #[inline]
     pub(crate) fn is_before(&self, span: Span) -> bool {
