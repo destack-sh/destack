@@ -307,6 +307,10 @@ impl Parser {
                     .map(|id| (id, false))
             }
             TokenType::Hash if self.token_type_at_offset(1) == TokenType::Identifier => {
+                if self.language.is_destack() {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
                 self.bump();
                 let (name, name_span) = self.eat_identifier_with_span()?;
                 let id = self.insert_node(

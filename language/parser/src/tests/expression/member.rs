@@ -242,6 +242,15 @@ fn test_parse_private_member_expression_with_newline_before_dot() {
 }
 
 #[test]
+fn test_parse_destack_rejects_private_member_expression() {
+    let mut test = TestParser::new("this.#value");
+    let mut parser = test.prepare();
+
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+    assert_eq!(parser.get_span_str(error.leaf_span()), "#");
+}
+
+#[test]
 fn test_parse_member_expression_with_line_comment_before_dot() {
     let mut test = TestParser::new_with_language(
         "container // marker\n.left as PropertyAccessExpression",
