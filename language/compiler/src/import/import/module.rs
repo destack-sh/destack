@@ -10,7 +10,7 @@ impl Compiler {
         state: &mut ImportState<'_>,
         roots: &[dir::LocalNodeId<dir::Expression>],
     ) -> CompilerResult<()> {
-        // scan root expressions
+        // scan active expressions
         for root in roots {
             let expression = state.view.get(*root);
             self.collect_expression_dependencies(state, *root, expression)?;

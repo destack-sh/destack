@@ -12,11 +12,19 @@ impl Compiler {
         expression: &dir::Expression,
     ) -> CompilerResult<()> {
         match expression {
+            // scan dependency declarations inside global blocks
+            dir::Expression::Declaration(declaration_id) => {
+                let declaration = state.view.get(*declaration_id);
+                if let dir::Declaration::Global(declaration) = declaration {
+                    self.collect_dependencies(state, &declaration.expressions)?;
+                }
+            }
+
             // collect direct dependency edge
             dir::Expression::Import {
                 target, attributes, ..
             } => {
-                self.collect_binding_dependency(
+                self.collect_dependency(
                     state,
                     expression_id,
                     *target,
