@@ -3,9 +3,6 @@ use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
-/// The default capacity of the arena.
-const DEFAULT_CAPACITY: usize = 512;
-
 /// Arena for storing elements and element like things.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Arena<T> {
@@ -32,7 +29,7 @@ impl<T> Arena<T> {
     /// Create a new empty Arena.
     #[inline]
     pub fn new() -> Self {
-        Self::with(DEFAULT_CAPACITY)
+        Self { items: Vec::new() }
     }
 
     /// Create a new Arena with the given capacity.
@@ -186,5 +183,12 @@ mod tests {
         let arena: Arena<i32> = Arena::new();
         assert!(arena.is_empty());
         assert_eq!(arena.len(), 0);
+    }
+
+    #[test]
+    fn test_arena_new_retains_no_element_storage() {
+        let arena: Arena<i32> = Arena::new();
+
+        assert_eq!(arena.retained_bytes(), size_of::<Arena<i32>>());
     }
 }
