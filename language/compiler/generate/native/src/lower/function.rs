@@ -511,7 +511,7 @@ impl<'a> FunctionLowerer<'a> {
                 let destination = self.value_id(*destination, "callable bind destination")?;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
-                let mir::Type::Callable { .. } = self.tree.get(destination_type) else {
+                let mir::Type::Closure { .. } = self.tree.get(destination_type) else {
                     return Err(CodegenCraneliftError::Internal {
                         message: "callable.bind result must be a callable value".into(),
                     });
@@ -1023,7 +1023,7 @@ impl<'a> FunctionLowerer<'a> {
                 let field_values = self.tree.get_arguments(*fields);
                 let field_count = match self.tree.get(ty) {
                     mir::Type::Struct { fields, .. } => fields.len(),
-                    mir::Type::Callable { .. } => 2,
+                    mir::Type::Closure { .. } => 2,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
                             message: "Struct instruction with non-aggregate type".into(),
@@ -1570,7 +1570,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.type_id(*signature, "function pointer signature")?,
                 false,
             ),
-            mir::Type::Callable { signature } => {
+            mir::Type::Closure { signature, .. } => {
                 (self.type_id(*signature, "callable signature")?, true)
             }
             _ => {
@@ -1631,15 +1631,16 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // callable aggregate
-        let mir::Type::Callable {
+        let mir::Type::Closure {
             signature: function_type,
+            environment,
         } = self.tree.get(signature)
         else {
             return Err(CodegenCraneliftError::Internal {
                 message: "indirect call signature is not a function type".into(),
             });
         };
-        let environment = self.tree.callable_environment_type();
+        let environment = self.type_id(*environment, "callable environment type")?;
 
         let callee_value = value_map[&callee];
         let signature_node = signature.into_any();
@@ -1956,9 +1957,12 @@ impl<'a> FunctionLowerer<'a> {
             mir::Type::Tuple { elements, .. } => *elements
                 .get(index as usize)
                 .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
-            mir::Type::Callable { signature } => match index {
+            mir::Type::Closure {
+                signature,
+                environment,
+            } => match index {
                 0 => *signature,
-                1 => mir::TypeReference::Type(self.tree.callable_environment_type()),
+                1 => *environment,
                 _ => return Err(CodegenCraneliftError::out_of_bounds(node, index, 2)),
             },
             _ => {

@@ -68,14 +68,14 @@ impl ModuleLowerer<'_> {
         for (source_index, capture) in capture.captures.iter().enumerate() {
             let (field_type, field_input) =
                 self.capture_field_for_binding(*capture, source_index as u32)?;
-            captures.push((*capture, field_type));
+            captures.push((capture.symbol(), capture.mode(), field_type));
             field_inputs.push(field_input);
         }
         if let Some(capture) = capture.this {
             let source_index = captures.len() as u32;
             let (field_type, field_input) =
-                self.capture_field_for_binding(capture, source_index)?;
-            captures.push((capture, field_type));
+                self.capture_field_for_receiver(capture, source_index)?;
+            captures.push((capture.symbol, capture.mode, field_type));
             field_inputs.push(field_input);
         }
 
@@ -84,7 +84,7 @@ impl ModuleLowerer<'_> {
 
         // record fields using their concrete layout indices
         let mut fields = Vec::with_capacity(captures.len());
-        for (source_index, (capture, field_type)) in captures.into_iter().enumerate() {
+        for (source_index, (symbol, mode, field_type)) in captures.into_iter().enumerate() {
             let Some(index) = layout.field_index_by_source(source_index as u32) else {
                 return Err(LowerError::Internal {
                     anchor: (self.module_id).into(),
@@ -95,8 +95,8 @@ impl ModuleLowerer<'_> {
             };
 
             fields.push(FunctionEnvironmentField {
-                symbol: capture.symbol,
-                mode: capture.mode,
+                symbol,
+                mode,
                 index,
                 ty: field_type,
             });
@@ -150,14 +150,23 @@ impl ModuleLowerer<'_> {
         source_index: u32,
     ) -> LowerResult<(mir::LocalNodeId<mir::Type>, FieldInput)> {
         // resolve the capture type
-        let anchor = self.anchor_for_symbol(capture.symbol);
-        let type_id = self.type_id_for_symbol_or_error(capture.symbol, anchor)?;
+        let symbol = capture.symbol();
+        let mode = capture.mode();
+        let anchor = self.anchor_for_symbol(symbol);
+        let type_id = self.type_id_for_symbol_or_error(symbol, anchor)?;
         let value_type = self.lower_type(type_id, anchor)?;
 
         // pick the field type based on capture mode
-        let field_type = match capture.mode {
+        let field_type = match mode {
+            dir::CaptureMode::Manage => {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(anchor),
+                    message: "TODO #Incomplete: managed captures require checked capture frames"
+                        .to_string(),
+                });
+            }
             dir::CaptureMode::Borrow => {
-                let mutability = self.mutability_for_symbol(capture.symbol);
+                let mutability = self.mutability_for_symbol(symbol);
                 let access = mutability
                     .map(lower_mutability)
                     .map(access_for_storage_mutability)
@@ -170,9 +179,7 @@ impl ModuleLowerer<'_> {
                     mir::Nullability::None,
                 )
             }
-            dir::CaptureMode::Copy | dir::CaptureMode::Move => {
-                value_type
-            }
+            dir::CaptureMode::Copy | dir::CaptureMode::Move => value_type,
         };
 
         // compute size and alignment for layout
@@ -186,7 +193,62 @@ impl ModuleLowerer<'_> {
             })?;
 
         // assign a stable field name
-        let field_name = self.capture_field_name(capture.symbol);
+        let field_name = self.capture_field_name(symbol);
+
+        let input = FieldInput {
+            name: field_name,
+            ty: field_type,
+            size,
+            alignment,
+            source_index: Some(source_index),
+            kind: FieldLayoutKind::Synthetic,
+        };
+
+        Ok((field_type, input))
+    }
+
+    /// Lower a captured receiver into a function environment field.
+    fn capture_field_for_receiver(
+        &mut self,
+        receiver: dir::CapturedReceiver,
+        source_index: u32,
+    ) -> LowerResult<(mir::LocalNodeId<mir::Type>, FieldInput)> {
+        // resolve the receiver type
+        let anchor = self.anchor_for_symbol(receiver.symbol);
+        let value_type = self.lower_type(receiver.ty, anchor)?;
+
+        // pick the field type based on capture mode
+        let field_type = match receiver.mode {
+            dir::CaptureMode::Manage => {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(anchor),
+                    message:
+                        "TODO #Incomplete: managed captures require checked receiver capture frames"
+                            .to_string(),
+                });
+            }
+            dir::CaptureMode::Borrow => self.builder.type_reference(
+                mir::ReferenceKind::Managed,
+                value_type,
+                mir::Access::Readonly,
+                mir::Space::Local,
+                mir::Nullability::None,
+            ),
+            dir::CaptureMode::Copy | dir::CaptureMode::Move => value_type,
+        };
+
+        // compute size and alignment for layout
+        let field_ty = self.builder.tree().get(field_type);
+        let (size, alignment) = self
+            .type_lowerer
+            .size_and_align_of_type(field_ty, self.builder.tree())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(anchor),
+                message: "closure layout requires concrete receiver types".to_string(),
+            })?;
+
+        // assign a stable field name
+        let field_name = self.capture_field_name(receiver.symbol);
 
         let input = FieldInput {
             name: field_name,

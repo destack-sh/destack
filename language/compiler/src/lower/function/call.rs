@@ -1002,7 +1002,8 @@ impl FunctionLowerer<'_> {
         closure_type: mir::LocalNodeId<mir::Type>,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let mir::Type::Callable { signature } = self.state.builder.tree().get(closure_type) else {
+        let mir::Type::Closure { signature, .. } = self.state.builder.tree().get(closure_type)
+        else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
                 message: "closure call requires callable type".to_string(),

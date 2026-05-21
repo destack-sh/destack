@@ -70,6 +70,19 @@ impl FunctionLowerer<'_> {
                         .builder
                         .field_addr(env_value, field.index, field_addr_type);
                 match field.mode {
+                    dir::CaptureMode::Manage => {
+                        return Err(LowerError::UnsupportedConstruct {
+                            anchor: self.diagnostic_anchor(
+                                expression_id
+                                    .into_global_any(self.context.module_id)
+                                    .into_anchored(Some(self.context.profile)),
+                            ),
+                            message:
+                                "TODO #Incomplete: managed captures require checked capture frames"
+                                    .to_string(),
+                        }
+                        .into());
+                    }
                     dir::CaptureMode::Copy | dir::CaptureMode::Move => {
                         if self
                             .state
@@ -130,11 +143,22 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
+        // reject managed frame captures here
+        if field.mode == dir::CaptureMode::Manage {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "TODO #Incomplete: managed captures require checked capture frames"
+                    .to_string(),
+            }
+            .into());
+        }
+
         // copy or move: load the field directly
-        if matches!(
-            field.mode,
-            dir::CaptureMode::Copy | dir::CaptureMode::Move
-        ) {
+        if matches!(field.mode, dir::CaptureMode::Copy | dir::CaptureMode::Move) {
             let value = self.state.builder.load(field_addr, field.ty);
             return Ok((value, field.ty));
         }
@@ -172,11 +196,22 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<()> {
         let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
 
+        // reject managed frame captures here
+        if field.mode == dir::CaptureMode::Manage {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "TODO #Incomplete: managed captures require checked capture frames"
+                    .to_string(),
+            }
+            .into());
+        }
+
         // copy or move: store directly into the env field
-        if matches!(
-            field.mode,
-            dir::CaptureMode::Copy | dir::CaptureMode::Move
-        ) {
+        if matches!(field.mode, dir::CaptureMode::Copy | dir::CaptureMode::Move) {
             self.state.builder.store(field_addr, value);
             return Ok(());
         }
@@ -194,6 +229,20 @@ impl FunctionLowerer<'_> {
         field: &FunctionEnvironmentField,
         mutability: Option<dir::Mutability>,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // reject managed frame captures here
+        if field.mode == dir::CaptureMode::Manage {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "TODO #Incomplete: managed captures require checked capture frames"
+                    .to_string(),
+            }
+            .into());
+        }
+
         // borrow: forward the stored pointer
         if field.mode == dir::CaptureMode::Borrow {
             let (field_addr, _) = self.capture_field_addr(expression_id, field)?;
