@@ -1,5 +1,67 @@
 # Variadic
 
+## generic parameter lists
+
+### variadic type constraints apply to each argument
+
+A variadic type parameter constraint is checked once per supplied type argument.
+
+```ds
+type Row<...Fields: readonly (string | number)[]> = (...Fields);
+
+declare const row: Row<"id", 42>;
+row satisfies ("id", 42);
+```
+
+### variadic type constraints reject mismatched arguments
+
+Each argument to a variadic type parameter has to satisfy the declared constraint.
+
+```ds
+type Row<...Fields: readonly string[]> = (...Fields);
+
+declare const row: Row<"id", 42>;
+```
+
+- contains: constraint
+
+### variadic value constraints apply to each argument
+
+A variadic static value parameter constraint is checked once per supplied value argument.
+
+```ds
+type Shape<comptime ...Extents: readonly usize[]> = (...Extents);
+
+declare const shape: Shape<64, 32>;
+shape satisfies (64, 32);
+```
+
+### variadic value parameters bind static tuples
+
+The name of a variadic static value parameter denotes the collected static tuple.
+
+```ds
+type TensorBuffer<comptime ...Extents: readonly usize[]> = {
+    shape: Extents;
+};
+
+declare const buffer: TensorBuffer<64, 32>;
+buffer.shape satisfies (64, 32);
+```
+
+## dynamic parameter lists
+
+### rest parameter annotations describe the collected tuple
+
+Dynamic rest parameters keep TypeScript's tuple-shaped rest annotation.
+
+```ds
+declare function collect<T: readonly unknown[]>(...values: T): T;
+
+const values = collect("x", 1, true);
+values satisfies readonly ("x", 1, true);
+```
+
 ## rest and spread inference
 
 ### variadic tuple tail extraction preserves literal heads

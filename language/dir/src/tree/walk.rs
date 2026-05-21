@@ -653,11 +653,11 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::GenericArgument, id.id);
 
     match generic_argument {
-        GenericArgument::Type { value } => {
+        GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
             let value_type = tree.get(*value);
             visitor.visit_type_expression(tree, *value, value_type);
         }
-        GenericArgument::Value { value } => {
+        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
@@ -1300,6 +1300,13 @@ pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
             variance: _,
             constraint,
             default,
+        }
+        | GenericParameter::VariadicType {
+            name: _,
+            is_const: _,
+            variance: _,
+            constraint,
+            default,
         } => {
             if let Some(constraint) = constraint {
                 let constraint_expression = tree.get(*constraint);
@@ -1312,6 +1319,12 @@ pub fn walk_generic_parameter<V: NodeVisitor + ?Sized>(
             }
         }
         GenericParameter::Value {
+            name: _,
+            declared_type,
+            default,
+            is_comptime: _,
+        }
+        | GenericParameter::VariadicValue {
             name: _,
             declared_type,
             default,
