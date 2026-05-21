@@ -614,15 +614,21 @@ impl ModuleLowerer<'_> {
         function_lowerer.state.bindings.this_symbol = this_symbol;
 
         // track bindings captured by borrow
-        let reference_bindings = self
-            .captures
-            .capture(symbol_id)
+        let capture = self.captures.capture(symbol_id);
+        let mut reference_bindings = capture
             .into_iter()
-            .flat_map(|capture| capture.captures.iter().chain(capture.this.iter()))
+            .flat_map(|capture| capture.captures.iter())
             .filter_map(|capture| {
-                (capture.mode == dir::CaptureMode::Borrow).then_some(capture.symbol)
+                (capture.mode() == dir::CaptureMode::Borrow).then_some(capture.symbol())
             })
             .collect::<HashSet<_>>();
+
+        // include borrowed lexical this
+        if let Some(this) = capture.and_then(|capture| capture.this)
+            && this.mode == dir::CaptureMode::Borrow
+        {
+            reference_bindings.insert(this.symbol);
+        }
         function_lowerer.state.bindings.reference_bindings = reference_bindings;
 
         // create entry block
@@ -1064,15 +1070,21 @@ impl ModuleLowerer<'_> {
         function_lowerer.state.bindings.this_symbol = this_symbol;
 
         // track bindings captured by borrow
-        let reference_bindings = self
-            .captures
-            .capture(method_symbol)
+        let capture = self.captures.capture(method_symbol);
+        let mut reference_bindings = capture
             .into_iter()
-            .flat_map(|capture| capture.captures.iter().chain(capture.this.iter()))
+            .flat_map(|capture| capture.captures.iter())
             .filter_map(|capture| {
-                (capture.mode == dir::CaptureMode::Borrow).then_some(capture.symbol)
+                (capture.mode() == dir::CaptureMode::Borrow).then_some(capture.symbol())
             })
             .collect::<HashSet<_>>();
+
+        // include borrowed lexical this
+        if let Some(this) = capture.and_then(|capture| capture.this)
+            && this.mode == dir::CaptureMode::Borrow
+        {
+            reference_bindings.insert(this.symbol);
+        }
         function_lowerer.state.bindings.reference_bindings = reference_bindings;
 
         // create entry block
