@@ -2,15 +2,15 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalSymbolId, StaticKey};
+use crate::{GlobalEntry, IndirectGlobalEntry, LocalGlobalEntry, LocalSymbolId, StaticKey};
 
-/// Global declarations contributed by one module.
+/// Global names contributed by one module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalTable {
     /// The module id of the global table.
     pub module_id: ModuleId,
-    /// Global symbols keyed by visible global name.
-    pub symbols_by_key: IndexMap<StaticKey, Vec<LocalSymbolId>>,
+    /// Global entries keyed by visible global name.
+    pub entries_by_key: IndexMap<StaticKey, Vec<GlobalEntry>>,
 }
 
 impl GlobalTable {
@@ -18,27 +18,40 @@ impl GlobalTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            symbols_by_key: IndexMap::new(),
+            entries_by_key: IndexMap::new(),
         }
     }
 
     /// Return true when the module contributes no globals.
     pub fn is_empty(&self) -> bool {
-        self.symbols_by_key.is_empty()
+        self.entries_by_key.is_empty()
     }
 
-    /// Add one global declaration.
-    pub fn push_symbol(&mut self, key: StaticKey, symbol: LocalSymbolId) {
-        let symbols = self.symbols_by_key.entry(key).or_default();
-        if !symbols.contains(&symbol) {
-            symbols.push(symbol);
+    /// Add one local global declaration.
+    pub fn push_local(&mut self, key: StaticKey, symbol: LocalSymbolId) {
+        self.push(GlobalEntry::Local(LocalGlobalEntry {
+            key,
+            source: symbol,
+        }));
+    }
+
+    /// Add one global re-export.
+    pub fn push_indirect(&mut self, entry: IndirectGlobalEntry) {
+        self.push(GlobalEntry::Indirect(entry));
+    }
+
+    /// Add one global entry.
+    pub fn push(&mut self, entry: GlobalEntry) {
+        let entries = self.entries_by_key.entry(entry.key()).or_default();
+        if !entries.contains(&entry) {
+            entries.push(entry);
         }
     }
 
-    /// Iterate global declarations in declaration order.
-    pub fn symbols(&self) -> impl Iterator<Item = (&StaticKey, &[LocalSymbolId])> {
-        self.symbols_by_key
+    /// Iterate global entries in declaration order.
+    pub fn entries(&self) -> impl Iterator<Item = (&StaticKey, &[GlobalEntry])> {
+        self.entries_by_key
             .iter()
-            .map(|(key, symbols)| (key, symbols.as_slice()))
+            .map(|(key, entries)| (key, entries.as_slice()))
     }
 }
