@@ -24,8 +24,8 @@ use super::object::{ambiguous_objects, large_object};
 use super::operator::operator_forms;
 use super::pathology::{
     damaged_arrow_return_heads, damaged_delimiters, damaged_function_type_heads,
-    damaged_generic_heads, damaged_parenthesized_heads, deep_block, deep_parentheses, deep_tree,
-    massive_file, trivia_flood, wide_call,
+    damaged_generic_heads, damaged_infix_chains, damaged_parenthesized_heads, deep_block,
+    deep_parentheses, deep_tree, massive_file, trivia_flood, wide_call,
 };
 use super::pattern::{convoluted_patterns, damaged_type, nested_match};
 use super::range::range_forms;
@@ -262,6 +262,7 @@ const CASES: &[StressSpec] = &[
         SOURCE_MODES,
         damaged_function_type_heads,
     ),
+    StressSpec::recovery_pathological("damaged_infix_chains", SOURCE_MODES, damaged_infix_chains),
 ];
 
 /// One generated stress fixture.
