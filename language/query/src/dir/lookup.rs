@@ -780,9 +780,10 @@ fn generic_parameter_name(
     parameter: &dir::GenericParameter,
 ) -> Option<String> {
     match parameter {
-        dir::GenericParameter::Type { name, .. } | dir::GenericParameter::Value { name, .. } => {
-            Some(strings.get(*name).to_string())
-        }
+        dir::GenericParameter::Type { name, .. }
+        | dir::GenericParameter::VariadicType { name, .. }
+        | dir::GenericParameter::Value { name, .. }
+        | dir::GenericParameter::VariadicValue { name, .. } => Some(strings.get(*name).to_string()),
         dir::GenericParameter::Error => None,
     }
 }

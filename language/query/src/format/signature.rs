@@ -301,11 +301,83 @@ fn format_generic_parameter(
     let parameter = dir_tree.get::<dir::GenericParameter>(parameter_id);
 
     match parameter {
-        dir::GenericParameter::Type { name, .. } | dir::GenericParameter::Value { name, .. } => {
-            strings.get(*name).to_string()
+        dir::GenericParameter::Type {
+            name,
+            is_const,
+            variance,
+            ..
+        } => {
+            let prefix = format_type_generic_parameter_prefix(*is_const, *variance, false);
+
+            format!("{prefix}{}", strings.get(*name))
+        }
+        dir::GenericParameter::VariadicType {
+            name,
+            is_const,
+            variance,
+            ..
+        } => {
+            let prefix = format_type_generic_parameter_prefix(*is_const, *variance, true);
+
+            format!("{prefix}{}", strings.get(*name))
+        }
+        dir::GenericParameter::Value {
+            name, is_comptime, ..
+        } => {
+            let prefix = format_value_generic_parameter_prefix(*is_comptime, false);
+
+            format!("{prefix}{}", strings.get(*name))
+        }
+        dir::GenericParameter::VariadicValue {
+            name, is_comptime, ..
+        } => {
+            let prefix = format_value_generic_parameter_prefix(*is_comptime, true);
+
+            format!("{prefix}{}", strings.get(*name))
         }
         dir::GenericParameter::Error => "<error>".to_string(),
     }
+}
+
+/// Format the prefix for one type generic parameter.
+fn format_type_generic_parameter_prefix(
+    is_const: bool,
+    variance: Option<dir::VarianceModifier>,
+    is_variadic: bool,
+) -> String {
+    let mut prefix = String::new();
+
+    if is_const {
+        prefix.push_str("const ");
+    }
+
+    match variance {
+        Some(dir::VarianceModifier::In) => prefix.push_str("in "),
+        Some(dir::VarianceModifier::Out) => prefix.push_str("out "),
+        Some(dir::VarianceModifier::InOut) => prefix.push_str("in out "),
+        None => {}
+    }
+
+    if is_variadic {
+        prefix.push_str("...");
+    }
+
+    prefix
+}
+
+/// Format the prefix for one value generic parameter.
+fn format_value_generic_parameter_prefix(is_comptime: bool, is_variadic: bool) -> String {
+    let mut prefix = String::new();
+
+    if is_comptime {
+        prefix.push_str("comptime ");
+    }
+
+    if is_variadic {
+        prefix.push_str("...");
+    }
+
+    prefix
 }
 
 /// Format function parameters with their types.
