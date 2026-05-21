@@ -6,8 +6,8 @@ use crate::format_file_source;
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
-    print_diagnostics, print_diff,
+    DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
+    print_diff,
 };
 use destack_workspace::FormatterOptions;
 
@@ -181,10 +181,7 @@ fn print_library_parse_diagnostics(path: &Path, source: &str) {
     );
     parser.parse();
 
-    let mut diagnostics = DiagnosticCollection::new();
-    for diagnostic in parser.diagnostics.to_vec() {
-        diagnostics.insert(diagnostic);
-    }
+    let diagnostics = parser.diagnostics();
 
     let options = PrintOptions::new().with_colorizer(source_colorizer());
     let _ = print_diagnostics(&file_for_id, &diagnostics, options);

@@ -79,7 +79,7 @@ fn parse_module_file(
         tree_in,
     );
     let roots = parser.parse();
-    let diagnostics = parser.diagnostics.collect();
+    let diagnostics = parser.diagnostics();
     assert!(
         diagnostics.is_empty(),
         "compiler source should parse cleanly: {diagnostics:?}"
