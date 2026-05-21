@@ -48,6 +48,7 @@ Destack does not support JS/TS syntax that conflicts with either Destack-specifi
 | **Sequence expressions** | `(a, b, c)` | not supported | `.ds` claims parenthesized comma lists for explicit tuples |
 | **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` | `.ds` uses double-quoted strings and single-quoted scalar characters |
 | **Type angle assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
+| **Private fields** | `#field` | not supported | `#field` syntax is redundant with proper `private` in `.ds` |
 | **Non-null assertions** | `value!` | supported as Try / must unwrapping, not as erased TypeScript non-null assertion | non-null opening is an explicit runtime operation |
 | **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics | namespaced tree tags are intrinsic string tag names like `"svg:path"` |
 
@@ -530,6 +531,8 @@ final class PacketHeader {
 }
 ```
 
+TypeScript visibility modifiers are fully supported, but the `#field` private syntax form is redundant and not allowed in `.ds` files (use `private` instead).
+
 ### Arrays, Slices and Tuples
 
 Destack supports richer sequence forms beyond TypeScript's dynamic arrays - `T[]` / `Array<T>` with explicit slices, fixed arrays, and tuples.
@@ -651,7 +654,18 @@ function copy<T, comptime N: uint>(src: [T; N]): [T; N] {
 }
 ```
 
-Type inference is local and flows outward - we can "import" inference from other modules, but this only works one way; each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports.
+Dynamic parameters may _also_ be marked `comptime` when the caller should pass an ordinary argument expression that is still required to be evaluatable as a static term during compile time, mostly as a readability affordance where spelling the value as a generic argument would be awkward or constraining.
+
+```ds
+function repeat<T>(value: T, comptime count: uint): [T; count] {
+    // ...
+}
+
+const values = repeat("x", 3);
+values satisfies [string; 3];
+```
+
+Type inference for generics is local and flows "outward" - we can "import" inference from other modules, but this only works one way; each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports.
 Downstream uses do not feed back into upstream inference in any way.
 
 ```ds:a.ds
@@ -1788,6 +1802,17 @@ COMPTIME_CONST satisfies int;
 
 const RUNTIME_CONST = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 RUNTIME_CONST satisfies int;
+```
+
+When runtime execution would be meaningless or unsafe, a function can be declared `comptime function` to declare that a function has no runtime callable form, but otherwise uses normal function syntax.
+(This is in some way the opposite of the usual `constexpr` based keyword, that is, Destack functions are evaluated at `comptime` by usage, and can be marked `comptime` to force compile-time evaluation.)
+
+```ds
+comptime function fieldOffset<T>(name: string): usize {
+    // inspect `T` at compile time
+}
+
+const offset = comptime fieldOffset<User>("name");
 ```
 
 The evaluation scope for each comptime expression is isolated to its declaration site, and the only way to get a value "out" is to use comptime as an expression - no reaching into statics or globals allowed.
