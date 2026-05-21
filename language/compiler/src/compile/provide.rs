@@ -69,12 +69,11 @@ impl Compiler {
                 target,
             } => self.provide_mir_optimized(module, profile, target, context),
             ArtifactKey::ModuleOutput { module, target } => {
-                let Some(profile) = self.target_profile_id(context.revision(), module, &target)
-                else {
-                    return Err(CompilerError::Internal {
+                let profile = self
+                    .target_profile_id(context.revision(), module, &target)?
+                    .ok_or_else(|| CompilerError::Internal {
                         message: format!("missing profile for module {module:?} target {target:?}"),
-                    });
-                };
+                    })?;
 
                 self.provide_module_output(module, profile, target, context)
             }

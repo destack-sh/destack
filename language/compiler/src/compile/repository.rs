@@ -2,52 +2,83 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, ArtifactPathState};
-use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
-use destack_workspace::{
-    DestackFile, Module, Package, Profile, ProviderContext, Revision, Target, TargetDiscoveryError,
-};
+use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
+use destack_workspace::{DestackFile, Module, Package, Profile, ProviderContext, Revision, Target};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
     /// Return one derived semantic profile by id for one explicit revision.
-    pub(crate) fn profile(&self, revision: Revision, profile_id: ProfileId) -> Profile {
-        self.repository
+    pub(crate) fn profile(
+        &self,
+        revision: Revision,
+        profile_id: ProfileId,
+    ) -> CompilerResult<Profile> {
+        let profile = self
+            .repository
             .profile(revision, profile_id)
-            .unwrap_or_else(|error| panic!("failed to load profile {profile_id:?}: {error}"))
-            .unwrap_or_else(|| panic!("missing compiler profile for {profile_id:?}"))
-            .as_ref()
-            .clone()
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load profile {profile_id:?}: {error}"),
+            })?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("missing compiler profile for {profile_id:?}"),
+            })?;
+
+        Ok(profile.as_ref().clone())
     }
 
     /// Return one module from one repository revision.
-    pub(crate) fn module(&self, revision: Revision, module_id: ModuleId) -> Arc<Module> {
+    pub(crate) fn module(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> CompilerResult<Arc<Module>> {
         self.repository
             .module(revision, module_id)
-            .unwrap_or_else(|error| panic!("failed to load module: {error}"))
-            .unwrap_or_else(|| panic!("missing module for {module_id:?}"))
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load module {module_id:?}: {error}"),
+            })?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("missing module for {module_id:?}"),
+            })
     }
 
     /// Return one file from one provider attempt revision and record its content dependency.
-    pub(crate) fn file(&self, context: &dyn ProviderContext, file_id: FileId) -> Arc<File> {
+    pub(crate) fn file(
+        &self,
+        context: &dyn ProviderContext,
+        file_id: FileId,
+    ) -> CompilerResult<Arc<File>> {
         let revision = context.revision();
         let file = self
             .repository
             .file(revision, file_id)
-            .unwrap_or_else(|error| panic!("failed to load file: {error}"))
-            .unwrap_or_else(|| panic!("missing file for {file_id:?}"));
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load file {file_id:?}: {error}"),
+            })?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("missing file for {file_id:?}"),
+            })?;
 
-        self.track_file_content(context, file_id);
+        self.track_file_content(context, file_id)?;
 
-        file
+        Ok(file)
     }
 
     /// Return one package from one repository revision.
-    pub(crate) fn package(&self, revision: Revision, package_id: PackageId) -> Arc<Package> {
+    pub(crate) fn package(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> CompilerResult<Arc<Package>> {
         self.repository
             .package(revision, package_id)
-            .unwrap_or_else(|error| panic!("failed to load package: {error}"))
-            .unwrap_or_else(|| panic!("missing package for {package_id:?}"))
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load package {package_id:?}: {error}"),
+            })?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("missing package for {package_id:?}"),
+            })
     }
 
     /// Load one package Destack config and record its declaration file dependencies.
@@ -55,37 +86,49 @@ impl Compiler {
         &self,
         context: &dyn ProviderContext,
         package_id: PackageId,
-    ) -> Option<Arc<DestackFile>> {
+    ) -> CompilerResult<Option<Arc<DestackFile>>> {
         let revision = context.revision();
         let config = self
             .repository
             .destack_for_package_id(revision, package_id)
-            .unwrap_or_else(|error| panic!("failed to load package config: {error}"));
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load package config {package_id:?}: {error}"),
+            })?;
 
         // track every declaration that built the effective config
         if let Some(config) = config.as_ref() {
             for file_id in &config.file_ids {
-                self.track_file_content(context, *file_id);
+                self.track_file_content(context, *file_id)?;
             }
         }
 
-        config
+        Ok(config)
     }
 
     /// Record one source file content dependency.
-    pub(crate) fn track_file_content(&self, context: &dyn ProviderContext, file_id: FileId) {
+    pub(crate) fn track_file_content(
+        &self,
+        context: &dyn ProviderContext,
+        file_id: FileId,
+    ) -> CompilerResult<()> {
         let revision = context.revision();
         let content_id = self
             .repository
             .file_content_id(revision, file_id)
-            .unwrap_or_else(|error| panic!("failed to load file content id: {error}"))
-            .unwrap_or_else(|| panic!("missing file content id for {file_id:?}"));
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load file content id for {file_id:?}: {error}"),
+            })?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("missing file content id for {file_id:?}"),
+            })?;
 
         context.track(ArtifactDependency::path_state(
             file_id,
             ArtifactPathState::File,
         ));
         context.track(ArtifactDependency::file_content(file_id, content_id));
+
+        Ok(())
     }
 
     /// Return one target or built-in and record its source config dependencies.
@@ -93,21 +136,29 @@ impl Compiler {
         &self,
         context: &dyn ProviderContext,
         target_id: TargetId,
-    ) -> Option<Target> {
-        let _config = self.destack_for_package(context, target_id.package_id());
+    ) -> CompilerResult<Option<Target>> {
+        let _config = self.destack_for_package(context, target_id.package_id())?;
         let target = self
             .repository
             .target_or_builtin(context.revision(), target_id)
-            .unwrap_or_else(|error| panic!("failed to load target: {error}"))?;
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load target {target_id:?}: {error}"),
+            })?;
 
-        Some(target)
+        Ok(target)
     }
 
     /// Return one target name from the repository model.
-    pub(crate) fn target_name(&self, revision: Revision, target_id: TargetId) -> String {
+    pub(crate) fn target_name(
+        &self,
+        revision: Revision,
+        target_id: TargetId,
+    ) -> CompilerResult<String> {
         self.repository
             .target_name(revision, target_id)
-            .unwrap_or_else(|error| panic!("failed to load target name: {error}"))
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load target name {target_id:?}: {error}"),
+            })
     }
 
     /// Return module ids selected by one target and record its source config dependencies.
@@ -115,11 +166,14 @@ impl Compiler {
         &self,
         context: &dyn ProviderContext,
         target_id: &TargetId,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
-        let _config = self.destack_for_package(context, target_id.package_id());
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let _config = self.destack_for_package(context, target_id.package_id())?;
         let mut module_ids = self
             .repository
-            .target_module_ids(context.revision(), *target_id)?;
+            .target_module_ids(context.revision(), *target_id)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to discover target modules {target_id:?}: {error:?}"),
+            })?;
 
         module_ids.sort_unstable();
         module_ids.dedup();
@@ -133,11 +187,17 @@ impl Compiler {
         revision: Revision,
         module_id: ModuleId,
         target_id: &TargetId,
-    ) -> Option<ProfileId> {
-        self.repository
+    ) -> CompilerResult<Option<ProfileId>> {
+        let profile = self
+            .repository
             .module_target_profile(revision, module_id, *target_id)
-            .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"))
-            .map(|profile| profile.id())
+            .map_err(|error| CompilerError::Internal {
+                message: format!(
+                    "failed to resolve target profile for module {module_id:?} target {target_id:?}: {error}"
+                ),
+            })?;
+
+        Ok(profile.map(|profile| profile.id()))
     }
 
     /// Return the module id for one path in a sealed revision.
@@ -153,6 +213,19 @@ impl Compiler {
                     "failed to resolve module path '{}': {error}",
                     path.display()
                 ),
+            })
+    }
+
+    /// Return the module id for one URI in a sealed revision.
+    pub(crate) fn module_id_for_uri(
+        &self,
+        revision: Revision,
+        uri: &Uri,
+    ) -> CompilerResult<Option<ModuleId>> {
+        self.repository
+            .module_id_for_uri(revision, uri)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to resolve module URI '{uri}': {error}"),
             })
     }
 
