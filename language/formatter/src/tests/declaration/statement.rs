@@ -242,7 +242,7 @@ fn test_format_block_inline() {
     assert_format!(
         r#"const x = if (y) { z } else { w }"#,
         r#"const x = if (y) { z } else { w }"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -270,7 +270,7 @@ fn test_format_let_else_statement() {
         r#"let { x } = value else {
     return;
 }"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default()
     );
 }

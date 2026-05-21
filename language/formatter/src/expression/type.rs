@@ -5,7 +5,6 @@ use crate::annotation::{
 };
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
-use crate::context::{MemoizeFormatExt, MemoizedFormat};
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
     parameter_is_variadic, should_hug_function_parameters, write_function_abstraction_prefix,
@@ -63,7 +62,6 @@ fn type_needs_postfix_parentheses(
         TypeExpression::Union { elements } => elements.len() > 1,
         TypeExpression::Intersection { elements } => elements.len() > 1,
         TypeExpression::Conditional { .. }
-        | TypeExpression::In { .. }
         | TypeExpression::Extends { .. }
         | TypeExpression::Implements { .. }
         | TypeExpression::Mapped { .. }
@@ -96,7 +94,6 @@ fn type_needs_index_object_parentheses(
             elements.len() > 1
         }
         TypeExpression::Conditional { .. }
-        | TypeExpression::In { .. }
         | TypeExpression::Extends { .. }
         | TypeExpression::Implements { .. }
         | TypeExpression::Readonly { .. }
@@ -1548,7 +1545,6 @@ fn type_needs_prefix_operand_parentheses(
             elements.len() > 1
         }
         TypeExpression::Conditional { .. }
-        | TypeExpression::In { .. }
         | TypeExpression::Extends { .. }
         | TypeExpression::Implements { .. }
         | TypeExpression::Mapped { .. }
@@ -1591,9 +1587,7 @@ fn type_parent_requires_parentheses(
         TypeExpression::TypeOfValue { .. } => false,
 
         // relations keep composite operands grouped
-        TypeExpression::In { left, right }
-        | TypeExpression::Extends { left, right }
-        | TypeExpression::Implements { left, right } => {
+        TypeExpression::Extends { left, right } | TypeExpression::Implements { left, right } => {
             (*left == child_id || *right == child_id)
                 && matches!(
                     context.tree.get(child_id),
@@ -1672,9 +1666,9 @@ fn function_like_type_needs_parentheses_in_type_parent(
                     function_like.return_type,
                 )
         }
-        TypeExpression::In { left, right }
-        | TypeExpression::Extends { left, right }
-        | TypeExpression::Implements { left, right } => *left == child_id || *right == child_id,
+        TypeExpression::Extends { left, right } | TypeExpression::Implements { left, right } => {
+            *left == child_id || *right == child_id
+        }
 
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
             elements.len() > 1
@@ -1777,22 +1771,21 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             }
             _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
         },
-        TypeExpression::In { .. }
-        | TypeExpression::Extends { .. }
-        | TypeExpression::Implements { .. } => match context.tree.get(parent_id) {
-            TypeExpression::Conditional {
-                left, extends_type, ..
-            } => *left == parent_child_id || *extends_type == parent_child_id,
-            TypeExpression::In { left, right }
-            | TypeExpression::Extends { left, right }
-            | TypeExpression::Implements { left, right } => {
-                *left == parent_child_id || *right == parent_child_id
+        TypeExpression::Extends { .. } | TypeExpression::Implements { .. } => {
+            match context.tree.get(parent_id) {
+                TypeExpression::Conditional {
+                    left, extends_type, ..
+                } => *left == parent_child_id || *extends_type == parent_child_id,
+                TypeExpression::Extends { left, right }
+                | TypeExpression::Implements { left, right } => {
+                    *left == parent_child_id || *right == parent_child_id
+                }
+                TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+                    elements.len() > 1
+                }
+                _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
             }
-            TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
-                elements.len() > 1
-            }
-            _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
-        },
+        }
         TypeExpression::Range { .. } => match context.tree.get(parent_id) {
             TypeExpression::Range { .. } => true,
             _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
@@ -1863,8 +1856,8 @@ fn write_type_callable_parameters_with_return_type<'ast, H, R>(
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
     return_type: Option<LocalNodeId<TypeExpression>>,
-    format_parameter_head: &MemoizedFormat<H>,
-    format_return_type: &MemoizedFormat<R>,
+    format_parameter_head: H,
+    format_return_type: R,
     should_group_return_type: bool,
 ) -> FormatResult<()>
 where
@@ -1873,8 +1866,7 @@ where
 {
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_type_parameters_from_parts(f, this_parameter, parameters)
-    })
-    .memoized();
+    });
 
     let parameter_count = parameters.len() + usize::from(this_parameter.is_some());
     write_grouped_parameters_with_return_type(
@@ -1883,7 +1875,7 @@ where
         parameter_count,
         return_type,
         format_parameter_head,
-        &format_parameters,
+        format_parameters,
         format_return_type,
         false,
         should_group_return_type,
@@ -2023,13 +2015,11 @@ fn write_function_type_declaration<'ast>(
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_type_callable_generic_parameters(f, &function.generic_parameters, false)
-        })
-        .memoized();
+        });
 
         let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_type_callable_arrow_return(f, _node_id, function.return_type)
-        })
-        .memoized();
+        });
 
         write_type_callable_parameters_with_return_type(
             f,
@@ -2037,8 +2027,8 @@ fn write_function_type_declaration<'ast>(
             function.this_parameter,
             &function.parameters,
             function.return_type,
-            &format_generic_parameters,
-            &format_return_type,
+            format_generic_parameters,
+            format_return_type,
             false,
         )?;
 
@@ -2068,13 +2058,11 @@ fn write_constructor_type_declaration<'ast>(
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_type_callable_arrow_return(f, _node_id, function.return_type)
-        })
-        .memoized();
+        });
 
         write_type_callable_parameters_with_return_type(
             f,
@@ -2082,8 +2070,8 @@ fn write_constructor_type_declaration<'ast>(
             None,
             &function.parameters,
             function.return_type,
-            &format_generic_parameters,
-            &format_return_type,
+            format_generic_parameters,
+            format_return_type,
             false,
         )?;
 
@@ -2153,8 +2141,7 @@ fn write_type_signature<'ast>(
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             if let Some(return_type) = signature.return_type {
@@ -2162,8 +2149,7 @@ fn write_type_signature<'ast>(
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         write_type_callable_parameters_with_return_type(
             f,
@@ -2171,8 +2157,8 @@ fn write_type_signature<'ast>(
             signature.this_parameter,
             &signature.parameters,
             signature.return_type,
-            &format_generic_parameters,
-            &format_return_type,
+            format_generic_parameters,
+            format_return_type,
             true,
         )?;
 
@@ -2196,8 +2182,7 @@ fn write_call_signature<'ast>(
     let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
-        })
-        .memoized();
+        });
 
         let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             if let Some(return_type) = signature.return_type {
@@ -2205,8 +2190,7 @@ fn write_call_signature<'ast>(
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         write_type_callable_parameters_with_return_type(
             f,
@@ -2214,8 +2198,8 @@ fn write_call_signature<'ast>(
             signature.this_parameter,
             &signature.parameters,
             signature.return_type,
-            &format_generic_parameters,
-            &format_return_type,
+            format_generic_parameters,
+            format_return_type,
             false,
         )?;
 
@@ -2245,8 +2229,7 @@ fn write_construct_signature<'ast>(
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             if let Some(return_type) = signature.return_type {
@@ -2254,8 +2237,7 @@ fn write_construct_signature<'ast>(
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         write_type_callable_parameters_with_return_type(
             f,
@@ -2263,8 +2245,8 @@ fn write_construct_signature<'ast>(
             None,
             &signature.parameters,
             signature.return_type,
-            &format_generic_parameters,
-            &format_return_type,
+            format_generic_parameters,
+            format_return_type,
             false,
         )?;
 
@@ -2757,9 +2739,6 @@ pub(crate) fn write_type_expression_body<'ast>(
             else_type,
         } => {
             write_conditional_type(f, node_id, *left, *extends_type, *then_type, *else_type)?;
-        }
-        TypeExpression::In { left, right } => {
-            write_type_relation(f, *left, Keyword::In, *right)?;
         }
         TypeExpression::Extends { left, right } => {
             write_type_relation(f, *left, Keyword::Extends, *right)?;

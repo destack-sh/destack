@@ -7,7 +7,7 @@ fn test_format_struct_empty() {
     assert_format!(
         r#"struct Foo { }"#,
         r#"struct Foo {}"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -21,7 +21,7 @@ fn test_format_struct_with_fields() {
 	a: int32;
 	b: boolean;
 }"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -34,7 +34,7 @@ fn test_format_class_with_abstract_override_field() {
         r#"class Foo {
 	abstract override bar: int32;
 }"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions {
             language_type: LanguageType::TypeScript,
             ..DestackFormatOptions::default_tab()
@@ -51,7 +51,7 @@ fn test_format_struct_with_decorated_field() {
 	@validate(minLength(1))
 	name: string;
 }"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }

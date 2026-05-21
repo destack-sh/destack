@@ -9,7 +9,7 @@ fn test_format_enum_empty() {
     assert_format!(
         "enum { }",
         "enum {}",
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -22,7 +22,7 @@ fn test_format_enum_with_simple_fields() {
 	A,
 	B,
 }"#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -52,7 +52,7 @@ fn test_format_enum_with_generic_parameters() {
     assert_format!(
         source,
         source,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default()
     );
 }
