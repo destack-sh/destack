@@ -12,6 +12,7 @@ use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Environment, Mode, Profile, Ref, Repository, Revision};
+use indexmap::IndexSet;
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -148,13 +149,13 @@ pub fn select_profile_for_mdtest(
         key.emit = emit;
     }
     if let Some(runtime) = overrides.runtime {
-        key.runtime = runtime;
+        key.conditions.runtime = Some(runtime);
     }
     if let Some(platform) = overrides.platform {
-        key.platform = platform;
+        key.conditions.platform = Some(platform);
     }
     if let Some(debug) = overrides.debug {
-        set_mode(&mut key.modes, Mode::DEBUG.name, debug);
+        set_mode(&mut key.conditions.modes, Mode::DEBUG.name, debug);
     }
 
     // validate runtime version usage
@@ -191,13 +192,13 @@ pub fn select_profile_for_mdtest(
 }
 
 /// Add or remove one profile mode.
-fn set_mode(modes: &mut Vec<String>, mode: &str, enabled: bool) {
-    let has_mode = modes.iter().any(|active| active == mode);
+fn set_mode(modes: &mut IndexSet<String>, mode: &str, enabled: bool) {
+    let has_mode = modes.contains(mode);
 
     if enabled && !has_mode {
-        modes.push(mode.to_string());
+        modes.insert(mode.to_string());
     } else if !enabled {
-        modes.retain(|active| active != mode);
+        modes.shift_remove(mode);
     }
 }
 
