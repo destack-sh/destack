@@ -783,7 +783,7 @@ pub fn expression_is_type_annotation(
         if parent_type == dir::NodeType::WhereClause {
             let where_clause_id = dir::LocalNodeId::<dir::WhereClause>::new(parent_id);
             let where_clause = tree.get(where_clause_id);
-            if where_clause.right.id == current_id {
+            if where_clause.left.id == current_id || where_clause.right.id == current_id {
                 return true;
             }
         }
