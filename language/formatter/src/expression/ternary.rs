@@ -1,7 +1,8 @@
 use super::conditional::ConditionalLayout;
 use super::dispatch::write_expression_without_trailing_comments;
-use crate::annotation::FormatTrailingComments;
+use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
+use crate::tree::expression_source_extent_trailing_line_comments;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
@@ -12,6 +13,7 @@ use destack_fir::prelude::{
     soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
+use smallvec::SmallVec;
 
 const UNDEFINED_IDENTIFIER: &str = "undefined";
 
@@ -91,6 +93,21 @@ fn ternary_chain_has_tree_branch(
         .is_some_and(|_| ternary_chain_has_tree_branch(context, else_expression))
 }
 
+/// Return whether one JSX ternary chain must expand to preserve branch ownership.
+pub(crate) fn jsx_chain_ternary_needs_expanded_branches(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, node_id) else {
+        return false;
+    };
+
+    !expression_source_extent_trailing_line_comments(context, then_expression).is_empty()
+        || else_expression.is_some_and(|expression_id| {
+            !expression_source_extent_trailing_line_comments(context, expression_id).is_empty()
+        })
+}
+
 /// Return the separator comments that belong to one ternary branch boundary.
 fn ternary_separator_comments<'a>(
     context: &'a DestackFormatContext<'a>,
@@ -140,12 +157,16 @@ fn write_ternary_separator_comments<'ast>(
     end: u32,
     operator: u8,
 ) -> FormatResult<()> {
-    let comments = ternary_separator_comments(f.context(), start, end, operator).to_vec();
+    let comments: SmallVec<[Comment; 2]> =
+        ternary_separator_comments(f.context(), start, end, operator)
+            .iter()
+            .copied()
+            .collect();
     if comments.is_empty() {
         return Ok(());
     }
 
-    write!(f, [FormatTrailingComments::Comments(&comments)])?;
+    write!(f, [FormatTrailingComments::Comments(comments.as_slice())])?;
 
     Ok(())
 }
@@ -252,9 +273,22 @@ fn format_jsx_chain_branch<'ast>(
     let branch_expression_id = transparent_inner_expression(f.context(), expression_id);
     let no_wrap =
         expression_is_jsx_chain_bare_branch(f.context(), branch_expression_id, is_alternate);
+    let branch_comments: SmallVec<[Comment; 2]> =
+        expression_source_extent_trailing_line_comments(f.context(), expression_id)
+            .iter()
+            .copied()
+            .collect();
 
-    let write_branch_body =
-        format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [expression_id]));
+    let write_branch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if branch_comments.is_empty() {
+            write!(f, [expression_id])?;
+        } else {
+            write_expression_without_trailing_comments(f, expression_id)?;
+            write_comment_slice(f, branch_comments.as_slice())?;
+        }
+
+        Ok(())
+    });
 
     if no_wrap {
         return write!(f, [write_branch_body]);
@@ -487,7 +521,9 @@ fn format_jsx_chain_ternary<'ast>(
     });
 
     if layout.groups_at_root() {
-        write!(f, [group(&format_inner)])?;
+        let should_expand = jsx_chain_ternary_needs_expanded_branches(f.context(), node_id);
+
+        write!(f, [group(&format_inner).should_expand(should_expand)])?;
     } else {
         write!(f, [format_inner])?;
     }

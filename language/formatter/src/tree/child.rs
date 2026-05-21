@@ -1,4 +1,5 @@
 use super::attribute::argument_transparent_value_id;
+use super::expression_source_extent_end;
 use crate::annotation::format_comment;
 use crate::chain::{
     chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
@@ -40,14 +41,15 @@ pub(crate) fn tree_argument_has_outer_line_comment(
     value_id: LocalNodeId<Expression>,
 ) -> bool {
     let argument_span = context.span(argument_id);
-    let value_span = context.span(value_id);
+    let value_start = context.span(value_id).start;
+    let value_end = expression_source_extent_end(context, value_id);
 
     context
-        .comment_tokens_in_range(argument_span.start, value_span.start)
+        .comment_tokens_in_range(argument_span.start, value_start)
         .iter()
         .chain(
             context
-                .comment_tokens_in_range(value_span.end, argument_span.end)
+                .comment_tokens_in_range(value_end, argument_span.end)
                 .iter(),
         )
         .any(|comment| context.comment_is_line(*comment))
