@@ -498,20 +498,8 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
         return Ok(());
     }
 
-    let clause = format_with(move |f| {
-        // clause separator
-        if start_on_new_line {
-            write!(f, [hard_line_break()])?;
-        } else if force_expand {
-            write!(f, [soft_line_break_or_space()])?;
-        } else {
-            write!(f, [space()])?;
-        }
-
-        // clause head
-        write!(f, [keyword, space()])?;
-
-        // clause entries
+    let entries = format_with(move |f| {
+        // entries
         if start_on_new_line || force_expand {
             f.join_with(&format_args![token(","), hard_line_break()])
                 .entries(types.iter().copied().map(|type_id| {
@@ -528,6 +516,29 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
                     })
                 }))
                 .finish()
+        }
+    });
+    let clause = format_with(move |f| {
+        // separator
+        if start_on_new_line {
+            write!(f, [hard_line_break()])?;
+        } else if force_expand {
+            write!(f, [soft_line_break_or_space()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+
+        // expanded head
+        if start_on_new_line || force_expand {
+            write!(f, [keyword, hard_line_break(), entries])
+        } else {
+            write!(
+                f,
+                [
+                    keyword,
+                    group(&indent(&format_args![soft_line_break_or_space(), entries]))
+                ]
+            )
         }
     });
 
