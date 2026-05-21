@@ -66,7 +66,7 @@ export class Measure {
 
     /// Create a measurement helper.
     constructor(name: string) {
-        this.name = name
+        this.name = name;
     }
 
     /// Measure repeated synchronous execution.
@@ -86,11 +86,11 @@ export class Measure {
 
     /// Record processed bytes.
     bytes(this: &exclusive Measure, value: uint64): void {
-        this.processedBytes = value
+        this.processedBytes = value;
     }
 
     /// Record processed items.
     items(this: &exclusive Measure, value: uint64): void {
-        this.processedItems = value
+        this.processedItems = value;
     }
 }

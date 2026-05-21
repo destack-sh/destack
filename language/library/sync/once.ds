@@ -1,5 +1,6 @@
 import { Result, todo } from "destack:error";
 import { MaybeUninit } from "destack:memory";
+
 import { Atomic } from "./atomic.ds";
 
 /// One-time execution state.
@@ -9,7 +10,7 @@ export class Once {
 
     /// Run `body` once.
     call(body: () => void): void {
-        todo("Once.call")
+        todo("Once.call");
     }
 
     /// Return true after the body has completed.

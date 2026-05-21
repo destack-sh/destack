@@ -24,9 +24,7 @@ export struct IoCompletionEvent {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openIoCompletion(
-    entries: uint32,
-): Result<IoCompletionHandle, HostError>;
+export declare function openIoCompletion(entries: uint32): Result<IoCompletionHandle, HostError>;
 
 /// Close a completion queue.
 @binding("destack.io.completion.close", {
@@ -35,9 +33,7 @@ export declare function openIoCompletion(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function closeIoCompletion(
-    completion: IoCompletionHandle,
-): Result<void, HostError>;
+export declare function closeIoCompletion(completion: IoCompletionHandle): Result<void, HostError>;
 
 /// Bind one resource to a completion queue.
 @binding("destack.io.completion.bind", {

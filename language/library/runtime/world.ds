@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { Label, LabelSelector } from "./entity.ds";
 import { BranchId, RevisionId } from "./lineage.ds";
 import { ResourceId } from "./resource.ds";
@@ -322,9 +323,7 @@ export declare function runtimeClose(runtimeHandle: RuntimeHandle): Result<void,
     provider: "runtime",
     affinity: "worker",
 })
-export declare function runtimeDescribe(
-    runtimeHandle: RuntimeHandle,
-): Result<Runtime, HostError>;
+export declare function runtimeDescribe(runtimeHandle: RuntimeHandle): Result<Runtime, HostError>;
 
 /// Spawn one worker in one runtime.
 @binding("destack.runtime.world.workerCreate", {

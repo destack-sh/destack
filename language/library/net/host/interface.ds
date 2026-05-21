@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { IpAddress } from "./address.ds";
 
 /// Network interface flags.
@@ -60,9 +61,7 @@ export declare function listNetworkInterfaces(): Result<Array<NetworkInterface>,
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function networkInterfaceIndex(
-    name: &readonly string,
-): Result<uint32, HostError>;
+export declare function networkInterfaceIndex(name: &readonly string): Result<uint32, HostError>;
 
 /// Resolve an interface index to a name.
 @binding("destack.net.interface.name", {

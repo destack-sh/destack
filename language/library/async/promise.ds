@@ -90,7 +90,7 @@ export class Promise<T> {
 
     /// Create a promise from an executor.
     constructor(executor: PromiseExecutor<T>) {
-        todo("Promise.constructor")
+        todo("Promise.constructor");
     }
 
     /// Continue when the promise fulfills.

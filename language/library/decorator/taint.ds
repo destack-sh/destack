@@ -37,7 +37,7 @@ export newtype taint = (TaintTag,) | ();
 /// function escapeHtml(value: string): string;
 /// ```
 @languageItem("decorator.untaint")
-export newtype untaint = (TaintDomain, UntaintOptions,) | (TaintDomain,) | ();
+export newtype untaint = (TaintDomain, UntaintOptions) | (TaintDomain,) | ();
 
 /// Marks a declaration as a boundary where tainted data enters.
 ///
@@ -46,7 +46,7 @@ export newtype untaint = (TaintDomain, UntaintOptions,) | (TaintDomain,) | ();
 /// function body(request: Request): string;
 /// ```
 @languageItem("decorator.source")
-export newtype source = (TaintDomain, SourceOptions,) | (TaintDomain,) | ();
+export newtype source = (TaintDomain, SourceOptions) | (TaintDomain,) | ();
 
 /// Marks a declaration as a boundary where tainted data leaves.
 ///
@@ -55,7 +55,7 @@ export newtype source = (TaintDomain, SourceOptions,) | (TaintDomain,) | ();
 /// function setInnerHtml(value: string): void;
 /// ```
 @languageItem("decorator.sink")
-export newtype sink = (TaintDomain, SinkOptions,) | (TaintDomain,) | ();
+export newtype sink = (TaintDomain, SinkOptions) | (TaintDomain,) | ();
 
 /// Marks an API, expression, or block as crossing an unsafe boundary.
 ///

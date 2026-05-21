@@ -1,6 +1,7 @@
-import { HostError } from "destack:error/host";
-import { AccessibilityNode, AccessibilityNodeId } from "./node.ds";
 import { WindowHandle } from "destack:display/host";
+import { HostError } from "destack:error/host";
+
+import { AccessibilityNode, AccessibilityNodeId } from "./node.ds";
 
 /// Monotonic accessibility tree version.
 export newtype AccessibilityTreeRevision = uint64;

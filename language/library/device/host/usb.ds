@@ -1,6 +1,6 @@
 import { Array } from "destack:collections";
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one USB device endpoint.
 export newtype UsbDeviceHandle = ResourceId;
@@ -289,9 +289,7 @@ export declare function readUsbWatch(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openUsbDevice(
-    id: &readonly string,
-): Result<UsbDeviceHandle, HostError>;
+export declare function openUsbDevice(id: &readonly string): Result<UsbDeviceHandle, HostError>;
 
 /// Close a USB device.
 @binding("destack.device.usb.close", {
@@ -309,9 +307,7 @@ export declare function closeUsbDevice(device: UsbDeviceHandle): Result<void, Ho
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function describeUsbDevice(
-    device: UsbDeviceHandle,
-): Result<UsbDevice, HostError>;
+export declare function describeUsbDevice(device: UsbDeviceHandle): Result<UsbDevice, HostError>;
 
 /// List USB configurations.
 @binding("destack.device.usb.configuration.list", {
@@ -331,9 +327,7 @@ export declare function listUsbConfigurations(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function getUsbConfiguration(
-    device: UsbDeviceHandle,
-): Result<uint8, HostError>;
+export declare function getUsbConfiguration(device: UsbDeviceHandle): Result<uint8, HostError>;
 
 /// Select the active USB configuration.
 @binding("destack.device.usb.configuration.set", {

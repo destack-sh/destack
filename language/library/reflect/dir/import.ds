@@ -28,9 +28,7 @@ export enum ImportSource {
 }
 
 /// The target of one import declaration.
-export type ImportTarget =
-    | StringImportTarget
-    | ExpressionImportTarget;
+export type ImportTarget = StringImportTarget | ExpressionImportTarget;
 
 /// Static import target string.
 export interface StringImportTarget {

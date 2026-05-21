@@ -33,11 +33,12 @@ export type OffsetDisambiguationOptions = {
 };
 
 /// Options for assigning zoned date-time fields.
-export type ZonedDateTimeAssignmentOptions =
-    AssignmentOptions & ToInstantOptions & OffsetDisambiguationOptions;
+export type ZonedDateTimeAssignmentOptions = AssignmentOptions &
+    ToInstantOptions &
+    OffsetDisambiguationOptions;
 
 /// Options for Temporal difference methods.
-export interface DifferenceOptions<T extends DateTimeUnit> {
+export interface DifferenceOptions<T: DateTimeUnit> {
     /// Smallest unit to include.
     smallestUnit?: SmallestUnit<T>;
 
@@ -52,45 +53,44 @@ export interface DifferenceOptions<T extends DateTimeUnit> {
 }
 
 /// Options for Temporal round methods.
-export type RoundTo<T extends DateTimeUnit> =
+export type RoundTo<T: DateTimeUnit> =
     | SmallestUnit<T>
     | {
-        /// Smallest unit to include.
-        smallestUnit: SmallestUnit<T>;
+          /// Smallest unit to include.
+          smallestUnit: SmallestUnit<T>;
 
-        /// Rounding increment for the smallest unit.
-        roundingIncrement?: number;
+          /// Rounding increment for the smallest unit.
+          roundingIncrement?: number;
 
-        /// Rounding mode.
-        roundingMode?: RoundingMode;
-    };
+          /// Rounding mode.
+          roundingMode?: RoundingMode;
+      };
 
 /// Options for `Duration.round`.
 export type DurationRoundTo =
     | SmallestUnit<DateTimeUnit>
     | (
-        {
-            /// Smallest unit to include.
-            smallestUnit: SmallestUnit<DateTimeUnit>;
+          | {
+                /// Smallest unit to include.
+                smallestUnit: SmallestUnit<DateTimeUnit>;
 
-            /// Largest unit to include.
-            largestUnit?: LargestUnit<DateTimeUnit>;
-        }
-        | {
-            /// Smallest unit to include.
-            smallestUnit?: SmallestUnit<DateTimeUnit>;
+                /// Largest unit to include.
+                largestUnit?: LargestUnit<DateTimeUnit>;
+            }
+          | {
+                /// Smallest unit to include.
+                smallestUnit?: SmallestUnit<DateTimeUnit>;
 
-            /// Largest unit to include.
-            largestUnit: LargestUnit<DateTimeUnit>;
-        }
-    ) & {
+                /// Largest unit to include.
+                largestUnit: LargestUnit<DateTimeUnit>;
+            }
+      ) & {
+          /// Rounding increment for the smallest unit.
+          roundingIncrement?: number;
 
-        /// Rounding increment for the smallest unit.
-        roundingIncrement?: number;
-
-        /// Rounding mode.
-        roundingMode?: RoundingMode;
-    };
+          /// Rounding mode.
+          roundingMode?: RoundingMode;
+      };
 
 /// Options for Temporal duration arithmetic.
 export interface DurationArithmeticOptions {
@@ -102,12 +102,17 @@ export interface DurationArithmeticOptions {
 export type DurationTotalOf =
     | TotalUnit<DateTimeUnit>
     | {
-        /// Unit to total into.
-        unit: TotalUnit<DateTimeUnit>;
+          /// Unit to total into.
+          unit: TotalUnit<DateTimeUnit>;
 
-        /// Relative date or zoned date-time.
-        relativeTo?: ZonedDateTime | PlainDateTime | ZonedDateTimeLike | PlainDateTimeLike | string;
-    };
+          /// Relative date or zoned date-time.
+          relativeTo?:
+              | ZonedDateTime
+              | PlainDateTime
+              | ZonedDateTimeLike
+              | PlainDateTimeLike
+              | string;
+      };
 
 /// Options for Temporal string precision.
 export type ToStringPrecisionOptions = {

@@ -25,9 +25,7 @@ export enum MatchSource {
 }
 
 /// A match selector.
-export type MatchSelector =
-    | PatternMatchSelector
-    | DefaultMatchSelector;
+export type MatchSelector = PatternMatchSelector | DefaultMatchSelector;
 
 /// A pattern selector with an optional guard.
 export interface PatternMatchSelector {
@@ -46,9 +44,7 @@ export interface DefaultMatchSelector {
 }
 
 /// A match case.
-export type MatchCase =
-    | ExpressionMatchCase
-    | BlockMatchCase;
+export type MatchCase = ExpressionMatchCase | BlockMatchCase;
 
 /// A match case with an expression body.
 export interface ExpressionMatchCase extends Node {

@@ -1,5 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { Clock, Duration, Timestamp } from "./clock.ds";
 
 /// Handle for a scheduled timer.
@@ -47,7 +48,9 @@ export struct TimerSchedule {
     families: ["windows", "unix", "wasm"],
     simulation: true,
 })
-export declare function openTimer(schedule: &readonly TimerSchedule): Result<TimerHandle, HostError>;
+export declare function openTimer(
+    schedule: &readonly TimerSchedule,
+): Result<TimerHandle, HostError>;
 
 /// Close one timer resource.
 @binding("destack.time.timer.close", {

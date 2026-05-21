@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Dispose } from "destack:memory";
+
 import { Atomic } from "./atomic.ds";
 
 /// Counting semaphore.
@@ -9,7 +10,7 @@ export class Semaphore {
 
     /// Create a semaphore with `permits` available permits.
     constructor(permits: usize) {
-        this.state = Atomic.new(permits as isize)
+        this.state = Atomic.new(permits as isize);
     }
 
     /// Return the number of immediately available permits.
@@ -39,7 +40,7 @@ export class Semaphore {
 
     /// Release `count` permits.
     release(count: usize = 1): void {
-        todo("Semaphore.release")
+        todo("Semaphore.release");
     }
 }
 
@@ -55,11 +56,11 @@ export struct SemaphorePermit {
 extension of SemaphorePermit implements Dispose {
     /// Release this permit.
     dispose(): void {
-        todo("SemaphorePermit.dispose")
+        todo("SemaphorePermit.dispose");
     }
 
     /// Consume this permit without releasing it.
     forget(this: SemaphorePermit): void {
-        todo("SemaphorePermit.forget")
+        todo("SemaphorePermit.forget");
     }
 }

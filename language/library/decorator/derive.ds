@@ -1,9 +1,6 @@
+import { type ExpansionContext, type Macro, type MaterializationContext } from "destack:macro";
+
 import { intrinsic } from "./intrinsic.ds";
-import {
-    type ExpansionContext,
-    type Macro,
-    type MaterializationContext,
-} from "destack:macro";
 
 /// Constructor naming policy for tagged newtype unions.
 export type TaggedCase =
@@ -27,10 +24,12 @@ export type TaggedNames = {
 ///     | { kind: "circle"; radius: int32 };
 /// ```
 @languageItem("decorator.Tagged")
-export newtype Tagged = () | {
-    case?: TaggedCase;
-    names?: TaggedNames;
-};
+export newtype Tagged =
+    | ()
+    | {
+          case?: TaggedCase;
+          names?: TaggedNames;
+      };
 
 /// Implement `Tagged` as a macro provider.
 export extension<Target> of Tagged implements Macro<Target> {

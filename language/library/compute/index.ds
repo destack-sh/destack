@@ -1,53 +1,31 @@
+export { ComputeError, ComputeErrorKind } from "./error.ds";
+export { DeviceCapabilities, DeviceFeature, DeviceLimits } from "./capability.ds";
+export { Buffer, BufferCopyRegion, BufferOptions, HostAccess } from "./buffer.ds";
 export {
-    ComputeErrorKind,
-    ComputeError,
-} from "./error.ds";
-export {
-    DeviceFeature,
-    DeviceLimits,
-    DeviceCapabilities,
-} from "./capability.ds";
-export {
-    HostAccess,
-    BufferOptions,
-    BufferCopyRegion,
-    Buffer,
-} from "./buffer.ds";
-export {
-    DeviceKind,
+    Device,
     DeviceId,
+    DeviceKind,
     DeviceMemory,
     DeviceProperties,
     DeviceQuery,
-    Device,
 } from "./device.ds";
+export { Event, Stream } from "./stream.ds";
 export {
-    Stream,
-    Event,
-} from "./stream.ds";
-export {
-    ProgramFormat,
-    ProgramText,
-    ProgramBinary,
-    ProgramSource,
-    ProgramOptions,
-    ProgramDiagnosticSeverity,
-    ProgramLocation,
-    ProgramDiagnostic,
-    ProgramReport,
-    Program,
-    KernelArgument,
-    KernelParameterKind,
-    KernelParameter,
-    KernelSignature,
     Kernel,
+    KernelArgument,
+    KernelParameter,
+    KernelParameterKind,
+    KernelSignature,
+    Program,
+    ProgramBinary,
+    ProgramDiagnostic,
+    ProgramDiagnosticSeverity,
+    ProgramFormat,
+    ProgramLocation,
+    ProgramOptions,
+    ProgramReport,
+    ProgramSource,
+    ProgramText,
 } from "./program.ds";
-export {
-    WorkgroupCount,
-    WorkgroupSize,
-} from "./workgroup.ds";
-export {
-    KernelDispatch,
-    CommandBuffer,
-    CommandEncoder,
-} from "./command.ds";
+export { WorkgroupCount, WorkgroupSize } from "./workgroup.ds";
+export { CommandBuffer, CommandEncoder, KernelDispatch } from "./command.ds";

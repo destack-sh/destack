@@ -2,8 +2,9 @@ import { Promise } from "destack:async";
 import { Measure } from "destack:bench";
 import { Result } from "destack:error";
 import { HostError } from "destack:error/host";
-import * as test from "destack:test";
 import * as runtime from "destack:runtime";
+import * as test from "destack:test";
+
 import { Trace } from "./trace.ds";
 
 /// Simulation callback context.

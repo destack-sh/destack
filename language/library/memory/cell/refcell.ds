@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Dereference } from "destack:ops";
+
 import { Dispose } from "../dispose.ds";
 import { Cell, UnsafeCell } from "./cell.ds";
 
@@ -48,7 +49,7 @@ export extension<T> of RefCell<T> {
 
     /// Swap two ref cells.
     swap(this: &readonly RefCell<T>, other: &readonly RefCell<T>): void {
-        todo("RefCell.swap")
+        todo("RefCell.swap");
     }
 
     /// Borrow the stored value with exclusive access.
@@ -74,7 +75,7 @@ extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
 
     /// Release this borrow.
     dispose(): void {
-        todo("Ref.dispose")
+        todo("Ref.dispose");
     }
 
     /// Borrow the protected value.
@@ -95,7 +96,7 @@ extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {
 
     /// Release this borrow.
     dispose(): void {
-        todo("ExclusiveRef.dispose")
+        todo("ExclusiveRef.dispose");
     }
 
     /// Borrow the protected value.

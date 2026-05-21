@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { ImageId } from "./lineage.ds";
 import { WorldHandle } from "./world.ds";
 

@@ -1,7 +1,8 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
-import { SocketAddress, SocketFamily } from "./address.ds";
 import { TransferredHandle } from "destack:ipc/host";
+import { ResourceId } from "destack:runtime/resource";
+
+import { SocketAddress, SocketFamily } from "./address.ds";
 
 /// Handle for a network socket.
 export newtype SocketHandle = ResourceId;
@@ -183,9 +184,7 @@ export struct SocketSendBatchEntry {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openSocket(
-    options: SocketOpenOptions,
-): Result<SocketHandle, HostError>;
+export declare function openSocket(options: SocketOpenOptions): Result<SocketHandle, HostError>;
 
 /// Create a connected socket pair.
 @binding("destack.net.socket.pair", {
@@ -194,9 +193,7 @@ export declare function openSocket(
     families: ["unix"],
     simulation: true,
 })
-export declare function openSocketPair(
-    options: SocketOpenOptions,
-): Result<SocketPair, HostError>;
+export declare function openSocketPair(options: SocketOpenOptions): Result<SocketPair, HostError>;
 
 /// Bind a socket to a local address.
 @binding("destack.net.socket.bind", {
@@ -286,9 +283,7 @@ export declare function setSocketNonblocking(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function localSocketAddress(
-    socket: SocketHandle,
-): Result<SocketAddress, HostError>;
+export declare function localSocketAddress(socket: SocketHandle): Result<SocketAddress, HostError>;
 
 /// Read the remote socket address.
 @binding("destack.net.socket.peerAddress", {
@@ -297,9 +292,7 @@ export declare function localSocketAddress(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function peerSocketAddress(
-    socket: SocketHandle,
-): Result<SocketAddress, HostError>;
+export declare function peerSocketAddress(socket: SocketHandle): Result<SocketAddress, HostError>;
 
 /// Receive bytes from a socket.
 @binding("destack.net.socket.receive", {

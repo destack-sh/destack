@@ -59,9 +59,7 @@ export struct TermiosAttributes {
     families: ["unix"],
     simulation: true,
 })
-export declare function readTermiosAttributes(
-    tty: TtyHandle,
-): Result<TermiosAttributes, HostError>;
+export declare function readTermiosAttributes(tty: TtyHandle): Result<TermiosAttributes, HostError>;
 
 /// Apply full termios attributes to one terminal handle.
 @binding("destack.tty.termios.attributes.set", {
@@ -92,10 +90,7 @@ export declare function drainTermios(tty: TtyHandle): Result<void, HostError>;
     families: ["unix"],
     simulation: true,
 })
-export declare function flushTermios(
-    tty: TtyHandle,
-    queue: TermiosQueue,
-): Result<void, HostError>;
+export declare function flushTermios(tty: TtyHandle, queue: TermiosQueue): Result<void, HostError>;
 
 /// Apply terminal flow control action.
 @binding("destack.tty.termios.flow", {
@@ -116,10 +111,7 @@ export declare function flowTermios(
     families: ["unix"],
     simulation: true,
 })
-export declare function sendTermiosBreak(
-    tty: TtyHandle,
-    duration: uint32,
-): Result<void, HostError>;
+export declare function sendTermiosBreak(tty: TtyHandle, duration: uint32): Result<void, HostError>;
 
 /// Read controlling terminal process group id.
 @binding("destack.tty.termios.processGroup.read", {

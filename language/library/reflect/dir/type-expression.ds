@@ -1,4 +1,10 @@
-import { type Argument, type GenericArgument, type GenericParameter, type Parameter, type TupleElement } from "./argument.ds";
+import {
+    type Argument,
+    type GenericArgument,
+    type GenericParameter,
+    type Parameter,
+    type TupleElement,
+} from "./argument.ds";
 import { type Declaration } from "./declaration.ds";
 import { type SymbolSpaceOrder } from "./dependency.ds";
 import { type Expression, type WhereClause } from "./expression.ds";
@@ -189,9 +195,7 @@ export enum TypeModifier {
 }
 
 /// A type predicate subject.
-export type TypePredicateSubject =
-    | IdentifierTypePredicateSubject
-    | ThisTypePredicateSubject;
+export type TypePredicateSubject = IdentifierTypePredicateSubject | ThisTypePredicateSubject;
 
 /// Identifier predicate subject.
 export interface IdentifierTypePredicateSubject {

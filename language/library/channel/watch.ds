@@ -1,6 +1,7 @@
 import { AsyncResult, Result, todo } from "destack:error";
 import { Dispose, Send } from "destack:memory";
 import { Dereference } from "destack:ops";
+
 import { ReceiveError, SendError } from "./channel.ds";
 
 /// Borrowed snapshot of a watched value.
@@ -15,7 +16,7 @@ extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
 
     /// Release this snapshot.
     dispose(): void {
-        todo("WatchRef.dispose")
+        todo("WatchRef.dispose");
     }
 
     /// Borrow the watched value.

@@ -42,9 +42,7 @@ export struct IpAddressIpv6 {
 
 /// IP address payload.
 @derive(Tagged)
-export newtype IpAddress =
-    | IpAddressIpv4
-    | IpAddressIpv6;
+export newtype IpAddress = IpAddressIpv4 | IpAddressIpv6;
 
 /// IP socket endpoint.
 export struct IpEndpoint {
@@ -78,10 +76,7 @@ export struct UnixAddressUnnamed {
 
 /// Unix domain socket address payload.
 @derive(Tagged)
-export newtype UnixAddress =
-    | UnixAddressPath
-    | UnixAddressAbstract
-    | UnixAddressUnnamed;
+export newtype UnixAddress = UnixAddressPath | UnixAddressAbstract | UnixAddressUnnamed;
 
 /// Raw socket address payload for host-specific address families.
 export struct RawSocketAddress {
@@ -116,7 +111,4 @@ export struct SocketAddressRaw {
 }
 
 /// Socket address payload.
-export newtype SocketAddress =
-    | SocketAddressIp
-    | SocketAddressUnix
-    | SocketAddressRaw;
+export newtype SocketAddress = SocketAddressIp | SocketAddressUnix | SocketAddressRaw;

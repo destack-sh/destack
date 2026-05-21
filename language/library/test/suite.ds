@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Duration } from "destack:time";
+
 import { SuiteId } from "./id.ds";
 import { Options } from "./options.ds";
 
@@ -22,40 +23,36 @@ export struct Suite {
 }
 
 /// Register one test suite.
-export function registerSuite(
-    name: string,
-    argument?: SuiteArgument,
-    body?: SuiteBody,
-): void {
-    todo("test.registerSuite")
+export function registerSuite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
+    todo("test.registerSuite");
 }
 
 /// Register one test suite.
 export function describe(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
-    registerSuite(name, argument, body)
+    registerSuite(name, argument, body);
 }
 
 /// Register one test suite.
 export function suite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
-    registerSuite(name, argument, body)
+    registerSuite(name, argument, body);
 }
 
 /// Register one skipped test suite.
 export function suiteSkip(name: string, body?: SuiteBody): void {
-    registerSuite(name, { skip: true }, body)
+    registerSuite(name, { skip: true }, body);
 }
 
 /// Register one focused test suite.
 export function suiteOnly(name: string, body?: SuiteBody): void {
-    registerSuite(name, { only: true }, body)
+    registerSuite(name, { only: true }, body);
 }
 
 /// Register one skipped test suite.
 export function describeSkip(name: string, body?: SuiteBody): void {
-    suiteSkip(name, body)
+    suiteSkip(name, body);
 }
 
 /// Register one focused test suite.
 export function describeOnly(name: string, body?: SuiteBody): void {
-    suiteOnly(name, body)
+    suiteOnly(name, body);
 }

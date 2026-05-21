@@ -1,11 +1,12 @@
-import { todo } from "destack:error";
 import { Array, Slice } from "destack:collections";
 import { As, Borrow, From } from "destack:convert";
+import { todo } from "destack:error";
 import { Iterator } from "destack:iter";
 import { Default, Unique } from "destack:memory";
 import { RegExp, RegExpMatch } from "destack:regexp";
-import { StringSlice } from "./slice.ds";
+
 import { StringBuilder } from "./builder.ds";
+import { StringSlice } from "./slice.ds";
 
 /// Raw template string parts.
 export type StringRawParts = {
@@ -17,7 +18,9 @@ export type StringRawParts = {
 export type StringMatch = RegExpMatch | readonly string[];
 
 /// Replacement value used by `String.replace` and `String.replaceAll`.
-export type StringReplacement = string | ((match: string, ...captures: (string | undefined)[]) => string);
+export type StringReplacement =
+    | string
+    | ((match: string, ...captures: (string | undefined)[]) => string);
 
 /// Immutable UTF-8 string.
 @languageItem("string.String")
@@ -134,12 +137,20 @@ extension of String {
     }
 
     /// Replace the first matching text.
-    replace(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): ^string {
+    replace(
+        this: &readonly string,
+        pattern: string | RegExp,
+        replacement: StringReplacement,
+    ): ^string {
         todo("String.replace")
     }
 
     /// Replace every matching text.
-    replaceAll(this: &readonly string, pattern: string | RegExp, replacement: StringReplacement): ^string {
+    replaceAll(
+        this: &readonly string,
+        pattern: string | RegExp,
+        replacement: StringReplacement,
+    ): ^string {
         todo("String.replaceAll")
     }
 

@@ -1,7 +1,16 @@
 import { From } from "destack:convert";
 import { panic, Result, todo } from "destack:error";
 import { Default } from "destack:memory";
-import { Compare, Equal, FromFailure, Ordering, Try, TryBranch, TryContinue, TryFailure } from "destack:ops";
+import {
+    Compare,
+    Equal,
+    FromFailure,
+    Ordering,
+    Try,
+    TryBranch,
+    TryContinue,
+    TryFailure,
+} from "destack:ops";
 
 /// Explicit optional value.
 @languageItem("types.Option")
@@ -94,8 +103,7 @@ extension<T> of Option<T> {
     }
 
     /// Return the value or the default value.
-    unwrapOrDefault(): T
-    where T implements Default {
+    unwrapOrDefault(): T where T: Default {
         match (this) {
             null => T.default()
             value => value
@@ -252,7 +260,7 @@ extension<T> of Option<T> {
         match (this) {
             null => this
             value => {
-                f(&readonly value)
+                f(&readonly value);
                 this
             }
         }
@@ -269,8 +277,7 @@ extension<T> of Option<T> {
     }
 
     /// Return the existing value or insert the default value.
-    getOrInsertDefault(this: &exclusive Option<T>): &exclusive T
-    where T implements Default {
+    getOrInsertDefault(this: &exclusive Option<T>): &exclusive T where T: Default {
         todo("Option.getOrInsertDefault")
     }
 

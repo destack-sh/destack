@@ -1,6 +1,6 @@
 import { Array } from "destack:collections";
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one opened MIDI input endpoint.
 export newtype MidiInputPortHandle = ResourceId;
@@ -378,9 +378,7 @@ export declare function closeMidiInput(input: MidiInputPortHandle): Result<void,
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function describeMidiInput(
-    input: MidiInputPortHandle,
-): Result<MidiPort, HostError>;
+export declare function describeMidiInput(input: MidiInputPortHandle): Result<MidiPort, HostError>;
 
 /// Read MIDI input records.
 @binding("destack.device.midi.input.read", {

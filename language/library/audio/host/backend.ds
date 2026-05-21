@@ -1,6 +1,6 @@
 import { Array } from "destack:collections";
-import { HostBackendStatus } from "destack:runtime/binding";
 import { HostError } from "destack:error/host";
+import { HostBackendStatus } from "destack:runtime/binding";
 
 /// Host audio backend kind.
 export enum AudioBackendKind {

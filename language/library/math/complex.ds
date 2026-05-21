@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Add, Divide, Equal, Multiply, Negate, Power, Subtract } from "destack:ops";
+
 import { atan2, cos, sin, sqrt } from "./float.ds";
 
 /// Complex number with floating-point components.
@@ -25,8 +26,7 @@ extension<T: float> of Complex<T> implements
     Divide<Complex<T>>,
     Power<Complex<T>>,
     Negate,
-    Equal<Complex<T>>
-{
+    Equal<Complex<T>> {
     /// The arithmetic result type.
     type Output = Complex<T>;
 

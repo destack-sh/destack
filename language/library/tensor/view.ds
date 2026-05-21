@@ -1,21 +1,17 @@
-import { todo } from "destack:error";
 import { Slice } from "destack:collections";
+import { todo } from "destack:error";
 import { Access } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
-import { Coordinate, Shape } from "./shape.ds";
+
 import { ViewLayout } from "./layout.ds";
+import { Coordinate, Shape } from "./shape.ds";
 
 /// Borrowed view over a tensor buffer.
 @languageItem("tensor.TensorView")
-export newtype TensorView<
-    T,
-    comptime Rank: int,
-    A: Access = "mutable",
-> = intrinsic;
+export newtype TensorView<T, comptime Rank: int, A: Access = "mutable"> = intrinsic;
 
 extension<T, comptime Rank: int, A: Access> of TensorView<T, Rank, A> implements
-    Index<Coordinate<Rank>>
-{
+    Index<Coordinate<Rank>> {
     /// The indexed output type.
     type Output = T;
 
@@ -94,10 +90,9 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> {
 }
 
 extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> implements
-    IndexSet<Coordinate<Rank>, T>
-{
+    IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.
     indexSet(coordinate: Coordinate<Rank>, value: T): void {
-        todo("TensorView.indexSet")
+        todo("TensorView.indexSet");
     }
 }

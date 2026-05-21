@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import { FilesystemEntry } from "./entry.ds";
 import { Path, PathBuffer } from "./path.ds";
 import { FileMode } from "./status.ds";
@@ -62,9 +63,7 @@ export declare function renameEntry(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function unlinkEntry(
-    entry: &readonly FilesystemEntry,
-): Result<void, HostError>;
+export declare function unlinkEntry(entry: &readonly FilesystemEntry): Result<void, HostError>;
 
 /// Create one hard link.
 @binding("destack.fs.namespace.link", {

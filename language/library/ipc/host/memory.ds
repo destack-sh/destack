@@ -1,5 +1,5 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for an IPC shared memory object.
 export newtype SharedMemoryHandle = ResourceId;
@@ -80,9 +80,7 @@ export declare function removeSharedMemory(name: &readonly string): Result<void,
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function closeSharedMemory(
-    memory: SharedMemoryHandle,
-): Result<void, HostError>;
+export declare function closeSharedMemory(memory: SharedMemoryHandle): Result<void, HostError>;
 
 /// Map one shared memory range.
 @binding("destack.ipc.memory.map", {
@@ -105,7 +103,4 @@ export declare function mapSharedMemory(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function unmapSharedMemory(
-    address: uint64,
-    length: uint64,
-): Result<void, HostError>;
+export declare function unmapSharedMemory(address: uint64, length: uint64): Result<void, HostError>;

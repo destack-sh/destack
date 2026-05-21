@@ -1,7 +1,8 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
-import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
 import { GpuAdapterHandle, GpuSurfaceHandle } from "destack:gpu/host";
+
+import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
 
 /// GPU backend selector.
 export enum GpuBackend {

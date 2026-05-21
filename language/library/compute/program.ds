@@ -1,5 +1,6 @@
 import { Slice } from "destack:collections";
 import { Result, todo } from "destack:error";
+
 import { Buffer } from "./buffer.ds";
 import { Device } from "./device.ds";
 import { ComputeError } from "./error.ds";
@@ -49,9 +50,7 @@ export struct ProgramBinary {
 
 /// Compute program source.
 @derive(Tagged)
-export newtype ProgramSource =
-    | ProgramText
-    | ProgramBinary;
+export newtype ProgramSource = ProgramText | ProgramBinary;
 
 /// Compile options for one compute program.
 export struct ProgramOptions {
@@ -127,11 +126,7 @@ export class Program {
     }
 
     /// Compile `source` for `device` and return diagnostics.
-    static build(
-        device: Device,
-        source: ProgramSource,
-        options?: ProgramOptions,
-    ): ProgramReport {
+    static build(device: Device, source: ProgramSource, options?: ProgramOptions): ProgramReport {
         todo("Program.build")
     }
 

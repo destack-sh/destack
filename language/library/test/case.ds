@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Duration } from "destack:time";
+
 import { CaseId } from "./id.ds";
 import { CaseKind, Options } from "./options.ds";
 import { Body } from "./result.ds";
@@ -24,47 +25,47 @@ export struct Case {
 
 /// Register one test case.
 export function registerCase(name: string, argument?: CaseArgument, body?: Body): void {
-    todo("test.registerCase")
+    todo("test.registerCase");
 }
 
 /// Register one test.
 export function test(name: string, argument?: CaseArgument, body?: Body): void {
-    registerCase(name, argument, body)
+    registerCase(name, argument, body);
 }
 
 /// Register one test.
 export function it(name: string, argument?: CaseArgument, body?: Body): void {
-    registerCase(name, argument, body)
+    registerCase(name, argument, body);
 }
 
 /// Register one skipped test.
 export function caseSkip(name: string, body?: Body): void {
-    registerCase(name, { skip: true }, body)
+    registerCase(name, { skip: true }, body);
 }
 
 /// Register one focused test.
 export function caseOnly(name: string, body?: Body): void {
-    registerCase(name, { only: true }, body)
+    registerCase(name, { only: true }, body);
 }
 
 /// Register one skipped test.
 export function testSkip(name: string, body?: Body): void {
-    caseSkip(name, body)
+    caseSkip(name, body);
 }
 
 /// Register one focused test.
 export function testOnly(name: string, body?: Body): void {
-    caseOnly(name, body)
+    caseOnly(name, body);
 }
 
 /// Register one skipped test.
 export function itSkip(name: string, body?: Body): void {
-    caseSkip(name, body)
+    caseSkip(name, body);
 }
 
 /// Register one focused test.
 export function itOnly(name: string, body?: Body): void {
-    caseOnly(name, body)
+    caseOnly(name, body);
 }
 
 export { registerCase as case };

@@ -1,5 +1,5 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for an IPC message queue.
 export newtype MessageQueueHandle = ResourceId;
@@ -49,9 +49,7 @@ export declare function openMessageQueue(
     families: ["unix"],
     simulation: true,
 })
-export declare function closeMessageQueue(
-    queue: MessageQueueHandle,
-): Result<void, HostError>;
+export declare function closeMessageQueue(queue: MessageQueueHandle): Result<void, HostError>;
 
 /// Remove one named message queue.
 @binding("destack.ipc.message.remove", {

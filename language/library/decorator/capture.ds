@@ -8,9 +8,9 @@ export type CaptureKind = CapturePolicy;
 export type CaptureDirective =
     | CapturePolicy
     | {
-        default?: CapturePolicy;
-        [name: string]: CaptureKind;
-    };
+          default?: CapturePolicy;
+          [name: string]: CaptureKind;
+      };
 
 /// Configure closure capture policy for a lambda.
 ///

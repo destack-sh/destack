@@ -39,9 +39,7 @@ export struct ProcessLimit {
     families: ["unix"],
     simulation: true,
 })
-export declare function getProcessLimit(
-    kind: ProcessLimitKind,
-): Result<ProcessLimit, HostError>;
+export declare function getProcessLimit(kind: ProcessLimitKind): Result<ProcessLimit, HostError>;
 
 /// Set a process resource limit.
 @binding("destack.process.limit.set", {

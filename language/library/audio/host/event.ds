@@ -1,10 +1,11 @@
-import { ResourceId } from "destack:runtime/resource";
+import { AudioStreamHandle } from "destack:audio/host";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
 import { AudioDirection } from "./device.ds";
 import { AudioStreamState } from "./stream.ds";
-import { AudioStreamHandle } from "destack:audio/host";
 
 /// Handle for one audio event subscription endpoint.
 export newtype AudioEventHandle = ResourceId;

@@ -1,6 +1,6 @@
 import { Array } from "destack:collections";
-import { HostBackendStatus } from "destack:runtime/binding";
 import { HostError } from "destack:error/host";
+import { HostBackendStatus } from "destack:runtime/binding";
 
 /// Host display backend kind.
 export enum DisplayBackendKind {
@@ -58,8 +58,7 @@ export const DISPLAY_BACKEND_FRAME_TIMING: DisplayBackendFlags = DisplayBackendF
 export const DISPLAY_BACKEND_DRAG: DisplayBackendFlags = DisplayBackendFlags(0x20);
 
 /// Backend can enter exclusive fullscreen modes.
-export const DISPLAY_BACKEND_EXCLUSIVE_FULLSCREEN: DisplayBackendFlags =
-    DisplayBackendFlags(0x40);
+export const DISPLAY_BACKEND_EXCLUSIVE_FULLSCREEN: DisplayBackendFlags = DisplayBackendFlags(0x40);
 
 /// Backend can report or set HDR output policy.
 export const DISPLAY_BACKEND_HDR: DisplayBackendFlags = DisplayBackendFlags(0x80);

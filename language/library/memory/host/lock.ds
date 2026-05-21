@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import { VirtualMemoryRange } from "./virtual.ds";
 
 /// Lock one memory range into physical memory.

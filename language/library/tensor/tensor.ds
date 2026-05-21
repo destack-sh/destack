@@ -1,10 +1,13 @@
-import { todo } from "destack:error";
 import { Slice } from "destack:collections";
 import { Device } from "destack:compute";
+import { todo } from "destack:error";
+import { Access, WithAccess } from "destack:memory";
 import {
     Add,
     And,
     Divide,
+    Index,
+    IndexSet,
     Multiply,
     Negate,
     Not,
@@ -13,14 +16,12 @@ import {
     Remainder,
     Subtract,
     Xor,
-    Index,
-    IndexSet,
 } from "destack:ops";
-import { Access, WithAccess } from "destack:memory";
+
+import { TensorBuffer } from "./buffer.ds";
 import { Layout } from "./layout.ds";
 import { TensorCreateOptions, TensorOutputOptions } from "./options.ds";
 import { Coordinate, Shape } from "./shape.ds";
-import { TensorBuffer } from "./buffer.ds";
 import { TensorView } from "./view.ds";
 
 /// Owning tensor value on a device.
@@ -41,10 +42,7 @@ export class Tensor<T, comptime Rank: int> {
 
 extension<T, comptime Rank: int> of Tensor<T, Rank> {
     /// Allocate an uninitialized tensor.
-    static empty(
-        shape: Shape<Rank>,
-        options?: TensorCreateOptions<Rank>,
-    ): Tensor<T, Rank> {
+    static empty(shape: Shape<Rank>, options?: TensorCreateOptions<Rank>): Tensor<T, Rank> {
         todo("Tensor.empty")
     }
 
@@ -91,18 +89,12 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> {
 
 extension<T: int | float, comptime Rank: int> of Tensor<T, Rank> {
     /// Allocate a tensor filled with zero.
-    static zeros(
-        shape: Shape<Rank>,
-        options?: TensorCreateOptions<Rank>,
-    ): Tensor<T, Rank> {
+    static zeros(shape: Shape<Rank>, options?: TensorCreateOptions<Rank>): Tensor<T, Rank> {
         todo("Tensor.zeros")
     }
 
     /// Allocate a tensor filled with one.
-    static ones(
-        shape: Shape<Rank>,
-        options?: TensorCreateOptions<Rank>,
-    ): Tensor<T, Rank> {
+    static ones(shape: Shape<Rank>, options?: TensorCreateOptions<Rank>): Tensor<T, Rank> {
         todo("Tensor.ones")
     }
 }
@@ -114,8 +106,7 @@ extension<T: int | float, comptime Rank: int> of Tensor<T, Rank> implements
     Divide<Tensor<T, Rank>>,
     Remainder<Tensor<T, Rank>>,
     Power<Tensor<T, Rank>>,
-    Negate
-{
+    Negate {
     /// The elementwise tensor result type.
     type Output = Tensor<T, Rank>;
 
@@ -159,8 +150,7 @@ extension<T: int | boolean, comptime Rank: int> of Tensor<T, Rank> implements
     And<Tensor<T, Rank>>,
     Or<Tensor<T, Rank>>,
     Xor<Tensor<T, Rank>>,
-    Not
-{
+    Not {
     /// The elementwise tensor result type.
     type Output = Tensor<T, Rank>;
 
@@ -187,8 +177,7 @@ extension<T: int | boolean, comptime Rank: int> of Tensor<T, Rank> implements
 
 extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     Index<Coordinate<Rank>>,
-    IndexSet<Coordinate<Rank>, T>
-{
+    IndexSet<Coordinate<Rank>, T> {
     /// The indexed output type.
     type Output = T;
 
@@ -227,6 +216,6 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
 
     /// Store `value` at `coordinate`.
     indexSet(this: &exclusive Tensor<T, Rank>, coordinate: Coordinate<Rank>, value: T): void {
-        todo("Tensor.indexSet")
+        todo("Tensor.indexSet");
     }
 }

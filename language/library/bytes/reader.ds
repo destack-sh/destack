@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { Bytes } from "./bytes.ds";
 
 /// Sequential byte reader over in-memory bytes.
@@ -36,7 +37,7 @@ export class ByteReader {
 
     /// Move the current byte offset.
     seek(offset: usize): void {
-        todo("ByteReader.seek")
+        todo("ByteReader.seek");
     }
 
     /// Skip up to `count` bytes.
@@ -56,7 +57,7 @@ export class ByteReader {
 
     /// Step back by one byte.
     unreadByte(): void {
-        todo("ByteReader.unreadByte")
+        todo("ByteReader.unreadByte");
     }
 
     /// Read at most `length` bytes.

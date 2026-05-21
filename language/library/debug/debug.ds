@@ -4,7 +4,7 @@ import { HostError } from "destack:error/host";
 import { SourceLocation } from "destack:error/stack";
 import { FrameId, FrameSlotId, FrameStateId } from "destack:runtime/frame";
 import { BranchId, Moment } from "destack:runtime/lineage";
-import { WorldHandle, WorldViewHandle, WorkerId } from "destack:runtime/world";
+import { WorkerId, WorldHandle, WorldViewHandle } from "destack:runtime/world";
 
 /// Runtime debug scope identifier.
 export newtype ScopeId = uint32;
@@ -155,11 +155,7 @@ export struct ValueUnavailable {
 
 /// Debug binding value.
 @derive(Tagged)
-export newtype Value =
-    | ValueSlot
-    | ValueBytes
-    | ValueOptimizedOut
-    | ValueUnavailable;
+export newtype Value = ValueSlot | ValueBytes | ValueOptimizedOut | ValueUnavailable;
 
 /// Debug scope list page.
 export struct ScopePage {
@@ -184,7 +180,7 @@ export class Debugger {
 
     /// Create a debugger.
     constructor(world: WorldHandle) {
-        this.world = world
+        this.world = world;
     }
 
     /// Return the current stop state.

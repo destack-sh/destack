@@ -95,9 +95,7 @@ export struct SensorStreamState {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listSensors(
-    device: InputDeviceHandle,
-): Result<Array<Sensor>, HostError>;
+export declare function listSensors(device: InputDeviceHandle): Result<Array<Sensor>, HostError>;
 
 /// Set one sensor stream state.
 @binding("destack.input.sensor.stream.set", {

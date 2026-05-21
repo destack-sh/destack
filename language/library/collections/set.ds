@@ -1,8 +1,9 @@
-import { todo } from "destack:error";
 import { Borrow, From } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
 import { Equal, Hash } from "destack:ops";
+
 import { Map } from "./map.ds";
 
 /// A compact hash set.
@@ -36,11 +37,8 @@ extension<T> of ^Set<T> implements Default {
     }
 }
 
-extension<T: Hash> of Set<T> implements
-    Iterable<T>,
-    Iterable<&readonly T>,
-    Extend<T, "exclusive">
-where T implements Equal<T> {
+extension<T: Hash> of Set<T> implements Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive">
+where T: Equal<T> {
     /// Create a set from values.
     static from(values: Iterable<T>): ^Set<T> {
         todo("Set.from")
@@ -62,14 +60,13 @@ where T implements Equal<T> {
     }
 
     /// Return whether `value` is present.
-    has<Q: Hash>(value: &readonly Q): boolean
-    where T implements Borrow<Q>, Q implements Equal<Q> {
+    has<Q: Hash>(value: &readonly Q): boolean where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("Set.has")
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
     get<Q: Hash>(this: &readonly Set<T>, value: &readonly Q): &readonly T | undefined
-    where T implements Borrow<Q>, Q implements Equal<Q> {
+    where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("Set.get")
     }
 
@@ -80,23 +77,23 @@ where T implements Equal<T> {
 
     /// Add all `values`.
     extend(this: &exclusive Set<T>, values: Iterable<T>): void {
-        todo("Set.extend")
+        todo("Set.extend");
     }
 
     /// Remove `value`.
     remove<Q: Hash>(this: &exclusive Set<T>, value: &readonly Q): T | undefined
-    where T implements Borrow<Q>, Q implements Equal<Q> {
+    where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("Set.remove")
     }
 
     /// Remove all elements.
     clear(this: &exclusive Set<T>): void {
-        todo("Set.clear")
+        todo("Set.clear");
     }
 
     /// Retain only values accepted by `predicate`.
     retain(this: &exclusive Set<T>, predicate: (value: &readonly T) => boolean): void {
-        todo("Set.retain")
+        todo("Set.retain");
     }
 
     /// Remove all values and return them.
@@ -111,12 +108,12 @@ where T implements Equal<T> {
 
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive Set<T>, additional: usize): void {
-        todo("Set.reserve")
+        todo("Set.reserve");
     }
 
     /// Shrink storage to fit the current values.
     shrinkToFit(this: &exclusive Set<T>): void {
-        todo("Set.shrinkToFit")
+        todo("Set.shrinkToFit");
     }
 
     /// Return the union of two sets.
@@ -186,12 +183,11 @@ where T implements Equal<T> {
 
     /// Call `f` for each value.
     forEach(f: (value: T, set: Set<T>) => void): void {
-        todo("Set.forEach")
+        todo("Set.forEach");
     }
 }
 
-extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T>
-where T implements Equal<T> {
+extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<T> where T: Equal<T> {
     /// Create an owned set from values.
     static from(values: Iterable<T>): ^Set<T> {
         Set.from(values)

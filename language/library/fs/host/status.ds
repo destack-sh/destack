@@ -1,7 +1,8 @@
 import { HostError } from "destack:error/host";
+import { FileHandle } from "destack:fs/host";
+
 import { FilesystemEntry } from "./entry.ds";
 import { FileSize } from "./range.ds";
-import { FileHandle } from "destack:fs/host";
 
 /// File permission mode bits.
 export newtype FileMode = uint32;
@@ -88,9 +89,7 @@ export struct FilePrincipalWindows {
 }
 
 /// File owner principal.
-export newtype FilePrincipal =
-    | FilePrincipalUnix
-    | FilePrincipalWindows;
+export newtype FilePrincipal = FilePrincipalUnix | FilePrincipalWindows;
 
 /// File owner assignment.
 export struct FileOwner {

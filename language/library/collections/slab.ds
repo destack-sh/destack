@@ -1,8 +1,9 @@
-import { todo } from "destack:error";
 import { From } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
+
 import { Array } from "./array.ds";
 
 /// Key for one live slab entry.
@@ -51,8 +52,7 @@ extension<T> of Slab<T> implements
     From<Iterable<T>>,
     FromIterator<T>,
     Extend<T, "exclusive">,
-    Default
-{
+    Default {
     /// The indexed output type.
     type Output = T | undefined;
 
@@ -103,7 +103,7 @@ extension<T> of Slab<T> implements
 
     /// Insert all `values`.
     extend(this: &exclusive Slab<T>, values: Iterable<T>): void {
-        todo("Slab.extend")
+        todo("Slab.extend");
     }
 
     /// Remove and return the value for `key`.
@@ -122,7 +122,10 @@ extension<T> of Slab<T> implements
     }
 
     /// Borrow the value for `key`.
-    get<A: Access = "readonly">(this: WithAccess<&Slab<T>, A>, key: SlabKey): WithAccess<&T, A> | undefined {
+    get<A: Access = "readonly">(
+        this: WithAccess<&Slab<T>, A>,
+        key: SlabKey,
+    ): WithAccess<&T, A> | undefined {
         todo("Slab.get")
     }
 
@@ -133,7 +136,7 @@ extension<T> of Slab<T> implements
 
     /// Replace the value for `key` through the index operator.
     indexSet(this: &exclusive Slab<T>, key: SlabKey, value: T): void {
-        this.set(key, value)
+        this.set(key, value);
     }
 
     /// Insert or replace the value for `key`.
@@ -143,17 +146,20 @@ extension<T> of Slab<T> implements
 
     /// Reserve room for at least `additional` more entries.
     reserve(this: &exclusive Slab<T>, additional: usize): void {
-        todo("Slab.reserve")
+        todo("Slab.reserve");
     }
 
     /// Remove all entries.
     clear(this: &exclusive Slab<T>): void {
-        todo("Slab.clear")
+        todo("Slab.clear");
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(this: &exclusive Slab<T>, predicate: (key: SlabKey, value: &exclusive T) => boolean): void {
-        todo("Slab.retain")
+    retain(
+        this: &exclusive Slab<T>,
+        predicate: (key: SlabKey, value: &exclusive T) => boolean,
+    ): void {
+        todo("Slab.retain");
     }
 
     /// Remove all entries and return them.
@@ -171,7 +177,7 @@ extension<T> of Slab<T> implements
 
     /// Shrink storage to fit live and reusable slots.
     shrinkToFit(this: &exclusive Slab<T>): void {
-        todo("Slab.shrinkToFit")
+        todo("Slab.shrinkToFit");
     }
 
     /// Return all live keys.
@@ -185,7 +191,9 @@ extension<T> of Slab<T> implements
     }
 
     /// Return all live entries.
-    entries<A: Access = "readonly">(this: WithAccess<&Slab<T>, A>): Iterator<(SlabKey, WithAccess<&T, A>)> {
+    entries<A: Access = "readonly">(
+        this: WithAccess<&Slab<T>, A>,
+    ): Iterator<(SlabKey, WithAccess<&T, A>)> {
         todo("Slab.entries")
     }
 

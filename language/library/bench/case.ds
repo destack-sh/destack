@@ -1,5 +1,6 @@
-import { Duration } from "destack:time";
 import { todo } from "destack:error";
+import { Duration } from "destack:time";
+
 import { Body, SuiteBody } from "./context.ds";
 import { Options } from "./options.ds";
 
@@ -29,32 +30,32 @@ export struct Suite {
 
 /// Register one benchmark case.
 export function registerCase(name: string, argument?: Argument, body?: Body): void {
-    todo("bench.registerCase")
+    todo("bench.registerCase");
 }
 
 /// Register one benchmark suite.
 export function suite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
-    todo("bench.registerSuite")
+    todo("bench.registerSuite");
 }
 
 /// Register one skipped benchmark case.
 export function caseSkip(name: string, body?: Body): void {
-    registerCase(name, { skip: true }, body)
+    registerCase(name, { skip: true }, body);
 }
 
 /// Register one focused benchmark case.
 export function caseOnly(name: string, body?: Body): void {
-    registerCase(name, { only: true }, body)
+    registerCase(name, { only: true }, body);
 }
 
 /// Register one skipped benchmark suite.
 export function suiteSkip(name: string, body?: SuiteBody): void {
-    suite(name, { skip: true }, body)
+    suite(name, { skip: true }, body);
 }
 
 /// Register one focused benchmark suite.
 export function suiteOnly(name: string, body?: SuiteBody): void {
-    suite(name, { only: true }, body)
+    suite(name, { only: true }, body);
 }
 
 export { registerCase as case };

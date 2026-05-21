@@ -1,5 +1,6 @@
-import { Duration } from "destack:time";
 import * as test from "destack:test";
+import { Duration } from "destack:time";
+
 import { Baseline, Budget } from "./budget.ds";
 
 /// Benchmark registration options.

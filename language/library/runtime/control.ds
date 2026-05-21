@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import { RevisionId } from "./lineage.ds";
 import { WorldHandle } from "./world.ds";
 

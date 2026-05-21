@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
+
 import {
     DurationArithmeticOptions,
     DurationFormatOptions,
@@ -62,7 +63,7 @@ export class Duration {
         microseconds?: number,
         nanoseconds?: number,
     ) {
-        todo("Duration.constructor")
+        todo("Duration.constructor");
     }
 
     /// The duration sign.

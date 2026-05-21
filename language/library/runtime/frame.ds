@@ -1,6 +1,7 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
-import { WorldViewHandle, WorkerId } from "./world.ds";
+
+import { WorkerId, WorldViewHandle } from "./world.ds";
 
 /// Runtime frame identifier.
 export newtype FrameId = uint64;

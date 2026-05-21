@@ -1,11 +1,12 @@
-import { todo, Result } from "destack:error";
 import { As, Borrow } from "destack:convert";
+import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
 import { Atomic } from "destack:sync";
+
 import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
-import { Owned } from "../owned.ds";
 import { MaybeUninit } from "../init.ds";
+import { Owned } from "../owned.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
 
@@ -61,14 +62,12 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Allocate zeroed storage.
-    static newZeroed(): Arc<MaybeUninit<T>>
-    where T implements Zeroable {
+    static newZeroed(): Arc<MaybeUninit<T>> where T: Zeroable {
         todo("Arc.newZeroed")
     }
 
     /// Try to allocate zeroed storage.
-    static tryNewZeroed(): Result<Arc<MaybeUninit<T>>, AllocationError>
-    where T implements Zeroable {
+    static tryNewZeroed(): Result<Arc<MaybeUninit<T>>, AllocationError> where T: Zeroable {
         todo("Arc.tryNewZeroed")
     }
 
@@ -129,8 +128,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this: Arc<T>): ^T
-    where T implements Clone {
+    unwrapOrClone(this: Arc<T>): ^T where T: Clone {
         todo("Arc.unwrapOrClone")
     }
 
@@ -150,8 +148,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the value exclusively, cloning first if needed.
-    makeExclusive(this: &exclusive Arc<T>): &exclusive T
-    where T implements Clone {
+    makeExclusive(this: &exclusive Arc<T>): &exclusive T where T: Clone {
         todo("Arc.makeExclusive")
     }
 
@@ -171,8 +168,7 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 }
 
-extension<T> of Arc<T> implements Default
-where T implements Default {
+extension<T> of Arc<T> implements Default where T: Default {
     /// Create a shared reference-counted handle with the default value.
     static default(): Arc<T> {
         Arc.new(T.default())

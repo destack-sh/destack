@@ -1,8 +1,9 @@
-import { todo } from "destack:error";
 import { As, Borrow, From, ToOwned } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Clone, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
+
 import { Slice } from "./slice.ds";
 
 /// Readonly view of a dynamic array.
@@ -33,8 +34,7 @@ extension<T> of Array<T> implements
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
-    Extend<T, "exclusive">
-{
+    Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
 
@@ -99,13 +99,16 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&Array<T>, A>, index: number): WithAccess<&T, A> {
+    index<A: Access = "readonly">(
+        this: WithAccess<&Array<T>, A>,
+        index: number,
+    ): WithAccess<&T, A> {
         todo("Array.index")
     }
 
     /// Replace the element at `index`.
     indexSet(this: &exclusive Array<T>, index: number, value: T): void {
-        todo("Array.indexSet")
+        todo("Array.indexSet");
     }
 
     /// Return the first element by value.
@@ -130,7 +133,7 @@ extension<T> of Array<T> implements
 
     /// Append `value`.
     push(this: &exclusive Array<T>, value: T): void {
-        todo("Array.push")
+        todo("Array.push");
     }
 
     /// Append `values`.
@@ -140,7 +143,7 @@ extension<T> of Array<T> implements
 
     /// Append all `values`.
     extend(this: &exclusive Array<T>, values: Iterable<T>): void {
-        todo("Array.extend")
+        todo("Array.extend");
     }
 
     /// Remove and return the last element.
@@ -160,7 +163,7 @@ extension<T> of Array<T> implements
 
     /// Insert `value` at `index`.
     insert(this: &exclusive Array<T>, index: usize, value: T): void {
-        todo("Array.insert")
+        todo("Array.insert");
     }
 
     /// Remove and return the element at `index`.
@@ -175,7 +178,7 @@ extension<T> of Array<T> implements
 
     /// Remove all elements.
     clear(this: &exclusive Array<T>): void {
-        todo("Array.clear")
+        todo("Array.clear");
     }
 
     /// Overwrite a range with `value`.
@@ -190,7 +193,7 @@ extension<T> of Array<T> implements
 
     /// Retain only elements accepted by `predicate`.
     retain(this: &exclusive Array<T>, predicate: (value: &T, index: usize) => boolean): void {
-        todo("Array.retain")
+        todo("Array.retain");
     }
 
     /// Remove all elements and return them.
@@ -199,18 +202,21 @@ extension<T> of Array<T> implements
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(this: &exclusive Array<T>, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+    extractIf(
+        this: &exclusive Array<T>,
+        predicate: (value: &T, index: usize) => boolean,
+    ): Iterator<T> {
         todo("Array.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive Array<T>, additional: usize): void {
-        todo("Array.reserve")
+        todo("Array.reserve");
     }
 
     /// Shrink capacity to fit the current length.
     shrinkToFit(this: &exclusive Array<T>): void {
-        todo("Array.shrinkToFit")
+        todo("Array.shrinkToFit");
     }
 
     /// Return a copy of the selected range.
@@ -370,7 +376,7 @@ extension<T> of Array<T> implements
 
     /// Call `f` for each element.
     forEach(f: (value: T, index: number, array: Array<T>) => void): void {
-        todo("Array.forEach")
+        todo("Array.forEach");
     }
 }
 
@@ -386,8 +392,7 @@ extension<T, A: Access = "readonly"> of Array<T> implements As<Slice<T>, A>, Bor
     }
 }
 
-extension<T> of Slice<T> implements ToOwned
-where T implements Clone {
+extension<T> of Slice<T> implements ToOwned where T: Clone {
     /// The owned value type.
     type Owned = ^Array<T>;
 

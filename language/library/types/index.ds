@@ -1,20 +1,15 @@
+export { Option } from "./option.ds";
 export {
-    Option,
-} from "./option.ds";
-export {
-    PropertyKey,
-    Record,
-    Partial,
-    Required,
-    ReadonlyFields,
-    MutableFields,
-    Pick,
-    Omit,
-    Extract,
     Exclude,
+    Extract,
+    MutableFields,
     NonNullable,
+    Omit,
+    Partial,
+    Pick,
+    PropertyKey,
+    ReadonlyFields,
+    Record,
+    Required,
 } from "./object.ds";
-export {
-    Symbol,
-    SymbolDescription,
-} from "./symbol.ds";
+export { Symbol, SymbolDescription } from "./symbol.ds";

@@ -1,5 +1,5 @@
-import { Result } from "./result.ds";
 import { Panic, UnwindSafe } from "./panic.ds";
+import { Result } from "./result.ds";
 
 /// Catch an unwinding panic and return its panic value.
 @languageItem("error.catchUnwind")

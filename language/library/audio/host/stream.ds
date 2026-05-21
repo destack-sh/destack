@@ -1,15 +1,12 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { AudioBackendKind, AudioBackendSelection } from "./backend.ds";
 
 /// Handle for one audio stream endpoint.
 export newtype AudioStreamHandle = ResourceId;
 
-import {
-    AudioDirection,
-    AudioFormat,
-    AudioShareMode,
-} from "./device.ds";
+import { AudioDirection, AudioFormat, AudioShareMode } from "./device.ds";
 
 /// Audio stream option flags.
 export newtype AudioStreamFlags = uint32;

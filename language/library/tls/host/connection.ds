@@ -1,7 +1,7 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { SocketHandle } from "destack:net/host";
+import { ResourceId } from "destack:runtime/resource";
 import { TlsContextHandle } from "destack:tls/host";
 
 /// Handle for one TLS connection.

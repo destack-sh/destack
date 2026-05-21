@@ -1,9 +1,10 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
+import { WindowHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
 import { DisplayEventOverflowPolicy } from "./event.ds";
-import { WindowHandle } from "destack:display/host";
 
 /// Handle for one display frame timing stream.
 export newtype DisplayFrameHandle = ResourceId;

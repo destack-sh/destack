@@ -1,10 +1,6 @@
-import { todo, Result } from "destack:error";
-import {
-    Allocation,
-    AllocationError,
-    AllocationLayout,
-    Allocator,
-} from "../allocator.ds";
+import { Result, todo } from "destack:error";
+
+import { Allocation, AllocationError, AllocationLayout, Allocator } from "../allocator.ds";
 import { Space } from "../place.ds";
 
 /// Bump allocator in space `S`.
@@ -38,7 +34,7 @@ export extension<S: Space = "local"> of Bump<S> implements Allocator<S> {
     /// Free raw memory.
     @unsafe
     deallocate<T>(allocation: Allocation<T, S>): void {
-        todo("Bump.deallocate")
+        todo("Bump.deallocate");
     }
 
     /// Grow raw memory to a larger layout.
@@ -61,7 +57,7 @@ export extension<S: Space = "local"> of Bump<S> implements Allocator<S> {
 
     /// Release all bump allocations.
     reset(this: &exclusive Bump<S>): void {
-        todo("Bump.reset")
+        todo("Bump.reset");
     }
 
     /// Return the allocated byte count.

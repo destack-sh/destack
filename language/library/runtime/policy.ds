@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { Action } from "./binding.ds";
 import { EdgeSelector, EntitySelector, Label, LabelSelector } from "./entity.ds";
 import { WorldHandle } from "./world.ds";
@@ -91,21 +92,21 @@ export struct ActionSelector {
 /// Runtime policy target selector.
 export type TargetSelector =
     | {
-        /// Match any target.
-        kind: "any";
-    }
+          /// Match any target.
+          kind: "any";
+      }
     | {
-        /// Match selected topology entities.
-        kind: "entity";
-        /// Entity selector.
-        selector: EntitySelector;
-    }
+          /// Match selected topology entities.
+          kind: "entity";
+          /// Entity selector.
+          selector: EntitySelector;
+      }
     | {
-        /// Match selected topology edges.
-        kind: "edge";
-        /// Edge selector.
-        selector: EdgeSelector;
-    };
+          /// Match selected topology edges.
+          kind: "edge";
+          /// Edge selector.
+          selector: EdgeSelector;
+      };
 
 /// Runtime policy decision.
 export struct PolicyDecision {

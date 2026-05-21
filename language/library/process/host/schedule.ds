@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import { ProcessId } from "./identity.ds";
 
 /// Process priority value in the host scheduler.
@@ -25,9 +26,7 @@ export struct ProcessAffinity {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readProcessPriority(
-    process: ProcessId,
-): Result<ProcessPriority, HostError>;
+export declare function readProcessPriority(process: ProcessId): Result<ProcessPriority, HostError>;
 
 /// Set one process priority.
 @binding("destack.process.schedule.priority.set", {
@@ -48,9 +47,7 @@ export declare function setProcessPriority(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readProcessAffinity(
-    process: ProcessId,
-): Result<ProcessAffinity, HostError>;
+export declare function readProcessAffinity(process: ProcessId): Result<ProcessAffinity, HostError>;
 
 /// Set one process CPU affinity.
 @binding("destack.process.schedule.affinity.set", {

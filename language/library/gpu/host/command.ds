@@ -1,12 +1,28 @@
 import { HostError } from "destack:error/host";
 import {
+    GpuBindGroupHandle,
+    GpuBufferHandle,
+    GpuCommandBufferHandle,
+    GpuCommandEncoderHandle,
+    GpuComputePassHandle,
+    GpuDeviceHandle,
+    GpuPipelineHandle,
+    GpuQuerySetHandle,
+    GpuQueueHandle,
+    GpuRenderBundleEncoderHandle,
+    GpuRenderBundleHandle,
+    GpuRenderPassHandle,
+    GpuTextureHandle,
+    GpuTextureViewHandle,
+} from "destack:gpu/host";
+
+import { GpuIndexFormat } from "./pipeline.ds";
+import {
     GpuBufferTransition,
-    GpuTextureimport { GpuBindGroupHandle, GpuBufferHandle, GpuCommandBufferHandle, GpuCommandEncoderHandle, GpuComputePassHandle, GpuDeviceHandle, GpuPipelineHandle, GpuQuerySetHandle, GpuQueueHandle, GpuRenderBundleEncoderHandle, GpuRenderBundleHandle, GpuRenderPassHandle, GpuTextureHandle, GpuTextureViewHandle } from "destack:gpu/host";
-Aspect,
+    GpuTextureAspect,
     GpuTextureFormat,
     GpuTextureTransition,
 } from "./resource.ds";
-import { GpuIndexFormat } from "./pipeline.ds";
 
 /// Command encoder descriptor.
 export struct GpuCommandEncoderDescriptor {
@@ -735,9 +751,7 @@ export declare function pushRenderPassDebugGroup(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function popRenderPassDebugGroup(
-    pass: GpuRenderPassHandle,
-): Result<void, HostError>;
+export declare function popRenderPassDebugGroup(pass: GpuRenderPassHandle): Result<void, HostError>;
 
 /// Dispatch one compute workgroup grid.
 @binding("destack.gpu.command.dispatch", {

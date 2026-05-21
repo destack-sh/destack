@@ -1,8 +1,9 @@
-import { todo } from "destack:error";
 import { From } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
 import { Compare } from "destack:ops";
+
 import { Array } from "./array.ds";
 
 /// A binary max-heap.
@@ -33,8 +34,7 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
     Iterable<&readonly T>,
     From<Iterable<T>>,
     FromIterator<T>,
-    Extend<T, "exclusive">
-{
+    Extend<T, "exclusive"> {
     /// Create a binary heap from values.
     static from(values: Iterable<T>): BinaryHeap<T> {
         todo("BinaryHeap.from")
@@ -67,12 +67,12 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
 
     /// Push `value`.
     push(this: &exclusive BinaryHeap<T>, value: T): void {
-        todo("BinaryHeap.push")
+        todo("BinaryHeap.push");
     }
 
     /// Push all `values`.
     extend(this: &exclusive BinaryHeap<T>, values: Iterable<T>): void {
-        todo("BinaryHeap.extend")
+        todo("BinaryHeap.extend");
     }
 
     /// Remove and return the greatest element.
@@ -82,12 +82,12 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
 
     /// Remove all elements.
     clear(this: &exclusive BinaryHeap<T>): void {
-        todo("BinaryHeap.clear")
+        todo("BinaryHeap.clear");
     }
 
     /// Retain only values accepted by `predicate`.
     retain(this: &exclusive BinaryHeap<T>, predicate: (value: &readonly T) => boolean): void {
-        todo("BinaryHeap.retain")
+        todo("BinaryHeap.retain");
     }
 
     /// Remove all values and return them.
@@ -96,18 +96,21 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(this: &exclusive BinaryHeap<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(
+        this: &exclusive BinaryHeap<T>,
+        predicate: (value: &readonly T) => boolean,
+    ): Iterator<T> {
         todo("BinaryHeap.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive BinaryHeap<T>, additional: usize): void {
-        todo("BinaryHeap.reserve")
+        todo("BinaryHeap.reserve");
     }
 
     /// Shrink capacity to fit current elements.
     shrinkToFit(this: &exclusive BinaryHeap<T>): void {
-        todo("BinaryHeap.shrinkToFit")
+        todo("BinaryHeap.shrinkToFit");
     }
 
     /// Convert this heap into a sorted array.

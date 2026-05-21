@@ -1,8 +1,9 @@
 import { Array } from "destack:collections";
+import { CryptoKeyHandle, CryptoStoreHandle } from "destack:crypto/host";
 import { HostError } from "destack:error/host";
+
 import { CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm } from "./algorithm.ds";
 import { CryptoDerivedKey } from "./key.ds";
-import { CryptoKeyHandle, CryptoStoreHandle } from "destack:crypto/host";
 
 /// Key-agreement HKDF derivation.
 export struct CryptoAgreementHkdf {

@@ -1,6 +1,7 @@
 import { HostError } from "destack:error/host";
-import { IpAddress } from "./address.ds";
 import { SocketHandle } from "destack:net/host";
+
+import { IpAddress } from "./address.ds";
 
 /// Any multicast interface selector.
 export struct MulticastInterfaceAny {

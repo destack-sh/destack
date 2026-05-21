@@ -1,10 +1,11 @@
-import { todo, Result } from "destack:error";
 import { As, Borrow } from "destack:convert";
+import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
+
 import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
-import { Owned } from "../owned.ds";
 import { MaybeUninit } from "../init.ds";
+import { Owned } from "../owned.ds";
 import { Pin } from "../pin.ds";
 import { Weak } from "./weak.ds";
 
@@ -60,14 +61,12 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Allocate zeroed storage.
-    static newZeroed(): Rc<MaybeUninit<T>>
-    where T implements Zeroable {
+    static newZeroed(): Rc<MaybeUninit<T>> where T: Zeroable {
         todo("Rc.newZeroed")
     }
 
     /// Try to allocate zeroed storage.
-    static tryNewZeroed(): Result<Rc<MaybeUninit<T>>, AllocationError>
-    where T implements Zeroable {
+    static tryNewZeroed(): Result<Rc<MaybeUninit<T>>, AllocationError> where T: Zeroable {
         todo("Rc.tryNewZeroed")
     }
 
@@ -128,8 +127,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this: Rc<T>): ^T
-    where T implements Clone {
+    unwrapOrClone(this: Rc<T>): ^T where T: Clone {
         todo("Rc.unwrapOrClone")
     }
 
@@ -149,8 +147,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the value exclusively, cloning first if needed.
-    makeExclusive(this: &exclusive Rc<T>): &exclusive T
-    where T implements Clone {
+    makeExclusive(this: &exclusive Rc<T>): &exclusive T where T: Clone {
         todo("Rc.makeExclusive")
     }
 
@@ -170,8 +167,7 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 }
 
-extension<T> of Rc<T> implements Default
-where T implements Default {
+extension<T> of Rc<T> implements Default where T: Default {
     /// Create a reference-counted handle with the default value.
     static default(): Rc<T> {
         Rc.new(T.default())

@@ -1,4 +1,5 @@
 import { RangeBounds } from "destack:range";
+
 import { Issue } from "./error.ds";
 
 /// Schema attribute value.

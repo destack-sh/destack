@@ -1,5 +1,5 @@
-import { RandomSeed } from "destack:runtime";
 import { Json } from "destack:json";
+import { RandomSeed } from "destack:runtime";
 
 /// Stable replay identifier.
 export newtype ReplayId = string;

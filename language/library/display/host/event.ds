@@ -1,16 +1,9 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
+import { DisplayDragSessionHandle, MonitorHandle, WindowHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
-import { DisplayBackendKind, DisplayBackend
-/// Handle for one display event subscription.
-export newtimport { DisplayDragSessionHandle, MonitorHandle, WindowHandle } from "destack:display/host";
+import { ResourceId } from "destack:runtime/resource";
 
-/// Handle for one display event subscription.
-export newtype DisplayEventHandle = ResourceId;
-
-ype DisplayEventHandle = ResourceId;
-
-Selection } from "./backend.ds";
+import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
 import { DisplayDragTransfer } from "./drag.ds";
 import { Monitor, MonitorMode } from "./monitor.ds";
 import {
@@ -23,6 +16,9 @@ import {
     WindowTheme,
     WindowVisibility,
 } from "./window.ds";
+
+/// Handle for one display event subscription.
+export newtype DisplayEventHandle = ResourceId;
 
 /// Display event flags.
 export newtype DisplayEventFlags = uint64;

@@ -1,6 +1,7 @@
-import { todo } from "destack:error";
 import { As, Borrow } from "destack:convert";
+import { todo } from "destack:error";
 import { Dereference } from "destack:ops";
+
 import { Unpin } from "./capability.ds";
 
 /// Address-stable storage wrapper.
@@ -12,8 +13,7 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     type Output = &readonly T;
 
     /// Pin a movable root.
-    static new(value: T): Pin<T>
-    where T implements Unpin {
+    static new(value: T): Pin<T> where T: Unpin {
         todo("Pin.new")
     }
 
@@ -23,8 +23,7 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Move out the pinned root when it is movable.
-    intoInner(this: Pin<T>): T
-    where T implements Unpin {
+    intoInner(this: Pin<T>): T where T: Unpin {
         todo("Pin.intoInner")
     }
 
@@ -39,8 +38,7 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Borrow the pinned root with exclusive access when it is movable.
-    asExclusive(this: &exclusive Pin<T>): &exclusive T
-    where T implements Unpin {
+    asExclusive(this: &exclusive Pin<T>): &exclusive T where T: Unpin {
         todo("Pin.asExclusive")
     }
 

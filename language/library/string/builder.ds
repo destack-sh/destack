@@ -1,6 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Default, MaybeUninit, Unique } from "destack:memory";
+
 import { StringSlice } from "./slice.ds";
 
 /// Mutable UTF-8 string builder with growable backing storage.
@@ -48,32 +49,32 @@ extension of StringBuilder {
 
     /// Remove all text.
     clear(this: &exclusive StringBuilder): void {
-        todo("StringBuilder.clear")
+        todo("StringBuilder.clear");
     }
 
     /// Reserve at least `additional` more bytes.
     reserve(this: &exclusive StringBuilder, additional: usize): void {
-        todo("StringBuilder.reserve")
+        todo("StringBuilder.reserve");
     }
 
     /// Reserve exactly `additional` more bytes.
     reserveExact(this: &exclusive StringBuilder, additional: usize): void {
-        todo("StringBuilder.reserveExact")
+        todo("StringBuilder.reserveExact");
     }
 
     /// Append text.
     append(this: &exclusive StringBuilder, value: &readonly StringSlice): void {
-        todo("StringBuilder.append")
+        todo("StringBuilder.append");
     }
 
     /// Append one Unicode scalar value.
     appendChar(this: &exclusive StringBuilder, value: char): void {
-        todo("StringBuilder.appendChar")
+        todo("StringBuilder.appendChar");
     }
 
     /// Append one Unicode code point.
     appendCodePoint(this: &exclusive StringBuilder, value: number): void {
-        todo("StringBuilder.appendCodePoint")
+        todo("StringBuilder.appendCodePoint");
     }
 
     /// Return the current text without consuming the builder.

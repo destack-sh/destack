@@ -1,7 +1,8 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
-import { ResourceId } from "./resource.ds";
+
 import { TraceSequence } from "./lineage.ds";
+import { ResourceId } from "./resource.ds";
 import { WorldHandle } from "./world.ds";
 
 /// Runtime observation handle.

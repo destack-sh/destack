@@ -1,7 +1,8 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
-import { TtySize } from "./terminal.ds";
+import { ResourceId } from "destack:runtime/resource";
 import { TtyHandle } from "destack:tty/host";
+
+import { TtySize } from "./terminal.ds";
 
 /// Handle for a pseudo terminal endpoint.
 export newtype PtyHandle = ResourceId;
@@ -36,10 +37,7 @@ export declare function openPty(options: &readonly PtyOpenOptions): Result<PtyPa
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readPty(
-    pty: PtyHandle,
-    buffer: &[uint8],
-): Result<uint64, HostError>;
+export declare function readPty(pty: PtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
 
 /// Write bytes to one pseudo terminal controller.
 @binding("destack.tty.pty.write", {

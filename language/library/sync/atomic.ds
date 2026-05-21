@@ -101,7 +101,7 @@ extension<T> of Atomic<T> {
 
     /// Store a new value.
     store(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): void {
-        todo("Atomic.store")
+        todo("Atomic.store");
     }
 
     /// Replace the value and return the previous value.
@@ -476,7 +476,4 @@ export declare function atomicWait<T: int>(
 
 /// Wake waiters blocked on an atomic integer location.
 @intrinsic("sync.atomic.wake")
-export declare function atomicWake<T: int>(
-    ptr: *T,
-    count?: usize,
-): usize;
+export declare function atomicWake<T: int>(ptr: *T, count?: usize): usize;

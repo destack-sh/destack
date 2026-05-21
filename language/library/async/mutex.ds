@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Default, Dispose } from "destack:memory";
 import { Dereference } from "destack:ops";
+
 import { Promise } from "./promise.ds";
 
 /// Asynchronous mutual exclusion lock.
@@ -10,7 +11,7 @@ export class AsyncMutex<T> {
 
     /// Create an async mutex protecting `value`.
     constructor(value: T) {
-        this.value = value
+        this.value = value;
     }
 
     /// Lock this mutex by suspending the current task.
@@ -53,7 +54,7 @@ extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclusive"> 
 
     /// Unlock this guard.
     dispose(): void {
-        todo("AsyncMutexGuard.dispose")
+        todo("AsyncMutexGuard.dispose");
     }
 
     /// Borrow the protected value.

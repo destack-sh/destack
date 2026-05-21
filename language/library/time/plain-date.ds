@@ -1,11 +1,7 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
+
 import { Duration, DurationLike } from "./duration.ds";
-import { PlainDateTime } from "./plain-date-time.ds";
-import { PlainMonthDay } from "./plain-month-day.ds";
-import { PlainTime, PlainTimeLike } from "./plain-time.ds";
-import { PlainYearMonth } from "./plain-year-month.ds";
-import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 import {
     ArithmeticOptions,
     AssignmentOptions,
@@ -13,7 +9,12 @@ import {
     DifferenceOptions,
     ShowCalendarOption,
 } from "./option.ds";
+import { PlainDateTime } from "./plain-date-time.ds";
+import { PlainMonthDay } from "./plain-month-day.ds";
+import { PlainTime, PlainTimeLike } from "./plain-time.ds";
+import { PlainYearMonth } from "./plain-year-month.ds";
 import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 
 /// Temporal calendar-like value.
 export type CalendarLike =
@@ -50,13 +51,16 @@ export class PlainDate {
     }
 
     /// Compare two plain dates.
-    static compare(one: PlainDate | PlainDateLike | string, two: PlainDate | PlainDateLike | string): ComparisonResult {
+    static compare(
+        one: PlainDate | PlainDateLike | string,
+        two: PlainDate | PlainDateLike | string,
+    ): ComparisonResult {
         todo("PlainDate.compare")
     }
 
     /// Create a plain date.
     constructor(isoYear: number, isoMonth: number, isoDay: number, calendar?: string) {
-        todo("PlainDate.constructor")
+        todo("PlainDate.constructor");
     }
 
     /// Calendar era.
@@ -160,7 +164,10 @@ export class PlainDate {
     }
 
     /// Subtract a duration.
-    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainDate {
+    subtract(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): PlainDate {
         todo("PlainDate.subtract")
     }
 
@@ -187,7 +194,9 @@ export class PlainDate {
 
     /// Convert this date into a zoned date-time.
     toZonedDateTime(
-        options: string | { timeZone: TimeZoneLike; plainTime?: PlainTime | PlainTimeLike | string },
+        options:
+            | string
+            | { timeZone: TimeZoneLike; plainTime?: PlainTime | PlainTimeLike | string },
     ): ZonedDateTime {
         todo("PlainDate.toZonedDateTime")
     }

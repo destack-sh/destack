@@ -12,8 +12,8 @@ export class Expect<T> {
 
     /// Create an assertion chain.
     constructor(value: T, isNegated?: boolean) {
-        this.value = value
-        this.isNegated = isNegated ?? false
+        this.value = value;
+        this.isNegated = isNegated ?? false;
     }
 
     /// Negated assertions.
@@ -30,16 +30,15 @@ export class Expect<T> {
     ): void {
         assert.assert(
             this.isNegated ? !condition : condition,
-            this.isNegated ? negatedMessage ?? message : message,
-        )
+            this.isNegated ? (negatedMessage ?? message) : message,
+        );
     }
 
     /// Assert that the value equals `expected`.
     toEqual(this: &readonly Expect<T>, expected: T): void {
         if (this.isNegated) {
             assert.notDeepEqual(this.value, expected)
-        }
-        else {
+        } else {
             assert.deepEqual(this.value, expected)
         }
     }
@@ -48,8 +47,7 @@ export class Expect<T> {
     toBe(this: &readonly Expect<T>, expected: T): void {
         if (this.isNegated) {
             assert.notSame(this.value, expected)
-        }
-        else {
+        } else {
             assert.same(this.value, expected)
         }
     }
@@ -58,36 +56,37 @@ export class Expect<T> {
     toStrictEqual(this: &readonly Expect<T>, expected: T): void {
         if (this.isNegated) {
             assert.notDeepEqual(this.value, expected)
-        }
-        else {
+        } else {
             assert.deepEqual(this.value, expected)
         }
     }
 
     /// Assert that the value contains `expected`.
-    toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void
-    where U implements Equal<U> {
+    toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void where U: Equal<U> {
         if (this.isNegated) {
             assert.notContains(this.value, expected)
-        }
-        else {
+        } else {
             assert.contains(this.value, expected)
         }
     }
 
     /// Assert that the value is true.
     toBeTruthy(this: &readonly Expect<T>): void {
-        this.check(!!this.value, "expected value to be truthy", "expected value to be falsy")
+        this.check(!!this.value, "expected value to be truthy", "expected value to be falsy");
     }
 
     /// Assert that the value is false.
     toBeFalsy(this: &readonly Expect<T>): void {
-        this.check(!this.value, "expected value to be falsy", "expected value to be truthy")
+        this.check(!this.value, "expected value to be falsy", "expected value to be truthy");
     }
 
     /// Assert that the value is null.
     toBeNull(this: &readonly Expect<T>): void {
-        this.check(this.value === null, "expected value to be null", "expected value not to be null")
+        this.check(
+            this.value === null,
+            "expected value to be null",
+            "expected value not to be null",
+        );
     }
 
     /// Assert that the value is undefined.
@@ -96,7 +95,7 @@ export class Expect<T> {
             this.value === undefined,
             "expected value to be undefined",
             "expected value to be defined",
-        )
+        );
     }
 
     /// Assert that the value is defined.
@@ -105,7 +104,7 @@ export class Expect<T> {
             this.value !== undefined,
             "expected value to be defined",
             "expected value to be undefined",
-        )
+        );
     }
 
     /// Assert that the value is greater than `expected`.
@@ -114,7 +113,7 @@ export class Expect<T> {
             (this.value as number) > expected,
             "expected value to be greater",
             "expected value not to be greater",
-        )
+        );
     }
 
     /// Assert that the value is less than `expected`.
@@ -123,7 +122,7 @@ export class Expect<T> {
             (this.value as number) < expected,
             "expected value to be less",
             "expected value not to be less",
-        )
+        );
     }
 }
 

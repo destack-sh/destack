@@ -3,7 +3,7 @@ export type PropertyKey = string | number | symbol;
 
 /// Object type with keys `K` and values `V`.
 @languageItem("types.Record")
-export type Record<K extends PropertyKey, V> = {
+export type Record<K: PropertyKey, V> = {
     [P in K]: V;
 };
 
@@ -28,22 +28,18 @@ export type MutableFields<T> = {
 };
 
 /// Keep fields `K` from `T`.
-export type Pick<T, K extends keyof T> = {
+export type Pick<T, K: keyof T> = {
     [P in K]: T[P];
 };
 
 /// Remove fields `K` from `T`.
-export type Omit<T, K extends PropertyKey> =
-    Pick<T, Exclude<keyof T, K>>;
+export type Omit<T, K: PropertyKey> = Pick<T, Exclude<keyof T, K>>;
 
 /// Keep union members of `T` assignable to `U`.
-export type Extract<T, U> =
-    T extends U ? T : never;
+export type Extract<T, U> = T extends U ? T : never;
 
 /// Remove union members of `T` assignable to `U`.
-export type Exclude<T, U> =
-    T extends U ? never : T;
+export type Exclude<T, U> = T extends U ? never : T;
 
 /// Remove `null` and `undefined` from `T`.
-export type NonNullable<T> =
-    Exclude<T, null | undefined>;
+export type NonNullable<T> = Exclude<T, null | undefined>;

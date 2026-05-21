@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Default, Dispose } from "destack:memory";
 import { Dereference } from "destack:ops";
+
 import { Promise } from "./promise.ds";
 
 /// Asynchronous reader-writer lock.
@@ -10,7 +11,7 @@ export class AsyncRwLock<T> {
 
     /// Create an async reader-writer lock protecting `value`.
     constructor(value: T) {
-        this.value = value
+        this.value = value;
     }
 
     /// Lock this value for shared reading.
@@ -63,7 +64,7 @@ extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"readonl
 
     /// Release this guard.
     dispose(): void {
-        todo("AsyncRwLockReadGuard.dispose")
+        todo("AsyncRwLockReadGuard.dispose");
     }
 
     /// Borrow the protected value.
@@ -84,7 +85,7 @@ extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclus
 
     /// Release this guard.
     dispose(): void {
-        todo("AsyncRwLockWriteGuard.dispose")
+        todo("AsyncRwLockWriteGuard.dispose");
     }
 
     /// Borrow the protected value.

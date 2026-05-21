@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { Action } from "./binding.ds";
 import {
     EdgeKind,
@@ -64,40 +65,40 @@ export enum RuntimeEvent {
 /// Scenario activation window.
 export type ScenarioActivation =
     | {
-        /// Activate immediately.
-        kind: "immediate";
-    }
+          /// Activate immediately.
+          kind: "immediate";
+      }
     | {
-        /// Activate at a monotonic timestamp.
-        kind: "atTime";
-        /// Monotonic timestamp in nanoseconds.
-        timeNanos: uint64;
-    }
+          /// Activate at a monotonic timestamp.
+          kind: "atTime";
+          /// Monotonic timestamp in nanoseconds.
+          timeNanos: uint64;
+      }
     | {
-        /// Activate after a number of matching calls.
-        kind: "afterCallCount";
-        /// Matching call count.
-        calls: uint64;
-    };
+          /// Activate after a number of matching calls.
+          kind: "afterCallCount";
+          /// Matching call count.
+          calls: uint64;
+      };
 
 /// Scenario rule lifetime.
 export type ScenarioLifetime =
     | {
-        /// Keep active until explicitly disabled.
-        kind: "untilDisabled";
-    }
+          /// Keep active until explicitly disabled.
+          kind: "untilDisabled";
+      }
     | {
-        /// Keep active for a duration.
-        kind: "duration";
-        /// Active duration in nanoseconds.
-        durationNanos: uint64;
-    }
+          /// Keep active for a duration.
+          kind: "duration";
+          /// Active duration in nanoseconds.
+          durationNanos: uint64;
+      }
     | {
-        /// Keep active for a matching call budget.
-        kind: "callCount";
-        /// Matching call budget.
-        calls: uint64;
-    };
+          /// Keep active for a matching call budget.
+          kind: "callCount";
+          /// Matching call budget.
+          calls: uint64;
+      };
 
 /// Scenario fault direction.
 export enum FaultDirection {
@@ -134,23 +135,23 @@ export enum CorruptionMode {
 /// Scenario transport limit.
 export type TransportLimit =
     | {
-        /// Limit the total transported bytes.
-        kind: "data";
-        /// Total byte budget.
-        bytes: uint64;
-    }
+          /// Limit the total transported bytes.
+          kind: "data";
+          /// Total byte budget.
+          bytes: uint64;
+      }
     | {
-        /// Limit sustained transport throughput.
-        kind: "throughput";
-        /// Maximum bytes per second.
-        bytesPerSecond: uint64;
-    }
+          /// Limit sustained transport throughput.
+          kind: "throughput";
+          /// Maximum bytes per second.
+          bytesPerSecond: uint64;
+      }
     | {
-        /// Limit transport operation rate.
-        kind: "rate";
-        /// Maximum operations per second.
-        opsPerSecond: uint64;
-    };
+          /// Limit transport operation rate.
+          kind: "rate";
+          /// Maximum operations per second.
+          opsPerSecond: uint64;
+      };
 
 /// Scenario storage corruption target.
 export enum StorageCorruptionTarget {
@@ -207,29 +208,29 @@ export enum StorageConsistencyFault {
 /// Scenario resource limit.
 export type ResourceLimit =
     | {
-        /// Limit a countable resource.
-        kind: "count";
-        /// Count limit.
-        count: uint64;
-    }
+          /// Limit a countable resource.
+          kind: "count";
+          /// Count limit.
+          count: uint64;
+      }
     | {
-        /// Limit a byte-sized resource.
-        kind: "bytes";
-        /// Byte limit.
-        bytes: uint64;
-    }
+          /// Limit a byte-sized resource.
+          kind: "bytes";
+          /// Byte limit.
+          bytes: uint64;
+      }
     | {
-        /// Limit a per-second resource rate.
-        kind: "rate";
-        /// Maximum units per second.
-        perSecond: uint64;
-    }
+          /// Limit a per-second resource rate.
+          kind: "rate";
+          /// Maximum units per second.
+          perSecond: uint64;
+      }
     | {
-        /// Limit a proportional resource budget.
-        kind: "percent";
-        /// Budget in parts per million.
-        ppm: uint32;
-    };
+          /// Limit a proportional resource budget.
+          kind: "percent";
+          /// Budget in parts per million.
+          ppm: uint32;
+      };
 
 /// Scenario resource class.
 export enum FaultResource {
@@ -288,254 +289,254 @@ export struct ScenarioTrigger {
 /// Scenario fault target.
 export type FaultTarget =
     | {
-        /// Target one binding call site.
-        kind: "call";
-    }
+          /// Target one binding call site.
+          kind: "call";
+      }
     | {
-        /// Target selected topology entities.
-        kind: "entity";
-        /// Entity kind selector.
-        entityKind: EntityKind;
-        /// Entity selector.
-        selector: EntitySelector;
-    }
+          /// Target selected topology entities.
+          kind: "entity";
+          /// Entity kind selector.
+          entityKind: EntityKind;
+          /// Entity selector.
+          selector: EntitySelector;
+      }
     | {
-        /// Target selected topology edges.
-        kind: "edge";
-        /// Edge kind selector.
-        edgeKind: EdgeKind;
-        /// Edge selector.
-        selector: EdgeSelector;
-        /// Optional direction selector.
-        direction?: FaultDirection;
-    };
+          /// Target selected topology edges.
+          kind: "edge";
+          /// Edge kind selector.
+          edgeKind: EdgeKind;
+          /// Edge selector.
+          selector: EdgeSelector;
+          /// Optional direction selector.
+          direction?: FaultDirection;
+      };
 
 /// Scenario fault payload.
 export type FaultType =
     | {
-        /// Inject an error outcome.
-        kind: "operation.error";
-        /// Error payload.
-        error: FaultError;
-    }
+          /// Inject an error outcome.
+          kind: "operation.error";
+          /// Error payload.
+          error: FaultError;
+      }
     | {
-        /// Inject a timeout outcome.
-        kind: "operation.timeout";
-        /// Optional timeout duration in nanoseconds.
-        afterNanos?: uint64;
-        /// Optional timeout error payload.
-        error?: FaultError;
-    }
+          /// Inject a timeout outcome.
+          kind: "operation.timeout";
+          /// Optional timeout duration in nanoseconds.
+          afterNanos?: uint64;
+          /// Optional timeout error payload.
+          error?: FaultError;
+      }
     | {
-        /// Delay the matched operation.
-        kind: "operation.delay";
-        /// Base delay in nanoseconds.
-        baseNanos: uint64;
-        /// Optional jitter in nanoseconds.
-        jitterNanos?: uint64;
-        /// Optional jitter distribution.
-        distribution?: JitterDistribution;
-    }
+          /// Delay the matched operation.
+          kind: "operation.delay";
+          /// Base delay in nanoseconds.
+          baseNanos: uint64;
+          /// Optional jitter in nanoseconds.
+          jitterNanos?: uint64;
+          /// Optional jitter distribution.
+          distribution?: JitterDistribution;
+      }
     | {
-        /// Delay the matched transport.
-        kind: "transport.delay";
-        /// Base delay in nanoseconds.
-        baseNanos: uint64;
-        /// Optional jitter in nanoseconds.
-        jitterNanos?: uint64;
-        /// Optional jitter distribution.
-        distribution?: JitterDistribution;
-    }
+          /// Delay the matched transport.
+          kind: "transport.delay";
+          /// Base delay in nanoseconds.
+          baseNanos: uint64;
+          /// Optional jitter in nanoseconds.
+          jitterNanos?: uint64;
+          /// Optional jitter distribution.
+          distribution?: JitterDistribution;
+      }
     | {
-        /// Drop the matched operation.
-        kind: "transport.drop";
-    }
+          /// Drop the matched operation.
+          kind: "transport.drop";
+      }
     | {
-        /// Duplicate the matched operation.
-        kind: "transport.duplicate";
-        /// Optional copy count.
-        copies?: uint32;
-    }
+          /// Duplicate the matched operation.
+          kind: "transport.duplicate";
+          /// Optional copy count.
+          copies?: uint32;
+      }
     | {
-        /// Reorder matched operations.
-        kind: "transport.reorder";
-        /// Optional reordering window.
-        window?: uint32;
-    }
+          /// Reorder matched operations.
+          kind: "transport.reorder";
+          /// Optional reordering window.
+          window?: uint32;
+      }
     | {
-        /// Corrupt the matched payload.
-        kind: "transport.corrupt";
-        /// Optional corruption mode.
-        mode?: CorruptionMode;
-    }
+          /// Corrupt the matched payload.
+          kind: "transport.corrupt";
+          /// Optional corruption mode.
+          mode?: CorruptionMode;
+      }
     | {
-        /// Partially complete the matched operation.
-        kind: "transport.partial";
-        /// Maximum completed byte count.
-        maxBytes: uint64;
-    }
+          /// Partially complete the matched operation.
+          kind: "transport.partial";
+          /// Maximum completed byte count.
+          maxBytes: uint64;
+      }
     | {
-        /// Fragment the matched stream or message payload.
-        kind: "transport.fragment";
-        /// Average fragment byte count.
-        averageBytes: uint64;
-        /// Optional fragment size variation in bytes.
-        variationBytes?: uint64;
-        /// Optional delay between fragments in nanoseconds.
-        delayNanos?: uint64;
-    }
+          /// Fragment the matched stream or message payload.
+          kind: "transport.fragment";
+          /// Average fragment byte count.
+          averageBytes: uint64;
+          /// Optional fragment size variation in bytes.
+          variationBytes?: uint64;
+          /// Optional delay between fragments in nanoseconds.
+          delayNanos?: uint64;
+      }
     | {
-        /// Disconnect the matched transport.
-        kind: "transport.disconnect";
-    }
+          /// Disconnect the matched transport.
+          kind: "transport.disconnect";
+      }
     | {
-        /// Reset the matched transport.
-        kind: "transport.reset";
-        /// Optional reset delay in nanoseconds.
-        delayNanos?: uint64;
-    }
+          /// Reset the matched transport.
+          kind: "transport.reset";
+          /// Optional reset delay in nanoseconds.
+          delayNanos?: uint64;
+      }
     | {
-        /// Partition the matched transport.
-        kind: "transport.partition";
-        /// Optional direction selector.
-        direction?: FaultDirection;
-    }
+          /// Partition the matched transport.
+          kind: "transport.partition";
+          /// Optional direction selector.
+          direction?: FaultDirection;
+      }
     | {
-        /// Blackhole the matched transport.
-        kind: "transport.blackhole";
-        /// Optional direction selector.
-        direction?: FaultDirection;
-    }
+          /// Blackhole the matched transport.
+          kind: "transport.blackhole";
+          /// Optional direction selector.
+          direction?: FaultDirection;
+      }
     | {
-        /// Apply one transport limit.
-        kind: "transport.limit";
-        /// Transport limit payload.
-        limit: TransportLimit;
-    }
+          /// Apply one transport limit.
+          kind: "transport.limit";
+          /// Transport limit payload.
+          limit: TransportLimit;
+      }
     | {
-        /// Apply pressure to one resource class.
-        kind: "resource.pressure";
-        /// Resource class under pressure.
-        resource: FaultResource;
-        /// Optional pressure level in parts per million.
-        levelPpm?: uint32;
-    }
+          /// Apply pressure to one resource class.
+          kind: "resource.pressure";
+          /// Resource class under pressure.
+          resource: FaultResource;
+          /// Optional pressure level in parts per million.
+          levelPpm?: uint32;
+      }
     | {
-        /// Apply one resource limit.
-        kind: "resource.limit";
-        /// Limited resource class.
-        resource: FaultResource;
-        /// Resource limit.
-        limit: ResourceLimit;
-    }
+          /// Apply one resource limit.
+          kind: "resource.limit";
+          /// Limited resource class.
+          resource: FaultResource;
+          /// Resource limit.
+          limit: ResourceLimit;
+      }
     | {
-        /// Crash the matched process.
-        kind: "lifecycle.crash";
-        /// Optional signal number.
-        signal?: int64;
-    }
+          /// Crash the matched process.
+          kind: "lifecycle.crash";
+          /// Optional signal number.
+          signal?: int64;
+      }
     | {
-        /// Pause the matched lifecycle target.
-        kind: "lifecycle.pause";
-        /// Optional pause duration in nanoseconds.
-        durationNanos?: uint64;
-    }
+          /// Pause the matched lifecycle target.
+          kind: "lifecycle.pause";
+          /// Optional pause duration in nanoseconds.
+          durationNanos?: uint64;
+      }
     | {
-        /// Restart the matched process.
-        kind: "lifecycle.restart";
-        /// Optional restart delay in nanoseconds.
-        delayNanos?: uint64;
-    }
+          /// Restart the matched process.
+          kind: "lifecycle.restart";
+          /// Optional restart delay in nanoseconds.
+          delayNanos?: uint64;
+      }
     | {
-        /// Reboot the matched target.
-        kind: "lifecycle.reboot";
-        /// Optional reboot delay in nanoseconds.
-        delayNanos?: uint64;
-    }
+          /// Reboot the matched target.
+          kind: "lifecycle.reboot";
+          /// Optional reboot delay in nanoseconds.
+          delayNanos?: uint64;
+      }
     | {
-        /// Jump one clock.
-        kind: "clock.jump";
-        /// Signed jump delta in nanoseconds.
-        deltaNanos: int64;
-    }
+          /// Jump one clock.
+          kind: "clock.jump";
+          /// Signed jump delta in nanoseconds.
+          deltaNanos: int64;
+      }
     | {
-        /// Drift one clock.
-        kind: "clock.drift";
-        /// Signed rate offset in parts per million.
-        ratePpm: int64;
-    }
+          /// Drift one clock.
+          kind: "clock.drift";
+          /// Signed rate offset in parts per million.
+          ratePpm: int64;
+      }
     | {
-        /// Freeze one clock.
-        kind: "clock.freeze";
-        /// Optional freeze duration in nanoseconds.
-        durationNanos?: uint64;
-    }
+          /// Freeze one clock.
+          kind: "clock.freeze";
+          /// Optional freeze duration in nanoseconds.
+          durationNanos?: uint64;
+      }
     | {
-        /// Adjust clock resolution.
-        kind: "clock.resolution";
-        /// Clock resolution in nanoseconds.
-        resolutionNanos: uint64;
-    }
+          /// Adjust clock resolution.
+          kind: "clock.resolution";
+          /// Clock resolution in nanoseconds.
+          resolutionNanos: uint64;
+      }
     | {
-        /// Inject clock jitter.
-        kind: "clock.jitter";
-        /// Jitter in nanoseconds.
-        jitterNanos: uint64;
-        /// Optional jitter distribution.
-        distribution?: JitterDistribution;
-    }
+          /// Inject clock jitter.
+          kind: "clock.jitter";
+          /// Jitter in nanoseconds.
+          jitterNanos: uint64;
+          /// Optional jitter distribution.
+          distribution?: JitterDistribution;
+      }
     | {
-        /// Inject random-source errors.
-        kind: "random.error";
-        /// Error payload.
-        error: FaultError;
-    }
+          /// Inject random-source errors.
+          kind: "random.error";
+          /// Error payload.
+          error: FaultError;
+      }
     | {
-        /// Repeat bytes from the random stream.
-        kind: "random.repeat";
-        /// Optional repeated byte window.
-        windowBytes?: uint64;
-    }
+          /// Repeat bytes from the random stream.
+          kind: "random.repeat";
+          /// Optional repeated byte window.
+          windowBytes?: uint64;
+      }
     | {
-        /// Replace random bytes with zero.
-        kind: "random.zero";
-    }
+          /// Replace random bytes with zero.
+          kind: "random.zero";
+      }
     | {
-        /// Bias random bits.
-        kind: "random.bias";
-        /// Optional bit index to bias.
-        bit?: uint8;
-        /// Bias probability in parts per million.
-        probabilityPpm: uint32;
-    }
+          /// Bias random bits.
+          kind: "random.bias";
+          /// Optional bit index to bias.
+          bit?: uint8;
+          /// Bias probability in parts per million.
+          probabilityPpm: uint32;
+      }
     | {
-        /// Inject storage corruption faults.
-        kind: "storage.corrupt";
-        /// Corruption target.
-        target: StorageCorruptionTarget;
-        /// Optional corruption mode.
-        mode?: CorruptionMode;
-    }
+          /// Inject storage corruption faults.
+          kind: "storage.corrupt";
+          /// Corruption target.
+          target: StorageCorruptionTarget;
+          /// Optional corruption mode.
+          mode?: CorruptionMode;
+      }
     | {
-        /// Inject storage ordering faults.
-        kind: "storage.order";
-        /// Storage ordering fault selector.
-        fault: StorageOrderFault;
-    }
+          /// Inject storage ordering faults.
+          kind: "storage.order";
+          /// Storage ordering fault selector.
+          fault: StorageOrderFault;
+      }
     | {
-        /// Inject storage durability faults.
-        kind: "storage.durability";
-        /// Durability fault selector.
-        fault: StorageDurabilityFault;
-    }
+          /// Inject storage durability faults.
+          kind: "storage.durability";
+          /// Durability fault selector.
+          fault: StorageDurabilityFault;
+      }
     | {
-        /// Inject storage consistency faults.
-        kind: "storage.consistency";
-        /// Storage consistency fault selector.
-        fault: StorageConsistencyFault;
-        /// Optional maximum staleness in nanoseconds.
-        maxAgeNanos?: uint64;
-    };
+          /// Inject storage consistency faults.
+          kind: "storage.consistency";
+          /// Storage consistency fault selector.
+          fault: StorageConsistencyFault;
+          /// Optional maximum staleness in nanoseconds.
+          maxAgeNanos?: uint64;
+      };
 
 /// Scenario fault injected by one rule.
 export struct Fault {
@@ -718,9 +719,7 @@ export declare function scenarioClose(scenario: ScenarioHandle): Result<void, Ho
     provider: "runtime",
     affinity: "worker",
 })
-export declare function scenarioDescribe(
-    scenario: ScenarioHandle,
-): Result<Scenario, HostError>;
+export declare function scenarioDescribe(scenario: ScenarioHandle): Result<Scenario, HostError>;
 
 /// List scenarios in one world.
 @binding("destack.runtime.scenario.list", {

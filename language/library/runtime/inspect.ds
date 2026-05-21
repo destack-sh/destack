@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import {
     Edge,
     EdgeFilter,
@@ -11,12 +12,12 @@ import {
     LabelSelector,
 } from "./entity.ds";
 import { Image } from "./lineage.ds";
-import { Resource, ResourceId, ResourceKind, ResourcePage } from "./resource.ds";
 import { Revision } from "./lineage.ds";
+import { Resource, ResourceId, ResourceKind, ResourcePage } from "./resource.ds";
 import { Trace } from "./trace.ds";
 import {
-    RuntimeFilter,
     Runtime,
+    RuntimeFilter,
     RuntimeId,
     RuntimePage,
     Worker,
@@ -291,10 +292,7 @@ export declare function edgeList(
     provider: "runtime",
     affinity: "worker",
 })
-export declare function edgeView(
-    view: WorldViewHandle,
-    edgeId: EdgeId,
-): Result<Edge, HostError>;
+export declare function edgeView(view: WorldViewHandle, edgeId: EdgeId): Result<Edge, HostError>;
 
 /// Describe the event loop for one worker visible through one pinned world view.
 @binding("destack.runtime.inspect.eventLoopView", {

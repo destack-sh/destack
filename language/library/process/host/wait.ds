@@ -1,7 +1,8 @@
 import { HostError } from "destack:error/host";
+import { ProcessHandle } from "destack:process/host";
+
 import { ProcessId } from "./identity.ds";
 import { Signal } from "./signal.ds";
-import { ProcessHandle } from "destack:process/host";
 
 /// Wait flags for process waits.
 export newtype ProcessWaitFlags = uint32;
@@ -90,9 +91,7 @@ export declare function waitProcess(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pollProcess(
-    handle: ProcessHandle,
-): Result<ProcessWaitStatus, HostError>;
+export declare function pollProcess(handle: ProcessHandle): Result<ProcessWaitStatus, HostError>;
 
 /// Wait for a process identifier.
 @binding("destack.process.wait.pid", {

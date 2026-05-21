@@ -2,10 +2,7 @@ import { type Expression } from "./expression.ds";
 import { type Symbol } from "./symbol.ds";
 
 /// A declaration or property name.
-export type Name =
-    | IdentifierName
-    | StringName
-    | NumberName;
+export type Name = IdentifierName | StringName | NumberName;
 
 /// A regular identifier name.
 export interface IdentifierName {
@@ -32,10 +29,7 @@ export interface NumberName {
 }
 
 /// A value or type property key.
-export type Key =
-    | NameKey
-    | PrivateKey
-    | ExpressionKey;
+export type Key = NameKey | PrivateKey | ExpressionKey;
 
 /// A named property key.
 export interface NameKey {
@@ -62,9 +56,7 @@ export interface ExpressionKey {
 }
 
 /// A symbol key.
-export type SymbolKey =
-    | UniqueSymbolKey
-    | RegistrySymbolKey;
+export type SymbolKey = UniqueSymbolKey | RegistrySymbolKey;
 
 /// A unique symbol key from a declaration.
 export interface UniqueSymbolKey {
@@ -83,10 +75,7 @@ export interface RegistrySymbolKey {
 }
 
 /// A static property key.
-export type StaticKey =
-    | StaticNameKey
-    | StaticNumberKey
-    | StaticSymbolKey;
+export type StaticKey = StaticNameKey | StaticNumberKey | StaticSymbolKey;
 
 /// A string-like static key.
 export interface StaticNameKey {

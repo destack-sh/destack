@@ -41,7 +41,7 @@ export class Logger {
 
     /// Create a logger.
     constructor(sink?: LogSink) {
-        this.sink = sink
+        this.sink = sink;
     }
 
     /// Write one log record.
@@ -51,40 +51,39 @@ export class Logger {
 
         if (sink == undefined) {
             emitLog(record)
-        }
-        else {
+        } else {
             sink.write(record)
         }
     }
 
     /// Write one trace event.
     trace(this: &readonly Logger, message: string, fields?: Fields): void {
-        this.log(Level.Trace, message, fields)
+        this.log(Level.Trace, message, fields);
     }
 
     /// Write one debug event.
     debug(this: &readonly Logger, message: string, fields?: Fields): void {
-        this.log(Level.Debug, message, fields)
+        this.log(Level.Debug, message, fields);
     }
 
     /// Write one informational event.
     info(this: &readonly Logger, message: string, fields?: Fields): void {
-        this.log(Level.Info, message, fields)
+        this.log(Level.Info, message, fields);
     }
 
     /// Write one warning event.
     warn(this: &readonly Logger, message: string, fields?: Fields): void {
-        this.log(Level.Warn, message, fields)
+        this.log(Level.Warn, message, fields);
     }
 
     /// Write one error event.
     error(this: &readonly Logger, message: string, fields?: Fields): void {
-        this.log(Level.Error, message, fields)
+        this.log(Level.Error, message, fields);
     }
 
     /// Write one fatal event.
     fatal(this: &readonly Logger, message: string, fields?: Fields): void {
-        this.log(Level.Fatal, message, fields)
+        this.log(Level.Fatal, message, fields);
     }
 }
 
@@ -95,37 +94,37 @@ export function logger(): Logger {
 
 /// Write one informational event.
 export function event(name: string, fields?: Fields): void {
-    logger().info(name, fields)
+    logger().info(name, fields);
 }
 
 /// Write one trace event with the default logger.
 export function trace(message: string, fields?: Fields): void {
-    logger().trace(message, fields)
+    logger().trace(message, fields);
 }
 
 /// Write one debug event with the default logger.
 export function debug(message: string, fields?: Fields): void {
-    logger().debug(message, fields)
+    logger().debug(message, fields);
 }
 
 /// Write one informational event with the default logger.
 export function info(message: string, fields?: Fields): void {
-    logger().info(message, fields)
+    logger().info(message, fields);
 }
 
 /// Write one warning event with the default logger.
 export function warn(message: string, fields?: Fields): void {
-    logger().warn(message, fields)
+    logger().warn(message, fields);
 }
 
 /// Write one error event with the default logger.
 export function error(message: string, fields?: Fields): void {
-    logger().error(message, fields)
+    logger().error(message, fields);
 }
 
 /// Write one fatal event with the default logger.
 export function fatal(message: string, fields?: Fields): void {
-    logger().fatal(message, fields)
+    logger().fatal(message, fields);
 }
 
 /// Emit one log record to the runtime telemetry collector.

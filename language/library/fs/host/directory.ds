@@ -1,5 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { FilesystemEntry } from "./entry.ds";
 import { PathBuffer, PathSpan } from "./path.ds";
 import { FileMode } from "./status.ds";
@@ -66,9 +67,7 @@ export declare function createDirectory(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function removeDirectory(
-    entry: &readonly FilesystemEntry,
-): Result<void, HostError>;
+export declare function removeDirectory(entry: &readonly FilesystemEntry): Result<void, HostError>;
 
 /// Open one directory stream.
 @binding("destack.fs.directory.open", {

@@ -1,7 +1,8 @@
-import { HostError } from "destack:error/host";
-import { ModifierState } from "./keyboard.ds";
-import { InputDeviceHandle } from "destack:input/host";
 import { WindowHandle } from "destack:display/host";
+import { HostError } from "destack:error/host";
+import { InputDeviceHandle } from "destack:input/host";
+
+import { ModifierState } from "./keyboard.ds";
 
 /// Pointer kind.
 export enum PointerKind {

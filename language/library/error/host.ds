@@ -1,4 +1,5 @@
 import { MaybeOwned } from "destack:memory";
+
 import { Error } from "./error.ds";
 
 /// Error code returned by host bindings.

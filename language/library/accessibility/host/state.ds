@@ -138,8 +138,7 @@ export const ACCESSIBILITY_STATE_DISABLED: AccessibilityStateFlags = Accessibili
 export const ACCESSIBILITY_STATE_HIDDEN: AccessibilityStateFlags = AccessibilityStateFlags(0x8);
 
 /// Able to receive accessibility focus.
-export const ACCESSIBILITY_STATE_FOCUSABLE: AccessibilityStateFlags =
-    AccessibilityStateFlags(0x10);
+export const ACCESSIBILITY_STATE_FOCUSABLE: AccessibilityStateFlags = AccessibilityStateFlags(0x10);
 
 /// Currently owns accessibility focus.
 export const ACCESSIBILITY_STATE_FOCUSED: AccessibilityStateFlags = AccessibilityStateFlags(0x20);
@@ -155,12 +154,10 @@ export const ACCESSIBILITY_STATE_READ_ONLY: AccessibilityStateFlags =
     AccessibilityStateFlags(0x100);
 
 /// `aria-required`.
-export const ACCESSIBILITY_STATE_REQUIRED: AccessibilityStateFlags =
-    AccessibilityStateFlags(0x200);
+export const ACCESSIBILITY_STATE_REQUIRED: AccessibilityStateFlags = AccessibilityStateFlags(0x200);
 
 /// Visited link target.
-export const ACCESSIBILITY_STATE_VISITED: AccessibilityStateFlags =
-    AccessibilityStateFlags(0x400);
+export const ACCESSIBILITY_STATE_VISITED: AccessibilityStateFlags = AccessibilityStateFlags(0x400);
 
 /// Numeric range value for widgets such as sliders, meters, and spin buttons.
 export struct AccessibilityRangeValue {

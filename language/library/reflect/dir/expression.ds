@@ -1,18 +1,31 @@
 import { type Argument, type GenericArgument, type StaticArgument } from "./argument.ds";
 import { type Block } from "./block.ds";
-import { type CastOperator, type CastSource, type UnaryOperator, type BinaryOperator, RangeEnd, type AssignOperator } from "./operator.ds";
 import { type Declaration } from "./declaration.ds";
 import { type Declarator } from "./declarator.ds";
-import { type DependencyItem, type DependencyKind, type ExportMode, type ModuleTarget, type SymbolSpaceOrder } from "./dependency.ds";
+import {
+    type DependencyItem,
+    type DependencyKind,
+    type ExportMode,
+    type ModuleTarget,
+    type SymbolSpaceOrder,
+} from "./dependency.ds";
 import { type ImportAttributeClause, type ImportSource, type ImportTarget } from "./import.ds";
 import { type ScalarLiteral, type TemplateLiteral } from "./literal.ds";
 import { type MatchCase, type MatchKind, type MatchSource } from "./match.ds";
-import { type Asynchrony, type Ambientness, type Mutability, type Node } from "./node.ds";
+import { type Ambientness, type Asynchrony, type Mutability, type Node } from "./node.ds";
+import {
+    type AssignOperator,
+    type BinaryOperator,
+    type CastOperator,
+    type CastSource,
+    type UnaryOperator,
+    RangeEnd,
+} from "./operator.ds";
 import { type AssignPattern, type Pattern } from "./pattern.ds";
 import { type Property, type StaticProperty } from "./property.ds";
 import { type Scope, type Symbol } from "./symbol.ds";
-import { type Type, type TypeLiteral, type VarianceBound } from "./type.ds";
 import { type TypeExpression } from "./type-expression.ds";
+import { type Type, type TypeLiteral, type VarianceBound } from "./type.ds";
 
 /// The kind of a loop expression.
 export enum LoopKind {
@@ -43,9 +56,7 @@ export enum LetKind {
 }
 
 /// The condition for an if expression.
-export type IfCondition =
-    | ExpressionIfCondition
-    | LetIfCondition;
+export type IfCondition = ExpressionIfCondition | LetIfCondition;
 
 /// A regular condition expression.
 export interface ExpressionIfCondition {
@@ -94,9 +105,7 @@ export enum ForEachDeclarationKind {
 }
 
 /// The binding of a for-each expression.
-export type ForEachBinding =
-    | PatternForEachBinding
-    | UsingForEachBinding;
+export type ForEachBinding = PatternForEachBinding | UsingForEachBinding;
 
 /// Normal pattern binding.
 export interface PatternForEachBinding {

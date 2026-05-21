@@ -1,6 +1,14 @@
 import { AsyncResult, todo } from "destack:error";
 import { HostError } from "destack:error/host";
-import { AddressLookupQuery, AddressLookupResult, SocketAddress, SocketFamily, SocketHandle, SocketMessageFlags, SocketReceiveFromResult } from "destack:net/host";
+import {
+    AddressLookupQuery,
+    AddressLookupResult,
+    SocketAddress,
+    SocketFamily,
+    SocketHandle,
+    SocketMessageFlags,
+    SocketReceiveFromResult,
+} from "destack:net/host";
 
 /// Owned stream socket.
 export struct Connection {
@@ -53,9 +61,7 @@ export function listen(options: ListenOptions): AsyncResult<Listener, HostError>
 }
 
 /// Open one datagram socket.
-export function openDatagram(
-    options: DatagramOptions,
-): AsyncResult<DatagramSocket, HostError> {
+export function openDatagram(options: DatagramOptions): AsyncResult<DatagramSocket, HostError> {
     todo("net.openDatagram")
 }
 
@@ -80,10 +86,7 @@ export function closeDatagram(socket: DatagramSocket): AsyncResult<void, HostErr
 }
 
 /// Read from one stream connection.
-export function read(
-    connection: &Connection,
-    buffer: &[uint8],
-): AsyncResult<uint64, HostError> {
+export function read(connection: &Connection, buffer: &[uint8]): AsyncResult<uint64, HostError> {
     todo("net.read")
 }
 

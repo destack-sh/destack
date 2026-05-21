@@ -1,5 +1,5 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for a pipe endpoint.
 export newtype PipeHandle = ResourceId;
@@ -46,10 +46,7 @@ export declare function closePipe(pipe: PipeHandle): Result<void, HostError>;
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readPipe(
-    pipe: PipeHandle,
-    buffer: &[uint8],
-): Result<uint64, HostError>;
+export declare function readPipe(pipe: PipeHandle, buffer: &[uint8]): Result<uint64, HostError>;
 
 /// Write bytes to one pipe endpoint.
 @binding("destack.ipc.pipe.write", {

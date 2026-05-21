@@ -1,9 +1,10 @@
+import { WindowHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
+
 import { AccessibilityNodeId } from "./node.ds";
 import { AccessibilityLiveRegionPoliteness } from "./state.ds";
 import { AccessibilityTextRange, AccessibilityTextRevision } from "./text.ds";
 import { AccessibilityTreeRevision } from "./tree.ds";
-import { WindowHandle } from "destack:display/host";
 
 /// Accessibility notification kind.
 export enum AccessibilityNotificationKind {

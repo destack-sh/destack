@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Multiply } from "destack:ops";
+
 import { sqrt } from "./float.ds";
 import { Vector3 } from "./linear.ds";
 import { Matrix3 } from "./matrix.ds";
@@ -130,8 +131,8 @@ extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     multiply(other: Quaternion<T>): this.Output {
         Quaternion {
             x: this.w * other.x + this.x * other.w + this.y * other.z - this.z * other.y,
-            y: this.w * other.y - this.x * other.z + this.y * other.w + this.z * other.x,
-            z: this.w * other.z + this.x * other.y - this.y * other.x + this.z * other.w,
+            y: this.w * other.y - (this.x * other.z + this.y * other.w + this.z * other.x),
+            z: this.w * other.z + this.x * other.y - (this.y * other.x + this.z * other.w),
             w: this.w * other.w - this.x * other.x - this.y * other.y - this.z * other.z,
         }
     }

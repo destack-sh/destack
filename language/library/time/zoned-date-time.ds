@@ -1,10 +1,8 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
+
 import { Duration, DurationLike } from "./duration.ds";
 import { Instant } from "./instant.ds";
-import { PlainDate, CalendarLike } from "./plain-date.ds";
-import { PlainDateTime, PlainDateTimeLike } from "./plain-date-time.ds";
-import { PlainTime, PlainTimeLike } from "./plain-time.ds";
 import {
     ArithmeticOptions,
     DateTimeFormatOptions,
@@ -13,6 +11,9 @@ import {
     ZonedDateTimeAssignmentOptions,
     ZonedDateTimeToStringOptions,
 } from "./option.ds";
+import { PlainDateTime, PlainDateTimeLike } from "./plain-date-time.ds";
+import { CalendarLike, PlainDate } from "./plain-date.ds";
+import { PlainTime, PlainTimeLike } from "./plain-time.ds";
 import { ComparisonResult, LocalesArgument } from "./unit.ds";
 
 /// Temporal time-zone-like value.
@@ -23,9 +24,9 @@ export type TransitionDirection =
     | "next"
     | "previous"
     | {
-        /// Transition direction.
-        direction: "next" | "previous";
-    };
+          /// Transition direction.
+          direction: "next" | "previous";
+      };
 
 /// Temporal zoned date-time field bag.
 export type ZonedDateTimeLike = PlainDateTimeLike & {
@@ -57,7 +58,7 @@ export class ZonedDateTime {
 
     /// Create a zoned date-time.
     constructor(epochNanoseconds: bigint, timeZone: string, calendar?: string) {
-        todo("ZonedDateTime.constructor")
+        todo("ZonedDateTime.constructor");
     }
 
     /// Calendar era.
@@ -206,7 +207,10 @@ export class ZonedDateTime {
     }
 
     /// Return this zoned date-time with updated fields.
-    with(zonedDateTimeLike: ZonedDateTimeLike, options?: ZonedDateTimeAssignmentOptions): ZonedDateTime {
+    with(
+        zonedDateTimeLike: ZonedDateTimeLike,
+        options?: ZonedDateTimeAssignmentOptions,
+    ): ZonedDateTime {
         todo("ZonedDateTime.with")
     }
 
@@ -226,12 +230,18 @@ export class ZonedDateTime {
     }
 
     /// Add a duration.
-    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): ZonedDateTime {
+    add(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): ZonedDateTime {
         todo("ZonedDateTime.add")
     }
 
     /// Subtract a duration.
-    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): ZonedDateTime {
+    subtract(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): ZonedDateTime {
         todo("ZonedDateTime.subtract")
     }
 

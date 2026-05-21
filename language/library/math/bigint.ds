@@ -17,6 +17,7 @@ import {
     Subtract,
     Xor,
 } from "destack:ops";
+
 import { NumberFormatOptions } from "./number.ds";
 
 /// Arbitrary-precision integer.
@@ -49,8 +50,7 @@ extension of BigInt implements
     ShiftLeft<usize>,
     ShiftRight<usize>,
     Subtract<bigint>,
-    Xor<bigint>
-{
+    Xor<bigint> {
     /// The arithmetic result type.
     type Output = bigint;
 
@@ -130,7 +130,11 @@ extension of BigInt implements
     }
 
     /// Return this integer as a locale-aware string.
-    toLocaleString(this: &readonly bigint, locales?: string | string[], options?: NumberFormatOptions): MaybeOwned<string> {
+    toLocaleString(
+        this: &readonly bigint,
+        locales?: string | string[],
+        options?: NumberFormatOptions,
+    ): MaybeOwned<string> {
         todo("BigInt.toLocaleString")
     }
 

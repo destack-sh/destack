@@ -1,6 +1,7 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
 
 /// Handle for one monitor endpoint.

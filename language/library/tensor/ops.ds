@@ -1,4 +1,6 @@
 import { todo } from "destack:error";
+
+import { ConvolutionAxes, DotAxes, GatherAxes, ScatterAxes } from "./axes.ds";
 import {
     TensorConvertOptions,
     TensorConvolutionOptions,
@@ -7,12 +9,6 @@ import {
     TensorReduceOptions,
     TensorScatterOptions,
 } from "./options.ds";
-import {
-    ConvolutionAxes,
-    DotAxes,
-    GatherAxes,
-    ScatterAxes,
-} from "./axes.ds";
 import { Axis, AxisSet, Coordinate, Permutation, Shape } from "./shape.ds";
 import { Tensor } from "./tensor.ds";
 import { TensorView } from "./view.ds";
@@ -28,11 +24,7 @@ export declare function splat<T, comptime Rank: int>(
 
 /// Broadcast `tensor` to `shape`.
 @intrinsic("tensor.broadcast")
-export declare function broadcast<
-    T,
-    comptime InRank: int,
-    comptime OutRank: int,
->(
+export declare function broadcast<T, comptime InRank: int, comptime OutRank: int>(
     tensor: Tensor<T, InRank>,
     shape: Shape<OutRank>,
     options?: TensorOutputOptions<T, OutRank>,
@@ -80,11 +72,7 @@ export declare function concat<T, comptime Rank: int>(
 ): Tensor<T, Rank>;
 
 /// Stack tensors along a new axis.
-export function stack<
-    T,
-    comptime Rank: int,
-    comptime OutRank: int,
->(
+export function stack<T, comptime Rank: int, comptime OutRank: int>(
     tensors: &[Tensor<T, Rank>],
     axis: Axis,
     options?: TensorOutputOptions<T, OutRank>,
@@ -93,11 +81,7 @@ export function stack<
 }
 
 /// Insert a length-one axis.
-export function expandDims<
-    T,
-    comptime Rank: int,
-    comptime OutRank: int,
->(
+export function expandDims<T, comptime Rank: int, comptime OutRank: int>(
     tensor: Tensor<T, Rank>,
     axis: Axis,
     options?: TensorOutputOptions<T, OutRank>,
@@ -106,12 +90,7 @@ export function expandDims<
 }
 
 /// Remove length-one axes.
-export function squeeze<
-    T,
-    comptime Rank: int,
-    comptime OutRank: int,
-    comptime AxisCount: int,
->(
+export function squeeze<T, comptime Rank: int, comptime OutRank: int, comptime AxisCount: int>(
     tensor: Tensor<T, Rank>,
     axisSet: AxisSet<AxisCount>,
     options?: TensorOutputOptions<T, OutRank>,

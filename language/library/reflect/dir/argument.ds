@@ -16,10 +16,7 @@ export enum VarianceModifier {
 }
 
 /// A generic parameter.
-export type GenericParameter =
-    | TypeGenericParameter
-    | ValueGenericParameter
-    | ErrorGenericParameter;
+export type GenericParameter = TypeGenericParameter | ValueGenericParameter | ErrorGenericParameter;
 
 /// Type generic parameter.
 export interface TypeGenericParameter extends Node {
@@ -160,10 +157,7 @@ export interface ErrorParameter extends Node {
 }
 
 /// A generic argument.
-export type GenericArgument =
-    | TypeGenericArgument
-    | ValueGenericArgument
-    | ErrorGenericArgument;
+export type GenericArgument = TypeGenericArgument | ValueGenericArgument | ErrorGenericArgument;
 
 /// Type generic argument.
 export interface TypeGenericArgument extends Node {
@@ -194,10 +188,7 @@ export interface ErrorGenericArgument extends Node {
 }
 
 /// One tuple type element.
-export type TupleElement =
-    | ElementTupleElement
-    | SpreadTupleElement
-    | ErrorTupleElement;
+export type TupleElement = ElementTupleElement | SpreadTupleElement | ErrorTupleElement;
 
 /// One non-spread tuple element.
 export interface ElementTupleElement extends Node {
@@ -300,9 +291,7 @@ export interface ErrorArgument extends Node {
 }
 
 /// Static argument in a static context.
-export type StaticArgument =
-    | UnevaluatedStaticArgument
-    | EvaluatedStaticArgument;
+export type StaticArgument = UnevaluatedStaticArgument | EvaluatedStaticArgument;
 
 /// Unevaluated static argument.
 export interface UnevaluatedStaticArgument {

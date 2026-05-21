@@ -1,4 +1,5 @@
 import { Error, Result } from "destack:error";
+
 import { From, TryFrom } from "./from.ds";
 
 /// Infallible conversion into `T`.
@@ -7,8 +8,7 @@ export newtype interface Into<T> {
     into(): T;
 }
 
-export extension<T, U> of T implements Into<U>
-where U implements From<T> {
+export extension<T, U> of T implements Into<U> where U: From<T> {
     /// Convert this value through `U.from`.
     into(): U {
         U.from(this)
@@ -21,8 +21,7 @@ export newtype interface TryInto<T, E = Error> {
     tryInto(): Result<T, E>;
 }
 
-export extension<T, U, E = Error> of T implements TryInto<U, E>
-where U implements TryFrom<T, E> {
+export extension<T, U, E = Error> of T implements TryInto<U, E> where U: TryFrom<T, E> {
     /// Convert this value through `U.tryFrom`.
     tryInto(): Result<U, E> {
         U.tryFrom(this)

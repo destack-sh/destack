@@ -1,6 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one GPU adapter endpoint.
 export newtype GpuAdapterHandle = ResourceId;
@@ -842,7 +842,9 @@ export declare function destroyTexture(texture: GpuTextureHandle): Result<void, 
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readTextureState(texture: GpuTextureHandle): Result<GpuTextureState, HostError>;
+export declare function readTextureState(
+    texture: GpuTextureHandle,
+): Result<GpuTextureState, HostError>;
 
 /// Create a texture view.
 @binding("destack.gpu.resource.texture.view.create", {

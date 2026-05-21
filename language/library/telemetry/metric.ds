@@ -1,4 +1,5 @@
 import { Duration } from "destack:time";
+
 import { Fields } from "./field.ds";
 
 /// Metric instrument kind.
@@ -50,9 +51,9 @@ export class Counter {
 
     /// Create a counter.
     constructor(name: string, unit?: string, sink?: MetricSink) {
-        this.name = name
-        this.unit = unit
-        this.sink = sink
+        this.name = name;
+        this.unit = unit;
+        this.sink = sink;
     }
 
     /// Add to this counter.
@@ -63,7 +64,7 @@ export class Counter {
             value,
             unit: this.unit,
             fields,
-        })
+        });
     }
 }
 
@@ -80,9 +81,9 @@ export class UpDownCounter {
 
     /// Create an up-down counter.
     constructor(name: string, unit?: string, sink?: MetricSink) {
-        this.name = name
-        this.unit = unit
-        this.sink = sink
+        this.name = name;
+        this.unit = unit;
+        this.sink = sink;
     }
 
     /// Add to this counter.
@@ -93,7 +94,7 @@ export class UpDownCounter {
             value,
             unit: this.unit,
             fields,
-        })
+        });
     }
 }
 
@@ -110,9 +111,9 @@ export class Gauge {
 
     /// Create a gauge.
     constructor(name: string, unit?: string, sink?: MetricSink) {
-        this.name = name
-        this.unit = unit
-        this.sink = sink
+        this.name = name;
+        this.unit = unit;
+        this.sink = sink;
     }
 
     /// Record this gauge value.
@@ -123,7 +124,7 @@ export class Gauge {
             value,
             unit: this.unit,
             fields,
-        })
+        });
     }
 }
 
@@ -140,9 +141,9 @@ export class Histogram {
 
     /// Create a histogram.
     constructor(name: string, unit?: string, sink?: MetricSink) {
-        this.name = name
-        this.unit = unit
-        this.sink = sink
+        this.name = name;
+        this.unit = unit;
+        this.sink = sink;
     }
 
     /// Record one histogram sample.
@@ -153,7 +154,7 @@ export class Histogram {
             value,
             unit: this.unit,
             fields,
-        })
+        });
     }
 }
 
@@ -164,7 +165,7 @@ export class Meter {
 
     /// Create a meter.
     constructor(sink?: MetricSink) {
-        this.sink = sink
+        this.sink = sink;
     }
 
     /// Create one counter.
@@ -173,11 +174,7 @@ export class Meter {
     }
 
     /// Create one up-down counter.
-    upDownCounter(
-        this: &readonly Meter,
-        name: string,
-        unit?: string,
-    ): UpDownCounter {
+    upDownCounter(this: &readonly Meter, name: string, unit?: string): UpDownCounter {
         new UpDownCounter(name, unit, this.sink)
     }
 
@@ -193,7 +190,7 @@ export class Meter {
 
     /// Record a duration sample.
     duration(this: &readonly Meter, name: string, value: Duration, fields?: Fields): void {
-        this.histogram(name, "duration").record(value.total("nanosecond"), fields)
+        this.histogram(name, "duration").record(value.total("nanosecond"), fields);
     }
 }
 
@@ -224,15 +221,14 @@ export function histogram(name: string, unit?: string): Histogram {
 
 /// Record a duration sample with the default meter.
 export function duration(name: string, value: Duration, fields?: Fields): void {
-    meter().duration(name, value, fields)
+    meter().duration(name, value, fields);
 }
 
 /// Record one metric sample.
 function recordMetric(sink: MetricSink | undefined, record: MetricRecord): void {
     if (sink == undefined) {
         emitMetric(record)
-    }
-    else {
+    } else {
         sink.record(record)
     }
 }

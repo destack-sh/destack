@@ -1,5 +1,5 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one TLS context.
 export newtype TlsContextHandle = ResourceId;

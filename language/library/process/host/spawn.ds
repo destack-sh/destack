@@ -1,8 +1,9 @@
 import { HostError } from "destack:error/host";
 import { FileHandle, FileMode, Path } from "destack:fs/host";
-import { EnvironmentVariable } from "./environment.ds";
 import { PipeHandle } from "destack:ipc/host";
 import { ProcessHandle } from "destack:process/host";
+
+import { EnvironmentVariable } from "./environment.ds";
 
 /// Process spawn flags.
 export newtype ProcessSpawnFlags = uint32;

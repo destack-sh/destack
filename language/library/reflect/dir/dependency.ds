@@ -1,8 +1,8 @@
+import { type Declaration } from "./declaration.ds";
 import { type Expression } from "./expression.ds";
 import { type ImportSource } from "./import.ds";
 import { type Name, type StaticKey } from "./key.ds";
 import { type Node } from "./node.ds";
-import { type Declaration } from "./declaration.ds";
 import { type Module, type Scope, type Symbol, type SymbolSpace } from "./symbol.ds";
 
 /// Dependency item mode.
@@ -32,10 +32,7 @@ export enum DependencyKind {
 }
 
 /// A resolved module target.
-export type ModuleTarget =
-    | ModuleModuleTarget
-    | BindingModuleTarget
-    | ExternalModuleTarget;
+export type ModuleTarget = ModuleModuleTarget | BindingModuleTarget | ExternalModuleTarget;
 
 /// A file or library module target.
 export interface ModuleModuleTarget {

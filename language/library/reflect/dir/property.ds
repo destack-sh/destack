@@ -2,12 +2,7 @@ import { type GenericParameter } from "./argument.ds";
 import { type Expression, type StaticExpression, type WhereClause } from "./expression.ds";
 import { type FunctionSignature } from "./function.ds";
 import { type Key } from "./key.ds";
-import {
-    type Ambientness,
-    type Mutability,
-    type Node,
-    type Visibility,
-} from "./node.ds";
+import { type Ambientness, type Mutability, type Node, type Visibility } from "./node.ds";
 import { type Symbol } from "./symbol.ds";
 import { type TypeExpression } from "./type-expression.ds";
 
@@ -77,11 +72,7 @@ export enum FunctionMode {
 }
 
 /// A property of an object-like literal.
-export type Property =
-    | FieldProperty
-    | MethodProperty
-    | SpreadProperty
-    | ErrorProperty;
+export type Property = FieldProperty | MethodProperty | SpreadProperty | ErrorProperty;
 
 /// Named field property.
 export interface FieldProperty extends Node {

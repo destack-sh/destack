@@ -1,7 +1,8 @@
 import { HostError } from "destack:error/host";
+import { FileHandle } from "destack:fs/host";
+
 import { FilesystemEntry } from "./entry.ds";
 import { FileMode, FileOwner, FileTimes } from "./status.ds";
-import { FileHandle } from "destack:fs/host";
 
 /// Access check bitset.
 export newtype FileAccessMask = uint32;
@@ -97,7 +98,4 @@ export declare function setEntryTimes(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setFileTimes(
-    file: FileHandle,
-    times: FileTimes,
-): Result<void, HostError>;
+export declare function setFileTimes(file: FileHandle, times: FileTimes): Result<void, HostError>;

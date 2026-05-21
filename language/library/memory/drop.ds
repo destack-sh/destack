@@ -41,8 +41,7 @@ export extension<T> of ManuallyDrop<T> {
     dropInner(this: ManuallyDrop<T>): void;
 }
 
-export extension<T> of ManuallyDrop<T> implements Default
-where T implements Default {
+export extension<T> of ManuallyDrop<T> implements Default where T: Default {
     /// Wrap the default value.
     static default(): ManuallyDrop<T> {
         ManuallyDrop.new(T.default())

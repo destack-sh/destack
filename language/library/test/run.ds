@@ -1,13 +1,12 @@
 import { Instant } from "destack:time";
+
 import { Artifact } from "./artifact.ds";
 import { CaseId, RunId, SuiteId } from "./id.ds";
 import { Issue } from "./issue.ds";
 import { Replay } from "./replay.ds";
 
 /// Test run target.
-export type RunTarget =
-    | { caseId: CaseId }
-    | { suiteId: SuiteId };
+export type RunTarget = { caseId: CaseId } | { suiteId: SuiteId };
 
 /// Test run outcome.
 export enum Outcome {

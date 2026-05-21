@@ -1,5 +1,6 @@
-import { todo } from "destack:error";
 import { FixedArray } from "destack:collections";
+import { todo } from "destack:error";
+
 import { Axis, Shape, Stride } from "./shape.ds";
 
 /// Memory order for dense tensor storage.
@@ -35,9 +36,7 @@ export newtype Layout = DenseLayout;
 /// Tensor view layout descriptor for `Rank` axes.
 @languageItem("tensor.ViewLayout")
 @derive(Tagged)
-export newtype ViewLayout<comptime Rank: int> =
-    | DenseLayout
-    | StridedLayout<Rank>;
+export newtype ViewLayout<comptime Rank: int> = DenseLayout | StridedLayout<Rank>;
 
 extension of Layout {
     /// Return row-major dense layout.
