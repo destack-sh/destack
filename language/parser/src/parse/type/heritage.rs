@@ -6,16 +6,6 @@ use destack_dir::{
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
-    /// Return whether one optional heritage keyword is present at the current position.
-    fn eat_heritage_keyword_maybe(&mut self, keyword: Keyword) -> ParseResult<bool> {
-        if !self.is_keyword(keyword) {
-            return Ok(false);
-        }
-
-        self.bump(); // eat heritage keyword
-        Ok(true)
-    }
-
     /// Return whether the next non-newline token terminates one heritage clause.
     fn newline_before_super_clause_terminator(&mut self, terminators: &[Keyword]) -> bool {
         self.peek_is(TokenType::OpenBrace)
@@ -26,6 +16,13 @@ impl Parser {
     }
 
     /// Eat one heritage list with shared separator and recovery rules.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Base
+    /// Base, Other
+    /// Base<T> implements Contract
+    /// ```
     fn eat_super_list<Item>(
         &mut self,
         terminators: &[Keyword],
@@ -33,7 +30,7 @@ impl Parser {
         mut finish_item: impl FnMut(&mut Parser, &Item, Span, bool) -> ParseResult<()>,
     ) -> ParseResult<Vec<Item>> {
         let mut items = Vec::new();
-        let mut expect_item = true;
+        let mut expects_item = true;
 
         // newline alone only separates heritage items in block-value mode
         let allow_newline_separator =
@@ -42,7 +39,7 @@ impl Parser {
         while self.has_more_tokens() {
             // clause boundary
             if self.is_super_clause_terminator(terminators) {
-                if expect_item && !items.is_empty() {
+                if expects_item && !items.is_empty() {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
                 break;
@@ -51,24 +48,24 @@ impl Parser {
             // newline separator or newline before the next clause
             if self.current_token_is_on_new_line() {
                 if self.newline_before_super_clause_terminator(terminators) {
-                    if expect_item && !items.is_empty() {
+                    if expects_item && !items.is_empty() {
                         return Err(ParseError::unexpected(self.peek()?.span));
                     }
                     break;
                 }
 
-                if !allow_newline_separator && !expect_item {
+                if !allow_newline_separator && !expects_item {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
-                if !expect_item {
-                    expect_item = true;
+                if !expects_item {
+                    expects_item = true;
                 }
             }
 
             // explicit comma separator
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop()?;
-                expect_item = true;
+                expects_item = true;
                 continue;
             }
 
@@ -79,12 +76,12 @@ impl Parser {
                 }
 
                 self.eat_item_stop()?;
-                expect_item = true;
+                expects_item = true;
                 continue;
             }
 
             // next heritage item
-            if !expect_item {
+            if !expects_item {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
@@ -95,29 +92,57 @@ impl Parser {
             finish_item(self, &item, item_span, item_starts_with_parenthesis)?;
 
             items.push(item);
-            expect_item = false;
+            expects_item = false;
         }
 
         Ok(items)
     }
 
     /// Eat one optional extends type clause.
-    pub fn eat_extends_types_maybe(
+    ///
+    /// Examples:
+    /// ```ds
+    /// extends Base
+    /// extends Base<T>, Other
+    /// extends (abstract new () => Instance)
+    /// ```
+    pub fn eat_extends_types_if_present(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
-        if !self.eat_heritage_keyword_maybe(Keyword::Extends)? {
+        if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
+        self.bump(); // eat extends
 
-        self.eat_super_type_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
+        let flags = self
+            .flags
+            .not_in_position()
+            .in_super_type()
+            .not_in_new_receiver()
+            .in_type();
+        let types = self.with_flags(flags, |parser| {
+            parser.eat_super_type_list(&[Keyword::Implements, Keyword::With, Keyword::Where])
+        })?;
+
+        Ok(Some(types))
     }
 
     /// Eat one optional interface extends clause.
+    ///
+    /// Examples:
+    /// ```ds
+    /// extends Base
+    /// extends Base<T>, Other<T>
+    /// extends namespace.Base
+    /// ```
     #[inline]
-    pub fn eat_interface_extends_maybe(&mut self) -> ParseResult<Option<Vec<InterfaceHeritage>>> {
-        if !self.eat_heritage_keyword_maybe(Keyword::Extends)? {
+    pub fn eat_interface_extends_if_present(
+        &mut self,
+    ) -> ParseResult<Option<Vec<InterfaceHeritage>>> {
+        if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
+        self.bump(); // eat extends
 
         let flags = self
             .flags
@@ -137,60 +162,60 @@ impl Parser {
     }
 
     /// Eat one optional extends expression clause.
+    ///
+    /// Examples:
+    /// ```ds
+    /// extends Base
+    /// extends Base<T>, Other
+    /// extends mixin(Base)
+    /// ```
     #[inline]
-    pub fn eat_extends_expressions_maybe(
+    pub fn eat_extends_expressions_if_present(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        if !self.eat_heritage_keyword_maybe(Keyword::Extends)? {
+        if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
+        self.bump(); // eat extends
 
-        self.eat_super_expression_list_maybe(&[Keyword::Implements, Keyword::With, Keyword::Where])
-    }
-
-    /// Eat one optional implements type clause.
-    #[inline]
-    pub fn eat_implements_types_maybe(
-        &mut self,
-    ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
-        if !self.eat_heritage_keyword_maybe(Keyword::Implements)? {
-            return Ok(None);
-        }
-
-        self.eat_super_type_list_maybe(&[Keyword::With, Keyword::Where])
-    }
-
-    /// Eat one optional type heritage clause body.
-    #[inline]
-    fn eat_super_type_list_maybe(
-        &mut self,
-        terminators: &[Keyword],
-    ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
-        let flags = self
-            .flags
-            .not_in_position()
-            .in_super_type()
-            .not_in_new_receiver()
-            .in_type();
-        let types = self.with_flags(flags, |parser| parser.eat_super_type_list(terminators))?;
-
-        Ok(Some(types))
-    }
-
-    /// Eat one optional value heritage clause body.
-    #[inline]
-    fn eat_super_expression_list_maybe(
-        &mut self,
-        terminators: &[Keyword],
-    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
         let flags = self
             .flags
             .not_in_position()
             .in_super_type()
             .not_in_new_receiver()
             .not_in_type();
+        let expressions = self.with_flags(flags, |parser| {
+            parser.eat_super_expression_list(&[Keyword::Implements, Keyword::With, Keyword::Where])
+        })?;
+
+        Ok(Some(expressions))
+    }
+
+    /// Eat one optional implements type clause.
+    ///
+    /// Examples:
+    /// ```ds
+    /// implements Contract
+    /// implements First, Second
+    /// implements Namespace.Contract<T>
+    /// ```
+    #[inline]
+    pub fn eat_implements_types_if_present(
+        &mut self,
+    ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
+        if !self.is_keyword(Keyword::Implements) {
+            return Ok(None);
+        }
+        self.bump(); // eat implements
+
+        let flags = self
+            .flags
+            .not_in_position()
+            .in_super_type()
+            .not_in_new_receiver()
+            .in_type();
         let types = self.with_flags(flags, |parser| {
-            parser.eat_super_expression_list(terminators)
+            parser.eat_super_type_list(&[Keyword::With, Keyword::Where])
         })?;
 
         Ok(Some(types))
@@ -233,6 +258,13 @@ impl Parser {
     }
 
     /// Eat type heritage entries.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Base
+    /// Base<T>, Other
+    /// (abstract new () => Instance)
+    /// ```
     fn eat_super_type_list(
         &mut self,
         terminators: &[Keyword],
@@ -240,7 +272,7 @@ impl Parser {
         self.eat_super_list(
             terminators,
             |parser| {
-                let ty = parser.eat_type_expression_node_or_recover_missing(
+                let ty = parser.eat_type_expression_or_recover_missing(
                     parser.flags.in_before_block().in_type(),
                     NodeType::Declaration,
                 )?;
@@ -260,6 +292,13 @@ impl Parser {
     }
 
     /// Eat value heritage entries.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Base
+    /// Base<T>, mixin(Other)
+    /// (factory())()
+    /// ```
     fn eat_super_expression_list(
         &mut self,
         terminators: &[Keyword],
@@ -286,6 +325,13 @@ impl Parser {
     }
 
     /// Eat interface heritage entries.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Base
+    /// Base<T>, Other<U>
+    /// Namespace.Base
+    /// ```
     fn eat_interface_heritage_list(
         &mut self,
         terminators: &[Keyword],
@@ -295,7 +341,7 @@ impl Parser {
             |parser| {
                 let expression = parser.eat_heritage_expression()?;
 
-                Ok(parser.interface_heritage_from_expression(expression))
+                Ok(parser.interface_heritage_entry_from_expression(expression))
             },
             |parser, heritage, heritage_span, item_starts_with_parenthesis| {
                 parser.tree.set_side_span(
@@ -318,18 +364,21 @@ impl Parser {
     }
 
     /// Eat one heritage expression head.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Base
+    /// Base<T>
+    /// Namespace.Base
+    /// ```
     fn eat_heritage_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let flags = self
-            .flags
-            .in_before_block()
-            .in_left_precedence(u16::MAX)
-            .not_in_sequence_expression();
+        let flags = self.flags.in_before_block().not_in_sequence_expression();
 
-        self.eat_expression(flags)
+        self.eat_expression_at_precedence(flags, u16::MAX)
     }
 
-    /// Convert one parsed heritage expression into its target and type arguments.
-    fn interface_heritage_from_expression(
+    /// Build one interface heritage entry from a parsed expression.
+    fn interface_heritage_entry_from_expression(
         &self,
         expression: LocalNodeId<Expression>,
     ) -> InterfaceHeritage {
@@ -359,22 +408,26 @@ impl Parser {
         }
 
         // these heads require explicit parentheses
-        matches!(
+        if matches!(
             self.tree.get(expression_id),
             Expression::Unary { .. }
                 | Expression::Binary { .. }
                 | Expression::If { .. }
                 | Expression::Assign { .. }
                 | Expression::SequenceExpression { .. }
-        ) || self
-            .wrapped_type_expression_maybe(expression_id)
-            .is_some_and(|value| {
-                matches!(
-                    self.tree.get(value),
-                    TypeExpression::Union { .. }
-                        | TypeExpression::Intersection { .. }
-                        | TypeExpression::Conditional { .. }
-                )
-            })
+        ) {
+            return true;
+        }
+
+        let Expression::Type { value } = self.tree.get(expression_id) else {
+            return false;
+        };
+
+        matches!(
+            self.tree.get(*value),
+            TypeExpression::Union { .. }
+                | TypeExpression::Intersection { .. }
+                | TypeExpression::Conditional { .. }
+        )
     }
 }
