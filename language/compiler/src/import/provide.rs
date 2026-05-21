@@ -15,9 +15,24 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
+        // build independent environment sections
+        let globals = self.load_global_module_ids(profile, context)?;
+        let language = self.build_language_environment(profile, context)?;
+        let environment = GlobalEnvironment { language, globals };
+
+        Ok(ArtifactPayload::GlobalEnvironment(environment))
+    }
+
+    /// Load the global modules selected by one profile.
+    pub(crate) fn load_global_module_ids(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let profile = self.profile(context.revision(), profile)?;
+        let mut globals = Vec::new();
+
         // resolve configured global modules inside the sealed revision
-        let profile = self.profile(context.revision(), profile);
-        let mut modules = Vec::new();
         for path in &profile.key.globals {
             let path = Path::new(path);
             let module_id = self
@@ -26,15 +41,10 @@ impl Compiler {
                     message: format!("global module is not loaded: '{}'", path.display()),
                 })?;
 
-            modules.push(module_id);
+            globals.push(module_id);
         }
 
-        let environment = GlobalEnvironment {
-            language: Default::default(),
-            modules,
-        };
-
-        Ok(ArtifactPayload::GlobalEnvironment(environment))
+        Ok(globals)
     }
 
     /// Build imported DIR for one module.
@@ -50,7 +60,7 @@ impl Compiler {
         let bound = artifacts
             .dir_bound(module, profile)
             .map_err(CompilerError::from)?;
-        let module = self.module(context.revision(), module);
+        let module = self.module(context.revision(), module)?;
 
         // build local dependency table
         let view = dir::View::new(&parsed.tree);

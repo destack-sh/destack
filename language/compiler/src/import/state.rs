@@ -3,6 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{DiagnosticAnchor, DirImported};
 use destack_core::StringPool;
 use destack_dir as dir;
+use destack_source::Loader;
 use destack_workspace::{Module, Revision};
 
 use crate::{ImportError, ImportResult};
@@ -55,9 +56,53 @@ impl<'a> ImportState<'a> {
         self.dependencies.push(dependency);
     }
 
-    /// Push one recoverable import diagnostic.
-    pub(in crate::import) fn push_diagnostic(&mut self, diagnostic: ImportError) {
+    /// Report one recoverable import diagnostic.
+    pub(in crate::import) fn report_diagnostic(&mut self, diagnostic: ImportError) {
         self.diagnostics.push(diagnostic);
+    }
+
+    /// Read the loader selected by one import attribute clause.
+    pub(in crate::import) fn read_module_loader(
+        &mut self,
+        anchor: &DiagnosticAnchor,
+        attributes: Option<&dir::ImportAttributeClause>,
+    ) -> Option<Loader> {
+        let loader_attribute = attributes.and_then(|attributes| {
+            attributes.attributes.iter().find(|attribute| {
+                let key = self.strings().get(attribute.key.string());
+                key == "type"
+            })
+        });
+
+        match loader_attribute.map(|attribute| &attribute.value) {
+            // accept known loader names
+            Some(dir::ImportAttributeValue::ScalarLiteral(dir::ScalarLiteral::String(value))) => {
+                let value = self.strings().get(*value);
+                if let Some(loader) = Loader::from_type_attribute(value) {
+                    Some(loader)
+                } else {
+                    self.report_diagnostic(ImportError::InvalidImportAttributeType {
+                        anchor: anchor.clone(),
+                        value: value.to_string(),
+                    });
+
+                    None
+                }
+            }
+
+            // reject non-string loader names
+            Some(_) => {
+                self.report_diagnostic(ImportError::InvalidImportAttributeType {
+                    anchor: anchor.clone(),
+                    value: "<non-string>".to_string(),
+                });
+
+                None
+            }
+
+            // use repository inference
+            None => None,
+        }
     }
 
     /// Return the source anchor for one local node id.
