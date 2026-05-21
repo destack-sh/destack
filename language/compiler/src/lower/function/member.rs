@@ -158,8 +158,10 @@ impl FunctionLowerer<'_> {
         let resolution = self.get_member_resolution(expression_id)?;
 
         match &resolution.target {
-            dir::MemberTarget::Direct(candidate) => Some(candidate.symbol),
-            dir::MemberTarget::Intrinsic | dir::MemberTarget::Select(_) => None,
+            dir::MemberTarget::Symbol(candidate) => Some(candidate.symbol),
+            dir::MemberTarget::Builtin(_)
+            | dir::MemberTarget::Field(_)
+            | dir::MemberTarget::Select(_) => None,
         }
     }
 

@@ -239,7 +239,7 @@ impl ModuleLowerer<'_> {
         let Some(resolution) = self.resolutions.member_resolution(node_id) else {
             return Ok(None);
         };
-        let dir::MemberTarget::Direct(target) = &resolution.target else {
+        let dir::MemberTarget::Symbol(target) = &resolution.target else {
             return Ok(None);
         };
 
