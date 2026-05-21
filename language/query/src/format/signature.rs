@@ -114,6 +114,9 @@ fn format_function(
     types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
+    // resolve the phase prefix
+    let phase_prefix = format_function_phase_prefix(signature.phase);
+
     // resolve the async prefix
     let async_prefix = match signature.asynchrony {
         dir::Asynchrony::Async => "async ",
@@ -154,8 +157,16 @@ fn format_function(
 
     // return the formatted function signature
     format!(
-        "{declaration_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
+        "{declaration_prefix}{phase_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
     )
+}
+
+/// Format the phase prefix for one function.
+fn format_function_phase_prefix(phase: dir::FunctionPhase) -> &'static str {
+    match phase {
+        dir::FunctionPhase::Normal => "",
+        dir::FunctionPhase::Comptime => "comptime ",
+    }
 }
 
 /// Format the declaration prefix keywords for a declaration.
@@ -191,6 +202,9 @@ pub fn format_call_signature(
     ctx: &ModuleQueryContext<'_>,
     include_this: bool,
 ) -> FormattedCallSignature {
+    // resolve the phase prefix
+    let phase_prefix = format_function_phase_prefix(signature.phase);
+
     // resolve the async prefix
     let async_prefix = match signature.asynchrony {
         dir::Asynchrony::Async => "async ",
@@ -238,7 +252,9 @@ pub fn format_call_signature(
         .unwrap_or_default();
 
     // build the call signature label
-    let label = format!("{async_prefix}{name}{generics_text}({parameters_text}){return_text}");
+    let label = format!(
+        "{phase_prefix}{async_prefix}{name}{generics_text}({parameters_text}){return_text}"
+    );
 
     // return the call signature details
     FormattedCallSignature {
@@ -353,12 +369,17 @@ fn format_parameter(
 
     // resolve the parameter name
     let name = match parameter {
-        dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
-        dir::Parameter::Pattern { .. } => "_".to_string(),
-        dir::Parameter::VariadicNamed { name, .. } => {
-            format!("...{}", strings.get(*name))
+        dir::Parameter::Named { name, .. } => {
+            format_parameter_name(strings.get(*name), parameter.is_comptime())
         }
-        dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
+        dir::Parameter::Pattern { .. } => format_parameter_name("_", parameter.is_comptime()),
+        dir::Parameter::VariadicNamed { name, .. } => {
+            let name = format!("...{}", strings.get(*name));
+            format_parameter_name(&name, parameter.is_comptime())
+        }
+        dir::Parameter::VariadicPattern { .. } => {
+            format_parameter_name("...<pattern>", parameter.is_comptime())
+        }
         dir::Parameter::Error => "<error>".to_string(),
     };
 
@@ -373,6 +394,15 @@ fn format_parameter(
         format!("{name}: {type_text}")
     } else {
         name
+    }
+}
+
+/// Format one parameter label with its phase prefix.
+fn format_parameter_name(name: &str, is_comptime: bool) -> String {
+    if is_comptime {
+        format!("comptime {name}")
+    } else {
+        name.to_string()
     }
 }
 

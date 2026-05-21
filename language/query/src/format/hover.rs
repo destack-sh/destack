@@ -178,10 +178,17 @@ pub fn format_parameter_hover(
 ) -> String {
     // resolve the parameter name
     let name = match param {
-        dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
-        dir::Parameter::Pattern { .. } => "_".to_string(),
-        dir::Parameter::VariadicNamed { name, .. } => format!("...{}", strings.get(*name)),
-        dir::Parameter::VariadicPattern { .. } => "...<pattern>".to_string(),
+        dir::Parameter::Named { name, .. } => {
+            format_parameter_name(strings.get(*name), param.is_comptime())
+        }
+        dir::Parameter::Pattern { .. } => format_parameter_name("_", param.is_comptime()),
+        dir::Parameter::VariadicNamed { name, .. } => {
+            let name = format!("...{}", strings.get(*name));
+            format_parameter_name(&name, param.is_comptime())
+        }
+        dir::Parameter::VariadicPattern { .. } => {
+            format_parameter_name("...<pattern>", param.is_comptime())
+        }
         dir::Parameter::Error => "<error>".to_string(),
     };
 
@@ -195,6 +202,15 @@ pub fn format_parameter_hover(
         format!("(parameter) {name}: {type_text}")
     } else {
         format!("(parameter) {name}")
+    }
+}
+
+/// Format one parameter label with its phase prefix.
+fn format_parameter_name(name: &str, is_comptime: bool) -> String {
+    if is_comptime {
+        format!("comptime {name}")
+    } else {
+        name.to_string()
     }
 }
 
