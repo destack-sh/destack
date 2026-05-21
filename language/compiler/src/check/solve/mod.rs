@@ -1,7 +1,6 @@
-mod instance;
-mod layout;
-mod select;
+mod assign;
+mod call;
+mod name;
+mod operator;
 mod solve;
-mod state;
-mod r#static;
 mod r#type;

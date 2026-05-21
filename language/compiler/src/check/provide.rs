@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
 use crate::check::CheckState;
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerResult};
 
 impl Compiler {
     /// Build checked DIR side tables for one module.
@@ -13,20 +13,13 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let artifacts = self.artifact_reader(context);
+        let mut check = CheckState::new(self, context, profile);
+        check.load(module)?;
+        check.walk()?;
+        check.solve()?;
+        check.validate()?;
+        let checked = check.finish(module)?;
 
-        // load provider inputs
-        let expanded = artifacts
-            .dir_expanded(module, profile)
-            .map_err(CompilerError::from)?;
-
-        // visit DIR, solve constraints, then validate obligations
-        let mut state = CheckState::new(module, profile, expanded.as_ref());
-        self.visit_check(&mut state).map_err(CompilerError::from)?;
-        self.solve_check(&mut state).map_err(CompilerError::from)?;
-        self.validate_check(&mut state)
-            .map_err(CompilerError::from)?;
-
-        Ok(ArtifactPayload::DirChecked(state.finish()))
+        Ok(ArtifactPayload::DirChecked(checked))
     }
 }

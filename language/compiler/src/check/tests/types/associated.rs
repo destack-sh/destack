@@ -30,7 +30,7 @@ struct Box<T> {
 
 declare const value: Box<string>.Item;
 /// @resolution.name source=Box target=Box
-/// @resolution.member source=Box<string>.Item receiver=Box<string> kind=direct target=Box.Item
+/// @resolution.member source=Box<string>.Item receiver=Box<string> kind=symbol target=Box.Item
 /// @instance.application source="Box<string>" id=Box<string>
 /// @type.symbol symbol=value type=string
 
@@ -65,13 +65,13 @@ class Segment<Row> {
     /// @static.symbol symbol=Segment.Width value="Row extends string ? 8 : 4"
 
     type Lane = [uint8; this.Width];
-    /// @resolution.member source=this.Width receiver=Segment<Row> kind=direct target=Segment.Width
+    /// @resolution.member source=this.Width receiver=Segment<Row> kind=symbol target=Segment.Width
     /// @type.symbol symbol=Segment.Lane type=[uint8; Segment.Width]
 }
 
 declare const lane: Segment<string>.Lane;
 /// @resolution.name source=Segment target=Segment
-/// @resolution.member source=Segment<string>.Lane receiver=Segment<string> kind=direct target=Segment.Lane
+/// @resolution.member source=Segment<string>.Lane receiver=Segment<string> kind=symbol target=Segment.Lane
 /// @instance.application source="Segment<string>" id=Segment<string>
 /// @type.symbol symbol=lane type=[uint8; 8]
 

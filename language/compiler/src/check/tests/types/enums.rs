@@ -30,13 +30,13 @@ enum Status {
 
     static Default = Status.Active;
     /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Active receiver=Status kind=direct target=Status.Active
+    /// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
     /// @type.symbol symbol=Status.Default type=Status
 }
 
 const value = Status.Default;
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Default receiver=Status kind=direct target=Status.Default
+/// @resolution.member source=Status.Default receiver=Status kind=symbol target=Status.Default
 /// @type.symbol symbol=value type=Status
 "#,
     );
@@ -78,16 +78,16 @@ enum Status {
         return this == Status.Active;
         /// @resolution.name source=this target=this
         /// @resolution.name source=Status target=Status
-        /// @resolution.member source=Status.Active receiver=Status kind=direct target=Status.Active
+        /// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
         /// @type.node source="this == Status.Active" type=boolean
     }
 }
 
 const value = Status.Active.isActive();
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Active receiver=Status kind=direct target=Status.Active
-/// @resolution.member source=Status.Active.isActive receiver=Status kind=direct target=Status.isActive
-/// @resolution.call source="Status.Active.isActive()" parameters=[] return=boolean kind=direct target=Status.isActive receiver=Status
+/// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
+/// @resolution.member source=Status.Active.isActive receiver=Status kind=symbol target=Status.isActive
+/// @resolution.call source="Status.Active.isActive()" parameters=[] return=boolean kind=symbol target=Status.isActive receiver=Status
 /// @type.symbol symbol=value type=boolean
 "#,
     );

@@ -2,11 +2,12 @@ use destack_dir as dir;
 
 use crate::DiagnosticAnchor;
 
-use super::{InferId, StaticInferId};
+use super::TypeInferId;
 
 /// Rule validated after solving.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Obligation {
+pub(in crate::check) enum Obligation {
     /// Source must be assignable to target.
     ///
     /// ```ds
@@ -15,9 +16,9 @@ pub enum Obligation {
     /// ```
     Assignable {
         /// The source type.
-        source: InferId,
+        source: TypeInferId,
         /// The target type.
-        target: InferId,
+        target: TypeInferId,
         /// The diagnostic context.
         context: ObligationContext,
     },
@@ -29,9 +30,9 @@ pub enum Obligation {
     /// ```
     Satisfies {
         /// The value type.
-        value: InferId,
+        value: TypeInferId,
         /// The constraint type.
-        constraint: InferId,
+        constraint: TypeInferId,
         /// The diagnostic context.
         context: ObligationContext,
     },
@@ -43,9 +44,9 @@ pub enum Obligation {
     /// ```
     Extends {
         /// The subtype.
-        subtype: InferId,
+        subtype: TypeInferId,
         /// The supertype.
-        supertype: InferId,
+        supertype: TypeInferId,
         /// The diagnostic context.
         context: ObligationContext,
     },
@@ -57,21 +58,9 @@ pub enum Obligation {
     /// ```
     Implements {
         /// The implementing type.
-        implementor: InferId,
+        implementor: TypeInferId,
         /// The contract type.
-        contract: InferId,
-        /// The diagnostic context.
-        context: ObligationContext,
-    },
-    /// Static value must be known.
-    ///
-    /// ```ds
-    /// @if(import.meta.mode == "test") {}
-    /// // the condition must evaluate during check
-    /// ```
-    KnownStatic {
-        /// The static term.
-        term: StaticInferId,
+        contract: TypeInferId,
         /// The diagnostic context.
         context: ObligationContext,
     },
@@ -83,19 +72,23 @@ pub enum Obligation {
     /// ```
     ConcreteLayout {
         /// The type to lay out.
-        ty: InferId,
+        ty: TypeInferId,
         /// The diagnostic context.
         context: ObligationContext,
     },
-    /// Type must be known.
+    /// Call expression must resolve to a callable target.
     ///
     /// ```ds
-    /// export const value = compute();
-    /// // the exported type must be known
+    /// parse(text);
+    /// // parse must be callable with text
     /// ```
-    KnownType {
-        /// The type that must be known.
-        ty: InferId,
+    Callable {
+        /// The call expression.
+        call: dir::GlobalNodeIdAny,
+        /// The callee type.
+        callee: TypeInferId,
+        /// The argument types.
+        arguments: Vec<TypeInferId>,
         /// The diagnostic context.
         context: ObligationContext,
     },
@@ -103,16 +96,17 @@ pub enum Obligation {
 
 /// Diagnostic context for an obligation.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ObligationContext {
+pub(in crate::check) struct ObligationContext {
     /// The diagnostic anchor.
-    pub anchor: DiagnosticAnchor,
+    pub(in crate::check) anchor: DiagnosticAnchor,
     /// The obligation source context.
-    pub source: ObligationSource,
+    pub(in crate::check) source: ObligationSource,
 }
 
 /// Source of an obligation.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ObligationSource {
+pub(in crate::check) enum ObligationSource {
     /// Declaration type annotation.
     ///
     /// ```ds
@@ -188,6 +182,16 @@ pub enum ObligationSource {
         parameter: Option<dir::GlobalSymbolId>,
         /// The argument index.
         index: usize,
+    },
+    /// Call expression selection.
+    ///
+    /// ```ds
+    /// parse(text);
+    /// // report against the call expression
+    /// ```
+    Call {
+        /// The call node.
+        call: dir::GlobalNodeIdAny,
     },
     /// Extends clause.
     ///

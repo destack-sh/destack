@@ -1,10 +1,11 @@
 use destack_dir as dir;
 
-use super::{InferId, StaticInferId};
+use super::{StaticInferId, TypeInferId};
 
 /// Check-time condition extracted from source syntax.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Condition {
+pub(in crate::check) enum Condition {
     /// Runtime condition used to narrow ordinary control flow.
     ///
     /// ```ds
@@ -25,8 +26,9 @@ pub enum Condition {
 }
 
 /// Runtime condition that can derive branch-local narrowings.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum RuntimeCondition {
+pub(in crate::check) enum RuntimeCondition {
     /// Runtime value has a type.
     ///
     /// ```ds
@@ -38,7 +40,7 @@ pub enum RuntimeCondition {
         /// The narrowed symbol.
         symbol: dir::GlobalSymbolId,
         /// The asserted type.
-        ty: InferId,
+        ty: TypeInferId,
     },
     /// Runtime value is neither null nor undefined.
     ///
@@ -75,7 +77,7 @@ pub enum RuntimeCondition {
     /// ```
     IsTrue {
         /// The checked value.
-        value: InferId,
+        value: TypeInferId,
     },
     /// Runtime condition is negated.
     ///
@@ -104,8 +106,9 @@ pub enum RuntimeCondition {
 }
 
 /// Static condition that can select or defer check-time control flow.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum StaticCondition {
+pub(in crate::check) enum StaticCondition {
     /// Static term must evaluate to a boolean.
     ///
     /// ```ds
@@ -139,9 +142,9 @@ pub enum StaticCondition {
     /// ```
     Satisfies {
         /// The value type.
-        value: InferId,
+        value: TypeInferId,
         /// The constraint type.
-        constraint: InferId,
+        constraint: TypeInferId,
     },
     /// Type must extend another type.
     ///
@@ -152,9 +155,9 @@ pub enum StaticCondition {
     /// ```
     Extends {
         /// The subtype.
-        subtype: InferId,
+        subtype: TypeInferId,
         /// The supertype.
-        supertype: InferId,
+        supertype: TypeInferId,
     },
     /// Static condition is negated.
     ///

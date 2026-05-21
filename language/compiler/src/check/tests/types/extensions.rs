@@ -43,9 +43,9 @@ extension PointMath of Point {
 
         return this.x + this.y;
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.x receiver=Point kind=direct target=Point.x
+        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.y receiver=Point kind=direct target=Point.y
+        /// @resolution.member source=this.y receiver=Point kind=symbol target=Point.y
         /// @type.node source="this.x + this.y" type=int32
     }
 }
@@ -55,8 +55,8 @@ declare const point: Point;
 
 const value = point.sum();
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.sum receiver=Point kind=direct target=PointMath.sum
-/// @resolution.call source="point.sum()" parameters=[] return=int32 kind=direct target=PointMath.sum receiver=Point
+/// @resolution.member source=point.sum receiver=Point kind=symbol target=PointMath.sum
+/// @resolution.call source="point.sum()" parameters=[] return=int32 kind=symbol target=PointMath.sum receiver=Point
 /// @type.symbol symbol=value type=int32
 "#);
 }
@@ -104,9 +104,9 @@ extension PointMath of Point {
 
         return this.x + this.y;
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.x receiver=Point kind=direct target=Point.x
+        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.y receiver=Point kind=direct target=Point.y
+        /// @resolution.member source=this.y receiver=Point kind=symbol target=Point.y
         /// @type.node source="this.x + this.y" type=int32
     }
 }
@@ -193,9 +193,9 @@ extension BoxReadable<T> of Box<T> where T: Readable {
 
         return this.value.read();
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Box<BoxReadable.T> kind=direct target=Box.value
-        /// @resolution.member source=this.value.read receiver=BoxReadable.T kind=direct target=Readable.read
-        /// @resolution.call source="this.value.read()" parameters=[] return=string kind=direct target=Readable.read receiver=BoxReadable.T
+        /// @resolution.member source=this.value receiver=Box<BoxReadable.T> kind=symbol target=Box.value
+        /// @resolution.member source=this.value.read receiver=BoxReadable.T kind=symbol target=Readable.read
+        /// @resolution.call source="this.value.read()" parameters=[] return=string kind=symbol target=Readable.read receiver=BoxReadable.T
     }
 }
 
@@ -205,8 +205,8 @@ declare const boxed: Box<Document>;
 
 const text = boxed.read();
 /// @resolution.name source=boxed target=boxed
-/// @resolution.member source=boxed.read receiver=Box<Document> kind=direct target=BoxReadable.read instance=BoxReadable<Document>
-/// @resolution.call source="boxed.read()" parameters=[] return=string kind=direct target=BoxReadable.read receiver=Box<Document> instance=BoxReadable<Document>
+/// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=BoxReadable.read instance=BoxReadable<Document>
+/// @resolution.call source="boxed.read()" parameters=[] return=string kind=symbol target=BoxReadable.read receiver=Box<Document> instance=BoxReadable<Document>
 /// @type.symbol symbol=text type=string
 
 /// @instance.entry id=Box<Document> symbol=Box arguments=[Document]
@@ -272,9 +272,9 @@ extension BoxReadable<T> of Box<T> where T: Readable {
 
         return this.value.read();
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Box<BoxReadable.T> kind=direct target=Box.value
-        /// @resolution.member source=this.value.read receiver=BoxReadable.T kind=direct target=Readable.read
-        /// @resolution.call source="this.value.read()" parameters=[] return=string kind=direct target=Readable.read receiver=BoxReadable.T
+        /// @resolution.member source=this.value receiver=Box<BoxReadable.T> kind=symbol target=Box.value
+        /// @resolution.member source=this.value.read receiver=BoxReadable.T kind=symbol target=Readable.read
+        /// @resolution.call source="this.value.read()" parameters=[] return=string kind=symbol target=Readable.read receiver=BoxReadable.T
     }
 }
 

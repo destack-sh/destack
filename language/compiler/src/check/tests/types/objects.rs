@@ -86,13 +86,13 @@ function keep<T: { name: string }>(value: T): T {
 const value = keep({ name: "Ada", extra: true });
 /// @resolution.name source=keep target=keep
 /// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
-/// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=[{ name: string; extra: boolean }] return={ name: string; extra: boolean } kind=direct target=keep instance="keep<{ name: string; extra: boolean }>"
+/// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=[{ name: string; extra: boolean }] return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
 /// @instance.application source="keep({ name: \"Ada\", extra: true })" id="keep<{ name: string; extra: boolean }>"
 /// @type.symbol symbol=value type={ name: string; extra: boolean }
 
 const extra = value.extra;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=direct target=value.extra
+/// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=symbol target=value.extra
 /// @type.symbol symbol=extra type=boolean
 
 /// @instance.entry id="keep<{ name: string; extra: boolean }>" symbol=keep arguments=[{ name: string; extra: boolean }]

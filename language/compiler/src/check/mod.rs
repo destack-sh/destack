@@ -1,4 +1,3 @@
-mod assign;
 mod error;
 mod provide;
 mod solve;
@@ -10,7 +9,7 @@ mod warning;
 pub use error::*;
 pub use warning::*;
 
-pub use state::*;
+pub(in crate::check) use state::*;
 
 #[cfg(test)]
 mod tests;

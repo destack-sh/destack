@@ -1,10 +1,11 @@
 use destack_dir as dir;
 
-use super::{InferId, StaticInferId};
+use super::{StaticInferId, TypeInferId};
 
-/// Operand used to bind a type inference value.
+/// Term used to bind a type inference value.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeOperand {
+pub(in crate::check) enum TypeTerm {
     /// Concrete type.
     ///
     /// ```ds
@@ -18,14 +19,14 @@ pub enum TypeOperand {
     /// let value = source;
     /// // type(value) can point at type(source)
     /// ```
-    Infer(InferId),
-    /// Value type of a resolved symbol.
+    Infer(TypeInferId),
+    /// Type of a resolved symbol.
     ///
     /// ```ds
     /// source
     /// // the path expression reads the value type of symbol source
     /// ```
-    SymbolValue(dir::GlobalSymbolId),
+    Symbol(dir::GlobalSymbolId),
     /// Type produced by static evaluation.
     ///
     /// ```ds
@@ -33,11 +34,37 @@ pub enum TypeOperand {
     /// // Element is computed from a static type expression
     /// ```
     Static(StaticInferId),
+    /// Source type expression normalized by the solver.
+    ///
+    /// ```ds
+    /// let value: Box<T>;
+    /// // the type expression is walked now and evaluated later
+    /// ```
+    TypeExpression(dir::GlobalNodeId<dir::TypeExpression>),
+    /// Function type assembled from solved signature pieces.
+    ///
+    /// ```ds
+    /// function add(left: int32): int32
+    /// // the function type is built after parameter types are solved
+    /// ```
+    Function {
+        /// The source node for the constructed type.
+        source: dir::GlobalNodeIdAny,
+        /// The function asynchrony.
+        asynchrony: dir::Asynchrony,
+        /// The parameter types.
+        parameters: Vec<TypeInferId>,
+        /// The return type.
+        return_type: Option<TypeInferId>,
+        /// Whether this function is a generator.
+        is_generator: bool,
+    },
 }
 
 /// Relation or selection the solver must resolve.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Constraint {
+pub(in crate::check) enum Constraint {
     /// Make two type variables equal.
     ///
     /// ```ds
@@ -46,21 +73,21 @@ pub enum Constraint {
     /// ```
     Equals {
         /// The left type.
-        left: InferId,
+        left: TypeInferId,
         /// The right type.
-        right: InferId,
+        right: TypeInferId,
     },
-    /// Bind a type variable to a type operand.
+    /// Bind a type variable to a type term.
     ///
     /// ```ds
     /// 1
     /// // type(1) has type literal 1
     /// ```
-    BindType {
+    Bind {
         /// The type variable to bind.
-        result: InferId,
-        /// The type operand.
-        operand: TypeOperand,
+        result: TypeInferId,
+        /// The type term.
+        term: TypeTerm,
     },
     /// Bind a static variable to a static value.
     ///
@@ -82,7 +109,7 @@ pub enum Constraint {
     /// ```
     Instantiate {
         /// The instantiated type.
-        result: InferId,
+        result: TypeInferId,
         /// The generic symbol.
         symbol: dir::GlobalSymbolId,
         /// The static arguments.
@@ -96,9 +123,9 @@ pub enum Constraint {
     /// ```
     Join {
         /// The joined result type.
-        result: InferId,
+        result: TypeInferId,
         /// The input types.
-        values: Vec<InferId>,
+        values: Vec<TypeInferId>,
     },
     /// Require a variable to be at least as wide as a bound.
     ///
@@ -108,9 +135,9 @@ pub enum Constraint {
     /// ```
     LowerBound {
         /// The inferred variable.
-        variable: InferId,
+        variable: TypeInferId,
         /// The lower bound.
-        bound: InferId,
+        bound: TypeInferId,
     },
     /// Require a variable to fit within a bound.
     ///
@@ -120,9 +147,9 @@ pub enum Constraint {
     /// ```
     UpperBound {
         /// The inferred variable.
-        variable: InferId,
+        variable: TypeInferId,
         /// The upper bound.
-        bound: InferId,
+        bound: TypeInferId,
     },
     /// Resolve a member access.
     ///
@@ -130,15 +157,15 @@ pub enum Constraint {
     /// point.x
     /// // resolve x against type(point)
     /// ```
-    Member {
+    SelectMember {
         /// The member access node.
         node: dir::GlobalNodeIdAny,
         /// The receiver type.
-        receiver: InferId,
+        receiver: TypeInferId,
         /// The member key.
         key: dir::StaticKey,
         /// The selected member type.
-        result: InferId,
+        result: TypeInferId,
     },
     /// Resolve a call expression.
     ///
@@ -146,15 +173,15 @@ pub enum Constraint {
     /// parse(text)
     /// // resolve the callable selected by parse(text)
     /// ```
-    Call {
+    SelectCall {
         /// The call node.
         node: dir::GlobalNodeIdAny,
         /// The callee type.
-        callee: InferId,
+        callee: TypeInferId,
         /// The argument types.
-        arguments: Vec<InferId>,
+        arguments: Vec<TypeInferId>,
         /// The call result type.
-        result: InferId,
+        result: TypeInferId,
     },
     /// Resolve a unary operator expression.
     ///
@@ -162,15 +189,15 @@ pub enum Constraint {
     /// !enabled
     /// // resolve the logical not operation
     /// ```
-    UnaryOperator {
+    SelectUnaryOperator {
         /// The operator node.
         node: dir::GlobalNodeIdAny,
         /// The source operator.
         operator: dir::UnaryOperator,
         /// The operand type.
-        operand: InferId,
+        operand: TypeInferId,
         /// The operation result type.
-        result: InferId,
+        result: TypeInferId,
     },
     /// Resolve a binary operator expression.
     ///
@@ -178,16 +205,16 @@ pub enum Constraint {
     /// left + right
     /// // resolve the add operation
     /// ```
-    BinaryOperator {
+    SelectBinaryOperator {
         /// The operator node.
         node: dir::GlobalNodeIdAny,
         /// The source operator.
         operator: dir::BinaryOperator,
         /// The left operand type.
-        left: InferId,
+        left: TypeInferId,
         /// The right operand type.
-        right: InferId,
+        right: TypeInferId,
         /// The operation result type.
-        result: InferId,
+        result: TypeInferId,
     },
 }

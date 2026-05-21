@@ -4,17 +4,32 @@ use destack_dir as dir;
 ///
 /// The id is local to one check solve and is never written into DIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InferId(pub u32);
+pub(in crate::check) struct TypeInferId(pub(in crate::check) u32);
 
 /// Static inference variable used while solving checked DIR.
 ///
 /// The id is local to one check solve and is never written into DIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StaticInferId(pub u32);
+pub(in crate::check) struct StaticInferId(pub(in crate::check) u32);
+
+/// Current solved state for one type inference variable.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(in crate::check) struct TypeSlot {
+    /// The solved type id.
+    pub(in crate::check) ty: Option<dir::LocalTypeId>,
+}
+
+/// Current solved state for one static inference variable.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(in crate::check) struct StaticSlot {
+    /// The solved static value id.
+    pub(in crate::check) value: Option<dir::LocalStaticId>,
+}
 
 /// The origin of one type inference variable.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InferOrigin {
+pub(in crate::check) enum InferOrigin {
     /// Type attached to a DIR node.
     ///
     /// ```ds
@@ -39,8 +54,9 @@ pub enum InferOrigin {
 }
 
 /// The origin of one static inference variable.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StaticInferOrigin {
+pub(in crate::check) enum StaticInferOrigin {
     /// Static term attached to a DIR node.
     ///
     /// ```ds

@@ -31,7 +31,7 @@ class Counter {
 
         this.value = value;
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Counter kind=direct target=Counter.value
+        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
         /// @resolution.name source=value target=value
     }
 }
@@ -84,7 +84,7 @@ class Box {
 
         this.value = value;
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Box kind=direct target=Box.value
+        /// @resolution.member source=this.value receiver=Box kind=symbol target=Box.value
         /// @resolution.name source=value target=value
     }
 }
@@ -141,7 +141,7 @@ class Box {
 
         this.value = value;
         /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Box kind=direct target=Box.value
+        /// @resolution.member source=this.value receiver=Box kind=symbol target=Box.value
         /// @resolution.name source=value target=value
     }
 }

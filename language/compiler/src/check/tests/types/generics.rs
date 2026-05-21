@@ -26,13 +26,13 @@ function identity<T>(value: T): T {
 
 const number = identity(1);
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=direct target=identity instance=identity<int32>
+/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=symbol target=identity instance=identity<int32>
 /// @instance.application source="identity(1)" id=identity<int32>
 /// @type.symbol symbol=number type=int32
 
 const text = identity("x");
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=direct target=identity instance=identity<string>
+/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=symbol target=identity instance=identity<string>
 /// @instance.application source="identity(\"x\")" id=identity<string>
 /// @type.symbol symbol=text type=string
 
@@ -67,13 +67,13 @@ function identity<T>(value: T): T {
 
 const first = identity(1);
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=direct target=identity instance=identity<int32>
+/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=symbol target=identity instance=identity<int32>
 /// @instance.application source="identity(1)" id=identity<int32>
 /// @type.symbol symbol=first type=int32
 
 const second = identity(2);
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(2)" parameters=[int32] return=int32 kind=direct target=identity instance=identity<int32>
+/// @resolution.call source="identity(2)" parameters=[int32] return=int32 kind=symbol target=identity instance=identity<int32>
 /// @instance.application source="identity(2)" id=identity<int32>
 /// @type.symbol symbol=second type=int32
 
@@ -106,7 +106,7 @@ function identity<T>(value: T): T {
 
 const text = identity<string>("x");
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity<string>(\"x\")" parameters=[string] return=string kind=direct target=identity instance=identity<string>
+/// @resolution.call source="identity<string>(\"x\")" parameters=[string] return=string kind=symbol target=identity instance=identity<string>
 /// @instance.application source="identity<string>(\"x\")" id=identity<string>
 /// @type.symbol symbol=text type=string
 
@@ -169,13 +169,13 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 
 const defaulted = pair(1);
 /// @resolution.name source=pair target=pair
-/// @resolution.call source="pair(1)" parameters=[int32] return=(int32, int32) kind=direct target=pair instance="pair<int32, int32>"
+/// @resolution.call source="pair(1)" parameters=[int32] return=(int32, int32) kind=symbol target=pair instance="pair<int32, int32>"
 /// @instance.application source="pair(1)" id="pair<int32, int32>"
 /// @type.symbol symbol=defaulted type=(int32, int32)
 
 const overridden = pair(1, "x");
 /// @resolution.name source=pair target=pair
-/// @resolution.call source="pair(1, \"x\")" parameters=[int32, string] return=(int32, string) kind=direct target=pair instance="pair<int32, string>"
+/// @resolution.call source="pair(1, \"x\")" parameters=[int32, string] return=(int32, string) kind=symbol target=pair instance="pair<int32, string>"
 /// @instance.application source="pair(1, \"x\")" id="pair<int32, string>"
 /// @type.symbol symbol=overridden type=(int32, string)
 
@@ -209,7 +209,7 @@ function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
 
 const bytes = take<4>([1, 2, 3, 4]);
 /// @resolution.name source=take target=take
-/// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=[[uint8; 4]] return=[uint8; 4] kind=direct target=take instance=take<4>
+/// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=[[uint8; 4]] return=[uint8; 4] kind=symbol target=take instance=take<4>
 /// @instance.application source="take<4>([1, 2, 3, 4])" id=take<4>
 /// @type.symbol symbol=bytes type=[uint8; 4]
 
@@ -242,7 +242,7 @@ function choose<comptime Flag: boolean = true>(value: int32): int32 {
 
 const value = choose(1);
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose(1)" parameters=[int32] return=int32 kind=direct target=choose instance=choose<true>
+/// @resolution.call source="choose(1)" parameters=[int32] return=int32 kind=symbol target=choose instance=choose<true>
 /// @instance.application source="choose(1)" id=choose<true>
 /// @type.symbol symbol=value type=int32
 
@@ -366,13 +366,13 @@ import { identity } from "./lib.ds";
 
 const number = identity(1);
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=direct target=lib.identity instance=lib.identity<int32>
+/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=symbol target=lib.identity instance=lib.identity<int32>
 /// @instance.application source="identity(1)" id=lib.identity<int32>
 /// @type.symbol symbol=number type=int32
 
 const text = identity("x");
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=direct target=lib.identity instance=lib.identity<string>
+/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=symbol target=lib.identity instance=lib.identity<string>
 /// @instance.application source="identity(\"x\")" id=lib.identity<string>
 /// @type.symbol symbol=text type=string
 
@@ -423,7 +423,7 @@ import { identity } from "./lib.ds";
 
 const text = identity("x");
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=direct target=lib.identity instance=lib.identity<string>
+/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=symbol target=lib.identity instance=lib.identity<string>
 /// @instance.application source="identity(\"x\")" id=lib.identity<string>
 /// @type.symbol symbol=text type=string
 

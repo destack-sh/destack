@@ -19,12 +19,12 @@ const tuple = ["id", 42] as const;
 
 const name = tuple[0];
 /// @resolution.name source=tuple target=tuple
-/// @resolution.member source="tuple[0]" receiver=readonly ["id", 42] kind=direct target=0
+/// @resolution.member source="tuple[0]" receiver=readonly ["id", 42] kind=symbol target=0
 /// @type.symbol symbol=name type="id"
 
 const count = tuple[1];
 /// @resolution.name source=tuple target=tuple
-/// @resolution.member source="tuple[1]" receiver=readonly ["id", 42] kind=direct target=1
+/// @resolution.member source="tuple[1]" receiver=readonly ["id", 42] kind=symbol target=1
 /// @type.symbol symbol=count type=42
 "#,
     );
@@ -48,7 +48,7 @@ declare const bytes: [uint8; 4];
 
 const byte = bytes[1];
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source="bytes[1]" receiver=[uint8; 4] kind=intrinsic target=index
+/// @resolution.member source="bytes[1]" receiver=[uint8; 4] kind=builtin builtin=subscript.index
 /// @type.symbol symbol=byte type=uint8
 "#,
     );
@@ -77,7 +77,7 @@ declare const index: usize;
 const byte = bytes[index];
 /// @resolution.name source=bytes target=bytes
 /// @resolution.name source=index target=index
-/// @resolution.member source="bytes[index]" receiver=uint8[] kind=intrinsic target=index
+/// @resolution.member source="bytes[index]" receiver=uint8[] kind=builtin builtin=subscript.index
 /// @type.symbol symbol=byte type=uint8
 "#,
     );
@@ -102,7 +102,7 @@ declare const bytes: [uint8; 4];
 const slice = bytes[1..3];
 /// @resolution.name source=bytes target=bytes
 /// @type.node source=1..3 type=1..3
-/// @resolution.member source="bytes[1..3]" receiver=[uint8; 4] kind=intrinsic target=slice
+/// @resolution.member source="bytes[1..3]" receiver=[uint8; 4] kind=builtin builtin=subscript.slice
 /// @type.symbol symbol=slice type=Slice<uint8>
 "#,
     );

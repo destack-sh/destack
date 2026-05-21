@@ -35,17 +35,17 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 
     read.id;
     /// @resolution.name source=read target=read
-    /// @resolution.member source=read.id receiver=Borrowed<Node, access.L0, readonly> kind=direct target=Node.id
+    /// @resolution.member source=read.id receiver=Borrowed<Node, access.L0, readonly> kind=symbol target=Node.id
     /// @type.node source=read.id type=int32
 
     write.id;
     /// @resolution.name source=write target=write
-    /// @resolution.member source=write.id receiver=Borrowed<Node, access.L1, mutable> kind=direct target=Node.id
+    /// @resolution.member source=write.id receiver=Borrowed<Node, access.L1, mutable> kind=symbol target=Node.id
     /// @type.node source=write.id type=int32
 
     exclusive.id;
     /// @resolution.name source=exclusive target=exclusive
-    /// @resolution.member source=exclusive.id receiver=Borrowed<Node, access.L2, exclusive> kind=direct target=Node.id
+    /// @resolution.member source=exclusive.id receiver=Borrowed<Node, access.L2, exclusive> kind=symbol target=Node.id
     /// @type.node source=exclusive.id type=int32
 }
 "#);
