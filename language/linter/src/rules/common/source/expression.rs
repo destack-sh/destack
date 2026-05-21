@@ -2204,8 +2204,7 @@ pub fn type_expression_has_side_effects(
                 || type_expression_has_side_effects(ctx, *then_type)
                 || type_expression_has_side_effects(ctx, *else_type)
         }
-        dir::TypeExpression::In { left, right }
-        | dir::TypeExpression::Extends { left, right }
+        dir::TypeExpression::Extends { left, right }
         | dir::TypeExpression::Implements { left, right } => {
             type_expression_has_side_effects(ctx, *left)
                 || type_expression_has_side_effects(ctx, *right)
