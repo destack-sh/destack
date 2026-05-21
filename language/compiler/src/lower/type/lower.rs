@@ -436,6 +436,9 @@ impl<'a> TypeLowerer<'a> {
             dir::Type::Function(_) => {
                 self.lower_function_type(types, type_id, module_id, node, builder)?
             }
+            dir::Type::Closure(closure) => {
+                self.lower_closure_type(types, closure, module_id, node, builder)?
+            }
             dir::Type::Union(union) => {
                 self.lower_union_type(types, type_id, &union.elements, module_id, node, builder)?
             }
@@ -1328,10 +1331,26 @@ impl<'a> TypeLowerer<'a> {
             },
         ];
 
-        let mir_type = builder.type_callable(signature);
+        let mir_type = builder.type_closure(signature);
         let layout = Self::compute_struct_layout(fields, LayoutPolicy::Optimized);
         self.set_layout(mir_type, layout);
         Ok(mir_type)
+    }
+
+    /// Lower a DIR closure type into its MIR representation.
+    fn lower_closure_type(
+        &mut self,
+        types: &dir::TypeTable<'_>,
+        closure: &dir::ClosureType,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let signature =
+            self.lower_function_signature_type(types, closure.function, module_id, node, builder)?;
+        let environment = self.lower_type(types, closure.environment, module_id, node, builder)?;
+
+        Ok(builder.type_closure_with_environment(signature, environment))
     }
 
     /// Lower an intersection type by selecting its primary element.

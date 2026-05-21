@@ -416,17 +416,19 @@ impl TypeLowerer<'_> {
                 let bytes = pointer_bytes as u32;
                 Some((bytes * 2, bytes))
             }
-            mir::Type::Callable { signature } => {
+            mir::Type::Closure {
+                signature,
+                environment,
+            } => {
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;
-                let environment = tree.callable_environment_type();
 
                 let _ = signature.ty()?;
                 let pointer_size = pointer_bytes as u32;
                 max_align = max_align.max(pointer_size);
                 current_offset = Self::align_up(current_offset, pointer_size) + pointer_size;
 
-                let environment_ty = tree.get(environment);
+                let environment_ty = tree.get(environment.ty()?);
                 let (environment_size, environment_align) =
                     self.size_and_align_of_type(environment_ty, tree)?;
                 max_align = max_align.max(environment_align);
