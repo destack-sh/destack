@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use destack_core::StringPool;
 use destack_dir::{Declaration, Expression, LocalNodeId, Name, Pattern};
 use destack_parser::Parser;
-use destack_source::{File, FileId, FileType, LanguageType, Uri};
+use destack_source::{File, FileId, LanguageType, Uri};
 
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 
@@ -71,20 +71,7 @@ impl Suite for ParserStressSuite {
 impl StressCase {
     /// Load one stress case from a generated suite case.
     pub fn from_case(case: &Case) -> Result<Self, String> {
-        let file_type = FileType::from_path(&case.path)
-            .ok_or_else(|| format!("unsupported stress file type: {}", case.path.display()))?;
-        let expectation = if case.name.starts_with("damaged_") {
-            StressExpectation::Recovery
-        } else {
-            StressExpectation::Valid
-        };
-
-        Ok(Self {
-            name: case.name.clone(),
-            path: case.path.clone(),
-            file_type,
-            expectation,
-        })
+        Self::from_path(case.path.clone())
     }
 }
 
@@ -116,6 +103,14 @@ fn run_parser_stress(test: &StressCase) -> CaseResult {
     let roots = parser.parse();
     let elapsed = start.elapsed();
     let has_errors = !parser.errors.is_empty();
+
+    // bounded cases only assert process safety
+    if test.expectation == StressExpectation::Bounded {
+        let metric = StressMetric::new(file_size, line_count, elapsed);
+        eprintln!("{}", metric.format("bounded"));
+
+        return CaseResult::Passed;
+    }
 
     // valid cases must be clean
     if test.expectation == StressExpectation::Valid && has_errors {

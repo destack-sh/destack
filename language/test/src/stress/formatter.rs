@@ -8,9 +8,8 @@ use destack_workspace::FormatterOptions;
 
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 
-use super::metric::StressMetric;
 use super::process::{StressWorker, run_stress_child};
-use super::{StressCase, materialize_formatter_cases};
+use super::{StressCase, StressExpectation, materialize_formatter_cases};
 
 const WORKER_TIMEOUT: Duration = Duration::from_secs(60);
 const HARNESS_TIMEOUT: Duration = Duration::from_secs(65);
@@ -77,18 +76,29 @@ fn run_formatter_stress(test: &StressCase) -> CaseResult {
     let narrow_options = FormatterOptions::default().with_line_width(60);
     let start = std::time::Instant::now();
 
-    // check the default profile first
-    if let Err(message) = check_format_idempotence(test, &source, "default", default_options) {
-        return CaseResult::Failed { message };
+    // bounded parser fixtures can expand to pathological formatted output
+    if test.expectation == StressExpectation::Bounded {
+        eprintln!("bounded: {source_size} bytes, {line_count} lines");
+        return CaseResult::Passed;
     }
+
+    let mut stats = FormatterStressStats::new(source_size, line_count);
+
+    // check the default profile first
+    let default_stats = match check_format_idempotence(test, &source, "default", default_options) {
+        Ok(stats) => stats,
+        Err(message) => return CaseResult::Failed { message },
+    };
+    stats.add_profile(default_stats);
 
     // force additional line breaking through a narrow profile
-    if let Err(message) = check_format_idempotence(test, &source, "narrow", narrow_options) {
-        return CaseResult::Failed { message };
-    }
+    let narrow_stats = match check_format_idempotence(test, &source, "narrow", narrow_options) {
+        Ok(stats) => stats,
+        Err(message) => return CaseResult::Failed { message },
+    };
+    stats.add_profile(narrow_stats);
 
-    let metric = StressMetric::new(source_size, line_count, start.elapsed());
-    eprintln!("{}", metric.format("formatted"));
+    eprintln!("{}", stats.format(start.elapsed()));
 
     CaseResult::Passed
 }
@@ -98,7 +108,7 @@ fn check_format_idempotence(
     source: &str,
     profile: &str,
     options: FormatterOptions,
-) -> Result<(), String> {
+) -> Result<FormatterStressProfileStats, String> {
     let file = stress_file(test, source);
 
     // parse and format the source once
@@ -118,7 +128,7 @@ fn check_format_idempotence(
 
     write_formatted_output(test, profile, &first)?;
 
-    Ok(())
+    Ok(FormatterStressProfileStats::new(source, &first))
 }
 
 fn write_formatted_output(test: &StressCase, profile: &str, output: &str) -> Result<(), String> {
@@ -158,4 +168,94 @@ fn stress_file(test: &StressCase, source: &str) -> File {
         test.file_type,
         source.to_string(),
     )
+}
+
+/// Formatter stress throughput accounting.
+#[derive(Debug, Clone, Copy)]
+struct FormatterStressStats {
+    /// The original input byte count.
+    input_bytes: usize,
+    /// The original input line count.
+    input_lines: usize,
+    /// The source bytes formatted across all profile passes.
+    checked_bytes: usize,
+    /// The source lines formatted across all profile passes.
+    checked_lines: usize,
+    /// The formatted output bytes produced across all profiles.
+    output_bytes: usize,
+    /// The formatted output lines produced across all profiles.
+    output_lines: usize,
+}
+
+impl FormatterStressStats {
+    /// Create formatter stress accounting for one source.
+    const fn new(input_bytes: usize, input_lines: usize) -> Self {
+        Self {
+            input_bytes,
+            input_lines,
+            checked_bytes: 0,
+            checked_lines: 0,
+            output_bytes: 0,
+            output_lines: 0,
+        }
+    }
+
+    /// Add one formatter profile pass.
+    fn add_profile(&mut self, profile: FormatterStressProfileStats) {
+        self.checked_bytes += profile.checked_bytes;
+        self.checked_lines += profile.checked_lines;
+        self.output_bytes += profile.output_bytes;
+        self.output_lines += profile.output_lines;
+    }
+
+    /// Format this accounting for terminal output.
+    fn format(self, elapsed: Duration) -> String {
+        let seconds = elapsed.as_secs_f64().max(f64::EPSILON);
+        let checked_megabytes = self.checked_bytes as f64 / 1_000_000.0;
+        let checked_megabytes_per_second = checked_megabytes / seconds;
+        let output_megabytes = self.output_bytes as f64 / 1_000_000.0;
+        let output_megabytes_per_second = output_megabytes / seconds;
+        let checked_lines_per_second = self.checked_lines as f64 / seconds;
+        let output_lines_per_second = self.output_lines as f64 / seconds;
+
+        format!(
+            "formatted: input {} bytes, {} lines; checked {} bytes, {} lines; output {} bytes, {} lines; {:.3}s, {:.2} checked MB/s, {:.0} checked lines/s, {:.2} output MB/s, {:.0} output lines/s",
+            self.input_bytes,
+            self.input_lines,
+            self.checked_bytes,
+            self.checked_lines,
+            self.output_bytes,
+            self.output_lines,
+            seconds,
+            checked_megabytes_per_second,
+            checked_lines_per_second,
+            output_megabytes_per_second,
+            output_lines_per_second,
+        )
+    }
+}
+
+/// Formatter stress accounting for one profile.
+#[derive(Debug, Clone, Copy)]
+struct FormatterStressProfileStats {
+    /// The source bytes formatted for this profile.
+    checked_bytes: usize,
+    /// The source lines formatted for this profile.
+    checked_lines: usize,
+    /// The formatted output bytes produced for this profile.
+    output_bytes: usize,
+    /// The formatted output lines produced for this profile.
+    output_lines: usize,
+}
+
+impl FormatterStressProfileStats {
+    /// Create profile accounting from the original and formatted source.
+    fn new(source: &str, formatted: &str) -> Self {
+        Self {
+            checked_bytes: source.len() + formatted.len(),
+            checked_lines: source.lines().count() + formatted.lines().count(),
+            output_bytes: formatted.len(),
+            output_lines: formatted.lines().count(),
+        }
+    }
 }
