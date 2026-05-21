@@ -141,11 +141,7 @@ impl<'a> ScriptLinker<'a> {
                     &linked_module,
                     self.context,
                 )
-                .map_err(|message| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message,
-                })?;
+                .map_err(|error| Compiler::link_error(self.package_id, error))?;
 
             segments.push((*module_id, printed));
         }

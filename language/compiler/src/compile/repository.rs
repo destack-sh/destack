@@ -161,26 +161,6 @@ impl Compiler {
             })
     }
 
-    /// Return module ids selected by one target and record its source config dependencies.
-    pub(crate) fn target_module_ids(
-        &self,
-        context: &dyn ProviderContext,
-        target_id: &TargetId,
-    ) -> CompilerResult<Vec<ModuleId>> {
-        let _config = self.destack_for_package(context, target_id.package_id())?;
-        let mut module_ids = self
-            .repository
-            .target_module_ids(context.revision(), *target_id)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to discover target modules {target_id:?}: {error:?}"),
-            })?;
-
-        module_ids.sort_unstable();
-        module_ids.dedup();
-
-        Ok(module_ids)
-    }
-
     /// Resolve the target profile id for one module in one revision.
     pub(crate) fn target_profile_id(
         &self,

@@ -8,7 +8,7 @@ use destack_source::{
 };
 use destack_workspace::{Module, ProviderContext, Revision, Target};
 
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{Compiler, CompilerError, LinkError, LinkResult};
 
 use super::{ModuleEdge, ModuleRelation};
 
@@ -42,10 +42,12 @@ impl<'a> ScriptLinker<'a> {
         target: &'a Target,
         target_id: &'a TargetId,
         package_id: PackageId,
-    ) -> Self {
-        let target_name = compiler.target_name(context.revision(), *target_id);
+    ) -> LinkResult<Self> {
+        let target_name = compiler
+            .target_name(context.revision(), *target_id)
+            .map_err(|error| Compiler::link_error(package_id, error))?;
 
-        Self {
+        Ok(Self {
             compiler,
             context,
             package_dir,
@@ -54,7 +56,7 @@ impl<'a> ScriptLinker<'a> {
             target_id,
             target_name,
             package_id,
-        }
+        })
     }
 
     /// Return the active target name.
@@ -68,20 +70,24 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Return the anchor span for one linked module.
-    pub(crate) fn module_anchor_span(&self, module_id: ModuleId) -> Span {
-        let module = self.compiler.module(self.revision(), module_id);
+    pub(crate) fn module_anchor_span(&self, module_id: ModuleId) -> LinkResult<Span> {
+        let module = self.module(module_id)?;
 
-        Span::empty(module.file_id)
+        Ok(Span::empty(module.file_id))
     }
 
     /// Return one revision-scoped module snapshot.
-    pub(crate) fn module(&self, module_id: ModuleId) -> Arc<Module> {
-        self.compiler.module(self.revision(), module_id)
+    pub(crate) fn module(&self, module_id: ModuleId) -> LinkResult<Arc<Module>> {
+        self.compiler
+            .module(self.revision(), module_id)
+            .map_err(|error| self.link_error(error))
     }
 
     /// Return one revision-scoped file snapshot.
-    pub(crate) fn file(&self, file_id: FileId) -> Arc<File> {
-        self.compiler.file(self.context, file_id)
+    pub(crate) fn file(&self, file_id: FileId) -> LinkResult<Arc<File>> {
+        self.compiler
+            .file(self.context, file_id)
+            .map_err(|error| self.link_error(error))
     }
 
     /// Return one generated module output for this target.
@@ -104,6 +110,7 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn profile_id_for_module(&self, module_id: ModuleId) -> LinkResult<ProfileId> {
         self.compiler
             .target_profile_id(self.revision(), module_id, self.target_id)
+            .map_err(|error| self.link_error(error))?
             .ok_or_else(|| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
@@ -162,6 +169,11 @@ impl<'a> ScriptLinker<'a> {
             })
     }
 
+    /// Map one compiler boundary failure into a link diagnostic.
+    pub(crate) fn link_error(&self, error: CompilerError) -> LinkError {
+        Compiler::link_error(self.package_id, error)
+    }
+
     /// Return one dependency edge with a matching relation, source site, and specifier.
     pub(crate) fn module_edge_for_site_specifier(
         &self,
@@ -178,11 +190,11 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Return whether one module is one plain stylesheet module.
-    pub(crate) fn is_plain_stylesheet_module(&self, module_id: ModuleId) -> bool {
-        let module = self.module(module_id);
-        let file = self.file(module.file_id);
+    pub(crate) fn is_plain_stylesheet_module(&self, module_id: ModuleId) -> LinkResult<bool> {
+        let module = self.module(module_id)?;
+        let file = self.file(module.file_id)?;
 
-        file.ty == FileType::Css && !module.loader.is_file()
+        Ok(file.ty == FileType::Css && !module.loader.is_file())
     }
 }
 

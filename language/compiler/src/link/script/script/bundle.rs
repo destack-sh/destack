@@ -24,7 +24,9 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> LinkResult<bool> {
         let dependency_target = self.script_dependency_target(specifier, target_module);
-        let module = self.module(context.revision(), module_id);
+        let module = self
+            .module(context.revision(), module_id)
+            .map_err(|error| Compiler::link_error(package_id, error))?;
 
         self.should_bundle_script_dependency(
             Span::empty(module.file_id),
@@ -74,7 +76,9 @@ impl Compiler {
 
         // bundled resource imports become local value bindings
         if let Some(target_module) = target_module {
-            let target_module_ref = self.module(context.revision(), target_module);
+            let target_module_ref = self
+                .module(context.revision(), target_module)
+                .map_err(|error| Compiler::link_error(package_id, error))?;
 
             if !target_module_ref.is_code() {
                 if items.is_empty() {
@@ -386,15 +390,15 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
-        let Some(profile_id) = self.target_profile_id(context.revision(), module_id, target_id)
-        else {
-            return Err(LinkError::InvalidTarget {
+        let profile_id = self
+            .target_profile_id(context.revision(), module_id, target_id)
+            .map_err(|error| Compiler::link_error(package_id, error))?
+            .ok_or_else(|| LinkError::InvalidTarget {
                 anchor: package_id.into(),
                 package: package_id,
                 target: *target_id,
                 message: format!("missing profile for module {module_id:?} target {target_id:?}"),
-            });
-        };
+            })?;
 
         self.rewrite_module(
             module_id, script, module_set, target, target_id, package_id, profile_id, context,

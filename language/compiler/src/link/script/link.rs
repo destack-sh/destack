@@ -43,7 +43,7 @@ impl<'a> ScriptLinker<'a> {
 
         // optional manifest
         if self.target.bundle_output.manifest {
-            let manifest = self.build_script_manifest(&output, &plan);
+            let manifest = self.build_script_manifest(&output, &plan)?;
 
             self.compiler.append_manifest_output(
                 self.package_dir,

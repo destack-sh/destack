@@ -59,7 +59,7 @@ impl<'a> ScriptLinker<'a> {
             &mut output_graph,
             &static_entry_sets,
             &dynamic_target_sets,
-        );
+        )?;
 
         Ok(output_graph)
     }
@@ -239,19 +239,15 @@ impl<'a> ScriptLinker<'a> {
         package_dir: &std::path::Path,
         module_ids: &[ModuleId],
     ) -> LinkResult<IndexMap<ModuleId, String>> {
-        let linked_module_paths = module_ids
-            .iter()
-            .map(|module_id| {
-                (
-                    *module_id,
-                    self.compiler.package_relative_module_path(
-                        package_dir,
-                        *module_id,
-                        self.context,
-                    ),
-                )
-            })
-            .collect::<IndexMap<_, _>>();
+        let mut linked_module_paths = IndexMap::new();
+        for module_id in module_ids {
+            let module_path = self
+                .compiler
+                .package_relative_module_path(package_dir, *module_id, self.context)
+                .map_err(|error| self.link_error(error))?;
+
+            linked_module_paths.insert(*module_id, module_path);
+        }
         let mut manual_output_names = IndexMap::new();
 
         for (output_name, module_paths) in &self.target.manual_chunks {
@@ -540,12 +536,12 @@ impl<'a> ScriptLinker<'a> {
         output_graph: &mut OutputGraph,
         static_entry_sets: &IndexMap<ModuleId, IndexSet<ModuleId>>,
         dynamic_target_sets: &IndexMap<ModuleId, IndexSet<ModuleId>>,
-    ) {
+    ) -> LinkResult<()> {
         let mut stylesheet_modules_by_output = IndexMap::<OutputId, IndexSet<ModuleId>>::new();
 
         // static stylesheet reachability
         for (module_id, entry_modules) in static_entry_sets {
-            if !self.is_plain_stylesheet_module(*module_id) {
+            if !self.is_plain_stylesheet_module(*module_id)? {
                 continue;
             }
 
@@ -563,7 +559,7 @@ impl<'a> ScriptLinker<'a> {
 
         // dynamic stylesheet reachability
         for (module_id, entry_modules) in dynamic_target_sets {
-            if !self.is_plain_stylesheet_module(*module_id) {
+            if !self.is_plain_stylesheet_module(*module_id)? {
                 continue;
             }
 
@@ -589,5 +585,6 @@ impl<'a> ScriptLinker<'a> {
 
             output.stylesheet_modules = stylesheet_modules;
         }
+        Ok(())
     }
 }

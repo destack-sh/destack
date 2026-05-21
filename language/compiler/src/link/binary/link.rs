@@ -58,6 +58,7 @@ impl<'a> BinaryLinker<'a> {
             let profile_id = self
                 .compiler
                 .target_profile_id(self.context.revision(), module_id, self.target_id)
+                .map_err(|error| Compiler::link_error(self.package_id, error))?
                 .ok_or_else(|| LinkError::Internal {
                     anchor: (self.package_id).into(),
                     package: self.package_id,
@@ -117,7 +118,10 @@ impl<'a> BinaryLinker<'a> {
                 .into());
             };
 
-            let module = self.compiler.module(self.context.revision(), *module_id);
+            let module = self
+                .compiler
+                .module(self.context.revision(), *module_id)
+                .map_err(|error| Compiler::link_error(self.package_id, error))?;
             let binary_files = link_binary_output_files(
                 module.as_ref(),
                 binary,

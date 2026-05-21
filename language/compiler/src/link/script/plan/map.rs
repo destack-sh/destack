@@ -1,8 +1,8 @@
 use destack_workspace::ProviderContext;
 use std::path::{Component, Path, PathBuf};
 
-use crate::Compiler;
 use crate::link::{SourceMapBuilder, SourceMapMarker};
+use crate::{Compiler, CompilerResult};
 use destack_codegen_js as js;
 use destack_source::ModuleId;
 
@@ -15,21 +15,21 @@ impl Compiler {
         parts: &[(ModuleId, js::PrintedScriptModule)],
         is_minimal: bool,
         context: &dyn ProviderContext,
-    ) -> SourceMapBuilder {
+    ) -> CompilerResult<SourceMapBuilder> {
         let mut sources = Vec::new();
         let mut markers = Vec::new();
         let mut generated_byte_offset = 0u32;
 
         // compose each printed module with one stable source index
         for (part_index, (module_id, printed)) in parts.iter().enumerate() {
-            let module = self.module(context.revision(), *module_id);
-            let source_file = self.file(context, module.file_id);
+            let module = self.module(context.revision(), *module_id)?;
+            let source_file = self.file(context, module.file_id)?;
             let source_path = self.script_source_map_path(
                 package_dir,
                 emitted_source_map_path,
                 *module_id,
                 context,
-            );
+            )?;
             let normalized_length = printed.code.trim_end().len() as u32;
 
             sources.push(source_path);
@@ -58,7 +58,7 @@ impl Compiler {
             }
         }
 
-        SourceMapBuilder::new(sources, markers)
+        Ok(SourceMapBuilder::new(sources, markers))
     }
 
     /// Build one map-relative source path for one linked script module.
@@ -68,16 +68,18 @@ impl Compiler {
         emitted_source_map_path: &Path,
         module_id: ModuleId,
         context: &dyn ProviderContext,
-    ) -> String {
-        let module = self.module(context.revision(), module_id);
+    ) -> CompilerResult<String> {
+        let module = self.module(context.revision(), module_id)?;
 
         let Some(source_path) = module.path.as_ref() else {
-            return self.package_relative_uri_path(package_dir, &module.uri);
+            return Ok(self.package_relative_uri_path(package_dir, &module.uri));
         };
 
-        relative_output_path_between(emitted_source_map_path, source_path)
-            .to_string_lossy()
-            .replace('\\', "/")
+        Ok(
+            relative_output_path_between(emitted_source_map_path, source_path)
+                .to_string_lossy()
+                .replace('\\', "/"),
+        )
     }
 }
 

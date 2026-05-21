@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use base64::Engine as _;
 use destack_artifact::{OutputContent, OutputFile};
 use destack_source::{File, FileContent, FileType, ModuleId};
@@ -182,18 +184,18 @@ impl<'a> ScriptLinker<'a> {
         asset_module_ids.extend(self.collect_stylesheet_assets(stylesheet_module_ids)?);
 
         // script file-loader modules also participate in the asset lane
-        asset_module_ids.extend(self.collect_file_modules(script_module_ids));
+        asset_module_ids.extend(self.collect_file_modules(script_module_ids)?);
 
         Ok(asset_module_ids.into_iter().collect())
     }
 
     /// Collect the file modules that should emit through the asset lane.
-    fn collect_file_modules(&self, module_ids: &[ModuleId]) -> Vec<ModuleId> {
+    fn collect_file_modules(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
         let mut asset_module_ids = Vec::new();
 
         // file modules in the script closure emit as linked assets
         for module_id in module_ids {
-            let module = self.module(*module_id);
+            let module = self.module(*module_id)?;
 
             if !module.loader.is_file() {
                 continue;
@@ -202,40 +204,46 @@ impl<'a> ScriptLinker<'a> {
             asset_module_ids.push(module.id);
         }
 
-        asset_module_ids
+        Ok(asset_module_ids)
     }
 
     /// Return the source module for one asset module id.
-    fn asset_module(&self, module_id: ModuleId) -> std::sync::Arc<Module> {
+    fn asset_module(&self, module_id: ModuleId) -> LinkResult<Arc<Module>> {
         self.module(module_id)
     }
 
     /// Return the loaded source file for one asset module id.
-    fn asset_file(&self, module_id: ModuleId) -> std::sync::Arc<File> {
-        let module = self.asset_module(module_id);
+    fn asset_file(&self, module_id: ModuleId) -> LinkResult<Arc<File>> {
+        let module = self.asset_module(module_id)?;
         self.file(module.file_id)
     }
 
     /// Return one display string for one asset module id.
-    pub(in crate::link::script) fn asset_display_name(&self, module_id: ModuleId) -> String {
-        let module = self.asset_module(module_id);
+    pub(in crate::link::script) fn asset_display_name(
+        &self,
+        module_id: ModuleId,
+    ) -> LinkResult<String> {
+        let module = self.asset_module(module_id)?;
 
         if let Some(path) = module.path.as_ref() {
-            return path.display().to_string();
+            return Ok(path.display().to_string());
         }
 
-        module.uri.to_string()
+        Ok(module.uri.to_string())
     }
 
     /// Return one original authored-like reference string for one asset module id.
-    pub(in crate::link::script) fn asset_original_reference(&self, module_id: ModuleId) -> String {
+    pub(in crate::link::script) fn asset_original_reference(
+        &self,
+        module_id: ModuleId,
+    ) -> LinkResult<String> {
         self.asset_display_name(module_id)
     }
 
     /// Return one linker-local asset payload from one source module.
     fn asset(&self, module_id: ModuleId) -> LinkResult<Asset> {
-        let module = self.asset_module(module_id);
-        let file = self.asset_file(module_id);
+        let module = self.asset_module(module_id)?;
+        let file = self.asset_file(module_id)?;
 
         Asset::from_module(module.as_ref(), file.as_ref()).map_err(|message| LinkError::Internal {
             anchor: (self.package_id).into(),
@@ -261,7 +269,7 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
         asset: &Asset,
     ) -> LinkResult<OutputLocation> {
-        let module = self.asset_module(module_id);
+        let module = self.asset_module(module_id)?;
         let source_path = module.path.as_ref().ok_or_else(|| LinkError::Internal {
             anchor: (self.package_id).into(),
             package: self.package_id,

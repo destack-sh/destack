@@ -20,8 +20,12 @@ pub enum RepositoryError {
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
     MissingPackage { package: PackageId },
+    /// The requested package has no file system path.
+    MissingPackagePath { package: PackageId },
     /// The requested target does not exist in the given revision.
     MissingTarget { target: TargetId },
+    /// The requested module path does not resolve to a package module.
+    MissingModulePath { path: PathBuf },
     /// The requested product does not exist in the given revision.
     MissingProduct { product: String },
     /// The requested product does not contain the selected target.
@@ -85,8 +89,18 @@ impl fmt::Display for RepositoryError {
             Self::MissingPackage { package } => {
                 write!(formatter, "missing repository package '{package}'")
             }
+            Self::MissingPackagePath { package } => {
+                write!(formatter, "missing repository package path for '{package}'")
+            }
             Self::MissingTarget { target } => {
                 write!(formatter, "missing repository target '{target}'")
+            }
+            Self::MissingModulePath { path } => {
+                write!(
+                    formatter,
+                    "missing repository module path '{}'",
+                    path.display()
+                )
             }
             Self::MissingProduct { product } => {
                 write!(formatter, "missing repository product '{product}'")

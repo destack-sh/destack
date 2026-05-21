@@ -19,7 +19,6 @@ mod target;
 pub use artifact::*;
 pub use builtin::*;
 pub(crate) use cache::*;
-pub use discovery::*;
 pub use edit::*;
 pub use error::*;
 pub(crate) use file::*;

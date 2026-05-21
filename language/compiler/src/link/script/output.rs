@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::Compiler;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
+use crate::{Compiler, CompilerError, CompilerResult};
 use base64::Engine as _;
 use destack_artifact::{EmitFormat, OutputContent, OutputFile, ScriptOutput, SourceMapArtifact};
 use destack_codegen_js::{
@@ -175,16 +175,18 @@ impl Compiler {
         file_type: FileType,
         module: &ScriptModule,
         context: &dyn ProviderContext,
-    ) -> Result<PrintedScriptModule, String> {
+    ) -> CompilerResult<PrintedScriptModule> {
         // source artifacts
         let parsed = self
             .artifact_reader(context)
             .dir_parsed(module_id)
-            .map_err(|error| {
-                format!("missing committed parsed DIR artifact for module {module_id:?}: {error:?}")
+            .map_err(|error| CompilerError::Internal {
+                message: format!(
+                    "missing committed parsed DIR artifact for module {module_id:?}: {error:?}"
+                ),
             })?;
-        let source_module = self.module(context.revision(), module_id);
-        let source_file = self.file(context, source_module.file_id);
+        let source_module = self.module(context.revision(), module_id)?;
+        let source_file = self.file(context, source_module.file_id)?;
         let options = if target.should_minify_bundle_output() {
             JsFormatOptions::minimal()
         } else {
@@ -192,8 +194,11 @@ impl Compiler {
         }
         .with_file_type(file_type);
 
-        print_codegen_script_module(options, &parsed, source_file.as_ref(), module)
-            .map_err(|error| format!("failed to print script module: {error:?}"))
+        print_codegen_script_module(options, &parsed, source_file.as_ref(), module).map_err(
+            |error| CompilerError::Internal {
+                message: format!("failed to print script module: {error:?}"),
+            },
+        )
     }
 
     /// Build one source map builder for one linked script module.
@@ -203,9 +208,9 @@ impl Compiler {
         module: &Module,
         printed: &PrintedScriptModule,
         context: &dyn ProviderContext,
-    ) -> SourceMapBuilder {
+    ) -> CompilerResult<SourceMapBuilder> {
         let source_path = self.package_relative_uri_path(package_dir, &module.uri);
-        let source_file = self.file(context, module.file_id);
+        let source_file = self.file(context, module.file_id)?;
         let markers = printed
             .markers
             .iter()
@@ -213,7 +218,7 @@ impl Compiler {
             .filter_map(|marker| SourceMapMarker::from_file_marker(0, source_file.as_ref(), marker))
             .collect();
 
-        SourceMapBuilder::new(vec![source_path], markers)
+        Ok(SourceMapBuilder::new(vec![source_path], markers))
     }
 
     /// Link one printed JavaScript or TypeScript module into output files.
@@ -227,9 +232,9 @@ impl Compiler {
         printed: PrintedScriptModule,
         source_map_path: Option<&Path>,
         context: &dyn ProviderContext,
-    ) -> Result<Vec<OutputFile>, String> {
+    ) -> CompilerResult<Vec<OutputFile>> {
         // source map
-        let source_map = self.script_module_source_map(package_dir, module, &printed, context);
+        let source_map = self.script_module_source_map(package_dir, module, &printed, context)?;
 
         self.link_script_text_files(
             target,
@@ -239,6 +244,7 @@ impl Compiler {
             Some(source_map),
             source_map_path,
         )
+        .map_err(|message| CompilerError::Internal { message })
     }
 
     /// Link one printed script module for one concrete output file type.
@@ -252,7 +258,7 @@ impl Compiler {
         output_path: &Path,
         source_map_path: Option<&Path>,
         context: &dyn ProviderContext,
-    ) -> Result<Vec<OutputFile>, String> {
+    ) -> CompilerResult<Vec<OutputFile>> {
         // print once
         let printed =
             self.print_script_module(module.id, target, file_type, &artifact.module, context)?;
@@ -272,10 +278,14 @@ impl Compiler {
         }
 
         if file_type == FileType::Html {
-            return Err("TODO #Incomplete".to_string());
+            return Err(CompilerError::Internal {
+                message: "TODO #Incomplete".to_string(),
+            });
         }
 
-        Err(format!("unsupported file type: {file_type:?}"))
+        Err(CompilerError::Internal {
+            message: format!("unsupported file type: {file_type:?}"),
+        })
     }
 
     /// Link one declaration output file when the target requests one.
@@ -311,9 +321,10 @@ impl Compiler {
         package_dir: &Path,
         root_dir: Option<&Path>,
         context: &dyn ProviderContext,
-    ) -> Result<Vec<OutputFile>, String> {
+    ) -> CompilerResult<Vec<OutputFile>> {
         let mut entries = Vec::new();
-        let file_types = linked_script_file_types(target)?;
+        let file_types = linked_script_file_types(target)
+            .map_err(|message| CompilerError::Internal { message })?;
         let source_map_path = file_types
             .contains(&FileType::SourceMap)
             .then(|| {
@@ -325,7 +336,8 @@ impl Compiler {
                     FileType::SourceMap,
                 )
             })
-            .transpose()?;
+            .transpose()
+            .map_err(|message| CompilerError::Internal { message })?;
 
         // code files
         for file_type in &file_types {
@@ -333,13 +345,9 @@ impl Compiler {
                 continue;
             }
 
-            let output_path = OutputLayout::module_output_path(
-                package_dir,
-                root_dir,
-                target,
-                module,
-                *file_type,
-            )?;
+            let output_path =
+                OutputLayout::module_output_path(package_dir, root_dir, target, module, *file_type)
+                    .map_err(|message| CompilerError::Internal { message })?;
             if *file_type == FileType::SourceMap {
                 continue;
             }
@@ -362,13 +370,15 @@ impl Compiler {
         if let Some(declaration) = &artifact.declaration
             && file_types.contains(&FileType::TypeScriptDeclaration)
         {
-            let declaration = self.link_script_declaration_file(
-                module,
-                &declaration.text,
-                target,
-                package_dir,
-                root_dir,
-            )?;
+            let declaration = self
+                .link_script_declaration_file(
+                    module,
+                    &declaration.text,
+                    target,
+                    package_dir,
+                    root_dir,
+                )
+                .map_err(|message| CompilerError::Internal { message })?;
 
             entries.push(declaration);
         }

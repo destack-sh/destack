@@ -1,4 +1,4 @@
-use crate::{LinkError, LinkResult};
+use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::OutputFile;
 use destack_codegen_js as js;
 use destack_source::{FileType, ModuleId};
@@ -59,11 +59,7 @@ impl<'a> ScriptLinker<'a> {
             let printed = self
                 .compiler
                 .print_script_module(module_id, self.target, file_type, &module, self.context)
-                .map_err(|message| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message,
-                })?;
+                .map_err(|error| Compiler::link_error(self.package_id, error))?;
 
             segments.push((module_id, printed));
         }
@@ -97,7 +93,7 @@ impl<'a> ScriptLinker<'a> {
                     message: format!("missing output id for script module {:?}", module_id),
                 })?;
             let script = self.script_output_for_output(output_id, *module_id, plan)?;
-            let module = self.module(*module_id);
+            let module = self.module(*module_id)?;
 
             let files = self
                 .compiler
@@ -109,11 +105,7 @@ impl<'a> ScriptLinker<'a> {
                     self.root_dir,
                     self.context,
                 )
-                .map_err(|message| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!("failed to link script output: {message}"),
-                })?;
+                .map_err(|error| Compiler::link_error(self.package_id, error))?;
 
             output_files.extend(files);
         }
@@ -128,7 +120,7 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
         plan: &Plan,
     ) -> LinkResult<ScriptOutput> {
-        let source_module = self.module(module_id);
+        let source_module = self.module(module_id)?;
 
         // resource modules are synthesized by the linker with final linked values
         if !source_module.is_code() {
@@ -192,13 +184,16 @@ impl<'a> ScriptLinker<'a> {
                 .as_ref()
                 .map(|location: &OutputLocation| location.path());
             let emitted_source_map_path = source_map_path.unwrap_or_else(|| output_location.path());
-            let source_map = self.compiler.script_source_map_for_parts(
-                self.package_dir,
-                emitted_source_map_path,
-                &parts,
-                self.target.should_minify_bundle_script_output(),
-                self.context,
-            );
+            let source_map = self
+                .compiler
+                .script_source_map_for_parts(
+                    self.package_dir,
+                    emitted_source_map_path,
+                    &parts,
+                    self.target.should_minify_bundle_script_output(),
+                    self.context,
+                )
+                .map_err(|error| Compiler::link_error(self.package_id, error))?;
             let files = self
                 .compiler
                 .link_script_text_files(

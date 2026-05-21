@@ -6,73 +6,24 @@ use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, Target, TargetDiscovery};
 
-/// Describe a failure while discovering target modules.
-#[derive(Debug, Clone)]
-pub enum TargetDiscoveryError {
-    /// Repository state lookup failed during discovery.
-    RepositoryRead {
-        /// Package id for the discovery.
-        package: PackageId,
-        /// Target id for the discovery.
-        target: TargetId,
-        /// The repository failure.
-        error: Box<RepositoryError>,
-    },
-    /// Missing package for target discovery.
-    MissingPackage {
-        /// Package id for the discovery.
-        package: PackageId,
-        /// Target id for the discovery.
-        target: TargetId,
-    },
-    /// Missing package path for entry based discovery.
-    MissingPackagePath {
-        /// Package id for the discovery.
-        package: PackageId,
-        /// Target id for the discovery.
-        target: TargetId,
-    },
-    /// Missing target for target based discovery.
-    MissingTarget {
-        /// Package id for the discovery.
-        package: PackageId,
-        /// Target id for the discovery.
-        target: TargetId,
-    },
-    /// Missing module path for target discovery.
-    MissingModulePath {
-        /// Package id for the discovery.
-        package: PackageId,
-        /// Target id for the discovery.
-        target: TargetId,
-        /// Entry path that could not be resolved.
-        path: PathBuf,
-    },
-}
-
 impl Repository {
     /// Discover module ids selected by one target in one pinned revision.
     pub fn target_module_ids(
         &self,
         revision: Revision,
         target_id: TargetId,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
-        let package_id = target_id.package_id();
-        let package = self.target_package(revision, package_id, target_id)?;
-        let target = self.target_or_builtin_for_discovery(revision, package_id, target_id)?;
-        let config = self.target_config(revision, package_id, target_id)?;
+    ) -> Result<Vec<ModuleId>, RepositoryError> {
+        let package = self.target_package(revision, target_id)?;
+        let target = self.target_or_builtin_for_discovery(revision, target_id)?;
+        let config = self.target_config(revision, target_id)?;
 
         // selected roots
         let mut module_ids = match target.discovery {
-            TargetDiscovery::Entry => self.resolve_target_paths(
-                revision,
-                package_id,
-                target_id,
-                &package.path,
-                &target.entry,
-            ),
+            TargetDiscovery::Entry => {
+                self.resolve_target_paths(revision, target_id, &package.path, &target.entry)
+            }
             TargetDiscovery::Include => {
-                self.included_module_ids(revision, package_id, target_id, &package.path, &target)
+                self.included_module_ids(revision, target_id, &package.path, &target)
             }
         }?;
 
@@ -91,13 +42,8 @@ impl Repository {
         }
 
         // final root set
-        let global_module_ids = self.resolve_target_paths(
-            revision,
-            package_id,
-            target_id,
-            &package.path,
-            &global_paths,
-        )?;
+        let global_module_ids =
+            self.resolve_target_paths(revision, target_id, &package.path, &global_paths)?;
         for module_id in global_module_ids {
             if !module_ids.contains(&module_id) {
                 module_ids.push(module_id);
@@ -111,84 +57,62 @@ impl Repository {
     fn target_package(
         &self,
         revision: Revision,
-        package_id: PackageId,
         target_id: TargetId,
-    ) -> Result<Arc<Package>, TargetDiscoveryError> {
-        self.package(revision, package_id)
-            .map_err(|error| TargetDiscoveryError::RepositoryRead {
+    ) -> Result<Arc<Package>, RepositoryError> {
+        let package_id = target_id.package_id();
+
+        self.package(revision, package_id).and_then(|package| {
+            package.ok_or(RepositoryError::MissingPackage {
                 package: package_id,
-                target: target_id,
-                error: Box::new(error),
-            })?
-            .ok_or(TargetDiscoveryError::MissingPackage {
-                package: package_id,
-                target: target_id,
             })
+        })
     }
 
     /// Return one target or built-in.
     fn target_or_builtin_for_discovery(
         &self,
         revision: Revision,
-        package_id: PackageId,
         target_id: TargetId,
-    ) -> Result<Target, TargetDiscoveryError> {
+    ) -> Result<Target, RepositoryError> {
         self.target_or_builtin(revision, target_id)
-            .map_err(|error| TargetDiscoveryError::RepositoryRead {
-                package: package_id,
-                target: target_id,
-                error: Box::new(error),
-            })?
-            .ok_or(TargetDiscoveryError::MissingTarget {
-                package: package_id,
-                target: target_id,
-            })
+            .and_then(|target| target.ok_or(RepositoryError::MissingTarget { target: target_id }))
     }
 
     /// Return the package config that contributes target globals.
     fn target_config(
         &self,
         revision: Revision,
-        package_id: PackageId,
         target_id: TargetId,
-    ) -> Result<Option<Arc<DestackFile>>, TargetDiscoveryError> {
-        self.destack_for_package_id(revision, package_id)
-            .map_err(|error| TargetDiscoveryError::RepositoryRead {
-                package: package_id,
-                target: target_id,
-                error: Box::new(error),
-            })
+    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
+        self.destack_for_package_id(revision, target_id.package_id())
     }
 
     /// Resolve target paths relative to the package path.
     fn resolve_target_paths(
         &self,
         revision: Revision,
-        package_id: PackageId,
         target_id: TargetId,
         package_path: &Option<PathBuf>,
         target_paths: &[PathBuf],
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+    ) -> Result<Vec<ModuleId>, RepositoryError> {
         let mut module_ids = Vec::with_capacity(target_paths.len());
+        let package_id = target_id.package_id();
 
         // package directory
         let package_directory =
             package_path
                 .as_ref()
-                .ok_or(TargetDiscoveryError::MissingPackagePath {
+                .ok_or(RepositoryError::MissingPackagePath {
                     package: package_id,
-                    target: target_id,
                 })?;
 
         // target paths
         for target_path in target_paths {
             let resolved_path = package_directory.join(target_path);
             let Some(module_id) =
-                self.package_module_id_for_path(revision, package_id, target_id, &resolved_path)?
+                self.package_module_id_for_path(revision, package_id, &resolved_path)?
             else {
-                return Err(TargetDiscoveryError::MissingModulePath {
-                    package: package_id,
-                    target: target_id,
+                return Err(RepositoryError::MissingModulePath {
                     path: resolved_path,
                 });
             };
@@ -204,27 +128,12 @@ impl Repository {
         &self,
         revision: Revision,
         package_id: PackageId,
-        target_id: TargetId,
         path: &Path,
-    ) -> Result<Option<ModuleId>, TargetDiscoveryError> {
-        let Some(module_id) = self.module_id_for_path(revision, path).map_err(|error| {
-            TargetDiscoveryError::RepositoryRead {
-                package: package_id,
-                target: target_id,
-                error: Box::new(error),
-            }
-        })?
-        else {
+    ) -> Result<Option<ModuleId>, RepositoryError> {
+        let Some(module_id) = self.module_id_for_path(revision, path)? else {
             return Ok(None);
         };
-        let Some(module) = self.module(revision, module_id).map_err(|error| {
-            TargetDiscoveryError::RepositoryRead {
-                package: package_id,
-                target: target_id,
-                error: Box::new(error),
-            }
-        })?
-        else {
+        let Some(module) = self.module(revision, module_id)? else {
             return Ok(None);
         };
 
@@ -240,30 +149,17 @@ impl Repository {
     fn included_module_ids(
         &self,
         revision: Revision,
-        package_id: PackageId,
         target_id: TargetId,
         package_path: &Option<PathBuf>,
         target: &Target,
-    ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
+    ) -> Result<Vec<ModuleId>, RepositoryError> {
         let mut module_ids = Vec::new();
-        let candidate_ids = self
-            .package_module_ids(revision, package_id)
-            .map_err(|error| TargetDiscoveryError::RepositoryRead {
-                package: package_id,
-                target: target_id,
-                error: Box::new(error),
-            })?;
+        let package_id = target_id.package_id();
+        let candidate_ids = self.package_module_ids(revision, package_id)?;
 
         // package modules
         for module_id in candidate_ids {
-            let Some(module) = self.module(revision, module_id).map_err(|error| {
-                TargetDiscoveryError::RepositoryRead {
-                    package: package_id,
-                    target: target_id,
-                    error: Box::new(error),
-                }
-            })?
-            else {
+            let Some(module) = self.module(revision, module_id)? else {
                 continue;
             };
             let Some(module_path) = module.path.as_ref() else {

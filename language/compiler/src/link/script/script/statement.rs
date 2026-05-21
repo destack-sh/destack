@@ -114,7 +114,7 @@ impl ScriptLinker<'_> {
             .compiler
             .script_dependency_target(&specifier, Some(target_module));
         // plain stylesheet imports are side effect only
-        if is_import && self.is_plain_stylesheet_module(target_module) && !item_set.is_empty() {
+        if is_import && self.is_plain_stylesheet_module(target_module)? && !item_set.is_empty() {
             return Err(self.invalid_output_statement(
                 module_id,
                 format!(
@@ -126,7 +126,7 @@ impl ScriptLinker<'_> {
 
         // keep external targets untouched
         if !self.compiler.should_bundle_script_dependency(
-            self.module_anchor_span(module_id),
+            self.module_anchor_span(module_id)?,
             self.package_id,
             self.target_id,
             target,
@@ -136,7 +136,7 @@ impl ScriptLinker<'_> {
         }
 
         // bundled plain stylesheet imports are carried by the stylesheet lane, not js output
-        if is_import && self.is_plain_stylesheet_module(target_module) {
+        if is_import && self.is_plain_stylesheet_module(target_module)? {
             return Ok(Vec::new());
         }
 
@@ -199,7 +199,7 @@ impl ScriptLinker<'_> {
         has_arguments: bool,
         target_module: ModuleId,
     ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
-        let target_module_ref = self.module(target_module);
+        let target_module_ref = self.module(target_module)?;
 
         // erase same-output type-only imports
         if is_type_dependency {
@@ -207,7 +207,7 @@ impl ScriptLinker<'_> {
         }
 
         // plain stylesheet imports are side effect only
-        if self.is_plain_stylesheet_module(target_module) && !item_set.is_empty() {
+        if self.is_plain_stylesheet_module(target_module)? && !item_set.is_empty() {
             return Err(self.invalid_output_statement(
                 module_id,
                 format!(

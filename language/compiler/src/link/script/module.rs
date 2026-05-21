@@ -175,7 +175,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         // plain stylesheet imports are side effect only
-        if self.is_plain_stylesheet_module(target_module) && !items.is_empty() {
+        if self.is_plain_stylesheet_module(target_module)? && !items.is_empty() {
             return Err(self.invalid_output_rewrite(
                 module_id,
                 target_id,
@@ -188,7 +188,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         // same-output resource imports become local value bindings
-        if !self.module(target_module).is_code() {
+        if !self.module(target_module)?.is_code() {
             if items.is_empty() {
                 return Ok(OutputStatementRewriteAction::Drop);
             }
@@ -321,7 +321,7 @@ impl<'a> ScriptLinker<'a> {
 
         // keep external targets untouched
         if !self.should_bundle_script_dependency(
-            self.module_anchor_span(module_id),
+            self.module_anchor_span(module_id)?,
             package_id,
             target_id,
             target,
@@ -491,7 +491,7 @@ impl<'a> ScriptLinker<'a> {
 
         // only bundled internal imports rewrite to chunk references
         if !self.should_bundle_script_dependency(
-            self.module_anchor_span(module_id),
+            self.module_anchor_span(module_id)?,
             package_id,
             target_id,
             target,

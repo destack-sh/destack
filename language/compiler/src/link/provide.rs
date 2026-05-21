@@ -1,10 +1,10 @@
 use super::binary::BinaryLinker;
 use super::script::ScriptLinker;
 use super::state::LinkState;
-use crate::{Compiler, CompilerResult, LinkError};
+use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
 use destack_source::{PackageId, TargetId};
-use destack_workspace::{ProviderContext, TargetDiscoveryError};
+use destack_workspace::{ProviderContext, RepositoryError};
 
 impl Compiler {
     /// Build one package output.
@@ -28,23 +28,25 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<PackageOutput> {
         // load package and target configuration
-        let package = self.package(context.revision(), package_id);
-        let config = self.destack_for_package(context, package_id);
+        let package = self.package(context.revision(), package_id)?;
+        let config = self.destack_for_package(context, package_id)?;
         let package_path = package.path.clone();
         let root_directory = config
             .as_ref()
             .and_then(|config| config.compiler.root_dir.clone());
         let target =
-            self.target_or_builtin(context, *target_id)
+            self.target_or_builtin(context, *target_id)?
                 .ok_or(LinkError::MissingTarget {
                     anchor: (package_id).into(),
                     package: package_id,
                     target: *target_id,
                 })?;
         let mut modules = self
-            .target_module_ids(context, target_id)
-            .map_err(Self::target_discovery_error)?;
+            .repository
+            .target_module_ids(context.revision(), *target_id)
+            .map_err(|error| Self::target_module_error(package_id, *target_id, error))?;
         modules.sort_unstable();
+        modules.dedup();
         let package_directory = self.package_directory(package_path);
 
         // dispatch through the selected linker family
@@ -57,7 +59,7 @@ impl Compiler {
                 &target,
                 target_id,
                 package_id,
-            )
+            )?
             .link_target(&modules)?,
             EmitFormat::Wasm | EmitFormat::Native => BinaryLinker::new(
                 self,
@@ -67,7 +69,7 @@ impl Compiler {
                 &target,
                 target_id,
                 package_id,
-            )
+            )?
             .link_target(&modules)?,
         };
 
@@ -79,48 +81,33 @@ impl Compiler {
         package_path.unwrap_or_else(|| self.repository.workspace_root().to_path_buf())
     }
 
-    /// Map one target discovery failure into a link error.
-    fn target_discovery_error(error: TargetDiscoveryError) -> LinkError {
+    /// Map one target module discovery failure into a link diagnostic.
+    fn target_module_error(
+        package: PackageId,
+        target: TargetId,
+        error: RepositoryError,
+    ) -> LinkError {
         match error {
-            TargetDiscoveryError::RepositoryRead {
+            RepositoryError::MissingTarget { .. } => LinkError::MissingTarget {
+                anchor: package.into(),
                 package,
                 target,
-                error,
-            } => LinkError::InvalidTarget {
+            },
+            error => LinkError::InvalidTarget {
                 anchor: package.into(),
                 package,
                 target,
                 message: error.to_string(),
             },
-            TargetDiscoveryError::MissingPackage { package, target } => LinkError::InvalidTarget {
-                anchor: package.into(),
-                package,
-                target,
-                message: "target package not found".to_string(),
-            },
-            TargetDiscoveryError::MissingPackagePath { package, target } => {
-                LinkError::InvalidTarget {
-                    anchor: package.into(),
-                    package,
-                    target,
-                    message: "entry based discovery requires package path".to_string(),
-                }
-            }
-            TargetDiscoveryError::MissingModulePath {
-                package,
-                target,
-                path,
-            } => LinkError::InvalidTarget {
-                anchor: package.into(),
-                package,
-                target,
-                message: format!("target module path not found: {}", path.display()),
-            },
-            TargetDiscoveryError::MissingTarget { package, target } => LinkError::MissingTarget {
-                anchor: package.into(),
-                package,
-                target,
-            },
+        }
+    }
+
+    /// Map one compiler boundary failure into a link diagnostic.
+    pub(crate) fn link_error(package: PackageId, error: CompilerError) -> LinkError {
+        LinkError::Internal {
+            anchor: package.into(),
+            package,
+            message: format!("{error:?}"),
         }
     }
 }

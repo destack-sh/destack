@@ -18,7 +18,7 @@ impl<'a> ScriptLinker<'a> {
 
         // render each document after all script, stylesheet, and asset outputs are known
         for (document_index, module_id) in plan.document_module_ids().iter().enumerate() {
-            let module = self.module(*module_id);
+            let module = self.module(*module_id)?;
             let (html, script_module_ids, stylesheet_module_ids) =
                 self.build_html_document(module.as_ref())?;
             let document_location =
@@ -71,7 +71,7 @@ impl<'a> ScriptLinker<'a> {
             return Ok(target_location.output_location(document_path));
         }
 
-        let module = self.module(module_id);
+        let module = self.module(module_id)?;
         let module_path =
             module_source_path(module.as_ref()).map_err(|message| LinkError::Internal {
                 anchor: (self.package_id).into(),
@@ -105,7 +105,7 @@ impl<'a> ScriptLinker<'a> {
 
         // preserve authored formatting when the target is not minifying
         if !self.target.should_minify_bundle_html_output() {
-            let file = self.file(module.file_id);
+            let file = self.file(module.file_id)?;
 
             if let Some(rendered) = patch_document_source(
                 self,
