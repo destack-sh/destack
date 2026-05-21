@@ -334,11 +334,11 @@ bench-linter-stats args="--help":
 
 # run lexer benches
 bench-lexer:
-    cargo bench -p destack_parser -- destack_lex
+    cargo bench -p destack_parser --bench destack_lex
 
 # run parser benches
 bench-parser:
-    cargo bench -p destack_parser -- destack_dir
+    cargo bench -p destack_parser --bench destack_parse
 
 # --- fuzz ---
 
