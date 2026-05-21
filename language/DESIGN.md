@@ -1738,6 +1738,7 @@ TypeScript supports ambient global typings, which were designed for typing the "
 Destack supports "real" value `global { ... }` declarations that can then be automatically included everywhere by (explicit) reference in the compiler / target configuration.
 The active set of modules to consider for `global` declarations is configured via the `globals` field in the compiler / target configuration.
 
+
 ```ds
 // browser-globals.ds
 global { // just omit the `declare`!
@@ -1746,7 +1747,16 @@ global { // just omit the `declare`!
 }
 ```
 
-Because these globals are real values, duplicate visible global value names are errors.
+A global block may also re-export named bindings from another module into the ambient globals.
+Indeed, that is the same mechanism the well known Destack prelude uses to inject intrinsic language items:
+
+```ds
+global {
+    export { Add, Subtract } from "destack:ops";
+}
+
+```
+
 
 ### Comptime
 
