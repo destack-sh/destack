@@ -24,16 +24,20 @@ fi
 
 case "$MODE" in
   trivia | full)
-    RETAIN_TRIVIA=1
-    OUTPUT_MODE="trivia"
+    TRIVIA_MODE="full"
+    OUTPUT_MODE="full"
     ;;
-  no-trivia | bare)
-    RETAIN_TRIVIA=0
-    OUTPUT_MODE="no-trivia"
+  doc | docs | documentation)
+    TRIVIA_MODE="documentation"
+    OUTPUT_MODE="documentation"
+    ;;
+  no-trivia | bare | ignore)
+    TRIVIA_MODE="ignore"
+    OUTPUT_MODE="ignore"
     ;;
   *)
     echo "unknown mode: $MODE"
-    echo "expected one of: trivia, no-trivia"
+    echo "expected one of: full, documentation, ignore"
     exit 2
     ;;
 esac
@@ -46,7 +50,7 @@ else
 fi
 
 DESTACK_PARSE_SECONDS="$DURATION" \
-DESTACK_PARSE_TRIVIA="$RETAIN_TRIVIA" \
+DESTACK_PARSE_TRIVIA="$TRIVIA_MODE" \
 DESTACK_PARSE_OUTPUT="$OUTPUT_FILE" \
   cargo run --profile bench -p destack_parser --example parse -- "$SOURCE_FILE"
 

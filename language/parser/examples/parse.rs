@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use pprof::ProfilerGuardBuilder;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -28,8 +28,8 @@ struct RunOptions {
     duration: Duration,
     /// The sampling frequency in hertz.
     sample_hz: i32,
-    /// Whether the parser should retain and attach trivia.
-    retain_trivia: bool,
+    /// The parser trivia retention mode.
+    trivia_mode: ParserTriviaMode,
 }
 
 /// Parse one file repeatedly under the pprof sampler.
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let file = load_file(&options.source_path)?;
     let language = file_language(file.ty)?;
     let parser_options = ParserOptions {
-        retain_trivia_tokens: options.retain_trivia,
+        trivia_mode: options.trivia_mode,
         ..ParserOptions::default()
     };
 
@@ -72,14 +72,14 @@ impl RunOptions {
         let output_path = output_path();
         let seconds = number_from_env("DESTACK_PARSE_SECONDS", DEFAULT_SECONDS)?;
         let sample_hz = number_from_env("DESTACK_PARSE_HZ", DEFAULT_SAMPLE_HZ)?;
-        let retain_trivia = bool_from_env("DESTACK_PARSE_TRIVIA", true)?;
+        let trivia_mode = trivia_mode_from_env("DESTACK_PARSE_TRIVIA", ParserTriviaMode::Full)?;
 
         Ok(Self {
             source_path,
             output_path,
             duration: Duration::from_secs(seconds),
             sample_hz,
-            retain_trivia,
+            trivia_mode,
         })
     }
 }
@@ -106,11 +106,11 @@ fn parse_file(file: Arc<File>, language: LanguageType, options: ParserOptions) -
     let strings = Arc::new(StringPool::new());
     let mut parser = Parser::lex_file_with_options(file, language, options, strings);
 
-    // attach comments only when requested
-    if options.retain_trivia_tokens {
+    // attach comments only when retained
+    if options.trivia_mode.keeps_comments() {
         parser.parse();
     } else {
-        parser.parse_without_trivia();
+        parser.parse_without_attaching_comments();
     }
 
     parser
@@ -211,15 +211,19 @@ where
     Ok(value.parse()?)
 }
 
-/// Return one parsed boolean environment value.
-fn bool_from_env(name: &str, default: bool) -> Result<bool, Box<dyn Error>> {
+/// Return one parsed trivia mode environment value.
+fn trivia_mode_from_env(
+    name: &str,
+    default: ParserTriviaMode,
+) -> Result<ParserTriviaMode, Box<dyn Error>> {
     let Some(value) = env::var(name).ok() else {
         return Ok(default);
     };
 
     match value.as_str() {
-        "0" | "false" | "False" | "FALSE" => Ok(false),
-        "1" | "true" | "True" | "TRUE" => Ok(true),
-        _ => Err(format!("invalid boolean for {name}: {value}").into()),
+        "0" | "false" | "False" | "FALSE" | "ignore" => Ok(ParserTriviaMode::Ignore),
+        "doc" | "docs" | "documentation" => Ok(ParserTriviaMode::Documentation),
+        "1" | "true" | "True" | "TRUE" | "full" | "trivia" => Ok(ParserTriviaMode::Full),
+        _ => Err(format!("invalid trivia mode for {name}: {value}").into()),
     }
 }
