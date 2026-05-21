@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
 use crate::host::binding::BindingReplayPayload;
@@ -40,12 +42,12 @@ pub struct TraceHeader {
     /// Maximum chunk size in bytes.
     pub max_chunk_bytes: u64,
     /// Runtime environment.
-    pub environment: Environment,
+    pub environment: Arc<Environment>,
 }
 
 impl TraceHeader {
     /// Create a trace header with explicit configuration.
-    pub fn new(environment: Environment) -> Self {
+    pub fn new(environment: impl Into<Arc<Environment>>) -> Self {
         Self {
             format_version: TRACE_FORMAT_VERSION,
             build_hash: 0,
@@ -58,7 +60,7 @@ impl TraceHeader {
             binding_registry_hash: 0,
             max_events_per_chunk: TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK,
             max_chunk_bytes: TRACE_DEFAULT_MAX_CHUNK_BYTES,
-            environment,
+            environment: environment.into(),
         }
     }
 }

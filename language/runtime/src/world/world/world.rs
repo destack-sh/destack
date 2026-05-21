@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
 use crate::host::core::HostQueue;
-use crate::host::poller::{HostPoller, create_host_poller};
+use crate::host::poller::{HostPollerInstance, create_host_poller};
 use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, ResourceId, compile_target_host};
 use crate::runtime::random::{Random, RandomStreamId};
@@ -20,9 +20,7 @@ use crate::world::trace::{
     EntrypointCall, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
     TraceSequence,
 };
-use destack_workspace::{
-    Environment, PollerBackend, RandomSource, ReplayPayloadMode, RuntimeOptions,
-};
+use destack_workspace::{Environment, RandomSource, ReplayPayloadMode, RuntimeOptions};
 
 use super::topology::Topology;
 pub(crate) use super::topology::{
@@ -38,11 +36,9 @@ pub struct World {
     /// Host events accepted into this world.
     pub(crate) host_queue: HostQueue,
     /// Shared host poller for external resources.
-    pub(crate) poller: Box<dyn HostPoller>,
-    /// Host poller backend used for fork reconstruction.
-    pub(crate) poller_backend: PollerBackend,
+    pub(crate) poller: HostPollerInstance,
     /// Live runtimes owned by this world.
-    pub(crate) runtimes: BTreeMap<RuntimeId, Box<Runtime>>,
+    pub(crate) runtimes: BTreeMap<RuntimeId, Runtime>,
     /// Shared state used by runtimes and workers.
     pub(crate) state: WorldState,
     /// History-root metadata for this live world.
@@ -55,7 +51,6 @@ impl std::fmt::Debug for World {
             .field("host", &self.host)
             .field("host_queue", &self.host_queue)
             .field("poller", &"<host poller>")
-            .field("poller_backend", &self.poller_backend)
             .field("runtimes", &self.runtimes)
             .field("state", &self.state)
             .field("history", &self.history)
@@ -78,25 +73,24 @@ impl World {
         }
     }
 
-    /// Create one world from runtime options.
-    pub fn from_options(options: &RuntimeOptions) -> RuntimeResult<Self> {
-        Self::new(options, None)
-    }
-
-    /// Create one world from runtime options and optional host clock source.
+    /// Create one world from explicit runtime seed state.
     pub(crate) fn new(
         options: &RuntimeOptions,
+        environment: impl Into<Arc<Environment>>,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
-        Self::empty(ROOT_BRANCH, options, host_clock_source)
+        Self::empty(ROOT_BRANCH, options, environment, host_clock_source)
     }
 
     /// Create one empty world shell for restore or replay.
     pub(crate) fn empty(
         branch_id: BranchId,
         options: &RuntimeOptions,
+        environment: impl Into<Arc<Environment>>,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
+        let environment = environment.into();
+
         // execution configuration
         let execution_mode = options.execution_mode();
         let clock_source = options.clock_source();
@@ -113,7 +107,7 @@ impl World {
             random_source,
             branch_id,
             replay_payload,
-            ..TraceHeader::new(Environment::default())
+            ..TraceHeader::new(environment)
         };
         if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
             let chunk_bytes = chunk_size_mb.saturating_mul(1024 * 1024);
@@ -192,7 +186,6 @@ impl World {
             host,
             host_queue: HostQueue::new(),
             poller,
-            poller_backend,
             runtimes: BTreeMap::new(),
             state,
             history,

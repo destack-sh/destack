@@ -333,7 +333,19 @@ impl World {
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Self> {
         let options = Self::runtime_options_from_snapshot(snapshot);
-        let mut world = Self::empty(snapshot.revision()?.branch_id, &options, None)?;
+        let revision = snapshot.revision()?;
+        let trace_image = snapshot
+            .history
+            .trace_images
+            .get(&snapshot.revision_id)
+            .ok_or_else(|| {
+                RuntimeError::RevisionTraceImageMissing {
+                    revision_id: snapshot.revision_id.get(),
+                }
+                .boxed()
+            })?;
+        let environment = trace_image.header().environment.clone();
+        let mut world = Self::empty(revision.branch_id, &options, environment, None)?;
         world.restore_snapshot(snapshot, rebind_context)?;
 
         Ok(world)

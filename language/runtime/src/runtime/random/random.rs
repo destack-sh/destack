@@ -63,11 +63,6 @@ impl Random {
         Self::with_source(options.source, root_seed)
     }
 
-    /// Create a deterministic random source from a root seed.
-    pub fn new(root_seed: u64) -> Self {
-        Self::with_source(RandomSource::Deterministic, root_seed)
-    }
-
     /// Create a random source from one source and root seed.
     pub fn with_source(source: RandomSource, root_seed: u64) -> Self {
         Self {
@@ -245,11 +240,17 @@ impl Capture for Random {
 #[cfg(test)]
 mod tests {
     use super::{Random, RandomStreamId, StreamStateDecodeError};
+    use destack_workspace::RandomSource;
+
+    /// Create one deterministic test random source.
+    fn deterministic_random(root_seed: u64) -> Random {
+        Random::with_source(RandomSource::Deterministic, root_seed)
+    }
 
     #[test]
     fn test_streams_are_isolated() {
         // allocate two streams and interleave draws
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let stream_a = random.new_stream_id();
         let stream_b = random.new_stream_id();
 
@@ -259,7 +260,7 @@ mod tests {
         let b2 = random.next_stream_u64(stream_b);
 
         // draw each stream without interleaving
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let stream_a = random.new_stream_id();
         let stream_b = random.new_stream_id();
 
@@ -276,13 +277,13 @@ mod tests {
     #[test]
     fn test_jump_stream_matches_manual_advance() {
         // advance one stream with jump
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let stream = random.new_stream_id();
         random.jump_stream(stream, 3);
         let jumped_value = random.next_stream_u64(stream);
 
         // advance one stream manually
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let stream = random.new_stream_id();
         let _ = random.next_stream_u64(stream);
         let _ = random.next_stream_u64(stream);
@@ -296,14 +297,14 @@ mod tests {
     #[test]
     fn test_split_stream_is_deterministic() {
         // derive parent and child streams in one runtime
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let parent = random.new_stream_id();
         let _ = random.next_stream_u64(parent);
         let child = random.split_stream(parent);
         let child_value = random.next_stream_u64(child);
 
         // repeat the same sequence in a fresh runtime
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let parent_repeated = random.new_stream_id();
         let _ = random.next_stream_u64(parent_repeated);
         let child_repeated = random.split_stream(parent_repeated);
@@ -318,7 +319,7 @@ mod tests {
     #[test]
     fn test_scoped_stream_id_is_stable_for_same_scope() {
         // resolve one scoped stream id twice for one runtime and worker scope
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let first = random.scoped_stream_id(1, 7, Some(3), None);
         let second = random.scoped_stream_id(1, 7, Some(3), None);
 
@@ -329,7 +330,7 @@ mod tests {
     #[test]
     fn test_scoped_stream_id_differs_across_workers_with_same_task_id() {
         // resolve one scoped stream id for two workers with the same task id
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let first_worker_stream = random.scoped_stream_id(1, 7, Some(3), None);
         let second_worker_stream = random.scoped_stream_id(1, 8, Some(3), None);
 
@@ -340,7 +341,7 @@ mod tests {
     #[test]
     fn test_stream_state_export_import_roundtrip_for_default_stream() {
         // step deterministic state and export one stream snapshot
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let _ = random.next_stream_u64(RandomStreamId::DEFAULT);
         let state = random.export_stream_state_bytes(RandomStreamId::DEFAULT);
 
@@ -358,7 +359,7 @@ mod tests {
     #[test]
     fn test_stream_state_export_import_roundtrip_for_named_stream() {
         // allocate one named stream and advance deterministic state
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
         let stream = random.new_stream_id();
         let _ = random.next_stream_u64(stream);
         let state = random.export_stream_state_bytes(stream);
@@ -377,7 +378,7 @@ mod tests {
     #[test]
     fn test_stream_state_import_rejects_invalid_payload_length() {
         // construct one deterministic random runtime
-        let random = Random::new(0xdead_beef);
+        let random = deterministic_random(0xdead_beef);
 
         // import should reject malformed payload lengths
         let error = random

@@ -46,26 +46,19 @@ impl std::fmt::Debug for Launch {
 
 impl Launch {
     /// Create a launch request.
-    pub fn new(options: RuntimeOptions, engine: impl Into<Engine>, entry: Entry) -> Self {
+    pub fn new(
+        options: RuntimeOptions,
+        environment: impl Into<Arc<Environment>>,
+        engine: impl Into<Engine>,
+        entry: Entry,
+    ) -> Self {
         Self {
             options,
-            environment: Arc::new(Environment::default()),
+            environment: environment.into(),
             engine: engine.into(),
             entry,
             entry_args: Vec::new(),
         }
-    }
-
-    /// Replace the ambient environment.
-    pub fn with_environment(mut self, environment: impl Into<Arc<Environment>>) -> Self {
-        self.environment = environment.into();
-        self
-    }
-
-    /// Replace the entrypoint arguments.
-    pub fn with_entry_args(mut self, entry_args: impl Into<Vec<engine::Value>>) -> Self {
-        self.entry_args = entry_args.into();
-        self
     }
 
     /// Launch one runtime in a new world.
@@ -77,7 +70,7 @@ impl Launch {
             entry,
             entry_args,
         } = self;
-        let mut world = World::from_options(&options)?;
+        let mut world = World::new(&options, environment.clone(), None)?;
 
         // bootstrap the initial runtime
         let runtime_id = world.spawn_runtime(environment, &options, engine)?;

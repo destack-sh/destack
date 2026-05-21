@@ -732,7 +732,7 @@ mod tests {
     use destack_engine as engine;
     use destack_heap::{AllocationShape, Payload};
     use destack_mir::ReferenceMap;
-    use destack_workspace::RuntimeOptions;
+    use destack_workspace::{Environment, RuntimeOptions};
 
     /// Allocate one shared byte payload for runtime tests.
     fn allocate_shared_bytes(
@@ -778,7 +778,8 @@ mod tests {
     #[test]
     fn test_deliver_host_event_queues_shared_root_rescan_during_mark() {
         let options = RuntimeOptions::default();
-        let mut world = World::from_options(&options).expect("world should construct");
+        let mut world =
+            World::new(&options, Environment::default(), None).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
 
@@ -875,7 +876,8 @@ mod tests {
     #[test]
     fn test_runtime_tick_publishes_pending_shared_roots_from_worker() {
         let options = RuntimeOptions::default();
-        let mut world = World::from_options(&options).expect("world should construct");
+        let mut world =
+            World::new(&options, Environment::default(), None).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
 

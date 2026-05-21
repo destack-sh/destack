@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::poll_host_events;
+use crate::host::poller::HostPoller;
 use crate::host::time::TimerClock;
 use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
 use crate::runtime::{TickResult, WorkerId};

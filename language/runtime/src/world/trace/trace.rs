@@ -8,7 +8,7 @@ use crate::world::trace::{
     TraceCursorImage, TraceHeader, TraceLog, TraceRecord, TraceSequence,
 };
 use crate::world::{BranchId, Mutation};
-use destack_workspace::{Environment, ExecutionMode};
+use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
 use serde::de::DeserializeOwned;
@@ -96,6 +96,11 @@ pub struct TraceImage {
 }
 
 impl TraceImage {
+    /// Return the captured trace header.
+    pub(crate) fn header(&self) -> TraceHeader {
+        self.file.header()
+    }
+
     /// Return the next sequence number after this trace image.
     pub(crate) fn next_sequence(&self) -> TraceSequence {
         self.file.next_sequence()
@@ -163,11 +168,6 @@ impl Trace {
     /// Set the current trace branch identifier.
     pub(crate) fn set_branch_id(&self, branch_id: BranchId) {
         self.log.set_branch_id(branch_id);
-    }
-
-    /// Replace the captured runtime environment.
-    pub(crate) fn set_environment(&self, environment: Environment) {
-        self.log.set_environment(environment);
     }
 
     /// Capture one materialized trace image.
