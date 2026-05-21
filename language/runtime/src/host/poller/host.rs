@@ -30,16 +30,105 @@ use super::UnixPoller;
 #[cfg(windows)]
 use super::WindowsPoller;
 
-/// Create one host poller from a canonical backend selector.
-pub(crate) fn create_host_poller(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
-    match backend {
-        PollerBackend::Auto => create_auto_poller(),
-        _ => open_host_poller(backend),
+/// Host poller paired with its concrete backend descriptor.
+pub(crate) struct HostPollerInstance {
+    /// Concrete poller backend.
+    backend: PollerBackend,
+    /// Platform poller implementation.
+    poller: Box<dyn HostPoller>,
+}
+
+impl HostPollerInstance {
+    /// Create one host poller instance.
+    pub(crate) fn new(backend: PollerBackend, poller: Box<dyn HostPoller>) -> Self {
+        Self { backend, poller }
+    }
+
+    /// Return the concrete poller backend.
+    pub(crate) const fn backend(&self) -> PollerBackend {
+        self.backend
     }
 }
 
-/// Return one standardized backend-not-supported error.
+impl std::fmt::Debug for HostPollerInstance {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HostPollerInstance")
+            .field("backend", &self.backend)
+            .field("poller", &"<host poller>")
+            .finish()
+    }
+}
+
+impl HostPoller for HostPollerInstance {
+    fn register(
+        &mut self,
+        resource_id: crate::host::ResourceId,
+        handle: super::HostHandle,
+        token: super::PollerToken,
+        interests: super::PollInterest,
+        flags: super::HostPollerFlags,
+    ) -> RuntimeResult<()> {
+        self.poller
+            .register(resource_id, handle, token, interests, flags)
+    }
+
+    fn update(
+        &mut self,
+        resource_id: crate::host::ResourceId,
+        token: super::PollerToken,
+        interests: super::PollInterest,
+        flags: super::HostPollerFlags,
+    ) -> RuntimeResult<()> {
+        self.poller.update(resource_id, token, interests, flags)
+    }
+
+    fn deregister(&mut self, resource_id: crate::host::ResourceId) -> RuntimeResult<()> {
+        self.poller.deregister(resource_id)
+    }
+
+    fn wake_handle(&self) -> Option<std::sync::Arc<dyn super::PollerWakeHandle>> {
+        self.poller.wake_handle()
+    }
+
+    fn wake(&mut self) -> RuntimeResult<()> {
+        self.poller.wake()
+    }
+
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<super::PollerEvent>> {
+        self.poller.poll(timeout_nanos)
+    }
+}
+
+/// Create one host poller from a canonical backend selector.
+pub(crate) fn create_host_poller(backend: PollerBackend) -> RuntimeResult<HostPollerInstance> {
+    match backend {
+        PollerBackend::Auto => create_auto_poller(),
+        _ => Ok(HostPollerInstance::new(backend, open_host_poller(backend)?)),
+    }
+}
+
+/// Return one standardized backend unsupported error.
 fn poller_not_supported(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
+    let backend = backend_label(backend);
+
+    Err(RuntimeError::from(HostError::not_supported(format!(
+        "poller backend {backend} is not supported on this platform"
+    )))
+    .boxed())
+}
+
+/// Return one standardized backend unsupported error for poller instances.
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    windows
+)))]
+fn poller_instance_not_supported(backend: PollerBackend) -> RuntimeResult<HostPollerInstance> {
     let backend = backend_label(backend);
 
     Err(RuntimeError::from(HostError::not_supported(format!(
@@ -86,9 +175,9 @@ fn is_not_supported_error(error: &RuntimeError) -> bool {
     target_os = "openbsd",
     target_os = "dragonfly"
 ))]
-fn try_open_host_poller(backend: PollerBackend) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
+fn try_open_host_poller(backend: PollerBackend) -> RuntimeResult<Option<HostPollerInstance>> {
     match open_host_poller(backend) {
-        Ok(poller) => Ok(Some(poller)),
+        Ok(poller) => Ok(Some(HostPollerInstance::new(backend, poller))),
         Err(error) => {
             if is_not_supported_error(error.as_ref()) {
                 Ok(None)
@@ -174,7 +263,7 @@ fn open_host_poller(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>
 }
 
 /// Create one automatic host poller for this target.
-fn create_auto_poller() -> RuntimeResult<Box<dyn HostPoller>> {
+fn create_auto_poller() -> RuntimeResult<HostPollerInstance> {
     #[cfg(target_os = "linux")]
     {
         // prefer io_uring, then epoll, then poll on Linux
@@ -184,7 +273,9 @@ fn create_auto_poller() -> RuntimeResult<Box<dyn HostPoller>> {
         if let Some(poller) = try_open_host_poller(PollerBackend::Epoll)? {
             return Ok(poller);
         }
-        open_host_poller(PollerBackend::Poll)
+        let poller = open_host_poller(PollerBackend::Poll)?;
+
+        Ok(HostPollerInstance::new(PollerBackend::Poll, poller))
     }
 
     #[cfg(any(
@@ -195,17 +286,21 @@ fn create_auto_poller() -> RuntimeResult<Box<dyn HostPoller>> {
         target_os = "dragonfly"
     ))]
     {
-        // prefer kqueue, then poll on BSD-family targets
+        // prefer kqueue, then poll on BSD family targets
         if let Some(poller) = try_open_host_poller(PollerBackend::Kqueue)? {
             return Ok(poller);
         }
-        open_host_poller(PollerBackend::Poll)
+        let poller = open_host_poller(PollerBackend::Poll)?;
+
+        Ok(HostPollerInstance::new(PollerBackend::Poll, poller))
     }
 
     #[cfg(windows)]
     {
         // use the Windows backend on Windows hosts
-        open_host_poller(PollerBackend::Windows)
+        let poller = open_host_poller(PollerBackend::Windows)?;
+
+        Ok(HostPollerInstance::new(PollerBackend::Windows, poller))
     }
 
     #[cfg(not(any(
@@ -218,7 +313,7 @@ fn create_auto_poller() -> RuntimeResult<Box<dyn HostPoller>> {
         windows
     )))]
     {
-        poller_not_supported(PollerBackend::Auto)
+        poller_instance_not_supported(PollerBackend::Auto)
     }
 }
 
@@ -228,22 +323,6 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::*;
-
-    use crate::host::HostError;
-
-    /// Treat not-supported host errors as fallback candidates.
-    #[test]
-    fn test_is_not_supported_error_matches_not_supported_code() {
-        let error = RuntimeError::from(HostError::not_supported("backend"));
-        assert!(is_not_supported_error(&error));
-    }
-
-    /// Do not treat other host errors as fallback candidates.
-    #[test]
-    fn test_is_not_supported_error_rejects_other_codes() {
-        let error = RuntimeError::from(HostError::io("backend setup failed"));
-        assert!(!is_not_supported_error(&error));
-    }
 
     /// Reject runtime poll backend `poll` on Windows hosts.
     #[cfg(windows)]

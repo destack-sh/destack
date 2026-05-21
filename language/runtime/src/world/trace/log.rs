@@ -9,7 +9,6 @@ use crate::world::trace::{
     TRACE_DEFAULT_MAX_CHUNK_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
     TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
-use destack_workspace::Environment;
 use postcard::experimental::serialized_size;
 
 use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
@@ -219,12 +218,6 @@ impl TraceLog {
     pub(crate) fn set_branch_id(&self, branch_id: BranchId) {
         let mut state = self.state.lock();
         state.header.branch_id = branch_id;
-    }
-
-    /// Replace the captured runtime environment on the trace header.
-    pub(crate) fn set_environment(&self, environment: Environment) {
-        let mut state = self.state.lock();
-        state.header.environment = environment;
     }
 
     /// Create a trace cursor for this log.

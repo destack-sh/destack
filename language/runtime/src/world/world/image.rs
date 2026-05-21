@@ -310,7 +310,7 @@ impl World {
                     &runtime_worker_images,
                     rebind_context,
                 )?;
-                restored_runtimes.insert(*runtime_id, Box::new(runtime));
+                restored_runtimes.insert(*runtime_id, runtime);
             }
 
             self.runtimes = restored_runtimes;

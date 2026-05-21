@@ -257,7 +257,9 @@ impl World {
         }
 
         let options = self.replay_runtime_options();
-        let mut replay_world = World::empty(target_revision.branch_id, &options, None)?;
+        let environment = self.state.trace.log().header().environment.clone();
+        let mut replay_world =
+            World::empty(target_revision.branch_id, &options, environment, None)?;
         replay_world.restore_image(image, rebinders)?;
         replay_world.state.trace.restore_replay_image(trace_image)?;
         replay_world
@@ -290,7 +292,8 @@ impl World {
         }
 
         let options = self.replay_runtime_options();
-        let mut replay_world = World::empty(moment.branch_id, &options, None)?;
+        let environment = self.state.trace.log().header().environment.clone();
+        let mut replay_world = World::empty(moment.branch_id, &options, environment, None)?;
         replay_world.restore_image(image, rebinders)?;
         let replay_trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
         replay_trace.set_branch_id(moment.branch_id);
@@ -447,14 +450,13 @@ impl World {
             observations: Observations::default(),
         };
 
-        let poller_backend = self.poller_backend;
+        let poller_backend = self.poller.backend();
         let poller = create_host_poller(poller_backend)?;
 
         Ok(World {
             host: self.host.clone(),
             host_queue: HostQueue::new(),
             poller,
-            poller_backend,
             runtimes: Default::default(),
             state,
             history: self.history.clone(),
@@ -479,7 +481,7 @@ impl World {
                 let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {
                     return Ok(None);
                 };
-                runtimes.insert(*runtime_id, Box::new(runtime));
+                runtimes.insert(*runtime_id, runtime);
             }
 
             // fork branch-local time and random state
@@ -507,13 +509,13 @@ impl World {
                 observations: Observations::default(),
             };
 
-            let poller = create_host_poller(self.poller_backend)?;
+            let poller_backend = self.poller.backend();
+            let poller = create_host_poller(poller_backend)?;
 
             Ok(Some(World {
                 host: self.host.clone(),
                 host_queue: HostQueue::new(),
                 poller,
-                poller_backend: self.poller_backend,
                 runtimes,
                 state,
                 history: self.history.clone(),

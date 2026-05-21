@@ -37,11 +37,6 @@ impl World {
             engine,
         )?;
         let runtime_id = runtime.runtime_id();
-        if self.runtimes.is_empty() {
-            self.state
-                .trace
-                .set_environment(environment.as_ref().clone());
-        }
 
         // fast and deterministic modes do not need one structural spawn image
         let replay_image = if mode == ExecutionMode::Record {
@@ -51,11 +46,7 @@ impl World {
         };
 
         // install the live runtime
-        if self
-            .runtimes
-            .insert(runtime_id, Box::new(runtime))
-            .is_some()
-        {
+        if self.runtimes.insert(runtime_id, runtime).is_some() {
             return Err(RuntimeError::RuntimeAlreadyExists {
                 runtime_id: runtime_id.0,
             }
@@ -92,7 +83,7 @@ impl World {
     }
 
     /// Remove one stored runtime and all of its workers.
-    pub fn remove_runtime(&mut self, runtime_id: RuntimeId) -> RuntimeResult<Box<Runtime>> {
+    pub fn remove_runtime(&mut self, runtime_id: RuntimeId) -> RuntimeResult<Runtime> {
         let mutation = Mutation::RemoveRuntime { runtime_id };
         let mutation = self.resolve_mutation(mutation)?;
         let Mutation::RemoveRuntime { runtime_id } = mutation.clone() else {
@@ -181,35 +172,29 @@ impl World {
 
     /// Borrow one stored runtime immutably.
     pub(crate) fn runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<&Runtime> {
-        self.runtimes
-            .get(&runtime_id)
-            .map(Box::as_ref)
-            .ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })
+        self.runtimes.get(&runtime_id).ok_or_else(|| {
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            }
+            .boxed()
+        })
     }
 
     /// Borrow one stored runtime mutably.
     pub fn runtime_mut(&mut self, runtime_id: RuntimeId) -> RuntimeResult<&mut Runtime> {
-        self.runtimes
-            .get_mut(&runtime_id)
-            .map(Box::as_mut)
-            .ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })
+        self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            }
+            .boxed()
+        })
     }
 
     /// Remove one stored runtime without recording a new mutation.
     pub(crate) fn remove_stored_runtime(
         &mut self,
         runtime_id: RuntimeId,
-    ) -> RuntimeResult<Box<Runtime>> {
+    ) -> RuntimeResult<Runtime> {
         let worker_ids = self.runtime(runtime_id)?.worker_ids();
 
         // clean worker-owned shared roots before dropping the runtime
@@ -254,7 +239,7 @@ impl World {
             &mut self.state,
             self.host.as_ref(),
             &self.host_queue,
-            self.poller.as_mut(),
+            &mut self.poller,
             worker_id,
             entry,
             args,
@@ -306,11 +291,7 @@ impl World {
             rebind_context,
         )?;
 
-        if self
-            .runtimes
-            .insert(runtime_id, Box::new(runtime))
-            .is_some()
-        {
+        if self.runtimes.insert(runtime_id, runtime).is_some() {
             return Err(RuntimeError::RuntimeAlreadyExists {
                 runtime_id: runtime_id.0,
             }
