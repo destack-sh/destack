@@ -383,10 +383,12 @@ pub enum Type {
         /// The bare function signature.
         signature: TypeReference,
     },
-    /// Opaque callable value with code and environment.
-    Callable {
+    /// Closure value with code and environment.
+    Closure {
         /// The bare function signature.
         signature: TypeReference,
+        /// The closure environment reference.
+        environment: TypeReference,
     },
 }
 
@@ -617,10 +619,10 @@ impl Type {
                 ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
             },
 
-            // callable metadata and values are trivially copyable
+            // closure values copy the handle, not the environment payload
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
-            | Type::Callable { .. } => Copy::Yes,
+            | Type::Closure { .. } => Copy::Yes,
         }
     }
 }
@@ -680,7 +682,7 @@ pub fn slice_header_types(
 /// Return the signature reference carried by one callable type.
 pub fn callable_signature(ty: &Type) -> Option<TypeReference> {
     match ty {
-        Type::FunctionPointer { signature } | Type::Callable { signature } => Some(*signature),
+        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => Some(*signature),
         _ => None,
     }
 }

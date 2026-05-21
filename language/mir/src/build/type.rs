@@ -430,11 +430,21 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create an opaque callable type.
-    pub fn type_callable(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.ensure_callable_environment_type();
-        self.tree.insert_type(Type::Callable {
+    /// Create a closure type.
+    pub fn type_closure(&mut self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        let environment = self.tree.ensure_callable_environment_type();
+        self.type_closure_with_environment(signature, environment)
+    }
+
+    /// Create a closure type with an explicit environment.
+    pub fn type_closure_with_environment(
+        &mut self,
+        signature: LocalNodeId<Type>,
+        environment: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Closure {
             signature: signature.into(),
+            environment: environment.into(),
         })
     }
 }

@@ -332,7 +332,7 @@ impl<'a> BlockLowerer<'a> {
 
                 (signature, false)
             }
-            mir::Type::Callable { signature } => {
+            mir::Type::Closure { signature, .. } => {
                 let signature = signature.ty().ok_or(Error::InvalidInstruction)?;
 
                 (signature, true)

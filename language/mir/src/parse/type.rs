@@ -434,10 +434,11 @@ impl Parser {
 
         if self.eat_token_maybe(TokenType::FatArrow) {
             let signature = self.parse_function_signature(parameters)?;
-            self.tree.ensure_callable_environment_type();
+            let environment = self.tree.ensure_callable_environment_type();
 
-            return Ok(Type::Callable {
+            return Ok(Type::Closure {
                 signature: signature.into(),
+                environment: environment.into(),
             });
         }
 

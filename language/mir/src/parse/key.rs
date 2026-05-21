@@ -128,8 +128,11 @@ pub(super) enum TypeKey {
     },
     /// Function pointer type.
     FunctionPointer { signature: TypeReference },
-    /// Opaque callable value.
-    Callable { signature: TypeReference },
+    /// Closure value.
+    Closure {
+        signature: TypeReference,
+        environment: TypeReference,
+    },
 }
 
 impl TypeKey {
@@ -269,8 +272,12 @@ impl TypeKey {
             Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
                 signature: *signature,
             },
-            Type::Callable { signature } => TypeKey::Callable {
+            Type::Closure {
+                signature,
+                environment,
+            } => TypeKey::Closure {
                 signature: *signature,
+                environment: *environment,
             },
         }
     }

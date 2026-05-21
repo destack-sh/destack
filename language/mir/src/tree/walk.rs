@@ -238,10 +238,23 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, result, result_ty);
             }
         }
-        Type::FunctionPointer { signature } | Type::Callable { signature } => {
+        Type::FunctionPointer { signature } => {
             if let TypeReference::Type(signature) = *signature {
                 let signature_ty = tree.get(signature);
                 visitor.visit_type(tree, signature, signature_ty);
+            }
+        }
+        Type::Closure {
+            signature,
+            environment,
+        } => {
+            if let TypeReference::Type(signature) = *signature {
+                let signature_ty = tree.get(signature);
+                visitor.visit_type(tree, signature, signature_ty);
+            }
+            if let TypeReference::Type(environment) = *environment {
+                let environment_ty = tree.get(environment);
+                visitor.visit_type(tree, environment, environment_ty);
             }
         }
         Type::Void
