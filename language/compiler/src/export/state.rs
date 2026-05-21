@@ -19,6 +19,8 @@ pub(crate) struct ExportState<'a> {
     pub(in crate::export) strings: &'a StringPool,
     /// The export table being built.
     pub(in crate::export) exports: dir::ExportTable,
+    /// The global table being built.
+    pub(in crate::export) globals: dir::GlobalTable,
     /// The recoverable diagnostics produced while exporting.
     pub(in crate::export) diagnostics: Vec<ExportError>,
 }
@@ -39,6 +41,7 @@ impl<'a> ExportState<'a> {
             namespace_scope,
             strings,
             exports: dir::ExportTable::new(view.tree().module_id),
+            globals: dir::GlobalTable::new(view.tree().module_id),
             diagnostics: Vec::new(),
         }
     }
@@ -47,20 +50,21 @@ impl<'a> ExportState<'a> {
     pub(in crate::export) fn finish(self) -> (DirExported, Vec<ExportError>) {
         let exported = DirExported {
             exports: self.exports,
+            globals: self.globals,
         };
 
         (exported, self.diagnostics)
     }
 
     /// Insert one named export and report duplicate keys.
-    pub(in crate::export) fn insert(
+    pub(in crate::export) fn insert_export(
         &mut self,
         export: dir::ExportEntry,
         anchor: DiagnosticAnchor,
     ) -> ExportResult<()> {
         let key = export.key();
         if self.exports.export_by_key.contains_key(&key) {
-            self.push_diagnostic(ExportError::DuplicateExport {
+            self.report_diagnostic(ExportError::DuplicateExport {
                 anchor,
                 key: self.export_key_text(key),
             });
@@ -73,8 +77,8 @@ impl<'a> ExportState<'a> {
         Ok(())
     }
 
-    /// Push one recoverable export diagnostic.
-    pub(in crate::export) fn push_diagnostic(&mut self, diagnostic: ExportError) {
+    /// Report one recoverable export diagnostic.
+    pub(in crate::export) fn report_diagnostic(&mut self, diagnostic: ExportError) {
         self.diagnostics.push(diagnostic);
     }
 
