@@ -14,7 +14,8 @@ The compiler is organized around artifact-producing phases.
 | `import/` | `DirBound` -> `DirImported` |
 | `expand/` | `DirBound` + `DirImported` -> `DirExpanded` |
 | `export/` | `DirExpanded` -> `DirExported` |
-| `check/` | `DirExpanded` + `DirExported` -> `DirChecked` |
+| `resolve/` | `DirImported` + `DirExpanded` + `DirExported` -> `DirResolved` |
+| `check/` | `DirExpanded` + `DirExported` + `DirResolved` -> `DirChecked` |
 | `materialize/` | `DirChecked` + macro state -> `DirMaterialized` |
 | `elaborate/` | `DirMaterialized` -> `DirElaborated` |
 | `lower/` | `DirElaborated` -> `MirLowered` |
