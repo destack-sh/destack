@@ -102,17 +102,7 @@ impl<'a> DestackFormatContext<'a> {
     /// Return all tokens across main and side streams sorted by source position.
     #[inline]
     pub(crate) fn all_tokens(&self) -> &[TokenSpan] {
-        self.all_tokens_sorted.get_or_init(|| {
-            let mut tokens: Vec<TokenSpan> = self
-                .tokens
-                .iter()
-                .copied()
-                .chain(self.side_tokens.iter().copied())
-                .collect();
-
-            tokens.sort_by_key(|token| token.span.start);
-            tokens
-        })
+        self.source_index.all_tokens()
     }
 
     /// Return the first non-trivia token start for one node.
@@ -463,13 +453,7 @@ impl<'a> DestackFormatContext<'a> {
     /// Get comment tokens sorted by source position.
     #[inline]
     pub fn comment_tokens(&self) -> &[TokenSpan] {
-        self.comment_tokens_sorted.get_or_init(|| {
-            self.all_tokens()
-                .iter()
-                .copied()
-                .filter(|token| token_type_is_comment(token.token.ty))
-                .collect()
-        })
+        self.source_index.comment_tokens()
     }
 
     /// Return comment tokens that start after one position.

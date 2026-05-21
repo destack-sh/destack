@@ -3,7 +3,6 @@ use crate::annotation::{
     infix_or_postfix_annotations, postfix_annotations, prefix_comments_before_decorators,
 };
 use crate::chain::transparent_inner_expression;
-use crate::context::MemoizeFormatExt;
 use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, expression_body_requires_head_space,
     format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
@@ -809,8 +808,7 @@ where
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
         let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             if let Some(return_type) = signature.return_type {
@@ -818,20 +816,18 @@ where
             }
 
             Ok(())
-        })
-        .memoized();
+        });
 
-        let format_parameter_head =
-            format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(())).memoized();
+        let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
         let should_break_parameters = should_break_function_parameters(f.context(), parameters);
         write_grouped_parameters_with_return_type(
             f,
             &signature.generic_parameters,
             parameters.len(),
             signature.return_type,
-            &format_parameter_head,
-            &format_parameters,
-            &format_return_type,
+            format_parameter_head,
+            format_parameters,
+            format_return_type,
             should_break_parameters,
             false,
         )?;

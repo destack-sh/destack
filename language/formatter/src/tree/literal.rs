@@ -1,6 +1,6 @@
 use crate::annotation::{FormatTrailingComments, block_infix_annotations, format_leading_comments};
 use crate::chain::transparent_inner_expression;
-use crate::context::MemoizeFormatExt;
+use crate::context::PreparedFormat;
 use crate::declaration::expression_is_in_statement_context;
 use crate::tree::{
     FormatTreeOpeningElement, is_jsx_whitespace_char, should_force_break_tree_attributes,
@@ -13,7 +13,7 @@ use destack_dir::{
     Argument, Declaration, Expression, FunctionForm, GenericArgument, IfForm, LocalNodeId,
     NodeType, ScalarLiteral, Tree,
 };
-use destack_fir::format::{Buffer, FormatNodes, FormatResult};
+use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, empty_line, format_with, group, hard_line_break, if_group_breaks,
     if_group_fits_on_line, soft_block_indent, soft_line_break, soft_line_break_or_space, space,
@@ -1144,18 +1144,18 @@ fn format_tree_literal_with_layout<'ast>(
     write!(
         f,
         [group(&format_with(|f| {
-            let opening_tag = FormatTreeOpeningElement::new(
-                _expression_id,
-                left,
-                generic_arguments,
-                arguments,
-                elements,
-                layout.0,
-            )
-            .memoized();
-            let opening_breaks = opening_tag
-                .inspect(f)?
-                .is_some_and(|opening_tag| opening_tag.will_break());
+            let opening_tag = PreparedFormat::new(
+                f,
+                FormatTreeOpeningElement::new(
+                    _expression_id,
+                    left,
+                    generic_arguments,
+                    arguments,
+                    elements,
+                    layout.0,
+                ),
+            )?;
+            let opening_breaks = opening_tag.will_break();
             let multiple_attributes = arguments
                 .as_ref()
                 .is_some_and(|arguments| arguments.len() > 1);

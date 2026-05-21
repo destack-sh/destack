@@ -361,19 +361,12 @@ impl<'a> DestackFormatContext<'a> {
     /// Return byte offsets of all newline characters in the source file.
     #[inline]
     pub(crate) fn newline_offsets(&self) -> &[u32] {
-        self.newline_offsets.get_or_init(|| {
-            self.file
-                .text()
-                .bytes()
-                .enumerate()
-                .filter_map(|(index, byte)| (byte == b'\n').then_some(index as u32))
-                .collect()
-        })
+        self.source_index.newline_offsets()
     }
 
     /// Return whether file text contains ignore directive markers.
     pub fn has_ignore_directive_markers(&self) -> bool {
-        self.has_ignore_directive_markers
+        self.source_index.has_ignore_directive_markers()
     }
 
     /// Get the source slice backing one span.

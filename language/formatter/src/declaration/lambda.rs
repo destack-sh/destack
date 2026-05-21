@@ -7,7 +7,6 @@ use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, format_leading_comments, postfix_annotations,
 };
 use crate::chain::{is_lambda_expression, transparent_inner_expression};
-use crate::context::MemoizeFormatExt;
 use crate::declaration::signature::{
     expression_body_requires_head_space, format_where_clause_with_break,
     write_function_header_prefix, write_grouped_parameters_with_return_type,
@@ -153,23 +152,20 @@ fn write_lambda_parameters_and_return_type<'ast>(
         function_parameter_container_span(f.context(), node_id),
         format_parameters,
         cache_mode,
-    )
-    .memoized();
+    );
     let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_cached_function_return_type(f, node_id, signature, body, parameters, cache_mode)
     });
-    let format_return_type = format_return_type.memoized();
-    let format_parameter_head =
-        format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(())).memoized();
+    let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
 
     write_grouped_parameters_with_return_type(
         f,
         &signature.generic_parameters,
         parameters.len(),
         signature.return_type,
-        &format_parameter_head,
-        &format_parameters,
-        &format_return_type,
+        format_parameter_head,
+        format_parameters,
+        format_return_type,
         false,
         false,
     )

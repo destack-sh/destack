@@ -216,13 +216,15 @@ impl<'a> DestackFormatContext<'a> {
         let span = self.span_by_id(node_id);
 
         // find the token that starts the node
-        let Some(token_index) = self
+        let token_index = self
             .tokens
-            .iter()
-            .position(|token| token.span.start == span.start)
-        else {
+            .partition_point(|token| token.span.start < span.start);
+        let Some(token) = self.tokens.get(token_index) else {
             return false;
         };
+        if token.span.start != span.start {
+            return false;
+        }
 
         if token_index == 0 {
             return true;

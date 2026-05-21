@@ -7,7 +7,7 @@ use crate::annotation::{
     infix_or_postfix_annotations, prefix_annotations,
 };
 use crate::collection::{TrailingSeparator, separated_entries};
-use crate::context::MemoizeFormatExt;
+use crate::context::PreparedFormat;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
@@ -765,8 +765,7 @@ fn format_pattern_assignment<'ast>(
     pattern: LocalNodeId<Pattern>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let left = pattern.memoized();
-    left.inspect(f)?;
+    let left = PreparedFormat::new(f, pattern)?;
 
     let value_start = f.context().span(value).start;
     let comments = f
@@ -794,8 +793,7 @@ fn format_assign_pattern_assignment<'ast>(
     pattern: LocalNodeId<AssignPattern>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let left = pattern.memoized();
-    left.inspect(f)?;
+    let left = PreparedFormat::new(f, pattern)?;
 
     let value_start = f.context().span(value).start;
     let comments = f
