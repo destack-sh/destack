@@ -30,14 +30,14 @@ impl LanguageEnvironment {
 pub struct GlobalEnvironment {
     /// Compiler-known language environment.
     pub language: LanguageEnvironment,
-    /// Selected modules in load order.
-    pub modules: Vec<ModuleId>,
+    /// Explicit global modules in load order.
+    pub globals: Vec<ModuleId>,
 }
 
 impl GlobalEnvironment {
     /// Return the supporting modules needed to consume these bindings.
     pub fn supporting_modules(&self) -> Vec<ModuleId> {
-        self.modules.clone()
+        self.globals.clone()
     }
 }
 
