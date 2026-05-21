@@ -1,8 +1,7 @@
 use crate::parse::scope::ExpressionScope;
-use crate::parse::r#type::operator::TypeUnaryOperator;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 use destack_dir::{
-    Expression, LocalNodeId, NodeType, Path, PostfixPosition, ScalarLiteral, TokenType,
+    Expression, Keyword, LocalNodeId, NodeType, Path, PostfixPosition, ScalarLiteral, TokenType,
     TypeExpression, UnaryOperator,
 };
 use smallvec::smallvec;
@@ -51,10 +50,7 @@ impl Parser {
                 TokenType::Not if !is_on_new_line => {
                     Some(self.eat_must_postfix(start, left, PostfixPosition::Direct)?)
                 }
-                TokenType::Identifier
-                    if self.peek_type_unary_postfix_operator_maybe()
-                        == Some(TypeUnaryOperator::AsComptime) =>
-                {
+                TokenType::Identifier if self.current_value_comptime_postfix_starts() => {
                     Some(self.eat_comptime_postfix(start, left))
                 }
                 TokenType::LessThan | TokenType::ShiftLeft => {
@@ -78,6 +74,12 @@ impl Parser {
         }
 
         Ok((left, is_parenthesized))
+    }
+
+    /// Return whether the current token starts a value comptime postfix.
+    fn current_value_comptime_postfix_starts(&mut self) -> bool {
+        self.current_keyword() == Some(Keyword::As)
+            && self.next_keyword() == Some(Keyword::Comptime)
     }
 
     /// Eat a direct call postfix when this expression owns it.

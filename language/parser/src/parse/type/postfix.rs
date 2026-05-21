@@ -1,5 +1,4 @@
 use crate::parse::scope::TypeScope;
-use crate::parse::r#type::operator::TypeUnaryOperator;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_core::StringId;
@@ -53,12 +52,6 @@ impl Parser {
                 TokenType::Not if !is_on_new_line => {
                     left = self.eat_type_must_postfix(start, left);
                 }
-                TokenType::Identifier
-                    if self.peek_type_unary_postfix_operator_maybe()
-                        == Some(TypeUnaryOperator::AsComptime) =>
-                {
-                    left = self.eat_type_comptime_postfix(start, left);
-                }
                 TokenType::LessThan | TokenType::ShiftLeft => {
                     let Some(expression_id) = self.eat_type_generic_postfix(start, left)? else {
                         break;
@@ -89,32 +82,6 @@ impl Parser {
         self.bump();
         let expression_id = self.insert_node(
             TypeExpression::Must { target_type: left },
-            self.get_span_from(start),
-        );
-        self.tree
-            .set_main_span(expression_id, self.get_span_from(&operator_start));
-
-        expression_id
-    }
-
-    /// Parse a type comptime postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// T as comptime
-    /// Result<T> as comptime
-    /// Namespace.Type as comptime
-    /// ```
-    fn eat_type_comptime_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<TypeExpression>,
-    ) -> LocalNodeId<TypeExpression> {
-        let operator_start = self.span_start();
-        self.bump();
-        self.bump();
-        let expression_id = self.insert_node(
-            TypeExpression::AsComptime { target_type: left },
             self.get_span_from(start),
         );
         self.tree

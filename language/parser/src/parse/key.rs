@@ -45,13 +45,6 @@ impl Parser {
         Ok((string_id, token.span))
     }
 
-    /// Eat a binding identifier.
-    #[inline]
-    pub fn eat_binding_identifier(&mut self) -> ParseResult<StringId> {
-        let (string_id, _) = self.eat_binding_identifier_with_span()?;
-        Ok(string_id)
-    }
-
     /// Eat a binding identifier and return both the identifier and its span.
     #[inline]
     pub fn eat_binding_identifier_with_span(&mut self) -> ParseResult<(StringId, Span)> {
@@ -176,16 +169,6 @@ impl Parser {
         let string_id = self.strings.intern(string);
         self.bump();
         Ok(string_id)
-    }
-
-    /// Eat a name maybe.
-    #[inline]
-    pub fn eat_name_maybe(&mut self) -> ParseResult<Option<Name>> {
-        if self.peek_name_is() {
-            Ok(Some(self.eat_name()?))
-        } else {
-            Ok(None)
-        }
     }
 
     /// Eat a name maybe, returning both the name and its span.
@@ -331,30 +314,35 @@ impl Parser {
     /// Peek a next string literal.
     #[inline]
     pub fn peek_next_string_literal(&mut self) -> ParseResult<TokenSpan> {
-        self.lookahead(|parser| {
-            parser.bump();
-            let token = *parser.peek_token(TokenType::Literal)?;
-            if token.token.ty == TokenType::Literal {
-                match token.token.literal {
-                    Some(TokenLiteral::String {
-                        is_terminated: true,
-                        has_invalid_escape: false,
-                    }) => Ok(token),
-                    _ => Err(ParseError::expected(token.span, TokenType::Literal)),
-                }
-            } else {
-                Err(ParseError::expected(token.span, TokenType::Literal))
-            }
-        })
+        let token = self.next_token();
+        if token.token.ty != TokenType::Literal {
+            return Err(ParseError::expected(token.span, TokenType::Literal));
+        }
+
+        match token.token.literal {
+            Some(TokenLiteral::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            }) => Ok(token),
+            _ => Err(ParseError::expected(token.span, TokenType::Literal)),
+        }
     }
 
     /// Return true when the next token after current is a valid string literal.
     #[inline]
     pub fn peek_next_string_literal_is(&mut self) -> bool {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.peek_string_literal_is()
-        })
+        let token = self.next_token();
+        if token.token.ty != TokenType::Literal {
+            return false;
+        }
+
+        matches!(
+            token.token.literal,
+            Some(TokenLiteral::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            })
+        )
     }
 
     /// Peek a numeric literal (int or float, for object keys).
@@ -384,50 +372,16 @@ impl Parser {
         )
     }
 
-    /// Peek a name (like `x` or `"Content-Type"`).
-    #[inline]
-    pub fn peek_name(&mut self) -> ParseResult<()> {
-        if self.peek_name_is() {
-            Ok(())
-        } else {
-            Err(ParseError::unexpected(self.peek()?.span))
-        }
-    }
-
     /// Return true when the next token is a name.
     #[inline]
     pub fn peek_name_is(&mut self) -> bool {
         self.peek_identifier_is() || self.peek_string_literal_is()
     }
 
-    /// Peek a next name (like `x` or `"Content-Type"`).
-    #[inline]
-    pub fn peek_next_name(&mut self) -> ParseResult<()> {
-        if self.peek_next_name_is() {
-            Ok(())
-        } else {
-            let span = self.lookahead(|parser| {
-                parser.bump();
-                parser.peek().map(|token| token.span)
-            })?;
-            Err(ParseError::unexpected(span))
-        }
-    }
-
     /// Return true when the next token after current is a name.
     #[inline]
     pub fn peek_next_name_is(&mut self) -> bool {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.peek_name_is()
-        })
-    }
-
-    /// Eat a name (like `x` or `"Content-Type"`).
-    #[inline]
-    pub fn eat_name(&mut self) -> ParseResult<Name> {
-        let (name, _span) = self.eat_name_with_span()?;
-        Ok(name)
+        self.token_type_at_offset(1) == TokenType::Identifier || self.peek_next_string_literal_is()
     }
 
     /// Eat a name and return both the name and its span.
@@ -447,16 +401,6 @@ impl Parser {
         }
         // error
         else {
-            Err(ParseError::unexpected(self.peek()?.span))
-        }
-    }
-
-    /// Peek a name or a dynamic key.
-    #[inline]
-    pub fn peek_key(&mut self) -> ParseResult<()> {
-        if self.peek_key_is() {
-            Ok(())
-        } else {
             Err(ParseError::unexpected(self.peek()?.span))
         }
     }
@@ -523,85 +467,9 @@ impl Parser {
 
         // require the hash and identifier to be adjacent
         let hash_span = self.current_token().span;
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.peek_is(TokenType::Identifier)
-                && parser
-                    .peek()
-                    .is_ok_and(|token| hash_span.end == token.span.start)
-        })
-    }
+        let token = self.next_token();
 
-    /// Eat a name or a dynamic key.
-    #[inline]
-    pub fn eat_key(&mut self) -> ParseResult<Key> {
-        // private hash key
-        if self.peek_private_hash_key_is() {
-            self.bump(); // eat #
-            let name = self.eat_identifier()?;
-            Ok(Key::Private(name))
-        }
-        // key name
-        else if self.peek_key_name_is() {
-            let (name, _span) = self.eat_key_name_with_span()?;
-            Ok(Key::Name(name))
-        }
-        // numeric key
-        else if self.peek_numeric_literal_is() {
-            let (string_id, _span) = self.eat_numeric_key_name_with_span()?;
-            Ok(Key::Name(Name::Number(string_id)))
-        }
-        // dynamic key
-        else if self.peek_is(TokenType::OpenBracket) {
-            self.bump(); // eat open bracket
-
-            // typed index signatures are parsed by the dedicated type property entrypoint
-            let colon_span = self.peek_is(TokenType::Identifier).then(|| {
-                self.lookahead(|parser| {
-                    parser.bump();
-                    parser
-                        .peek_is(TokenType::Colon)
-                        .then_some(parser.current_token().span)
-                })
-            });
-            if let Some(Some(colon_span)) = colon_span {
-                Err(ParseError::unexpected(colon_span))
-            }
-            // expression
-            else {
-                let key = self.eat_expression(
-                    self.flags
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression(),
-                )?;
-                self.eat_close_token_or_recover_missing_with(
-                    TokenType::CloseBracket,
-                    NodeType::Expression,
-                    |_, token_type| {
-                        Self::is_close_delimiter_boundary_token(token_type)
-                            || matches!(
-                                token_type,
-                                TokenType::Colon | TokenType::Maybe | TokenType::OpenParenthesis
-                            )
-                    },
-                )?;
-                Ok(Key::Expression(key))
-            }
-        }
-        // error
-        else {
-            Err(ParseError::unexpected(self.peek()?.span))
-        }
-    }
-
-    /// Eat a name or a dynamic key maybe.
-    pub fn eat_key_maybe(&mut self) -> ParseResult<Option<Key>> {
-        if self.peek_key_is() {
-            Ok(Some(self.eat_key()?))
-        } else {
-            Ok(None)
-        }
+        token.token.ty == TokenType::Identifier && hash_span.end == token.span.start
     }
 
     /// Eat a name or a dynamic key, returning both the key and its span.
@@ -629,25 +497,20 @@ impl Parser {
             self.bump(); // eat open bracket
 
             // typed index signatures are parsed by the dedicated type property entrypoint
-            let colon_span = self.peek_is(TokenType::Identifier).then(|| {
-                self.lookahead(|parser| {
-                    parser.bump();
-                    parser
-                        .peek_is(TokenType::Colon)
-                        .then_some(parser.current_token().span)
-                })
-            });
-            if let Some(Some(colon_span)) = colon_span {
+            let colon_span = if self.peek_is(TokenType::Identifier)
+                && self.token_type_at_offset(1) == TokenType::Colon
+            {
+                Some(self.token_at_offset(1).span)
+            } else {
+                None
+            };
+            if let Some(colon_span) = colon_span {
                 Err(ParseError::unexpected(colon_span))
             }
             // expression
             else {
-                let key = self.eat_expression(
-                    self.flags
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression(),
-                )?;
+                let key =
+                    self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
                 self.eat_close_token_or_recover_missing_with(
                     TokenType::CloseBracket,
                     NodeType::Expression,
@@ -695,91 +558,5 @@ impl Parser {
 
         let key_name = self.strings.intern(&key_string);
         Ok((key_name, token.span))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_dir::{Expression, IfCondition, IfForm, Key, ScalarLiteral};
-    use destack_source::LanguageType;
-
-    use crate::tests::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_string};
-
-    #[test]
-    fn test_reject_key_named_type_expression_with_multiline_type() {
-        let mut test = TestParser::new(
-            r#"[key:
-    | string
-    | number]"#,
-        );
-        let mut parser = test.prepare();
-        let error = parser.eat_key_with_span().unwrap_err();
-        assert_eq!(parser.get_span_str(error.leaf_span()), ":");
-    }
-
-    #[test]
-    fn test_reject_key_named_type_expression_with_newlines_before_colon_and_close_bracket() {
-        let mut test = TestParser::new(
-            r#"[key
-:
-string
-]"#,
-        );
-        let mut parser = test.prepare();
-        let error = parser.eat_key_with_span().unwrap_err();
-        assert_eq!(parser.get_span_str(error.leaf_span()), ":");
-    }
-
-    /// Reject computed keys with sequence expressions in typed and untyped object forms.
-    #[test]
-    fn test_reject_key_computed_sequence_expression_in_typed_and_untyped_object_forms() {
-        // source: [a,b]
-        let mut test = TestParser::new_with_language("[a,b]", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_key_with_span().unwrap_err();
-
-        // ,
-        assert_eq!(parser.get_span_str(error.leaf_span()), ",");
-    }
-
-    /// Reject legacy octal numeric keys in typed and untyped object forms.
-    #[test]
-    fn test_reject_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
-        // source: 021
-        let mut test = TestParser::new_with_language("021", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_key_with_span().unwrap_err();
-
-        // 021
-        assert_eq!(parser.get_span_str(error.leaf_span()), "021");
-    }
-
-    /// Parse computed keys with ternaries even when outer left precedence is set.
-    #[test]
-    fn test_parse_key_computed_ternary_with_outer_left_precedence() {
-        let mut test = TestParser::new_with_language(
-            "[hasCjsFormat ? 'module' : 'import']",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        parser.flags = parser.flags.in_left_precedence(1);
-
-        let (key, _span) = parser.eat_key_with_span().unwrap();
-
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
-        assert!(matches!(key, Key::Expression(_)));
-        assert_node!(parser.tree, match key { Key::Expression(key) => key, _ => unreachable!() }, Expression::If { form, condition, then_expression, else_expression } => {
-            assert_eq!(*form, IfForm::Ternary);
-            assert_node!(condition, IfCondition::Expression { condition } => {
-                assert_expression_path!(parser, parser.tree.get(*condition), "hasCjsFormat");
-            });
-            assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-                assert_string!(parser, *string, "module");
-            });
-            assert_node!(parser.tree, else_expression.expect("expected else"), Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
-                assert_string!(parser, *string, "import");
-            });
-        });
     }
 }

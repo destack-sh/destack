@@ -43,7 +43,8 @@ impl Parser {
         }
 
         for pending in decorators {
-            self.attach_decorator(target_node_id, pending.decorator_id);
+            self.tree
+                .append_decorator(target_node_id, pending.decorator_id);
         }
     }
 
@@ -58,7 +59,6 @@ impl Parser {
         let mut decorator_flags = self
             .flags
             .not_in_position()
-            .in_left_precedence(DECORATOR_EXPRESSION_PRECEDENCE)
             .not_in_sequence_expression()
             .in_decorator();
         decorator_flags.set_in_type(false);
@@ -69,7 +69,8 @@ impl Parser {
         decorator_flags.set_in_type_mapped_constraint(false);
 
         // parse decorator target expression
-        let expression = self.eat_expression(decorator_flags)?;
+        let expression =
+            self.eat_expression_at_precedence(decorator_flags, DECORATOR_EXPRESSION_PRECEDENCE)?;
 
         // store decorator side node
         let decorator = self.tree.insert(
@@ -85,14 +86,5 @@ impl Parser {
             .unwrap_or_else(|| self.tree.get_span(expression));
         self.tree.set_main_span(decorator, main_span);
         Ok(decorator)
-    }
-
-    /// Attach one parsed decorator onto a parsed target.
-    pub(crate) fn attach_decorator(
-        &mut self,
-        target_node_id: u32,
-        decorator_id: LocalNodeId<Decorator>,
-    ) {
-        self.tree.append_decorator(target_node_id, decorator_id);
     }
 }

@@ -302,7 +302,6 @@ impl Parser {
             TypeUnaryOperator::Local => TypeExpression::Local { target_type },
             TypeUnaryOperator::Shared => TypeExpression::Shared { target_type },
             TypeUnaryOperator::Not => TypeExpression::Not { target_type },
-            TypeUnaryOperator::AsComptime => return Err(ParseError::unexpected(operator_span)),
         };
 
         let id = self.insert_node(expression, self.get_span_from(start));
