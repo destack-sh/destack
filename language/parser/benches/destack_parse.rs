@@ -1,7 +1,7 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -34,27 +34,40 @@ fn parser_bench_worker_count() -> usize {
 /// Parse one file through the full parser pipeline.
 fn parse_file(file: Arc<File>) -> Parser {
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    let retain_trivia_tokens = env::var("DESTACK_PARSE_RETAIN_TRIVIA")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-        .map(|value| value > 0)
-        .unwrap_or(true);
+    let trivia_mode = parser_trivia_mode();
     let mut parser = Parser::lex_file_with_options(
         file,
         language_type,
         ParserOptions {
-            retain_trivia_tokens,
+            trivia_mode,
             ..ParserOptions::default()
         },
         Arc::new(StringPool::new()),
     );
-    if retain_trivia_tokens {
+    if trivia_mode.keeps_comments() {
         parser.parse();
     } else {
-        parser.parse_without_trivia();
+        parser.parse_without_attaching_comments();
     }
 
     parser
+}
+
+/// Return the parser trivia mode for benchmarks.
+fn parser_trivia_mode() -> ParserTriviaMode {
+    let Some(value) = env::var("DESTACK_PARSE_TRIVIA")
+        .ok()
+        .or_else(|| env::var("DESTACK_PARSE_RETAIN_TRIVIA").ok())
+    else {
+        return ParserTriviaMode::Full;
+    };
+
+    match value.as_str() {
+        "0" | "false" | "False" | "FALSE" | "ignore" => ParserTriviaMode::Ignore,
+        "doc" | "docs" | "documentation" => ParserTriviaMode::Documentation,
+        "1" | "true" | "True" | "TRUE" | "full" | "trivia" => ParserTriviaMode::Full,
+        _ => panic!("invalid parser trivia mode: {value}"),
+    }
 }
 
 /// Read an optional comma separated file list from the environment.
