@@ -48,6 +48,20 @@ fn test_format_comptime_function() {
     );
 }
 
+#[test]
+fn test_format_variadic_generic_parameters() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"type Callback<...Parameters, Return> = (...parameters: Parameters) => Return
+function tensor<comptime ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
+"#,
+        r#"type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
+function tensor<comptime ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Defaulted pattern parameters should keep comments inside the pattern.
 #[test]
 fn test_format_pattern_parameter_default_comments() {

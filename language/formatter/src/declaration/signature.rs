@@ -433,8 +433,18 @@ pub(crate) fn function_grouping_generic_parameter_is_plain(
             constraint,
             default,
             ..
+        }
+        | GenericParameter::VariadicType {
+            constraint,
+            default,
+            ..
         } => constraint.is_none() && default.is_none(),
         GenericParameter::Value {
+            declared_type,
+            default,
+            ..
+        }
+        | GenericParameter::VariadicValue {
             declared_type,
             default,
             ..
@@ -1088,6 +1098,13 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
                 variance,
                 constraint,
                 default,
+            }
+            | GenericParameter::VariadicType {
+                name,
+                is_const,
+                variance,
+                constraint,
+                default,
             } => {
                 // const
                 if *is_const {
@@ -1096,6 +1113,11 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
 
                 // variance
                 write_variance_prefix(f, *variance)?;
+
+                // spread
+                if matches!(self, GenericParameter::VariadicType { .. }) {
+                    write!(f, [token("...")])?;
+                }
 
                 // name and trailers
                 write!(f, [*name])?;
@@ -1106,10 +1128,21 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
                 declared_type,
                 default,
                 is_comptime,
+            }
+            | GenericParameter::VariadicValue {
+                name,
+                declared_type,
+                default,
+                is_comptime,
             } => {
                 // comptime
                 if *is_comptime {
                     write!(f, [Keyword::Comptime, space()])?;
+                }
+
+                // spread
+                if matches!(self, GenericParameter::VariadicValue { .. }) {
+                    write!(f, [token("...")])?;
                 }
 
                 // name and trailers

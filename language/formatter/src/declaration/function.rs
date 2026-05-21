@@ -219,8 +219,18 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
             constraint,
             default,
             ..
+        }
+        | GenericParameter::VariadicType {
+            constraint,
+            default,
+            ..
         } => constraint.is_none() && default.is_none(),
         GenericParameter::Value {
+            declared_type,
+            default,
+            ..
+        }
+        | GenericParameter::VariadicValue {
             declared_type,
             default,
             ..

@@ -190,7 +190,9 @@ fn extract_single_generic_argument_type_expression(
         return expression_id;
     }
 
-    let GenericArgument::Type { value } = ctx.tree.get(generic_arguments[0]) else {
+    let (GenericArgument::Type { value } | GenericArgument::SpreadType { value }) =
+        ctx.tree.get(generic_arguments[0])
+    else {
         return expression_id;
     };
 

@@ -40,6 +40,30 @@ const x: Map</* key */ string, /* value */ number> = new Map()
 const x: Map</* key */ string, /* value */ number> = new Map();
 ```
 
+### spread type argument
+
+Spread type arguments keep the spread marker attached to the argument.
+
+```ds
+const tensor: Tensor< ...Shape > = value
+```
+
+```ds expected
+const tensor: Tensor<...Shape> = value;
+```
+
+### spread value argument
+
+Spread value arguments keep expression spacing inside the argument.
+
+```ds
+const buffer: Buffer< ...shape() > = value
+```
+
+```ds expected
+const buffer: Buffer<...shape()> = value;
+```
+
 ## Instantiation Expressions
 
 ### instantiation keeps type arguments inline
