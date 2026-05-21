@@ -645,16 +645,91 @@ fn test_reject_generic_arguments_missing_close_angle_in_value_context() {
 }
 
 #[test]
-fn test_reject_spread_generic_argument() {
+fn test_parse_spread_type_generic_argument() {
     // <...T>
     let mut test = TestParser::new_with_language("<...T>", LanguageType::Destack);
     let mut parser = test.prepare();
+    parser.flags.set_in_type(true);
     let arguments = parser.eat_generic_arguments().unwrap();
 
-    test.assert_error_leaves(&parser, &[(None, None, "...")]);
+    test.assert_no_errors(&parser);
 
     assert_eq!(arguments.len(), 1);
-    assert_node!(parser.tree, arguments[0], GenericArgument::Error);
+    assert_node!(parser.tree, arguments[0], GenericArgument::SpreadType { value } => {
+        assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "T");
+            assert!(generic_arguments.is_empty());
+        });
+    });
+}
+
+#[test]
+fn test_parse_spread_value_generic_argument() {
+    // <...values()>
+    let mut test = TestParser::new_with_language("<...values()>", LanguageType::Destack);
+    let mut parser = test.prepare();
+    parser.flags.set_in_type(true);
+    let arguments = parser.eat_generic_arguments().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(arguments.len(), 1);
+    assert_node!(parser.tree, arguments[0], GenericArgument::SpreadValue { value } => {
+        assert_node!(parser.tree, *value, Expression::Call { left, generic_arguments, arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "values");
+            assert!(generic_arguments.is_empty());
+            assert!(arguments.is_empty());
+        });
+    });
+}
+
+#[test]
+fn test_parse_variadic_type_generic_parameter() {
+    // <...Parameters, Return>
+    let mut test = TestParser::new_with_language("<...Parameters, Return>", LanguageType::Destack);
+    let mut parser = test.prepare();
+    let parameters = parser.eat_generic_parameters(true).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(parameters.len(), 2);
+    assert_node!(parser.tree, parameters[0], GenericParameter::VariadicType { name, constraint, default, .. } => {
+        assert_string!(parser, *name, "Parameters");
+        assert!(constraint.is_none());
+        assert!(default.is_none());
+    });
+    assert_node!(parser.tree, parameters[1], GenericParameter::Type { name, constraint, default, .. } => {
+        assert_string!(parser, *name, "Return");
+        assert!(constraint.is_none());
+        assert!(default.is_none());
+    });
+}
+
+#[test]
+fn test_parse_variadic_value_generic_parameter() {
+    // <comptime ...Shape: readonly usize[]>
+    let mut test = TestParser::new_with_language(
+        "<comptime ...Shape: readonly usize[]>",
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let parameters = parser.eat_generic_parameters(true).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(parameters.len(), 1);
+    assert_node!(parser.tree, parameters[0], GenericParameter::VariadicValue { name, declared_type, default, is_comptime } => {
+        assert_string!(parser, *name, "Shape");
+        assert!(*is_comptime);
+        assert!(default.is_none());
+        assert_node!(parser.tree, declared_type.expect("expected value variadic type"), TypeExpression::Readonly { target_type } => {
+            assert_node!(parser.tree, *target_type, TypeExpression::Array { element } => {
+                assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Pointer { is_signed: false }));
+                });
+            });
+        });
+    });
 }
 
 #[test]

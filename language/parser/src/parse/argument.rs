@@ -247,31 +247,49 @@ impl Parser {
         context: ParserFlags,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<GenericArgument>> {
-        // spread generic arguments are not supported
-        if self.peek_is(TokenType::Spread) {
+        let is_spread = self.peek_is(TokenType::Spread);
+        if is_spread && !self.language.is_destack() {
             return Err(ParseError::unexpected(self.peek()?.span));
+        }
+        if is_spread {
+            self.eat_token(TokenType::Spread)?;
         }
 
         // parse obvious type arguments directly
         if self.generic_argument_starts_unambiguous_type() {
             let value = self.eat_type_expression_in_flags(context)?;
+            let argument = if is_spread {
+                GenericArgument::SpreadType { value }
+            } else {
+                GenericArgument::Type { value }
+            };
 
-            return Ok(self.insert_node(GenericArgument::Type { value }, self.get_span_from(start)));
+            return Ok(self.insert_node(argument, self.get_span_from(start)));
         }
 
         // explicit type-space argument
         if self.is_keyword(Keyword::Type) {
             self.eat_keyword(Keyword::Type)?;
             let value = self.eat_type_expression_in_flags(context.with_type(true))?;
+            let argument = if is_spread {
+                GenericArgument::SpreadType { value }
+            } else {
+                GenericArgument::Type { value }
+            };
 
-            return Ok(self.insert_node(GenericArgument::Type { value }, self.get_span_from(start)));
+            return Ok(self.insert_node(argument, self.get_span_from(start)));
         }
 
         // parse ambiguous arguments as types only when the whole argument is type shaped
         if self.generic_argument_parses_as_type(context) {
             let value = self.eat_type_expression_in_flags(context)?;
+            let argument = if is_spread {
+                GenericArgument::SpreadType { value }
+            } else {
+                GenericArgument::Type { value }
+            };
 
-            return Ok(self.insert_node(GenericArgument::Type { value }, self.get_span_from(start)));
+            return Ok(self.insert_node(argument, self.get_span_from(start)));
         }
 
         // otherwise parse the argument in value space
@@ -281,8 +299,13 @@ impl Parser {
                 .with_ambient_context(value_ambient_context)
                 .with_expression_context(context),
         )?;
+        let argument = if is_spread {
+            GenericArgument::SpreadValue { value }
+        } else {
+            GenericArgument::Value { value }
+        };
 
-        Ok(self.insert_node(GenericArgument::Value { value }, self.get_span_from(start)))
+        Ok(self.insert_node(argument, self.get_span_from(start)))
     }
 
     /// Return the common flags for positional argument values.
@@ -1182,6 +1205,14 @@ impl Parser {
             break;
         }
 
+        let is_variadic = self.peek_is(TokenType::Spread);
+        if is_variadic && !self.language.is_destack() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+        if is_variadic {
+            self.eat_token(TokenType::Spread)?;
+        }
+
         // generic parameters are always named
         let (name, name_span) = self.eat_binding_identifier_with_span()?;
 
@@ -1244,11 +1275,28 @@ impl Parser {
 
         // generic value parameters must be marked comptime
         let parameter = if is_value_parameter {
-            GenericParameter::Value {
+            if is_variadic {
+                GenericParameter::VariadicValue {
+                    name,
+                    declared_type,
+                    default: default.0,
+                    is_comptime,
+                }
+            } else {
+                GenericParameter::Value {
+                    name,
+                    declared_type,
+                    default: default.0,
+                    is_comptime,
+                }
+            }
+        } else if is_variadic {
+            GenericParameter::VariadicType {
                 name,
-                declared_type,
-                default: default.0,
-                is_comptime,
+                is_const,
+                variance,
+                constraint: declared_type,
+                default: default.1,
             }
         } else {
             GenericParameter::Type {
