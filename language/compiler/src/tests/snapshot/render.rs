@@ -94,7 +94,7 @@ impl<'a> SnapshotRenderer<'a> {
     pub(super) fn render_fields(fields: &[SnapshotField]) -> String {
         fields
             .iter()
-            .map(|field| format!("{}={}", field.key, Self::quote_field_value(field)))
+            .map(|field| format!("{}={}", field.key, Self::render_field_value(field)))
             .collect::<Vec<_>>()
             .join(" ")
     }
@@ -286,8 +286,8 @@ impl<'a> SnapshotRenderer<'a> {
         }
     }
 
-    /// Quote a row field value when needed.
-    fn quote_field_value(field: &SnapshotField) -> String {
+    /// Render one row field value.
+    fn render_field_value(field: &SnapshotField) -> String {
         match field.style {
             SnapshotFieldStyle::Plain => Self::quote_value(&field.value),
             SnapshotFieldStyle::Type => field.value.to_string(),

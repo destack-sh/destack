@@ -7,6 +7,8 @@ pub(crate) struct DirRows {
     pub(super) binding_nodes: bool,
     /// Whether to render type table rows.
     pub(super) types: bool,
+    /// Whether to render identifier type rows.
+    pub(super) type_references: bool,
     /// Whether to render generic table rows.
     pub(super) generic: bool,
     /// Whether to render static table rows.
@@ -43,6 +45,7 @@ impl DirRows {
             binding: false,
             binding_nodes: false,
             types: false,
+            type_references: false,
             generic: false,
             statics: false,
             resolution: false,
@@ -103,6 +106,7 @@ impl DirRows {
     pub(crate) const fn checked() -> Self {
         Self {
             types: true,
+            type_references: true,
             generic: true,
             resolution: true,
             instance: true,
@@ -123,6 +127,12 @@ impl DirRows {
     /// Include static table rows.
     pub(crate) const fn with_statics(mut self) -> Self {
         self.statics = true;
+        self
+    }
+
+    /// Exclude identifier type rows.
+    pub(crate) const fn without_reference_types(mut self) -> Self {
+        self.type_references = false;
         self
     }
 
