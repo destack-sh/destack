@@ -220,9 +220,6 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
             TypeExpression::Not { target_type } => {
                 write!(f, [token("!"), target_type])?;
             }
-            TypeExpression::In { left, right } => {
-                write!(f, [left, space(), Keyword::In, space(), right])?;
-            }
             TypeExpression::Extends { left, right } => {
                 write!(f, [left, space(), Keyword::Extends, space(), right])?;
             }
