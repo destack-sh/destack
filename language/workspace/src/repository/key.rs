@@ -20,7 +20,6 @@ pub(crate) fn profile_key_for_target(
         profile_compiler_options_for_target(target, compiler_options, profile_config, product_role);
     let conditions = condition_set_from_compiler_options(
         target_name,
-        target,
         &compiler_options,
         config,
         &environment.selection,
@@ -38,6 +37,12 @@ pub(crate) fn profile_key_for_target(
     let host = profile_config
         .and_then(|profile| profile.host)
         .unwrap_or(target.host);
+    let conditions = ConditionSet {
+        platform: Some(platform),
+        host: Some(host),
+        runtime: Some(runtime),
+        ..conditions
+    };
 
     // comptime environment
     let env = profile_config
@@ -58,21 +63,13 @@ pub(crate) fn profile_key_for_target(
 
     ProfileKey::new(
         emit,
-        runtime,
-        platform,
-        host,
+        conditions,
         target.target_arch.clone(),
         target.target_vendor.clone(),
         target.target_abi.clone(),
         globals,
         tree,
         derive,
-        conditions.modes.iter().cloned().collect(),
-        conditions.roles.iter().cloned().collect(),
-        conditions.features.iter().cloned().collect(),
-        conditions.tags.iter().cloned().collect(),
-        conditions.target.clone(),
-        conditions.product.clone(),
         env,
         flags,
     )
@@ -81,7 +78,6 @@ pub(crate) fn profile_key_for_target(
 /// Build one condition set from already resolved compiler options.
 fn condition_set_from_compiler_options(
     target_name: &str,
-    target: &Target,
     compiler_options: &CompilerOptions,
     config: Option<&Destack>,
     selection: &ConditionSelection,
@@ -138,9 +134,9 @@ fn condition_set_from_compiler_options(
         ),
         target: Some(target_name.to_string()),
         product: product.map(str::to_string),
-        platform: Some(target.platform),
-        host: Some(target.host),
-        runtime: Some(target.runtime),
+        platform: None,
+        host: None,
+        runtime: None,
     }
 }
 

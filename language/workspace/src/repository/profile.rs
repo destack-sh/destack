@@ -15,16 +15,12 @@ use crate::{
 pub struct Profile {
     /// The canonical profile key.
     pub key: ProfileKey,
-    /// The active source graph conditions.
-    pub conditions: ConditionSet,
 }
 
 impl Profile {
     /// Build one resolved semantic profile from one canonical key.
     pub fn from_key(key: ProfileKey) -> Self {
-        let conditions = conditions_from_key(&key);
-
-        Self { key, conditions }
+        Self { key }
     }
 
     /// Return the deterministic profile id for this profile.
@@ -36,20 +32,10 @@ impl Profile {
     pub fn id_for_key(key: &ProfileKey) -> ProfileId {
         ProfileId::new(key.stable_hash())
     }
-}
 
-/// Build source graph conditions from one canonical profile key.
-fn conditions_from_key(key: &ProfileKey) -> ConditionSet {
-    ConditionSet {
-        modes: key.modes.iter().cloned().collect(),
-        roles: key.roles.iter().cloned().collect(),
-        features: key.features.iter().cloned().collect(),
-        tags: key.tags.iter().cloned().collect(),
-        target: key.target.clone(),
-        product: key.product.clone(),
-        platform: Some(key.platform),
-        host: Some(key.host),
-        runtime: Some(key.runtime),
+    /// Return active source graph and runtime conditions.
+    pub fn conditions(&self) -> &ConditionSet {
+        &self.key.conditions
     }
 }
 
