@@ -179,8 +179,8 @@ impl OutputLayout {
 impl<'a> ScriptLinker<'a> {
     /// Return one stable content hash for one source-backed module.
     fn source_hash(&self, module_id: ModuleId) -> LinkResult<String> {
-        let module = self.module(module_id);
-        let file = self.file(module.file_id);
+        let module = self.module(module_id)?;
+        let file = self.file(module.file_id)?;
 
         // hash the loaded content directly, regardless of file kind
         let hash = match file.content.payload() {
@@ -230,10 +230,11 @@ impl<'a> ScriptLinker<'a> {
 
         // derive unique names in stable output order
         for output in output_graph.outputs() {
-            let mut output_name = output
-                .manual_name()
-                .map(ToString::to_string)
-                .unwrap_or_else(|| self.automatic_script_output_name(output));
+            let mut output_name = if let Some(name) = output.manual_name() {
+                name.to_string()
+            } else {
+                self.automatic_script_output_name(output)?
+            };
             let base_name = output_name.clone();
             let mut duplicate_index = 2;
 
@@ -297,7 +298,7 @@ impl<'a> ScriptLinker<'a> {
                 self.package_dir,
                 self.root_dir,
                 self.target,
-                self.module(module_id).as_ref(),
+                self.module(module_id)?.as_ref(),
                 file_type,
             )
             .map_err(|message| LinkError::Internal {
@@ -305,7 +306,7 @@ impl<'a> ScriptLinker<'a> {
                 package: self.package_id,
                 message,
             })?;
-            let output_name = self.base_script_output_name(module_id, Path::new(""));
+            let output_name = self.base_script_output_name(module_id, Path::new(""))?;
 
             output_names.push(output_name);
             output_locations.push(output_location);
@@ -350,7 +351,7 @@ impl<'a> ScriptLinker<'a> {
         for module_id in output.modules() {
             module_id.hash(&mut hasher);
 
-            let module = self.module(*module_id);
+            let module = self.module(*module_id)?;
             let module = module.as_ref();
 
             if module.path.is_some() {
@@ -366,9 +367,9 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Build one default output name candidate for one automatic chunk.
-    fn automatic_script_output_name(&self, output: &super::Output) -> String {
+    fn automatic_script_output_name(&self, output: &super::Output) -> LinkResult<String> {
         if output.kind() == OutputKind::Shared && output.facade_module().is_none() {
-            return "chunk".to_string();
+            return Ok("chunk".to_string());
         }
 
         let module_id = output
@@ -380,10 +381,15 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Build one default output name candidate for one module.
-    fn base_script_output_name(&self, module_id: ModuleId, package_dir: &Path) -> String {
-        let module_path =
-            self.compiler
-                .package_relative_module_path(package_dir, module_id, self.context);
+    fn base_script_output_name(
+        &self,
+        module_id: ModuleId,
+        package_dir: &Path,
+    ) -> LinkResult<String> {
+        let module_path = self
+            .compiler
+            .package_relative_module_path(package_dir, module_id, self.context)
+            .map_err(|error| self.link_error(error))?;
         let module_path = Path::new(&module_path);
         let stem = module_path
             .file_stem()
@@ -391,7 +397,7 @@ impl<'a> ScriptLinker<'a> {
             .filter(|stem| !stem.is_empty())
             .unwrap_or("output");
 
-        self.sanitize_script_output_name(stem)
+        Ok(self.sanitize_script_output_name(stem))
     }
 
     /// Sanitize one output name for output file templates.

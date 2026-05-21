@@ -1,7 +1,7 @@
 use destack_workspace::ProviderContext;
 use std::path::Path;
 
-use crate::Compiler;
+use crate::{Compiler, LinkResult};
 
 use destack_source::{PackageId, TargetId};
 use destack_workspace::Target;
@@ -36,10 +36,12 @@ impl<'a> BinaryLinker<'a> {
         target: &'a Target,
         target_id: &'a TargetId,
         package_id: PackageId,
-    ) -> Self {
-        let target_name = compiler.target_name(context.revision(), *target_id);
+    ) -> LinkResult<Self> {
+        let target_name = compiler
+            .target_name(context.revision(), *target_id)
+            .map_err(|error| Compiler::link_error(package_id, error))?;
 
-        Self {
+        Ok(Self {
             compiler,
             context,
             package_dir,
@@ -48,7 +50,7 @@ impl<'a> BinaryLinker<'a> {
             target_id,
             target_name,
             package_id,
-        }
+        })
     }
 
     /// Return the active target name.

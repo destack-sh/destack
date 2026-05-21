@@ -18,7 +18,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         stylesheet_root_modules: &[ModuleId],
         script_module_ids: &[ModuleId],
-    ) -> Vec<ModuleId> {
+    ) -> LinkResult<Vec<ModuleId>> {
         let mut stylesheet_module_ids = stylesheet_root_modules
             .iter()
             .copied()
@@ -26,16 +26,16 @@ impl<'a> ScriptLinker<'a> {
 
         // script graphs root css modules through JS import edges
         for module_id in script_module_ids {
-            let module = self.module(*module_id);
+            let module = self.module(*module_id)?;
 
-            let file = self.file(module.file_id);
+            let file = self.file(module.file_id)?;
 
             if file.ty == FileType::Css {
                 stylesheet_module_ids.insert(*module_id);
             }
         }
 
-        stylesheet_module_ids.into_iter().collect()
+        Ok(stylesheet_module_ids.into_iter().collect())
     }
 
     /// Require the artifacts needed for one rooted stylesheet lane.
@@ -54,9 +54,9 @@ impl<'a> ScriptLinker<'a> {
             }
 
             let profile_id = self.profile_id_for_module(module_id)?;
-            let module = self.module(module_id);
+            let module = self.module(module_id)?;
 
-            let file = self.file(module.file_id);
+            let file = self.file(module.file_id)?;
 
             if file.ty != FileType::Css {
                 return Err(LinkError::InvalidModuleKind {
@@ -145,7 +145,7 @@ impl<'a> ScriptLinker<'a> {
 
         // derive one output file path per entry stylesheet module
         for module_id in stylesheet_module_ids.iter().copied() {
-            let module = self.module(module_id);
+            let module = self.module(module_id)?;
             let output_location = self.css_stylesheet_output_location(module.as_ref())?;
 
             output_locations.insert(module_id, output_location);
@@ -157,7 +157,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return the CSS payload for one parsed module.
     pub(super) fn css_payload(&self, module_id: ModuleId) -> LinkResult<Css> {
         let data = self.data(module_id)?;
-        let module = self.module(module_id);
+        let module = self.module(module_id)?;
 
         match data.as_ref() {
             Data::Css(css) => Ok(css.as_ref().clone()),
@@ -786,7 +786,7 @@ impl<'a> ScriptLinker<'a> {
             return Ok(None);
         };
         let placeholder = self.next_stylesheet_placeholder(next_rewrite_index);
-        let asset_module = self.module(target_module_id);
+        let asset_module = self.module(target_module_id)?;
         Ok(Some((
             placeholder,
             asset_module.id,

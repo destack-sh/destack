@@ -163,8 +163,12 @@ impl Compiler {
                 continue;
             }
 
+            let module = self
+                .module(context.revision(), module_id)
+                .map_err(|error| Compiler::link_error(package_id, error))?;
+
             if !self.should_bundle_script_dependency(
-                Span::empty(self.module(context.revision(), module_id).file_id),
+                Span::empty(module.file_id),
                 package_id,
                 target_id,
                 target,
@@ -204,8 +208,12 @@ impl Compiler {
                 continue;
             };
 
+            let module = self
+                .module(context.revision(), module_id)
+                .map_err(|error| Compiler::link_error(package_id, error))?;
+
             if !self.should_bundle_script_dependency(
-                Span::empty(self.module(context.revision(), module_id).file_id),
+                Span::empty(module.file_id),
                 package_id,
                 target_id,
                 target,
@@ -245,8 +253,12 @@ impl Compiler {
                 continue;
             }
 
+            let module = self
+                .module(context.revision(), module_id)
+                .map_err(|error| Compiler::link_error(package_id, error))?;
+
             if self.should_bundle_script_dependency(
-                Span::empty(self.module(context.revision(), module_id).file_id),
+                Span::empty(module.file_id),
                 package_id,
                 target_id,
                 target,
@@ -282,8 +294,12 @@ impl Compiler {
                 continue;
             };
 
+            let module = self
+                .module(context.revision(), module_id)
+                .map_err(|error| Compiler::link_error(package_id, error))?;
+
             if self.should_bundle_script_dependency(
-                Span::empty(self.module(context.revision(), module_id).file_id),
+                Span::empty(module.file_id),
                 package_id,
                 target_id,
                 target,

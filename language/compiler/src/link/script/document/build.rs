@@ -39,8 +39,8 @@ impl<'a> ScriptLinker<'a> {
         self.require_html_root_artifacts(root_modules)?;
 
         for module_id in root_modules {
-            let module = self.module(*module_id);
-            let file = self.file(module.file_id);
+            let module = self.module(*module_id)?;
+            let file = self.file(module.file_id)?;
 
             // html targets must root html source files
             if file.ty != FileType::Html {
@@ -315,7 +315,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return the parsed HTML payload for one source module.
     pub(in crate::link::script) fn html_payload(&self, module_id: ModuleId) -> LinkResult<Html> {
         let data = self.data(module_id)?;
-        let module = self.module(module_id);
+        let module = self.module(module_id)?;
 
         match data.as_ref() {
             Data::Html(html) => Ok(html.as_ref().clone()),
@@ -349,7 +349,7 @@ impl<'a> ScriptLinker<'a> {
             return Ok(None);
         };
         let module_id = module_edge.target;
-        let resolved_module = self.module(module_id);
+        let resolved_module = self.module(module_id)?;
 
         if !resolved_module.is_code() {
             return Err(LinkError::InvalidModuleKind {
@@ -407,9 +407,9 @@ impl<'a> ScriptLinker<'a> {
             return Ok(None);
         };
         let module_id = module_edge.target;
-        let stylesheet = self.module(module_id);
+        let stylesheet = self.module(module_id)?;
 
-        let stylesheet_file = self.file(stylesheet.file_id);
+        let stylesheet_file = self.file(stylesheet.file_id)?;
 
         if stylesheet_file.ty != FileType::Css {
             return Err(LinkError::InvalidModuleKind {

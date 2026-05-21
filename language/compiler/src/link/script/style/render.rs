@@ -69,7 +69,7 @@ impl<'a> ScriptLinker<'a> {
                             module_id
                         ),
                     })?;
-            let module = self.module(module_id);
+            let module = self.module(module_id)?;
 
             files.push(OutputFile {
                 uri: Uri::from_path(output_location.path()),
@@ -135,7 +135,7 @@ impl<'a> ScriptLinker<'a> {
         target_location: &TargetLocation<'_>,
         assets: &IndexMap<ModuleId, AssetReference>,
     ) -> LinkResult<(IndexSet<String>, String)> {
-        let module = self.module(module_id);
+        let module = self.module(module_id)?;
         let module = module.as_ref();
         let module_edges = self.module_edges_for_module(module_id)?;
 
@@ -287,7 +287,7 @@ impl<'a> ScriptLinker<'a> {
                     package: self.package_id,
                     message: format!(
                         "missing planned output for css asset '{}'",
-                        self.asset_display_name(*module_id)
+                        self.asset_display_name(*module_id)?
                     ),
                 });
             };
@@ -300,7 +300,7 @@ impl<'a> ScriptLinker<'a> {
                     reference.push_str(suffix);
                     reference
                 }
-                AssetReference::Original => self.asset_original_reference(*module_id),
+                AssetReference::Original => self.asset_original_reference(*module_id)?,
             };
 
             replacements.insert(placeholder.clone(), replacement);

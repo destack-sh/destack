@@ -515,6 +515,7 @@ fn render_html_asset_reference(
 ) -> LinkResult<String> {
     let target_location =
         TargetLocation::new(linker.package_dir, linker.target, linker.target_name());
+    let asset_display_name = linker.asset_display_name(module_id)?;
     let asset_reference =
         plan.asset_reference_map()
             .get(&module_id)
@@ -523,7 +524,7 @@ fn render_html_asset_reference(
                 package: linker.package_id,
                 message: format!(
                     "missing planned output for html asset '{}'",
-                    linker.asset_display_name(module_id)
+                    asset_display_name
                 ),
             })?;
 
@@ -539,7 +540,7 @@ fn render_html_asset_reference(
             Ok(reference)
         }
 
-        AssetReference::Original => Ok(linker.asset_original_reference(module_id)),
+        AssetReference::Original => linker.asset_original_reference(module_id),
     }
 }
 

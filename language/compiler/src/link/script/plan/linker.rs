@@ -87,11 +87,12 @@ impl<'a> ScriptLinker<'a> {
         module_ids: &[ModuleId],
     ) -> LinkResult<ModuleSet> {
         let entry_modules = entry_modules.to_vec();
-        let included_modules = module_ids
-            .iter()
-            .copied()
-            .filter(|module_id| !self.is_plain_stylesheet_module(*module_id))
-            .collect::<Vec<_>>();
+        let mut included_modules = Vec::new();
+        for module_id in module_ids {
+            if !self.is_plain_stylesheet_module(*module_id)? {
+                included_modules.push(*module_id);
+            }
+        }
         let modules = order_script_modules(self, &included_modules)?;
         let mut module_set = ModuleSet {
             entry_modules,
@@ -110,7 +111,7 @@ impl<'a> ScriptLinker<'a> {
     /// Collect the retained external and dynamic script targets.
     fn collect_retained_script_targets(&self, module_set: &mut ModuleSet) -> LinkResult<()> {
         for module_id in &module_set.modules {
-            let module = self.module(*module_id);
+            let module = self.module(*module_id)?;
 
             if !module.is_code() {
                 continue;
@@ -125,7 +126,7 @@ impl<'a> ScriptLinker<'a> {
             // retained static externals
             for dependency in static_script_dependencies(&script.module) {
                 if !self.compiler.should_bundle_script_dependency(
-                    self.module_anchor_span(*module_id),
+                    self.module_anchor_span(*module_id)?,
                     self.package_id,
                     self.target_id,
                     self.target,
@@ -145,7 +146,7 @@ impl<'a> ScriptLinker<'a> {
                 };
 
                 let should_bundle = self.compiler.should_bundle_script_dependency(
-                    self.module_anchor_span(*module_id),
+                    self.module_anchor_span(*module_id)?,
                     self.package_id,
                     self.target_id,
                     self.target,
@@ -196,7 +197,7 @@ impl<'a> ScriptLinker<'a> {
             }
 
             self.ensure_target_profile(module_id)?;
-            let module = self.module(module_id);
+            let module = self.module(module_id)?;
             let profile_id = self.profile_id_for_module(module_id)?;
 
             // resource modules are linked directly from patched module state
@@ -259,7 +260,7 @@ impl<'a> ScriptLinker<'a> {
 
     /// Return the bundled internal script dependencies for one generated module.
     fn bundled_script_dependency_modules(&self, module_id: ModuleId) -> LinkResult<Vec<ModuleId>> {
-        let module = self.module(module_id);
+        let module = self.module(module_id)?;
 
         if !module.is_code() {
             return Ok(Vec::new());
@@ -310,7 +311,7 @@ impl<'a> ScriptLinker<'a> {
                 .map_err(CompilerError::from)?
         };
         let stylesheet_module_id_set =
-            self.collect_stylesheet_modules(&stylesheet_root_modules, &script_module_id_set);
+            self.collect_stylesheet_modules(&stylesheet_root_modules, &script_module_id_set)?;
         let stylesheet_output_locations = if stylesheet_module_id_set.is_empty() {
             Default::default()
         } else {

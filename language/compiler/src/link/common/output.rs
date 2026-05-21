@@ -1,7 +1,7 @@
 use destack_workspace::ProviderContext;
 use std::path::Path;
 
-use crate::{Compiler, LinkResult};
+use crate::{Compiler, CompilerResult, LinkResult};
 
 use destack_artifact::{
     BuildManifest, OutputContent, OutputFile, PackageAssembly, PackageOutput, TargetOutputName,
@@ -43,14 +43,14 @@ impl Compiler {
         package_dir: &Path,
         module_id: ModuleId,
         context: &dyn ProviderContext,
-    ) -> String {
-        let module = self.module(context.revision(), module_id);
+    ) -> CompilerResult<String> {
+        let module = self.module(context.revision(), module_id)?;
 
         if let Some(path) = &module.path {
-            return self.package_relative_path(package_dir, path);
+            return Ok(self.package_relative_path(package_dir, path));
         }
 
-        self.package_relative_uri_path(package_dir, &module.uri)
+        Ok(self.package_relative_uri_path(package_dir, &module.uri))
     }
 
     /// Append one manifest sidecar to one package output.

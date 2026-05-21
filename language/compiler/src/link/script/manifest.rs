@@ -1,4 +1,5 @@
 use crate::link::{OutputLocation, TargetLocation};
+use crate::{LinkError, LinkResult};
 use destack_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, OutputFile,
     PackageOutput, TargetOutputName,
@@ -73,26 +74,26 @@ impl<'a> ScriptLinker<'a> {
         &self,
         output: &PackageOutput,
         plan: &Plan,
-    ) -> BuildManifest {
+    ) -> LinkResult<BuildManifest> {
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
-        let mut files = output
-            .outputs
-            .iter()
-            .flat_map(|(output_name, files)| {
-                files.iter().map(|file| {
-                    self.build_script_manifest_file(&target_layout, *output_name, file, plan)
-                })
-            })
-            .collect::<Vec<_>>();
+        let mut files = Vec::new();
+        for (output_name, output_files) in &output.outputs {
+            for file in output_files {
+                let file =
+                    self.build_script_manifest_file(&target_layout, *output_name, file, plan)?;
+
+                files.push(file);
+            }
+        }
 
         files.sort_by(|left, right| left.path.cmp(&right.path));
 
-        BuildManifest {
+        Ok(BuildManifest {
             index: self
                 .compiler
                 .build_manifest_index_path(&target_layout, self.target, output),
             files,
-        }
+        })
     }
 
     /// Build one public build manifest file for one script output.
@@ -102,7 +103,7 @@ impl<'a> ScriptLinker<'a> {
         output_name: TargetOutputName,
         file: &OutputFile,
         plan: &Plan,
-    ) -> BuildManifestFile {
+    ) -> LinkResult<BuildManifestFile> {
         let output_location = self.compiler.file_output_location(target_layout, file);
         let path = output_location
             .as_ref()
@@ -117,15 +118,15 @@ impl<'a> ScriptLinker<'a> {
             file.content.file_type(),
             output_location.as_ref(),
             plan,
-        );
+        )?;
 
-        ManifestFileRecord {
+        Ok(ManifestFileRecord {
             path,
             file_type: self.compiler.build_manifest_file_type(file),
             loader: self.compiler.build_manifest_loader(file),
             chunk,
         }
-        .into()
+        .into())
     }
 
     /// Build one manifest metadata record for one script output when one exists.
@@ -136,9 +137,9 @@ impl<'a> ScriptLinker<'a> {
         file_type: FileType,
         output_location: Option<&OutputLocation>,
         plan: &Plan,
-    ) -> Option<ManifestChunkMetadata> {
+    ) -> LinkResult<Option<ManifestChunkMetadata>> {
         if matches!(file_type, FileType::Html) {
-            return Some(ManifestChunkMetadata {
+            return Ok(Some(ManifestChunkMetadata {
                 name: None,
                 input: None,
                 is_entry: output_name == TargetOutputName::Document,
@@ -146,23 +147,37 @@ impl<'a> ScriptLinker<'a> {
                 imports: Vec::new(),
                 dynamic_imports: Vec::new(),
                 stylesheets: Vec::new(),
-            });
+            }));
         }
 
         if !matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
-            return None;
+            return Ok(None);
         }
 
-        let output_location = output_location?;
-        let output_id = plan
+        let Some(output_location) = output_location else {
+            return Ok(None);
+        };
+        let Some(output_id) = plan
             .output_layout()
-            .output_id_for_output_location(output_location)?;
+            .output_id_for_output_location(output_location)
+        else {
+            return Ok(None);
+        };
         let output = plan
             .output_graph()
             .output(output_id)
-            .unwrap_or_else(|| panic!("missing output graph node for output id {}", output_id.0));
+            .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("missing output graph node for output id {}", output_id.0),
+            })?;
 
-        Some(self.build_script_manifest_node_metadata(target_layout, output_id, output, plan))
+        Ok(Some(self.build_script_manifest_node_metadata(
+            target_layout,
+            output_id,
+            output,
+            plan,
+        )?))
     }
 
     /// Build one manifest metadata record for one output node.
@@ -172,11 +187,15 @@ impl<'a> ScriptLinker<'a> {
         output_id: OutputId,
         output: &Output,
         plan: &Plan,
-    ) -> ManifestChunkMetadata {
+    ) -> LinkResult<ManifestChunkMetadata> {
         let output_location = plan
             .output_layout()
             .output_location(output_id)
-            .unwrap_or_else(|| panic!("missing output placement for output id {}", output_id.0));
+            .ok_or_else(|| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("missing output placement for output id {}", output_id.0),
+            })?;
         let mut imports = output
             .static_output_dependencies()
             .iter()
@@ -214,7 +233,7 @@ impl<'a> ScriptLinker<'a> {
         imports.extend(output.external_imports().iter().cloned());
         dynamic_imports.extend(output.external_dynamic_imports().iter().cloned());
 
-        ManifestChunkMetadata {
+        Ok(ManifestChunkMetadata {
             name: if plan.output_graph().bundle_mode() == BundleMode::PreserveModules {
                 None
             } else {
@@ -222,18 +241,19 @@ impl<'a> ScriptLinker<'a> {
                     .output_name(output_id)
                     .map(ToString::to_string)
             },
-            input: output.facade_module().map(|module_id| {
-                self.compiler.package_relative_module_path(
-                    self.package_dir,
-                    module_id,
-                    self.context,
-                )
-            }),
+            input: output
+                .facade_module()
+                .map(|module_id| {
+                    self.compiler
+                        .package_relative_module_path(self.package_dir, module_id, self.context)
+                        .map_err(|error| self.link_error(error))
+                })
+                .transpose()?,
             is_entry: output.is_entry(),
             is_dynamic_entry: output.is_dynamic_entry(),
             imports,
             dynamic_imports,
             stylesheets,
-        }
+        })
     }
 }

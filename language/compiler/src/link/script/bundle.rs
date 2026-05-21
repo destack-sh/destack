@@ -59,7 +59,7 @@ impl<'a> ScriptLinker<'a> {
     ) -> LinkResult<ScriptStatementAction> {
         let dependency_target = self.script_dependency_target(specifier, target_module);
         let is_internal = self.should_bundle_script_dependency(
-            self.module_anchor_span(module_id),
+            self.module_anchor_span(module_id)?,
             package_id,
             target_id,
             target,
@@ -78,7 +78,7 @@ impl<'a> ScriptLinker<'a> {
 
         // bundled resource imports become local value bindings
         if let Some(target_module) = target_module {
-            if !self.module(target_module).is_code() {
+            if !self.module(target_module)?.is_code() {
                 if items.is_empty() {
                     return Ok(ScriptStatementAction::Drop);
                 }
@@ -156,7 +156,7 @@ impl<'a> ScriptLinker<'a> {
 
         let dependency_target = self.script_dependency_target(&specifier, target_module);
         let is_internal = self.should_bundle_script_dependency(
-            self.module_anchor_span(module_id),
+            self.module_anchor_span(module_id)?,
             package_id,
             target_id,
             target_config,

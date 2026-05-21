@@ -296,7 +296,7 @@ impl<'a> ScriptLinker<'a> {
         output_graph: &OutputGraph,
         plan: &Plan,
     ) -> LinkResult<ScriptOutput> {
-        let source_module = self.module(module_id);
+        let source_module = self.module(module_id)?;
         let source_module = source_module.as_ref();
         let profile_id = self.profile_id_for_module(module_id)?;
         let dir = self
@@ -312,7 +312,7 @@ impl<'a> ScriptLinker<'a> {
                     self.target_name()
                 ),
             })?;
-        let is_plain_stylesheet = self.is_plain_stylesheet_module(module_id);
+        let is_plain_stylesheet = self.is_plain_stylesheet_module(module_id)?;
         let mut tree = js::Tree::new();
         let mut strings = StringPool::new();
         let value = self.resource_value(
@@ -401,7 +401,7 @@ impl<'a> ScriptLinker<'a> {
         tree: &mut js::Tree,
         strings: &mut StringPool,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
-        if self.is_plain_stylesheet_module(module.id) {
+        if self.is_plain_stylesheet_module(module.id)? {
             let stylesheet_url = self.stylesheet_reference(output_id, plan, module.id)?;
 
             return Ok(insert_string_expression(
@@ -429,7 +429,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         if module.loader == Loader::Base64 {
-            let file = self.file(module.file_id);
+            let file = self.file(module.file_id)?;
             let FileContent::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
@@ -448,7 +448,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         if module.loader.is_text() {
-            let file = self.file(module.file_id);
+            let file = self.file(module.file_id)?;
             let FileContent::Text { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
@@ -466,7 +466,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         if module.loader == Loader::Binary {
-            let file = self.file(module.file_id);
+            let file = self.file(module.file_id)?;
             let FileContent::Binary { content } = file.content.payload() else {
                 return Err(LinkError::Internal {
                     anchor: (self.package_id).into(),
