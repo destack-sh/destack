@@ -5,6 +5,7 @@ mod dependency;
 mod export;
 mod extension;
 mod generic;
+mod global;
 mod import;
 mod instance;
 mod layout;

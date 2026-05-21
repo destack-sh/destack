@@ -45,6 +45,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) static_labels: BTreeMap<dir::LocalStaticId, String>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
+    /// Whether to render identifier type rows.
+    pub(super) type_references: bool,
     /// Whether to render table summary rows.
     summaries: bool,
     /// The rows collected so far.
@@ -68,6 +70,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             type_labels: BTreeMap::new(),
             static_labels: BTreeMap::new(),
             binding_nodes: false,
+            type_references: false,
             summaries: true,
             rows: Vec::new(),
         }
@@ -171,12 +174,14 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.export {
             self.add_table(&exported.exports);
+            self.add_table(&exported.globals);
         }
     }
 
     /// Add selected rows for a checked DIR artifact.
     pub(crate) fn add_checked(&mut self, selection: DirRows, checked: &DirChecked) {
         self.summaries = selection.summaries;
+        self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
             self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
@@ -638,6 +643,22 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one node id.
     pub(crate) fn node_label(&self, node_id: dir::GlobalNodeIdAny) -> String {
         node_id.local_id.ty.name().replace(' ', "_")
+    }
+
+    /// Return whether to render one checked type node row.
+    pub(crate) fn should_render_type_node(&self, node_id: dir::GlobalNodeIdAny) -> bool {
+        if node_id.module_id != self.tree.module_id {
+            return false;
+        }
+
+        if node_id.local_id.ty != dir::NodeType::Expression {
+            return false;
+        }
+
+        let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.local_id.id);
+        let expression = self.tree.get(expression_id);
+
+        self.type_references || !expression.is_reference()
     }
 
     /// Render source text for one node when it is compact enough for a row.

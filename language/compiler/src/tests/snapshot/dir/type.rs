@@ -7,6 +7,10 @@ impl SnapshotTable for dir::TypeSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         // render effective checked node types
         for (node_id, type_id) in self.node_types() {
+            if !builder.should_render_type_node(node_id) {
+                continue;
+            }
+
             let row = SnapshotRow::new(builder.anchor_node(node_id), "type", "node")
                 .optional_field("source", builder.node_source(node_id))
                 .type_field("type", builder.type_label(type_id));
