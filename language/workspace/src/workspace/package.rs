@@ -10,6 +10,8 @@ use crate::config::{Dependency, Target, Vendor};
 /// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PackageKind {
+    /// Builtin package shipped with the toolchain.
+    Builtin,
     /// Declared package rooted by authored workspace config.
     Declared,
     /// Implicit package rooted by one loose-file directory.

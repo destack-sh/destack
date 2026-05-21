@@ -243,7 +243,7 @@ impl ModuleIndex {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use destack_source::{FileType, PackageId};
+    use destack_source::{FileType, PackageId, Uri};
 
     use super::*;
 
@@ -315,5 +315,30 @@ mod tests {
 
         assert_eq!(index.module_id_for_file(FileId::new(1)), Some(module_id));
         assert_eq!(index.module_id_for_file(FileId::new(2)), Some(module_id));
+    }
+
+    #[test]
+    fn test_module_index_tracks_builtin_uri() {
+        let package_id = PackageId::new(1);
+        let module_id = ModuleId::new(package_id, 1);
+        let module = Module::blank(
+            module_id,
+            FileId::new(1),
+            Uri::from_string("destack://types/function"),
+            None,
+            package_id,
+            Some(LanguageType::Destack),
+            Loader::Destack,
+        );
+
+        // index the builtin URI without a physical path
+        let mut modules = OrdMap::new();
+        modules.insert(module_id, Arc::new(module));
+        let index = ModuleIndex::new(modules);
+
+        assert_eq!(
+            index.module_id_for_uri(&Uri::from_string("destack://types/function")),
+            Some(module_id)
+        );
     }
 }

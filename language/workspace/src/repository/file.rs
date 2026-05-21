@@ -96,6 +96,12 @@ impl Repository {
 
     /// Build one file id for one workspace path.
     pub fn file_id(&self, path: &Path) -> FileId {
+        // prefer immutable builtin files
+        if let Some(file_id) = self.builtin.file_id_for_path(path) {
+            return file_id;
+        }
+
+        // hash editable workspace paths
         let logical_path = self.logical_path(path);
 
         FileId::from_source_bytes(logical_path.as_bytes())
@@ -107,10 +113,18 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<Arc<File>>, RepositoryError> {
+        // prefer immutable builtin files
+        if let Some(builtin) = self.builtin.file(file_id) {
+            return Ok(Some(Arc::new(builtin.file())));
+        }
+
+        // read editable revision files
         let revision = self.revision(revision)?;
         let Some(entry) = revision.file_entry(file_id) else {
             return Ok(None);
         };
+
+        // assemble the physical source file
         let content = self.file_content_by_id(entry.content_id)?;
         let path = self.root.join(&entry.logical_path);
         let uri = Uri::from_path(&path);
@@ -130,7 +144,12 @@ impl Repository {
         revision: Revision,
         path: &Path,
     ) -> Result<Option<FileMetadata>, RepositoryError> {
-        // file metadata
+        // prefer immutable builtin files
+        if let Some(builtin) = self.builtin.file_for_path(path) {
+            return Ok(Some(builtin.metadata()));
+        }
+
+        // read editable file metadata
         let file_id = self.file_id(path);
         if let Some(file) = self.file(revision, file_id)? {
             return Ok(Some(FileMetadata::new(
@@ -163,7 +182,14 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<FileContentId>, RepositoryError> {
+        // prefer immutable builtin files
+        if let Some(builtin) = self.builtin.file(file_id) {
+            return Ok(Some(builtin.content_id()));
+        }
+
+        // read editable revision files
         let revision = self.revision(revision)?;
+
         Ok(revision.file_content_id(file_id))
     }
 
@@ -173,6 +199,12 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<String>, RepositoryError> {
+        // prefer immutable builtin files
+        if let Some(builtin) = self.builtin.file(file_id) {
+            return Ok(Some(builtin.uri.to_string()));
+        }
+
+        // read editable revision files
         let revision = self.revision(revision)?;
         let logical_path = revision
             .file_entry(file_id)
@@ -183,9 +215,16 @@ impl Repository {
 
     /// Return the file ids visible in one revision.
     pub fn file_ids(&self, revision: Revision) -> Result<Vec<FileId>, RepositoryError> {
+        // start with editable revision files
         let revision = self.revision(revision)?;
+        let mut file_ids = revision.files.keys().copied().collect::<Vec<_>>();
 
-        Ok(revision.files.keys().copied().collect())
+        // append immutable builtin files
+        file_ids.extend(self.builtin.files().iter().map(|builtin| builtin.file_id()));
+        file_ids.sort_unstable();
+        file_ids.dedup();
+
+        Ok(file_ids)
     }
 
     /// Build the workspace directory set for one file map.

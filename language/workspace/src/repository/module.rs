@@ -30,13 +30,13 @@ struct ModuleFileCandidate {
 }
 
 impl Repository {
-    /// Build the module index from one file map.
-    pub(crate) fn module_index_for_files(
+    /// Build modules from editable revision files.
+    pub(crate) fn build_modules(
         &self,
         revision: Revision,
         files: &OrdMap<FileId, FileEntry>,
         packages: &PackageIndex,
-    ) -> Result<ModuleIndex, RepositoryError> {
+    ) -> Result<OrdMap<ModuleId, Arc<Module>>, RepositoryError> {
         let mut base_files = FxHashMap::default();
         let mut condition_files: FxHashMap<PathBuf, Vec<ModuleFileCandidate>> =
             FxHashMap::default();
@@ -70,7 +70,7 @@ impl Repository {
         }
 
         // build modules from base files only
-        let mut module_index = OrdMap::new();
+        let mut modules = OrdMap::new();
         for (base_path, base) in base_files {
             let mut module = self.module_from_candidate(base);
             if let Some(mut files) = condition_files.remove(&base_path) {
@@ -87,10 +87,10 @@ impl Repository {
                 }
             }
 
-            module_index.insert(module.id, Arc::new(module));
+            modules.insert(module.id, Arc::new(module));
         }
 
-        Ok(ModuleIndex::new(module_index))
+        Ok(modules)
     }
 
     /// Build one candidate from one revision file entry when applicable.
@@ -273,11 +273,13 @@ impl Repository {
         }
 
         let packages = self.package_index(revision)?;
-        let modules = Arc::new(self.module_index_for_files(
-            revision,
-            revision_state.files.as_ref(),
-            packages.as_ref(),
-        )?);
+        let mut modules =
+            self.build_modules(revision, revision_state.files.as_ref(), packages.as_ref())?;
+
+        // append immutable builtin modules
+        modules.extend(self.builtin.modules());
+
+        let modules = Arc::new(ModuleIndex::new(modules));
         let modules = revision_cache.modules.get_or_init(|| modules);
 
         Ok(Arc::clone(modules))

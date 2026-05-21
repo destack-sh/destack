@@ -82,7 +82,11 @@ impl Repository {
         let package_roots = self.package_roots_for_files(revision, files)?;
         let mut packages = OrdMap::new();
 
-        // config enrichment
+        // include the immutable builtin package
+        let package = self.builtin.package();
+        packages.insert(package.id, package);
+
+        // enrich editable workspace packages from config
         for (package_root, kind) in package_roots {
             let package = self.base_package(kind, &package_root);
             let package = self.build_package(revision, files, &package)?;
@@ -213,6 +217,7 @@ impl Repository {
     /// Return the package id for one package root.
     fn package_id(&self, kind: PackageKind, root: &Path) -> PackageId {
         match kind {
+            PackageKind::Builtin => self.builtin.package_id(),
             PackageKind::Declared | PackageKind::Implicit => PackageId::from_path(root),
         }
     }
