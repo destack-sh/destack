@@ -100,17 +100,17 @@ pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
     FileType::SourceMap,
 ];
 
-impl FileType {
-    /// The source code file types used for extensionless module resolution.
-    pub const CODE_MODULE_EXTENSION_CANDIDATES: &'static [Self] = &[
-        Self::Destack,
-        Self::DestackDeclaration,
-        Self::TypeScript,
-        Self::TypeScriptXml,
-        Self::JavaScript,
-        Self::JavaScriptXml,
-    ];
+/// Source code file types used for extensionless module resolution.
+pub const CODE_FILE_TYPES: &[FileType] = &[
+    FileType::Destack,
+    FileType::DestackDeclaration,
+    FileType::TypeScript,
+    FileType::TypeScriptXml,
+    FileType::JavaScript,
+    FileType::JavaScriptXml,
+];
 
+impl FileType {
     /// Get a source format from a file extension.
     pub fn from_extension(s: &str) -> Option<Self> {
         let ty = match s {
