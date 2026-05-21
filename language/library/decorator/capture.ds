@@ -1,5 +1,5 @@
 /// Capture policy for function environments.
-export type CapturePolicy = "share" | "borrow" | "copy" | "move";
+export type CapturePolicy = "manage" | "borrow" | "copy" | "move";
 
 /// Capture policy for individual bindings.
 export type CaptureKind = CapturePolicy;
@@ -19,7 +19,7 @@ export type CaptureDirective =
 /// ```
 ///
 /// ```
-/// @capture("share")
+/// @capture("manage")
 /// const f = () => value;
 /// ```
 ///
