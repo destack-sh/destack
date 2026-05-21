@@ -426,7 +426,7 @@ impl<'a> LintModuleContext<'a> {
         };
 
         environment
-            .modules
+            .globals
             .iter()
             .filter_map(|module_id| self.repository_module(*module_id))
             .any(|module| is_library_module(module.as_ref(), libs))

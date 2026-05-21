@@ -135,7 +135,7 @@ fn call_target_symbols(
     };
 
     match &resolution.target {
-        DirCallTarget::Direct(candidate) => {
+        DirCallTarget::Symbol(candidate) => {
             targets.push(candidate.symbol);
             targets.push(dir.canonical_symbol(candidate.symbol));
         }
@@ -145,7 +145,7 @@ fn call_target_symbols(
                 targets.push(dir.canonical_symbol(candidate.symbol));
             }
         }
-        DirCallTarget::Intrinsic { .. } => {}
+        DirCallTarget::Builtin(_) | DirCallTarget::Value => {}
     };
 
     targets.sort();

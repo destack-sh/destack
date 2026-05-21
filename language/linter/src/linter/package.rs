@@ -228,7 +228,7 @@ fn is_lib_available(ctx: &LintPackageContext, libs: &[&str]) -> bool {
     };
 
     environment
-        .modules
+        .globals
         .iter()
         .filter_map(|module_id| ctx.repository_module(*module_id))
         .any(|module| is_library_module(module.as_ref(), libs))

@@ -121,7 +121,7 @@ pub fn resolution_target_symbols(
 
     if let Some(resolution) = resolutions.member_resolution(node_id) {
         match &resolution.target {
-            dir::MemberTarget::Direct(candidate) => {
+            dir::MemberTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
             dir::MemberTarget::Select(candidates) => {
@@ -129,13 +129,13 @@ pub fn resolution_target_symbols(
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
             }
-            dir::MemberTarget::Intrinsic | dir::MemberTarget::Field { .. } => {}
+            dir::MemberTarget::Builtin(_) | dir::MemberTarget::Field(_) => {}
         }
     }
 
     if let Some(resolution) = resolutions.call_resolution(node_id) {
         match &resolution.target {
-            dir::CallTarget::Direct(candidate) => {
+            dir::CallTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
             dir::CallTarget::Select(candidates) => {
@@ -143,7 +143,7 @@ pub fn resolution_target_symbols(
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
             }
-            dir::CallTarget::Intrinsic { .. } => {}
+            dir::CallTarget::Builtin(_) | dir::CallTarget::Value => {}
         }
     }
 

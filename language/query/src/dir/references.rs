@@ -69,7 +69,7 @@ pub(crate) fn build_reference_targets_for_module(
         let node_id = expression_id.into_global_any(dir.module_id());
         if let Some(resolution) = dir.resolutions().member_resolution(node_id) {
             match &resolution.target {
-                MemberTarget::Direct(candidate) => {
+                MemberTarget::Symbol(candidate) => {
                     insert_reference_target_keys(dir, &mut targets, candidate.symbol)
                 }
                 MemberTarget::Select(candidates) => {
@@ -77,12 +77,12 @@ pub(crate) fn build_reference_targets_for_module(
                         insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
                 }
-                MemberTarget::Intrinsic | MemberTarget::Field { .. } => {}
+                MemberTarget::Builtin(_) | MemberTarget::Field(_) => {}
             }
         }
         if let Some(resolution) = dir.resolutions().call_resolution(node_id) {
             match &resolution.target {
-                DirCallTarget::Direct(candidate) => {
+                DirCallTarget::Symbol(candidate) => {
                     insert_reference_target_keys(dir, &mut targets, candidate.symbol)
                 }
                 DirCallTarget::Select(candidates) => {
@@ -90,7 +90,7 @@ pub(crate) fn build_reference_targets_for_module(
                         insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
                 }
-                DirCallTarget::Intrinsic { .. } => {}
+                DirCallTarget::Builtin(_) | DirCallTarget::Value => {}
             }
         }
 
