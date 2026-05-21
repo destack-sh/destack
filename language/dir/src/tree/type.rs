@@ -556,17 +556,6 @@ pub enum TypeExpression {
         else_type: LocalNodeId<TypeExpression>,
     },
 
-    /// Key membership relation.
-    ///
-    /// Examples:
-    /// ```
-    /// K in T
-    /// ```
-    In {
-        left: LocalNodeId<TypeExpression>,
-        right: LocalNodeId<TypeExpression>,
-    },
-
     /// Assignability relation.
     ///
     /// Examples:
