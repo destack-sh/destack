@@ -1492,9 +1492,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::TypeExpression::Not { target_type: _ } => {
                 self.node("js::TypeExpression::Not", id.id).end();
             }
-            js::TypeExpression::In { left: _, right: _ } => {
-                self.node("js::TypeExpression::In", id.id).end();
-            }
             js::TypeExpression::Extends { left: _, right: _ } => {
                 self.node("js::TypeExpression::Extends", id.id).end();
             }
