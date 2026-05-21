@@ -71,6 +71,7 @@ impl Compiler {
             dir::Parameter::VariadicPattern {
                 pattern,
                 declared_type,
+                ..
             } => {
                 // visit variadic pattern type
                 if let Some(declared_type) = declared_type {
