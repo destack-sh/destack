@@ -636,6 +636,7 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
+            | dir::Type::Closure(_)
             | dir::Type::Function(_) => false,
             dir::Type::Parameter(_)
             | dir::Type::Named(_)
@@ -1419,6 +1420,7 @@ fn type_truthiness_inner(
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
+            | dir::Type::Closure(_)
             | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Parameter(_)
             | dir::Type::This
@@ -1480,6 +1482,7 @@ fn type_nullishness_inner(
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
+            | dir::Type::Closure(_)
             | dir::Type::Function(_) => TypeNullishness::Never,
             dir::Type::Parameter(_)
             | dir::Type::This

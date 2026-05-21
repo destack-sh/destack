@@ -182,6 +182,12 @@ pub fn format_type(
                 formatted_parameters.join(", ")
             )
         }
+        dir::Type::Closure(closure) => {
+            let function = format_local_type(closure.function, types, ctx);
+            let environment = format_local_type(closure.environment, types, ctx);
+
+            format!("Closure<{function}, {environment}>")
+        }
         dir::Type::Union(union) => {
             let mut seen = HashSet::new();
             let mut formatted = Vec::new();

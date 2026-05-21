@@ -245,7 +245,7 @@ impl LocalCaptureFrameId {
     }
 }
 
-/// Shared lexical bindings lifted for one scope.
+/// Lexical bindings lifted for one scope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CaptureFrame {
     /// The lexical scope lifted into this frame.
@@ -268,8 +268,8 @@ pub struct CaptureFrameField {
 /// The capture mode for a closure binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CaptureMode {
-    /// Share the original binding through a managed lexical frame.
-    Share,
+    /// Preserve variable identity through compiler-managed storage.
+    Manage,
     /// Borrow access to the original binding.
     Borrow,
     /// Copy the binding value into the environment.
@@ -310,8 +310,8 @@ impl CaptureDirective {
 /// A single captured lexical binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CapturedBinding {
-    /// Share the binding through a lifted lexical frame.
-    Share {
+    /// Preserve the variable through compiler-managed storage.
+    Manage {
         /// The captured symbol.
         symbol: GlobalSymbolId,
         /// The capture frame that stores this binding.
@@ -346,7 +346,7 @@ impl CapturedBinding {
     /// Return the captured symbol.
     pub fn symbol(self) -> GlobalSymbolId {
         match self {
-            Self::Share { symbol, .. }
+            Self::Manage { symbol, .. }
             | Self::Borrow { symbol, .. }
             | Self::Copy { symbol, .. }
             | Self::Move { symbol, .. } => symbol,
@@ -356,7 +356,7 @@ impl CapturedBinding {
     /// Return the capture mode.
     pub fn mode(self) -> CaptureMode {
         match self {
-            Self::Share { .. } => CaptureMode::Share,
+            Self::Manage { .. } => CaptureMode::Manage,
             Self::Borrow { .. } => CaptureMode::Borrow,
             Self::Copy { .. } => CaptureMode::Copy,
             Self::Move { .. } => CaptureMode::Move,
@@ -366,17 +366,17 @@ impl CapturedBinding {
     /// Return the checked binding type.
     pub fn ty(self) -> LocalTypeId {
         match self {
-            Self::Share { ty, .. }
+            Self::Manage { ty, .. }
             | Self::Borrow { ty, .. }
             | Self::Copy { ty, .. }
             | Self::Move { ty, .. } => ty,
         }
     }
 
-    /// Return the capture frame when this is a shared binding.
+    /// Return the capture frame when this is a managed capture.
     pub fn frame(self) -> Option<LocalCaptureFrameId> {
         match self {
-            Self::Share { frame, .. } => Some(frame),
+            Self::Manage { frame, .. } => Some(frame),
             Self::Borrow { .. } | Self::Copy { .. } | Self::Move { .. } => None,
         }
     }
@@ -396,7 +396,7 @@ pub struct CapturedReceiver {
 /// Captures for a function declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Capture {
-    /// The shared frames used by this function.
+    /// The lexical frames used by this function.
     pub frames: Vec<LocalCaptureFrameId>,
     /// The resolved captures in discovery order.
     pub captures: Vec<CapturedBinding>,
