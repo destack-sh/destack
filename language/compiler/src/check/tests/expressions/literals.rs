@@ -15,16 +15,16 @@ const widened: int32 = 42;
         DirRows::checked(),
         r#"
 const literal = 42;
-/// @type.node source=42 type=42
 /// @type.symbol symbol=literal type=42
+/// @type.node source=42 type=42
 
 let mutable = 42;
-/// @type.node source=42 type=int32
 /// @type.symbol symbol=mutable type=int32
+/// @type.node source=42 type=int32
 
 const widened: int32 = 42;
-/// @type.node source=42 type=int32
 /// @type.symbol symbol=widened type=int32
+/// @type.node source=42 type=int32
 "#,
     );
 }

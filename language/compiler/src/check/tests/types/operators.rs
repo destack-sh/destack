@@ -212,12 +212,12 @@ declare const person: Person;
 
 const name = person.name;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=direct target=person.name
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=symbol target=person.name
 /// @type.symbol symbol=name type=string
 
 const age = person.age;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=direct target=person.age
+/// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=symbol target=person.age
 /// @type.symbol symbol=age type=int32
 "#,
     );

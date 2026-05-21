@@ -63,7 +63,7 @@ declare const narrow: Segment<int32>;
 
 const narrowMeta = narrow.narrow;
 /// @resolution.name source=narrow target=narrow
-/// @resolution.member source=narrow.narrow receiver=Segment<int32> kind=direct target=Segment.narrow
+/// @resolution.member source=narrow.narrow receiver=Segment<int32> kind=symbol target=Segment.narrow
 /// @type.symbol symbol=narrowMeta type=NarrowMeta
 
 declare const wide: Segment<string>;
@@ -72,7 +72,7 @@ declare const wide: Segment<string>;
 
 const wideMeta = wide.wide;
 /// @resolution.name source=wide target=wide
-/// @resolution.member source=wide.wide receiver=Segment<string> kind=direct target=Segment.wide
+/// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide
 /// @type.symbol symbol=wideMeta type=WideMeta
 
 /// @instance.entry id=Segment<int32> symbol=Segment arguments=[int32]

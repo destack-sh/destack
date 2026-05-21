@@ -14,12 +14,16 @@ const constValues = [1, 2];
         DirRows::checked(),
         r#"
 let mutableValues = [1, 2];
-/// @type.node source="[1, 2]" type=int32[]
 /// @type.symbol symbol=mutableValues type=int32[]
+/// @type.node source=[1, 2] type=int32[]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
 
 const constValues = [1, 2];
-/// @type.node source="[1, 2]" type=int32[]
 /// @type.symbol symbol=constValues type=int32[]
+/// @type.node source=[1, 2] type=int32[]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
 "#,
     );
 }
@@ -38,13 +42,17 @@ const first = values[0];
         DirRows::checked(),
         r#"
 const values = [1, 2] as const;
-/// @type.node source="[1, 2] as const" type=readonly [1, 2]
 /// @type.symbol symbol=values type=readonly [1, 2]
+/// @type.node source="[1, 2] as const" type=readonly [1, 2]
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 const first = values[0];
-/// @resolution.name source=values target=values
-/// @resolution.member source="values[0]" receiver=readonly [1, 2] kind=direct target=0
 /// @type.symbol symbol=first type=1
+/// @type.node source=values[0] type=1
+/// @resolution.name source=values target=values
+/// @resolution.member source=values[0] receiver=readonly [1, 2] kind=field key=#number(0)
+/// @type.node source=0 type=0
 "#,
     );
 }
@@ -69,18 +77,21 @@ type Mode = "dev" | "prod";
 /// @type.symbol symbol=Mode type="dev" | "prod"
 
 type Shape = { mode: Mode };
-/// @resolution.name source=Mode target=Mode
 /// @type.symbol symbol=Shape type={ mode: Mode }
+/// @resolution.name source=Mode target=Mode
 
 let config = { mode: "dev" } satisfies Shape;
-/// @resolution.name source=Shape target=Shape
-/// @type.node source="{ mode: \"dev\" } satisfies Shape" type={ mode: "dev" }
 /// @type.symbol symbol=config type={ mode: "dev" }
+/// @type.node source="{ mode: \"dev\" } satisfies Shape" type={ mode: "dev" }
+/// @type.node source="{ mode: \"dev\" }" type={ mode: "dev" }
+/// @type.node source="\"dev\"" type="dev"
+/// @resolution.name source=Shape target=Shape
 
 const mode = config.mode;
-/// @resolution.name source=config target=config
-/// @resolution.member source=config.mode receiver={ mode: "dev" } kind=direct target=config.mode
 /// @type.symbol symbol=mode type="dev"
+/// @type.node source=config.mode type="dev"
+/// @resolution.name source=config target=config
+/// @resolution.member source=config.mode receiver={ mode: "dev" } kind=field key=mode
 "#,
     );
 }

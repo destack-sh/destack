@@ -50,13 +50,13 @@ function read<L: Lifetime>(shape: Borrowed<Rectangle | Circle, L>): int32 {
 
         return shape.width;
         /// @resolution.name source=shape target=shape
-        /// @resolution.member source=shape.width receiver=Borrowed<Rectangle, read.L, mutable> kind=direct target=Rectangle.width
+        /// @resolution.member source=shape.width receiver=Borrowed<Rectangle, read.L, mutable> kind=symbol target=Rectangle.width
         /// @type.node source=shape.width type=int32
     }
 
     return shape.radius;
     /// @resolution.name source=shape target=shape
-    /// @resolution.member source=shape.radius receiver=Borrowed<Circle, read.L, mutable> kind=direct target=Circle.radius
+    /// @resolution.member source=shape.radius receiver=Borrowed<Circle, read.L, mutable> kind=symbol target=Circle.radius
     /// @type.node source=shape.radius type=int32
 }
 "#);
@@ -114,9 +114,9 @@ function value<L: Lifetime, R: Lifetime>(
     return flag ? &left.value : &right.value;
     /// @resolution.name source=flag target=flag
     /// @resolution.name source=left target=left
-    /// @resolution.member source=left.value receiver=Borrowed<Text, value.L, mutable> kind=direct target=Text.value
+    /// @resolution.member source=left.value receiver=Borrowed<Text, value.L, mutable> kind=symbol target=Text.value
     /// @resolution.name source=right target=right
-    /// @resolution.member source=right.value receiver=Borrowed<Number, value.R, mutable> kind=direct target=Number.value
+    /// @resolution.member source=right.value receiver=Borrowed<Number, value.R, mutable> kind=symbol target=Number.value
     /// @type.node source="flag ? &left.value : &right.value" type=Borrowed<string | int32, join(value.L | value.R), mutable>
 }
 "#);

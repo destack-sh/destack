@@ -31,8 +31,8 @@ function paint(item: Drawable): void {
 
     item.draw();
     /// @resolution.name source=item target=item
-    /// @resolution.member source=item.draw receiver=paint.T0 kind=direct target=Drawable.draw
-    /// @resolution.call source="item.draw()" parameters=[] return=void kind=direct target=Drawable.draw receiver=paint.T0
+    /// @resolution.member source=item.draw receiver=paint.T0 kind=symbol target=Drawable.draw
+    /// @resolution.call source="item.draw()" parameters=[] return=void kind=symbol target=Drawable.draw receiver=paint.T0
 }
 "#);
 }
@@ -67,8 +67,8 @@ function paint(item: Drawable): void {
 
     item.draw();
     /// @resolution.name source=item target=item
-    /// @resolution.member source=item.draw receiver=paint.T0 kind=direct target=Drawable.draw
-    /// @resolution.call source="item.draw()" parameters=[] return=void kind=direct target=Drawable.draw receiver=paint.T0
+    /// @resolution.member source=item.draw receiver=paint.T0 kind=symbol target=Drawable.draw
+    /// @resolution.call source="item.draw()" parameters=[] return=void kind=symbol target=Drawable.draw receiver=paint.T0
 }
 "#);
 }
@@ -140,12 +140,12 @@ declare const number: NumberSink;
 
 write("message", text);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", text)" parameters=[string, TextSink] return=void kind=direct target=write instance="write<string, TextSink>"
+/// @resolution.call source="write(\"message\", text)" parameters=[string, TextSink] return=void kind=symbol target=write instance="write<string, TextSink>"
 /// @instance.application source="write(\"message\", text)" id="write<string, TextSink>"
 
 write(1, number);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(1, number)" parameters=[int32, NumberSink] return=void kind=direct target=write instance="write<int32, NumberSink>"
+/// @resolution.call source="write(1, number)" parameters=[int32, NumberSink] return=void kind=symbol target=write instance="write<int32, NumberSink>"
 /// @instance.application source="write(1, number)" id="write<int32, NumberSink>"
 
 /// @instance.entry id="write<string, TextSink>" symbol=write arguments=[string, TextSink]

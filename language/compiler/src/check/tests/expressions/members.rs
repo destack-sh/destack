@@ -37,17 +37,23 @@ struct Point {
 
 const point = Point { x: 1 };
 /// @type.symbol symbol=point type=Point
+/// @type.node source="Point { x: 1 }" type=Point
+/// @resolution.name source=Point target=Point
+/// @type.node source=1 type=int32
 
 const x = point.x;
-/// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point kind=direct target=Point.x
 /// @type.symbol symbol=x type=int32
+/// @type.node source=point.x type=int32
+/// @resolution.name source=point target=point
+/// @resolution.member source=point.x receiver=Point kind=symbol target=Point.x
 
 const length = point.length();
-/// @resolution.name source=point target=point
-/// @resolution.member source=point.length receiver=Point kind=direct target=Point.length
-/// @resolution.call source="point.length()" parameters=[] return=int32 kind=direct target=Point.length receiver=Point
 /// @type.symbol symbol=length type=int32
+/// @type.node source=point.length type=(this: Point) => int32
+/// @type.node source=point.length() type=int32
+/// @resolution.name source=point target=point
+/// @resolution.member source=point.length receiver=Point kind=symbol target=Point.length
+/// @resolution.call source=point.length() parameters=[] return=int32 kind=symbol target=Point.length receiver=Point
 
 "#);
 }
@@ -79,16 +85,20 @@ const x = point.x;
         DirRows::checked(),
         r#"
 import { Point } from "./geometry.ds";
+/// @type.symbol symbol=Point type=geometry.Point
 /// @resolution.name source=Point target=geometry.Point
 
 const point = Point { x: 1 };
-/// @resolution.name source=Point target=geometry.Point
 /// @type.symbol symbol=point type=geometry.Point
+/// @type.node source="Point { x: 1 }" type=geometry.Point
+/// @resolution.name source=Point target=geometry.Point
+/// @type.node source=1 type=int32
 
 const x = point.x;
-/// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=geometry.Point kind=direct target=geometry.Point.x
 /// @type.symbol symbol=x type=int32
+/// @type.node source=point.x type=int32
+/// @resolution.name source=point target=point
+/// @resolution.member source=point.x receiver=geometry.Point kind=symbol target=geometry.Point.x
 "#,
     );
 }

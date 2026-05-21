@@ -15,10 +15,11 @@ const copy = value;
         r#"
 const value = 1;
 /// @type.symbol symbol=value type=1
+/// @type.node source=1 type=1
 
 const copy = value;
-/// @resolution.name source=value target=value
 /// @type.symbol symbol=copy type=1
+/// @resolution.name source=value target=value
 "#,
     );
 }
@@ -52,15 +53,16 @@ const value = answer;
 global {
     const answer: int32 = 42;
     /// @type.symbol symbol=answer type=int32
-}
+    /// @type.node source=42 type=int32
 
+}
 
 === main.ds ===
 import "./globals.ds";
 
 const value = answer;
-/// @resolution.name source=answer target=globals.answer
 /// @type.symbol symbol=value type=int32
+/// @resolution.name source=answer target=globals.answer
 "#,
     );
 }
@@ -80,16 +82,19 @@ const debug = import.meta.debug;
         DirRows::checked(),
         r#"
 const runtime = import.meta.runtime;
-/// @resolution.member source=import.meta.runtime receiver=import.meta kind=intrinsic target=import.meta.runtime
 /// @type.symbol symbol=runtime type="destack" | "js"
+/// @type.node source=import.meta.runtime type="destack" | "js"
+/// @resolution.member source=import.meta.runtime receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean } kind=field key=runtime
 
 const platform = import.meta.platform;
-/// @resolution.member source=import.meta.platform receiver=import.meta kind=intrinsic target=import.meta.platform
-/// @type.symbol symbol=platform type=Platform
+/// @type.symbol symbol=platform type="unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"
+/// @type.node source=import.meta.platform type="unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"
+/// @resolution.member source=import.meta.platform receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean } kind=field key=platform
 
 const debug = import.meta.debug;
-/// @resolution.member source=import.meta.debug receiver=import.meta kind=intrinsic target=import.meta.debug
 /// @type.symbol symbol=debug type=boolean
+/// @type.node source=import.meta.debug type=boolean
+/// @resolution.member source=import.meta.debug receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean } kind=field key=debug
 "#,
     );
 }
@@ -117,21 +122,30 @@ const features = import.meta.labels.feature;
 module {
     const role = "server";
     /// @type.symbol symbol=role#1 type="server"
+    /// @type.node source="\"server\"" type="server"
 
     const labels = {
-        feature: ["search"] as const,
-    };
     /// @type.symbol symbol=labels type={ feature: readonly ["search"] }
+    /// @type.node type={ feature: readonly ["search"] }
+
+        feature: ["search"] as const,
+        /// @type.node source="[\"search\"] as const" type=readonly ["search"]
+        /// @type.node source="\"search\"" type="search"
+
+    };
 }
 
 const role = import.meta.role;
-/// @resolution.member source=import.meta.role receiver=import.meta kind=intrinsic target=import.meta.role
 /// @type.symbol symbol=role#2 type="server"
+/// @type.node source=import.meta.role type="server"
+/// @resolution.member source=import.meta.role receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean; readonly role: "server"; readonly labels: { feature: readonly ["search"] } } kind=field key=role
 
 const features = import.meta.labels.feature;
-/// @resolution.member source=import.meta.labels receiver=import.meta kind=intrinsic target=import.meta.labels
-/// @resolution.member source=import.meta.labels.feature receiver={ feature: readonly ["search"] } kind=direct target=import.meta.labels.feature
 /// @type.symbol symbol=features type=readonly ["search"]
+/// @type.node source=import.meta.labels type={ feature: readonly ["search"] }
+/// @type.node source=import.meta.labels.feature type=readonly ["search"]
+/// @resolution.member source=import.meta.labels receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean; readonly role: "server"; readonly labels: { feature: readonly ["search"] } } kind=field key=labels
+/// @resolution.member source=import.meta.labels.feature receiver={ feature: readonly ["search"] } kind=field key=feature
 "#,
     );
 }
