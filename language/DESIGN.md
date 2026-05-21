@@ -906,11 +906,12 @@ const read = () => count;
 ```
 
 As with all of Destack, the `Function`s behind closures behave like one would expect in TypeScript by default, with additional control available on demand via the regular memory modifiers like `&Function<(string,), void>`. 
-By default, the captured environment is shared for the lexical scope, so multiple closures that share the same binding see the same environment, but this capture policy can be configured via the `@capture` decorator:
+By default, captures preserve variable identity: the captured variable's storage is automatically managed by the compiler, and every closure that captures that variable observes the same storage.
+The capture policy can be configured via the `@capture` decorator:
 
 | Policy | Meaning |
 | --- | --- |
-| `"share"` | share the original binding through the managed lexical environment |
+| `"manage"` | preserve variable identity through compiler-managed storage |
 | `"borrow"` | capture borrowed access to the original binding |
 | `"copy"` | snapshot the current value |
 | `"move"` | move the binding into the closure |
