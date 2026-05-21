@@ -2,7 +2,9 @@ use destack_core::StringId;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
-use destack_source::{ModuleId, NodeSourceMap, NodeSourceMapMark, NodeSpanType, Span};
+use destack_source::{
+    ModuleId, NodeSourceMap, NodeSourceMapMark, NodeSpanRegion, NodeSpanType, Span,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -1297,6 +1299,20 @@ impl Tree {
         self.source_map.get(node_id.id)
     }
 
+    /// Return the concrete source extent owned by one parsed node.
+    #[inline]
+    pub fn get_source_extent<T>(&self, node_id: LocalNodeId<T>) -> Span
+    where
+        T: Node,
+    {
+        let span = self.source_map.get(node_id.id);
+        let wrapper_span = self
+            .source_map
+            .get_side(node_id.id, NodeSpanType::Region(NodeSpanRegion::Wrapper));
+
+        wrapper_span.map_or(span, |wrapper_span| span.merge(wrapper_span))
+    }
+
     /// Set the enclosing source span for one parsed node.
     #[inline]
     pub fn set_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
@@ -1393,6 +1409,12 @@ impl Tree {
     #[inline]
     pub fn get_side_span_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
         self.source_map.get_side(node_id, span_type)
+    }
+
+    /// Set one side source span for one parsed node id.
+    #[inline]
+    pub fn set_side_span_by_id(&mut self, node_id: u32, span_type: NodeSpanType, span: Span) {
+        self.source_map.set_side(node_id, span_type, span);
     }
 
     /// Return the spans for all nodes of a given type.
