@@ -925,6 +925,61 @@ type T2 = () => void;
     );
 }
 
+/// Intersection union arms should not add redundant outer parentheses.
+#[test]
+fn test_format_union_intersection_parenthesis_layout() {
+    assert_format_program_reference_widths(
+        r#"type DurationRoundTo =
+    | SmallestUnit<DateTimeUnit>
+    | (
+        {
+            smallestUnit: SmallestUnit<DateTimeUnit>;
+        }
+        | {
+            largestUnit: LargestUnit<DateTimeUnit>;
+        }
+    ) & {
+        roundingIncrement?: number;
+    };
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"type DurationRoundTo =
+  | SmallestUnit<DateTimeUnit>
+  | (
+      | {
+          smallestUnit: SmallestUnit<DateTimeUnit>;
+        }
+      | {
+          largestUnit: LargestUnit<DateTimeUnit>;
+        }
+    ) & {
+      roundingIncrement?: number;
+    };
+"#,
+            ),
+            (
+                100,
+                r#"type DurationRoundTo =
+  | SmallestUnit<DateTimeUnit>
+  | (
+      | {
+          smallestUnit: SmallestUnit<DateTimeUnit>;
+        }
+      | {
+          largestUnit: LargestUnit<DateTimeUnit>;
+        }
+    ) & {
+      roundingIncrement?: number;
+    };
+"#,
+            ),
+        ],
+    );
+}
+
 /// Single-member unions should not keep redundant parentheses.
 #[test]
 fn test_format_single_member_union_layout() {
