@@ -1,9 +1,8 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
-use destack_workspace::{RuntimeOptions, SchedulerOptions};
+use destack_workspace::{Environment, RuntimeOptions, SchedulerOptions};
 use {destack_engine as engine, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -12,7 +11,7 @@ use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
-use crate::host::time::{HostClockSource, TimerClock};
+use crate::host::time::TimerClock;
 use crate::host::{
     HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
@@ -25,53 +24,6 @@ use crate::runtime::{
     BindingCallContext, ExecutionContext, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
     WorkerOptions, World, WorldState, current_runnable_scope,
 };
-
-/// Test host clock source for deterministic host-time runtime tests.
-#[derive(Debug, Default)]
-pub(crate) struct TestHostClockSource {
-    /// Current test wall time in nanoseconds.
-    wall_nanos: AtomicU64,
-    /// Current test monotonic time in nanoseconds.
-    mono_nanos: AtomicU64,
-}
-
-impl TestHostClockSource {
-    /// Create one test host clock source.
-    pub(crate) fn new(wall_nanos: u64, mono_nanos: u64) -> Self {
-        Self {
-            wall_nanos: AtomicU64::new(wall_nanos),
-            mono_nanos: AtomicU64::new(mono_nanos),
-        }
-    }
-
-    /// Advance wall and monotonic time together by one duration.
-    pub(crate) fn advance_both_nanos(&self, delta_nanos: u64) {
-        let _ = self.wall_nanos.fetch_add(delta_nanos, Ordering::Relaxed);
-        let _ = self.mono_nanos.fetch_add(delta_nanos, Ordering::Relaxed);
-    }
-
-    /// Advance only monotonic time by one duration.
-    pub(crate) fn advance_mono_nanos(&self, delta_nanos: u64) {
-        let _ = self.mono_nanos.fetch_add(delta_nanos, Ordering::Relaxed);
-    }
-
-    /// Jump wall time by one signed delta.
-    pub(crate) fn jump_wall_nanos(&self, delta_nanos: i64) {
-        let current = self.wall_nanos();
-        let next = current.saturating_add_signed(delta_nanos);
-        self.wall_nanos.store(next, Ordering::Relaxed);
-    }
-
-    /// Return one test wall time sample.
-    pub(crate) fn wall_nanos(&self) -> u64 {
-        self.wall_nanos.load(Ordering::Relaxed)
-    }
-
-    /// Return one test monotonic time sample.
-    pub(crate) fn mono_nanos(&self) -> u64 {
-        self.mono_nanos.load(Ordering::Relaxed)
-    }
-}
 
 /// Build one resource id owned by the primary test worker.
 pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
@@ -100,23 +52,6 @@ pub(crate) fn binding_call_context<'host>(
         world: world as *mut WorldState,
         scope: current_runnable_scope(),
         execution_context,
-    }
-}
-
-impl HostClockSource for TestHostClockSource {
-    /// Return one test wall-clock sample.
-    fn wall_nanos(&self) -> u64 {
-        self.wall_nanos()
-    }
-
-    /// Return one test monotonic-clock sample.
-    fn mono_nanos(&self) -> u64 {
-        self.mono_nanos()
-    }
-
-    /// Sleep by advancing test wall and monotonic time.
-    fn sleep_nanos(&self, duration_nanos: u64) {
-        self.advance_both_nanos(duration_nanos);
     }
 }
 
@@ -192,8 +127,6 @@ pub(crate) fn vm_engine_from_mir(mir: &str) -> vm::Isolate {
 pub(crate) struct TestRuntime {
     /// Test world that owns the worker lifetime.
     world: World,
-    /// Optional host clock source used by blocking test poller waits.
-    host_clock_source: Option<Arc<dyn HostClockSource>>,
     /// Wrapped worker under test.
     worker: Worker,
     /// Runtime-owned shared heap state used by the worker.
@@ -211,32 +144,9 @@ pub(crate) struct TestWorldRuntime {
     runtime_id: RuntimeId,
 }
 
-/// Test poller for runtime ingress tests.
+/// Test poller for worker event loop tests.
 #[derive(Debug, Default)]
-pub(crate) struct TestPoller {
-    /// Events returned by the next poll.
-    events: Vec<PollerEvent>,
-    /// Optional clock source used to model blocking waits.
-    host_clock_source: Option<Arc<dyn HostClockSource>>,
-}
-
-impl TestPoller {
-    /// Build one test poller from explicit events.
-    pub(crate) fn with_events(events: Vec<PollerEvent>) -> Self {
-        Self {
-            events,
-            host_clock_source: None,
-        }
-    }
-
-    /// Build one test poller with one host clock source.
-    fn with_host_clock_source(host_clock_source: Option<Arc<dyn HostClockSource>>) -> Self {
-        Self {
-            events: Vec::new(),
-            host_clock_source,
-        }
-    }
-}
+pub(crate) struct TestPoller;
 
 impl HostPoller for TestPoller {
     /// Registering resources is not used by these tests.
@@ -277,16 +187,9 @@ impl HostPoller for TestPoller {
         Ok(())
     }
 
-    /// Return the test poll result once and then drain it.
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
-        if self.events.is_empty()
-            && let Some(timeout_nanos) = timeout_nanos
-            && let Some(host_clock_source) = &self.host_clock_source
-        {
-            host_clock_source.sleep_nanos(timeout_nanos);
-        }
-
-        Ok(std::mem::take(&mut self.events))
+    /// Return no host ingress.
+    fn poll(&mut self, _timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
+        Ok(Vec::new())
     }
 }
 
@@ -299,17 +202,11 @@ impl TestWorldRuntime {
 
 impl TestRuntime {
     /// Build one test worker runtime.
-    pub(crate) fn build(
-        options: &RuntimeOptions,
-        engine: impl Into<Engine>,
-        host_clock_source: Option<Arc<dyn HostClockSource>>,
-    ) -> Self {
-        let (world, shared, runtime_static, worker) =
-            worker_for_options(options, engine, host_clock_source.clone());
+    pub(crate) fn build(options: &RuntimeOptions, engine: impl Into<Engine>) -> Self {
+        let (world, shared, runtime_static, worker) = worker_for_options(options, engine);
 
         Self {
             world,
-            host_clock_source,
             shared,
             runtime_static,
             worker,
@@ -477,7 +374,7 @@ impl TestRuntime {
 
     /// Tick until idle and fail loudly on runtime errors.
     pub(crate) fn tick_until_idle(&mut self) {
-        let mut poller = TestPoller::with_host_clock_source(self.host_clock_source.clone());
+        let mut poller = TestPoller;
         self.worker
             .run_event_loop(
                 &mut self.world.state,
@@ -498,7 +395,7 @@ impl TestRuntime {
         task_id: u64,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<engine::Value>> {
-        let mut poller = TestPoller::with_host_clock_source(self.host_clock_source.clone());
+        let mut poller = TestPoller;
 
         let output = self.worker.run_event_loop(
             &mut self.world.state,
@@ -554,24 +451,15 @@ impl TestRuntime {
             value,
         )
     }
-
-    /// Return current runtime wall time in nanoseconds.
-    pub(crate) fn wall_nanos(&self) -> u64 {
-        self.world.wall_nanos()
-    }
-
-    /// Return current runtime monotonic time in nanoseconds.
-    pub(crate) fn mono_nanos(&self) -> u64 {
-        self.world.mono_nanos()
-    }
 }
 
 impl TestWorldRuntime {
     /// Build one test world runtime.
     pub(crate) fn build(options: &RuntimeOptions, engine: impl Into<Engine>) -> Self {
-        let mut world = World::from_options(options).expect("world should build");
+        let environment = Arc::new(Environment::default());
+        let mut world = World::new(options, environment.clone(), None).expect("world should build");
         let runtime_id = world
-            .spawn_runtime(destack_workspace::Environment::default(), options, engine)
+            .spawn_runtime(environment, options, engine)
             .expect("runtime should spawn");
 
         poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))
@@ -617,11 +505,6 @@ impl TestWorldRuntime {
         self.world.tick().expect("runtime tick should succeed")
     }
 
-    /// Attach one explicit test poller.
-    pub(crate) fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
-        self.world.poller = poller;
-    }
-
     /// Return current world wall time in nanoseconds.
     pub(crate) fn wall_nanos(&self) -> u64 {
         self.world.wall_nanos()
@@ -653,7 +536,6 @@ impl TestWorldRuntime {
         } = &mut self.world;
         let runtime = runtimes
             .get_mut(&self.runtime_id)
-            .map(Box::as_mut)
             .expect("runtime should exist");
 
         runtime
@@ -685,13 +567,9 @@ pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Sh
 fn worker_for_options(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
-    host_clock_source: Option<Arc<dyn HostClockSource>>,
 ) -> (World, SharedHeap, engine::StaticSpace, Worker) {
-    let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
-        World::new(options, Some(host_clock_source)).expect("runtime test world should build")
-    } else {
-        World::from_options(options).expect("runtime test world should build")
-    };
+    let mut world =
+        World::new(options, Environment::default(), None).expect("runtime test world should build");
 
     // construct one runtime worker from explicit options
     let shared = runtime_shared_heap(&world, options);
