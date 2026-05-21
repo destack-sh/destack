@@ -115,6 +115,8 @@ pub enum SymbolForm {
     Struct,
     /// Interface symbol.
     Interface,
+    /// Nominal interface symbol.
+    NewtypeInterface,
     /// Enum symbol.
     Enum,
     /// Function symbol.
@@ -133,13 +135,22 @@ impl SymbolForm {
     /// Check if this is an interface.
     #[inline]
     pub fn is_interface(self) -> bool {
-        self == SymbolForm::Interface
+        matches!(self, Self::Interface | Self::NewtypeInterface)
+    }
+
+    /// Check whether this form satisfies one requested form.
+    pub fn matches_form(self, form: SymbolForm) -> bool {
+        if form == Self::Interface {
+            self.is_interface()
+        } else {
+            self == form
+        }
     }
 
     /// Return the symbol space normally introduced by this symbol form.
     pub fn symbol_space(self) -> SymbolSpace {
         match self {
-            Self::Interface | Self::TypeAlias => SymbolSpace::Type,
+            Self::Interface | Self::NewtypeInterface | Self::TypeAlias => SymbolSpace::Type,
             Self::Label => SymbolSpace::Label,
             Self::Class
             | Self::Enum
@@ -163,6 +174,7 @@ impl SymbolForm {
                     | Self::Import
                     | Self::Interface
                     | Self::Newtype
+                    | Self::NewtypeInterface
                     | Self::Struct
                     | Self::TypeAlias
             ),

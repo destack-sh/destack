@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::SymbolForm;
+
 /// The declaration form expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LanguageItemForm {
@@ -21,6 +23,23 @@ pub enum LanguageItemForm {
     Newtype,
     /// A `function` declaration.
     Function,
+}
+
+impl From<LanguageItemForm> for SymbolForm {
+    /// Convert a language item form to its declaring symbol form.
+    fn from(value: LanguageItemForm) -> Self {
+        match value {
+            LanguageItemForm::Variable => Self::Variable,
+            LanguageItemForm::Class => Self::Class,
+            LanguageItemForm::Interface => Self::Interface,
+            LanguageItemForm::NewtypeInterface => Self::NewtypeInterface,
+            LanguageItemForm::Struct => Self::Struct,
+            LanguageItemForm::Enum => Self::Enum,
+            LanguageItemForm::Type => Self::TypeAlias,
+            LanguageItemForm::Newtype => Self::Newtype,
+            LanguageItemForm::Function => Self::Function,
+        }
+    }
 }
 
 macro_rules! language_item_key {
@@ -96,6 +115,18 @@ macro_rules! define_language_items {
                             $(, $key)?
                         ).to_string()
                     },)*)*)*
+                }
+            }
+
+            /// Return the language item for a stable `@languageItem` key.
+            pub fn from_key(key: &str) -> Option<Self> {
+                match key {
+                    $($($(language_item_key!(
+                        stringify!($module_group),
+                        $export
+                        $(, $key)?
+                    ) => Some(Self::$name),)*)*)*
+                    _ => None,
                 }
             }
 
