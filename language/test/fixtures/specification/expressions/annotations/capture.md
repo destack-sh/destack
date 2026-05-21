@@ -4,9 +4,9 @@
 
 ## policy
 
-### share is the default
+### manage is the default
 
-Shared captures preserve binding identity.
+Manage captures preserve variable identity through compiler-managed storage.
 
 ```ds
 let a = 0;
@@ -29,9 +29,9 @@ boo();
 b satisfies int32;
 ```
 
-### share preserves mutations across closures
+### manage preserves mutations across closures
 
-Shared closures observe the same binding.
+Manage captures let closures observe the same variable.
 
 ```ds
 let count = 0;
@@ -46,9 +46,9 @@ inc();
 read() satisfies int32;
 ```
 
-### share composes with owned callable forms
+### manage composes with owned callable forms
 
-The callable value can be owned while captured bindings remain shared.
+The callable value can be owned while captured bindings still preserve identity.
 
 ```ds
 let count = 0;
@@ -222,9 +222,9 @@ function run(): () => int32 {
     let count: int32 = 0;
     let socket = Socket { fd: 1 };
 
-    // share `count`, copy `prefix`, move `socket`
+    // manage `count`, copy `prefix`, move `socket`
     @capture({
-        default: "share",
+        default: "manage",
         prefix: "copy",
         socket: "move",
     })
