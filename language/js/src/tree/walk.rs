@@ -1461,9 +1461,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             let target_type_node = tree.get(*target_type);
             visitor.visit_type_expression(tree, *target_type, target_type_node);
         }
-        TypeExpression::In { left, right }
-        | TypeExpression::Extends { left, right }
-        | TypeExpression::Implements { left, right } => {
+        TypeExpression::Extends { left, right } | TypeExpression::Implements { left, right } => {
             let left_ty = tree.get(*left);
             visitor.visit_type_expression(tree, *left, left_ty);
 

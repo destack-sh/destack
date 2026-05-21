@@ -39,13 +39,6 @@ impl<'a> Printer<'a> {
                 self.write_punct("!");
                 self.print_type_id(*target_type)?;
             }
-            TypeExpression::In { left, right } => {
-                self.print_type_id(*left)?;
-                self.write_punct(" ");
-                self.write_keyword(Keyword::In);
-                self.write_punct(" ");
-                self.print_type_id(*right)?;
-            }
             TypeExpression::Extends { left, right } => {
                 self.print_type_id(*left)?;
                 self.write_punct(" ");

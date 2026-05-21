@@ -150,11 +150,6 @@ pub enum TypeExpression {
     Not {
         target_type: LocalNodeId<TypeExpression>,
     },
-    /// `T in U`.
-    In {
-        left: LocalNodeId<TypeExpression>,
-        right: LocalNodeId<TypeExpression>,
-    },
     /// `T extends U`.
     Extends {
         left: LocalNodeId<TypeExpression>,
