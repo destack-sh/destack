@@ -7,7 +7,7 @@ use memchr::memchr;
 pub(super) const EOF_CHAR: char = '\0';
 
 /// Cursor over source text during lexing.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct Scanner {
     /// The source file.
     file: Arc<File>,
@@ -36,10 +36,28 @@ impl Scanner {
         self.file.id
     }
 
+    /// Return the source file.
+    #[inline]
+    pub(super) fn file(&self) -> &File {
+        self.file.as_ref()
+    }
+
     /// Return the current byte position.
     #[inline]
     pub(super) fn position(&self) -> usize {
         self.position
+    }
+
+    /// Move the scanner to one byte position.
+    #[inline]
+    pub(super) fn set_position(&mut self, position: usize) {
+        debug_assert!(
+            self.text().is_char_boundary(position),
+            "scanner position must be a character boundary"
+        );
+        self.position = position;
+        self.token_start = position;
+        self.previous = EOF_CHAR;
     }
 
     /// Return the source text.

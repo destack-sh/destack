@@ -4,6 +4,8 @@ use destack_dir::{
     Comment, CommentContent, CommentKind, CommentNewlines, CommentPosition, TokenSpan, TokenType,
 };
 
+use super::ParserTriviaMode;
+
 /// Live lexer boundary state for comment attachment.
 #[derive(Debug, Copy, Clone)]
 struct TriviaState {
@@ -36,6 +38,28 @@ pub(super) struct Trivia {
     comments: Vec<Comment>,
     /// The live boundary state for comment attachment.
     state: TriviaState,
+    /// The reversible comment mutations after checkpoints.
+    undo: Vec<TriviaUndo>,
+}
+
+/// A checkpoint for speculative trivia rollback.
+#[derive(Debug)]
+pub(super) struct TriviaCheckpoint {
+    /// The live boundary state.
+    state: TriviaState,
+    /// The comment count at checkpoint time.
+    comments_len: usize,
+    /// The undo log length at checkpoint time.
+    undo_len: usize,
+}
+
+/// One reversible trivia comment mutation.
+#[derive(Debug, Copy, Clone)]
+struct TriviaUndo {
+    /// The comment index.
+    index: usize,
+    /// The comment value before mutation.
+    comment: Comment,
 }
 
 impl Trivia {
@@ -44,29 +68,61 @@ impl Trivia {
         Self {
             comments: Vec::new(),
             state: TriviaState::new(),
+            undo: Vec::new(),
         }
     }
 
     /// Take the collected comments and leave the trivia store empty.
     pub(super) fn take_comments(&mut self) -> Vec<Comment> {
+        self.undo.clear();
+
         std::mem::take(&mut self.comments)
     }
 
+    /// Drain collected comments into one output buffer.
+    pub(super) fn drain_comments_into(&mut self, comments: &mut Vec<Comment>) {
+        comments.append(&mut self.comments);
+        self.undo.clear();
+    }
+
+    /// Create a checkpoint for speculative lexer movement.
+    pub(super) fn checkpoint(&self) -> TriviaCheckpoint {
+        TriviaCheckpoint {
+            state: self.state,
+            comments_len: self.comments.len(),
+            undo_len: self.undo.len(),
+        }
+    }
+
+    /// Restore a speculative lexer checkpoint.
+    pub(super) fn restore(&mut self, checkpoint: TriviaCheckpoint) {
+        while self.undo.len() > checkpoint.undo_len {
+            let Some(undo) = self.undo.pop() else {
+                break;
+            };
+
+            if undo.index < checkpoint.comments_len {
+                self.comments[undo.index] = undo.comment;
+            }
+        }
+
+        self.comments.truncate(checkpoint.comments_len);
+        self.state = checkpoint.state;
+    }
+
     /// Record one line comment.
-    pub(super) fn add_line_comment(&mut self, token_span: TokenSpan, source_text: &str) {
-        self.add_comment(token_span, CommentKind::Line, source_text);
+    pub(super) fn add_line_comment(&mut self, token_span: TokenSpan, content: CommentContent) {
+        self.add_comment(token_span, CommentKind::Line, content);
     }
 
     /// Record one block comment.
-    pub(super) fn add_block_comment(&mut self, token_span: TokenSpan, source_text: &str) {
-        // block comment shape
-        let kind = if source_text.contains('\n') {
-            CommentKind::MultiLineBlock
-        } else {
-            CommentKind::SingleLineBlock
-        };
-
-        self.add_comment(token_span, kind, source_text);
+    pub(super) fn add_block_comment(
+        &mut self,
+        token_span: TokenSpan,
+        kind: CommentKind,
+        content: CommentContent,
+    ) {
+        self.add_comment(token_span, kind, content);
     }
 
     /// Record one newline boundary after pending comments.
@@ -74,6 +130,7 @@ impl Trivia {
         let active_comment_end = self.active_comment_end(boundary_start);
 
         if self.state.processed < active_comment_end {
+            self.record_comment_undo(active_comment_end - 1);
             let last_comment = &mut self.comments[active_comment_end - 1];
             last_comment.newlines.bits |= CommentNewlines::TRAILING;
 
@@ -86,6 +143,17 @@ impl Trivia {
         self.state.saw_newline_for_comment = true;
     }
 
+    /// Record one skipped side-token boundary.
+    pub(super) fn handle_skipped_side_token(&mut self, boundary_start: u32) {
+        let active_comment_end = self.active_comment_end(boundary_start);
+
+        if self.state.processed < active_comment_end {
+            self.record_comment_undo(active_comment_end - 1);
+            let last_comment = &mut self.comments[active_comment_end - 1];
+            last_comment.newlines.bits |= CommentNewlines::TRAILING;
+        }
+    }
+
     /// Attach pending leading comments to one semantic token boundary.
     pub(super) fn handle_token(&mut self, token_span: TokenSpan) {
         self.state.previous_token_type = token_span.token.ty;
@@ -93,7 +161,9 @@ impl Trivia {
         let active_comment_end = self.active_comment_end(token_span.span.start);
 
         if self.state.processed < active_comment_end {
-            for comment in &mut self.comments[self.state.processed..active_comment_end] {
+            for index in self.state.processed..active_comment_end {
+                self.record_comment_undo(index);
+                let comment = &mut self.comments[index];
                 comment.position = CommentPosition::Leading;
                 comment.attached_to = token_span.span.start;
             }
@@ -106,10 +176,10 @@ impl Trivia {
     }
 
     /// Record one comment and classify its token-local attachment.
-    fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, source_text: &str) {
+    fn add_comment(&mut self, token_span: TokenSpan, kind: CommentKind, content: CommentContent) {
         let mut comment = Comment::new(token_span.span, kind);
         comment.newlines = CommentNewlines::from_bools(self.state.saw_newline_for_comment, false);
-        comment.content = comment_content_from_raw(token_span.token.ty, source_text);
+        comment.content = content;
 
         // speculative lexing can revisit the same raw comment span
         let is_duplicate = self
@@ -139,6 +209,14 @@ impl Trivia {
         }
     }
 
+    /// Record the previous value before mutating one comment.
+    fn record_comment_undo(&mut self, index: usize) {
+        self.undo.push(TriviaUndo {
+            index,
+            comment: self.comments[index],
+        });
+    }
+
     /// Return the exclusive end of comments that are before one token boundary.
     fn active_comment_end(&self, boundary_start: u32) -> usize {
         let mut comment_index = self.state.processed;
@@ -165,13 +243,107 @@ impl Trivia {
 /// One lexer comment retained in source order.
 pub(crate) type TriviaComment = Comment;
 
+/// Retention decision for one comment token.
+#[derive(Debug, Copy, Clone)]
+pub(super) enum CommentRetention {
+    /// Keep the comment with structured metadata.
+    Keep {
+        /// The line or block comment kind.
+        kind: CommentKind,
+        /// The structured comment content classification.
+        content: CommentContent,
+    },
+    /// Skip the comment payload.
+    Skip,
+}
+
+/// Return whether one comment should be kept in a trivia mode.
+pub(super) fn retained_comment(
+    trivia_mode: ParserTriviaMode,
+    token_type: TokenType,
+    raw_comment: &str,
+) -> CommentRetention {
+    // full trivia keeps every comment for formatting
+    if trivia_mode == ParserTriviaMode::Full {
+        let kind = comment_kind(token_type, raw_comment);
+        let content = comment_content_from_raw(token_type, raw_comment);
+
+        return CommentRetention::Keep { kind, content };
+    }
+
+    let is_doc_comment = matches!(
+        token_type,
+        TokenType::DocLineComment | TokenType::DocBlockComment
+    );
+    let is_legal_comment = ordinary_comment_is_legal(token_type, raw_comment);
+
+    // documentation mode keeps semantic comments only
+    if !is_doc_comment && !is_legal_comment {
+        return CommentRetention::Skip;
+    }
+
+    let kind = comment_kind(token_type, raw_comment);
+    let content = comment_content_from_raw(token_type, raw_comment);
+
+    if content == CommentContent::None {
+        return CommentRetention::Skip;
+    }
+
+    CommentRetention::Keep { kind, content }
+}
+
+/// Return the line or block kind for one comment token.
+fn comment_kind(token_type: TokenType, raw_comment: &str) -> CommentKind {
+    match token_type {
+        TokenType::LineComment | TokenType::DocLineComment => CommentKind::Line,
+        TokenType::BlockComment | TokenType::DocBlockComment => block_comment_kind(raw_comment),
+        _ => CommentKind::Line,
+    }
+}
+
+/// Return whether an ordinary comment carries legal or preserve semantics.
+fn ordinary_comment_is_legal(token_type: TokenType, raw_comment: &str) -> bool {
+    if matches!(
+        token_type,
+        TokenType::DocLineComment | TokenType::DocBlockComment
+    ) {
+        return false;
+    }
+
+    let content = comment_annotation_text(token_type, raw_comment);
+    let bytes = content.as_bytes();
+
+    if bytes.first() == Some(&b'!') {
+        return true;
+    }
+
+    contains_license_or_preserve_comment(content)
+}
+
+/// Return the line shape for one raw block comment token.
+pub(super) fn block_comment_kind(raw_comment: &str) -> CommentKind {
+    if raw_comment.contains('\n') {
+        CommentKind::MultiLineBlock
+    } else {
+        CommentKind::SingleLineBlock
+    }
+}
+
 /// Return the structured content classification for one raw comment token.
-fn comment_content_from_raw(token_type: TokenType, raw_comment: &str) -> CommentContent {
+pub(super) fn comment_content_from_raw(token_type: TokenType, raw_comment: &str) -> CommentContent {
     let content = comment_annotation_text(token_type, raw_comment);
     let bytes = content.as_bytes();
 
     if bytes.is_empty() {
         return CommentContent::None;
+    }
+
+    if token_type == TokenType::DocLineComment {
+        if contains_license_or_preserve_comment(content) {
+            return CommentContent::JsdocLegal;
+        }
+
+        return CommentContent::Jsdoc;
     }
 
     match bytes[0] {
