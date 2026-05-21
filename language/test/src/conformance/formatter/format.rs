@@ -5,7 +5,7 @@ use destack_core::StringPool;
 use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserOptions, source_colorizer};
+use destack_parser::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
 use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
     print_diff,
@@ -126,6 +126,7 @@ fn format_once(
         file.clone(),
         language_type,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
