@@ -24,7 +24,11 @@ impl Compiler {
                 let value = self.clone_type_expression_into_scope(state, origin_id, value, scope);
                 GenericArgument::Type { value }
             }
-            GenericArgument::Value { .. } => {
+            GenericArgument::SpreadType { value } => {
+                let value = self.clone_type_expression_into_scope(state, origin_id, value, scope);
+                GenericArgument::SpreadType { value }
+            }
+            GenericArgument::Value { .. } | GenericArgument::SpreadValue { .. } => {
                 todo!("FUGU #Incomplete: clone value generic arguments in elaborate guards")
             }
             GenericArgument::Error => GenericArgument::Error,
