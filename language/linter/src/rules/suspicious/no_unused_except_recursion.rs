@@ -346,8 +346,11 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
             for argument_id in generic_arguments {
                 let argument = tree.get(*argument_id);
                 let argument_expression_id = match argument {
-                    dir::GenericArgument::Type { .. } => continue,
-                    dir::GenericArgument::Value { value } => *value,
+                    dir::GenericArgument::Type { .. } | dir::GenericArgument::SpreadType { .. } => {
+                        continue;
+                    }
+                    dir::GenericArgument::Value { value }
+                    | dir::GenericArgument::SpreadValue { value } => *value,
                     dir::GenericArgument::Error => continue,
                 };
                 if is_recursive_call {

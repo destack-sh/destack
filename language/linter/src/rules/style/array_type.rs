@@ -173,7 +173,9 @@ fn generic_argument_value_type_expression(
     let argument = tree.get(argument_id);
     match argument {
         dir::GenericArgument::Type { value } => Some(*value),
-        dir::GenericArgument::Value { .. } => None,
+        dir::GenericArgument::SpreadType { .. }
+        | dir::GenericArgument::Value { .. }
+        | dir::GenericArgument::SpreadValue { .. } => None,
         dir::GenericArgument::Error => None,
     }
 }

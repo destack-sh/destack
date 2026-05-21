@@ -205,8 +205,9 @@ fn generic_argument_value_expression(
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let generic_argument = tree.get(generic_argument_id);
     match generic_argument {
-        dir::GenericArgument::Type { .. } => None,
+        dir::GenericArgument::Type { .. } | dir::GenericArgument::SpreadType { .. } => None,
         dir::GenericArgument::Value { value } => Some(*value),
+        dir::GenericArgument::SpreadValue { .. } => None,
         dir::GenericArgument::Error => None,
     }
 }

@@ -278,7 +278,10 @@ fn generic_arguments_are_explicit(
         let argument = tree.get(*argument_id);
         matches!(
             argument,
-            dir::GenericArgument::Type { .. } | dir::GenericArgument::Value { .. }
+            dir::GenericArgument::Type { .. }
+                | dir::GenericArgument::SpreadType { .. }
+                | dir::GenericArgument::Value { .. }
+                | dir::GenericArgument::SpreadValue { .. }
         )
     })
 }
@@ -301,7 +304,9 @@ fn generic_argument_value(
     match argument {
         dir::GenericArgument::Type { value } => Some(GenericArgumentValue::Type(*value)),
         dir::GenericArgument::Value { value } => Some(GenericArgumentValue::Value(*value)),
-        dir::GenericArgument::Error => None,
+        dir::GenericArgument::SpreadType { .. }
+        | dir::GenericArgument::SpreadValue { .. }
+        | dir::GenericArgument::Error => None,
     }
 }
 
@@ -423,10 +428,12 @@ fn parameter_default_expression(
 ) -> Option<GenericParameterDefaultValue> {
     let parameter = tree.get(parameter_id);
     match parameter {
-        dir::GenericParameter::Type { default, .. } => {
+        dir::GenericParameter::Type { default, .. }
+        | dir::GenericParameter::VariadicType { default, .. } => {
             default.map(GenericParameterDefaultValue::Type)
         }
-        dir::GenericParameter::Value { default, .. } => {
+        dir::GenericParameter::Value { default, .. }
+        | dir::GenericParameter::VariadicValue { default, .. } => {
             default.map(GenericParameterDefaultValue::Value)
         }
         dir::GenericParameter::Error => None,
