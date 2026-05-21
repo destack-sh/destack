@@ -11,6 +11,9 @@ use destack_fir::prelude::{
 };
 use destack_fir::write;
 use destack_source::Span;
+use smallvec::SmallVec;
+
+type BinarySideList = SmallVec<[BinarySide; 8]>;
 
 /// Return the trailing trivia gap after one expression.
 fn binary_expression_postfix_gap(
@@ -593,61 +596,50 @@ impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
     }
 }
 
-/// Recursively format one flattened binary expression.
-fn format_flattened_binary_expression<'ast>(
-    binary: BinaryLikeExpression,
-    inside_condition: bool,
-    f: &mut DestackFormatter<'ast, '_>,
-) -> FormatResult<()> {
-    let left = binary.left(f.context());
-
-    // flattened left side
-    if binary.can_flatten(f.context()) {
-        format_flattened_binary_expression(BinaryLikeExpression::new(left), inside_condition, f)?;
-    }
-    // terminal left side
-    else {
-        write!(f, [BinarySide::Left { parent: binary }])?;
-    }
-
-    // right side
-    write!(
-        f,
-        [BinarySide::Right {
-            parent: binary,
-            inside_condition
-        }]
-    )
-}
-
-/// Split one binary chain into left and right sides.
-fn split_into_left_and_right_sides(
+/// Collect one left-associative binary chain into printable sides.
+fn collect_binary_chain_sides(
     binary: BinaryLikeExpression,
     inside_condition: bool,
     context: &DestackFormatContext<'_>,
-    items: &mut Vec<BinarySide>,
+    items: &mut BinarySideList,
 ) {
-    let left = binary.left(context);
+    let mut ancestors = SmallVec::<[BinaryLikeExpression; 8]>::new();
+    let mut current = binary;
 
-    // flattened left side
-    if binary.can_flatten(context) {
-        split_into_left_and_right_sides(
-            BinaryLikeExpression::new(left),
-            inside_condition,
-            context,
-            items,
-        );
-    }
-    // terminal left side
-    else {
-        items.push(BinarySide::Left { parent: binary });
+    // walk to the terminal left operand
+    while current.can_flatten(context) {
+        let left = current.left(context);
+
+        ancestors.push(current);
+        current = BinaryLikeExpression::new(left);
     }
 
-    // right side
+    // emit the chain in source order
+    items.reserve(ancestors.len() + 2);
+    items.push(BinarySide::Left { parent: current });
     items.push(BinarySide::Right {
-        parent: binary,
+        parent: current,
         inside_condition,
     });
+
+    while let Some(parent) = ancestors.pop() {
+        items.push(BinarySide::Right {
+            parent,
+            inside_condition,
+        });
+    }
+}
+
+/// Write one collected binary chain.
+fn write_binary_chain_sides<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parts: &[BinarySide],
+) -> FormatResult<()> {
+    for part in parts {
+        write!(f, [*part])?;
+    }
+
+    Ok(())
 }
 
 /// Return whether this binary root is already owned by an outer indentation layout.
@@ -724,10 +716,12 @@ pub(crate) fn format_binary_expression<'ast>(
 ) -> FormatResult<()> {
     let binary = BinaryLikeExpression::new(node_id);
     let is_inside_condition = binary.is_inside_condition(f.context());
+    let mut parts = BinarySideList::new();
+    collect_binary_chain_sides(binary, is_inside_condition, f.context(), &mut parts);
 
     // condition position
     if is_inside_condition {
-        return format_flattened_binary_expression(binary, true, f);
+        return write_binary_chain_sides(f, &parts);
     }
 
     // parenthesized callee or object position
@@ -735,9 +729,7 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&soft_block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| {
-                    format_flattened_binary_expression(binary, false, f)
-                }
+                |f: &mut DestackFormatter<'ast, '_>| { write_binary_chain_sides(f, &parts) }
             )))]
         );
     }
@@ -747,7 +739,7 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                format_flattened_binary_expression(binary, false, f)
+                write_binary_chain_sides(f, &parts)
             }))]
         );
     }
@@ -755,9 +747,6 @@ pub(crate) fn format_binary_expression<'ast>(
     let should_inline_logical = binary.should_inline_logical_expression(f.context());
     let should_indent_if_parent_inlines =
         binary_parent_inlines_flattened_layout(f.context(), node_id);
-
-    let mut parts = Vec::with_capacity(2);
-    split_into_left_and_right_sides(binary, false, f.context(), &mut parts);
     let is_flattened = parts.len() > 2;
 
     // direct grouped layout
@@ -767,11 +756,7 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                for part in &parts {
-                    write!(f, [*part])?;
-                }
-
-                Ok(())
+                write_binary_chain_sides(f, &parts)
             }))]
         );
     }
