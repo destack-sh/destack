@@ -107,7 +107,7 @@ else {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever). 
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) with hardware empathy. 
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
@@ -121,6 +121,7 @@ else {
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing. 
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
+- When a method mutates state it should be obvious, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, but it's much preferred.
 
 ### Refactoring
 
