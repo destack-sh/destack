@@ -24,6 +24,30 @@ fn test_format_parameter_with_default() {
     );
 }
 
+#[test]
+fn test_format_comptime_parameter() {
+    assert_format!(
+        "comptime value: T",
+        "comptime value: T",
+        |p| p.eat_parameter(),
+        DestackFormatOptions::default()
+    );
+}
+
+#[test]
+fn test_format_comptime_function() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"comptime function layout<T>(comptime value: T): usize { return sizeOf<T>() + value }
+"#,
+        r#"comptime function layout<T>(comptime value: T): usize {
+    return sizeOf<T>() + value;
+}
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Defaulted pattern parameters should keep comments inside the pattern.
 #[test]
 fn test_format_pattern_parameter_default_comments() {

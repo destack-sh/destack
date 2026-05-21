@@ -12,9 +12,9 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
-    Asynchrony, Expression, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
-    Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeStore, TypeExpression,
-    VarianceModifier, Visibility, WhereClause,
+    Asynchrony, Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
+    GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeStore,
+    TypeExpression, VarianceModifier, Visibility, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -54,6 +54,19 @@ fn write_readonly_prefix<'ast>(
     // readonly
     if is_readonly {
         write!(f, [Keyword::Readonly, space()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one comptime prefix.
+fn write_comptime_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_comptime: bool,
+) -> FormatResult<()> {
+    // comptime
+    if is_comptime {
+        write!(f, [Keyword::Comptime, space()])?;
     }
 
     Ok(())
@@ -345,14 +358,19 @@ fn parameter_has_modifier(
         Parameter::Named {
             visibility,
             is_readonly,
+            is_comptime,
             ..
         }
         | Parameter::VariadicNamed {
             visibility,
             is_readonly,
+            is_comptime,
             ..
-        } => visibility.is_some() || *is_readonly,
-        Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } | Parameter::Error => false,
+        } => visibility.is_some() || *is_readonly || *is_comptime,
+        Parameter::Pattern { is_comptime, .. } | Parameter::VariadicPattern { is_comptime, .. } => {
+            *is_comptime
+        }
+        Parameter::Error => false,
     }
 }
 
@@ -543,6 +561,7 @@ fn write_named_parameter<'ast>(
     visibility: Option<Visibility>,
     is_readonly: bool,
     is_optional: bool,
+    is_comptime: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
@@ -551,6 +570,7 @@ fn write_named_parameter<'ast>(
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // prefixes
             write_visibility_prefix(f, visibility)?;
+            write_comptime_prefix(f, is_comptime)?;
             write_readonly_prefix(f, is_readonly)?;
 
             // name
@@ -585,12 +605,16 @@ fn write_pattern_parameter<'ast>(
     parameter_id: LocalNodeId<Parameter>,
     pattern: LocalNodeId<Pattern>,
     is_optional: bool,
+    is_comptime: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let left = PreparedFormat::new(
         f,
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            // prefix
+            write_comptime_prefix(f, is_comptime)?;
+
             // pattern
             write!(f, [pattern])?;
             write_optional_suffix(f, is_optional)?;
@@ -624,10 +648,12 @@ fn write_variadic_named_parameter<'ast>(
     name: StringId,
     visibility: Option<Visibility>,
     is_readonly: bool,
+    is_comptime: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     // prefixes
     write_visibility_prefix(f, visibility)?;
+    write_comptime_prefix(f, is_comptime)?;
     write_readonly_prefix(f, is_readonly)?;
 
     // variadic name
@@ -642,8 +668,12 @@ fn write_variadic_pattern_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     pattern: LocalNodeId<Pattern>,
+    is_comptime: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
+    // prefix
+    write_comptime_prefix(f, is_comptime)?;
+
     // variadic pattern
     write!(f, [token("..."), pattern])?;
 
@@ -663,6 +693,7 @@ fn format_parameter_node<'ast>(
             visibility,
             is_readonly,
             is_optional,
+            is_comptime,
             declared_type,
             default,
         } => write_named_parameter(
@@ -672,19 +703,30 @@ fn format_parameter_node<'ast>(
             *visibility,
             *is_readonly,
             *is_optional,
+            *is_comptime,
             *declared_type,
             *default,
         ),
         Parameter::Pattern {
             pattern,
             is_optional,
+            is_comptime,
             declared_type,
             default,
-        } => write_pattern_parameter(f, node_id, *pattern, *is_optional, *declared_type, *default),
+        } => write_pattern_parameter(
+            f,
+            node_id,
+            *pattern,
+            *is_optional,
+            *is_comptime,
+            *declared_type,
+            *default,
+        ),
         Parameter::VariadicNamed {
             name,
             visibility,
             is_readonly,
+            is_comptime,
             declared_type,
         } => write_variadic_named_parameter(
             f,
@@ -692,12 +734,14 @@ fn format_parameter_node<'ast>(
             *name,
             *visibility,
             *is_readonly,
+            *is_comptime,
             *declared_type,
         ),
         Parameter::VariadicPattern {
             pattern,
+            is_comptime,
             declared_type,
-        } => write_variadic_pattern_parameter(f, node_id, *pattern, *declared_type),
+        } => write_variadic_pattern_parameter(f, node_id, *pattern, *is_comptime, *declared_type),
         Parameter::Error => write!(f, [token("/* ERROR */")]),
     }
 }
@@ -822,6 +866,11 @@ pub(crate) fn write_function_header_prefix(
 ) -> FormatResult<()> {
     // abstraction
     write_function_abstraction_prefix(f, signature.is_abstract, signature.is_override)?;
+
+    // phase
+    if signature.phase == FunctionPhase::Comptime {
+        write!(f, [Keyword::Comptime, space()])?;
+    }
 
     // asynchrony
     write_function_asynchrony_prefix(f, signature.asynchrony)?;
