@@ -1549,7 +1549,7 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
         id: dir::LocalNodeId<dir::WhereClause>,
         where_clause: &dir::WhereClause,
     ) {
-        self.push_identifier_id("where_left", where_clause.left);
+        self.push_same("where_clause", "constraint");
         dir::walk_where_clause(self, tree, id, where_clause);
     }
 
