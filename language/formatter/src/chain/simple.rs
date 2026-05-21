@@ -81,8 +81,8 @@ fn generic_argument_is_simple(
     depth: u8,
 ) -> bool {
     match context.tree.get(argument_id) {
-        GenericArgument::Type { .. } => false,
-        GenericArgument::Value { value } => {
+        GenericArgument::Type { .. } | GenericArgument::SpreadType { .. } => false,
+        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
             SimpleArgument::from(*value).is_simple_with_depth(context, depth)
         }
         GenericArgument::Error => false,

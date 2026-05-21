@@ -142,7 +142,9 @@ fn generic_argument_list_should_hug(
         return false;
     }
 
-    let GenericArgument::Type { value } = context.tree.get(generic_arguments[0]) else {
+    let (GenericArgument::Type { value } | GenericArgument::SpreadType { value }) =
+        context.tree.get(generic_arguments[0])
+    else {
         return false;
     };
 

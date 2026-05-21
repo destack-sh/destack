@@ -3058,14 +3058,22 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
 
         // body
         match self {
-            GenericArgument::Type { value } => {
+            GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+                if matches!(self, GenericArgument::SpreadType { .. }) {
+                    write!(f, [token("...")])?;
+                }
+
                 if generic_type_argument_needs_type_prefix(f.context(), *value) {
                     write!(f, [Keyword::Type, space()])?;
                 }
 
                 write!(f, [value])?;
             }
-            GenericArgument::Value { value } => {
+            GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+                if matches!(self, GenericArgument::SpreadValue { .. }) {
+                    write!(f, [token("...")])?;
+                }
+
                 write!(f, [value])?;
             }
             GenericArgument::Error => {

@@ -127,12 +127,12 @@ fn is_complex_generic_arguments<'ast>(
     };
 
     match f.context().tree.get(argument_id) {
-        GenericArgument::Type { value } => {
+        GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
             if type_argument_is_complex(f.context(), *value) {
                 return Ok(true);
             }
         }
-        GenericArgument::Value { value } => {
+        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
             let value = transparent_inner_expression(f.context(), *value);
 
             // value arguments use the same threshold as complex type arguments

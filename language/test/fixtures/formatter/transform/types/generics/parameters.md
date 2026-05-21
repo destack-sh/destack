@@ -101,3 +101,27 @@ export type OuterType42<
     | ngerLongerLongerOtherType,
 > = { a: 1 };
 ```
+
+### variadic type parameters
+
+Variadic type parameters keep the spread marker attached to the name.
+
+```ds
+type Callback< ...Parameters , Return > = (...parameters: Parameters) => Return
+```
+
+```ds expected
+type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
+```
+
+### variadic value parameters
+
+Variadic value parameters keep the `comptime` marker before the spread marker.
+
+```ds
+function tensor< comptime ...Shape : readonly usize[] >(value: Tensor< ...Shape >): void {}
+```
+
+```ds expected
+function tensor<comptime ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
+```

@@ -131,8 +131,12 @@ fn generic_arguments_are_trivial(
     generic_arguments
         .iter()
         .all(|argument_id| match tree.get(*argument_id) {
-            GenericArgument::Type { value } => is_trivial_type_expression(tree, *value),
-            GenericArgument::Value { value } => is_trivial_expression(tree, tree.get(*value)),
+            GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+                is_trivial_type_expression(tree, *value)
+            }
+            GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+                is_trivial_expression(tree, tree.get(*value))
+            }
             GenericArgument::Error => false,
         })
 }
