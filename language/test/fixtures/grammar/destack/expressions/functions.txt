@@ -9,6 +9,12 @@ async function* stream<T>(source: Source<T>): AsyncGenerator<T, void, unknown> {
 const map = <T, U>(value: T, project: (value: T) => U): U => project(value);
 //          ^ punctuation.definition.typeparameters.begin.ds
 
+comptime async function load(comptime value: Input): Output {}
+// <- keyword.other.comptime.ds
+
+declare comptime function sizeOf<T>(): usize;
+//      ^^^^^^^^ keyword.other.comptime.ds
+
 // expressions / functions / calls and type arguments
 const user = create<User, comptime 4>(input);
 //           ^^^^^^ entity.name.function.call.ds

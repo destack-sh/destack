@@ -1080,7 +1080,7 @@
       "patterns": [
         {
           "name": "meta.type.parameters.ds",
-          "begin": "(?x)(?<!\\bnew\\s+[A-Za-z_]\\w*)<(?=\\s*(?:(?:(?:comptime|const|in|out)\\s+)*[A-Za-z_]\\w*\\s*(?:,|>|extends|:)))(?=[^>]*>(?=\\s*(?:\\(|\\{|=|:|;|,|\\bfor\\b|\\bextends\\b|\\bimplements\\b|[A-Za-z_]\\w*\\s+for\\b)))",
+          "begin": "(?x)(?<!\\bnew\\s+[A-Za-z_]\\w*)<(?=\\s*(?:(?:(?:comptime|const|in|out)\\s+)*(?:\\.\\.\\.\\s*)?[A-Za-z_]\\w*\\s*(?:,|>|extends|:)))(?=[^>]*>(?=\\s*(?:\\(|\\{|=|:|;|,|\\bfor\\b|\\bextends\\b|\\bimplements\\b|[A-Za-z_]\\w*\\s+for\\b)))",
           "beginCaptures": {
             "0": {
               "name": "punctuation.definition.typeparameters.begin.ds"
@@ -1104,6 +1104,10 @@
             {
               "name": "keyword.operator.variance.ds",
               "match": "\\b(?:in|out)\\b(?=\\s+[A-Za-z_]\\w*)"
+            },
+            {
+              "name": "keyword.operator.prefix.ds",
+              "match": "\\.\\.\\."
             },
             {
               "name": "entity.name.type.parameter.ds",
