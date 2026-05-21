@@ -44,7 +44,7 @@ impl Compiler {
         let package_id = target.package_id();
 
         let resolved_profile = self
-            .target_profile_id(context.revision(), module, target)
+            .target_profile_id(context.revision(), module, target)?
             .ok_or_else(|| OptimizeError::InvalidTarget {
                 anchor: package_id.into(),
                 package: package_id,
@@ -75,7 +75,7 @@ impl Compiler {
         let strings = self.repository.string_pool().clone();
 
         // resolve pipeline options
-        let module_ref = self.module(context.revision(), module);
+        let module_ref = self.module(context.revision(), module)?;
         let options =
             self.pipeline_options_for_module(module_ref.as_ref(), &target_config, level, context);
 
@@ -225,6 +225,12 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> OptimizeResult<Target> {
         self.target_or_builtin(context, *target)
+            .map_err(|error| OptimizeError::InvalidTarget {
+                anchor: target.package_id().into(),
+                package: target.package_id(),
+                target: *target,
+                message: format!("{error:?}"),
+            })?
             .ok_or_else(|| OptimizeError::InvalidTarget {
                 anchor: target.package_id().into(),
                 package: target.package_id(),

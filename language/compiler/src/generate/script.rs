@@ -18,7 +18,7 @@ impl Compiler {
     ) -> CompilerResult<ModuleOutput> {
         // snapshot module for this generate pass
         let artifacts = self.artifact_reader(context);
-        let module = self.module(context.revision(), module_id);
+        let module = self.module(context.revision(), module_id)?;
         let parsed = artifacts
             .dir_parsed(module_id)
             .map_err(CompilerError::from)?;

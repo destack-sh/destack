@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{
-    CheckFailurePolicy, Mode, Module, ProfileId, ProviderContext, Target, has_mode,
+    CheckFailurePolicy, Mode, Module, ProfileId, ProviderContext, Target,
 };
 use indexmap::IndexSet;
 
@@ -188,8 +188,8 @@ impl<'a> ModuleLowerer<'a> {
         let target_config = Self::target_config_for_module(compiler, context, module, target)?;
 
         // resolve runtime check policies
-        let profile_config = compiler.profile(context.revision(), profile);
-        let debug = has_mode(&profile_config.key.modes, Mode::DEBUG);
+        let profile_config = compiler.profile(context.revision(), profile)?;
+        let debug = profile_config.key.conditions.contains_mode(Mode::DEBUG.name);
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.emit.is_native();
 
@@ -261,7 +261,7 @@ impl<'a> ModuleLowerer<'a> {
             .map_err(CompilerError::from)?;
 
         let mut intrinsics = LanguageIntrinsics::new();
-        for module_id in &environment.modules {
+        for module_id in &environment.globals {
             let parsed = artifacts
                 .dir_parsed(*module_id)
                 .map_err(CompilerError::from)?;
@@ -484,6 +484,11 @@ impl<'a> ModuleLowerer<'a> {
     ) -> LowerResult<Target> {
         compiler
             .target_or_builtin(context, *target)
+            .map_err(|error| LowerError::Internal {
+                anchor: (module.id).into(),
+                module: module.id,
+                message: format!("{error:?}"),
+            })?
             .ok_or_else(|| LowerError::Internal {
                 anchor: (module.id).into(),
                 module: module.id,
