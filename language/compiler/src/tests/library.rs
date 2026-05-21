@@ -63,7 +63,7 @@ fn parse_builtin_file(package: &BuiltinPackage, file: BuiltinFile) -> Diagnostic
         tree,
     );
     parser.parse();
-    parser.diagnostics.collect()
+    parser.diagnostics()
 }
 
 /// Format check one builtin file and require stable second-pass output.
