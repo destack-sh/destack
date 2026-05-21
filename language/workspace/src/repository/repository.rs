@@ -11,7 +11,8 @@ use destack_source::{FileContentEntry, FileContentId, FileId, FileSystem};
 use im::OrdMap;
 
 use crate::repository::{
-    FileCache, FileEntry, FileStore, Ref, RepositoryError, Revision, RevisionEntry, RevisionState,
+    BuiltinPackage, FileCache, FileEntry, FileStore, Ref, RepositoryError, Revision, RevisionEntry,
+    RevisionState,
 };
 use crate::{Environment, Workspace, WorkspaceKind, resolve_cache_root};
 
@@ -34,6 +35,8 @@ pub struct Repository {
     pub(crate) fs: Arc<dyn FileSystem>,
     /// Shared immutable file contents.
     pub(crate) files: FileStore,
+    /// Immutable builtin package shipped with the toolchain.
+    pub(crate) builtin: BuiltinPackage,
     /// Parsed file data by exact file content.
     pub(crate) file_cache: FileCache,
     /// Shared derived artifacts.
@@ -66,6 +69,7 @@ impl Repository {
             artifact_versions,
             file_cache,
             files: file_contents,
+            builtin: BuiltinPackage::new(),
             artifacts: Arc::new(ArtifactStore::default()),
             strings: Arc::new(StringPool::new()),
             cache,
