@@ -45,7 +45,7 @@ else {
 // Binary operator precedence
 // ================================================================================
 ```
-- Though try to minimize the number of these, they're quite noisy. 
+- Though try to minimize the number of these, they're quite noisy.
 - Comments MAY start with keywords:
     - `NOTE`: call out something important
     - `TODO`: something to address eventually
@@ -66,7 +66,7 @@ else {
 - Where relevant prior art exists, we should follow existing modern terminology.
 - Shorter, stronger nouns and verbs are almost always better.
 - Prefer writing out most names and words (even in variable names, `extension` > `ext`, `directory` > `dir`).
-- As with logic, symmetry in naming across related logic is simpler, and simpler is better. 
+- As with logic, symmetry in naming across related logic is simpler, and simpler is better.
 - Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
 - Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
@@ -95,7 +95,7 @@ let number = 10 * first_digit + second_digit;
 /// option A
 if A {
     Ok(..)
-} 
+}
 // option B
 else if B {
     Ok(..)
@@ -107,7 +107,7 @@ else {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) with hardware empathy. 
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) with hardware empathy.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
@@ -115,10 +115,10 @@ else {
 - Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is very valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
 - Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
 - Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
-- Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph. 
+- Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph.
 - That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns (dare I say "objects", but no OOP abstraction nonsense).
-- Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer. 
-- More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing. 
+- Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer.
+- More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing.
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 - When a method mutates state it should be obvious, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, but it's much preferred.
@@ -130,20 +130,20 @@ else {
 - As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change".
 - Sometimes it is however easier to just rip out a component alltogether and rewrite it completely, especially if it's say <5k LoC or so.
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
-- Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested. 
+- Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
 - As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
-- Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less. 
+- Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less.
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
 - Almost never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between.
 - It is quite often better to break / change the source directly and then let the compiler guide us to all usage sites.
 
 ### Performance
 
-- Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't). 
+- Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't).
 - Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have (bandwidth, disk, memory, CPU, whatever it is).
 - Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well (or find a way not to do it at all!).
-- Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals. 
-- The fastest code is code that doesn't run at all, the best data structures are the ones we don't need. Text book data structures, algorithms and fanciness are rarely required. 
+- Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals.
+- The fastest code is code that doesn't run at all, the best data structures are the ones we don't need. Text book data structures, algorithms and fanciness are rarely required.
 - Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, usually.
 - Memory access patterns are the dominating factor in most modern software problems, thus, something "dumber" but tighter (like a dense array) is often faster than something "smarter" but looser (like a map or ) even at high scales.
 - Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart.
@@ -154,7 +154,7 @@ else {
 - As a corollary, silent failures of any kind are evil and only ever cause downstream trouble.
 - Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
 - On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
-- Specifically, being overly defensive and "scared" in some code path is usually a big small that we haven't really understood and defined the model and its invarianst well enough yet. (e.g., handling usize overflows in a modern allocator is just noise) 
+- Specifically, being overly defensive and "scared" in some code path is usually a big small that we haven't really understood and defined the model and its invarianst well enough yet. (e.g., handling usize overflows in a modern allocator is just noise)
 
 ### Boundaries
 
