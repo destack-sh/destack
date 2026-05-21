@@ -1194,6 +1194,7 @@ module.exports = grammar(JavaScript, {
 
     function_signature: $ => seq(
       repeat(field('decorator', $.decorator)),
+      optional('comptime'),
       optional('async'),
       'function',
       field('name', $.identifier),
@@ -1205,6 +1206,7 @@ module.exports = grammar(JavaScript, {
     declare_function_signature: $ => seq(
       repeat(field('decorator', $.decorator)),
       'declare',
+      optional('comptime'),
       optional('async'),
       'function',
       optional('*'),
@@ -1216,6 +1218,7 @@ module.exports = grammar(JavaScript, {
 
     function_declaration: $ => prec.right('declaration', seq(
       repeat(field('decorator', $.decorator)),
+      optional('comptime'),
       optional('async'),
       'function',
       field('name', $.identifier),
@@ -1227,6 +1230,7 @@ module.exports = grammar(JavaScript, {
 
     generator_function_declaration: $ => prec.right('declaration', seq(
       repeat(field('decorator', $.decorator)),
+      optional('comptime'),
       optional('async'),
       'function',
       '*',
@@ -2210,6 +2214,7 @@ module.exports = grammar(JavaScript, {
         seq(
           optional(choice('const', 'comptime')),
           optional(choice('in', 'out')),
+          optional('...'),
           field('name', $._type_identifier),
           field('constraint', optional($.constraint)),
           field('value', optional($.default_type)),
