@@ -13,11 +13,11 @@ mod expand;
 mod export;
 mod generate;
 mod import;
-mod library;
 mod link;
 mod lower;
 mod materialize;
 mod optimize;
+mod resolve;
 mod verify;
 
 pub use bind::*;
@@ -28,14 +28,12 @@ pub use expand::*;
 pub use export::*;
 pub use generate::*;
 pub use import::*;
-pub use library::*;
 pub use link::*;
 pub use lower::*;
 pub use materialize::*;
 pub use optimize::*;
+pub use resolve::*;
 pub use verify::*;
-
-pub(crate) use link::ScriptLinker;
 
 #[cfg(test)]
 mod tests;
