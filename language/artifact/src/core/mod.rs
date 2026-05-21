@@ -1,3 +1,4 @@
+mod condition;
 mod dependency;
 mod environment;
 mod failure;
@@ -7,6 +8,7 @@ mod profile;
 mod target;
 mod version;
 
+pub use condition::*;
 pub use dependency::*;
 pub use environment::*;
 pub use failure::*;
