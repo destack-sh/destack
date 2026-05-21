@@ -665,8 +665,15 @@ const values = repeat("x", 3);
 values satisfies [string; 3];
 ```
 
-Type inference for generics is local and flows "outward" - we can "import" inference from other modules, but this only works one way; each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports.
-Downstream uses do not feed back into upstream inference in any way.
+Like dynamic parameter, Destack's generic parameter also supports `...` for:
+
+```ds
+type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
+type Tensor<comptime ...Shape: usize> = TensorBuffer<...Shape>;
+```
+
+Generics type inference - like all type inference - is local and flows "outward", that is, we can "import" inference from other modules, but imported inference only works in one direction.
+Each module can infer static types and values from its own declarations and imports, and downstream modules can use what it exports, and downstream uses cannot feed back into upstream inference in any way (unlike in TypeScript, mostly).
 
 ```ds:a.ds
 declare function length<T, comptime N: uint>(xs: [T; N]): N;
