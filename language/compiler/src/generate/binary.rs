@@ -18,7 +18,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ModuleOutput> {
         // load the owning module once for backend context
-        let module = self.module(context.revision(), module_id);
+        let module = self.module(context.revision(), module_id)?;
 
         // load the MIR state
         let artifacts = self.artifact_reader(context);

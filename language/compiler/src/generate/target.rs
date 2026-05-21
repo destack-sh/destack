@@ -16,17 +16,17 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ModuleOutput> {
         // look up target from the module package
-        let target =
-            self.target_or_builtin(context, *target_id)
-                .ok_or_else(|| GenerateError::Internal {
-                    anchor: (module_id).into(),
-                    module: module_id,
-                    message: format!("target '{target_id}' not found"),
-                })?;
-        let target_name = self.target_name(context.revision(), *target_id);
+        let target = self
+            .target_or_builtin(context, *target_id)?
+            .ok_or_else(|| GenerateError::Internal {
+                anchor: (module_id).into(),
+                module: module_id,
+                message: format!("target '{target_id}' not found"),
+            })?;
+        let target_name = self.target_name(context.revision(), *target_id)?;
 
         let resolved_profile = self
-            .target_profile_id(context.revision(), module_id, target_id)
+            .target_profile_id(context.revision(), module_id, target_id)?
             .ok_or_else(|| GenerateError::Internal {
                 anchor: (module_id).into(),
                 module: module_id,

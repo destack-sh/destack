@@ -6,7 +6,7 @@ use dir::{
 };
 
 use crate::elaborate::ElaborateState;
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 /// The synthetic state used to rewrite one nullish coalesce operation.
 struct CoalesceBindingState {
@@ -99,7 +99,7 @@ impl Compiler {
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
         // keep nullish coalesce syntax in JS and TS outputs
-        if self.profile_keeps_nullish_coalesce(state) {
+        if self.profile_keeps_nullish_coalesce(state)? {
             return Ok(false);
         }
 
@@ -172,7 +172,7 @@ impl Compiler {
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
         // keep nullish coalesce syntax in JS and TS outputs
-        if self.profile_keeps_nullish_coalesce(state) {
+        if self.profile_keeps_nullish_coalesce(state)? {
             return Ok(false);
         }
 
@@ -224,7 +224,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
         // keep nullish coalesce syntax in JS and TS outputs
-        if self.profile_keeps_nullish_coalesce(state) {
+        if self.profile_keeps_nullish_coalesce(state)? {
             return Ok(false);
         }
 
@@ -652,12 +652,18 @@ impl Compiler {
     }
 
     /// Return true when the profile should keep nullish syntax as-is.
-    fn profile_keeps_nullish_coalesce(&self, state: &ElaborateState<'_>) -> bool {
+    fn profile_keeps_nullish_coalesce(&self, state: &ElaborateState<'_>) -> ElaborateResult<bool> {
         let emit = self
             .profile(state.provider.revision(), state.profile)
+            .map_err(|error| ElaborateError::Internal {
+                anchor: (state.module_id).into(),
+                module: state.module_id,
+                message: format!("{error:?}"),
+            })?
             .key
             .emit;
-        matches!(emit, EmitFormat::Js | EmitFormat::Ts | EmitFormat::Html)
+
+        Ok(matches!(emit, EmitFormat::Js | EmitFormat::Ts | EmitFormat::Html))
     }
 
     /// Build the shared synthetic binding and nullish condition for one left operand.

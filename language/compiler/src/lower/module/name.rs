@@ -1042,7 +1042,8 @@ impl ModuleLowerer<'_> {
         // load module metadata for the symbol
         let module = self
             .compiler
-            .module(self.context.revision(), symbol_id.module_id);
+            .module(self.context.revision(), symbol_id.module_id)
+            .ok()?;
         let dir = self.dir_bound_if_present(symbol_id.module_id)?;
         let bindings = dir.binding_table();
 
@@ -1059,7 +1060,8 @@ impl ModuleLowerer<'_> {
         // load the owning package
         let package = self
             .compiler
-            .package(self.context.revision(), module.package_id);
+            .package(self.context.revision(), module.package_id)
+            .ok()?;
 
         // build the module prefix
         let package_name = package.name.as_ref()?;
@@ -1170,6 +1172,7 @@ impl ModuleLowerer<'_> {
             format!("{prefix}/{stripped}")
         }
     }
+
 }
 
 /// Build a slug suitable for string literal global names.
