@@ -436,7 +436,7 @@ newtype Shape =
 
 extension of Shape {
     static DEFAULT = Shape.Rectangle({ width: 10, height: 20 });
-    
+
     variant() {
         match (this) {
             Shape.Rectangle({ width, height }) => "rectangle"
@@ -905,7 +905,7 @@ next satisfies Function<(), number>;
 const read = () => count;
 ```
 
-As with all of Destack, the `Function`s behind closures behave like one would expect in TypeScript by default, with additional control available on demand via the regular memory modifiers like `&Function<(string,), void>`. 
+As with all of Destack, the `Function`s behind closures behave like one would expect in TypeScript by default, with additional control available on demand via the regular memory modifiers like `&Function<(string,), void>`.
 By default, captures preserve variable identity: the captured variable's storage is automatically managed by the compiler, and every closure that captures that variable observes the same storage.
 The capture policy can be configured via the `@capture` decorator:
 
@@ -2441,7 +2441,7 @@ WithAccess<&User, "exclusive"> satisfies &exclusive User;
 ```
 
 Because memory qualification is just ordinary type-level computation, userland code can introspect and rewrite ownership and placement using the same type system we already use for all other types.
-Inside a type declaration, `this` in type or static position also carries the current instantiated form of that type to query against with the `*Of` and `Is*` family. 
+Inside a type declaration, `this` in type or static position also carries the current instantiated form of that type to query against with the `*Of` and `Is*` family.
 
 ```ds
 struct Buffer<T> {
