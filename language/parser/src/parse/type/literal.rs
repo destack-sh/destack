@@ -50,44 +50,36 @@ impl Parser {
         }
     }
 
-    /// Map identifier text to one type literal when possible.
+    /// Eat a variance bound when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// extends T
+    /// implements Shape
+    /// super Base
+    /// ```
     #[inline]
-    pub(crate) fn type_literal_identifier_str(
-        &self,
-        identifier: &str,
-        next_identifier: Option<&str>,
-    ) -> Option<TypeLiteral> {
-        self.type_literal_always_available_str(identifier)
-            .or_else(|| self.type_literal_type_context_str(identifier, next_identifier))
-    }
+    pub fn eat_variance_bound_if_present(&mut self) -> ParseResult<Option<VarianceBound>> {
+        let bound = if self.is_keyword(Keyword::Implements) {
+            Some(VarianceBound::Implements)
+        } else if self.is_keyword(Keyword::Extends) {
+            Some(VarianceBound::Extends)
+        } else if self.is_keyword(Keyword::Super) {
+            Some(VarianceBound::Super)
+        } else {
+            None
+        };
 
-    /// Eat a variance bound maybe.
-    #[inline]
-    pub fn eat_variance_bound_maybe(&mut self) -> ParseResult<Option<VarianceBound>> {
-        // implements
-        if self.is_keyword(Keyword::Implements) {
-            self.bump(); // eat implements
-            Ok(Some(VarianceBound::Implements))
+        if bound.is_some() {
+            self.bump();
         }
-        // extends
-        else if self.is_keyword(Keyword::Extends) {
-            self.bump(); // eat extends
-            Ok(Some(VarianceBound::Extends))
-        }
-        // super
-        else if self.is_keyword(Keyword::Super) {
-            self.bump(); // eat super
-            Ok(Some(VarianceBound::Super))
-        }
-        // none
-        else {
-            Ok(None)
-        }
+
+        Ok(bound)
     }
 
     /// Return the explicit width encoded in one type literal name.
     #[inline]
-    fn type_width_maybe(&self, prefix: &'static str, target: &str) -> Option<u16> {
+    fn type_width_if_present(&self, prefix: &'static str, target: &str) -> Option<u16> {
         if let Some(target) = target.strip_prefix(prefix) {
             target.parse::<u16>().ok()
         } else {
@@ -153,7 +145,7 @@ impl Parser {
             "isize" => Ok(TypeLiteral::Integer(IntegerType::Pointer {
                 is_signed: true,
             })),
-            int_str if let Some(width) = self.type_width_maybe("int", int_str) => {
+            int_str if let Some(width) = self.type_width_if_present("int", int_str) => {
                 Ok(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: true,
@@ -165,13 +157,13 @@ impl Parser {
             "usize" => Ok(TypeLiteral::Integer(IntegerType::Pointer {
                 is_signed: false,
             })),
-            uint_str if let Some(width) = self.type_width_maybe("uint", uint_str) => {
+            uint_str if let Some(width) = self.type_width_if_present("uint", uint_str) => {
                 Ok(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: false,
                 }))
             }
-            uint_str if let Some(width) = self.type_width_maybe("u", uint_str) => {
+            uint_str if let Some(width) = self.type_width_if_present("u", uint_str) => {
                 Ok(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: false,
@@ -187,6 +179,13 @@ impl Parser {
     }
 
     /// Eat one non composite type literal.
+    ///
+    /// Examples:
+    /// ```ds
+    /// string
+    /// uint32
+    /// unique symbol
+    /// ```
     pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParseResult<TypeLiteral> {
         // resolve the literal kind first
         let literal = match literal {
@@ -197,7 +196,7 @@ impl Parser {
         // consume the literal tokens
         self.bump();
         if let TypeLiteral::UniqueSymbol = literal {
-            self.bump(); // eat second token
+            self.bump();
         }
         Ok(literal)
     }

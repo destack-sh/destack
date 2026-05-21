@@ -1,5 +1,5 @@
-use crate::parse::expression::common::DeclarationHeader;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::parse::DeclarationHeader;
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_dir::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
@@ -7,70 +7,20 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
+/// Parsed type keyword header.
+#[derive(Debug, Copy, Clone)]
+struct TypeKeywordHeader {
+    /// The type declaration kind implied by the keyword.
+    kind: TypeKind,
+    /// The alias mutability implied by the keyword.
+    mutability: Option<Mutability>,
+}
+
 impl Parser {
-    /// Return true when the current identifier head starts a type alias.
-    fn identifier_starts_type_alias(&mut self) -> bool {
-        // require one identifier head first
-        if !self.peek_identifier_is() {
-            return false;
-        }
-
-        // `name = ...`
-        if self.next_token_type() != TokenType::LessThan {
-            return self.next_token_type() == TokenType::Assign;
-        }
-
-        // `name<...> = ...`
-        self.lookahead(|parser| {
-            parser.bump(); // identifier
-            parser.bump(); // <
-
-            let mut depth = 1u32;
-            while parser.has_more_tokens() {
-                let token_type = parser.peek_token_type();
-                match token_type {
-                    TokenType::LessThan => depth += 1,
-                    TokenType::GreaterThan => {
-                        depth -= 1;
-                        if depth == 0 {
-                            parser.bump();
-                            return parser.peek_is(TokenType::Assign);
-                        }
-                    }
-                    TokenType::ShiftRight => {
-                        if depth == 2 {
-                            parser.bump();
-                            return parser.peek_is(TokenType::Assign);
-                        }
-                        if depth < 2 {
-                            return false;
-                        }
-                        depth -= 2;
-                    }
-                    TokenType::UnsignedShiftRight => {
-                        if depth == 3 {
-                            parser.bump();
-                            return parser.peek_is(TokenType::Assign);
-                        }
-                        if depth < 3 {
-                            return false;
-                        }
-                        depth -= 3;
-                    }
-                    _ => {}
-                }
-
-                parser.bump();
-            }
-
-            true
-        })
-    }
-
     /// Eat a type alias or expression.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// type T = int32
     /// type T = foo()
     /// type T = { a: int32, b: boolean } | true
@@ -86,90 +36,139 @@ impl Parser {
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         let keyword_start = self.span_start();
-        let keyword: Keyword =
-            self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
+        let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
         let keyword_span = self.get_span_from(&keyword_start);
+        let type_keyword = self.type_keyword_header(keyword)?;
 
-        // `type` and `readonly` stay structural, `newtype` is nominal
+        // named alias
+        if self.identifier_starts_type_alias() {
+            return self.eat_type_alias_declaration(start, header, type_keyword);
+        }
+
+        self.eat_type_keyword_body_expression(start, keyword_span, type_keyword)
+    }
+
+    /// Return true when the current identifier head starts a type alias.
+    fn identifier_starts_type_alias(&mut self) -> bool {
+        // require one identifier head first
+        if !self.peek_identifier_is() {
+            return false;
+        }
+
+        // `name = ...`
+        if self.next_token_type() != TokenType::LessThan {
+            return self.next_token_type() == TokenType::Assign;
+        }
+
+        self.lookahead(|parser| {
+            parser.bump();
+            parser.bump();
+
+            parser
+                .scan_angle_follow_token_after_open(1)
+                .is_none_or(|token_type| token_type == TokenType::Assign)
+        })
+    }
+
+    /// Return type keyword metadata.
+    fn type_keyword_header(&mut self, keyword: Keyword) -> ParseResult<TypeKeywordHeader> {
         let kind = match keyword {
-            Keyword::Type => TypeKind::Structural,
-            Keyword::Readonly => TypeKind::Structural,
+            Keyword::Type | Keyword::Readonly => TypeKind::Structural,
             Keyword::Newtype => TypeKind::Nominal,
-            _ => unreachable!(),
+            _ => return Err(ParseError::unexpected(self.anchor_span_here())),
         };
 
-        // `readonly type` records immutable alias mutability
         let mutability = if keyword == Keyword::Readonly {
             Some(Mutability::Immutable)
         } else {
             None
         };
 
-        // named alias heads commit before we consume the identifier
-        if self.identifier_starts_type_alias() {
-            // alias head
-            let (name, name_span) = self.eat_name_with_span()?;
-            let generic_parameter_container_start = self.span_start();
-            let generic_parameters = self.eat_generic_parameters_maybe(true)?.unwrap_or_default();
-            let generic_parameter_container_span = (!generic_parameters.is_empty())
-                .then(|| self.get_span_from(&generic_parameter_container_start));
+        Ok(TypeKeywordHeader { kind, mutability })
+    }
 
-            // `=`
-            self.eat_token(TokenType::Assign)?;
-
-            // aliased type value
-            let mut value_flags = self.flags.not_in_position().in_type();
-            if self.flags.is_in_type_conditional_right() {
-                value_flags = value_flags.in_type_conditional_right();
-            }
-            let value_id = self.with_flags(value_flags, |parser| {
-                parser.eat_type_alias_right_hand_side()
-            })?;
-            // declaration node
-            let declaration = Declaration::Type(TypeDeclaration {
-                name,
-                export: header.export,
-                is_ambient: header.is_ambient,
-                is_nominal: kind == TypeKind::Nominal,
-                mutability,
-                generic_parameters,
-                where_clauses: vec![],
-                value: value_id,
-            });
-            let declaration_id = self.insert_node(declaration, self.get_span_from(start));
-            self.tree.set_main_span(declaration_id, name_span);
-            if let Some(span) = generic_parameter_container_span {
-                self.tree.set_side_span(
-                    declaration_id,
-                    NodeSpanType::Region(NodeSpanRegion::GenericParameters),
-                    span,
-                );
-            }
-
-            return Ok(self.insert_node(
-                TypeExpression::Declaration {
-                    declaration: declaration_id,
-                },
-                self.get_span_from(start),
-            ));
-        }
-
-        // otherwise parse one regular type expression body
-        let mut right_flags = self.flags.not_in_position().in_type();
-        if self.flags.is_in_type_conditional_right() {
-            right_flags = right_flags.in_type_conditional_right();
-        }
-        let right = self.with_flags(right_flags, |parser| parser.eat_type_expression())?;
-        let expression_id = if mutability == Some(Mutability::Immutable) {
-            let expression_id = self.insert_node(
-                TypeExpression::Readonly { target_type: right },
-                self.get_span_from(start),
-            );
-            self.tree.set_main_span(expression_id, keyword_span);
-            expression_id
-        } else {
-            right
+    /// Eat a named type alias declaration.
+    ///
+    /// Examples:
+    /// ```ds
+    /// Value = string
+    /// Value<T> = Result<T, Error>
+    /// Value = { id: string }
+    /// ```
+    fn eat_type_alias_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+        type_keyword: TypeKeywordHeader,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let (name, name_span) = self.eat_name_with_span()?;
+        let generic_parameter_container_start = self.span_start();
+        let generic_parameters = match self.eat_generic_parameters_maybe(true)? {
+            Some(generic_parameters) => generic_parameters,
+            None => Vec::new(),
         };
+        let generic_parameter_container_span = (!generic_parameters.is_empty())
+            .then(|| self.get_span_from(&generic_parameter_container_start));
+
+        // alias assignment
+        self.eat_token(TokenType::Assign)?;
+
+        // alias value
+        let value_id = self.eat_type_alias_value()?;
+
+        // declaration node
+        let declaration = Declaration::Type(TypeDeclaration {
+            name,
+            export: header.export,
+            is_ambient: header.is_ambient,
+            is_nominal: type_keyword.kind == TypeKind::Nominal,
+            mutability: type_keyword.mutability,
+            generic_parameters,
+            where_clauses: vec![],
+            value: value_id,
+        });
+        let declaration_id = self.insert_node(declaration, self.get_span_from(start));
+        self.tree.set_main_span(declaration_id, name_span);
+        if let Some(span) = generic_parameter_container_span {
+            self.tree.set_side_span(
+                declaration_id,
+                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
+                span,
+            );
+        }
+
+        Ok(self.insert_node(
+            TypeExpression::Declaration {
+                declaration: declaration_id,
+            },
+            self.get_span_from(start),
+        ))
+    }
+
+    /// Eat a type keyword expression body.
+    ///
+    /// Examples:
+    /// ```ds
+    /// readonly string
+    /// readonly string[]
+    /// readonly { id: string }
+    /// ```
+    fn eat_type_keyword_body_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        keyword_span: destack_source::Span,
+        type_keyword: TypeKeywordHeader,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let right = self.eat_type_keyword_body()?;
+        if type_keyword.mutability != Some(Mutability::Immutable) {
+            return Ok(right);
+        }
+
+        let expression_id = self.insert_node(
+            TypeExpression::Readonly { target_type: right },
+            self.get_span_from(start),
+        );
+        self.tree.set_main_span(expression_id, keyword_span);
 
         Ok(expression_id)
     }
@@ -177,7 +176,7 @@ impl Parser {
     /// Eat one type expression in the current parser scope.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// Foo.Bar<T>
     /// { a: string, b: number }
     /// value is string
@@ -185,14 +184,21 @@ impl Parser {
     /// ```
     pub(crate) fn eat_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         if self.flags.is_in_type() {
-            return self.eat_type_expression_inner_with_stack_guard();
+            return self.eat_type_expression_in_flags(self.flags);
         }
 
-        self.with_flags(self.flags.in_type(), |parser| parser.eat_type_expression())
+        self.eat_type_expression_in_flags(self.flags.in_type())
     }
 
     /// Eat one type alias value.
-    fn eat_type_alias_right_hand_side(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ///
+    /// Examples:
+    /// ```ds
+    /// intrinsic
+    /// string | number
+    /// { id: string }
+    /// ```
+    fn eat_type_alias_value(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         // bare intrinsic marker
         if self.peek_identifier_is() {
             let reference = *self.peek()?;
@@ -206,7 +212,30 @@ impl Parser {
             }
         }
 
-        // otherwise parse one regular type expression
-        self.eat_type_expression()
+        let value = self.eat_type_keyword_body()?;
+
+        // reject optional type suffixes outside tuple and parameter heads
+        if self.peek_is(TokenType::Maybe) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        Ok(value)
+    }
+
+    /// Eat one type expression after a type keyword.
+    ///
+    /// Examples:
+    /// ```ds
+    /// string | number
+    /// readonly T
+    /// T extends U ? X : Y
+    /// ```
+    fn eat_type_keyword_body(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let mut value_flags = self.flags.not_in_position().in_type();
+        if self.flags.is_in_type_conditional_right() {
+            value_flags = value_flags.in_type_conditional_right();
+        }
+
+        self.with_flags(value_flags, |parser| parser.eat_type_expression())
     }
 }

@@ -6,7 +6,7 @@ impl Parser {
     /// Eat one `infer` type expression.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// infer T
     /// infer T extends U
     /// infer T extends (U extends V ? X : Y)
@@ -15,43 +15,8 @@ impl Parser {
         // `infer T`
         let start = self.span_start();
         self.eat_keyword(Keyword::Infer)?;
-        let (name, name_span) = self.eat_identifier_with_span()?;
-        let is_anonymous = self.language.is_destack() && self.get_span_str(name_span) == "_";
-        let name = if is_anonymous { None } else { Some(name) };
-
-        // constraint: `infer T extends U`
-        let constraint = if self.is_keyword(Keyword::Extends) {
-            let mark = self.checkpoint();
-            let tree_mark = self.tree.next_id();
-
-            self.bump(); // eat extends
-
-            let mut constraint_flags = self
-                .flags
-                .not_in_position()
-                .in_type()
-                .disallow_type_conditional();
-            if self.flags.is_in_type_conditional_right() {
-                constraint_flags = constraint_flags.in_type_conditional_right();
-            }
-
-            let constraint = self.eat_type_expression_or_recover_missing(
-                constraint_flags,
-                NodeType::TypeExpression,
-            )?;
-
-            // `infer T extends U ? X : Y` belongs to the surrounding conditional type
-            let has_conditional_marker = self.peek_is(TokenType::Maybe)
-                || (self.current_token_is_on_new_line() && self.peek_is(TokenType::Maybe));
-            if has_conditional_marker && !self.flags.is_disallow_type_conditional() {
-                self.restore(mark, tree_mark);
-                None
-            } else {
-                Some(constraint)
-            }
-        } else {
-            None
-        };
+        let (name, name_span) = self.eat_infer_binding()?;
+        let constraint = self.eat_infer_constraint()?;
 
         // infer node
         let type_expression_id = self.insert_node(
@@ -65,5 +30,78 @@ impl Parser {
         self.tree.set_main_span(type_expression_id, name_span);
 
         Ok(type_expression_id)
+    }
+
+    /// Eat an infer binding name.
+    ///
+    /// Examples:
+    /// ```ds
+    /// T
+    /// _
+    /// Result
+    /// ```
+    fn eat_infer_binding(
+        &mut self,
+    ) -> ParseResult<(Option<destack_core::StringId>, destack_source::Span)> {
+        let (name, name_span) = self.eat_identifier_with_span()?;
+        if self.language.is_destack() && self.get_span_str(name_span) == "_" {
+            return Ok((None, name_span));
+        }
+
+        Ok((Some(name), name_span))
+    }
+
+    /// Eat an infer constraint when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// extends string
+    /// extends keyof T
+    /// extends { id: string }
+    /// ```
+    fn eat_infer_constraint(&mut self) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+        if !self.is_keyword(Keyword::Extends) {
+            return Ok(None);
+        }
+
+        let checkpoint = self.checkpoint();
+        let mark = self.tree.next_id();
+        self.bump();
+
+        let constraint = self.eat_infer_constraint_type()?;
+        if self.infer_extends_is_conditional_boundary() {
+            self.restore(checkpoint, mark);
+            return Ok(None);
+        }
+
+        Ok(Some(constraint))
+    }
+
+    /// Eat the type after `infer T extends`.
+    ///
+    /// Examples:
+    /// ```ds
+    /// string
+    /// readonly string[]
+    /// T extends U ? A : B
+    /// ```
+    fn eat_infer_constraint_type(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let mut flags = self
+            .flags
+            .not_in_position()
+            .in_type()
+            .disallow_type_conditional();
+        if self.flags.is_in_type_conditional_right() {
+            flags = flags.in_type_conditional_right();
+        }
+
+        self.eat_type_expression_or_recover_missing(flags, NodeType::TypeExpression)
+    }
+
+    /// Return whether `extends` should stay with the surrounding conditional type.
+    fn infer_extends_is_conditional_boundary(&mut self) -> bool {
+        !self.flags.is_disallow_type_conditional()
+            && (self.peek_is(TokenType::Maybe)
+                || self.current_token_is_on_new_line() && self.peek_is(TokenType::Maybe))
     }
 }

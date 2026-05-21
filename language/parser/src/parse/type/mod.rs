@@ -1,7 +1,14 @@
 mod declaration;
+mod expression;
+mod group;
 mod heritage;
 mod infer;
+mod infix;
 mod literal;
 mod mapped;
+pub(crate) mod operator;
+mod postfix;
 mod predicate;
+mod primary;
+mod reference;
 mod tuple;
