@@ -574,7 +574,9 @@ fn symbol_form_to_token_type(symbol_form: dir::SymbolForm) -> SemanticTokenType 
         dir::SymbolForm::Variable => SemanticTokenType::Variable,
         dir::SymbolForm::Class => SemanticTokenType::Class,
         dir::SymbolForm::Struct => SemanticTokenType::Struct,
-        dir::SymbolForm::Interface => SemanticTokenType::Interface,
+        dir::SymbolForm::Interface | dir::SymbolForm::NewtypeInterface => {
+            SemanticTokenType::Interface
+        }
         dir::SymbolForm::Enum => SemanticTokenType::Enum,
         dir::SymbolForm::Function => SemanticTokenType::Function,
         dir::SymbolForm::Label => SemanticTokenType::Label,

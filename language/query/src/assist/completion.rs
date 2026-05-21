@@ -94,7 +94,7 @@ impl From<SymbolForm> for CompletionKind {
             SymbolForm::Variable => CompletionKind::Variable,
             SymbolForm::Class => CompletionKind::Class,
             SymbolForm::Struct => CompletionKind::Struct,
-            SymbolForm::Interface => CompletionKind::Interface,
+            SymbolForm::Interface | SymbolForm::NewtypeInterface => CompletionKind::Interface,
             SymbolForm::Enum => CompletionKind::Enum,
             SymbolForm::Function => CompletionKind::Function,
             SymbolForm::Label => CompletionKind::Reference,
