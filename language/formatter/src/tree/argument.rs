@@ -5,12 +5,13 @@ use super::child::{
     tree_argument_has_outer_line_comment, tree_child_should_inline_braced_expression,
     tree_control_child_should_expand,
 };
+use super::expression_source_extent_end;
 use crate::annotation::{
     FormatTrailingComments, format_trailing_comments, infix_or_postfix_annotations,
     prefix_annotations, prefix_annotations_after_offset, prefix_annotations_before_offset,
 };
 use crate::chain::transparent_inner_expression;
-use crate::expression::argument_value;
+use crate::expression::{argument_value, jsx_chain_ternary_needs_expanded_branches};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral,
@@ -236,7 +237,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         | Expression::TreeExpression { .. }
                 );
             if needs_braces {
-                let value_span = f.context().span(*value);
+                let value_end = expression_source_extent_end(f.context(), *value);
 
                 let trailing_comments = |f: &DestackFormatter<'ast, '_>| {
                     f.context()
@@ -244,7 +245,7 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         .comments_before(argument_span.end)
                         .iter()
                         .copied()
-                        .filter(|comment| comment.span.start >= value_span.end)
+                        .filter(|comment| comment.span.start >= value_end)
                         .collect::<Vec<_>>()
                 };
                 let force_multiline_braced_expression =
@@ -283,6 +284,13 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                         )?;
                     } else if expression_chain_has_separator_comment(f.context(), *value)
                         || tree_control_child_should_expand(f.context(), *value)
+                        || matches!(
+                            f.context().tree.get(*value),
+                            Expression::If {
+                                form: IfForm::Ternary,
+                                ..
+                            } if jsx_chain_ternary_needs_expanded_branches(f.context(), *value)
+                        )
                         || matches!(
                             f.context().tree.get(*value),
                             Expression::If {
