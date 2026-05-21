@@ -211,7 +211,7 @@ fn test_parse_parameter_variadic_tuple_name() {
     let mut parser = test.prepare();
     parser.flags.set_in_type(true);
     let parameter_id = parser.eat_parameter().unwrap();
-    assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type } => {
+    assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
         assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
             assert_eq!(fields.len(), 1);
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
@@ -731,8 +731,9 @@ fn test_parse_parameter_comptime() {
     let mut test = TestParser::new("comptime n: int32");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
-    assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), .. } => {
+    assert_node!(parser.tree, parameter_id, Parameter::Named { name, is_comptime, declared_type: Some(declared_type), .. } => {
         assert_string!(parser, *name, "n");
+        assert!(*is_comptime);
         assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
         }) });
     });

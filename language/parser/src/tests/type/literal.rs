@@ -1078,7 +1078,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
                             assert!(default.is_none());
                         });
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type, .. } => {
                             assert_string!(parser, *name, "MISMATCH");
                             assert!(visibility.is_none());
                             assert!(!*is_readonly);
@@ -1163,7 +1163,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
                     assert_expected_nested_conditional_constraint(&parser, constraint.expect("expected constraint"));
                 });
                 assert_eq!(function.parameters.len(), 1);
-                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type } => {
+                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type, .. } => {
                     assert_string!(parser, *name, "MISMATCH");
                     assert!(visibility.is_none());
                     assert!(!*is_readonly);
@@ -1238,7 +1238,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
                         });
 
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type, .. } => {
                             assert_string!(parser, *name, "MISMATCH");
                             assert!(visibility.is_none());
                             assert!(!*is_readonly);
@@ -1305,7 +1305,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
                         });
 
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default, .. } => {
                             assert_string!(parser, *name, "x");
                             assert!(visibility.is_none());
                             assert!(!*is_readonly);

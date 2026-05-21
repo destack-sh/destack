@@ -123,7 +123,7 @@ fn test_parse_return_type_predicate_with_object_subject() {
             assert_eq!(signature.parameters.len(), 1);
             assert!(body.is_none());
 
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default } => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default, .. } => {
                 assert_string!(parser, *name, "object");
                 assert!(visibility.is_none());
                 assert!(!*is_readonly);

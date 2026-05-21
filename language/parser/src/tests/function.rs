@@ -1,8 +1,9 @@
 use destack_dir::{
     Argument, Asynchrony, BlockContext, BlockForm, ClassDeclaration, CommentKind, CommentPosition,
-    Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionRole,
-    GenericArgument, GenericParameter, IntegerType, NodeType, Parameter, Pattern, ScalarLiteral,
-    TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
+    Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
+    FunctionRole, GenericArgument, GenericParameter, IntegerType, NodeType, Parameter, Pattern,
+    ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause,
+    YieldCardinality,
 };
 
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -79,6 +80,54 @@ export function stableLater(): void {}
     assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
             assert_name!(parser, name.unwrap(), "stableLater");
+        });
+    });
+}
+
+#[test]
+fn test_parse_comptime_function() {
+    let mut test = TestParser::new("comptime function layout<T>(comptime value: T): usize {}");
+    let mut parser = test.prepare();
+
+    let start = parser.span_start();
+    let function_id = parser
+        .eat_function(&start, DeclarationHeader::default())
+        .unwrap();
+
+    assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
+        assert_name!(parser, name.unwrap(), "layout");
+        assert_eq!(signature.phase, FunctionPhase::Comptime);
+        assert_eq!(signature.form, FunctionForm::Function);
+        assert_eq!(signature.parameters.len(), 1);
+
+        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_comptime, .. } => {
+            assert_string!(parser, *name, "value");
+            assert!(*is_comptime);
+        });
+    });
+}
+
+#[test]
+fn test_parse_comptime_arrow_parameter() {
+    let mut test = TestParser::new("(comptime value: int32) => value");
+    let mut parser = test.prepare();
+
+    let start = parser.span_start();
+    let function_id = parser
+        .eat_function(&start, DeclarationHeader::default())
+        .unwrap();
+
+    assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
+        assert_eq!(signature.form, FunctionForm::Lambda);
+        assert_eq!(signature.parameters.len(), 1);
+
+        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_comptime, .. } => {
+            assert_string!(parser, *name, "value");
+            assert!(*is_comptime);
+        });
+
+        assert_node!(parser.tree, *body, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "value");
         });
     });
 }

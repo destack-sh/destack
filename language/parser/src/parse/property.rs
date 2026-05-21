@@ -2,9 +2,10 @@
 
 use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorTypeDeclaration,
-    Expression, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration, Key,
-    Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
-    TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember, Visibility,
+    Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
+    FunctionTypeDeclaration, Key, Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType,
+    Parameter, Property, StringId, TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember,
+    Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -589,6 +590,7 @@ impl Parser {
             asynchrony,
             role,
             form: FunctionForm::Function,
+            phase: FunctionPhase::Normal,
             generic_parameters,
             where_clauses,
             this_parameter,
