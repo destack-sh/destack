@@ -47,6 +47,7 @@ impl ModuleLowerer<'_> {
                 is_optional,
                 declared_type: _,
                 default,
+                ..
             } => {
                 let modifiers = self.build_binding_modifier(
                     if *is_optional {
@@ -97,6 +98,7 @@ impl ModuleLowerer<'_> {
                 is_optional,
                 declared_type: _,
                 default,
+                ..
             } => {
                 let modifiers = self.build_binding_modifier(
                     if *is_optional {
@@ -143,6 +145,7 @@ impl ModuleLowerer<'_> {
                 visibility,
                 is_readonly,
                 declared_type: _,
+                ..
             } => {
                 let modifiers = self.build_binding_modifier(
                     None,
@@ -177,6 +180,7 @@ impl ModuleLowerer<'_> {
             dir::Parameter::VariadicPattern {
                 pattern,
                 declared_type: _,
+                ..
             } => {
                 let modifiers = None;
                 let pattern = self.lower_pattern(*pattern)?;
