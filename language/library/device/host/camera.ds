@@ -1,6 +1,6 @@
 import { Array } from "destack:collections";
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one camera device endpoint.
 export newtype CameraDeviceHandle = ResourceId;

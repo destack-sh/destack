@@ -1,4 +1,5 @@
 import { Send } from "destack:memory";
+
 import { SourceLocation, StackTrace } from "./stack.ds";
 
 /// Opaque panic value caught during unwinding.
@@ -7,15 +8,15 @@ export newtype Panic = intrinsic;
 
 /// Marker for values that are safe to observe after unwinding.
 @languageItem("error.UnwindSafe")
-export newtype interface UnwindSafe { }
+export newtype interface UnwindSafe {}
 
 /// Marker for shared references that are safe to observe after unwinding.
 @languageItem("error.RefUnwindSafe")
-export newtype interface RefUnwindSafe { }
+export newtype interface RefUnwindSafe {}
 
 /// Marker for values that can be carried by a panic.
 @languageItem("error.PanicPayload")
-export newtype interface PanicPayload extends Send, UnwindSafe { }
+export newtype interface PanicPayload extends Send, UnwindSafe {}
 
 /// Runtime context passed to a panic hook.
 @languageItem("error.PanicContext")

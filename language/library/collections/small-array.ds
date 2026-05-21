@@ -1,9 +1,10 @@
-import { panic, todo } from "destack:error";
 import { As, Borrow, From } from "destack:convert";
+import { panic, todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
+
 import { Array, FixedArray } from "./array.ds";
 import { Slice } from "./slice.ds";
 
@@ -34,8 +35,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     Extend<T, "exclusive">,
     Default,
     From<Array<T>>,
-    From<FixedArray<T, N>>
-{
+    From<FixedArray<T, N>> {
     /// The indexed output type.
     type Output = T;
 
@@ -86,7 +86,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Return the allocated element count.
     get capacity(): usize {
-        this.spillStorage == undefined ? N as usize : this.spillCapacity
+        this.spillStorage == undefined ? (N as usize) : this.spillCapacity;
     }
 
     /// Return the inline element count.
@@ -110,13 +110,16 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>, index: number): WithAccess<&T, A> {
+    index<A: Access = "readonly">(
+        this: WithAccess<&SmallArray<T, N>, A>,
+        index: number,
+    ): WithAccess<&T, A> {
         todo("SmallArray.index")
     }
 
     /// Replace the element at `index`.
     indexSet(this: &exclusive SmallArray<T, N>, index: number, value: T): void {
-        todo("SmallArray.indexSet")
+        todo("SmallArray.indexSet");
     }
 
     /// Return the first element by value.
@@ -125,7 +128,9 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the first element.
-    first<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&T, A> | undefined {
+    first<A: Access = "readonly">(
+        this: WithAccess<&SmallArray<T, N>, A>,
+    ): WithAccess<&T, A> | undefined {
         todo("SmallArray.first")
     }
 
@@ -135,18 +140,20 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the last element.
-    last<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&T, A> | undefined {
+    last<A: Access = "readonly">(
+        this: WithAccess<&SmallArray<T, N>, A>,
+    ): WithAccess<&T, A> | undefined {
         todo("SmallArray.last")
     }
 
     /// Append `value`.
     push(this: &exclusive SmallArray<T, N>, value: T): void {
-        todo("SmallArray.push")
+        todo("SmallArray.push");
     }
 
     /// Append all `values`.
     extend(this: &exclusive SmallArray<T, N>, values: Iterable<T>): void {
-        todo("SmallArray.extend")
+        todo("SmallArray.extend");
     }
 
     /// Remove and return the last element.
@@ -156,7 +163,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Insert `value` at `index`.
     insert(this: &exclusive SmallArray<T, N>, index: usize, value: T): void {
-        todo("SmallArray.insert")
+        todo("SmallArray.insert");
     }
 
     /// Remove and return the element at `index`.
@@ -171,7 +178,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Remove all elements.
     clear(this: &exclusive SmallArray<T, N>): void {
-        todo("SmallArray.clear")
+        todo("SmallArray.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
@@ -179,7 +186,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
         this: &exclusive SmallArray<T, N>,
         predicate: (value: &T, index: usize) => boolean,
     ): void {
-        todo("SmallArray.retain")
+        todo("SmallArray.retain");
     }
 
     /// Remove all elements and return them.
@@ -197,17 +204,17 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
 
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive SmallArray<T, N>, additional: usize): void {
-        todo("SmallArray.reserve")
+        todo("SmallArray.reserve");
     }
 
     /// Move elements back inline when they fit.
     shrinkToInline(this: &exclusive SmallArray<T, N>): void {
-        todo("SmallArray.shrinkToInline")
+        todo("SmallArray.shrinkToInline");
     }
 
     /// Shrink capacity to fit the current length.
     shrinkToFit(this: &exclusive SmallArray<T, N>): void {
-        todo("SmallArray.shrinkToFit")
+        todo("SmallArray.shrinkToFit");
     }
 
     /// Return a copy of the selected range.
@@ -234,7 +241,9 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<A: Access = "readonly">(
+        this: WithAccess<&SmallArray<T, N>, A>,
+    ): Iterator<WithAccess<&T, A>> {
         todo("SmallArray.iterator")
     }
 
@@ -244,7 +253,9 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 }
 
-extension<T, comptime N: number, A: Access = "readonly"> of SmallArray<T, N> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
+extension<T, comptime N: number, A: Access = "readonly"> of SmallArray<T, N> implements
+    As<Slice<T>, A>,
+    Borrow<Slice<T>, A> {
     /// Borrow the initialized storage as a slice.
     as(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&Slice<T>, A> {
         todo("SmallArray.as")
@@ -287,24 +298,27 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> impl
     }
 
     /// Borrow the selected range.
-    index<A: Access = "readonly">(this: WithAccess<&SmallArray<T, N>, A>, range: R): WithAccess<&Slice<T>, A> {
+    index<A: Access = "readonly">(
+        this: WithAccess<&SmallArray<T, N>, A>,
+        range: R,
+    ): WithAccess<&Slice<T>, A> {
         todo("SmallArray.indexRange")
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements IndexSet<R, Slice<T>>
-where T implements Copy {
+extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements
+    IndexSet<R, Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(this: &exclusive SmallArray<T, N>, range: R, source: Slice<T>): void {
-        todo("SmallArray.indexSetRange")
+        todo("SmallArray.indexSetRange");
     }
 }
 
-extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements IndexSet<R, &readonly Slice<T>>
-where T implements Copy {
+extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements
+    IndexSet<R, &readonly Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(this: &exclusive SmallArray<T, N>, range: R, source: &readonly Slice<T>): void {
-        todo("SmallArray.indexSetRange")
+        todo("SmallArray.indexSetRange");
     }
 }
 

@@ -1,5 +1,5 @@
-import { HostError } from "destack:error/host";
 import { AudioStreamHandle } from "destack:audio/host";
+import { HostError } from "destack:error/host";
 
 /// Audio stream clock quality.
 export enum AudioClockQuality {

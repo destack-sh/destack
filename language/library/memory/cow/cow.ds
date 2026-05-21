@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { Clone } from "../capability.ds";
 import { BaseOf } from "../type.ds";
 
@@ -16,9 +17,7 @@ export struct CowOwned<T> {
 
 /// Copy-on-write value.
 @derive(Tagged)
-export newtype Cow<Borrowed, Owned = ^BaseOf<Borrowed>> =
-    | CowBorrowed<Borrowed>
-    | CowOwned<Owned>;
+export newtype Cow<Borrowed, Owned = ^BaseOf<Borrowed>> = CowBorrowed<Borrowed> | CowOwned<Owned>;
 
 /// Readonly borrowed or owned value.
 export type MaybeOwned<T, Owned = ^T> = Cow<&readonly T, Owned>;
@@ -51,13 +50,12 @@ extension<Borrowed, Owned = ^BaseOf<Borrowed>> of Cow<Borrowed, Owned> {
 
     /// Borrow owned storage, cloning first if needed.
     toExclusive(this: &exclusive Cow<Borrowed, Owned>): &exclusive Owned
-    where BaseOf<Borrowed> implements Clone {
+    where BaseOf<Borrowed>: Clone {
         todo("Cow.toExclusive")
     }
 
     /// Move or clone this value into owned storage.
-    intoOwned(this: Cow<Borrowed, Owned>): Owned
-    where BaseOf<Borrowed> implements Clone {
+    intoOwned(this: Cow<Borrowed, Owned>): Owned where BaseOf<Borrowed>: Clone {
         todo("Cow.intoOwned")
     }
 }

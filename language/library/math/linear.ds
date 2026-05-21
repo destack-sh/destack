@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Add, Divide, Multiply, Negate, Subtract } from "destack:ops";
+
 import { sqrt } from "./float.ds";
 
 /// Two-dimensional vector.
@@ -70,8 +71,7 @@ extension<T: int | float> of Vector2<T> implements
     Subtract<Vector2<T>>,
     Multiply<T>,
     Divide<T>,
-    Negate
-{
+    Negate {
     /// The arithmetic result type.
     type Output = Vector2<T>;
 
@@ -225,8 +225,7 @@ extension<T: int | float> of Vector3<T> implements
     Subtract<Vector3<T>>,
     Multiply<T>,
     Divide<T>,
-    Negate
-{
+    Negate {
     /// The arithmetic result type.
     type Output = Vector3<T>;
 
@@ -394,8 +393,7 @@ extension<T: int | float> of Vector4<T> implements
     Subtract<Vector4<T>>,
     Multiply<T>,
     Divide<T>,
-    Negate
-{
+    Negate {
     /// The arithmetic result type.
     type Output = Vector4<T>;
 

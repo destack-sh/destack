@@ -1,9 +1,7 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
+
 import { Duration, DurationLike } from "./duration.ds";
-import { CalendarLike, PlainDate } from "./plain-date.ds";
-import { PlainTime, PlainTimeLike } from "./plain-time.ds";
-import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 import {
     ArithmeticOptions,
     AssignmentOptions,
@@ -13,7 +11,10 @@ import {
     RoundTo,
     ToInstantOptions,
 } from "./option.ds";
+import { CalendarLike, PlainDate } from "./plain-date.ds";
+import { PlainTime, PlainTimeLike } from "./plain-time.ds";
 import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 
 /// Temporal plain date-time field bag.
 export type PlainDateTimeLike = {
@@ -48,7 +49,10 @@ export type PlainDateTimeLike = {
 /// Temporal plain date-time.
 export class PlainDateTime {
     /// Create a plain date-time.
-    static from(item: PlainDateTime | PlainDateTimeLike | string, options?: AssignmentOptions): PlainDateTime {
+    static from(
+        item: PlainDateTime | PlainDateTimeLike | string,
+        options?: AssignmentOptions,
+    ): PlainDateTime {
         todo("PlainDateTime.from")
     }
 
@@ -73,7 +77,7 @@ export class PlainDateTime {
         nanosecond?: number,
         calendar?: string,
     ) {
-        todo("PlainDateTime.constructor")
+        todo("PlainDateTime.constructor");
     }
 
     /// Calendar era.
@@ -207,12 +211,18 @@ export class PlainDateTime {
     }
 
     /// Add a duration.
-    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainDateTime {
+    add(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): PlainDateTime {
         todo("PlainDateTime.add")
     }
 
     /// Subtract a duration.
-    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainDateTime {
+    subtract(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): PlainDateTime {
         todo("PlainDateTime.subtract")
     }
 

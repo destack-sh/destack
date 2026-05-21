@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { Body, SuiteBody } from "./context.ds";
 import { Options } from "./options.ds";
 
@@ -28,32 +29,32 @@ export struct Suite {
 
 /// Register one simulation case.
 export function registerCase(name: string, argument?: Argument, body?: Body): void {
-    todo("simulation.registerCase")
+    todo("simulation.registerCase");
 }
 
 /// Register one simulation suite.
 export function suite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
-    todo("simulation.registerSuite")
+    todo("simulation.registerSuite");
 }
 
 /// Register one skipped simulation case.
 export function caseSkip(name: string, body?: Body): void {
-    registerCase(name, { skip: true }, body)
+    registerCase(name, { skip: true }, body);
 }
 
 /// Register one focused simulation case.
 export function caseOnly(name: string, body?: Body): void {
-    registerCase(name, { only: true }, body)
+    registerCase(name, { only: true }, body);
 }
 
 /// Register one skipped simulation suite.
 export function suiteSkip(name: string, body?: SuiteBody): void {
-    suite(name, { skip: true }, body)
+    suite(name, { skip: true }, body);
 }
 
 /// Register one focused simulation suite.
 export function suiteOnly(name: string, body?: SuiteBody): void {
-    suite(name, { only: true }, body)
+    suite(name, { only: true }, body);
 }
 
 export { registerCase as case };

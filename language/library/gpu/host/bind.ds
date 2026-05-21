@@ -1,6 +1,16 @@
 import { HostError } from "destack:error/host";
+import {
+    GpuBindGroupHandle,
+    GpuBindGroupLayoutHandle,
+    GpuBufferHandle,
+    GpuDeviceHandle,
+    GpuExternalTextureHandle,
+    GpuPipelineLayoutHandle,
+    GpuSamplerHandle,
+    GpuTextureViewHandle,
+} from "destack:gpu/host";
+
 import { GpuTextureFormat, GpuTextureViewDimension } from "./resource.ds";
-import { GpuBindGroupHandle, GpuBindGroupLayoutHandle, GpuBufferHandle, GpuDeviceHandle, GpuExternalTextureHandle, GpuPipelineLayoutHandle, GpuSamplerHandle, GpuTextureViewHandle } from "destack:gpu/host";
 
 /// Shader stage visibility bitset.
 export newtype GpuShaderVisibilityMask = uint32;

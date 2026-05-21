@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Default, Dispose } from "destack:memory";
 import { Dereference } from "destack:ops";
+
 import { Atomic } from "./atomic.ds";
 
 /// Mutual exclusion lock.
@@ -13,7 +14,7 @@ export class Mutex<T> {
 
     /// Create a mutex protecting `value`.
     constructor(value: T) {
-        this.value = value
+        this.value = value;
     }
 
     /// Lock this mutex, blocking the current worker.
@@ -56,7 +57,7 @@ extension<T> of MutexGuard<T> implements Dispose, Dereference<"exclusive"> {
 
     /// Unlock this guard.
     dispose(): void {
-        todo("MutexGuard.dispose")
+        todo("MutexGuard.dispose");
     }
 
     /// Borrow the protected value.

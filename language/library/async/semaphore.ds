@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Dispose } from "destack:memory";
 import { Atomic } from "destack:sync";
+
 import { Promise } from "./promise.ds";
 
 /// Asynchronous counting semaphore.
@@ -10,7 +11,7 @@ export class AsyncSemaphore {
 
     /// Create an async semaphore with `permits` available permits.
     constructor(permits: usize) {
-        this.state = Atomic.new(permits as isize)
+        this.state = Atomic.new(permits as isize);
     }
 
     /// Return the number of immediately available permits.
@@ -40,7 +41,7 @@ export class AsyncSemaphore {
 
     /// Release `count` permits.
     release(count: usize = 1): void {
-        todo("AsyncSemaphore.release")
+        todo("AsyncSemaphore.release");
     }
 }
 
@@ -56,11 +57,11 @@ export struct AsyncSemaphorePermit {
 extension of AsyncSemaphorePermit implements Dispose {
     /// Release this permit.
     dispose(): void {
-        todo("AsyncSemaphorePermit.dispose")
+        todo("AsyncSemaphorePermit.dispose");
     }
 
     /// Consume this permit without releasing it.
     forget(this: AsyncSemaphorePermit): void {
-        todo("AsyncSemaphorePermit.forget")
+        todo("AsyncSemaphorePermit.forget");
     }
 }

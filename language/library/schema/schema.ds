@@ -1,5 +1,6 @@
 import { Result, todo } from "destack:error";
 import * as reflect from "destack:reflect";
+
 import { Attribute, Constraint } from "./constraint.ds";
 import { Issue, ValidationError } from "./error.ds";
 
@@ -182,7 +183,7 @@ export class Schema<T> {
 
     /// Create a schema graph node.
     constructor(definition: SchemaDefinition<T>) {
-        this.definition = definition
+        this.definition = definition;
     }
 
     /// Return this schema node kind.
@@ -221,7 +222,10 @@ export class Schema<T> {
 export declare function fromType<T>(type?: reflect.Type<T>): Schema<T>;
 
 /// Validate `value` against `schema`.
-export function validate<T>(schema: &readonly Schema<T>, value: unknown): Result<T, ValidationError> {
+export function validate<T>(
+    schema: &readonly Schema<T>,
+    value: unknown,
+): Result<T, ValidationError> {
     todo("schema.validate")
 }
 

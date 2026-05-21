@@ -1,6 +1,7 @@
 import { HostError } from "destack:error/host";
-import { MemoryProtection, VirtualMemoryRange } from "./virtual.ds";
 import { FileHandle } from "destack:fs/host";
+
+import { MemoryProtection, VirtualMemoryRange } from "./virtual.ds";
 
 /// File mapping visibility.
 export enum MappedMemoryVisibility {
@@ -32,8 +33,7 @@ export const MAPPED_MEMORY_SYNC_NONE: MappedMemorySyncFlags = MappedMemorySyncFl
 export const MAPPED_MEMORY_SYNC_ASYNC: MappedMemorySyncFlags = MappedMemorySyncFlags(0x1);
 
 /// Invalidate cached mapping pages after synchronization.
-export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags =
-    MappedMemorySyncFlags(0x2);
+export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags = MappedMemorySyncFlags(0x2);
 
 /// Wait for dirty mapping pages to be written back.
 export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFlags(0x4);

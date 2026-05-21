@@ -1,5 +1,5 @@
-import { panic, todo } from "destack:error";
 import { From } from "destack:convert";
+import { panic, todo } from "destack:error";
 import { FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Copy, Default, Raw, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
@@ -16,8 +16,7 @@ extension<T> of Slice<T> implements
     Iterable<&exclusive T>,
     From<Iterable<T>>,
     FromIterator<T>,
-    Default
-{
+    Default {
     /// Create an empty slice.
     static new(): Slice<T> {
         todo("Slice.new")
@@ -89,7 +88,7 @@ extension<T> of Slice<T> implements
             return undefined;
         }
 
-        this.index(length as number - 1)
+        this.index((length as number) - 1)
     }
 
     /// Borrow the last element.
@@ -124,34 +123,33 @@ extension<T> of Slice<T> implements
 
     /// Fill this slice with `value`.
     fill(this: &exclusive Slice<T>, value: T): void {
-        todo("Slice.fill")
+        todo("Slice.fill");
     }
 
     /// Copy elements from `source` into this slice.
-    copyFrom(this: &exclusive Slice<T>, source: &readonly Slice<T>): void
-    where T implements Copy {
+    copyFrom(this: &exclusive Slice<T>, source: &readonly Slice<T>): void where T: Copy {
         if (source.size != this.size) {
             panic("slice copy length mismatch")
         }
 
         for (let index: usize = 0; index < this.size; index += 1) {
-            this.unsafeSet(index, source.unsafeGet(index))
+            this.unsafeSet(index, source.unsafeGet(index));
         }
     }
 
     /// Swap two elements.
     swap(this: &exclusive Slice<T>, a: number, b: number): void {
-        todo("Slice.swap")
+        todo("Slice.swap");
     }
 
     /// Reverse this slice in place.
     reverse(this: &exclusive Slice<T>): void {
-        todo("Slice.reverse")
+        todo("Slice.reverse");
     }
 
     /// Sort this slice in place.
     sort(this: &exclusive Slice<T>, compare?: (a: &readonly T, b: &readonly T) => number): void {
-        todo("Slice.sort")
+        todo("Slice.sort");
     }
 
     /// Return an iterator over copied values.
@@ -175,13 +173,16 @@ extension<T> of Slice<T> implements Index<number>, IndexSet<number, T> {
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>, index: number): WithAccess<&T, A> {
+    index<A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+        index: number,
+    ): WithAccess<&T, A> {
         todo("Slice.index")
     }
 
     /// Replace the element at `index`.
     indexSet(this: &exclusive Slice<T>, index: number, value: T): void {
-        todo("Slice.indexSet")
+        todo("Slice.indexSet");
     }
 }
 
@@ -216,29 +217,31 @@ extension<T, R: RangeBounds<usize>> of Slice<T> implements Index<R> {
     }
 
     /// Borrow the selected range.
-    index<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>, range: R): WithAccess<&Slice<T>, A> {
+    index<A: Access = "readonly">(
+        this: WithAccess<&Slice<T>, A>,
+        range: R,
+    ): WithAccess<&Slice<T>, A> {
         let (start, length) = this.rangeSpan(range);
 
         this.subslice(start, length)
     }
 }
 
-extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, Slice<T>>
-where T implements Copy {
+extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(this: &exclusive Slice<T>, range: R, source: Slice<T>): void {
         let target = this.index(range);
 
-        target.copyFrom(&readonly source)
+        target.copyFrom(&readonly source);
     }
 }
 
 extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &readonly Slice<T>>
-where T implements Copy {
+where T: Copy {
     /// Copy `source` into the selected range.
     indexSet(this: &exclusive Slice<T>, range: R, source: &readonly Slice<T>): void {
         let target = this.index(range);
 
-        target.copyFrom(source)
+        target.copyFrom(source);
     }
 }

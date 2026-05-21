@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { Device } from "./device.ds";
 
 /// Ordered command stream for one compute device.
@@ -24,12 +25,12 @@ export class Stream {
 
     /// Make future work on this stream wait for `event`.
     wait(event: Event): void {
-        todo("Stream.wait")
+        todo("Stream.wait");
     }
 
     /// Wait until all preceding work completes.
     synchronize(): void {
-        todo("Stream.synchronize")
+        todo("Stream.synchronize");
     }
 }
 
@@ -51,7 +52,7 @@ export class Event {
 
     /// Wait until this event completes.
     synchronize(): void {
-        todo("Event.synchronize")
+        todo("Event.synchronize");
     }
 
     /// Return milliseconds elapsed since `start`.

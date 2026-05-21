@@ -76,9 +76,7 @@ export interface RegexStringLiteral {
 }
 
 /// A template literal.
-export type TemplateLiteral =
-    | TemplateStringLiteral
-    | InterpolatedTemplateLiteral;
+export type TemplateLiteral = TemplateStringLiteral | InterpolatedTemplateLiteral;
 
 /// A non-interpolated template literal.
 export interface TemplateStringLiteral {

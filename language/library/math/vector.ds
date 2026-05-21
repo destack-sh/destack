@@ -9,14 +9,10 @@ export newtype Vector<T, comptime N: int> = intrinsic;
 export type Mask<comptime N: int> = Vector<boolean, N>;
 
 /// Return the number of lanes in `Vector<T, N>`.
-export type LaneCount<V> =
-    V extends Vector<infer T, infer N> ? N :
-    never;
+export type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 
 /// Return the element type in `Vector<T, N>`.
-export type LaneOf<V> =
-    V extends Vector<infer T, infer N> ? T :
-    never;
+export type LaneOf<V> = V extends Vector<infer T, infer N> ? T : never;
 
 /// Broadcast scalar to all lanes.
 ///
@@ -70,15 +66,12 @@ export function store<T, comptime N: int>(
     destination: &exclusive Slice<T>,
     value: Vector<T, N>,
 ): void {
-    todo("vector.store")
+    todo("vector.store");
 }
 
 /// Return a lane mask for equality.
 @intrinsic("math.vector.equal")
-export declare function equal<T, comptime N: int>(
-    left: Vector<T, N>,
-    right: Vector<T, N>,
-): Mask<N>;
+export declare function equal<T, comptime N: int>(left: Vector<T, N>, right: Vector<T, N>): Mask<N>;
 
 /// Return a lane mask for inequality.
 @intrinsic("math.vector.notEqual")
@@ -89,10 +82,7 @@ export declare function notEqual<T, comptime N: int>(
 
 /// Return a lane mask for less-than comparison.
 @intrinsic("math.vector.less")
-export declare function less<T, comptime N: int>(
-    left: Vector<T, N>,
-    right: Vector<T, N>,
-): Mask<N>;
+export declare function less<T, comptime N: int>(left: Vector<T, N>, right: Vector<T, N>): Mask<N>;
 
 /// Return a lane mask for less-than-or-equal comparison.
 @intrinsic("math.vector.lessEqual")

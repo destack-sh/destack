@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Default, Dispose } from "destack:memory";
 import { Dereference } from "destack:ops";
+
 import { Atomic } from "./atomic.ds";
 
 /// Reader-writer lock.
@@ -13,7 +14,7 @@ export class RwLock<T> {
 
     /// Create a reader-writer lock protecting `value`.
     constructor(value: T) {
-        this.value = value
+        this.value = value;
     }
 
     /// Lock this value for shared reading.
@@ -66,7 +67,7 @@ extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
 
     /// Release this guard.
     dispose(): void {
-        todo("RwLockReadGuard.dispose")
+        todo("RwLockReadGuard.dispose");
     }
 
     /// Borrow the protected value.
@@ -87,7 +88,7 @@ extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive">
 
     /// Release this guard.
     dispose(): void {
-        todo("RwLockWriteGuard.dispose")
+        todo("RwLockWriteGuard.dispose");
     }
 
     /// Borrow the protected value.

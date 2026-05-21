@@ -1,11 +1,9 @@
 import { FixedArray } from "destack:collections";
+
 import { Axis } from "./shape.ds";
 
 /// Axis mapping for tensor dot.
-export struct DotAxes<
-    comptime BatchCount: int,
-    comptime ContractCount: int,
-> {
+export struct DotAxes<comptime BatchCount: int, comptime ContractCount: int> {
     /// Batch axes in the left tensor.
     leftBatch: FixedArray<Axis, BatchCount>;
 

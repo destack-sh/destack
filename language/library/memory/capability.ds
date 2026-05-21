@@ -7,8 +7,7 @@ export newtype interface Clone {
     clone(): this;
 }
 
-export extension<T> of T implements Clone
-where T implements Copy {
+export extension<T> of T implements Clone where T: Copy {
     /// Clone this copyable value.
     clone(): T {
         this

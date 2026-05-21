@@ -20,13 +20,7 @@ export type Platform =
 export type Runtime = "destack" | "js";
 
 /// The target host environment that provides imports and ambient effects.
-export type Host =
-    | "unknown"
-    | "native"
-    | "browser"
-    | "wasi"
-    | "emscripten"
-    | "freestanding";
+export type Host = "unknown" | "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
 /// Coarse target family metadata.
 export type TargetFamily =

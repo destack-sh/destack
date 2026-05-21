@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
+
 import { Duration, DurationLike } from "./duration.ds";
 import {
     ArithmeticOptions,
@@ -35,7 +36,10 @@ export class PlainTime {
     }
 
     /// Compare two plain times.
-    static compare(one: PlainTime | PlainTimeLike | string, two: PlainTime | PlainTimeLike | string): ComparisonResult {
+    static compare(
+        one: PlainTime | PlainTimeLike | string,
+        two: PlainTime | PlainTimeLike | string,
+    ): ComparisonResult {
         todo("PlainTime.compare")
     }
 
@@ -48,7 +52,7 @@ export class PlainTime {
         microsecond?: number,
         nanosecond?: number,
     ) {
-        todo("PlainTime.constructor")
+        todo("PlainTime.constructor");
     }
 
     /// Hour.
@@ -97,7 +101,10 @@ export class PlainTime {
     }
 
     /// Subtract a duration.
-    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainTime {
+    subtract(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): PlainTime {
         todo("PlainTime.subtract")
     }
 
@@ -122,7 +129,11 @@ export class PlainTime {
     }
 
     /// Round this time.
-    round(roundTo: RoundTo<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">): PlainTime {
+    round(
+        roundTo: RoundTo<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): PlainTime {
         todo("PlainTime.round")
     }
 

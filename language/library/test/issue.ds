@@ -1,5 +1,6 @@
-import { SourceLocation } from "destack:error";
 import { Details } from "destack:assert";
+import { SourceLocation } from "destack:error";
+
 import { ArtifactId } from "./artifact.ds";
 
 /// Test issue kind.

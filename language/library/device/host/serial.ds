@@ -1,7 +1,7 @@
 import { Array } from "destack:collections";
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 import { Path } from "destack:fs/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one serial-port endpoint.
 export newtype SerialPortHandle = ResourceId;
@@ -355,9 +355,7 @@ export declare function closeSerialPort(port: SerialPortHandle): Result<void, Ho
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function describeSerialPort(
-    port: SerialPortHandle,
-): Result<SerialPort, HostError>;
+export declare function describeSerialPort(port: SerialPortHandle): Result<SerialPort, HostError>;
 
 /// Read serial port configuration.
 @binding("destack.device.serial.config.get", {
@@ -366,9 +364,7 @@ export declare function describeSerialPort(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function getSerialConfig(
-    port: SerialPortHandle,
-): Result<SerialConfig, HostError>;
+export declare function getSerialConfig(port: SerialPortHandle): Result<SerialConfig, HostError>;
 
 /// Update serial port configuration.
 @binding("destack.device.serial.config.set", {

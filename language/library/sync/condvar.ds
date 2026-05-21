@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { MutexGuard } from "./mutex.ds";
 
 /// Condition variable paired with a mutex.
@@ -12,20 +13,17 @@ export class Condvar {
     }
 
     /// Wait while `condition` returns true.
-    waitWhile<T>(
-        guard: MutexGuard<T>,
-        condition: (value: &readonly T) => boolean,
-    ): MutexGuard<T> {
+    waitWhile<T>(guard: MutexGuard<T>, condition: (value: &readonly T) => boolean): MutexGuard<T> {
         todo("Condvar.waitWhile")
     }
 
     /// Wake one waiting worker.
     notifyOne(): void {
-        todo("Condvar.notifyOne")
+        todo("Condvar.notifyOne");
     }
 
     /// Wake all waiting workers.
     notifyAll(): void {
-        todo("Condvar.notifyAll")
+        todo("Condvar.notifyAll");
     }
 }

@@ -1,84 +1,62 @@
+export { Lifetime, StaticLifetime } from "./lifetime.ds";
+export { Access, Readonly } from "./access.ds";
+export { Place, Placed, Space } from "./place.ds";
+export { Managed } from "./managed.ds";
+export { Owned } from "./owned.ds";
+export { Borrowed, ExclusiveBorrowed, ReadonlyBorrowed } from "./borrow.ds";
+export { Unique } from "./unique.ds";
+export { Any } from "./any.ds";
 export {
-    StaticLifetime,
-    Lifetime,
-} from "./lifetime.ds";
-export {
-    Access,
-    Readonly,
-} from "./access.ds";
-export {
-    Space,
-    Place,
-    Placed,
-} from "./place.ds";
-export {
-    Managed,
-} from "./managed.ds";
-export {
-    Owned,
-} from "./owned.ds";
-export {
-    Borrowed,
-    ReadonlyBorrowed,
-    ExclusiveBorrowed,
-} from "./borrow.ds";
-export {
-    Unique,
-} from "./unique.ds";
-export {
-    Any,
-} from "./any.ds";
-export {
-    Ownership,
-    Shared,
-    Local,
-    Ambient,
-    PayloadOf,
-    BaseOf,
-    OwnershipOf,
-    PlaceOf,
-    SpaceOf,
-    LifetimeOf,
     AccessOf,
-    OwnershipOr,
-    PlaceOr,
-    SpaceOr,
-    PlaceIn,
+    Ambient,
+    AmbientFields,
+    BaseOf,
+    BorrowedFields,
+    ExclusiveBorrowedFields,
+    IsBorrowed,
     IsManaged,
     IsOwned,
-    IsBorrowed,
     IsRaw,
     IsShared,
     IsSharedIn,
+    LifetimeOf,
+    Local,
+    LocalFields,
+    ManagedFields,
+    OwnedFields,
+    Ownership,
+    OwnershipOf,
+    OwnershipOr,
+    PayloadOf,
+    PlaceIn,
+    PlaceOf,
+    PlaceOr,
+    RawFields,
+    ReadonlyBorrowedFields,
+    Shared,
+    SharedFields,
+    SpaceOf,
+    SpaceOr,
+    WithAccess,
     WithBase,
+    WithLifetime,
     WithOwnership,
     WithPlace,
     WithSpace,
-    WithLifetime,
-    WithAccess,
-    ManagedFields,
-    OwnedFields,
-    BorrowedFields,
-    ReadonlyBorrowedFields,
-    ExclusiveBorrowedFields,
-    RawFields,
-    SharedFields,
-    LocalFields,
-    AmbientFields,
 } from "./type.ds";
 export { Box } from "./box.ds";
 export {
-    AllocationLayout,
-    AllocationErrorKind,
-    AllocationError,
     Allocation,
+    AllocationError,
+    AllocationErrorKind,
+    AllocationLayout,
     Allocator,
     defaultAllocator,
 } from "./allocator.ds";
-export { Copy, Clone, Default, Send, Sync, Unpin, Zeroable } from "./capability.ds";
+export { Clone, Copy, Default, Send, Sync, Unpin, Zeroable } from "./capability.ds";
 export { Pin } from "./pin.ds";
-export { Drop, ManuallyDrop, drop, forget } from "./drop.ds";
-export { Dispose, AsyncDispose } from "./dispose.ds";
+export { Drop, drop, forget, ManuallyDrop } from "./drop.ds";
+export { AsyncDispose, Dispose } from "./dispose.ds";
 export { Phantom } from "./phantom.ds";
 export { Cow, CowBorrowed, CowOwned, MaybeOwned } from "./cow/cow.ds";
 export * as arena from "./arena";
@@ -87,33 +65,33 @@ export * as cell from "./cell";
 export * as cow from "./cow";
 export * as rc from "./rc";
 export {
-    Raw,
     asExclusive,
     asReadonlyReference,
     asReference,
+    compareBytes,
     copy,
+    copyBytes,
     copyNonOverlapping,
     dangling,
     dropInPlace,
-    compareBytes,
-    copyBytes,
     moveBytes,
     offset,
     offsetFrom,
     prefetchRead,
     prefetchWrite,
+    ptrOffsetFrom,
+    Raw,
+    rawEq,
     read,
     readVolatile,
     replace,
     setBytes,
     swap,
     transmute,
+    wrappingOffset,
     write,
     writeBytes,
     writeVolatile,
-    wrappingOffset,
-    ptrOffsetFrom,
-    rawEq,
 } from "./raw.ds";
 export * from "./init.ds";
 export * as host from "./host";

@@ -20,36 +20,39 @@ export type RoundingMode =
 export type DateUnit = "year" | "month" | "week" | "day";
 
 /// Temporal time unit.
-export type TimeUnit =
-    | "hour"
-    | "minute"
-    | "second"
-    | "millisecond"
-    | "microsecond"
-    | "nanosecond";
+export type TimeUnit = "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond";
 
 /// Temporal date or time unit.
 export type DateTimeUnit = DateUnit | TimeUnit;
 
 /// Temporal plural unit.
-export type PluralUnit<T extends DateTimeUnit> =
-    T extends "year" ? "years" :
-    T extends "month" ? "months" :
-    T extends "week" ? "weeks" :
-    T extends "day" ? "days" :
-    T extends "hour" ? "hours" :
-    T extends "minute" ? "minutes" :
-    T extends "second" ? "seconds" :
-    T extends "millisecond" ? "milliseconds" :
-    T extends "microsecond" ? "microseconds" :
-    T extends "nanosecond" ? "nanoseconds" :
-    never;
+export type PluralUnit<T: DateTimeUnit> = T extends "year"
+    ? "years"
+    : T extends "month"
+      ? "months"
+      : T extends "week"
+        ? "weeks"
+        : T extends "day"
+          ? "days"
+          : T extends "hour"
+            ? "hours"
+            : T extends "minute"
+              ? "minutes"
+              : T extends "second"
+                ? "seconds"
+                : T extends "millisecond"
+                  ? "milliseconds"
+                  : T extends "microsecond"
+                    ? "microseconds"
+                    : T extends "nanosecond"
+                      ? "nanoseconds"
+                      : never;
 
 /// Temporal largest unit.
-export type LargestUnit<T extends DateTimeUnit> = "auto" | T | PluralUnit<T>;
+export type LargestUnit<T: DateTimeUnit> = "auto" | T | PluralUnit<T>;
 
 /// Temporal smallest unit.
-export type SmallestUnit<T extends DateTimeUnit> = T | PluralUnit<T>;
+export type SmallestUnit<T: DateTimeUnit> = T | PluralUnit<T>;
 
 /// Temporal total unit.
-export type TotalUnit<T extends DateTimeUnit> = T | PluralUnit<T>;
+export type TotalUnit<T: DateTimeUnit> = T | PluralUnit<T>;

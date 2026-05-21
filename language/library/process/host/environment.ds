@@ -76,10 +76,7 @@ export declare function getRawEnvironment(
     families: ["unix"],
     simulation: true,
 })
-export declare function listRawEnvironment(): Result<
-    Array<RawEnvironmentVariable>,
-    HostError
->;
+export declare function listRawEnvironment(): Result<Array<RawEnvironmentVariable>, HostError>;
 
 /// Set a raw Unix environment variable.
 @binding("destack.process.environment.setRaw", {
@@ -100,6 +97,4 @@ export declare function setRawEnvironment(
     families: ["unix"],
     simulation: true,
 })
-export declare function removeRawEnvironment(
-    name: &readonly [uint8],
-): Result<void, HostError>;
+export declare function removeRawEnvironment(name: &readonly [uint8]): Result<void, HostError>;

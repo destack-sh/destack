@@ -1,5 +1,14 @@
 import { HostError } from "destack:error/host";
-import { GpuBufferHandle, GpuCommandEncoderHandle, GpuComputePassHandle, GpuDeviceHandle, GpuFenceHandle, GpuQuerySetHandle, GpuQueueHandle, GpuRenderPassHandle } from "destack:gpu/host";
+import {
+    GpuBufferHandle,
+    GpuCommandEncoderHandle,
+    GpuComputePassHandle,
+    GpuDeviceHandle,
+    GpuFenceHandle,
+    GpuQuerySetHandle,
+    GpuQueueHandle,
+    GpuRenderPassHandle,
+} from "destack:gpu/host";
 
 /// Fence mode selector.
 export enum GpuFenceMode {
@@ -177,7 +186,9 @@ export declare function destroyQuerySet(querySet: GpuQuerySetHandle): Result<voi
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readQuerySet(querySet: GpuQuerySetHandle): Result<GpuQuerySetState, HostError>;
+export declare function readQuerySet(
+    querySet: GpuQuerySetHandle,
+): Result<GpuQuerySetState, HostError>;
 
 /// Write a timestamp query from a command encoder.
 @binding("destack.gpu.sync.command.timestamp.write", {
@@ -212,9 +223,7 @@ export declare function beginOcclusionQuery(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function endOcclusionQuery(
-    renderPass: GpuRenderPassHandle,
-): Result<void, HostError>;
+export declare function endOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, HostError>;
 
 /// Begin a pipeline-statistics query in a render pass.
 @binding("destack.gpu.sync.command.render.statistics.begin", {

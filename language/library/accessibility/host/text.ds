@@ -1,7 +1,8 @@
-import { ResourceId } from "destack:runtime/resource";
-import { HostError } from "destack:error/host";
-import { AccessibilityNodeId } from "./node.ds";
 import { WindowHandle } from "destack:display/host";
+import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
+import { AccessibilityNodeId } from "./node.ds";
 
 /// Handle for one accessibility text query stream.
 export newtype AccessibilityTextHandle = ResourceId;

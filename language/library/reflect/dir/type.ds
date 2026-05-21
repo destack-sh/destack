@@ -1,9 +1,9 @@
 import { type StaticArgument } from "./argument.ds";
-import { type Path } from "./path.ds";
-import { type ScalarLiteral } from "./literal.ds";
-import { type Asynchrony, type Mutability } from "./node.ds";
 import { type FunctionCardinality } from "./function.ds";
 import { type StaticKey } from "./key.ds";
+import { type ScalarLiteral } from "./literal.ds";
+import { type Asynchrony, type Mutability } from "./node.ds";
+import { type Path } from "./path.ds";
 import { type Symbol } from "./symbol.ds";
 import { type TypeExpression } from "./type-expression.ds";
 
@@ -113,10 +113,7 @@ export interface ArbitraryIntType {
 }
 
 /// A floating-point type.
-export type FloatType =
-    | "float32"
-    | "float64"
-    | ArbitraryFloatType;
+export type FloatType = "float32" | "float64" | ArbitraryFloatType;
 
 /// Arbitrary-width floating-point type.
 export interface ArbitraryFloatType {
@@ -301,39 +298,41 @@ export interface TypeIndexSignature {
 }
 
 /// A reflected semantic type.
-export type Type<T = unknown> = TypeBase & (
-    TypeLiteralType
-    | InferVarType
-    | ValueType
-    | ThisType
-    | ReferenceType
-    | UnevaluatedType
-    | ConditionalType
-    | MappedType
-    | IndexType
-    | TemplateLiteralType
-    | ImportType
-    | InferType
-    | PredicateType
-    | ReadonlyType
-    | KeyOfType
-    | MustType
-    | NotType
-    | ValueOfType
-    | ReferenceOfType
-    | PointerOfType
-    | InType
-    | ExtendsType
-    | ImplementsType
-    | ArraySizedType
-    | ArrayType
-    | TupleType
-    | ObjectType
-    | FunctionType
-    | UnionType
-    | IntersectionType
-    | ErrorType
-);
+export type Type<T = unknown> = TypeBase &
+    (
+        | TypeLiteralType
+        | InferVarType
+        | ValueType
+        | ThisType
+        | ReferenceType
+        | UnevaluatedType
+        | ConditionalType
+        | MappedType
+        | IndexType
+        | TemplateLiteralType
+        | ImportType
+        | InferType
+        | PredicateType
+        | ReadonlyType
+        | KeyOfType
+        | MustType
+        | AsComptimeType
+        | NotType
+        | ValueOfType
+        | ReferenceOfType
+        | PointerOfType
+        | InType
+        | ExtendsType
+        | ImplementsType
+        | ArraySizedType
+        | ArrayType
+        | TupleType
+        | ObjectType
+        | FunctionType
+        | UnionType
+        | IntersectionType
+        | ErrorType
+    );
 
 /// Scalar type literal.
 export interface TypeLiteralType {

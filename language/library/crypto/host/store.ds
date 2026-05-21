@@ -1,7 +1,7 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
-import { HostError } from "destack:error/host";
 import { CryptoCertificateHandle, CryptoKeyHandle } from "destack:crypto/host";
+import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one cryptographic key store.
 export newtype CryptoStoreHandle = ResourceId;
@@ -161,10 +161,7 @@ export struct CryptoCertificateListPage {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readCryptoProviderCapability(): Result<
-    CryptoProviderCapability,
-    HostError
->;
+export declare function readCryptoProviderCapability(): Result<CryptoProviderCapability, HostError>;
 
 /// Open one crypto store.
 @binding("destack.crypto.store.open", {

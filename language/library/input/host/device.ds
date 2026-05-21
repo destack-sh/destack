@@ -1,6 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one input device endpoint.
 export newtype InputDeviceHandle = ResourceId;
@@ -181,7 +181,9 @@ export declare function closeInputDevice(device: InputDeviceHandle): Result<void
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function describeInputDevice(device: InputDeviceHandle): Result<InputDevice, HostError>;
+export declare function describeInputDevice(
+    device: InputDeviceHandle,
+): Result<InputDevice, HostError>;
 
 /// Query controls for one input device.
 @binding("destack.input.device.controls.read", {

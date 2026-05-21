@@ -1,7 +1,8 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
-import { ProcessId } from "./identity.ds";
 import { ProcessHandle } from "destack:process/host";
+import { ResourceId } from "destack:runtime/resource";
+
+import { ProcessId } from "./identity.ds";
 
 /// Handle for a signal subscription.
 export newtype SignalHandle = ResourceId;
@@ -81,9 +82,7 @@ export declare function tryReceiveSignal(handle: SignalHandle): Result<SignalEve
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function waitSignal(
-    signals: &readonly [Signal],
-): Result<SignalEvent, HostError>;
+export declare function waitSignal(signals: &readonly [Signal]): Result<SignalEvent, HostError>;
 
 /// Poll one signal from a requested set without blocking.
 @binding("destack.process.signal.tryWait", {
@@ -92,6 +91,4 @@ export declare function waitSignal(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function tryWaitSignal(
-    signals: &readonly [Signal],
-): Result<SignalEvent, HostError>;
+export declare function tryWaitSignal(signals: &readonly [Signal]): Result<SignalEvent, HostError>;

@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { Label, LabelSelector } from "./entity.ds";
 import { WorldHandle } from "./world.ds";
 

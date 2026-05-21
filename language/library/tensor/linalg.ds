@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { TensorOutputOptions, TensorReduceOptions } from "./options.ds";
 import { AxisSet } from "./shape.ds";
 import { Tensor } from "./tensor.ds";
@@ -50,10 +51,7 @@ export function diagonal<T>(
 }
 
 /// Return the trace of a matrix.
-export function trace<T>(
-    matrix: Tensor<T, 2>,
-    options?: TensorOutputOptions<T, 0>,
-): Tensor<T, 0> {
+export function trace<T>(matrix: Tensor<T, 2>, options?: TensorOutputOptions<T, 0>): Tensor<T, 0> {
     todo("tensor.trace")
 }
 

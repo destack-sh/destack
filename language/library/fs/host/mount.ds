@@ -1,5 +1,6 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { Path } from "./path.ds";
 
 /// Filesystem mount entry.

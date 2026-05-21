@@ -1,15 +1,16 @@
-import { todo, Result } from "destack:error";
 import { As, Borrow } from "destack:convert";
+import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
-import { AllocationError } from "./allocator.ds";
-import { Clone, Default, Unpin, Zeroable } from "./capability.ds";
+
 import { Access } from "./access.ds";
+import { AllocationError } from "./allocator.ds";
 import { Borrowed } from "./borrow.ds";
+import { Clone, Default, Unpin, Zeroable } from "./capability.ds";
+import { MaybeUninit } from "./init.ds";
 import { Owned } from "./owned.ds";
+import { Pin } from "./pin.ds";
 import { WithAccess } from "./type.ds";
 import { Unique } from "./unique.ds";
-import { MaybeUninit } from "./init.ds";
-import { Pin } from "./pin.ds";
 
 /// A uniquely owned heap allocation for an owned `T`.
 export newtype Box<T> = Unique<Owned<T>>;
@@ -39,14 +40,12 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, 
     }
 
     /// Allocate zeroed storage on the heap.
-    static newZeroed(): Box<MaybeUninit<T>>
-    where T implements Zeroable {
+    static newZeroed(): Box<MaybeUninit<T>> where T: Zeroable {
         todo("Box.newZeroed")
     }
 
     /// Try to allocate zeroed storage on the heap.
-    static tryNewZeroed(): Result<Box<MaybeUninit<T>>, AllocationError>
-    where T implements Zeroable {
+    static tryNewZeroed(): Result<Box<MaybeUninit<T>>, AllocationError> where T: Zeroable {
         todo("Box.tryNewZeroed")
     }
 
@@ -113,16 +112,14 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, 
 
 extension<T> of Box<T> implements Unpin {}
 
-extension<T> of Box<T> implements Clone
-where T implements Clone {
+extension<T> of Box<T> implements Clone where T: Clone {
     /// Clone the boxed value into a new box.
     clone(): Box<T> {
         todo("Box.clone")
     }
 }
 
-extension<T> of Box<T> implements Default
-where T implements Default {
+extension<T> of Box<T> implements Default where T: Default {
     /// Create a box with the default value.
     static default(): Box<T> {
         Box.new(T.default())

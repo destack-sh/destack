@@ -1,4 +1,5 @@
 import { Duration } from "destack:time";
+
 import { Samples } from "./measurement.ds";
 
 /// Benchmark regression budget.

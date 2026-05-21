@@ -1,5 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { ProcessId } from "./identity.ds";
 
 /// Handle for a spawned process.

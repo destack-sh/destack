@@ -45,9 +45,7 @@ export type ContinuationResult<TYield, TReturn> =
 
 /// Suspend the current continuation and register its handle.
 @intrinsic("async.continuation.suspend")
-export declare function suspendContinuation<T>(
-    register: (handle: ContinuationHandle) => void,
-): T;
+export declare function suspendContinuation<T>(register: (handle: ContinuationHandle) => void): T;
 
 /// Queue one Worker-local microtask.
 @intrinsic("async.microtask.queue")

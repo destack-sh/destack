@@ -1,7 +1,8 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
-import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
 import { GpuAdapterHandle, GpuDeviceHandle, GpuQueueHandle } from "destack:gpu/host";
+
+import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
 
 /// Device-loss reason category.
 export enum GpuDeviceLossReason {
@@ -157,7 +158,9 @@ export declare function readDeviceFeatures(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readDeviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, HostError>;
+export declare function readDeviceLimits(
+    device: GpuDeviceHandle,
+): Result<GpuAdapterLimits, HostError>;
 
 /// Check whether one device supports one feature.
 @binding("destack.gpu.device.feature.has", {
@@ -178,7 +181,9 @@ export declare function hasDeviceFeature(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readDeviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, HostError>;
+export declare function readDeviceStatus(
+    device: GpuDeviceHandle,
+): Result<GpuDeviceStatus, HostError>;
 
 /// Resolve the default queue for a logical device.
 @binding("destack.gpu.device.queue.read", {

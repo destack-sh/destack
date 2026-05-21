@@ -1,6 +1,7 @@
 import { HostError } from "destack:error/host";
-import { FilesystemEntry } from "./entry.ds";
 import { FileHandle } from "destack:fs/host";
+
+import { FilesystemEntry } from "./entry.ds";
 
 /// Extended attribute creation flags.
 export newtype XattrFlags = uint32;
@@ -30,9 +31,7 @@ export struct XattrTargetFile {
 }
 
 /// Target for extended attribute operations.
-export newtype XattrTarget =
-    | XattrTargetEntry
-    | XattrTargetFile;
+export newtype XattrTarget = XattrTargetEntry | XattrTargetFile;
 
 /// Read one extended attribute into an output buffer.
 @binding("destack.fs.xattr.read", {

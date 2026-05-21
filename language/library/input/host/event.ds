@@ -1,24 +1,24 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
+import { WindowHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
+import { InputDeviceHandle } from "destack:input/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { InputDevice, InputDeviceKind } from "./device.ds";
 import { GamepadControl, GamepadControlKind } from "./gamepad.ds";
 import { KeyLocation, ModifierState } from "./keyboard.ds";
 import {
     CoordinateSpace,
-    PenStateimport { WindowHandle } from "destack:display/host";
-import { InputDeviceHandle } from "destack:input/host";
-
-/// Handle for one input event subscription.
-export newtype InputEventHandle = ResourceId;
-
-,
+    PenState,
     PointerContact,
     PointerKind,
     PointerSample,
     WheelUnit,
 } from "./pointer.ds";
 import { SensorKind } from "./sensor.ds";
+
+/// Handle for one input event subscription.
+export newtype InputEventHandle = ResourceId;
 
 /// Input event flags.
 export newtype InputEventFlags = uint64;

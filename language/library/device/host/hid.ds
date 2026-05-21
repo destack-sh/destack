@@ -1,7 +1,7 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { Path } from "destack:fs/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one HID device endpoint.
 export newtype HidDeviceHandle = ResourceId;
@@ -131,9 +131,7 @@ export declare function closeHidDevice(device: HidDeviceHandle): Result<void, Ho
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readHidDescriptor(
-    device: HidDeviceHandle,
-): Result<Array<uint8>, HostError>;
+export declare function readHidDescriptor(device: HidDeviceHandle): Result<Array<uint8>, HostError>;
 
 /// Read one HID input report.
 @binding("destack.device.hid.report.read", {

@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { ReadonlyBorrowed } from "../borrow.ds";
 import { Lifetime } from "../lifetime.ds";
 import { Space } from "../place.ds";
@@ -34,6 +35,6 @@ export extension<T, L: Lifetime, S: Space = "local"> of Arena<T, L, S> {
 
     /// Drop all values allocated in this arena.
     clear(this: &exclusive Arena<T, L, S>): void {
-        todo("Arena.clear")
+        todo("Arena.clear");
     }
 }

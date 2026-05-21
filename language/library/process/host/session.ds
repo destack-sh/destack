@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import { ProcessId } from "./identity.ds";
 
 /// Create a new Unix session and return the session leader id.
@@ -17,10 +18,7 @@ export declare function createSession(): Result<ProcessId, HostError>;
     families: ["unix"],
     simulation: true,
 })
-export declare function setProcessGroup(
-    pid: ProcessId,
-    group: ProcessId,
-): Result<void, HostError>;
+export declare function setProcessGroup(pid: ProcessId, group: ProcessId): Result<void, HostError>;
 
 /// Read the process group id for one Unix process.
 @binding("destack.process.session.group", {

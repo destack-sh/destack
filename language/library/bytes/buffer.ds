@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Access, MaybeUninit, Unique, WithAccess } from "destack:memory";
+
 import { Bytes } from "./bytes.ds";
 
 /// Growable byte buffer.
@@ -50,32 +51,32 @@ export class ByteBuffer {
 
     /// Reserve room for at least `additional` more bytes.
     reserve(this: &exclusive ByteBuffer, additional: usize): void {
-        todo("ByteBuffer.reserve")
+        todo("ByteBuffer.reserve");
     }
 
     /// Remove all initialized bytes.
     clear(this: &exclusive ByteBuffer): void {
-        todo("ByteBuffer.clear")
+        todo("ByteBuffer.clear");
     }
 
     /// Release unused capacity.
     compact(this: &exclusive ByteBuffer): void {
-        todo("ByteBuffer.compact")
+        todo("ByteBuffer.compact");
     }
 
     /// Append one byte.
     writeByte(this: &exclusive ByteBuffer, value: uint8): void {
-        todo("ByteBuffer.writeByte")
+        todo("ByteBuffer.writeByte");
     }
 
     /// Append bytes.
     write(this: &exclusive ByteBuffer, bytes: &readonly [uint8]): void {
-        todo("ByteBuffer.write")
+        todo("ByteBuffer.write");
     }
 
     /// Append `count` copies of `value`.
     fill(this: &exclusive ByteBuffer, value: uint8, count: usize): void {
-        todo("ByteBuffer.fill")
+        todo("ByteBuffer.fill");
     }
 
     /// Borrow initialized bytes.

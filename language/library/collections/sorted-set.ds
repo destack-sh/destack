@@ -1,9 +1,10 @@
-import { todo } from "destack:error";
 import { Borrow, From } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Default } from "destack:memory";
 import { Compare } from "destack:ops";
 import { RangeBounds } from "destack:range";
+
 import { SortedMap } from "./sorted-map.ds";
 
 /// A compact sorted set.
@@ -39,8 +40,7 @@ extension<T> of ^SortedSet<T> implements Default {
 extension<T: Compare<T>> of SortedSet<T> implements
     Iterable<T>,
     Iterable<&readonly T>,
-    Extend<T, "exclusive">
-{
+    Extend<T, "exclusive"> {
     /// Create a sorted set from values.
     static from(values: Iterable<T>): ^SortedSet<T> {
         todo("SortedSet.from")
@@ -62,14 +62,13 @@ extension<T: Compare<T>> of SortedSet<T> implements
     }
 
     /// Return whether `value` is present.
-    has<Q: Compare<Q>>(value: &readonly Q): boolean
-    where T implements Borrow<Q> {
+    has<Q: Compare<Q>>(value: &readonly Q): boolean where T: Borrow<Q> {
         todo("SortedSet.has")
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
     get<Q: Compare<Q>>(this: &readonly SortedSet<T>, value: &readonly Q): &readonly T | undefined
-    where T implements Borrow<Q> {
+    where T: Borrow<Q> {
         todo("SortedSet.get")
     }
 
@@ -80,23 +79,23 @@ extension<T: Compare<T>> of SortedSet<T> implements
 
     /// Add all `values`.
     extend(this: &exclusive SortedSet<T>, values: Iterable<T>): void {
-        todo("SortedSet.extend")
+        todo("SortedSet.extend");
     }
 
     /// Remove `value`.
     remove<Q: Compare<Q>>(this: &exclusive SortedSet<T>, value: &readonly Q): T | undefined
-    where T implements Borrow<Q> {
+    where T: Borrow<Q> {
         todo("SortedSet.remove")
     }
 
     /// Remove all values.
     clear(this: &exclusive SortedSet<T>): void {
-        todo("SortedSet.clear")
+        todo("SortedSet.clear");
     }
 
     /// Retain only values accepted by `predicate`.
     retain(this: &exclusive SortedSet<T>, predicate: (value: &readonly T) => boolean): void {
-        todo("SortedSet.retain")
+        todo("SortedSet.retain");
     }
 
     /// Remove all values and return them.
@@ -105,18 +104,21 @@ extension<T: Compare<T>> of SortedSet<T> implements
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(this: &exclusive SortedSet<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(
+        this: &exclusive SortedSet<T>,
+        predicate: (value: &readonly T) => boolean,
+    ): Iterator<T> {
         todo("SortedSet.extractIf")
     }
 
     /// Reserve room for at least `additional` more values.
     reserve(this: &exclusive SortedSet<T>, additional: usize): void {
-        todo("SortedSet.reserve")
+        todo("SortedSet.reserve");
     }
 
     /// Shrink node storage to fit the current values.
     shrinkToFit(this: &exclusive SortedSet<T>): void {
-        todo("SortedSet.shrinkToFit")
+        todo("SortedSet.shrinkToFit");
     }
 
     /// Return the union of two sets.
@@ -165,8 +167,10 @@ extension<T: Compare<T>> of SortedSet<T> implements
     }
 
     /// Return values in `range` with readonly access.
-    range<Q: Compare<Q>, R: RangeBounds<Q>>(this: &readonly SortedSet<T>, range: R): Iterator<&readonly T>
-    where T implements Borrow<Q> {
+    range<Q: Compare<Q>, R: RangeBounds<Q>>(
+        this: &readonly SortedSet<T>,
+        range: R,
+    ): Iterator<&readonly T> where T: Borrow<Q> {
         todo("SortedSet.range")
     }
 

@@ -1,6 +1,7 @@
 import { HostError } from "destack:error/host";
-import { FilesystemEntry } from "./entry.ds";
 import { FileHandle } from "destack:fs/host";
+
+import { FilesystemEntry } from "./entry.ds";
 
 /// Volume mount flags.
 export newtype FileVolumeFlags = uint64;

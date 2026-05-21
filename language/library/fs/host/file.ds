@@ -1,5 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { FilesystemEntry } from "./entry.ds";
 import { FileOffset, FileRange, FileSize } from "./range.ds";
 import { FileMode } from "./status.ds";

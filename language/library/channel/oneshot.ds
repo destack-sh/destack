@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Send } from "destack:memory";
+
 import { AsyncReceiver, AsyncSender, Receiver, Sender } from "./channel.ds";
 
 /// Create a local blocking one-shot channel.

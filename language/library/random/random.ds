@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { HostError } from "destack:error/host";
 import * as runtime from "destack:runtime";
+
 import * as host from "./host";
 
 /// Deterministic random stream seed.
@@ -13,7 +14,7 @@ export class Random {
 
     /// Wrap an open runtime random stream.
     constructor(handle: runtime.RandomHandle) {
-        this.handle = handle
+        this.handle = handle;
     }
 }
 

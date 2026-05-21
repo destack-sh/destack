@@ -1,7 +1,8 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
+
 import { ResourceId } from "./resource.ds";
-import { WorldViewHandle, WorkerId } from "./world.ds";
+import { WorkerId, WorldViewHandle } from "./world.ds";
 
 /// Heap summary for one worker.
 export struct HeapSummary {

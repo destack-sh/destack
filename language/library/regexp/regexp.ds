@@ -116,7 +116,7 @@ export class RegExp {
 
     /// Create a regular expression.
     constructor(pattern: string | RegExp, flags?: string) {
-        todo("RegExp.constructor")
+        todo("RegExp.constructor");
     }
 
     /// Execute the pattern against `input`.

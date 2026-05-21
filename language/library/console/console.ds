@@ -1,7 +1,7 @@
 import { Result } from "destack:error";
 import { todo } from "destack:error";
-import { Writer } from "destack:sync";
 import { HostError } from "destack:error/host";
+import { Writer } from "destack:sync";
 
 /// Console output options.
 export interface ConsoleOptions {
@@ -19,7 +19,7 @@ export interface ConsoleOptions {
 export class Console {
     /// Create a console from output streams.
     constructor(options?: ConsoleOptions) {
-        todo("Console.constructor")
+        todo("Console.constructor");
     }
 
     /// Write a line to stdout.

@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
+
 import { Duration, DurationLike } from "./duration.ds";
-import { CalendarLike, PlainDate } from "./plain-date.ds";
 import {
     ArithmeticOptions,
     AssignmentOptions,
@@ -9,6 +9,7 @@ import {
     DifferenceOptions,
     ShowCalendarOption,
 } from "./option.ds";
+import { CalendarLike, PlainDate } from "./plain-date.ds";
 import { ComparisonResult, LocalesArgument } from "./unit.ds";
 
 /// Temporal plain year-month field bag.
@@ -30,7 +31,10 @@ export type PlainYearMonthLike = {
 /// Temporal plain year-month.
 export class PlainYearMonth {
     /// Create a plain year-month.
-    static from(item: PlainYearMonth | PlainYearMonthLike | string, options?: AssignmentOptions): PlainYearMonth {
+    static from(
+        item: PlainYearMonth | PlainYearMonthLike | string,
+        options?: AssignmentOptions,
+    ): PlainYearMonth {
         todo("PlainYearMonth.from")
     }
 
@@ -44,7 +48,7 @@ export class PlainYearMonth {
 
     /// Create a plain year-month.
     constructor(isoYear: number, isoMonth: number, calendar?: string, referenceISODay?: number) {
-        todo("PlainYearMonth.constructor")
+        todo("PlainYearMonth.constructor");
     }
 
     /// Calendar era.
@@ -108,22 +112,34 @@ export class PlainYearMonth {
     }
 
     /// Add a duration.
-    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainYearMonth {
+    add(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): PlainYearMonth {
         todo("PlainYearMonth.add")
     }
 
     /// Subtract a duration.
-    subtract(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainYearMonth {
+    subtract(
+        durationLike: Duration | DurationLike | string,
+        options?: ArithmeticOptions,
+    ): PlainYearMonth {
         todo("PlainYearMonth.subtract")
     }
 
     /// Return the duration until `other`.
-    until(other: PlainYearMonth | PlainYearMonthLike | string, options?: DifferenceOptions<"year" | "month">): Duration {
+    until(
+        other: PlainYearMonth | PlainYearMonthLike | string,
+        options?: DifferenceOptions<"year" | "month">,
+    ): Duration {
         todo("PlainYearMonth.until")
     }
 
     /// Return the duration since `other`.
-    since(other: PlainYearMonth | PlainYearMonthLike | string, options?: DifferenceOptions<"year" | "month">): Duration {
+    since(
+        other: PlainYearMonth | PlainYearMonthLike | string,
+        options?: DifferenceOptions<"year" | "month">,
+    ): Duration {
         todo("PlainYearMonth.since")
     }
 

@@ -1,5 +1,5 @@
-import { todo } from "destack:error";
 import { From } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Clone, Default } from "destack:memory";
 import { Atomic } from "destack:sync";
@@ -38,17 +38,16 @@ extension<T> of ConcurrentQueue<T> implements Extend<T> {
 
     /// Push `value` to the back of the queue.
     push(this: &ConcurrentQueue<T>, value: T): void {
-        todo("ConcurrentQueue.push")
+        todo("ConcurrentQueue.push");
     }
 
     /// Append all `values` to the back of the queue.
     extend(this: &ConcurrentQueue<T>, values: Iterable<T>): void {
-        todo("ConcurrentQueue.extend")
+        todo("ConcurrentQueue.extend");
     }
 
     /// Clone and return the front value without removing it.
-    peek(this: &ConcurrentQueue<T>): T | undefined
-    where T implements Clone {
+    peek(this: &ConcurrentQueue<T>): T | undefined where T: Clone {
         todo("ConcurrentQueue.peek")
     }
 

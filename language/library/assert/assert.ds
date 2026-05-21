@@ -1,8 +1,8 @@
+import { Error, panic, todo } from "destack:error";
 import { Iterable } from "destack:iter";
 import { Json } from "destack:json";
 import { MaybeOwned } from "destack:memory";
 import { Equal } from "destack:ops";
-import { Error, panic, todo } from "destack:error";
 
 /// Structured details attached to one assertion event.
 export type Details = { readonly [key: string]: Json };
@@ -40,51 +40,49 @@ export function fail(message?: string): never {
 
 /// Assert that `condition` is true.
 export function ok(condition: boolean, message?: string): void {
-    assert(condition, message)
+    assert(condition, message);
 }
 
 /// Assert that `actual` equals `expected`.
-export function equal<T>(actual: T, expected: T, message?: string): void
-where T implements Equal<T> {
-    assert(actual.equal(expected), message ?? "expected values to be equal")
+export function equal<T>(actual: T, expected: T, message?: string): void where T: Equal<T> {
+    assert(actual.equal(expected), message ?? "expected values to be equal");
 }
 
 /// Assert that `actual` does not equal `expected`.
-export function notEqual<T>(actual: T, expected: T, message?: string): void
-where T implements Equal<T> {
-    assert(!actual.equal(expected), message ?? "expected values to be different")
+export function notEqual<T>(actual: T, expected: T, message?: string): void where T: Equal<T> {
+    assert(!actual.equal(expected), message ?? "expected values to be different");
 }
 
 /// Assert that `actual` is the same value as `expected`.
 export function same<T>(actual: T, expected: T, message?: string): void {
-    todo("assert.same")
+    todo("assert.same");
 }
 
 /// Assert that `actual` is not the same value as `expected`.
 export function notSame<T>(actual: T, expected: T, message?: string): void {
-    todo("assert.notSame")
+    todo("assert.notSame");
 }
 
 /// Assert that `actual` deeply equals `expected`.
 export function deepEqual(actual: unknown, expected: unknown, message?: string): void {
-    todo("assert.deepEqual")
+    todo("assert.deepEqual");
 }
 
 /// Assert that `actual` does not deeply equal `expected`.
 export function notDeepEqual(actual: unknown, expected: unknown, message?: string): void {
-    todo("assert.notDeepEqual")
+    todo("assert.notDeepEqual");
 }
 
 /// Assert that `values` contains `expected`.
 export function contains<T>(values: Iterable<T>, expected: T, message?: string): void
-where T implements Equal<T> {
-    todo("assert.contains")
+where T: Equal<T> {
+    todo("assert.contains");
 }
 
 /// Assert that `values` does not contain `expected`.
 export function notContains<T>(values: Iterable<T>, expected: T, message?: string): void
-where T implements Equal<T> {
-    todo("assert.notContains")
+where T: Equal<T> {
+    todo("assert.notContains");
 }
 
 /// Mark this code path as unreachable.
@@ -94,15 +92,15 @@ export function unreachable(message?: string): never {
 
 /// Record that a named code path was reached.
 export function reachable(name: string, details?: Details): void {
-    todo("assert.reachable")
+    todo("assert.reachable");
 }
 
 /// Record that `condition` should always hold when reached.
 export function always(condition: boolean, message: string, details?: Details): void {
-    todo("assert.always")
+    todo("assert.always");
 }
 
 /// Record that `condition` should become true in some explored run.
 export function sometimes(name: string, condition: boolean, details?: Details): void {
-    todo("assert.sometimes")
+    todo("assert.sometimes");
 }

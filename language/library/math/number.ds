@@ -58,7 +58,22 @@ export type NumberFormatOptions = {
     roundingPriority?: "auto" | "morePrecision" | "lessPrecision";
 
     /// Rounding increment.
-    roundingIncrement?: 1 | 2 | 5 | 10 | 20 | 25 | 50 | 100 | 200 | 250 | 500 | 1000 | 2000 | 2500 | 5000;
+    roundingIncrement?:
+        | 1
+        | 2
+        | 5
+        | 10
+        | 20
+        | 25
+        | 50
+        | 100
+        | 200
+        | 250
+        | 500
+        | 1000
+        | 2000
+        | 2500
+        | 5000;
 
     /// Rounding mode.
     roundingMode?:
@@ -124,7 +139,11 @@ export class Number {
     }
 
     /// Return this number as a locale-aware string.
-    toLocaleString(this: &readonly number, locales?: string | string[], options?: NumberFormatOptions): MaybeOwned<string> {
+    toLocaleString(
+        this: &readonly number,
+        locales?: string | string[],
+        options?: NumberFormatOptions,
+    ): MaybeOwned<string> {
         todo("Number.toLocaleString")
     }
 

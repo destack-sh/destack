@@ -1,8 +1,9 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
-import { SocketFamily } from "./address.ds";
 import { SocketHandle } from "destack:net/host";
+import { ResourceId } from "destack:runtime/resource";
+
+import { SocketFamily } from "./address.ds";
 
 /// Handle for a packet capture or injection endpoint.
 export newtype PacketHandle = ResourceId;
@@ -155,10 +156,7 @@ export struct NetworkPacketRingOptions {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listPacketBackends(): Result<
-    Array<NetworkPacketBackendStatus>,
-    HostError,
->;
+export declare function listPacketBackends(): Result<Array<NetworkPacketBackendStatus>, HostError>;
 
 /// Open a raw IP socket.
 @binding("destack.net.raw.socket", {
@@ -301,7 +299,4 @@ export declare function clearPacketRing(packet: PacketHandle): Result<void, Host
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetStats(packet: PacketHandle): Result<
-    NetworkPacketStats,
-    HostError,
->;
+export declare function packetStats(packet: PacketHandle): Result<NetworkPacketStats, HostError>;

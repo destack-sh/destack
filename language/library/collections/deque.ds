@@ -1,5 +1,5 @@
-import { todo } from "destack:error";
 import { From } from "destack:convert";
+import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
@@ -26,8 +26,7 @@ extension<T> of Deque<T> implements
     Iterable<&T>,
     Iterable<&readonly T>,
     Iterable<&exclusive T>,
-    Extend<T, "exclusive">
-{
+    Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
 
@@ -77,28 +76,31 @@ extension<T> of Deque<T> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>, index: number): WithAccess<&T, A> {
+    index<A: Access = "readonly">(
+        this: WithAccess<&Deque<T>, A>,
+        index: number,
+    ): WithAccess<&T, A> {
         todo("Deque.index")
     }
 
     /// Replace the element at `index`.
     indexSet(this: &exclusive Deque<T>, index: number, value: T): void {
-        todo("Deque.indexSet")
+        todo("Deque.indexSet");
     }
 
     /// Push `value` to the back.
     pushBack(this: &exclusive Deque<T>, value: T): void {
-        todo("Deque.pushBack")
+        todo("Deque.pushBack");
     }
 
     /// Push `value` to the front.
     pushFront(this: &exclusive Deque<T>, value: T): void {
-        todo("Deque.pushFront")
+        todo("Deque.pushFront");
     }
 
     /// Append all `values` to the back.
     extend(this: &exclusive Deque<T>, values: Iterable<T>): void {
-        todo("Deque.extend")
+        todo("Deque.extend");
     }
 
     /// Remove and return the back element.
@@ -123,12 +125,12 @@ extension<T> of Deque<T> implements
 
     /// Remove all elements.
     clear(this: &exclusive Deque<T>): void {
-        todo("Deque.clear")
+        todo("Deque.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
     retain(this: &exclusive Deque<T>, predicate: (value: &T, index: usize) => boolean): void {
-        todo("Deque.retain")
+        todo("Deque.retain");
     }
 
     /// Remove all elements and return them.
@@ -137,18 +139,21 @@ extension<T> of Deque<T> implements
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(this: &exclusive Deque<T>, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+    extractIf(
+        this: &exclusive Deque<T>,
+        predicate: (value: &T, index: usize) => boolean,
+    ): Iterator<T> {
         todo("Deque.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive Deque<T>, additional: usize): void {
-        todo("Deque.reserve")
+        todo("Deque.reserve");
     }
 
     /// Shrink capacity to fit the current length.
     shrinkToFit(this: &exclusive Deque<T>): void {
-        todo("Deque.shrinkToFit")
+        todo("Deque.shrinkToFit");
     }
 
     /// Return an iterator over copied values.

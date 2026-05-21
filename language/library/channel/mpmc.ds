@@ -1,12 +1,7 @@
 import { todo } from "destack:error";
 import { Send } from "destack:memory";
-import {
-    AsyncReceiver,
-    AsyncSender,
-    ChannelOptions,
-    Receiver,
-    Sender,
-} from "./channel.ds";
+
+import { AsyncReceiver, AsyncSender, ChannelOptions, Receiver, Sender } from "./channel.ds";
 
 /// Create a local blocking multi-producer multi-consumer channel.
 export function channel<T>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {

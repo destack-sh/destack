@@ -1,13 +1,10 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
+import { CryptoStoreHandle } from "destack:crypto/host";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import {
     CryptoAsymmetricEncryptionAlgorithm,
-import { CryptoStoreHandle } from "destack:crypto/host";
-
-/// Handle for one cryptographic key object.
-export newtype CryptoKeyHandle = ResourceId;
-
     CryptoDigestAlgorithm,
     CryptoKeyFormat,
     CryptoKeyKind,
@@ -18,6 +15,9 @@ export newtype CryptoKeyHandle = ResourceId;
     CryptoSignatureAlgorithm,
 } from "./algorithm.ds";
 import { CryptoStoreIdentity } from "./store.ds";
+
+/// Handle for one cryptographic key object.
+export newtype CryptoKeyHandle = ResourceId;
 
 /// RSA key shape.
 export struct CryptoRsaKeyShape {
@@ -278,9 +278,7 @@ export declare function exportSecretKey(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function describeKey(
-    key: CryptoKeyHandle,
-): Result<CryptoKeyDescriptor, HostError>;
+export declare function describeKey(key: CryptoKeyHandle): Result<CryptoKeyDescriptor, HostError>;
 
 /// Sign one payload.
 @binding("destack.crypto.key.sign", {

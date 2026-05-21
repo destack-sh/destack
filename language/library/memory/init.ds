@@ -20,8 +20,7 @@ export extension<T> of MaybeUninit<T> implements Default {
 
     /// Create zeroed storage for `T`.
     @intrinsic("memory.init.zeroed")
-    static zeroed(): MaybeUninit<T>
-    where T implements Zeroable;
+    static zeroed(): MaybeUninit<T> where T: Zeroable;
 
     /// Initialize this storage with `value`.
     @intrinsic("memory.init.write")

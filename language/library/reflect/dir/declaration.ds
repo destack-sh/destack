@@ -17,9 +17,7 @@ export enum NamespaceKind {
 }
 
 /// The target of an import-alias declaration.
-export type ImportAliasTarget =
-    | RequireImportAliasTarget
-    | PathImportAliasTarget;
+export type ImportAliasTarget = RequireImportAliasTarget | PathImportAliasTarget;
 
 /// A require-based import alias target.
 export interface RequireImportAliasTarget {

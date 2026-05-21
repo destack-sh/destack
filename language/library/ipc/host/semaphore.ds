@@ -1,5 +1,5 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for an IPC semaphore.
 export newtype SemaphoreHandle = ResourceId;
@@ -51,9 +51,7 @@ export declare function openSemaphore(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function closeSemaphore(
-    semaphore: SemaphoreHandle,
-): Result<void, HostError>;
+export declare function closeSemaphore(semaphore: SemaphoreHandle): Result<void, HostError>;
 
 /// Remove one named semaphore.
 @binding("destack.ipc.semaphore.remove", {

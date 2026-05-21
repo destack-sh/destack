@@ -1,4 +1,5 @@
 import { HostError } from "destack:error/host";
+
 import { VirtualMemoryRange } from "./virtual.ds";
 
 /// Memory access pattern advice selector.

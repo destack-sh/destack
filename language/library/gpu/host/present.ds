@@ -1,8 +1,15 @@
 import { Array } from "destack:collections";
 import { DisplayColorSpace, DisplayHdrMode, WindowHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
+import {
+    GpuAdapterHandle,
+    GpuDeviceHandle,
+    GpuPresentationHandle,
+    GpuSurfaceHandle,
+    GpuTextureHandle,
+} from "destack:gpu/host";
+
 import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
-import { GpuAdapterHandle, GpuDeviceHandle, GpuPresentationHandle, GpuSurfaceHandle, GpuTextureHandle } from "destack:gpu/host";
 
 /// Surface present mode.
 export enum GpuPresentMode {
@@ -38,12 +45,10 @@ export enum GpuCompositeAlphaMode {
 export newtype GpuSurfaceTimingFlags = uint32;
 
 /// Backend can report presentation events.
-export const GPU_SURFACE_TIMING_PRESENTATION: GpuSurfaceTimingFlags =
-    GpuSurfaceTimingFlags(0x01);
+export const GPU_SURFACE_TIMING_PRESENTATION: GpuSurfaceTimingFlags = GpuSurfaceTimingFlags(0x01);
 
 /// Backend can report actual presentation timestamps.
-export const GPU_SURFACE_TIMING_PRESENTED_AT: GpuSurfaceTimingFlags =
-    GpuSurfaceTimingFlags(0x02);
+export const GPU_SURFACE_TIMING_PRESENTED_AT: GpuSurfaceTimingFlags = GpuSurfaceTimingFlags(0x02);
 
 /// Backend can report refresh intervals.
 export const GPU_SURFACE_TIMING_REFRESH_INTERVAL: GpuSurfaceTimingFlags =

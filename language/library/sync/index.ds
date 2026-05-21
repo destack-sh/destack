@@ -2,9 +2,6 @@ export {
     Atomic,
     AtomicScope,
     AtomicWaitResult,
-    MemoryOrdering,
-    MemoryRegionSet,
-    MemoryScope,
     atomicCas,
     atomicCasWeak,
     atomicExchange,
@@ -25,6 +22,9 @@ export {
     atomicStore,
     atomicWait,
     atomicWake,
+    MemoryOrdering,
+    MemoryRegionSet,
+    MemoryScope,
 } from "./atomic.ds";
 export * from "./barrier.ds";
 export * from "./condvar.ds";

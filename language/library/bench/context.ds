@@ -1,5 +1,6 @@
 import { Promise } from "destack:async";
 import * as test from "destack:test";
+
 import { Measure, Measurement } from "./measurement.ds";
 
 /// Benchmark callback context.

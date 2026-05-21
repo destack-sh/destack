@@ -1,5 +1,5 @@
-import { todo } from "destack:error";
 import { FixedArray } from "destack:collections";
+import { todo } from "destack:error";
 
 /// Axis index inside a tensor rank.
 export newtype Axis = int32;

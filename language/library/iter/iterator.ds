@@ -17,9 +17,7 @@ export type IteratorReturn<TReturn> = {
 };
 
 /// The union of iterator yield and return results.
-export type IteratorResult<T, TReturn = unknown> =
-    | IteratorYield<T>
-    | IteratorReturn<TReturn>;
+export type IteratorResult<T, TReturn = unknown> = IteratorYield<T> | IteratorReturn<TReturn>;
 
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
@@ -53,18 +51,17 @@ export newtype interface Extend<T, A: Access = "mutable"> {
 
 export extension<T, TReturn = unknown, TNext = unknown> of Iterator<T, TReturn, TNext> {
     /// Collect this iterator into `C`.
-    collect<C>(): C
-    where C implements FromIterator<T> {
+    collect<C>(): C where C: FromIterator<T> {
         C.fromIterator(this)
     }
 }
 
 /// A value that is both iterable and its own iterator.
-export interface IterableIterator<
+export interface IterableIterator<T, TReturn = unknown, TNext = unknown> extends Iterator<
     T,
-    TReturn = unknown,
-    TNext = unknown,
-> extends Iterator<T, TReturn, TNext> {
+    TReturn,
+    TNext
+> {
     /// Return an iterator for this value.
     iterator(): IterableIterator<T, TReturn, TNext>;
 }

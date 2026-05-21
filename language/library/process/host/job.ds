@@ -1,6 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 import { ProcessHandle } from "destack:process/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for a Windows job object.
 export newtype JobHandle = ResourceId;
@@ -57,10 +57,7 @@ export declare function createJob(name?: &readonly string): Result<JobHandle, Ho
     platforms: ["windows"],
     simulation: true,
 })
-export declare function assignJob(
-    job: JobHandle,
-    process: ProcessHandle,
-): Result<void, HostError>;
+export declare function assignJob(job: JobHandle, process: ProcessHandle): Result<void, HostError>;
 
 /// Set Windows job object limits.
 @binding("destack.process.job.limit", {
@@ -70,7 +67,4 @@ export declare function assignJob(
     platforms: ["windows"],
     simulation: true,
 })
-export declare function setJobLimit(
-    job: JobHandle,
-    limit: JobLimit,
-): Result<void, HostError>;
+export declare function setJobLimit(job: JobHandle, limit: JobLimit): Result<void, HostError>;

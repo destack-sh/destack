@@ -1,8 +1,8 @@
 import { type GenericParameter, type Parameter } from "./argument.ds";
-import { type TypeExpression } from "./type-expression.ds";
+import { type WhereClause } from "./expression.ds";
 import { type Asynchrony } from "./node.ds";
 import { type FunctionMode } from "./property.ds";
-import { type WhereClause } from "./expression.ds";
+import { type TypeExpression } from "./type-expression.ds";
 
 /// Function cardinality.
 export enum FunctionCardinality {

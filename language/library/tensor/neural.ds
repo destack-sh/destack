@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { TensorOutputOptions } from "./options.ds";
 import { Axis, AxisSet } from "./shape.ds";
 import { Tensor } from "./tensor.ds";
@@ -75,11 +76,7 @@ export function logSoftmax<T: float, comptime Rank: int>(
 }
 
 /// Return layer-normalized values.
-export function layerNorm<
-    T: float,
-    comptime Rank: int,
-    comptime AxisCount: int,
->(
+export function layerNorm<T: float, comptime Rank: int, comptime AxisCount: int>(
     tensor: Tensor<T, Rank>,
     scale: Tensor<T, AxisCount>,
     bias: Tensor<T, AxisCount>,

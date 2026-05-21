@@ -1,6 +1,6 @@
 import { Array } from "destack:collections";
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle for one Bluetooth scan session.
 export newtype BluetoothScanHandle = ResourceId;
@@ -422,10 +422,7 @@ export declare function listBluetoothAdapters(): Result<Array<BluetoothAdapter>,
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openBluetoothAdapterWatch(): Result<
-    BluetoothAdapterWatchHandle,
-    HostError
->;
+export declare function openBluetoothAdapterWatch(): Result<BluetoothAdapterWatchHandle, HostError>;
 
 /// Close a Bluetooth adapter topology watch.
 @binding("destack.device.bluetooth.adapter.watch.close", {
@@ -534,9 +531,7 @@ export declare function readBluetoothEvent(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pairBluetoothDevice(
-    device: BluetoothDeviceHandle,
-): Result<void, HostError>;
+export declare function pairBluetoothDevice(device: BluetoothDeviceHandle): Result<void, HostError>;
 
 /// Unpair a Bluetooth device.
 @binding("destack.device.bluetooth.unpair", {
@@ -556,9 +551,7 @@ export declare function unpairBluetoothDevice(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function readBluetoothRssi(
-    device: BluetoothDeviceHandle,
-): Result<int32, HostError>;
+export declare function readBluetoothRssi(device: BluetoothDeviceHandle): Result<int32, HostError>;
 
 /// List Bluetooth GATT services.
 @binding("destack.device.bluetooth.gatt.service.list", {

@@ -1,6 +1,13 @@
 import { HostError } from "destack:error/host";
+import {
+    GpuBindGroupLayoutHandle,
+    GpuDeviceHandle,
+    GpuPipelineHandle,
+    GpuPipelineLayoutHandle,
+    GpuShaderHandle,
+} from "destack:gpu/host";
+
 import { GpuCompareFunction, GpuTextureFormat } from "./resource.ds";
-import { GpuBindGroupLayoutHandle, GpuDeviceHandle, GpuPipelineHandle, GpuPipelineLayoutHandle, GpuShaderHandle } from "destack:gpu/host";
 
 /// GPU shader module descriptor.
 export struct GpuShaderDescriptor {

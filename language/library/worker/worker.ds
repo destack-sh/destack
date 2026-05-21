@@ -27,7 +27,7 @@ export class Worker<T, R> {
 
     /// Send one message without waiting for a reply.
     post(message: T): void {
-        todo("Worker.post")
+        todo("Worker.post");
     }
 
     /// Request worker shutdown.

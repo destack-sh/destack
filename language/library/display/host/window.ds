@@ -1,9 +1,10 @@
-import { ResourceId } from "destack:runtime/resource";
 import { Array } from "destack:collections";
+import { MonitorHandle } from "destack:display/host";
 import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
 import { DisplayBackendKind, DisplayBackendSelection } from "./backend.ds";
 import { MonitorMode } from "./monitor.ds";
-import { MonitorHandle } from "destack:display/host";
 
 /// Handle for one window or surface host object.
 export newtype WindowHandle = ResourceId;
@@ -326,9 +327,7 @@ export declare function closeWindow(window: WindowHandle): Result<void, HostErro
     simulation: true,
     affinity: "worker",
 })
-export declare function describeWindow(
-    window: WindowHandle,
-): Result<WindowDescriptor, HostError>;
+export declare function describeWindow(window: WindowHandle): Result<WindowDescriptor, HostError>;
 
 /// Read one window state snapshot.
 @binding("destack.display.window.state", {

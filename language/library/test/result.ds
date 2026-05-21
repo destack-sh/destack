@@ -1,5 +1,6 @@
 import { Promise } from "destack:async";
 import { AsyncResult, Result } from "destack:error";
+
 import { Artifact } from "./artifact.ds";
 import { CaseId, ResourceKey, RunId, SuiteId } from "./id.ds";
 import { SnapshotOptions } from "./snapshot.ds";
@@ -47,11 +48,7 @@ export newtype interface SuiteContext extends Context {
 }
 
 /// Test callback result.
-export type BodyResult =
-    | void
-    | Promise<void>
-    | Result<void, unknown>
-    | AsyncResult<void, unknown>;
+export type BodyResult = void | Promise<void> | Result<void, unknown> | AsyncResult<void, unknown>;
 
 /// Test callback.
 export type Body = (ctx: CaseContext) => BodyResult;

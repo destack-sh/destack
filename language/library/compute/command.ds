@@ -1,9 +1,10 @@
 import { Slice } from "destack:collections";
 import { todo } from "destack:error";
+
 import { Buffer, BufferCopyRegion } from "./buffer.ds";
 import { Device } from "./device.ds";
-import { Event, Stream } from "./stream.ds";
 import { Kernel, KernelArgument } from "./program.ds";
+import { Event, Stream } from "./stream.ds";
 import { WorkgroupCount, WorkgroupSize } from "./workgroup.ds";
 
 /// Kernel dispatch descriptor.
@@ -46,17 +47,17 @@ export class CommandEncoder {
 
     /// Encode one kernel dispatch.
     dispatch(launch: KernelDispatch): void {
-        todo("CommandEncoder.dispatch")
+        todo("CommandEncoder.dispatch");
     }
 
     /// Encode a buffer copy.
     copy<T>(source: Buffer<T>, destination: Buffer<T>, region: BufferCopyRegion): void {
-        todo("CommandEncoder.copy")
+        todo("CommandEncoder.copy");
     }
 
     /// Encode a buffer fill.
     fill<T>(buffer: Buffer<T>, value: T): void {
-        todo("CommandEncoder.fill")
+        todo("CommandEncoder.fill");
     }
 
     /// Finish command encoding.

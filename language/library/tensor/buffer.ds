@@ -1,6 +1,7 @@
-import { todo } from "destack:error";
 import { Buffer, Device } from "destack:compute";
+import { todo } from "destack:error";
 import { sizeOf } from "destack:reflect";
+
 import { TensorExecutionOptions } from "./options.ds";
 
 /// Owned tensor buffer on one device.

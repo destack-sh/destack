@@ -1,6 +1,6 @@
-import { ResourceId } from "destack:runtime/resource";
 import { HostError } from "destack:error/host";
 import { SocketHandle, SocketMessageFlags } from "destack:net/host";
+import { ResourceId } from "destack:runtime/resource";
 
 /// Handle transferred through ancillary transport.
 export newtype TransferredHandle = ResourceId;

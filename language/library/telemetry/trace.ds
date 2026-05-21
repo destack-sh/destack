@@ -1,4 +1,5 @@
 import { Promise } from "destack:async";
+
 import { Fields } from "./field.ds";
 
 /// Distributed trace identifier.
@@ -136,10 +137,10 @@ export class Span {
         fields?: Fields,
         sink?: TraceSink,
     ) {
-        this.name = name
-        this.context = context
-        this.kind = kind ?? SpanKind.Internal
-        this.sink = sink
+        this.name = name;
+        this.context = context;
+        this.kind = kind ?? SpanKind.Internal;
+        this.sink = sink;
 
         writeTrace(this.sink, TraceRecord {
             kind: TraceEventKind.Start,
@@ -149,7 +150,7 @@ export class Span {
             spanKind: this.kind,
             name,
             fields,
-        })
+        });
     }
 
     /// Add fields to this span.
@@ -160,7 +161,7 @@ export class Span {
             spanId: this.context.spanId,
             name: this.name,
             fields,
-        })
+        });
     }
 
     /// Add one event to this span.
@@ -172,41 +173,41 @@ export class Span {
             name: this.name,
             event: name,
             fields,
-        })
+        });
     }
 
     /// Set this span status.
     setStatus(this: &exclusive Span, status: SpanStatus): void {
-        this.status = status
+        this.status = status;
     }
 
     /// Mark this span as failed.
     error(this: &exclusive Span, error: unknown): void {
-        this.status = SpanStatus.Error
+        this.status = SpanStatus.Error;
         writeTrace(this.sink, TraceRecord {
             kind: TraceEventKind.Error,
             traceId: this.context.traceId,
             spanId: this.context.spanId,
             name: this.name,
             error,
-        })
+        });
     }
 
     /// Finish this span.
     end(this: &exclusive Span, status?: SpanStatus): void {
         if (this.isEnded) {
-            return
+            return;
         }
 
-        this.isEnded = true
-        this.status = status ?? this.status
+        this.isEnded = true;
+        this.status = status ?? this.status;
         writeTrace(this.sink, TraceRecord {
             kind: TraceEventKind.End,
             traceId: this.context.traceId,
             spanId: this.context.spanId,
             name: this.name,
             status: this.status,
-        })
+        });
     }
 }
 
@@ -217,7 +218,7 @@ export class Tracer {
 
     /// Create a tracer.
     constructor(sink?: TraceSink) {
-        this.sink = sink
+        this.sink = sink;
     }
 
     /// Start one span.
@@ -291,8 +292,7 @@ export declare function createSpanContext(parent?: SpanContext): SpanContext;
 function writeTrace(sink: TraceSink | undefined, record: TraceRecord): void {
     if (sink == undefined) {
         emitTrace(record)
-    }
-    else {
+    } else {
         sink.write(record)
     }
 }

@@ -1,6 +1,7 @@
+import { todo } from "destack:error";
 import { RangeBounds } from "destack:range";
 import { Schema } from "destack:schema";
-import { todo } from "destack:error";
+
 import { FloatOptions, StringOptions } from "./options.ds";
 
 /// Generated array options.

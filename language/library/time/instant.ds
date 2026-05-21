@@ -1,8 +1,14 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 import { Omit } from "destack:types";
+
 import { Duration, DurationLike } from "./duration.ds";
-import { DateTimeFormatOptions, DifferenceOptions, InstantToStringOptions, RoundTo } from "./option.ds";
+import {
+    DateTimeFormatOptions,
+    DifferenceOptions,
+    InstantToStringOptions,
+    RoundTo,
+} from "./option.ds";
 import { ComparisonResult, LocalesArgument } from "./unit.ds";
 import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 
@@ -30,7 +36,7 @@ export class Instant {
 
     /// Create an instant.
     constructor(epochNanoseconds: bigint) {
-        todo("Instant.constructor")
+        todo("Instant.constructor");
     }
 
     /// Epoch milliseconds.
@@ -49,19 +55,25 @@ export class Instant {
     }
 
     /// Add a time duration.
-    add(durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string): Instant {
+    add(
+        durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string,
+    ): Instant {
         todo("Instant.add")
     }
 
     /// Subtract a time duration.
-    subtract(durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string): Instant {
+    subtract(
+        durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string,
+    ): Instant {
         todo("Instant.subtract")
     }
 
     /// Return the duration until `other`.
     until(
         other: Instant | string,
-        options?: DifferenceOptions<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">,
+        options?: DifferenceOptions<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
     ): Duration {
         todo("Instant.until")
     }
@@ -69,14 +81,18 @@ export class Instant {
     /// Return the duration since `other`.
     since(
         other: Instant | string,
-        options?: DifferenceOptions<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">,
+        options?: DifferenceOptions<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
     ): Duration {
         todo("Instant.since")
     }
 
     /// Round this instant.
     round(
-        roundTo: RoundTo<"hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond">,
+        roundTo: RoundTo<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
     ): Instant {
         todo("Instant.round")
     }
