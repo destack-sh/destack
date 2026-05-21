@@ -3,7 +3,7 @@ use core::fmt;
 use destack_core::StringPool;
 use destack_dir::{
     BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token, TokenLiteral,
-    TokenSpan, TokenType, Tree, TreeMark, TreeStore,
+    TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
 };
 use destack_source::{
     DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType, ModuleId, MultiSpan,
@@ -280,9 +280,19 @@ impl Parser {
     ) -> Self {
         let source_len = file.text().len();
         let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
-        let tree = Tree::with_capacity(module_id, estimated_tokens);
+        let tree = Tree::with_capacities(module_id, Self::estimate_tree_capacity(estimated_tokens));
 
         Self::lex_module_tree_with_options(file, language, options, strings, tree)
+    }
+
+    /// Estimate initial tree buffers from token count.
+    fn estimate_tree_capacity(estimated_tokens: usize) -> TreeCapacity {
+        TreeCapacity {
+            nodes: estimated_tokens,
+            expressions: estimated_tokens,
+            type_expressions: estimated_tokens,
+            comments: estimated_tokens / 16,
+        }
     }
 
     /// Lex a module text File into an existing DIR tree and apply parser options.

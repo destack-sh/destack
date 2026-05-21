@@ -103,6 +103,30 @@ impl NodeIndexEntry {
     }
 }
 
+/// Initial buffer capacities for a DIR tree.
+#[derive(Debug, Copy, Clone, Default)]
+pub struct TreeCapacity {
+    /// The expected total node count.
+    pub nodes: usize,
+    /// The expected expression count.
+    pub expressions: usize,
+    /// The expected type expression count.
+    pub type_expressions: usize,
+    /// The expected comment count.
+    pub comments: usize,
+}
+
+impl TreeCapacity {
+    /// Create capacities from an expected total node count.
+    pub fn nodes(nodes: usize) -> Self {
+        Self {
+            nodes,
+            comments: nodes / 16,
+            ..Self::default()
+        }
+    }
+}
+
 /// Snapshot of tree allocation state for speculative restores.
 #[derive(Debug, Copy, Clone)]
 pub struct TreeMark {
@@ -217,16 +241,21 @@ impl Tree {
 
     /// Create a new Tree with the given capacity.
     pub fn with_capacity(module_id: ModuleId, capacity: usize) -> Self {
+        Self::with_capacities(module_id, TreeCapacity::nodes(capacity))
+    }
+
+    /// Create a new Tree with explicit family capacities.
+    pub fn with_capacities(module_id: ModuleId, capacity: TreeCapacity) -> Self {
         Self {
             module_id,
 
             first_global_id: 0,
             next_global_id: 0,
-            node_index_by_node_id: Vec::with_capacity(capacity),
-            source_map: NodeSourceMap::with_capacity(capacity),
+            node_index_by_node_id: Vec::with_capacity(capacity.nodes),
+            source_map: NodeSourceMap::with_capacity(capacity.nodes),
 
-            expressions: Arena::new(),
-            type_expressions: Arena::new(),
+            expressions: Arena::with(capacity.expressions),
+            type_expressions: Arena::with(capacity.type_expressions),
             blocks: Arena::new(),
             catches: Arena::new(),
             declarations: Arena::new(),
@@ -248,17 +277,17 @@ impl Tree {
             pattern_fields: Arena::new(),
             assign_patterns: Arena::new(),
             assign_pattern_fields: Arena::new(),
-            comments: Vec::with_capacity(capacity / 16),
+            comments: Vec::with_capacity(capacity.comments),
             decorators: Arena::new(),
 
-            parent_id_by_node_id: Vec::with_capacity(capacity),
-            source_id_by_node_id: Vec::with_capacity(capacity),
+            parent_id_by_node_id: Vec::with_capacity(capacity.nodes),
+            source_id_by_node_id: Vec::with_capacity(capacity.nodes),
             alias_node_id_by_source_id: BTreeMap::new(),
             alias_node_id_by_node_id: BTreeMap::new(),
             decorators_by_node_id: BTreeMap::new(),
             decorator_attachments: Vec::new(),
             documentation_by_node_id: BTreeMap::new(),
-            source_span_by_node_id: Vec::with_capacity(capacity),
+            source_span_by_node_id: Vec::with_capacity(capacity.nodes),
             detached_node_ids: BTreeSet::new(),
         }
     }
