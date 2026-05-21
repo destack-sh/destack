@@ -120,7 +120,6 @@ fn type_expression_complexity_inner(
             | TypeExpression::BorrowedOf { .. }
             | TypeExpression::PointerOf { .. }
             | TypeExpression::Conditional { .. }
-            | TypeExpression::In { .. }
             | TypeExpression::Extends { .. }
             | TypeExpression::Implements { .. }
             | TypeExpression::Range { .. }
@@ -320,9 +319,7 @@ fn type_expression_complexity_inner(
                 current_depth,
             ));
         }
-        TypeExpression::In { left, right }
-        | TypeExpression::Extends { left, right }
-        | TypeExpression::Implements { left, right } => {
+        TypeExpression::Extends { left, right } | TypeExpression::Implements { left, right } => {
             max_depth = max_depth.max(type_expression_complexity_inner(tree, *left, current_depth));
             max_depth = max_depth.max(type_expression_complexity_inner(
                 tree,
