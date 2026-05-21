@@ -194,7 +194,7 @@ fn test_parse_if_condition_with_parenthesized_cast_comparison() {
 
     // if (i < 0 || i >= (this.length as number)) { ... }
     let has_parse_error = parser
-        .diagnostics
+        .diagnostics()
         .to_vec()
         .into_iter()
         .any(|diagnostic| diagnostic.code.starts_with("EP"));

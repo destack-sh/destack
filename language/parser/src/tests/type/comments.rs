@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::tests::*;
-use crate::{Parser, ParserOptions, assert_comment, assert_expression_path, assert_node};
+use crate::{
+    Parser, ParserOptions, ParserTriviaMode, assert_comment, assert_expression_path, assert_node,
+};
 use destack_core::StringPool;
 use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
@@ -886,6 +888,7 @@ fn test_parse_without_parenthesized_wrappers_trims_type_union_last_arm() {
         test.file.clone(),
         test.language,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
@@ -919,6 +922,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_type_span() {
         test.file.clone(),
         test.language,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
@@ -954,6 +958,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_union_chain_head() {
         test.file.clone(),
         test.language,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
@@ -1006,6 +1011,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_intersection_chain_he
         test.file.clone(),
         test.language,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
@@ -1235,6 +1241,7 @@ fn test_parse_without_parenthesized_wrappers_trims_mapped_union_last_arm() {
         test.file.clone(),
         test.language,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },

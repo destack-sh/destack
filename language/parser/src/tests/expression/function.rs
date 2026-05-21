@@ -399,6 +399,78 @@ fn test_parse_lambda_function_value_with_pattern_parameters() {
     });
 }
 
+/// Parse a lambda parameter whose type is a mapped object type.
+#[test]
+fn test_parse_lambda_parameter_with_mapped_object_type() {
+    let mut test = TestParser::new("(expected: { [T in TestFilterTerm]?: boolean; }) => {}");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.parameters.len(), 1);
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { declared_type: Some(declared_type), .. } => {
+                assert_node!(parser.tree, *declared_type, TypeExpression::Mapped { parameter, readonly, optional, value: Some(value) } => {
+                    assert_eq!(*readonly, MappedTypeModifier::None);
+                    assert_eq!(*optional, MappedTypeModifier::Present);
+                    assert_string!(parser, parser.tree.get(*parameter).name, "T");
+                    assert_expression_path!(parser, parser.tree.get(parser.tree.get(*parameter).source_type), "TestFilterTerm");
+                    assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Boolean);
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse a destructured lambda parameter whose type is an object type.
+#[test]
+fn test_parse_lambda_pattern_parameter_with_object_type() {
+    let mut test = TestParser::new(
+        r#"(
+  options,
+  { log, logger, messenger }: {
+    log: LogFun;
+    logger: Logger;
+    messenger: Messenger;
+  }) => {}
+"#,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_eq!(signature.parameters.len(), 2);
+            assert_node!(parser.tree, signature.parameters[1], Parameter::Pattern { declared_type: Some(declared_type), .. } => {
+                assert_node!(parser.tree, *declared_type, TypeExpression::Object { members } => {
+                    let [log_member, logger_member, messenger_member] = members.as_slice() else {
+                        panic!("expected exactly three object type members");
+                    };
+
+                    assert_node!(parser.tree, *log_member, TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(field_type), .. } => {
+                        assert_string!(parser, *name, "log");
+                        assert_expression_path!(parser, parser.tree.get(*field_type), "LogFun");
+                    });
+                    assert_node!(parser.tree, *logger_member, TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(field_type), .. } => {
+                        assert_string!(parser, *name, "logger");
+                        assert_expression_path!(parser, parser.tree.get(*field_type), "Logger");
+                    });
+                    assert_node!(parser.tree, *messenger_member, TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(field_type), .. } => {
+                        assert_string!(parser, *name, "messenger");
+                        assert_expression_path!(parser, parser.tree.get(*field_type), "Messenger");
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Parse nested lambda types inside arrow return tuple types.
 #[test]
 fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {

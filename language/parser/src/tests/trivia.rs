@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use destack_core::StringPool;
 use destack_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentContent,
     CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
@@ -6,13 +9,37 @@ use destack_dir::{
 };
 use destack_source::LanguageType;
 
-use crate::{Parser, TestParser, assert_comment, assert_expression_path, assert_node};
+use crate::{
+    Lexer, Parser, ParserOptions, ParserTriviaMode, TestParser, assert_comment,
+    assert_expression_path, assert_node,
+};
 
 /// Parse one whole source string and return the resulting root expressions.
 fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let mut test = TestParser::new_with_language(source, language);
     let mut parser = test.prepare();
     let expressions = parser.parse();
+    (parser, expressions)
+}
+
+/// Parse one whole source string with one trivia mode.
+fn parse_source_with_trivia_mode(
+    source: &str,
+    language: LanguageType,
+    trivia_mode: ParserTriviaMode,
+) -> (Parser, Vec<LocalNodeId<Expression>>) {
+    let test = TestParser::new_with_language(source, language);
+    let mut parser = Parser::lex_file_with_options(
+        test.file.clone(),
+        language,
+        ParserOptions {
+            trivia_mode,
+            ..ParserOptions::default()
+        },
+        Arc::new(StringPool::new()),
+    );
+    let expressions = parser.parse();
+
     (parser, expressions)
 }
 
@@ -139,13 +166,13 @@ const mode = runCli();
 }
 
 #[test]
-fn test_parse_without_trivia_leaves_comments_empty_until_attach() {
+fn test_parse_without_attaching_comments_leaves_comments_empty_until_attach() {
     let mut test =
         TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
     let mut parser = test.prepare();
 
     // `value`, `next`
-    let expressions = parser.parse_without_trivia();
+    let expressions = parser.parse_without_attaching_comments();
     assert_eq!(expressions.len(), 2);
 
     // `// lead`
@@ -154,6 +181,54 @@ fn test_parse_without_trivia_leaves_comments_empty_until_attach() {
     // `// lead`
     parser.attach_comments();
     assert_eq!(parser.tree.comments().len(), 1);
+}
+
+#[test]
+fn test_parse_ignore_trivia_mode_drops_comments() {
+    let source = "/// docs\n/*! legal */\n// raw\nvalue";
+    let (parser, expressions) =
+        parse_source_with_trivia_mode(source, LanguageType::TypeScript, ParserTriviaMode::Ignore);
+
+    // `value`
+    assert_eq!(expressions.len(), 1);
+
+    // no retained comments
+    assert!(parser.tree.comments().is_empty());
+}
+
+#[test]
+fn test_parse_documentation_trivia_mode_keeps_structured_comments() {
+    let source = "/// docs\n// raw\n/*! legal */\n/* ordinary */\n/** block */\nvalue";
+    let (parser, expressions) = parse_source_with_trivia_mode(
+        source,
+        LanguageType::TypeScript,
+        ParserTriviaMode::Documentation,
+    );
+
+    // `value`
+    assert_eq!(expressions.len(), 1);
+
+    // structured comments only
+    assert_eq!(parser.tree.comments().len(), 3);
+    assert_eq!(comment_text(&parser, parser.tree.comments()[0]), "docs");
+    assert_eq!(parser.tree.comments()[0].content, CommentContent::Jsdoc);
+    assert_eq!(parser.tree.comments()[1].content, CommentContent::Legal);
+    assert_eq!(comment_text(&parser, parser.tree.comments()[2]), " block");
+    assert_eq!(parser.tree.comments()[2].content, CommentContent::Jsdoc);
+}
+
+#[test]
+fn test_lex_documentation_trivia_mode_skips_side_tokens() {
+    let test = TestParser::new_with_language("/// docs\n// raw\nvalue", LanguageType::TypeScript);
+    let result = Lexer::lex_with_options(
+        test.file.clone(),
+        LanguageType::TypeScript,
+        ParserTriviaMode::Documentation,
+    );
+
+    // comments are retained without formatter side tokens
+    assert_eq!(result.comments.len(), 1);
+    assert!(result.side_tokens.is_empty());
 }
 
 #[test]
@@ -181,7 +256,7 @@ fn test_attach_comments_is_idempotent() {
     let mut parser = test.prepare();
 
     // `value`, `next`
-    let expressions = parser.parse_without_trivia();
+    let expressions = parser.parse_without_attaching_comments();
     assert_eq!(expressions.len(), 2);
 
     // first `// lead`

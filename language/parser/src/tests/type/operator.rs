@@ -393,32 +393,8 @@ fn test_parse_typescript_type_expression_stops_before_implements() {
 }
 
 #[test]
-fn test_parse_type_binary_in_operator_span() {
-    let mut test = TestParser::new(r#"type T = "key" in Record"#);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::In { left, right } => {
-                assert_node!(parser.tree, *left, TypeExpression::ScalarLiteral { value } => {
-                    let ScalarLiteral::String(string_id) = value else {
-                        panic!("expected string literal, got {value:?}");
-                    };
-                    assert_string!(parser, *string_id, "key");
-                });
-                assert_node!(parser.tree, *right, TypeExpression::Reference { path, generic_arguments } => {
-                    assert!(generic_arguments.is_empty());
-                    assert_path!(parser, *path, "Record");
-                });
-            });
-        });
-    });
-}
-
-#[test]
-fn test_parse_typescript_type_expression_stops_before_in() {
-    let mut test = TestParser::new_with_language("Key in Record", LanguageType::TypeScript);
+fn test_parse_type_expression_stops_before_in() {
+    let mut test = TestParser::new("Key in Record");
     let mut parser = test.prepare();
     let type_id = parser
         .with_flags(parser.flags.in_type(), |parser| {

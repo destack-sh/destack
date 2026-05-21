@@ -7,7 +7,7 @@ use destack_dir::{
 };
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
-use crate::Parser;
+use crate::{Parser, ParserOptions, ParserTriviaMode};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -41,9 +41,13 @@ impl TestParser {
 
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser {
-        Parser::lex_file(
+        Parser::lex_file_with_options(
             self.file.clone(),
             self.language,
+            ParserOptions {
+                trivia_mode: ParserTriviaMode::Full,
+                ..ParserOptions::default()
+            },
             Arc::new(StringPool::new()),
         )
     }

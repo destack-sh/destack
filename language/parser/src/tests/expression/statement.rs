@@ -54,7 +54,7 @@ fn test_reject_labeled_lexical_declaration() {
     let mut parser = test.prepare();
     let _ = parser.parse();
     let diagnostic = parser
-        .diagnostics
+        .diagnostics()
         .to_vec()
         .into_iter()
         .find(|diagnostic| diagnostic.code.starts_with("EP"))
