@@ -569,3 +569,92 @@ declare function* ids(): Generator<int32, void, unknown>;
           (type_identifier)
           (predefined_type)
           (predefined_type))))))
+
+===============================================================================
+Comptime function declarations and parameters
+:language(destack)
+===============================================================================
+
+comptime function evaluate(comptime value: T, comptime maybe?: U = fallback, comptime ...rest: Item[]): T {
+  return value;
+}
+
+comptime async function load(): Promise<T> {
+  return source;
+}
+
+comptime function* ids(): Iterable<uint> {
+  yield 1;
+}
+
+declare comptime function sizeOf<T>(): usize;
+declare comptime async function fetch<T>(): Promise<T>;
+
+-------------------------------------------------------------------------------
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))
+        (identifier))
+      (required_parameter
+        (rest_pattern
+          (identifier))
+        (type_annotation
+          (array_type
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (generator_function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (expression_statement
+        (yield_expression
+          (number)))))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))))
