@@ -168,6 +168,8 @@ impl DirExpanded {
 pub struct DirExported {
     /// Resolved exports.
     pub exports: dir::ExportTable,
+    /// Global declarations contributed by this module.
+    pub globals: dir::GlobalTable,
 }
 
 /// Resolved import targets for one profile-scoped module.
