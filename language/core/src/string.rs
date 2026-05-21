@@ -107,6 +107,14 @@ impl StringStorage {
         }
     }
 
+    /// Reserve room for additional interned strings.
+    #[inline]
+    fn reserve(&mut self, string_count: usize) {
+        self.strings.reserve(string_count);
+        self.ids.reserve(string_count);
+        self.slot_by_id.reserve(string_count);
+    }
+
     /// Get the string associated with the given StringId.
     #[inline]
     fn get(&self, id: StringId) -> &str {
@@ -318,6 +326,14 @@ impl StringPool {
         }
     }
 
+    /// Reserve room for additional interned strings.
+    #[inline]
+    pub fn reserve(&self, string_count: usize) {
+        let mut state = self.inner.write();
+
+        state.reserve(string_count);
+    }
+
     /// Check if the pool contains the given StringId.
     #[inline]
     pub fn contains(&self, id: StringId) -> bool {
@@ -370,6 +386,7 @@ impl StringPool {
         }
 
         let mut state = self.inner.write();
+
         if state.contains(id) {
             let existing = state.get(id);
             assert_eq!(
