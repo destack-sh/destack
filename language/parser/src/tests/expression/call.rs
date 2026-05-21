@@ -91,7 +91,7 @@ fn test_parse_member_postfix_missing_name() {
 #[test]
 fn test_parse_private_member_postfix_missing_name() {
     // foo.#
-    let mut test = TestParser::new("foo.#");
+    let mut test = TestParser::new_with_language("foo.#", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 

@@ -234,6 +234,15 @@ fn test_parse_private_identifier_in_expression() {
     });
 }
 
+#[test]
+fn test_parse_destack_rejects_private_identifier() {
+    let mut test = TestParser::new("#a in this");
+    let mut parser = test.prepare();
+
+    let error = parser.eat_expression(parser.flags).unwrap_err();
+    assert_eq!(parser.get_span_str(error.leaf_span()), "#");
+}
+
 /// Parse typed object methods in decorator style call arguments.
 #[test]
 fn test_parse_typed_object_method_in_call_argument() {

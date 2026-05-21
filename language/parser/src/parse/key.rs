@@ -457,9 +457,7 @@ impl Parser {
     #[inline]
     fn peek_private_hash_key_is(&mut self) -> bool {
         if !self.flags.allows_private_hash_key()
-            || !(self.language.is_javascript()
-                || self.language.is_typescript()
-                || self.language.is_destack())
+            || !(self.language.is_javascript() || self.language.is_typescript())
             || !self.peek_is(TokenType::Hash)
         {
             return false;

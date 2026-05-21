@@ -750,6 +750,10 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        if self.language.is_destack() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         let hash_span = self.peek()?.span;
         self.bump();
 

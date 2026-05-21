@@ -29,6 +29,15 @@ fn test_parse_member_with_private_hash_name() {
 }
 
 #[test]
+fn test_parse_destack_member_rejects_private_hash_name() {
+    let mut test = TestParser::new("#name: string");
+    let mut parser = test.prepare();
+
+    let error = parser.eat_member().unwrap_err();
+    assert_eq!(parser.get_span_str(error.leaf_span()), "#");
+}
+
+#[test]
 fn test_parse_typescript_member_definite_field() {
     let mut test = TestParser::new_with_language("prop!: Foo", LanguageType::TypeScript);
     let mut parser = test.prepare();
