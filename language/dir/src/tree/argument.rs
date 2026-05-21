@@ -16,8 +16,23 @@ pub enum GenericParameter {
         default: Option<LocalNodeId<TypeExpression>>,
         is_const: bool,
     },
+    /// Variadic type parameter.
+    VariadicType {
+        name: StringId,
+        variance: Option<VarianceModifier>,
+        constraint: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<TypeExpression>>,
+        is_const: bool,
+    },
     /// Value parameter.
     Value {
+        name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<Expression>>,
+        is_comptime: bool,
+    },
+    /// Variadic value parameter.
+    VariadicValue {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
@@ -35,7 +50,10 @@ impl GenericParameter {
     /// Return the symbol key introduced by this generic parameter.
     pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {
-            Self::Type { name, .. } | Self::Value { name, .. } => Some(StaticKey::Name(*name)),
+            Self::Type { name, .. }
+            | Self::VariadicType { name, .. }
+            | Self::Value { name, .. }
+            | Self::VariadicValue { name, .. } => Some(StaticKey::Name(*name)),
             Self::Error => None,
         }
     }
@@ -43,8 +61,8 @@ impl GenericParameter {
     /// Return the symbol space introduced by this generic parameter.
     pub fn symbol_space(&self) -> Option<SymbolSpace> {
         match self {
-            Self::Type { .. } => Some(SymbolSpace::Type),
-            Self::Value { .. } => Some(SymbolSpace::Value),
+            Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolSpace::Type),
+            Self::Value { .. } | Self::VariadicValue { .. } => Some(SymbolSpace::Value),
             Self::Error => None,
         }
     }
@@ -52,8 +70,8 @@ impl GenericParameter {
     /// Return the symbol form introduced by this generic parameter.
     pub fn symbol_form(&self) -> Option<SymbolForm> {
         match self {
-            Self::Type { .. } => Some(SymbolForm::TypeAlias),
-            Self::Value { .. } => Some(SymbolForm::Variable),
+            Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolForm::TypeAlias),
+            Self::Value { .. } | Self::VariadicValue { .. } => Some(SymbolForm::Variable),
             Self::Error => None,
         }
     }
@@ -141,8 +159,12 @@ impl Parameter {
 pub enum GenericArgument {
     /// Type generic argument.
     Type { value: LocalNodeId<TypeExpression> },
+    /// Spread type generic argument.
+    SpreadType { value: LocalNodeId<TypeExpression> },
     /// Value generic argument.
     Value { value: LocalNodeId<Expression> },
+    /// Spread value generic argument.
+    SpreadValue { value: LocalNodeId<Expression> },
     /// Malformed generic argument slot.
     Error,
 }

@@ -669,7 +669,7 @@ Like dynamic parameter, Destack's generic parameter also supports `...` for:
 
 ```ds
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
-type Tensor<comptime ...Shape: usize> = TensorBuffer<...Shape>;
+type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
 ```
 
 Generics type inference - like all type inference - is local and flows "outward", that is, we can "import" inference from other modules, but imported inference only works in one direction.

@@ -16,7 +16,12 @@ export enum VarianceModifier {
 }
 
 /// A generic parameter.
-export type GenericParameter = TypeGenericParameter | ValueGenericParameter | ErrorGenericParameter;
+export type GenericParameter =
+    | TypeGenericParameter
+    | VariadicTypeGenericParameter
+    | ValueGenericParameter
+    | VariadicValueGenericParameter
+    | ErrorGenericParameter;
 
 /// Type generic parameter.
 export interface TypeGenericParameter extends Node {
@@ -38,12 +43,50 @@ export interface TypeGenericParameter extends Node {
     isConst: boolean;
 }
 
+/// Variadic type generic parameter.
+export interface VariadicTypeGenericParameter extends Node {
+    /// The node kind.
+    nodeKind: "genericParameter";
+    /// The parameter kind.
+    kind: "variadicType";
+    /// The parameter name.
+    name: string;
+    /// The variance annotation when present.
+    variance?: VarianceModifier;
+    /// The type constraint when present.
+    constraint?: TypeExpression;
+    /// The default type when present.
+    default?: TypeExpression;
+    /// The parameter symbol.
+    symbol: Symbol;
+    /// Whether this is a const type parameter.
+    isConst: boolean;
+}
+
 /// Value generic parameter.
 export interface ValueGenericParameter extends Node {
     /// The node kind.
     nodeKind: "genericParameter";
     /// The parameter kind.
     kind: "value";
+    /// The parameter name.
+    name: string;
+    /// The declared type when present.
+    declaredType?: TypeExpression;
+    /// The default expression when present.
+    default?: Expression;
+    /// Whether this is a static value parameter.
+    isComptime: boolean;
+    /// The parameter symbol.
+    symbol: Symbol;
+}
+
+/// Variadic value generic parameter.
+export interface VariadicValueGenericParameter extends Node {
+    /// The node kind.
+    nodeKind: "genericParameter";
+    /// The parameter kind.
+    kind: "variadicValue";
     /// The parameter name.
     name: string;
     /// The declared type when present.
@@ -165,7 +208,12 @@ export interface ErrorParameter extends Node {
 }
 
 /// A generic argument.
-export type GenericArgument = TypeGenericArgument | ValueGenericArgument | ErrorGenericArgument;
+export type GenericArgument =
+    | TypeGenericArgument
+    | SpreadTypeGenericArgument
+    | ValueGenericArgument
+    | SpreadValueGenericArgument
+    | ErrorGenericArgument;
 
 /// Type generic argument.
 export interface TypeGenericArgument extends Node {
@@ -177,6 +225,16 @@ export interface TypeGenericArgument extends Node {
     value: TypeExpression;
 }
 
+/// Spread type generic argument.
+export interface SpreadTypeGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "spreadType";
+    /// The spread type argument.
+    value: TypeExpression;
+}
+
 /// Value generic argument.
 export interface ValueGenericArgument extends Node {
     /// The node kind.
@@ -184,6 +242,16 @@ export interface ValueGenericArgument extends Node {
     /// The argument kind.
     kind: "value";
     /// The value argument.
+    value: Expression;
+}
+
+/// Spread value generic argument.
+export interface SpreadValueGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "spreadValue";
+    /// The spread value argument.
     value: Expression;
 }
 
