@@ -1331,7 +1331,7 @@ impl<'a> TypeLowerer<'a> {
             },
         ];
 
-        let mir_type = builder.type_closure(signature);
+        let mir_type = builder.type_closure(signature, env_pointer_type);
         let layout = Self::compute_struct_layout(fields, LayoutPolicy::Optimized);
         self.set_layout(mir_type, layout);
         Ok(mir_type)
@@ -1350,7 +1350,7 @@ impl<'a> TypeLowerer<'a> {
             self.lower_function_signature_type(types, closure.function, module_id, node, builder)?;
         let environment = self.lower_type(types, closure.environment, module_id, node, builder)?;
 
-        Ok(builder.type_closure_with_environment(signature, environment))
+        Ok(builder.type_closure(signature, environment))
     }
 
     /// Lower an intersection type by selecting its primary element.
