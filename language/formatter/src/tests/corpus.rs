@@ -2,24 +2,26 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::format_file_source;
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserOptions, source_colorizer};
+use destack_parser::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
     print_diff,
 };
 use destack_workspace::FormatterOptions;
 
-const CORPUS_SECTION_SEPARATOR: &str =
-    "================================================================================";
-const CORPUS_FIRST_PASS: &str = "first pass";
-const CORPUS_SECOND_PASS: &str = "second pass";
-const CORPUS_IDEMPOTENCE_PASS: &str = "idempotence";
+use crate::format_file_source;
 
-/// One library corpus failure summary.
+const SECTION_SEPARATOR: &str =
+    "================================================================================";
+const CHECKED_IN_PASS: &str = "checked-in";
+const SECOND_PASS: &str = "second pass";
+const DRIFT_PASS: &str = "drift";
+const IDEMPOTENCE_PASS: &str = "idempotence";
+
+/// One library corpus failure.
 #[derive(Debug)]
-struct CorpusFailure {
+struct LibraryFailure {
     /// The library-relative path.
     path: String,
     /// The failed formatter pass.
@@ -28,8 +30,8 @@ struct CorpusFailure {
     detail: String,
 }
 
-impl CorpusFailure {
-    /// Create one failure summary.
+impl LibraryFailure {
+    /// Create one failure.
     fn new(path: &Path, pass: &'static str, detail: impl Into<String>) -> Self {
         let detail = detail.into().replace('\n', "; ");
 
@@ -46,76 +48,83 @@ impl CorpusFailure {
     }
 }
 
-/// Return whether one source file belongs to the library formatter corpus.
-fn is_library_formatter_source(file_type: FileType) -> bool {
-    matches!(
-        file_type,
-        FileType::Destack
-            | FileType::DestackDeclaration
-            | FileType::JavaScript
-            | FileType::JavaScriptXml
-            | FileType::TypeScript
-            | FileType::TypeScriptDeclaration
-            | FileType::TypeScriptXml
-    )
+/// Return the checked-in library corpus root.
+fn library_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../library")
 }
 
-/// Collect library source files accepted by the formatter.
-fn collect_library_formatter_sources(root: &Path, files: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(root).unwrap();
+/// Collect every checked-in library `.ds` source file.
+fn library_sources(root: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    collect_library_sources(root, &mut paths);
 
-    // recurse in lexical order for stable failure lists
-    let mut entries = entries
-        .map(|entry| entry.unwrap().path())
+    paths
+}
+
+/// Collect every checked-in library `.ds` source file.
+fn collect_library_sources(root: &Path, paths: &mut Vec<PathBuf>) {
+    let mut entries = fs::read_dir(root)
+        .expect("expected library directory")
+        .map(|entry| entry.expect("expected library entry").path())
         .collect::<Vec<_>>();
     entries.sort();
 
     for path in entries {
-        // nested directories
+        // descend into library modules
         if path.is_dir() {
-            collect_library_formatter_sources(&path, files);
-            continue;
+            collect_library_sources(&path, paths);
         }
-
-        let Some(file_type) = FileType::from_path(&path) else {
-            continue;
-        };
-
-        if is_library_formatter_source(file_type) {
-            files.push(path);
+        // collect source files
+        else if path.extension().is_some_and(|extension| extension == "ds") {
+            paths.push(path);
         }
     }
 }
 
-/// Get the library corpus root path.
-fn library_corpus_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../library")
-}
-
-/// Return one path relative to the library corpus root.
+/// Return one path relative to the library root.
 fn relative_library_path<'a>(root: &Path, path: &'a Path) -> &'a Path {
-    path.strip_prefix(root).unwrap()
+    path.strip_prefix(root)
+        .expect("expected source below library root")
 }
 
-/// Format one path once.
+/// Build a formatter file for one library path.
+fn library_file(path: &Path, source: &str) -> File {
+    let file_name = path
+        .file_name()
+        .expect("expected library file name")
+        .to_string_lossy()
+        .to_string();
+    let path_text = path.to_string_lossy();
+
+    File::from_text(
+        FileId::from_logical_path(path),
+        file_name,
+        Uri::from_string(path_text.as_ref()),
+        Some(path.to_path_buf()),
+        FileType::Destack,
+        source.to_string(),
+    )
+}
+
+/// Format one checked-in library source.
 fn format_library_source(path: &Path, source: &str) -> Result<String, String> {
-    let file = build_library_file(path, source);
+    let file = library_file(path, source);
 
     format_file_source(&file, source, FormatterOptions::default()).map_err(|error| error.message)
 }
 
 /// Print one corpus diagnostics section header.
-fn print_corpus_section(title: &str, path: &Path) {
+fn print_section(title: &str, path: &Path) {
     eprintln!();
-    eprintln!("{CORPUS_SECTION_SEPARATOR}");
+    eprintln!("{SECTION_SEPARATOR}");
     eprintln!("=== {title}");
     eprintln!("=== {}", path.display());
-    eprintln!("{CORPUS_SECTION_SEPARATOR}");
+    eprintln!("{SECTION_SEPARATOR}");
     eprintln!();
 }
 
-/// Count failures for one formatter pass.
-fn count_corpus_failures(failures: &[CorpusFailure], pass: &str) -> usize {
+/// Count failures for one pass.
+fn failure_count(failures: &[LibraryFailure], pass: &str) -> usize {
     failures
         .iter()
         .filter(|failure| failure.pass == pass)
@@ -123,19 +132,21 @@ fn count_corpus_failures(failures: &[CorpusFailure], pass: &str) -> usize {
 }
 
 /// Print one corpus failure summary.
-fn print_corpus_summary(checked_file_count: usize, failures: &[CorpusFailure]) {
-    print_corpus_section("library formatter corpus: summary", Path::new("."));
+fn print_summary(checked_file_count: usize, failures: &[LibraryFailure]) {
+    print_section("library formatter corpus: summary", Path::new("."));
 
-    let first_pass_failures = count_corpus_failures(failures, CORPUS_FIRST_PASS);
-    let second_pass_failures = count_corpus_failures(failures, CORPUS_SECOND_PASS);
-    let idempotence_failures = count_corpus_failures(failures, CORPUS_IDEMPOTENCE_PASS);
+    let checked_in_failures = failure_count(failures, CHECKED_IN_PASS);
+    let second_pass_failures = failure_count(failures, SECOND_PASS);
+    let drift_failures = failure_count(failures, DRIFT_PASS);
+    let idempotence_failures = failure_count(failures, IDEMPOTENCE_PASS);
 
     eprintln!(
         "checked {checked_file_count} files, found {} failures",
         failures.len()
     );
-    eprintln!("first pass parse failures: {first_pass_failures}");
+    eprintln!("checked-in parse failures: {checked_in_failures}");
     eprintln!("second pass parse failures: {second_pass_failures}");
+    eprintln!("drift failures: {drift_failures}");
     eprintln!("idempotence failures: {idempotence_failures}");
     eprintln!();
 
@@ -144,23 +155,9 @@ fn print_corpus_summary(checked_file_count: usize, failures: &[CorpusFailure]) {
     }
 }
 
-/// Build a source file for one library path.
-fn build_library_file(path: &Path, source: &str) -> File {
-    let file_name = path.file_name().unwrap().to_string_lossy().to_string();
-    let path_text = path.to_string_lossy();
-    File::from_text(
-        FileId::from_logical_path(path),
-        file_name,
-        Uri::from_string(path_text.as_ref()),
-        Some(path.to_path_buf()),
-        FileType::from_path(path).unwrap(),
-        source.to_string(),
-    )
-}
-
 /// Print parser diagnostics for one library source.
-fn print_library_parse_diagnostics(path: &Path, source: &str) {
-    let file = Arc::new(build_library_file(path, source));
+fn print_parse_diagnostics(path: &Path, source: &str) {
+    let file = Arc::new(library_file(path, source));
     let file_id = file.id;
     let file_for_id = |current_file_id| {
         if current_file_id == file_id {
@@ -169,11 +166,12 @@ fn print_library_parse_diagnostics(path: &Path, source: &str) {
             None
         }
     };
-    let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
+
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
-        language_type,
+        LanguageType::Destack,
         ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
@@ -182,74 +180,155 @@ fn print_library_parse_diagnostics(path: &Path, source: &str) {
     parser.parse();
 
     let diagnostics = parser.diagnostics();
-
     let options = PrintOptions::new().with_colorizer(source_colorizer());
     let _ = print_diagnostics(&file_for_id, &diagnostics, options);
 }
 
-/// Assert parser and formatter idempotence over the checked-in library corpus.
-#[test]
-#[ignore]
-fn test_format_library_corpus_is_idempotent() -> Result<(), String> {
-    let root = library_corpus_root();
-    let mut paths = Vec::new();
-    collect_library_formatter_sources(&root, &mut paths);
+/// Record one parse failure.
+fn record_parse_failure(
+    failures: &mut Vec<LibraryFailure>,
+    relative_path: &Path,
+    path: &Path,
+    source: &str,
+    pass: &'static str,
+    error: String,
+) {
+    print_section("library formatter corpus: parse failure", relative_path);
+    print_parse_diagnostics(path, source);
+    failures.push(LibraryFailure::new(relative_path, pass, error));
+}
 
+/// Record one diff failure.
+fn record_diff_failure(
+    failures: &mut Vec<LibraryFailure>,
+    relative_path: &Path,
+    pass: &'static str,
+    left: &str,
+    right: &str,
+    detail: &'static str,
+) {
+    print_section("library formatter corpus: diff", relative_path);
+    let diff_options = DiffOptions::new().with_path(relative_path.display().to_string());
+    print_diff(left, right, &diff_options);
+    failures.push(LibraryFailure::new(relative_path, pass, detail));
+}
+
+/// Assert formatter output matches the checked-in library corpus.
+#[test]
+fn test_format_library() -> Result<(), String> {
+    let root = library_root();
+    let paths = library_sources(&root);
     let checked_file_count = paths.len();
     let mut failures = Vec::new();
 
     for path in paths {
-        let source = fs::read_to_string(&path).unwrap();
+        let source = fs::read_to_string(&path).expect("expected library source");
         let relative_path = relative_library_path(&root, &path);
 
-        // first pass must parse and format
-        let first = match format_library_source(&path, &source) {
-            Ok(first) => first,
+        // format checked-in source
+        let formatted = match format_library_source(&path, &source) {
+            Ok(formatted) => formatted,
             Err(error) => {
-                print_corpus_section(
-                    "library formatter corpus: first pass parse failure",
+                record_parse_failure(
+                    &mut failures,
                     relative_path,
+                    &path,
+                    &source,
+                    CHECKED_IN_PASS,
+                    error,
                 );
-                print_library_parse_diagnostics(&path, &source);
-                failures.push(CorpusFailure::new(relative_path, CORPUS_FIRST_PASS, error));
                 continue;
             }
         };
 
-        // second pass must parse and reach a fixed point
-        let second = match format_library_source(&path, &first) {
-            Ok(second) => second,
-            Err(error) => {
-                print_corpus_section(
-                    "library formatter corpus: second pass parse failure",
-                    relative_path,
-                );
-                print_library_parse_diagnostics(&path, &first);
-                failures.push(CorpusFailure::new(relative_path, CORPUS_SECOND_PASS, error));
-                continue;
-            }
-        };
-
-        if first != second {
-            print_corpus_section("library formatter corpus: idempotence diff", relative_path);
-            let diff_options = DiffOptions::new().with_path(relative_path.display().to_string());
-            print_diff(&first, &second, &diff_options);
-            failures.push(CorpusFailure::new(
+        // compare checked-in source
+        if formatted != source {
+            record_diff_failure(
+                &mut failures,
                 relative_path,
-                CORPUS_IDEMPOTENCE_PASS,
-                "second pass changed output",
-            ));
+                DRIFT_PASS,
+                &source,
+                &formatted,
+                "formatter output differs from checked-in source",
+            );
         }
     }
 
-    if !failures.is_empty() {
-        print_corpus_summary(checked_file_count, &failures);
-
-        return Err(format!(
-            "library formatter corpus failed: {} of {checked_file_count} files",
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        print_summary(checked_file_count, &failures);
+        Err(format!(
+            "library formatter corpus drifted: {} of {checked_file_count} files",
             failures.len()
-        ));
+        ))
+    }
+}
+
+/// Assert formatter output reaches a fixed point over the library corpus.
+#[test]
+fn test_format_library_idempotence() -> Result<(), String> {
+    let root = library_root();
+    let paths = library_sources(&root);
+    let checked_file_count = paths.len();
+    let mut failures = Vec::new();
+
+    for path in paths {
+        let source = fs::read_to_string(&path).expect("expected library source");
+        let relative_path = relative_library_path(&root, &path);
+
+        // first pass
+        let first = match format_library_source(&path, &source) {
+            Ok(first) => first,
+            Err(error) => {
+                record_parse_failure(
+                    &mut failures,
+                    relative_path,
+                    &path,
+                    &source,
+                    CHECKED_IN_PASS,
+                    error,
+                );
+                continue;
+            }
+        };
+
+        // second pass
+        let second = match format_library_source(&path, &first) {
+            Ok(second) => second,
+            Err(error) => {
+                record_parse_failure(
+                    &mut failures,
+                    relative_path,
+                    &path,
+                    &first,
+                    SECOND_PASS,
+                    error,
+                );
+                continue;
+            }
+        };
+
+        // compare fixed point
+        if first != second {
+            record_diff_failure(
+                &mut failures,
+                relative_path,
+                IDEMPOTENCE_PASS,
+                &first,
+                &second,
+                "second pass changed output",
+            );
+        }
     }
 
-    Ok(())
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        print_summary(checked_file_count, &failures);
+        Err(format!(
+            "library formatter corpus failed: {} of {checked_file_count} files",
+            failures.len()
+        ))
+    }
 }
