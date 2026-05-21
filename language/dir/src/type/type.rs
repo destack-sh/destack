@@ -300,6 +300,15 @@ pub struct FunctionType {
     pub is_generator: bool,
 }
 
+/// A closure type with its function contract and captured environment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClosureType {
+    /// The function contract.
+    pub function: LocalTypeId,
+    /// The captured environment type.
+    pub environment: LocalTypeId,
+}
+
 /// A union type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnionType {
@@ -386,6 +395,8 @@ pub enum Type {
     Shape(ShapeType),
     /// Function type.
     Function(FunctionType),
+    /// Closure type with an explicit captured environment.
+    Closure(ClosureType),
 
     /// Union type `A | B | C`.
     Union(UnionType),

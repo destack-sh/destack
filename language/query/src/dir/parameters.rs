@@ -336,7 +336,7 @@ fn expected_value_shape(types: &destack_dir::TypeTable<'_>, type_id: LocalTypeId
     let ty = types.get_type(type_id);
 
     match ty {
-        destack_dir::Type::Function(_) => (true, false),
+        destack_dir::Type::Function(_) | destack_dir::Type::Closure(_) => (true, false),
         destack_dir::Type::Shape(object) => (
             !object.call_signatures.is_empty(),
             !object.construct_signatures.is_empty(),

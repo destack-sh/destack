@@ -75,6 +75,18 @@ pub enum ExportSelector {
     Namespace,
 }
 
+impl ExportSelector {
+    /// Return the export key selected from the target module.
+    #[inline]
+    pub fn selected_export_key(self) -> Option<ExportKey> {
+        match self {
+            Self::Named(key) => Some(ExportKey::Named(key)),
+            Self::Default => Some(ExportKey::Default),
+            Self::Namespace => None,
+        }
+    }
+}
+
 /// One named re-export from another module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct IndirectExportEntry {

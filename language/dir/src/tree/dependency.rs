@@ -119,11 +119,7 @@ impl DependencyItem {
 
     /// Return the export key selected by an import binding.
     pub fn import_export_key(&self) -> Option<ExportKey> {
-        match self.export_selector()? {
-            ExportSelector::Named(key) => Some(ExportKey::Named(key)),
-            ExportSelector::Default => Some(ExportKey::Default),
-            ExportSelector::Namespace => None,
-        }
+        self.export_selector()?.selected_export_key()
     }
 
     /// Return the export key introduced by this dependency item.
