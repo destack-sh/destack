@@ -390,7 +390,7 @@ import { User } from "@/model/user";
 
 export extension UserUtils of User {
     validate(): boolean {
-        ...
+        todo("...");
     }
 }
 ```
