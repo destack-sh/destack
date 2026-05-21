@@ -105,7 +105,16 @@ impl ModuleLowerer<'_> {
                     default: None,
                 }
             }
-            dir::GenericParameter::Value { .. } => {
+            dir::GenericParameter::VariadicType { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: parameter_id.into_global_any(self.module.id),
+                    message: Some(
+                        "variadic generic parameters must be elaborated before JS lowering"
+                            .to_string(),
+                    ),
+                });
+            }
+            dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: parameter_id.into_global_any(self.module.id),
                     message: Some(
@@ -114,7 +123,7 @@ impl ModuleLowerer<'_> {
                     ),
                 });
             }
-            dir::GenericParameter::Error { .. } => {
+            dir::GenericParameter::Error => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: parameter_id.into_global_any(self.module.id),
                     message: Some(
@@ -305,12 +314,20 @@ impl ModuleLowerer<'_> {
             dir::GenericArgument::Type { value, .. } => {
                 self.lower_type_annotation_expression(*value)
             }
-            dir::GenericArgument::Value { .. } => Err(CodegenJsError::UnsupportedConstruct {
+            dir::GenericArgument::SpreadType { .. } => Err(CodegenJsError::UnsupportedConstruct {
                 node: argument_id.into_global_any(self.module.id),
                 message: Some(
-                    "value generic arguments must be elaborated before JS lowering".to_string(),
+                    "variadic generic arguments must be elaborated before JS lowering".to_string(),
                 ),
             }),
+            dir::GenericArgument::Value { .. } | dir::GenericArgument::SpreadValue { .. } => {
+                Err(CodegenJsError::UnsupportedConstruct {
+                    node: argument_id.into_global_any(self.module.id),
+                    message: Some(
+                        "value generic arguments must be elaborated before JS lowering".to_string(),
+                    ),
+                })
+            }
             dir::GenericArgument::Error => Err(CodegenJsError::UnsupportedConstruct {
                 node: argument_id.into_global_any(self.module.id),
                 message: Some(

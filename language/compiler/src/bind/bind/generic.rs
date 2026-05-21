@@ -30,6 +30,11 @@ impl Compiler {
                 constraint,
                 default,
                 ..
+            }
+            | dir::GenericParameter::VariadicType {
+                constraint,
+                default,
+                ..
             } => {
                 // visit type constraint
                 if let Some(constraint) = constraint {
@@ -44,6 +49,11 @@ impl Compiler {
                 }
             }
             dir::GenericParameter::Value {
+                declared_type,
+                default,
+                ..
+            }
+            | dir::GenericParameter::VariadicValue {
                 declared_type,
                 default,
                 ..

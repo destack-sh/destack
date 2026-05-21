@@ -184,7 +184,10 @@ impl CheckModuleState {
     ) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
         match self.parsed().tree.get(argument) {
             dir::GenericArgument::Type { value } => Some(*value),
-            dir::GenericArgument::Value { .. } | dir::GenericArgument::Error => None,
+            dir::GenericArgument::Value { .. }
+            | dir::GenericArgument::SpreadType { .. }
+            | dir::GenericArgument::SpreadValue { .. }
+            | dir::GenericArgument::Error => None,
         }
     }
 
