@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
 use destack_core::StringPool;
-use destack_dir::{NodeParentIndex, TokenSpan, Tree};
+use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser, ParserOptions};
@@ -128,6 +128,17 @@ impl TestFormatter {
             NodeParentIndex::from_tree(&self.tree),
         )
     }
+}
+
+/// Parse the first expression from one formatter test source.
+pub(crate) fn parse_first_expression(parser: &mut Parser) -> ParseResult<LocalNodeId<Expression>> {
+    let expressions = parser.parse();
+    let expression = expressions
+        .into_iter()
+        .next()
+        .expect("expected one parsed expression");
+
+    Ok(expression)
 }
 
 /// Normalize test formatter options for one file type.

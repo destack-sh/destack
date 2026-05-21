@@ -11,7 +11,7 @@ fn test_format_string_literal_multi_char() {
         r#"'hello'"#,
         r#""hello""#,
         FileType::TypeScript,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
@@ -23,7 +23,7 @@ fn test_format_string_literal_escapes_embedded_target_quote() {
         r#"'\"1\"'"#,
         r#"'"1"'"#,
         FileType::TypeScript,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
@@ -35,7 +35,7 @@ fn test_format_destack_string_literal_keeps_double_quotes() {
         r#""say \"hello\"""#,
         r#""say \"hello\"""#,
         FileType::Destack,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
@@ -46,7 +46,7 @@ fn test_format_template_literal_one_interpolation() {
     assert_format!(
         r#"tagged`hello ${name}`"#,
         r#"tagged`hello ${name}`"#,
-        |p| p.parse_expression()
+        crate::parse_first_expression
     );
 }
 
@@ -57,7 +57,7 @@ fn test_format_template_literal_ternary_interpolation_stays_inline_roundtrip() {
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
         FileType::JavaScript,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
     );
 }
 
@@ -67,7 +67,7 @@ fn test_format_long_string_not_broken() {
     assert_format!(
         r#""This is a very long string that exceeds the line width but should not be broken""#,
         r#""This is a very long string that exceeds the line width but should not be broken""#,
-        |p| p.parse_expression(),
+        crate::parse_first_expression,
         DestackFormatOptions::default_with_line_width(40)
     );
 }

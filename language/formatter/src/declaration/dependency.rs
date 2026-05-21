@@ -5,6 +5,7 @@ use crate::annotation::{
 use crate::collection::TrailingSeparator;
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::property::{format_name_with_quotes, is_identifier_for_quotes};
+use crate::declaration::expression_needs_statement_terminator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, StringPool};
 use destack_dir::{
@@ -1430,7 +1431,12 @@ fn write_export_clause<'ast>(
         };
 
         write!(f, [space(), Keyword::Default, space(), value])?;
-        return Ok(true);
+
+        let value_expression = f.context().tree.get(value);
+        let needs_statement_terminator =
+            expression_needs_statement_terminator(f.context(), value_expression, false);
+
+        return Ok(needs_statement_terminator);
     }
 
     if items.len() == 1
