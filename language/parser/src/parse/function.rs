@@ -1,11 +1,14 @@
-use crate::parse::expression::common::DeclarationHeader;
+use crate::parse::DeclarationHeader;
+use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
+use crate::parse::scan::DelimiterDepth;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_dir::{
     Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportKind, Expression,
     FunctionDeclaration, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration,
-    Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
+    GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
+    WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -20,12 +23,9 @@ pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
     Keyword::New,
 ];
 
-/// Maximum token budget for plain parenthesized lambda heads.
-const PLAIN_PARENTHESIZED_LAMBDA_MAX_TOKENS: usize = 24;
-
-/// The plain head shapes accepted by the parenthesized lambda path.
+/// The head shapes accepted by the fast arrow path.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ParenthesizedLambdaHeadShape {
+enum ArrowHeadShape {
     /// No dynamic parameters: `()`.
     Empty,
     /// One named parameter: `(value)` or `(value: Type)`.
@@ -36,7 +36,7 @@ enum ParenthesizedLambdaHeadShape {
 }
 
 /// Parsed function signature syntax.
-struct ParsedFunctionSignature {
+struct ParsedFunction {
     /// The declaration header.
     header: DeclarationHeader,
     /// The optional function name.
@@ -57,12 +57,228 @@ struct ParsedFunctionSignature {
     body_span: Option<Span>,
 }
 
+/// Parsed function head syntax before parameters.
+struct ParsedFunctionHead {
+    /// The declaration header.
+    header: DeclarationHeader,
+    /// Whether the function is async.
+    is_async: bool,
+    /// The optional function role.
+    role: Option<FunctionRole>,
+    /// The source form of the function.
+    form: FunctionForm,
+    /// Whether the function is a generator.
+    is_generator: bool,
+    /// The optional function name.
+    name: Option<Name>,
+    /// The optional function name span.
+    name_span: Option<Span>,
+    /// The generic parameters.
+    generic_parameters: Option<Vec<LocalNodeId<GenericParameter>>>,
+    /// The generic parameter container span.
+    generic_parameter_span: Option<Span>,
+}
+
+/// Parsed function parameter list syntax.
+struct ParsedFunctionParameters {
+    /// The parsed parameters.
+    parameters: Vec<LocalNodeId<Parameter>>,
+    /// The parameter container span.
+    parameter_span: Option<Span>,
+}
+
+/// Parsed function return syntax.
+struct ParsedFunctionReturn {
+    /// The optional return type.
+    return_type: Option<LocalNodeId<TypeExpression>>,
+    /// The return type span.
+    return_type_span: Option<Span>,
+    /// The parsed where clauses.
+    where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
+}
+
+/// Parsed function body syntax.
+struct ParsedFunctionBody {
+    /// The optional body expression.
+    body: Option<LocalNodeId<Expression>>,
+    /// The body container span.
+    body_span: Option<Span>,
+}
+
+/// Parsed arrow function syntax.
+struct ParsedArrowFunction {
+    /// The declaration header.
+    header: DeclarationHeader,
+    /// The parsed parameters.
+    parameters: Vec<LocalNodeId<Parameter>>,
+    /// The generic parameter container span.
+    generic_parameter_span: Option<Span>,
+    /// The parameter container span.
+    parameter_span: Option<Span>,
+    /// The optional return type.
+    return_type: Option<LocalNodeId<TypeExpression>>,
+    /// The return type span.
+    return_type_span: Option<Span>,
+    /// The parsed body expression.
+    body: LocalNodeId<Expression>,
+    /// The body container span.
+    body_span: Span,
+}
+
 impl Parser {
+    /// Eat a function or lambda declaration.
+    ///
+    /// A signature without a body represents an external declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// // lambda style (type context)
+    /// (a: int32) => int32
+    /// (int32) => (boolean, int32)
+    /// (x): int32 => x
+    ///
+    /// // lambda style (value context)
+    /// (a) => a > 2
+    /// (a): int32 => a > 2
+    /// (a: int32) => {
+    ///    print("Hello, world!")
+    /// }
+    ///
+    /// // function style
+    /// function () // anonymous function with empty signature
+    ///
+    /// function foo() // just declaration, no body, no opening `{`
+    ///
+    /// function foo<T, U>(x: T) => (int32, boolean) where (
+    ///    T: Copy
+    ///    U: Numeric
+    /// ) {
+    ///    print("Hello, world!")
+    /// }
+    ///
+    /// // optional , if newline-delimited
+    /// function longBar<Validate: boolean>(
+    ///   /// doc comment for `a`
+    ///   a: int32
+    ///   /// doc comment for `b`
+    ///   b: boolean
+    ///   // regular comment
+    ///   c: Vector2
+    /// ) => (
+    ///    int32,
+    ///    isGood: boolean
+    /// ) with (
+    ///   Time
+    /// ) {
+    ///    ...
+    /// }
+    /// ```
+    pub(crate) fn eat_function(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParseResult<LocalNodeId<Declaration>> {
+        let can_parse_arrow_value = !self.flags.is_in_type()
+            && !self.flags.is_in_match_case()
+            && header == DeclarationHeader::default();
+
+        // parse arrow heads only when the token shape matches
+        if can_parse_arrow_value && self.peek_is(TokenType::OpenParenthesis) {
+            if let Some(function_id) = self.eat_simple_parenthesized_arrow(start, &header)? {
+                return Ok(function_id);
+            }
+
+            if let Some(function_id) = self.eat_parenthesized_arrow(start, &header)? {
+                return Ok(function_id);
+            }
+        } else if can_parse_arrow_value
+            && self.peek_is(TokenType::Identifier)
+            && matches!(self.next_token_type(), TokenType::ArrowWide)
+            && let Some(function_id) = self.eat_identifier_arrow(start, &header)?
+        {
+            return Ok(function_id);
+        }
+
+        let function = self.eat_function_syntax(start, header)?;
+
+        Ok(self.insert_function_declaration(start, function))
+    }
+
+    /// Eat a function type expression.
+    pub(crate) fn eat_function_type_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+        let function = self.eat_function_syntax(start, header)?;
+
+        if function.signature.form == FunctionForm::Lambda && function.body.is_none() {
+            return Ok(self.insert_function_type_expression(start, function));
+        }
+
+        let function_id = self.insert_function_declaration(start, function);
+
+        Ok(self.insert_node(
+            TypeExpression::Declaration {
+                declaration: function_id,
+            },
+            self.get_span_from(start),
+        ))
+    }
+
+    /// Eat one function before inserting a grammar-specific node.
+    fn eat_function_syntax(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParseResult<ParsedFunction> {
+        let head = self.eat_function_head(header)?;
+        self.require_function_name(&head)?;
+
+        let parameters = self.eat_function_parameters(start, &head)?;
+        let return_part = self.eat_function_return(&head)?;
+        let body = self.eat_function_body(&head)?;
+
+        let parameter_span = parameters.parameter_span;
+        let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters.parameters);
+
+        let asynchrony = if head.is_async {
+            Asynchrony::Async
+        } else {
+            Asynchrony::Sync
+        };
+        let signature = FunctionSignature {
+            asynchrony,
+            form: head.form,
+            role: head.role,
+            generic_parameters: head.generic_parameters.unwrap_or_default(),
+            where_clauses: return_part.where_clauses.unwrap_or_default(),
+            this_parameter,
+            parameters,
+            return_type: return_part.return_type,
+            is_abstract: head.header.is_abstract,
+            is_override: false,
+            is_generator: head.is_generator,
+        };
+
+        Ok(ParsedFunction {
+            header: head.header,
+            name: head.name,
+            name_span: head.name_span,
+            signature,
+            body: body.body,
+            generic_parameter_span: head.generic_parameter_span,
+            parameter_span,
+            return_type_span: return_part.return_type_span,
+            body_span: body.body_span,
+        })
+    }
+
     /// Insert parsed function syntax as a function declaration.
     fn insert_function_declaration(
         &mut self,
         start: &ParserSpanStart,
-        function: ParsedFunctionSignature,
+        function: ParsedFunction,
     ) -> LocalNodeId<Declaration> {
         let function_id = self.insert_node(
             Declaration::Function(FunctionDeclaration {
@@ -123,7 +339,7 @@ impl Parser {
     fn insert_function_type_expression(
         &mut self,
         start: &ParserSpanStart,
-        function: ParsedFunctionSignature,
+        function: ParsedFunction,
     ) -> LocalNodeId<TypeExpression> {
         debug_assert_eq!(function.signature.form, FunctionForm::Lambda);
         debug_assert!(function.body.is_none());
@@ -180,32 +396,8 @@ impl Parser {
         type_expression_id
     }
 
-    /// Return true when the plain lambda path can be used.
-    fn can_parse_plain_lambda(
-        &self,
-        header: &DeclarationHeader,
-        expect_maybe: bool,
-        expect_body: bool,
-    ) -> bool {
-        !self.flags.is_in_type()
-            && !self.flags.is_in_match_case()
-            && !expect_maybe
-            && !expect_body
-            && *header == DeclarationHeader::default()
-    }
-
-    /// Return whether the current position starts a construct signature head.
-    #[inline]
-    fn starts_construct_signature_head(&mut self) -> bool {
-        self.is_keyword(Keyword::New)
-            && matches!(
-                self.next_token_type(),
-                TokenType::LessThan | TokenType::OpenParenthesis
-            )
-    }
-
-    /// Parse a lambda body after the arrow.
-    fn eat_plain_lambda_body(
+    /// Eat an arrow body.
+    fn eat_arrow_body(
         &mut self,
         body_start: &ParserSpanStart,
     ) -> ParseResult<(LocalNodeId<Expression>, Span)> {
@@ -232,20 +424,13 @@ impl Parser {
         }
     }
 
-    /// Build a plain lambda declaration from parsed parameters and body.
-    fn build_plain_lambda_declaration(
+    /// Insert an arrow function declaration from parsed parameters and body.
+    fn insert_arrow_declaration(
         &mut self,
         start: &ParserSpanStart,
-        header: &DeclarationHeader,
-        parameters: Vec<LocalNodeId<Parameter>>,
-        generic_parameter_container_span: Option<Span>,
-        parameter_container_span: Option<Span>,
-        body_container_span: Option<Span>,
-        return_type: Option<LocalNodeId<TypeExpression>>,
-        return_type_span: Option<Span>,
-        body: LocalNodeId<Expression>,
+        arrow: ParsedArrowFunction,
     ) -> LocalNodeId<Declaration> {
-        let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
+        let (this_parameter, parameters) = self.split_this_parameter_maybe(arrow.parameters);
         let signature = FunctionSignature {
             asynchrony: Asynchrony::Sync,
             role: None,
@@ -254,7 +439,7 @@ impl Parser {
             where_clauses: vec![],
             this_parameter,
             parameters,
-            return_type,
+            return_type: arrow.return_type,
             is_abstract: false,
             is_override: false,
             is_generator: false,
@@ -262,14 +447,14 @@ impl Parser {
         let function_id = self.insert_node(
             Declaration::Function(FunctionDeclaration {
                 name: None,
-                export: header.export,
-                is_ambient: header.is_ambient,
+                export: arrow.header.export,
+                is_ambient: arrow.header.is_ambient,
                 signature,
-                body: Some(body),
+                body: Some(arrow.body),
             }),
             self.get_span_from(start),
         );
-        if let Some(span) = return_type_span {
+        if let Some(span) = arrow.return_type_span {
             self.tree.set_side_span(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
@@ -277,7 +462,7 @@ impl Parser {
             );
         }
 
-        if let Some(span) = generic_parameter_container_span {
+        if let Some(span) = arrow.generic_parameter_span {
             self.tree.set_side_span(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
@@ -285,7 +470,7 @@ impl Parser {
             );
         }
 
-        if let Some(span) = parameter_container_span {
+        if let Some(span) = arrow.parameter_span {
             self.tree.set_side_span(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Parameters),
@@ -293,37 +478,31 @@ impl Parser {
             );
         }
 
-        if let Some(span) = body_container_span {
-            self.tree.set_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::Body),
-                span,
-            );
-        }
+        self.tree.set_side_span(
+            function_id,
+            NodeSpanType::Region(NodeSpanRegion::Body),
+            arrow.body_span,
+        );
 
         function_id
     }
 
-    /// Scan a simple parenthesized lambda head without forcing a full pair lookup.
-    fn scan_plain_parenthesized_lambda_head(
-        &mut self,
-    ) -> Option<(Span, ParenthesizedLambdaHeadShape)> {
+    /// Scan a parenthesized arrow head without forcing a full pair lookup.
+    fn scan_parenthesized_arrow_head(&mut self) -> Option<(ArrowHeadShape, TokenType)> {
         if !self.peek_is(TokenType::OpenParenthesis) {
             return None;
         }
 
-        self.lookahead(|parser| parser.scan_plain_parenthesized_lambda_head_here())
+        self.lookahead(|parser| parser.scan_parenthesized_arrow_head_here())
     }
 
-    /// Scan a plain parenthesized lambda head at the current open parenthesis.
-    fn scan_plain_parenthesized_lambda_head_here(
-        &mut self,
-    ) -> Option<(Span, ParenthesizedLambdaHeadShape)> {
+    /// Scan a parenthesized arrow head at the current open parenthesis.
+    fn scan_parenthesized_arrow_head_here(&mut self) -> Option<(ArrowHeadShape, TokenType)> {
         if !self.peek_is(TokenType::OpenParenthesis) {
             return None;
         }
 
-        // track the plain head state
+        // track the head state
         let mut semantic_token_count = 0usize;
         let mut first_token_type = None;
         let mut second_token_type = None;
@@ -332,34 +511,28 @@ impl Parser {
         let mut has_type_annotation = false;
         let mut has_type_tokens = false;
 
-        // depth counters keep top level comma checks cheap
-        let mut parenthesis_depth = 0usize;
-        let mut brace_depth = 0usize;
-        let mut bracket_depth = 0usize;
-        let mut angle_depth = 0usize;
+        // track nested type annotation delimiters
+        let mut depth = DelimiterDepth::default();
 
         // eat (
         self.bump();
-        let close_span = loop {
+        loop {
             let token_type = self.peek_token_type();
             if token_type == TokenType::End {
                 return None;
             }
 
+            // recover before rescanning later statements
+            if self.current_token_is_statement_recovery_boundary(token_type) {
+                return None;
+            }
+
             // top level close: finalize the head
-            if token_type == TokenType::CloseParenthesis
-                && parenthesis_depth == 0
-                && brace_depth == 0
-                && bracket_depth == 0
-                && angle_depth == 0
-            {
-                break self.current_token().span;
+            if token_type == TokenType::CloseParenthesis && depth.is_top_level() {
+                break;
             }
 
             semantic_token_count += 1;
-            if semantic_token_count > PLAIN_PARENTHESIZED_LAMBDA_MAX_TOKENS {
-                return None;
-            }
 
             match semantic_token_count {
                 1 => first_token_type = Some(token_type),
@@ -391,58 +564,23 @@ impl Parser {
             }
 
             // reject additional top level parameters and defaults
-            let is_top_level = parenthesis_depth == 0
-                && brace_depth == 0
-                && bracket_depth == 0
-                && angle_depth == 0;
-            if is_top_level && matches!(token_type, TokenType::Comma | TokenType::Assign) {
+            if depth.is_top_level() && matches!(token_type, TokenType::Comma | TokenType::Assign) {
                 return None;
             }
 
             // track nested structures inside the type annotation
-            match token_type {
-                TokenType::OpenParenthesis => parenthesis_depth += 1,
-                TokenType::CloseParenthesis => {
-                    if parenthesis_depth == 0 {
-                        return None;
-                    }
-                    parenthesis_depth -= 1;
-                }
-                TokenType::OpenBrace => brace_depth += 1,
-                TokenType::CloseBrace => {
-                    if brace_depth == 0 {
-                        return None;
-                    }
-                    brace_depth -= 1;
-                }
-                TokenType::OpenBracket => bracket_depth += 1,
-                TokenType::CloseBracket => {
-                    if bracket_depth == 0 {
-                        return None;
-                    }
-                    bracket_depth -= 1;
-                }
-                TokenType::LessThan => angle_depth += 1,
-                TokenType::GreaterThan => {
-                    if angle_depth == 0 {
-                        return None;
-                    }
-                    angle_depth -= 1;
-                }
-                TokenType::ShiftLeft => angle_depth += 2,
-                TokenType::ShiftRight => angle_depth = angle_depth.saturating_sub(2),
-                TokenType::UnsignedShiftRight => angle_depth = angle_depth.saturating_sub(3),
-                _ => {}
+            if !depth.advance(token_type) {
+                return None;
             }
             has_type_tokens = true;
             self.bump();
-        };
+        }
 
-        // common plain heads: (), (x), (x: T)
+        // common heads: (), (x), (x: T)
         let head_shape = if semantic_token_count == 0 {
-            ParenthesizedLambdaHeadShape::Empty
+            ArrowHeadShape::Empty
         } else if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
-            ParenthesizedLambdaHeadShape::Named {
+            ArrowHeadShape::Named {
                 has_type_annotation: false,
             }
         } else if semantic_token_count == 3
@@ -453,53 +591,46 @@ impl Parser {
                 Some(TokenType::Identifier | TokenType::Literal)
             )
         {
-            ParenthesizedLambdaHeadShape::Named {
+            ArrowHeadShape::Named {
                 has_type_annotation: true,
             }
         } else if has_parameter {
-            if has_type_annotation
-                && (!has_type_tokens
-                    || parenthesis_depth != 0
-                    || brace_depth != 0
-                    || bracket_depth != 0
-                    || angle_depth != 0)
-            {
+            if has_type_annotation && (!has_type_tokens || !depth.is_top_level()) {
                 return None;
             }
 
-            ParenthesizedLambdaHeadShape::Named {
+            ArrowHeadShape::Named {
                 has_type_annotation,
             }
         } else {
-            ParenthesizedLambdaHeadShape::Empty
+            ArrowHeadShape::Empty
         };
 
-        Some((close_span, head_shape))
+        self.bump();
+        let follow_token_type = self.peek_token_type();
+
+        Some((head_shape, follow_token_type))
     }
 
-    /// Try to parse plain `() => body`, `(identifier) => body`, or `(identifier: Type) => body` lambdas.
-    fn try_eat_plain_parenthesized_lambda(
+    /// Eat a simple parenthesized arrow when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// () => value
+    /// (value) => value
+    /// (value: Type) => value
+    /// ```
+    fn eat_simple_parenthesized_arrow(
         &mut self,
         start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
-        let Some((close_span, head_shape)) = self.scan_plain_parenthesized_lambda_head() else {
+        let Some((head_shape, follow_token_type)) = self.scan_parenthesized_arrow_head() else {
             return Ok(None);
         };
 
-        let follow_token_type = self.lookahead(|parser| {
-            while parser.current_token().span.start <= close_span.start {
-                parser.bump();
-            }
-
-            parser.peek_token_type()
-        });
-
         // require an arrow or a return type marker after the group
-        if !matches!(
-            follow_token_type,
-            TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
-        ) {
+        if !matches!(follow_token_type, TokenType::ArrowWide | TokenType::Colon) {
             return Ok(None);
         }
 
@@ -507,7 +638,7 @@ impl Parser {
         let parameter_container_start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut parameters = Vec::with_capacity(1);
-        if let ParenthesizedLambdaHeadShape::Named {
+        if let ArrowHeadShape::Named {
             has_type_annotation,
         } = head_shape
         {
@@ -516,16 +647,12 @@ impl Parser {
             let (parameter_type, parameter_type_span) = if has_type_annotation {
                 let type_start = self.span_start();
                 self.eat_token(TokenType::Colon)?;
-                let mut type_flags = self
-                    .flags
-                    .not_in_position()
-                    .not_in_left_precedence()
-                    .in_type();
+                let mut type_flags = self.flags.not_in_position().in_type();
                 if self.flags.is_in_type_conditional_right() {
                     type_flags = type_flags.in_type_conditional_right();
                 }
-                let parameter_type = self
-                    .eat_type_expression_node_or_recover_missing(type_flags, NodeType::Parameter)?;
+                let parameter_type =
+                    self.eat_type_expression_or_recover_missing(type_flags, NodeType::Parameter)?;
                 let parameter_type_span = self.get_span_from(&type_start);
                 (Some(parameter_type), Some(parameter_type_span))
             } else {
@@ -559,73 +686,30 @@ impl Parser {
         )?;
         let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
 
-        // parse an explicit lambda return type when present
-        let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
-            let type_start = self.span_start();
-            self.eat_token(TokenType::Colon)?;
-
-            let mut return_type_flags = self.flags.nested().in_type();
-            if self.flags.is_in_type_conditional_right() {
-                return_type_flags = return_type_flags.in_type_conditional_right();
-            }
-            if self.flags.is_in_static() {
-                return_type_flags = return_type_flags.in_static();
-            }
-            return_type_flags = return_type_flags
-                .in_arrow_return_type()
-                .allow_type_predicate();
-            let return_type = self.eat_type_expression_node_or_recover_missing(
-                return_type_flags,
-                NodeType::Declaration,
-            )?;
-            let return_type_span = self.get_span_from(&type_start);
-
-            (Some(return_type), Some(return_type_span))
-        } else {
-            (None, None)
-        };
-
-        // parse the body
-        self.eat_arrow()?;
-        let body_start = self.span_start();
-        let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
-
-        let function_id = self.build_plain_lambda_declaration(
-            start,
-            header,
-            parameters,
-            None,
-            parameter_container_span,
-            Some(body_container_span),
-            return_type,
-            return_type_span,
-            body,
-        );
+        let function_id =
+            self.eat_arrow_tail(start, *header, parameters, parameter_container_span)?;
 
         Ok(Some(function_id))
     }
 
-    /// Try to parse a parenthesized lambda value without entering full function parsing.
-    fn try_eat_parenthesized_lambda_value(
+    /// Eat a full parameter-list arrow when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// (first, second) => first + second
+    /// ({ value }) => value
+    /// (...items) => items
+    /// ```
+    fn eat_parenthesized_arrow(
         &mut self,
         start: &ParserSpanStart,
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
-        let Some((close_span, _)) = self.scan_plain_parenthesized_lambda_head() else {
+        let Some((_, follow_token_type)) = self.scan_parenthesized_arrow_head() else {
             return Ok(None);
         };
-        let follow_token_type = self.lookahead(|parser| {
-            while parser.current_token().span.start <= close_span.start {
-                parser.bump();
-            }
-
-            parser.peek_token_type()
-        });
-        if !matches!(
-            follow_token_type,
-            TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon
-        ) {
+        if !matches!(follow_token_type, TokenType::ArrowWide | TokenType::Colon) {
             return Ok(None);
         }
 
@@ -644,54 +728,100 @@ impl Parser {
         )?;
         let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
 
-        // explicit lambda return type
-        let (return_type, return_type_span) = if self.has_lambda_return_type_marker() {
-            let type_start = self.span_start();
-            self.eat_token(TokenType::Colon)?;
-
-            let mut return_type_flags = self.flags.nested().in_type();
-            if self.flags.is_in_type_conditional_right() {
-                return_type_flags = return_type_flags.in_type_conditional_right();
-            }
-            if self.flags.is_in_static() {
-                return_type_flags = return_type_flags.in_static();
-            }
-            return_type_flags = return_type_flags
-                .in_arrow_return_type()
-                .allow_type_predicate();
-            let return_type = self.eat_type_expression_node_or_recover_missing(
-                return_type_flags,
-                NodeType::Declaration,
-            )?;
-            let return_type_span = self.get_span_from(&type_start);
-
-            (Some(return_type), Some(return_type_span))
-        } else {
-            (None, None)
-        };
-
-        // body
-        self.eat_arrow()?;
-        let body_start = self.span_start();
-        let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
-
-        let function_id = self.build_plain_lambda_declaration(
-            start,
-            header,
-            parameters,
-            None,
-            parameter_container_span,
-            Some(body_container_span),
-            return_type,
-            return_type_span,
-            body,
-        );
+        let function_id =
+            self.eat_arrow_tail(start, *header, parameters, parameter_container_span)?;
 
         Ok(Some(function_id))
     }
 
-    /// Try to parse a plain `identifier => body` lambda with minimal branching.
-    fn try_eat_plain_identifier_lambda(
+    /// Eat an arrow return type and body.
+    ///
+    /// Examples:
+    /// ```ds
+    /// => value
+    /// : string => value
+    /// : asserts value is Ready => value
+    /// ```
+    fn eat_arrow_tail(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+        parameters: Vec<LocalNodeId<Parameter>>,
+        parameter_span: Option<Span>,
+    ) -> ParseResult<LocalNodeId<Declaration>> {
+        let (return_type, return_type_span) = self.eat_arrow_return_type()?;
+
+        self.eat_arrow()?;
+        let body_start = self.span_start();
+        let (body, body_span) = self.eat_arrow_body(&body_start)?;
+
+        Ok(self.insert_arrow_declaration(
+            start,
+            ParsedArrowFunction {
+                header,
+                parameters,
+                generic_parameter_span: None,
+                parameter_span,
+                return_type,
+                return_type_span,
+                body,
+                body_span,
+            },
+        ))
+    }
+
+    /// Eat an explicit arrow return type when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// : string
+    /// : value is Ready
+    /// : asserts value is Ready
+    /// ```
+    fn eat_arrow_return_type(
+        &mut self,
+    ) -> ParseResult<(Option<LocalNodeId<TypeExpression>>, Option<Span>)> {
+        if !self.has_lambda_return_type_marker() {
+            return Ok((None, None));
+        }
+
+        // marker
+        let type_start = self.span_start();
+        self.eat_token(TokenType::Colon)?;
+
+        // type
+        let flags = self.arrow_return_type_flags();
+        let return_type =
+            self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
+        let return_type_span = self.get_span_from(&type_start);
+
+        Ok((Some(return_type), Some(return_type_span)))
+    }
+
+    /// Return parser flags for an arrow return type.
+    fn arrow_return_type_flags(&self) -> ParserFlags {
+        let mut flags = self.flags.nested().in_type();
+
+        if self.flags.is_in_type_conditional_right() {
+            flags = flags.in_type_conditional_right();
+        }
+
+        if self.flags.is_in_static() {
+            flags = flags.in_static();
+        }
+
+        flags.in_arrow_return_type().allow_type_predicate()
+    }
+
+    /// Eat an identifier arrow when present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value => value
+    /// async => async
+    /// item => item.id
+    /// ```
+    fn eat_identifier_arrow(
         &mut self,
         start: &ParserSpanStart,
         header: &DeclarationHeader,
@@ -711,491 +841,371 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        // parse the lambda body
-        self.eat_arrow()?;
-        let body_start = self.span_start();
-        let (body, body_container_span) = self.eat_plain_lambda_body(&body_start)?;
-
-        // build the declaration
-        let function_id = self.build_plain_lambda_declaration(
-            start,
-            header,
-            vec![parameter_id],
-            None,
-            Some(parameter_span),
-            Some(body_container_span),
-            None,
-            None,
-            body,
-        );
+        let function_id =
+            self.eat_arrow_tail(start, *header, vec![parameter_id], Some(parameter_span))?;
 
         Ok(Some(function_id))
     }
 
-    /// Eat a function or "lambda" declaration or declaration.
-    /// If no body is provided, it is a declaration for a function defined elsewhere.
-    ///
-    /// Examples:
-    /// ```
-    /// // lambda style (type context)
-    /// (a: int32) => int32
-    /// (int32) => (boolean, int32)
-    /// (x): int32 => x
-    ///
-    /// // lambda style (value context)
-    /// (a) => a > 2
-    /// (a): int32 => a > 2
-    /// (a: int32) => {
-    ///    print("Hello, world!")
-    /// }
-    ///
-    /// // function style
-    /// function () // anonymous function with empty signature
-    ///
-    /// function foo() // just declaration, no body, no opening `{`
-    ///
-    /// function foo<T, U>(x: T) => (int32, boolean) where (
-    ///    T: Copy
-    ///    U: Numeric
-    /// ) {
-    ///    print("Hello, world!")
-    /// }
-    ///
-    /// // optional , if newline-delimited
-    /// function longBar<Validate: boolean>(
-    ///   /// doc comment for `a`
-    ///   a: int32
-    ///   /// doc comment for `b`
-    ///   b: boolean
-    ///   // regular comment
-    ///   c: Vector2
-    /// ) => (
-    ///    int32,
-    ///    isGood: boolean
-    /// ) with (
-    ///   Time
-    /// ) {
-    ///    ...
-    /// }
-    /// ```
-    pub(crate) fn eat_function(
+    /// Eat function modifiers, form, name, and generic parameters.
+    fn eat_function_head(
         &mut self,
-        start: &ParserSpanStart,
-        header: DeclarationHeader,
-        expect_maybe: bool,
-        expect_body: bool,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
-        self.eat_function_inner(start, header, expect_maybe, expect_body)
-    }
-
-    /// Eat a function.
-    fn eat_function_inner(
-        &mut self,
-        start: &ParserSpanStart,
-        header: DeclarationHeader,
-        expect_maybe: bool,
-        expect_body: bool,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
-        let can_parse_plain_lambda =
-            self.can_parse_plain_lambda(&header, expect_maybe, expect_body);
-
-        // parse plain lambda heads only when the token shape matches
-        if can_parse_plain_lambda && self.peek_is(TokenType::OpenParenthesis) {
-            if let Some(function_id) = self.try_eat_plain_parenthesized_lambda(start, &header)? {
-                return Ok(function_id);
-            }
-
-            if let Some(function_id) = self.try_eat_parenthesized_lambda_value(start, &header)? {
-                return Ok(function_id);
-            }
-        } else if can_parse_plain_lambda
-            && self.peek_is(TokenType::Identifier)
-            && matches!(
-                self.lookahead(|parser| {
-                    parser.bump();
-                    parser.peek_token_type()
-                }),
-                TokenType::Arrow | TokenType::ArrowWide
-            )
-            && let Some(function_id) = self.try_eat_plain_identifier_lambda(start, &header)?
-        {
-            return Ok(function_id);
-        }
-
-        let function = self.eat_function_parts(start, header, expect_maybe, expect_body)?;
-
-        Ok(self.insert_function_declaration(start, function))
-    }
-
-    /// Eat a function type expression.
-    pub(crate) fn eat_function_type_expression(
-        &mut self,
-        start: &ParserSpanStart,
-        header: DeclarationHeader,
-        expect_maybe: bool,
-        expect_body: bool,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let function = self.eat_function_parts(start, header, expect_maybe, expect_body)?;
-
-        if function.signature.form == FunctionForm::Lambda && function.body.is_none() {
-            return Ok(self.insert_function_type_expression(start, function));
-        }
-
-        let function_id = self.insert_function_declaration(start, function);
-
-        Ok(self.insert_declaration_type_expression(start, function_id))
-    }
-
-    /// Eat shared function syntax before inserting a grammar-specific node.
-    fn eat_function_parts(
-        &mut self,
-        start: &ParserSpanStart,
         mut header: DeclarationHeader,
-        expect_maybe: bool,
-        expect_body: bool,
-    ) -> ParseResult<ParsedFunctionSignature> {
-        // abstraction
+    ) -> ParseResult<ParsedFunctionHead> {
         if self.is_keyword(Keyword::Abstract) && !header.is_abstract {
-            self.bump(); // eat abstract keyword
+            self.bump();
             header.is_abstract = true;
         }
 
-        // async
-        let is_async = if self.is_keyword(Keyword::Async) {
-            let next_token_type = self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_token_type()
-            });
-            let treats_async_as_parameter =
-                matches!(next_token_type, TokenType::Arrow | TokenType::ArrowWide);
-            if treats_async_as_parameter {
-                false
-            } else {
-                self.bump(); // eat async keyword
-                true
-            }
+        let is_async = self.eat_function_async_modifier();
+        let role = self.eat_function_role();
+        let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
+        let (form, is_generator) = self.eat_function_form(is_generator)?;
+        let (name, name_span) = self.eat_function_name(form)?;
+        let (generic_parameters, generic_parameter_span) = self.eat_function_generics()?;
+
+        Ok(ParsedFunctionHead {
+            header,
+            is_async,
+            role,
+            form,
+            is_generator,
+            name,
+            name_span,
+            generic_parameters,
+            generic_parameter_span,
+        })
+    }
+
+    /// Eat a function async modifier when it is not a lambda parameter.
+    fn eat_function_async_modifier(&mut self) -> bool {
+        if !self.is_keyword(Keyword::Async) {
+            return false;
+        }
+
+        if self.next_token_type() == TokenType::ArrowWide {
+            return false;
+        }
+
+        self.bump();
+
+        true
+    }
+
+    /// Eat one function role marker.
+    fn eat_function_role(&mut self) -> Option<FunctionRole> {
+        let starts_construct_signature = self.is_keyword(Keyword::New)
+            && matches!(
+                self.next_token_type(),
+                TokenType::LessThan | TokenType::OpenParenthesis
+            );
+        if starts_construct_signature {
+            self.bump();
+            Some(FunctionRole::New)
         } else {
-            false
+            None
+        }
+    }
+
+    /// Eat one function form marker.
+    fn eat_function_form(&mut self, is_generator: bool) -> ParseResult<(FunctionForm, bool)> {
+        if self.is_keyword(Keyword::Function) {
+            self.bump();
+            let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
+
+            Ok((FunctionForm::Function, is_generator))
+        } else {
+            Ok((FunctionForm::Lambda, is_generator))
+        }
+    }
+
+    /// Eat a function name when the syntax owns one.
+    fn eat_function_name(
+        &mut self,
+        form: FunctionForm,
+    ) -> ParseResult<(Option<Name>, Option<Span>)> {
+        if form != FunctionForm::Function {
+            return Ok((None, None));
+        }
+
+        if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+            Ok((Some(name), Some(span)))
+        } else {
+            Ok((None, None))
+        }
+    }
+
+    /// Eat function generic parameters and their container span.
+    fn eat_function_generics(
+        &mut self,
+    ) -> ParseResult<(Option<Vec<LocalNodeId<GenericParameter>>>, Option<Span>)> {
+        let start = self.span_start();
+        let generic_parameters = self
+            .eat_generic_parameters_maybe(false)
+            .for_node_type(NodeType::Declaration)?;
+        let span = generic_parameters
+            .as_ref()
+            .map(|_| self.get_span_from(&start));
+
+        Ok((generic_parameters, span))
+    }
+
+    /// Require statement function declarations to have names.
+    fn require_function_name(&mut self, head: &ParsedFunctionHead) -> ParseResult<()> {
+        if head.form == FunctionForm::Function
+            && self.flags.is_in_statement_position()
+            && head.name.is_none()
+            && head.header.export != Some(ExportKind::Default)
+        {
+            Err(ParseError::expected(
+                self.peek()?.span,
+                TokenType::Identifier,
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Eat function parameters.
+    fn eat_function_parameters(
+        &mut self,
+        start: &ParserSpanStart,
+        head: &ParsedFunctionHead,
+    ) -> ParseResult<ParsedFunctionParameters> {
+        let has_parenthesized_parameters = head.form == FunctionForm::Function
+            || self.flags.is_in_type()
+            || self.peek_is(TokenType::OpenParenthesis)
+            || self.next_token_type() == TokenType::OpenParenthesis;
+        if has_parenthesized_parameters {
+            self.eat_parenthesized_function_parameters(head)
+        } else {
+            self.eat_bare_function_parameter(start, head)
+        }
+    }
+
+    /// Eat a parenthesized function parameter list.
+    fn eat_parenthesized_function_parameters(
+        &mut self,
+        head: &ParsedFunctionHead,
+    ) -> ParseResult<ParsedFunctionParameters> {
+        let start = self.span_start();
+        self.eat_token(TokenType::OpenParenthesis)?;
+
+        let parameters = if self.peek_is(TokenType::CloseParenthesis) {
+            vec![]
+        } else {
+            let flags = self
+                .flags
+                .with_generator(head.is_generator)
+                .with_forbid_yield(head.is_generator);
+            self.with_flags(flags, |parser| parser.eat_parameters_body())?
         };
 
-        // new role
-        let role = if self.starts_construct_signature_head() {
-            self.bump(); // eat new keyword
-            Some(FunctionRole::New)
+        self.eat_list_close_token_or_recover_missing(
+            TokenType::CloseParenthesis,
+            NodeType::Parameter,
+        )?;
+
+        Ok(ParsedFunctionParameters {
+            parameters,
+            parameter_span: Some(self.get_span_from(&start)),
+        })
+    }
+
+    /// Eat a single bare lambda parameter.
+    fn eat_bare_function_parameter(
+        &mut self,
+        start: &ParserSpanStart,
+        head: &ParsedFunctionHead,
+    ) -> ParseResult<ParsedFunctionParameters> {
+        if head.is_generator && self.is_keyword(Keyword::Yield) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        let name = self.eat_identifier()?;
+        let parameter = Parameter::Named {
+            name,
+            visibility: None,
+            is_readonly: false,
+            is_optional: false,
+            declared_type: None,
+            default: None,
+        };
+        let parameter = self.insert_node(parameter, self.get_span_from(start));
+
+        Ok(ParsedFunctionParameters {
+            parameters: vec![parameter],
+            parameter_span: None,
+        })
+    }
+
+    /// Eat function return type syntax and where clauses.
+    fn eat_function_return(
+        &mut self,
+        head: &ParsedFunctionHead,
+    ) -> ParseResult<ParsedFunctionReturn> {
+        if head.form == FunctionForm::Lambda && self.has_lambda_return_type_marker() {
+            self.eat_lambda_return_type()
+        } else if head.form == FunctionForm::Function || self.flags.is_in_type() {
+            self.eat_regular_return_type()
+        } else {
+            Ok(ParsedFunctionReturn {
+                return_type: None,
+                return_type_span: None,
+                where_clauses: None,
+            })
+        }
+    }
+
+    /// Eat a lambda return type.
+    fn eat_lambda_return_type(&mut self) -> ParseResult<ParsedFunctionReturn> {
+        let start = self.span_start();
+        self.bump();
+
+        let mut flags = self.flags.nested().in_type();
+        if self.flags.is_in_type_conditional_right() {
+            flags = flags.in_type_conditional_right();
+        }
+        if self.flags.is_in_static() {
+            flags = flags.in_static();
+        }
+        flags = flags.allow_type_predicate();
+        if !self.flags.is_in_type() {
+            flags = flags.in_arrow_return_type();
+        }
+
+        let return_type =
+            self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
+        let where_clauses = if self.language.is_destack() {
+            self.eat_where_maybe()?
         } else {
             None
         };
 
-        // function form
-        let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
-        let (form, is_generator) = {
-            // regular `function` style
-            if self.is_keyword(Keyword::Function) {
-                self.bump(); // eat function keyword
-                let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
-                (FunctionForm::Function, is_generator)
-            }
-            // lambda style
-            else {
-                (FunctionForm::Lambda, is_generator)
-            }
+        Ok(ParsedFunctionReturn {
+            return_type: Some(return_type),
+            return_type_span: Some(self.get_span_from(&start)),
+            where_clauses,
+        })
+    }
+
+    /// Eat a function return type.
+    fn eat_regular_return_type(&mut self) -> ParseResult<ParsedFunctionReturn> {
+        let (return_type, return_type_span) = if self.has_regular_return_type_marker() {
+            let start = self.span_start();
+            self.bump();
+
+            let flags = self.function_return_type_flags();
+            let return_type =
+                self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
+
+            (Some(return_type), Some(self.get_span_from(&start)))
+        } else {
+            (None, None)
         };
 
-        // function style, name, generic parameters
-        let (name, name_span, generic_parameters, generic_parameter_container_span) = {
-            if form == FunctionForm::Function {
-                // name
-                let (name, name_span) = if let Some((n, s)) = self.eat_name_maybe_with_span()? {
-                    (Some(n), Some(s))
-                } else {
-                    (None, None)
-                };
-
-                // maybe keyword after name (maybe)
-                if expect_maybe {
-                    self.eat_token(TokenType::Maybe)?;
-                }
-
-                // generic parameters
-                let generic_parameter_container_start = self.span_start();
-                let generic_parameters = self
-                    .eat_generic_parameters_maybe(false)
-                    .for_node_type(NodeType::Declaration)?;
-                let generic_parameter_container_span = generic_parameters
-                    .as_ref()
-                    .map(|_| self.get_span_from(&generic_parameter_container_start));
-
-                (
-                    name,
-                    name_span,
-                    generic_parameters,
-                    generic_parameter_container_span,
-                )
-            } else {
-                // generic parameters
-                let generic_parameter_container_start = self.span_start();
-                let generic_parameters = self
-                    .eat_generic_parameters_maybe(false)
-                    .for_node_type(NodeType::Declaration)?;
-                let generic_parameter_container_span = generic_parameters
-                    .as_ref()
-                    .map(|_| self.get_span_from(&generic_parameter_container_start));
-
-                (
-                    None,
-                    None,
-                    generic_parameters,
-                    generic_parameter_container_span,
-                )
-            }
+        let where_clauses = if self.language.is_destack() {
+            self.eat_where_maybe()?
+        } else {
+            None
         };
 
-        // declarations in statement position require a name unless default-exported
-        if form == FunctionForm::Function
-            && self.flags.is_in_statement_position()
-            && name.is_none()
-            && header.export != Some(ExportKind::Default)
-        {
-            return Err(ParseError::expected(
-                self.peek()?.span,
-                TokenType::Identifier,
-            ));
+        Ok(ParsedFunctionReturn {
+            return_type,
+            return_type_span,
+            where_clauses,
+        })
+    }
+
+    /// Return whether a function return type marker is present.
+    fn has_regular_return_type_marker(&mut self) -> bool {
+        self.peek_arrow_is()
+            || self.peek_colon_is()
+            || self.current_token_is_on_new_line() && (self.peek_arrow_is() || self.peek_colon_is())
+    }
+
+    /// Build parser flags for a regular function return type.
+    fn function_return_type_flags(&self) -> ParserFlags {
+        let mut flags = self.flags.nested().in_type().in_before_block();
+        if self.flags.is_in_type_conditional_right() {
+            flags = flags.in_type_conditional_right();
+        }
+        if self.flags.is_in_static() {
+            flags = flags.in_static();
         }
 
-        // dynamic parameters
-        let (parameters, parameter_container_span) = {
-            // regular `(...) => ...` function/lambda
-            let has_parenthesized_parameters = form == FunctionForm::Function
-                || self.flags.is_in_type()
-                || self.peek_is(TokenType::OpenParenthesis)
-                || self.next_token_type() == TokenType::OpenParenthesis;
-            if has_parenthesized_parameters {
-                // allow line breaks before the parameter list
-                let parameter_container_start = self.span_start();
-                self.eat_token(TokenType::OpenParenthesis)?;
+        flags.allow_type_predicate()
+    }
 
-                // dynamic parameters
-                let parameters = if self.peek_is(TokenType::CloseParenthesis) {
-                    vec![]
-                } else {
-                    let parameter_flags = self
-                        .flags
-                        .with_generator(is_generator)
-                        .with_forbid_yield(is_generator);
-                    self.with_flags(parameter_flags, |parser| parser.eat_parameters_body())?
-                };
-                self.eat_list_close_token_or_recover_missing(
-                    TokenType::CloseParenthesis,
-                    NodeType::Parameter,
-                )?;
-                let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
+    /// Eat a function body when the source form owns one.
+    fn eat_function_body(&mut self, head: &ParsedFunctionHead) -> ParseResult<ParsedFunctionBody> {
+        if head.form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
+            let start = self.span_start();
+            let flags = self.function_block_body_flags(head);
+            let block_id =
+                self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
+            let span = self.get_span_from(&start);
+            let body = self.tree.insert(Expression::Block(block_id), span);
 
-                (parameters, parameter_container_span)
-            }
-            // plain no-parentheses `x => y` lambda value
-            else {
-                if is_generator && self.is_keyword(Keyword::Yield) {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-                let parameter_name = self.eat_identifier()?;
-                let parameter_id = self.insert_node(
-                    Parameter::Named {
-                        name: parameter_name,
-                        visibility: None,
-                        is_readonly: false,
-                        is_optional: false,
-                        declared_type: None,
-                        default: None,
-                    },
-                    self.get_span_from(start),
-                );
-
-                (vec![parameter_id], None)
-            }
-        };
-
-        // return type info (including where)
-        // only for functions or lambda types
-        let (return_type, return_type_span, where_clauses) = {
-            // lambda with explicit return type
-            if form == FunctionForm::Lambda && self.has_lambda_return_type_marker() {
-                let type_start = self.span_start();
-                self.bump(); // eat colon or arrow
-
-                // return type
-                let mut return_type_flags = self.flags.nested().in_type();
-                if self.flags.is_in_type_conditional_right() {
-                    return_type_flags = return_type_flags.in_type_conditional_right();
-                }
-                if self.flags.is_in_static() {
-                    return_type_flags = return_type_flags.in_static();
-                }
-                return_type_flags = return_type_flags.allow_type_predicate();
-                if !self.flags.is_in_type() {
-                    return_type_flags = return_type_flags.in_arrow_return_type();
-                }
-                let return_type = self.eat_type_expression_node_or_recover_missing(
-                    return_type_flags,
-                    NodeType::Declaration,
-                )?;
-                let return_type_span = self.get_span_from(&type_start);
-
-                // where clauses are only enabled in the extended grammar
-                let where_clauses = if self.language.is_destack() {
-                    self.eat_where_maybe()?
-                } else {
-                    None
-                };
-
-                (Some(return_type), Some(return_type_span), where_clauses)
-            }
-            // regular function with return type or lambda type
-            else if form == FunctionForm::Function || self.flags.is_in_type() {
-                // return type
-                let has_return_type_marker = self.peek_arrow_is()
-                    || self.peek_colon_is()
-                    || self.current_token_is_on_new_line()
-                        && (self.peek_arrow_is() || self.peek_colon_is());
-                let (return_type, return_type_span) = if has_return_type_marker {
-                    let type_start = self.span_start();
-                    self.bump(); // eat arrow or colon
-
-                    // return type
-                    let mut return_type_flags = self.flags.nested().in_type().in_before_block();
-                    if self.flags.is_in_type_conditional_right() {
-                        return_type_flags = return_type_flags.in_type_conditional_right();
-                    }
-                    if self.flags.is_in_static() {
-                        return_type_flags = return_type_flags.in_static();
-                    }
-                    return_type_flags = return_type_flags.allow_type_predicate();
-                    let return_type = self.eat_type_expression_node_or_recover_missing(
-                        return_type_flags,
-                        NodeType::Declaration,
-                    )?;
-                    (Some(return_type), Some(self.get_span_from(&type_start)))
-                } else {
-                    (None, None)
-                };
-
-                // where clauses are only enabled in the extended grammar
-                let where_clauses = if self.language.is_destack() {
-                    self.eat_where_maybe()?
-                } else {
-                    None
-                };
-
-                (return_type, return_type_span, where_clauses)
-            }
-            // nothing
-            else {
-                (None, None, None)
-            }
-        };
-
-        // body
-        // only for functions or lambda values
-        let (body, body_container_span) = {
-            // expect body but no opening brace
-            if expect_body && !self.peek_is(TokenType::OpenBrace) {
-                return Err(ParseError::expected(
-                    self.peek()?.span,
-                    TokenType::OpenBrace,
-                ));
-            }
-
-            // function with body
-            if form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
-                let mut flags = self
-                    .flags
-                    .in_statement_position()
-                    .in_before_block()
-                    .not_in_decorator()
-                    .with_generator(is_generator);
-                flags.set_allow_sequence_expression(true);
-                flags.set_forbid_await(flags.is_forbid_await() && !is_async);
-                let body_start = self.span_start();
-                let block_id =
-                    self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
-                let body_span = self.get_span_from(&body_start);
-                let body = self.tree.insert(Expression::Block(block_id), body_span);
-                (Some(body), Some(body_span))
-            }
-            // lambda with body
-            else if form == FunctionForm::Lambda
-                && !self.flags.is_in_type()
-                && self.peek_arrow_is()
-            {
-                self.eat_arrow()?;
-                let body_start = self.span_start();
-                let body = if self.is_block_start() {
-                    let mut flags = self
-                        .flags
-                        .in_statement_position()
-                        .in_before_block()
-                        .not_in_decorator()
-                        .with_generator(is_generator);
-                    // block bodies are delimited, so sequence expressions stay local
-                    flags.set_allow_sequence_expression(true);
-                    flags.set_forbid_await(flags.is_forbid_await() && !is_async);
-                    let block_id = self
-                        .with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
-                    self.tree
-                        .insert(Expression::Block(block_id), self.get_span_from(&body_start))
-                } else {
-                    let mut flags = self
-                        .flags
-                        .in_before_block()
-                        .not_in_decorator()
-                        .with_generator(is_generator);
-                    // avoid swallowing commas from surrounding contexts
-                    flags.set_allow_sequence_expression(false);
-                    flags.set_forbid_await(flags.is_forbid_await() && !is_async);
-                    self.eat_expression(flags)?
-                };
-                let body_span = self.get_span_from(&body_start);
-                (Some(body), Some(body_span))
-            }
-            // no body
-            else {
-                (None, None)
-            }
-        };
-
-        // split out explicit this parameter
-        let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
-
-        // signature
-        let asynchrony = if is_async {
-            Asynchrony::Async
+            Ok(ParsedFunctionBody {
+                body: Some(body),
+                body_span: Some(span),
+            })
+        } else if head.form == FunctionForm::Lambda
+            && !self.flags.is_in_type()
+            && self.peek_arrow_is()
+        {
+            self.eat_lambda_body(head)
         } else {
-            Asynchrony::Sync
-        };
-        let signature = FunctionSignature {
-            asynchrony,
-            form,
-            role,
-            generic_parameters: generic_parameters.unwrap_or_default(),
-            where_clauses: where_clauses.unwrap_or_default(),
-            this_parameter,
-            parameters,
-            return_type,
-            is_abstract: header.is_abstract,
-            is_override: false,
-            is_generator,
-        };
+            Ok(ParsedFunctionBody {
+                body: None,
+                body_span: None,
+            })
+        }
+    }
 
-        Ok(ParsedFunctionSignature {
-            header,
-            name,
-            name_span,
-            signature,
-            body,
-            generic_parameter_span: generic_parameter_container_span,
-            parameter_span: parameter_container_span,
-            return_type_span,
-            body_span: body_container_span,
+    /// Eat a lambda body.
+    fn eat_lambda_body(&mut self, head: &ParsedFunctionHead) -> ParseResult<ParsedFunctionBody> {
+        self.eat_arrow()?;
+        let start = self.span_start();
+        let body = if self.is_block_start() {
+            let flags = self.function_block_body_flags(head);
+            let block_id =
+                self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
+
+            self.tree
+                .insert(Expression::Block(block_id), self.get_span_from(&start))
+        } else {
+            let mut flags = self
+                .flags
+                .in_before_block()
+                .not_in_decorator()
+                .with_generator(head.is_generator);
+            flags.set_allow_sequence_expression(false);
+            flags.set_forbid_await(flags.is_forbid_await() && !head.is_async);
+
+            self.eat_expression(flags)?
+        };
+        let span = self.get_span_from(&start);
+
+        Ok(ParsedFunctionBody {
+            body: Some(body),
+            body_span: Some(span),
         })
+    }
+
+    /// Build parser flags for a function block body.
+    fn function_block_body_flags(&self, head: &ParsedFunctionHead) -> ParserFlags {
+        let mut flags = self
+            .flags
+            .in_statement_position()
+            .in_before_block()
+            .not_in_decorator()
+            .with_generator(head.is_generator);
+        flags.set_allow_sequence_expression(true);
+        flags.set_forbid_await(flags.is_forbid_await() && !head.is_async);
+
+        flags
     }
 
     /// Check whether a lambda return type marker is present.
@@ -1212,1507 +1222,5 @@ impl Parser {
         }
 
         self.peek_arrow_is() || self.current_token_is_on_new_line() && self.peek_arrow_is()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_dir::{
-        Argument, Asynchrony, BlockContext, BlockForm, ClassDeclaration, CommentKind,
-        CommentPosition, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
-        FunctionRole, GenericArgument, GenericParameter, IntegerType, NodeType, Parameter, Pattern,
-        ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause,
-        YieldCardinality,
-    };
-
-    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
-
-    use crate::parse::expression::common::DeclarationHeader;
-    use crate::{
-        ParserOptions, TestParser, assert_comment, assert_expression_path, assert_name,
-        assert_node, assert_path, assert_string,
-    };
-
-    #[test]
-    fn test_parse_function_lambda_with_newlines() {
-        let mut test = TestParser::new(
-            r#"(x: number):
-    number =>
-    x"#,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        // (x: number): number => x
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, body: Some(body), .. }) => {
-            assert_eq!(*name, None);
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            // x: number
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Number);
-                });
-            });
-            // number
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Number);
-            });
-            // x
-            assert_node!(parser.tree, *body, Expression::Identifier { name } => {
-                assert_string!(parser, *name, "x");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_missing_close_paren_keeps_following_declaration() {
-        let mut test = TestParser::new_with_language(
-            r#"
-export function broken( {}
-export function stableLater(): void {}
-"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let expressions = parser
-            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
-            .unwrap();
-
-        assert_eq!(expressions.len(), 2);
-
-        // export function broken( {}
-        let first_declaration_id = parser.unwrap_label_expression(expressions[0]);
-        assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
-                assert_name!(parser, name.unwrap(), "broken");
-            });
-        });
-
-        // export function stableLater(): void {}
-        let second_declaration_id = parser.unwrap_label_expression(expressions[1]);
-        assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
-                assert_name!(parser, name.unwrap(), "stableLater");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_missing_close_paren_before_following_function_keeps_declaration() {
-        let mut test = TestParser::new_with_language(
-            r#"
-function broken(
-function stableLater(): void {}
-"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let expressions = parser
-            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
-            .unwrap();
-
-        assert_eq!(expressions.len(), 2);
-
-        // function broken(
-        let first_declaration_id = parser.unwrap_label_expression(expressions[0]);
-        assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
-                assert_name!(parser, name.unwrap(), "broken");
-            });
-        });
-
-        // function stableLater(): void {}
-        let second_declaration_id = parser.unwrap_label_expression(expressions[1]);
-        assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
-                assert_name!(parser, name.unwrap(), "stableLater");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_missing_close_paren_before_following_const_keeps_statement() {
-        let mut test = TestParser::new_with_language(
-            r#"
-function broken(
-const value = 1
-"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let expressions = parser
-            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
-            .unwrap();
-
-        assert_eq!(expressions.len(), 2);
-
-        // function broken(
-        let first_declaration_id = parser.unwrap_label_expression(expressions[0]);
-        assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, .. }) => {
-                assert_name!(parser, name.unwrap(), "broken");
-            });
-        });
-
-        // const value = 1
-        let second_expression_id = parser.unwrap_label_expression(expressions[1]);
-        assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
-            assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
-                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                    assert_string!(parser, *name, "value");
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_parameter_named_type_after_newline() {
-        let mut test = TestParser::new_with_language(
-            r#"
-function configure(
-    type: string,
-): void {}
-"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        // function configure(type: string): void {}
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert_name!(parser, name.unwrap(), "configure");
-            assert_eq!(signature.parameters.len(), 1);
-
-            // type: string
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "type");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::String);
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_parameter_named_namespace_after_newline() {
-        let mut test = TestParser::new(
-            r#"
-function setns(
-    namespace: ProcessNamespaceKind,
-): void {}
-"#,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        // function setns(namespace: ProcessNamespaceKind): void {}
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert_name!(parser, name.unwrap(), "setns");
-            assert_eq!(signature.parameters.len(), 1);
-
-            // namespace: ProcessNamespaceKind
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "namespace");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, .. } => {
-                    assert_path!(parser, *path, "ProcessNamespaceKind");
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_plain_parenthesized_lambda_with_newlines() {
-        let mut test = TestParser::new("(\nvalue\n) => value");
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, default, .. } => {
-                assert_string!(parser, *name, "value");
-                assert!(declared_type.is_none());
-                assert!(default.is_none());
-            });
-            assert!(signature.return_type.is_none());
-            assert_node!(parser.tree, body.expect("expected body"), Expression::Identifier { name } => {
-                assert_string!(parser, *name, "value");
-            });
-        });
-
-        let parameter_container_span = parser
-            .tree
-            .get_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::Parameters),
-            )
-            .unwrap();
-        assert_eq!(parser.get_span_str(parameter_container_span), "(\nvalue\n)");
-
-        let body_container_span = parser
-            .tree
-            .get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Body))
-            .unwrap();
-        assert_eq!(parser.get_span_str(body_container_span), "value");
-    }
-
-    #[test]
-    fn test_parse_plain_identifier_lambda_parameters_span() {
-        let mut test = TestParser::new("value => value");
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        let parameters_span = parser
-            .tree
-            .get_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::Parameters),
-            )
-            .unwrap();
-        assert_eq!(parser.get_span_str(parameters_span), "value");
-
-        let body_span = parser
-            .tree
-            .get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Body))
-            .unwrap();
-        assert_eq!(parser.get_span_str(body_span), "value");
-    }
-
-    #[test]
-    fn test_parse_plain_lambda_parenthesized_body_span() {
-        let mut test = TestParser::new("value => ({ key: value })");
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        let body_span = parser
-            .tree
-            .get_side_span(function_id, NodeSpanType::Region(NodeSpanRegion::Body))
-            .unwrap();
-        assert_eq!(parser.get_span_str(body_span), "({ key: value })");
-    }
-
-    #[test]
-    fn test_parse_plain_parenthesized_typed_lambda() {
-        let mut test = TestParser::new("(value: number) => value");
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, default, .. } => {
-                assert_string!(parser, *name, "value");
-                assert!(default.is_none());
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Number);
-                });
-            });
-            assert_node!(parser.tree, body.expect("expected body"), Expression::Identifier { name } => {
-                assert_string!(parser, *name, "value");
-            });
-        });
-    }
-
-    /// Parse a function type with an explicit this parameter.
-    #[test]
-    fn test_parse_function_type_with_this_parameter() {
-        let mut test = TestParser::new("type T = (this: Foo, value: Bar) => Baz");
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-        // type T = (this: Foo, value: Bar) => Baz
-        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-                assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
-                    assert!(function.this_parameter.is_some());
-                    assert_eq!(function.parameters.len(), 1);
-                    // value: Bar
-                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                        assert_string!(parser, *name, "value");
-                        assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "Bar");
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse an arrow function with an explicit this parameter.
-    #[test]
-    fn test_parse_arrow_function_with_this_parameter() {
-        let mut test =
-            TestParser::new_with_language("(this: string) => {}", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        // (this: string) => {}
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            assert!(signature.this_parameter.is_some());
-            assert!(signature.parameters.is_empty());
-            assert!(body.is_some());
-        });
-    }
-
-    #[test]
-    fn test_parse_function_lambda_with_explicit_return_type() {
-        let mut test = TestParser::new("(x): int32 => x");
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        // (x): int32 => x
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, body: Some(body), .. }) => {
-            assert!(name.is_none());
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            // x
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: None, .. } => {
-                assert_string!(parser, *name, "x");
-            });
-            // int32
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
-            });
-            // x
-            assert_node!(parser.tree, *body, Expression::Identifier { name } => {
-                assert_string!(parser, *name, "x");
-            });
-        });
-    }
-
-    /// Parse parenthesized void return types in arrow functions.
-    #[test]
-    fn test_parse_function_parenthesized_void_return_type() {
-        let mut test = TestParser::new_with_language("(): (void) => {}", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-                assert_eq!(signature.form, FunctionForm::Lambda);
-                assert!(body.is_some());
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Parenthesized { expression } => {
-                    assert_node!(parser.tree, *expression, TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::Void);
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse default parameters followed by required parameters.
-    #[test]
-    fn test_parse_function_default_parameter_followed_by_required() {
-        let mut test = TestParser::new_with_language(
-            r#"function func(greeting: string = "Hello", target: string) {}"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function func(greeting: string = "Hello", target: string) {}
-        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.parameters.len(), 2);
-                // greeting: string = "Hello"
-                assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, default, .. } => {
-                    assert_string!(parser, *name, "greeting");
-                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::String);
-                    });
-                    assert_node!(parser.tree, default.unwrap(), Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
-                        assert_string!(parser, *value, "Hello");
-                    });
-                });
-                // target: string
-                assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type, default, .. } => {
-                    assert_string!(parser, *name, "target");
-                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::String);
-                    });
-                    assert!(default.is_none());
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_new_type() {
-        let mut test = TestParser::new("new(): $");
-        let mut parser = test.prepare();
-        parser.flags.set_in_type(true);
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        // new (x) => int32
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert!(name.is_none());
-            assert_eq!(signature.role, Some(FunctionRole::New));
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            assert!(signature.parameters.is_empty());
-            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "$");
-        });
-    }
-
-    #[test]
-    fn test_parse_function_new_type_with_generic_arguments() {
-        let mut test = TestParser::new("new <T>(x: int32) => T");
-        let mut parser = test.prepare();
-        parser.flags.set_in_type(true);
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        // new <T>(x: int32) => T
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert!(name.is_none());
-            // new
-            assert_eq!(signature.role, Some(FunctionRole::New));
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            let generic_parameters = &signature.generic_parameters;
-            // <T>
-            assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
-                assert_string!(parser, *name, "T");
-                assert!(constraint.is_none());
-            });
-            // x: int32
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
-                });
-            });
-            // T
-            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_where_clause() {
-        let mut test = TestParser::new(
-            r###"
-function foo() => int32 where Guard: Limit {
-}
-"###,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            // function name
-            assert_string!(parser, name.expect("expected name").string(), "foo");
-            // where Guard: Limit
-            let where_clauses = &signature.where_clauses;
-            assert_eq!(where_clauses.len(), 1);
-            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
-                assert_string!(parser, *left, "Guard");
-                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-            });
-            // return type
-            let ret = signature.return_type.expect("expected return type");
-            assert_node!(parser.tree, ret, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_generic_and_dynamic_parameters() {
-        let mut test = TestParser::new(
-            r"
-function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
-    body
-}
-        ",
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            // compute
-            assert_string!(parser, name.expect("expected name").string(), "compute");
-            let generic_parameters = &signature.generic_parameters;
-            // <Validate: bool, Precision: uint8>
-            assert_eq!(generic_parameters.len(), 2);
-
-            // Validate: bool
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
-                assert_string!(parser, *name, "Validate");
-                assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Boolean);
-                });
-            });
-
-            // Precision: uint8
-            assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, constraint, .. } => {
-                assert_string!(parser, *name, "Precision");
-                assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 8, is_signed: false }));
-                });
-            });
-            // data: uint8[]
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
-                assert_string!(parser, *name, "data");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_abstract_new_type_with_newline() {
-        let mut test = TestParser::new("abstract\nnew (): T");
-        let mut parser = test.prepare();
-        parser.flags.set_in_type(true);
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        // abstract\nnew (): T
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-            assert!(signature.is_abstract);
-            assert_eq!(signature.role, Some(FunctionRole::New));
-            assert_eq!(signature.form, FunctionForm::Lambda);
-            assert!(signature.parameters.is_empty());
-            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_newline_between_generics_and_parameters() {
-        let mut test = TestParser::new(
-            r"
-function h<T>
-    (tag: T): T;
-            ",
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, body, .. }) => {
-            // function name
-            assert_string!(parser, name.expect("expected name").string(), "h");
-
-            // generic parameter: T
-            let generic_parameters = &signature.generic_parameters;
-            assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
-                assert_string!(parser, *name, "T");
-                assert!(constraint.is_none());
-            });
-
-            // dynamic parameter tag: T
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "tag");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Reference { path, generic_arguments } => {
-                    assert_path!(parser, *path, "T");
-                    assert!(generic_arguments.is_empty());
-                });
-            });
-
-            // return type T
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Reference { path, generic_arguments } => {
-                assert_path!(parser, *path, "T");
-                assert!(generic_arguments.is_empty());
-            });
-
-            // declaration signature has no body
-            assert!(body.is_none());
-        });
-
-        let generic_parameter_container_span = parser
-            .tree
-            .get_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
-            )
-            .unwrap();
-        assert_eq!(parser.get_span_str(generic_parameter_container_span), "<T>");
-
-        let parameter_container_span = parser
-            .tree
-            .get_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::Parameters),
-            )
-            .unwrap();
-        assert_eq!(parser.get_span_str(parameter_container_span), "(tag: T)");
-    }
-
-    #[test]
-    fn test_parse_function_with_newline_before_return_type_colon() {
-        let mut test = TestParser::new_with_language(
-            r#"function f<T>(value: T)
-  : T {
-  return value as never
-}"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
-            let return_type = signature.return_type.expect("expected return type");
-            assert_expression_path!(parser, parser.tree.get(return_type), "T");
-
-            let body_id = body.expect("expected function body");
-            assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
-                let block = parser.tree.get(*block_id);
-                assert_eq!(block.leading_expressions.len(), 1);
-                assert!(block.tail_expression.is_none());
-                assert_node!(parser.tree, block.leading_expressions[0], Expression::Return { value } => {
-                        let value = value.expect("expected return value");
-                        assert_node!(parser.tree, value, Expression::As { .. });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_variance_parameters() {
-        let mut test = TestParser::new(
-            r"
-function transform<in T, out U>(value: T): U {
-    value as U
-}
-        ",
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert_string!(parser, name.expect("expected name").string(), "transform");
-            let generic_parameters = &signature.generic_parameters;
-            assert_eq!(generic_parameters.len(), 2);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, .. } => {
-                assert_string!(parser, *name, "T");
-                assert_eq!(*variance, Some(VarianceModifier::In));
-            });
-            assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, variance, .. } => {
-                assert_string!(parser, *name, "U");
-                assert_eq!(*variance, Some(VarianceModifier::Out));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_invariant_parameter() {
-        let mut test = TestParser::new(
-            r"
-function invariant<in out T>(value: T): T {
-    value
-}
-        ",
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert_string!(parser, name.expect("expected name").string(), "invariant");
-            let generic_parameters = &signature.generic_parameters;
-            assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, variance, .. } => {
-                assert_string!(parser, *name, "T");
-                assert_eq!(*variance, Some(VarianceModifier::InOut));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_function_return_type() {
-        let mut test = TestParser::new("function foo() => (str: string) => boolean {}");
-        let mut parser = test.prepare();
-
-        // function foo() => (str: string) => boolean
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            // foo
-            assert_string!(parser, name.expect("expected name").string(), "foo");
-
-            // (str: string) => boolean
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
-                assert_eq!(function.parameters.len(), 1);
-                // str: string
-                assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                    assert_string!(parser, *name, "str");
-                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::String);
-                    });
-                });
-
-                // boolean
-                assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Boolean);
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_return_type_with_generic_arguments() {
-        let mut test = TestParser::new("function read<T, E>() => AliasBranch<T, E> {}");
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-            let return_type = signature.return_type.expect("expected return type");
-            assert_node!(parser.tree, return_type, TypeExpression::Reference { path, generic_arguments } => {
-                assert_path!(parser, *path, "AliasBranch");
-                assert_eq!(generic_arguments.len(), 2);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "T");
-                });
-                assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "E");
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_async_generator() {
-        let mut test = TestParser::new(
-            r#"
-async function* foo() => int32 {
-    yield 1
-    yield 2
-    yield 3
-}"#,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        // async function* foo() => int32 { body }
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            // foo
-            assert_string!(parser, name.unwrap().string(), "foo");
-            assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert!(signature.is_generator);
-        });
-    }
-
-    /// Parse a generator function with a bare yield call argument.
-    #[test]
-    fn test_parse_function_generator_call_argument_with_bare_yield() {
-        // source: function* a() { b.c(yield); }
-        let mut test = TestParser::new_with_language(
-            "function* a() { b.c(yield); }",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function* a() { b.c(yield); }
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                // { b.c(yield); }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    // b.c(yield);
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Call { left, arguments, .. } => {
-                            assert_eq!(arguments.len(), 1);
-                            // b.c
-                            assert_expression_path!(parser, parser.tree.get(*left), "b.c");
-                            // yield
-                            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                                assert_node!(parser.tree, *value, Expression::Yield { cardinality, value } => {
-                                    assert_eq!(*cardinality, YieldCardinality::Scalar);
-                                    assert!(value.is_none());
-                                });
-                            });
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse anonymous function expression container spans.
-    #[test]
-    fn test_parse_function_expression_container_spans() {
-        let mut test = TestParser::new_with_language(
-            "bar(...items, function() { return 1; });",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // bar(...items, function() { return 1; })
-        assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
-            assert_eq!(arguments.len(), 2);
-
-            // function() { return 1; }
-            assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
-                    let parameter_span = parser
-                        .tree
-                        .get_side_span(
-                            *declaration_id,
-                            NodeSpanType::Region(NodeSpanRegion::Parameters),
-                        )
-                        .unwrap();
-                    assert_eq!(parser.get_span_str(parameter_span), "()");
-
-                    let body_span = parser
-                        .tree
-                        .get_side_span(*declaration_id, NodeSpanType::Region(NodeSpanRegion::Body))
-                        .unwrap();
-                    assert_eq!(parser.get_span_str(body_span), "{ return 1; }");
-                });
-            });
-        });
-    }
-
-    /// Preserve the enclosing function when a call argument is missing before the block close.
-    #[test]
-    fn test_parse_function_body_preserves_declaration_for_missing_call_argument_before_block_close()
-    {
-        // source
-        let mut test = TestParser::new(
-            r#"
-function greet(name: string, suffix: string) {}
-
-function main() {
-    const userName = "Alice";
-    greet(userName,
-}
-"#,
-        );
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        // diagnostics
-        test.assert_error_leaves(
-            &parser,
-            &[(None, None, "}"), (Some(NodeType::Expression), None, "}")],
-        );
-
-        // top level expressions
-        assert_eq!(expressions.len(), 2);
-
-        // function main() { ... }
-        assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { name, body: Some(body), .. }) => {
-                assert_string!(parser, name.unwrap().string(), "main");
-
-                // { const userName = "Alice"; greet(userName, }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    let tail_expression = block.tail_expression.expect("expected trailing malformed call");
-
-                    // const userName = "Alice";
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Let { declarators, .. } => {
-                        assert_eq!(declarators.len(), 1);
-                    });
-
-                    // greet(userName,
-                    assert_node!(parser.tree, tail_expression, Expression::Call { left, arguments, .. } => {
-                        assert_expression_path!(parser, parser.tree.get(*left), "greet");
-                        assert_eq!(arguments.len(), 2);
-
-                        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                            assert_expression_path!(parser, parser.tree.get(*value), "userName");
-                        });
-
-                        assert_node!(parser.tree, arguments[1], Argument::Error);
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse nested generator yield expressions.
-    #[test]
-    fn test_parse_function_generator_nested_yield() {
-        // source: function *a() { yield yield }
-        let mut test = TestParser::new_with_language(
-            "function *a() { yield yield }",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function *a() { yield yield }
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                // { yield yield }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    // yield yield
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
-                            assert_eq!(*cardinality, YieldCardinality::Scalar);
-                            assert!(value.is_some());
-                            // yield
-                            assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
-                                assert_eq!(*cardinality, YieldCardinality::Scalar);
-                                assert!(value.is_none());
-                            });
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse delegated generator yield with a direct identifier operand.
-    #[test]
-    fn test_parse_function_generator_delegate_yield() {
-        // source: function *a() { yield *a }
-        let mut test =
-            TestParser::new_with_language("function *a() { yield *a }", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function *a() { yield *a }
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                // { yield *a }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    // yield *a
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
-                            assert_eq!(*cardinality, YieldCardinality::Generator);
-                            assert!(value.is_some());
-                            assert_expression_path!(parser, parser.tree.get(value.unwrap()), "a");
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse delegated generator yield with a nested bare yield operand.
-    #[test]
-    fn test_parse_function_generator_delegate_nested_yield() {
-        // source: function *a() { yield *yield }
-        let mut test = TestParser::new_with_language(
-            "function *a() { yield *yield }",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function *a() { yield *yield }
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                // { yield *yield }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    // yield *yield
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
-                            assert_eq!(*cardinality, YieldCardinality::Generator);
-                            assert!(value.is_some());
-                            // yield
-                            assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
-                                assert_eq!(*cardinality, YieldCardinality::Scalar);
-                                assert!(value.is_none());
-                            });
-                    });
-                });
-            });
-        });
-    }
-
-    /// Recover delegated generator yield when a line terminator appears before `*`.
-    #[test]
-    fn test_recover_function_generator_delegate_after_newline() {
-        // source: function *a(){yield
-        // *a}
-        let mut test =
-            TestParser::new_with_language("function *a(){yield\n*a}", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function *a(){yield
-        // *a}
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-
-                // { yield \n *a }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 2);
-                    assert!(block.tail_expression.is_none());
-
-                    // yield
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
-                            assert_eq!(*cardinality, YieldCardinality::Scalar);
-                            assert!(value.is_none());
-                    });
-
-                    // *a
-                    assert_node!(parser.tree, block.leading_expressions[1], Expression::Error);
-                });
-            });
-        });
-    }
-
-    /// Recover delegated generator yield without an operand before a following const statement.
-    #[test]
-    fn test_recover_function_generator_delegate_before_following_const() {
-        // source: function *a(){yield*
-        // const value = 1}
-        let mut test = TestParser::new_with_language(
-            "function *a(){yield*\nconst value = 1}",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // diagnostics
-        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
-
-        // function *a(){yield*
-        // const value = 1}
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-
-                // { yield* \n const value = 1 }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 2);
-                    assert!(block.tail_expression.is_none());
-
-                    // yield*
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
-                            assert_eq!(*cardinality, YieldCardinality::Generator);
-                            assert_node!(parser.tree, value.expect("expected missing generator operand"), Expression::Missing);
-                    });
-
-                    // const value = 1
-                    assert_node!(parser.tree, block.leading_expressions[1], Expression::Let { declarators, .. } => {
-                        assert_eq!(declarators.len(), 1);
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse generator yield in class heritage expression.
-    #[test]
-    fn test_parse_function_generator_yield_in_class_heritage() {
-        // source: function* a(){(class extends (yield) {});}
-        let mut test = TestParser::new_with_language(
-            "function* a(){(class extends (yield) {});}",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // function* a(){(class extends (yield) {});}
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                // { (class extends (yield) {}); }
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { expression } => {
-                        assert_node!(parser.tree, *expression, Expression::Declaration(class_id) => {
-                            assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
-                                assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
-                                    assert_node!(parser.tree, *expression, Expression::Yield { cardinality, value } => {
-                                        assert_eq!(*cardinality, YieldCardinality::Scalar);
-                                        assert!(value.is_none());
-                                    });
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse generator yield in computed property keys and assignment targets.
-    #[test]
-    fn test_parse_function_generator_yield_in_computed_keys() {
-        // source: function* a(){(class {[yield](){}})};
-        let mut test = TestParser::new_with_language(
-            "function* a(){(class {[yield](){}})};",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
-                });
-            });
-        });
-
-        // source: function* a(){({[yield]:a}=1)}
-        let mut test = TestParser::new_with_language(
-            "function* a(){({[yield]:a}=1)}",
-            LanguageType::JavaScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert!(signature.is_generator);
-                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                    let block = parser.tree.get(*block_id);
-                    assert_eq!(block.leading_expressions.len(), 1);
-                    assert!(block.tail_expression.is_none());
-                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_function_with_nested_lambda_type() {
-        let mut test = TestParser::new(
-            r#"
-function onResolve(
-    callback: (args) => {
-        path: string;
-        namespace?: string;
-    } | void,
-) => void;
-        "#,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { name, signature, .. }) => {
-            assert_string!(parser, name.unwrap().string(), "onResolve");
-            // callback: (args) => { .. } | void
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "callback");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
-                    assert_eq!(function.parameters.len(), 1);
-                    // args
-                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: None, .. } => {
-                        assert_string!(parser, *name, "args");
-                    });
-                    // { .. } | void
-                    assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Union { elements } => {
-                        assert_eq!(elements.len(), 2);
-
-                        // { .. }
-                        assert_node!(parser.tree, elements[0], TypeExpression::Object { members: properties } => {
-                            assert_eq!(properties.len(), 2);
-                        });
-
-                        // void
-                        assert_node!(parser.tree, elements[1], TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Void);
-                        });
-                    });
-                });
-            });
-            // void
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Void);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
-        let mut test = TestParser::new_with_language(
-            "(runtime, effect, options: Runtime.RunCallbackOptions<any, any> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void => 0",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                assert_eq!(signature.form, FunctionForm::Lambda);
-                assert_eq!(signature.parameters.len(), 3);
-
-                // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void
-                assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
-                    assert_eq!(function.parameters.len(), 2);
-
-                    // fiberId?: FiberId.FiberId
-                    assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                        assert_string!(parser, *name, "fiberId");
-                        assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "FiberId.FiberId");
-                    });
-
-                    // options?: Runtime.RunCallbackOptions<any, any> | undefined
-                    assert_node!(parser.tree, function.parameters[1], Parameter::Named { name, declared_type, .. } => {
-                        assert_string!(parser, *name, "options");
-                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Union { elements } => {
-                            assert_eq!(elements.len(), 2);
-                        });
-                    });
-
-                    assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::Void);
-                    });
-                });
-
-                assert_node!(parser.tree, *body, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_lambda_head_boundary_comment_on_function_owner() {
-        let mut test =
-            TestParser::new_with_language("(x) /* lambda-head */ => x", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        parser.attach_comments();
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { .. }) => {
-            let annotations = parser.tree.get_decorators(function_id.id);
-            assert!(annotations.is_empty());
-        });
-        assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentKind::SingleLineBlock, " lambda-head");
-    }
-
-    #[test]
-    fn test_parse_lambda_body_boundary_comment_on_body_owner() {
-        let mut test =
-            TestParser::new_with_language("(x) =>\n// lambda-body\nx", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-        parser.attach_comments();
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
-                assert_expression_path!(parser, parser.tree.get(*body_id), "x");
-
-                let annotations = parser.tree.get_decorators(body_id.id);
-                assert!(annotations.is_empty());
-            });
-        });
-        assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentKind::Line, "lambda-body");
-    }
-
-    /// Parse empty parenthesized lambda heads that only contain comments.
-    #[test]
-    fn test_parse_empty_parenthesized_lambda_with_comment() {
-        let mut test =
-            TestParser::new_with_language("(/* empty */) => {}", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-        parser.attach_comments();
-
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                assert_eq!(signature.form, FunctionForm::Lambda);
-                assert!(signature.parameters.is_empty());
-            });
-        });
-        assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentKind::SingleLineBlock, " empty");
-    }
-
-    #[test]
-    fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
-        let mut test =
-            TestParser::new_with_language("() => {\n  // code\n}", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-        parser.attach_comments();
-
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
-                let body_span = parser.tree.get_span(*body_id);
-                let comment = parser.tree.comments()[0];
-
-                assert_eq!(comment.position, CommentPosition::Leading);
-                assert!(comment.span.start >= body_span.start);
-                assert!(comment.span.end <= body_span.end);
-            });
-        });
-
-        assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentKind::Line, "code");
-    }
-
-    #[test]
-    fn test_parse_function_body_boundary_line_comment_stays_trailing() {
-        let mut test = TestParser::new_with_language(
-            "function f(): void // body\n{}",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let start = parser.span_start();
-        let function_id = parser
-            .eat_function(&start, DeclarationHeader::default(), false, false)
-            .unwrap();
-        parser.attach_comments();
-
-        assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
-            let body_span = parser.tree.get_span(*body_id);
-            let comment = parser.tree.comments()[0];
-
-            assert_eq!(comment.position, CommentPosition::Trailing);
-            assert_eq!(comment.attached_to, 0);
-            assert!(comment.span.end <= body_span.start);
-        });
-
-        assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentKind::Line, "body");
-    }
-
-    /// Reject direct calls on unparenthesized arrow functions.
-    #[test]
-    fn test_reject_unparenthesized_arrow_call() {
-        // source: () => {}()
-        let mut test = TestParser::new_with_language("() => {}()", LanguageType::Destack);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.flags).unwrap_err();
-
-        // (
-        assert_eq!(parser.get_span_str(error.leaf_span()), "(");
-
-        // source: a => {}()
-        let mut test = TestParser::new_with_language("a => {}()", LanguageType::Destack);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.flags).unwrap_err();
-
-        // (
-        assert_eq!(parser.get_span_str(error.leaf_span()), "(");
-    }
-
-    /// Parse direct calls on parenthesized arrow functions.
-    #[test]
-    fn test_parse_parenthesized_arrow_call() {
-        // source: (() => {})()
-        let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // (() => {})()
-        assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
-            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                    assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.form, FunctionForm::Lambda);
-                    });
-                });
-            });
-        });
-    }
-
-    /// Parse direct calls on parenthesized arrow functions without preserved wrappers.
-    #[test]
-    fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
-        // source: (() => {})()
-        let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
-        let mut parser = test.prepare();
-        parser.apply_options(ParserOptions {
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
-        });
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        // (() => {})()
-        assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
-            assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.form, FunctionForm::Lambda);
-                });
-            });
-        });
     }
 }

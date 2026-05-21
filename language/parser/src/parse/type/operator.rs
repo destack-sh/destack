@@ -18,17 +18,12 @@ pub(crate) enum TypeUnaryOperator {
     Shared,
     /// `!T`.
     Not,
-    /// `as comptime` postfix.
-    AsComptime,
 }
 
 impl TypeUnaryOperator {
     /// Return this operator precedence.
     pub(crate) fn precedence(self) -> u16 {
-        match self {
-            Self::AsComptime => OperatorPrecedence::Postfix as u16,
-            _ => OperatorPrecedence::Prefix as u16,
-        }
+        OperatorPrecedence::Prefix as u16
     }
 }
 
@@ -89,16 +84,6 @@ impl Parser {
             },
             _ => None,
         }
-    }
-
-    /// Return a type postfix operator at the current token.
-    pub(crate) fn peek_type_unary_postfix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
-        if self.peek_token_type() != TokenType::Identifier || self.current_keyword()? != Keyword::As
-        {
-            return None;
-        }
-
-        (self.next_keyword() == Some(Keyword::Comptime)).then_some(TypeUnaryOperator::AsComptime)
     }
 
     /// Build a type expression for one infix operator.

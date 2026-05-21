@@ -11,20 +11,13 @@ impl Parser {
     /// Return true when the next token is the given keyword.
     #[inline]
     pub fn is_next_keyword(&mut self, keyword: Keyword) -> bool {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.current_keyword() == Some(keyword)
-        })
+        self.keyword_at_offset(1) == Some(keyword)
     }
 
     /// Return true when the next next token is the given keyword.
     #[inline]
     pub fn is_next_next_keyword(&mut self, keyword: Keyword) -> bool {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.bump();
-            parser.current_keyword() == Some(keyword)
-        })
+        self.keyword_at_offset(2) == Some(keyword)
     }
 
     /// Peek a keyword.
@@ -49,39 +42,35 @@ impl Parser {
     /// Peek the next keyword.
     #[inline]
     pub fn peek_next_keyword(&mut self, keyword: Keyword) -> ParseResult<TokenSpan> {
-        self.lookahead(|parser| {
-            parser.bump();
-            let current = *parser.peek_token(TokenType::Identifier)?;
-            if !parser.is_keyword(keyword) {
-                Err(ParseError::expected(current.span, TokenType::Identifier))
-            } else {
-                Ok(current)
-            }
-        })
+        let token = self.next_token();
+        if token.token.ty != TokenType::Identifier || self.keyword_at_offset(1) != Some(keyword) {
+            return Err(ParseError::expected(token.span, TokenType::Identifier));
+        }
+
+        Ok(token)
     }
 
     /// Peek any next keyword.
     #[inline]
     pub fn peek_next_any_keyword(&mut self) -> ParseResult<Keyword> {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.peek_any_keyword()
-        })
+        let token = self.next_token();
+        if token.token.ty != TokenType::Identifier {
+            return Err(ParseError::expected(token.span, TokenType::Identifier));
+        }
+
+        self.keyword_at_offset(1)
+            .ok_or_else(|| ParseError::expected(token.span, TokenType::Identifier))
     }
 
     /// Peek the next next keyword.
     #[inline]
     pub fn peek_next_next_keyword(&mut self, keyword: Keyword) -> ParseResult<TokenSpan> {
-        self.lookahead(|parser| {
-            parser.bump();
-            parser.bump();
-            let current = *parser.peek_token(TokenType::Identifier)?;
-            if !parser.is_keyword(keyword) {
-                Err(ParseError::expected(current.span, TokenType::Identifier))
-            } else {
-                Ok(current)
-            }
-        })
+        let token = self.token_at_offset(2);
+        if token.token.ty != TokenType::Identifier || self.keyword_at_offset(2) != Some(keyword) {
+            return Err(ParseError::expected(token.span, TokenType::Identifier));
+        }
+
+        Ok(token)
     }
 
     /// Eat a keyword.

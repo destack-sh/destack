@@ -4,12 +4,14 @@ use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorTypeDeclaration,
     Expression, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration, Key,
     Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
-    TokenType, TypeExpression, TypeMember, Visibility,
+    TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 use super::PendingDecorators;
 use crate::parse::argument::BindingModifiers;
+use crate::parse::flags::ParserFlags;
+use crate::parse::scope::ExpressionScope;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 /// The keywords that can appear before a binding.
@@ -24,6 +26,32 @@ pub static BINDING_MODIFIERS: [Keyword; 9] = [
     Keyword::Private,
     Keyword::Comptime,
 ];
+
+/// Whether a type member list accepts method bodies.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum TypeMemberBodyMode {
+    /// Accept signatures only.
+    SignatureOnly,
+    /// Accept default method bodies.
+    DefaultBodies,
+}
+
+impl TypeMemberBodyMode {
+    /// Return the member body mode for one interface kind.
+    #[inline]
+    pub(crate) const fn for_interface(kind: TypeKind) -> Self {
+        match kind {
+            TypeKind::Nominal => Self::DefaultBodies,
+            TypeKind::Structural => Self::SignatureOnly,
+        }
+    }
+
+    /// Return whether method bodies are accepted.
+    #[inline]
+    const fn allows_body(self) -> bool {
+        matches!(self, Self::DefaultBodies)
+    }
+}
 
 /// Parsed head for one property or member.
 #[derive(Debug)]
@@ -182,46 +210,25 @@ impl Parser {
             Some(FunctionRole::Setter)
         } else if allow_constructor_role
             && self.is_keyword(Keyword::Constructor)
-            && (self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::LessThan)
-            }) || self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::OpenParenthesis)
-            }))
+            && matches!(
+                self.next_token_type(),
+                TokenType::LessThan | TokenType::OpenParenthesis
+            )
         {
             self.bump(); // eat constructor keyword
             Some(FunctionRole::Constructor)
         } else if allow_new_role
             && self.is_keyword(Keyword::New)
-            && (self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::LessThan)
-            }) || self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::OpenParenthesis)
-            }))
+            && matches!(
+                self.next_token_type(),
+                TokenType::LessThan | TokenType::OpenParenthesis
+            )
         {
             self.bump(); // eat new keyword
             Some(FunctionRole::New)
         } else {
             None
         }
-    }
-
-    /// Return true when the current head must parse as a method.
-    #[inline]
-    fn head_starts_method(
-        &mut self,
-        role: Option<FunctionRole>,
-        is_async: bool,
-        is_generator: bool,
-    ) -> bool {
-        is_async
-            || is_generator
-            || self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::OpenParenthesis)
-            || matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter))
     }
 
     /// Eat one definite member modifier when present.
@@ -303,66 +310,6 @@ impl Parser {
         Ok(())
     }
 
-    /// Return the associated comptime constant name when the parsed head forms one.
-    fn associated_comptime_name_maybe(
-        &mut self,
-        key: Option<&Key>,
-        modifiers: Option<&BindingModifiers>,
-    ) -> ParseResult<Option<StringId>> {
-        if !modifiers.is_some_and(|modifiers| modifiers.is_comptime && modifiers.is_const_asserted)
-        {
-            return Ok(None);
-        }
-
-        match key {
-            Some(Key::Name(Name::Identifier(name))) => Ok(Some(*name)),
-            _ => Err(ParseError::unexpected(self.peek()?.span)),
-        }
-    }
-
-    /// Return true when `readonly` starts a type property modifier.
-    #[inline]
-    fn type_member_readonly_modifier_maybe(&mut self) -> bool {
-        if !self.is_keyword(Keyword::Readonly) {
-            return false;
-        }
-
-        self.next_same_line_token_starts_member_name()
-    }
-
-    /// Return true when `static` starts a type property modifier.
-    #[inline]
-    fn type_member_static_modifier_maybe(&mut self) -> bool {
-        if !self.is_keyword(Keyword::Static) {
-            return false;
-        }
-
-        self.next_token_starts_member_name()
-    }
-
-    /// Return true when `abstract` starts a type property modifier.
-    #[inline]
-    fn type_member_abstract_modifier_maybe(&mut self) -> bool {
-        if !self.is_keyword(Keyword::Abstract) {
-            return false;
-        }
-
-        let next_token = self.next_token();
-        if next_token.token.is_on_new_line {
-            return false;
-        }
-
-        matches!(
-            next_token.token.ty,
-            TokenType::Identifier
-                | TokenType::Literal
-                | TokenType::Hash
-                | TokenType::OpenBracket
-                | TokenType::OpenParenthesis
-                | TokenType::LessThan
-        )
-    }
-
     /// Return true when the current `[` starts an index signature.
     #[inline]
     fn type_member_starts_index_signature(&mut self) -> bool {
@@ -370,42 +317,15 @@ impl Parser {
             return false;
         }
 
-        self.lookahead(|parser| {
-            parser.bump();
-            if !parser.peek_is(TokenType::Identifier) {
-                return false;
-            }
-
-            parser.bump();
-            parser.peek_is(TokenType::Colon)
-        })
-    }
-
-    /// Return true when the current type property head must parse as a method.
-    #[inline]
-    fn type_member_head_starts_method(&mut self, role: Option<FunctionRole>) -> bool {
-        self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::OpenParenthesis)
-            || matches!(
-                role,
-                Some(
-                    FunctionRole::Getter
-                        | FunctionRole::Setter
-                        | FunctionRole::Constructor
-                        | FunctionRole::New
-                )
-            )
+        self.token_type_at_offset(1) == TokenType::Identifier
+            && self.token_type_at_offset(2) == TokenType::Colon
     }
 
     /// Eat one spread or embed value expression.
     #[inline]
     fn eat_property_value_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let ambient_context = self.flags;
-        let expression_context = self
-            .flags
-            .not_in_position()
-            .not_in_left_precedence()
-            .not_in_sequence_expression();
+        let expression_context = self.flags.not_in_position().not_in_sequence_expression();
         self.eat_expression(
             self.flags
                 .with_ambient_context(ambient_context)
@@ -471,12 +391,8 @@ impl Parser {
         if !self.peek_is(TokenType::OpenBrace) {
             ambient_context = ambient_context.with_before_block(true);
         }
-        let expression_context = self
-            .flags
-            .nested()
-            .not_in_left_precedence()
-            .not_in_sequence_expression();
-        self.eat_type_expression_node_or_recover_missing(
+        let expression_context = self.flags.nested().not_in_sequence_expression();
+        self.eat_type_expression_or_recover_missing(
             self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context.allow_type_predicate()),
@@ -490,6 +406,23 @@ impl Parser {
         &mut self,
         is_generator: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        if self.peek_is(TokenType::OpenBrace) {
+            let ambient_context = self
+                .flags
+                .with_generator(is_generator)
+                .with_decorator(false);
+            let mut flags = self
+                .flags
+                .with_ambient_context(ambient_context)
+                .in_before_block()
+                .in_statement_position();
+            flags.set_allow_sequence_expression(true);
+            let block =
+                self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
+
+            return Ok(self.insert_node(Expression::Block(block), self.tree.get_span(block)));
+        }
+
         let ambient_context = self
             .flags
             .with_generator(is_generator)
@@ -534,9 +467,22 @@ impl Parser {
         self.validate_method_head_modifiers(key.as_ref(), modifiers.as_ref(), is_async)?;
 
         // classify the head
-        let associated_comptime_name =
-            self.associated_comptime_name_maybe(key.as_ref(), modifiers.as_ref())?;
-        let is_method = self.head_starts_method(role, is_async, is_generator);
+        let associated_comptime_name = if modifiers
+            .as_ref()
+            .is_some_and(|modifiers| modifiers.is_comptime && modifiers.is_const_asserted)
+        {
+            match key.as_ref() {
+                Some(Key::Name(Name::Identifier(name))) => Some(*name),
+                _ => return Err(ParseError::unexpected(self.peek()?.span)),
+            }
+        } else {
+            None
+        };
+        let is_method = is_async
+            || is_generator
+            || self.peek_is(TokenType::LessThan)
+            || self.peek_is(TokenType::OpenParenthesis)
+            || matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter));
 
         Ok(ParsedPropertyMemberHead {
             modifiers,
@@ -666,7 +612,7 @@ impl Parser {
     #[inline]
     fn eat_member_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
         let ambient_context = self.flags.with_type(true);
-        self.eat_type_expression_node_or_recover_missing(
+        self.eat_type_expression_or_recover_missing(
             self.flags.with_ambient_context(ambient_context),
             NodeType::Member,
         )
@@ -697,10 +643,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Member>>> {
         if !self.language.is_destack()
             || !self.is_keyword(Keyword::Type)
-            || !self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::Identifier)
-            })
+            || self.next_token_type() != TokenType::Identifier
         {
             return Ok(None);
         }
@@ -774,10 +717,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<TypeMember>>> {
         if !self.language.is_destack()
             || !self.is_keyword(Keyword::Type)
-            || !self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::Identifier)
-            })
+            || self.next_token_type() != TokenType::Identifier
         {
             return Ok(None);
         }
@@ -846,10 +786,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<TypeMember>>> {
         if !self.language.is_destack()
             || !self.is_keyword(Keyword::Comptime)
-            || !self.lookahead(|parser| {
-                parser.bump();
-                parser.is_keyword(Keyword::Const)
-            })
+            || self.next_keyword() != Some(Keyword::Const)
         {
             return Ok(None);
         }
@@ -888,7 +825,6 @@ impl Parser {
                     .flags
                     .not_in_type()
                     .not_in_position()
-                    .not_in_left_precedence()
                     .not_in_sequence_expression();
                 self.eat_expression(expression_flags)?
             };
@@ -910,18 +846,341 @@ impl Parser {
         Ok(Some(member_id))
     }
 
-    /// Try to eat a property and recover into one error slot when possible.
+    /// Try to eat a property and recover one malformed member when possible.
     pub fn try_eat_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
         match self.eat_property() {
             Ok(property_id) => Ok(property_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::Property);
                 let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err.clone()))?;
+                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
 
                 Ok(self.insert_node(Property::Error, recovered_span))
             }
         }
+    }
+
+    /// Eat an object literal body.
+    ///
+    /// Examples:
+    /// ```ds
+    /// key: value
+    /// key
+    /// ...other
+    /// ```
+    pub fn eat_object_properties(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
+        let mut properties = Vec::new();
+
+        while self.has_more_tokens() {
+            let token_type = self.peek_token_type();
+
+            // stop on object close
+            if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
+                break;
+            }
+
+            // stop at declaration recovery boundaries
+            if token_type == TokenType::Semicolon {
+                if self.current_token_is_declaration_recovery_boundary(token_type) {
+                    break;
+                }
+
+                self.eat_any_stop()?;
+                continue;
+            }
+
+            // skip separators
+            if token_type == TokenType::Comma {
+                self.eat_item_stop()?;
+                continue;
+            }
+
+            let property = self.try_eat_object_property()?;
+            properties.push(property);
+        }
+
+        Ok(properties)
+    }
+
+    /// Try to eat one object literal property with recovery.
+    fn try_eat_object_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
+        match self.eat_object_property() {
+            Ok(property_id) => Ok(property_id),
+            Err(err) => {
+                let err = err.for_node_type(NodeType::Property);
+                let span = err.leaf_span();
+                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
+
+                Ok(self.insert_node(Property::Error, recovered_span))
+            }
+        }
+    }
+
+    /// Eat one object literal property.
+    ///
+    /// Examples:
+    /// ```ds
+    /// key: value
+    /// key = fallback
+    /// method() {}
+    /// ```
+    fn eat_object_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
+        let start = self.span_start();
+
+        if self.simple_object_property_starts() {
+            let property_id = self.eat_simple_object_property(&start)?;
+
+            return Ok(property_id);
+        }
+
+        self.eat_property()
+    }
+
+    /// Return whether the current object property can use the simple field parser.
+    fn simple_object_property_starts(&mut self) -> bool {
+        let token_type = self.peek_token_type();
+        if token_type == TokenType::Spread {
+            return true;
+        }
+
+        if !self.token_starts_simple_object_key(token_type) {
+            return false;
+        }
+
+        let next_token_type = self.next_token_type();
+        matches!(
+            next_token_type,
+            TokenType::Colon | TokenType::Assign | TokenType::Comma | TokenType::CloseBrace
+        ) || Self::is_any_stop_token(next_token_type)
+    }
+
+    /// Return whether one token starts a simple object literal key.
+    fn token_starts_simple_object_key(&self, token_type: TokenType) -> bool {
+        match token_type {
+            TokenType::Identifier => true,
+            TokenType::Literal => matches!(
+                self.current_token().token.literal,
+                Some(
+                    TokenLiteral::String {
+                        is_terminated: true,
+                        has_invalid_escape: false,
+                    } | TokenLiteral::Int { .. }
+                        | TokenLiteral::Float { .. }
+                        | TokenLiteral::Boolean { .. }
+                )
+            ),
+            _ => false,
+        }
+    }
+
+    /// Eat the simple object literal property forms.
+    ///
+    /// Examples:
+    /// ```ds
+    /// key: value
+    /// key
+    /// key = fallback
+    /// ```
+    fn eat_simple_object_property(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Property>> {
+        if self.peek_is(TokenType::Spread) {
+            self.bump();
+            let value = self.eat_property_value_expression()?;
+            let property = Property::Spread { value };
+
+            return Ok(self.insert_node(property, self.get_span_from(start)));
+        }
+
+        let (key, key_span) = self.eat_key_with_span()?;
+
+        if self.peek_colon_is() {
+            return self.eat_simple_object_colon_field(start, key, key_span);
+        }
+
+        if self.peek_is(TokenType::Assign) {
+            return self.eat_simple_object_default_field(start, key, key_span);
+        }
+
+        if self.current_token_ends_shorthand_object_property() {
+            return self.eat_simple_object_shorthand_field(start, key, key_span);
+        }
+
+        Err(ParseError::unexpected(self.peek()?.span))
+    }
+
+    /// Eat one simple `key: value` object field.
+    ///
+    /// Examples:
+    /// ```ds
+    /// key: value
+    /// "key": call()
+    /// 0: first
+    /// ```
+    fn eat_simple_object_colon_field(
+        &mut self,
+        start: &ParserSpanStart,
+        key: Key,
+        key_span: Span,
+    ) -> ParseResult<LocalNodeId<Property>> {
+        let type_start = self.span_start();
+        self.bump();
+
+        let value = self.eat_simple_object_field_value()?;
+        let property_id = self.insert_node(
+            Property::Field {
+                key,
+                value,
+                is_shorthand: false,
+            },
+            self.get_span_from(start),
+        );
+        self.tree.set_main_span(property_id, key_span);
+        self.tree.set_side_span(
+            property_id,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            self.get_span_from(&type_start),
+        );
+
+        Ok(property_id)
+    }
+
+    /// Eat one simple `key = fallback` object field.
+    ///
+    /// Examples:
+    /// ```ds
+    /// key = fallback
+    /// value = call()
+    /// item = defaultItem
+    /// ```
+    fn eat_simple_object_default_field(
+        &mut self,
+        start: &ParserSpanStart,
+        key: Key,
+        key_span: Span,
+    ) -> ParseResult<LocalNodeId<Property>> {
+        let Key::Name(Name::Identifier(name)) = key else {
+            return Err(ParseError::unexpected(key_span));
+        };
+
+        let assign_start = self.span_start();
+        self.bump();
+        let default = self.eat_simple_object_field_value()?;
+        let value = self.insert_node(Expression::Identifier { name }, key_span);
+        let value = self.insert_property_default_expression(
+            value,
+            default,
+            Some(self.get_span_from(&assign_start)),
+        );
+        let property_id = self.insert_node(
+            Property::Field {
+                key,
+                value,
+                is_shorthand: true,
+            },
+            self.get_span_from(start),
+        );
+        self.tree.set_main_span(property_id, key_span);
+
+        Ok(property_id)
+    }
+
+    /// Eat one simple shorthand object field.
+    ///
+    /// Examples:
+    /// ```ds
+    /// key
+    /// value
+    /// item
+    /// ```
+    fn eat_simple_object_shorthand_field(
+        &mut self,
+        start: &ParserSpanStart,
+        key: Key,
+        key_span: Span,
+    ) -> ParseResult<LocalNodeId<Property>> {
+        let Key::Name(Name::Identifier(name)) = key else {
+            return Err(ParseError::unexpected(key_span));
+        };
+
+        let value = self.insert_node(Expression::Identifier { name }, key_span);
+        let property_id = self.insert_node(
+            Property::Field {
+                key,
+                value,
+                is_shorthand: true,
+            },
+            self.get_span_from(start),
+        );
+        self.tree.set_main_span(property_id, key_span);
+
+        Ok(property_id)
+    }
+
+    /// Return whether the current token ends a shorthand object property.
+    fn current_token_ends_shorthand_object_property(&mut self) -> bool {
+        let token_type = self.peek_token_type();
+
+        token_type == TokenType::Comma
+            || token_type == TokenType::CloseBrace
+            || Self::is_any_stop_token(token_type)
+    }
+
+    /// Eat one simple object field value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value
+    /// call()
+    /// condition ? yes : no
+    /// ```
+    fn eat_simple_object_field_value(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let token_type = self.peek_token_type();
+        if token_type == TokenType::Assign
+            || token_type == TokenType::Comma
+            || token_type == TokenType::CloseBrace
+            || Self::is_any_stop_token(token_type)
+        {
+            return Ok(self.recover_missing_expression_here(NodeType::Property));
+        }
+
+        let ambient_context = self.flags.nested();
+        let expression_context = self.flags.not_in_position().not_in_sequence_expression();
+        let flags = self
+            .flags
+            .with_ambient_context(ambient_context)
+            .with_expression_context(expression_context);
+
+        self.eat_simple_object_value_expression(flags)
+    }
+
+    /// Eat one object field value without root expression entrypoint overhead.
+    ///
+    /// Examples:
+    /// ```ds
+    /// 1
+    /// call()
+    /// value ? yes : no
+    /// ```
+    fn eat_simple_object_value_expression(
+        &mut self,
+        flags: ParserFlags,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let start = self.span_start();
+        let scope = ExpressionScope::from_flags(flags);
+
+        let expression = if self.flags == flags {
+            self.eat_assignment(&start, scope)
+        } else {
+            let outer_flags = self.swap_flags(flags);
+            let expression = self.eat_assignment(&start, scope);
+            self.restore_flags(outer_flags);
+
+            expression
+        };
+
+        expression
     }
 
     /// Eat a property.
@@ -1092,17 +1351,25 @@ impl Parser {
                     {
                         self.recover_missing_expression_here(NodeType::Property)
                     } else {
-                        let ambient_context = self.flags.nested().with_type(is_type_context);
-                        let expression_context = self
-                            .flags
-                            .not_in_position()
-                            .not_in_left_precedence()
-                            .not_in_sequence_expression();
-                        self.eat_expression(
-                            self.flags
-                                .with_ambient_context(ambient_context)
-                                .with_expression_context(expression_context),
-                        )?
+                        if is_type_context {
+                            let type_flags = self.flags.nested().in_type();
+                            let type_expression = self.eat_type_expression_or_recover_missing(
+                                type_flags,
+                                NodeType::Property,
+                            )?;
+
+                            self.insert_type_expression_value(type_expression)
+                        } else {
+                            let ambient_context = self.flags.nested();
+                            let expression_context =
+                                self.flags.not_in_position().not_in_sequence_expression();
+
+                            self.eat_expression(
+                                self.flags
+                                    .with_ambient_context(ambient_context)
+                                    .with_expression_context(expression_context),
+                            )?
+                        }
                     };
                     let type_span = self.get_span_from(&type_start);
                     (Some(value), Some(type_span))
@@ -1127,11 +1394,8 @@ impl Parser {
                     } else {
                         self.flags
                     };
-                    let expression_context = self
-                        .flags
-                        .not_in_position()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression();
+                    let expression_context =
+                        self.flags.not_in_position().not_in_sequence_expression();
                     self.eat_expression(
                         self.flags
                             .with_ambient_context(ambient_context)
@@ -1157,13 +1421,13 @@ impl Parser {
                     assign_operator_span,
                 )),
                 (None, Some(default)) if is_defaulted_shorthand => {
-                    let Some(Key::Name(Name::Identifier(name))) = key else {
-                        unreachable!("defaulted shorthand requires an identifier key");
+                    let Some((Key::Name(Name::Identifier(name)), key_span)) = key.zip(key_span)
+                    else {
+                        return Err(ParseError::unexpected(self.get_span_from(&start)));
                     };
-                    let Some(key_span) = key_span else {
-                        unreachable!("defaulted shorthand requires an identifier span");
-                    };
+
                     let value = self.insert_node(Expression::Identifier { name }, key_span);
+
                     Some(self.insert_property_default_expression(
                         value,
                         default,
@@ -1278,6 +1542,13 @@ impl Parser {
             // consume any stop
             else if Self::is_any_stop_token(token_type) {
                 self.eat_any_stop()?;
+                if !self.flags.is_in_type()
+                    && self.current_token_is_on_new_line()
+                    && Self::token_can_start_recovered_statement_item(self.peek_token_type())
+                {
+                    break;
+                }
+
                 continue;
             }
             // keep eating properties
@@ -1299,14 +1570,17 @@ impl Parser {
         Ok(properties)
     }
 
-    /// Try to eat a type member and recover into one error slot when possible.
-    pub fn try_eat_type_member(&mut self) -> ParseResult<LocalNodeId<TypeMember>> {
-        match self.eat_type_member() {
+    /// Try to eat a type member and recover one malformed member when possible.
+    pub(crate) fn try_eat_type_member(
+        &mut self,
+        body_mode: TypeMemberBodyMode,
+    ) -> ParseResult<LocalNodeId<TypeMember>> {
+        match self.eat_type_member(body_mode) {
             Ok(member_id) => Ok(member_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::TypeMember);
                 let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err.clone()))?;
+                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
 
                 Ok(self.insert_node(TypeMember::Error, recovered_span))
             }
@@ -1314,8 +1588,16 @@ impl Parser {
     }
 
     /// Eat a type member.
-    pub fn eat_type_member(&mut self) -> ParseResult<LocalNodeId<TypeMember>> {
+    pub(crate) fn eat_type_member(
+        &mut self,
+        body_mode: TypeMemberBodyMode,
+    ) -> ParseResult<LocalNodeId<TypeMember>> {
         let start = self.span_start();
+
+        // plain fields
+        if let Some(member_id) = self.eat_plain_type_field_member_if_present(&start)? {
+            return Ok(member_id);
+        }
 
         // associated members
         if let Some(member_id) = self.try_eat_type_member_associated_type(&start)? {
@@ -1326,7 +1608,8 @@ impl Parser {
         }
 
         // static
-        let is_static = if self.type_member_static_modifier_maybe() {
+        let is_static = if self.is_keyword(Keyword::Static) && self.next_token_starts_member_name()
+        {
             self.bump(); // eat static
             true
         } else {
@@ -1334,7 +1617,9 @@ impl Parser {
         };
 
         // readonly
-        let is_readonly = if self.type_member_readonly_modifier_maybe() {
+        let is_readonly = if self.is_keyword(Keyword::Readonly)
+            && self.next_same_line_token_starts_member_name()
+        {
             self.bump(); // eat readonly
             true
         } else {
@@ -1342,7 +1627,19 @@ impl Parser {
         };
 
         // abstract
-        let is_abstract = if self.type_member_abstract_modifier_maybe() {
+        let next_token = self.next_token();
+        let abstract_is_modifier = self.is_keyword(Keyword::Abstract)
+            && !next_token.token.is_on_new_line
+            && matches!(
+                next_token.token.ty,
+                TokenType::Identifier
+                    | TokenType::Literal
+                    | TokenType::Hash
+                    | TokenType::OpenBracket
+                    | TokenType::OpenParenthesis
+                    | TokenType::LessThan
+            );
+        let is_abstract = if abstract_is_modifier {
             self.bump(); // eat abstract
             true
         } else {
@@ -1363,10 +1660,9 @@ impl Parser {
             let (name, name_span) = self.eat_binding_identifier_with_span()?;
             self.eat_token(TokenType::Colon)?;
 
-            let key_type = self.eat_type_expression_node_or_recover_missing(
+            let key_type = self.eat_type_expression_or_recover_missing(
                 self.flags
                     .not_in_position()
-                    .not_in_left_precedence()
                     .not_in_sequence_expression()
                     .in_type(),
                 NodeType::TypeMember,
@@ -1440,7 +1736,17 @@ impl Parser {
         let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
         // method
-        let is_method = self.type_member_head_starts_method(role);
+        let is_method = self.peek_is(TokenType::LessThan)
+            || self.peek_is(TokenType::OpenParenthesis)
+            || matches!(
+                role,
+                Some(
+                    FunctionRole::Getter
+                        | FunctionRole::Setter
+                        | FunctionRole::Constructor
+                        | FunctionRole::New
+                )
+            );
         if is_method {
             if is_readonly {
                 return Err(ParseError::unexpected(self.peek()?.span));
@@ -1460,7 +1766,7 @@ impl Parser {
                 signature,
                 generic_parameter_span,
                 parameter_span,
-                body: _,
+                body,
                 return_type_span,
             } = self.eat_method_tail(
                 NodeType::TypeMember,
@@ -1469,7 +1775,7 @@ impl Parser {
                 false,
                 is_abstract,
                 false,
-                false,
+                body_mode.allows_body() && self.language.is_destack(),
             )?;
 
             let member = match (key, role) {
@@ -1478,7 +1784,7 @@ impl Parser {
                     is_optional,
                     key,
                     signature,
-                    body: None,
+                    body,
                 },
                 (None, Some(FunctionRole::New | FunctionRole::Constructor)) => {
                     TypeMember::ConstructSignature {
@@ -1587,42 +1893,156 @@ impl Parser {
         Ok(member_id)
     }
 
+    /// Eat a plain type field member when the head is unambiguous.
+    ///
+    /// Examples:
+    /// ```ds
+    /// name: string
+    /// name?: string
+    /// "kind": "ready"
+    /// ```
+    fn eat_plain_type_field_member_if_present(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<Option<LocalNodeId<TypeMember>>> {
+        if !self.plain_type_field_member_starts_here() {
+            return Ok(None);
+        }
+
+        let (key, key_span) = self.eat_key_with_span()?;
+
+        let optional_start = self.span_start();
+        let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
+        let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
+
+        let type_start = self.span_start();
+        self.eat_token(TokenType::Colon)?;
+        let declared_type = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
+            self.recover_missing_type_expression_here(NodeType::TypeMember)
+        } else {
+            self.eat_method_return_type(NodeType::TypeMember)?
+        };
+
+        let member_id = self.insert_node(
+            TypeMember::Field {
+                is_static: false,
+                is_optional,
+                is_readonly: false,
+                key,
+                declared_type: Some(declared_type),
+            },
+            self.get_span_from(start),
+        );
+        self.tree.set_main_span(member_id, key_span);
+        self.tree.set_side_span(
+            member_id,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            self.get_span_from(&type_start),
+        );
+
+        if let Some(span) = optional_span {
+            self.tree.set_side_span(
+                member_id,
+                NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
+                span,
+            );
+        }
+
+        Ok(Some(member_id))
+    }
+
+    /// Return whether the current member is a plain field.
+    fn plain_type_field_member_starts_here(&mut self) -> bool {
+        if !matches!(
+            self.peek_token_type(),
+            TokenType::Identifier | TokenType::Literal
+        ) {
+            return false;
+        }
+
+        let next_token_type = self.token_type_at_offset(1);
+        if next_token_type == TokenType::Colon {
+            return true;
+        }
+
+        next_token_type == TokenType::Maybe && self.token_type_at_offset(2) == TokenType::Colon
+    }
+
     /// Eat type members inside one object type body.
-    pub fn eat_type_members(&mut self) -> ParseResult<Vec<LocalNodeId<TypeMember>>> {
+    pub(crate) fn eat_type_members(
+        &mut self,
+        body_mode: TypeMemberBodyMode,
+    ) -> ParseResult<Vec<LocalNodeId<TypeMember>>> {
         let mut members: Vec<LocalNodeId<TypeMember>> = Vec::new();
         let mut pending_member_decorators = PendingDecorators::new();
+        let mut previous_member_had_error = false;
+
         while self.has_more_tokens() {
             let token_type = self.peek_token_type();
 
+            // close the member list
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if !pending_member_decorators.is_empty() {
                     let error = ParseError::unexpected(self.peek()?.span);
                     self.error(&error);
                     pending_member_decorators.clear();
                 }
+
                 break;
-            } else if token_type == TokenType::At {
+            }
+            // collect decorators for the next member
+            else if token_type == TokenType::At {
                 let decorators = self.eat_decorators_maybe()?;
                 pending_member_decorators.extend(decorators);
+                previous_member_had_error = false;
+
                 continue;
-            } else if token_type == TokenType::Comma {
+            }
+            // skip item separators
+            else if token_type == TokenType::Comma {
                 self.eat_item_stop()?;
+                previous_member_had_error = false;
+
                 continue;
-            } else if Self::is_any_stop_token(token_type) {
+            }
+            // let a damaged member release the next declaration
+            else if token_type == TokenType::Semicolon {
+                if previous_member_had_error
+                    && self.current_token_is_declaration_recovery_boundary(token_type)
+                {
+                    break;
+                }
+
                 self.eat_any_stop()?;
+                previous_member_had_error = false;
+
                 continue;
-            } else {
-                match self.try_eat_type_member() {
-                    Ok(member_id) => {
-                        if !pending_member_decorators.is_empty() {
-                            self.attach_decorators(
-                                member_id.id,
-                                std::mem::take(&mut pending_member_decorators),
-                            );
-                        }
-                        members.push(member_id);
+            }
+            // skip statement separators
+            else if Self::is_any_stop_token(token_type) {
+                self.eat_any_stop()?;
+                previous_member_had_error = false;
+
+                continue;
+            }
+
+            let error_count = self.errors.len();
+            match self.try_eat_type_member(body_mode) {
+                Ok(member_id) => {
+                    previous_member_had_error = self.errors.len() > error_count
+                        || matches!(self.tree.get(member_id), TypeMember::Error);
+
+                    if !pending_member_decorators.is_empty() {
+                        self.attach_decorators(
+                            member_id.id,
+                            std::mem::take(&mut pending_member_decorators),
+                        );
                     }
-                    Err(_) => continue,
+
+                    members.push(member_id);
+                }
+                Err(_) => {
+                    previous_member_had_error = true;
                 }
             }
         }
@@ -1630,14 +2050,14 @@ impl Parser {
         Ok(members)
     }
 
-    /// Try to eat a member and recover into one error slot when possible.
+    /// Try to eat a member and recover one malformed member when possible.
     pub fn try_eat_member(&mut self) -> ParseResult<LocalNodeId<Member>> {
         match self.eat_member() {
             Ok(member_id) => Ok(member_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::Member);
                 let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err.clone()))?;
+                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
 
                 Ok(self.insert_node(Member::Error, recovered_span))
             }
@@ -1681,10 +2101,8 @@ impl Parser {
             && self.is_keyword(Keyword::Static)
         {
             let static_span = self.peek()?.span;
-            let has_member_name_after = self.lookahead(|parser| {
-                parser.bump();
-                parser.peek_is(TokenType::Identifier) && parser.current_keyword().is_none()
-            });
+            let has_member_name_after =
+                self.next_token_type() == TokenType::Identifier && self.next_keyword().is_none();
             if has_member_name_after {
                 let error = ParseError::unexpected(static_span);
                 self.error(&error);
@@ -1866,12 +2284,7 @@ impl Parser {
                 let default = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
                     self.recover_missing_expression_here(NodeType::Member)
                 } else {
-                    self.eat_expression(
-                        self.flags
-                            .not_in_position()
-                            .not_in_left_precedence()
-                            .not_in_sequence_expression(),
-                    )?
+                    self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?
                 };
                 Some(default)
             } else {
@@ -1905,8 +2318,12 @@ impl Parser {
                     is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
                 }
             } else {
+                let Some(key) = key else {
+                    return Err(ParseError::unexpected(self.get_span_from(&start)));
+                };
+
                 Member::Field {
-                    key: key.expect("field member requires key"),
+                    key,
                     declared_type: value,
                     default,
                     mutability: None,
@@ -1993,1176 +2410,5 @@ impl Parser {
             }
         }
         Ok(members)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_dir::{
-        Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
-        Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
-        GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, MethodAbstraction, Name,
-        NodeType, Parameter, Property, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
-        TypeMember, TypePredicateSubject, Visibility,
-    };
-    use destack_source::LanguageType;
-
-    use crate::tests::TestParser;
-    use crate::{
-        assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
-        block_expression_ids,
-    };
-
-    #[test]
-    fn test_parse_member_with_private_hash_name() {
-        let mut test = TestParser::new_with_language(r#"#name: string"#, LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(ty), default: None, .. } => {
-            assert_string!(parser, *name, "name");
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::String);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_typescript_member_definite_field() {
-        let mut test = TestParser::new_with_language("prop!: Foo", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        test.assert_no_errors(&parser);
-
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
-            assert_string!(parser, *name, "prop");
-            assert!(*is_definite);
-            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
-        });
-    }
-
-    #[test]
-    fn test_parse_typescript_member_definite_accessor() {
-        let mut test = TestParser::new_with_language("accessor a!: any", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        test.assert_no_errors(&parser);
-
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
-            assert_string!(parser, *name, "a");
-            assert!(*is_accessor);
-            assert!(*is_definite);
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Any);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_destack_member_definite_field() {
-        let mut test = TestParser::new("prop!: Foo");
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        test.assert_no_errors(&parser);
-
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
-            assert_string!(parser, *name, "prop");
-            assert!(*is_definite);
-            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
-        });
-    }
-
-    #[test]
-    fn test_parse_destack_member_definite_accessor() {
-        let mut test = TestParser::new("accessor a!: any");
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        test.assert_no_errors(&parser);
-
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
-            assert_string!(parser, *name, "a");
-            assert!(*is_accessor);
-            assert!(*is_definite);
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Any);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_declare_accessor_private_hash() {
-        let mut test = TestParser::new_with_language(
-            "private declare accessor #value: string",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(value), visibility, is_ambient, is_accessor, .. } => {
-            assert_string!(parser, *name, "value");
-            assert_eq!(*visibility, Some(Visibility::Private));
-            assert_eq!(*is_ambient, true);
-            assert!(*is_accessor);
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::String);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_rejects_optional_definite_assignment_combo() {
-        let mut test = TestParser::new_with_language("prop!?: Foo", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let error = parser.eat_member().unwrap_err();
-        assert_eq!(parser.get_span_str(error.leaf_span()), "?");
-    }
-
-    #[test]
-    fn test_parse_member_override_field() {
-        let mut test =
-            TestParser::new_with_language("override foo: int32", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_override, .. } => {
-            assert!(*is_override);
-            assert_string!(parser, *name, "foo");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(
-                    *value,
-                    TypeLiteral::Integer(IntegerType::Fixed {
-                        width: 32,
-                        is_signed: true,
-                    })
-                );
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_default_object_arrow_with_this_member_call_argument() {
-        let mut test = TestParser::new_with_language(
-            r"
-port2 = {
-  postMessage: () => {
-    setTimeout(this.port1.onmessage, 0);
-  }
-}
-",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-        let member_id = parser.eat_member().unwrap();
-
-        // port2 = { postMessage: () => { setTimeout(this.port1.onmessage, 0) } }
-        assert_node!(parser.tree, member_id, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: None, default: Some(default), .. } => {
-            assert_string!(parser, *name, "port2");
-            assert_node!(parser.tree, *default, Expression::ObjectExpression { properties, .. } => {
-                assert_eq!(properties.len(), 1);
-                assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-                    assert_string!(parser, *name, "postMessage");
-                    assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
-                        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-                            assert_eq!(signature.form, FunctionForm::Lambda);
-                            assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                                assert_node!(parser.tree, *block_id, Block { .. } => {
-                                    let expressions = block_expression_ids(parser.tree.get(*block_id));
-                                    assert_eq!(expressions.len(), 1);
-                                    assert_node!(parser.tree, expressions[0], Expression::Call { arguments, .. } => {
-                                            assert_eq!(arguments.len(), 2);
-                                            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                                                assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
-                                                    assert_string!(parser, *name, "onmessage");
-                                                    assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-                                                        assert_string!(parser, *name, "port1");
-                                                        assert_node!(parser.tree, *left, Expression::This);
-                                                    });
-                                                });
-                                            });
-                                    });
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_abstract_override_method() {
-        let mut test = TestParser::new_with_language(
-            "abstract override foo(): void",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, abstraction, is_override, .. } => {
-            assert_string!(parser, *name, "foo");
-            assert!(signature.is_abstract);
-            assert_eq!(*abstraction, MethodAbstraction::Abstract);
-            assert!(*is_override);
-        });
-    }
-
-    #[test]
-    fn test_parse_member_virtual_method() {
-        let mut test = TestParser::new("virtual foo(): void {}");
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, abstraction, body: Some(body), .. } => {
-            assert_string!(parser, *name, "foo");
-            assert_eq!(*abstraction, MethodAbstraction::Virtual);
-            assert!(!signature.is_abstract);
-            assert_node!(parser.tree, *body, Expression::Block(_));
-        });
-    }
-
-    #[test]
-    fn test_parse_member_async_override_method() {
-        let mut test = TestParser::new_with_language(
-            "public async override foo(): void",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, visibility, is_override, .. } => {
-            assert_eq!(*visibility, Some(Visibility::Public));
-            assert_string!(parser, *name, "foo");
-            assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert!(*is_override);
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_parameter_type_then_default_value() {
-        let mut test = TestParser::new_with_language(
-            "usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {}",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-
-        // parse one method where a typed parameter is followed by a defaulted parameter
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(_), .. } => {
-            assert_string!(parser, *name, "usersLimitReached");
-            assert_eq!(signature.parameters.len(), 2);
-
-            // userCount: number
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), default, .. } => {
-                assert_string!(parser, *name, "userCount");
-                assert!(default.is_none());
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Number);
-                });
-            });
-
-            // userLimit = get(this.store).userLimit
-            assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type, default: Some(default), .. } => {
-                assert_string!(parser, *name, "userLimit");
-                assert!(declared_type.is_none());
-                assert_node!(parser.tree, *default, Expression::Member { name, .. } => {
-                    assert_string!(parser, *name, "userLimit");
-                });
-            });
-        });
-
-        // this signature parses without recovery diagnostics
-        test.assert_no_errors(&parser);
-    }
-
-    #[test]
-    fn test_parse_member_method_generic_with_newline_before_parameters() {
-        let mut test = TestParser::new_with_language(
-            "private method<T>\n(value: T): T { return value }",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-
-        // parse one method with a generic parameter and a newline before dynamic parameters
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body), visibility, .. } => {
-            assert_eq!(*visibility, Some(Visibility::Private));
-            assert_string!(parser, *name, "method");
-
-            // parse the generic, dynamic parameter, and return type as one coherent signature
-            let generic_parameters = &signature.generic_parameters;
-            assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, .. } => {
-                assert_string!(parser, *name, "T");
-            });
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
-                assert_string!(parser, *name, "value");
-                assert_expression_path!(parser, parser.tree.get(*ty), "T");
-            });
-            assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "T");
-
-            // keep a method body attached after the multiline signature
-            assert_node!(parser.tree, *body, Expression::Block(_));
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_with_newline_before_return_type() {
-        let mut test = TestParser::new_with_language(
-            "method(value: string)\n: string { return value }",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-
-        // parse one method with a newline before return type marker
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: Some(body), .. } => {
-            assert_string!(parser, *name, "method");
-
-            // keep the dynamic parameter and return type attached to the same method signature
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
-                assert_string!(parser, *name, "value");
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::String);
-                });
-            });
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::String);
-            });
-
-            // keep a method body attached after the multiline return type annotation
-            assert_node!(parser.tree, *body, Expression::Block(_));
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_object_union_return_type() {
-        let mut test = TestParser::new_with_language(
-            "overlaps(): { overlaps: false } | { overlaps: true; reason: string }",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, body: None, .. } => {
-            assert_string!(parser, *name, "overlaps");
-
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {
-                assert_eq!(elements.len(), 2);
-                assert_node!(parser.tree, elements[0], TypeExpression::Object { members: properties } => {
-                    assert_eq!(properties.len(), 1);
-                });
-                assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
-                    assert_eq!(properties.len(), 2);
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_body_boundary_comment_on_return_type() {
-        let mut test = TestParser::new_with_language(
-            "method(): number // method-body\n{ return 1 }",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        parser.attach_comments();
-        assert_node!(parser.tree, member, Member::Method { signature, body: Some(body), .. } => {
-            let return_type = signature.return_type.expect("expected return type");
-            let return_type_annotations = parser.tree.get_decorators(return_type.id);
-            assert!(return_type_annotations.is_empty());
-
-            assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { .. } => {
-                    let expressions = block_expression_ids(parser.tree.get(*block_id));
-                    assert_eq!(expressions.len(), 1);
-                    let body_statement_annotations = parser.tree.get_decorators(expressions[0].id);
-                    assert!(body_statement_annotations.is_empty());
-                });
-            });
-        });
-        assert_eq!(parser.tree.comments().len(), 1);
-        assert_comment!(parser, 0, CommentKind::Line, "method-body");
-    }
-
-    #[test]
-    fn test_parse_member_async_string_literal_name() {
-        let mut test = TestParser::new_with_language(
-            r#"async 'delete'(name: string): Promise<boolean> { return true }"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::String(name))), signature, body, .. } => {
-            assert_string!(parser, *name, "delete");
-            assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
-                assert_string!(parser, *name, "name");
-                assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::String);
-                });
-            });
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Reference { path, generic_arguments } => {
-                assert_path!(parser, *path, "Promise");
-                assert_eq!(generic_arguments.len(), 1);
-                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Boolean);
-                        });
-                });
-            });
-            assert_node!(parser.tree, body.expect("expected method body"), Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { .. } => {
-                    let expressions = block_expression_ids(parser.tree.get(*block_id));
-                    assert_eq!(expressions.len(), 1);
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_named_public() {
-        let mut test = TestParser::new_with_language("public() {}", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), visibility, .. } => {
-            assert!(visibility.is_none());
-            assert_string!(parser, *name, "public");
-        });
-    }
-
-    #[test]
-    fn test_parse_member_static_method_named_protected() {
-        let mut test =
-            TestParser::new_with_language("static protected() {}", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), is_static, .. } => {
-            assert!(*is_static);
-            assert_string!(parser, *name, "protected");
-        });
-    }
-
-    #[test]
-    fn test_parse_member_field_named_static() {
-        let mut test = TestParser::new_with_language("static", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: None, default: None, .. } => {
-            assert_string!(parser, *name, "static");
-        });
-    }
-
-    #[test]
-    fn test_parse_member_missing_default_expression() {
-        // x =
-        let mut test = TestParser::new("x =");
-        let mut parser = test.prepare();
-        let member = parser.eat_member().unwrap();
-
-        assert_eq!(parser.errors.len(), 1);
-
-        // x =
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: None, default: Some(default), .. } => {
-            assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *default, Expression::Missing);
-        });
-    }
-
-    #[test]
-    fn test_parse_members_recover_error_slot() {
-        // +\ny: int32
-        let mut test = TestParser::new("+\ny: int32");
-        let mut parser = test.prepare();
-        let members = parser.eat_members(false).unwrap();
-
-        assert_eq!(parser.errors.len(), 1);
-        assert_eq!(members.len(), 2);
-
-        // error, y: int32
-        assert_node!(parser.tree, members[0], Member::Error);
-        assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
-            assert_string!(parser, *name, "y");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(
-                    *value,
-                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
-                    })
-                );
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_members_rejects_embedded_type_and_recovers() {
-        let mut test = TestParser::new("...Transform\nx: int32");
-        let mut parser = test.prepare();
-        let members = parser.eat_members(false).unwrap();
-
-        assert_eq!(parser.errors.len(), 1);
-        assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "...");
-        assert_eq!(members.len(), 2);
-
-        assert_node!(parser.tree, members[0], Member::Error);
-        assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
-            assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(
-                    *value,
-                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
-                    })
-                );
-            });
-        });
-    }
-
-    #[test]
-    fn test_reject_member_method_signature_without_separator() {
-        let mut test =
-            TestParser::new_with_language("method() method2()", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let result = parser.eat_member();
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_parse_interface_get_set_with_newlines() {
-        let mut test = TestParser::new_with_language(
-            r#"interface Foo {
-  get
-  foo(): string;
-  set
-  bar(v);
-}"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-        // parse interface members with get and set
-        assert_eq!(expressions.len(), 1);
-        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
-                let mut getter: Option<Key> = None;
-                let mut setter: Option<Key> = None;
-                for member_id in members {
-                    if let TypeMember::Method { signature, key, .. } = parser.tree.get(*member_id) {
-                        match signature.role {
-                            Some(FunctionRole::Getter) => getter = Some(*key),
-                            Some(FunctionRole::Setter) => setter = Some(*key),
-                            _ => {}
-                        }
-                    }
-                }
-                let getter = getter.expect("expected getter member");
-                let setter = setter.expect("expected setter member");
-                assert!(matches!(getter, Key::Name(Name::Identifier(_))));
-                assert!(matches!(setter, Key::Name(Name::Identifier(_))));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_get_set_newline_only() {
-        let mut test = TestParser::new_with_language(
-            r#"get
-foo(): string;"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let member = parser.with_flags(parser.flags.in_variant(), |parser| parser.eat_member());
-        assert!(
-            member.is_ok(),
-            "unexpected member parse error: {:#?}",
-            member.err()
-        );
-    }
-
-    #[test]
-    fn test_parse_property_with_value() {
-        let mut test = TestParser::new("x: int32");
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-        let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
-            assert_string!(parser, *name, "x");
-            assert!(!*is_shorthand);
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                    assert_eq!(
-                        *value,
-                        TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
-                        })
-                    );
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_property_with_default_value() {
-        let mut test = TestParser::new("x = 42");
-        let mut parser = test.prepare();
-        let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
-            assert_string!(parser, *name, "x");
-            assert!(*is_shorthand);
-            assert_node!(parser.tree, *value, Expression::Assign { left, operator, right } => {
-                assert_eq!(*operator, AssignOperator::Assign);
-                assert_expression_path!(parser, parser.tree.get(*left), "x");
-                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_property_missing_value_expression() {
-        // x:
-        let mut test = TestParser::new("x:");
-        let mut parser = test.prepare();
-        let property = parser.eat_property().unwrap();
-
-        assert_eq!(parser.errors.len(), 1);
-
-        // x:
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *value, Expression::Missing);
-        });
-    }
-
-    #[test]
-    fn test_parse_property_with_typed_arrow_value() {
-        let mut test = TestParser::new_with_language(
-            "reproFunc: (_: any): any => { }",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "reproFunc");
-            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
-                    assert_eq!(signature.form, FunctionForm::Lambda);
-                    assert_eq!(signature.parameters.len(), 1);
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_typescript_member_type_keyword_as_field_key() {
-        let mut test = TestParser::new_with_language("type: string", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-
-        assert_node!(parser.tree, member_id, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
-            assert_string!(parser, *name, "type");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
-        });
-
-        test.assert_no_errors(&parser);
-    }
-
-    #[test]
-    fn test_parse_typescript_type_member_keyword_keys_as_fields() {
-        let mut test = TestParser::new_with_language(
-            r#"type: string;
-comptime: number"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let members = parser.eat_type_members().unwrap();
-
-        assert_eq!(members.len(), 2);
-        assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
-            assert_string!(parser, *name, "type");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
-        });
-        assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
-            assert_string!(parser, *name, "comptime");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
-        });
-
-        test.assert_no_errors(&parser);
-    }
-
-    #[test]
-    fn test_parse_property_with_value_and_default_value() {
-        let mut test = TestParser::new("x: int32 = 42");
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-        let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *value, Expression::Assign { .. });
-        });
-    }
-
-    #[test]
-    fn test_parse_property_diagnoses_definite_assignment() {
-        let mut test = TestParser::new_with_language("prop!: LongType[]", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        let error = parser.eat_property().unwrap_err();
-        assert_eq!(parser.get_span_str(error.leaf_span()), "!");
-    }
-
-    #[test]
-    fn test_parse_properties_recover_error_slot() {
-        // +\ny: int32
-        let mut test = TestParser::new("+\ny: int32");
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-        let properties = parser.eat_properties().unwrap();
-
-        assert_eq!(parser.errors.len(), 1);
-        assert_eq!(properties.len(), 2);
-
-        // error, y: int32
-        assert_node!(parser.tree, properties[0], Property::Error);
-        assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "y");
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                    assert_eq!(
-                        *value,
-                        TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
-                        })
-                    );
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_properties_recover_unkeyed_value_field() {
-        let mut test = TestParser::new(": 1,\ny: 2");
-        let mut parser = test.prepare();
-        let properties = parser.eat_properties().unwrap();
-
-        test.assert_error_leaves(
-            &parser,
-            &[(Some(NodeType::Property), Some(TokenType::Identifier), ":")],
-        );
-        assert_eq!(properties.len(), 2);
-
-        // error, y: 2
-        assert_node!(parser.tree, properties[0], Property::Error);
-        assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "y");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
-        });
-    }
-
-    #[test]
-    fn test_parse_properties_recover_unkeyed_default_field() {
-        let mut test = TestParser::new("= 1,\ny: 2");
-        let mut parser = test.prepare();
-        let properties = parser.eat_properties().unwrap();
-
-        test.assert_error_leaves(
-            &parser,
-            &[(Some(NodeType::Property), Some(TokenType::Identifier), "=")],
-        );
-        assert_eq!(properties.len(), 2);
-
-        // error, y: 2
-        assert_node!(parser.tree, properties[0], Property::Error);
-        assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "y");
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
-        });
-    }
-
-    #[test]
-    fn test_parse_property_rejects_optional_definite_assignment_combo() {
-        let mut test =
-            TestParser::new_with_language("prop!?: LongType[]", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-
-        assert!(parser.eat_property().is_err());
-    }
-
-    #[test]
-    fn test_parse_property_method_call() {
-        let mut test = TestParser::new("<T = any>(x: T): T");
-        let mut parser = test.prepare();
-        let property_id = parser.eat_property().unwrap();
-        // <T = any>(x: T): T
-        assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
-            assert_eq!(signature.role, Some(FunctionRole::Call));
-            let generic_parameters = &signature.generic_parameters;
-            // <T = any>
-            assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
-                assert_string!(parser, *name, "T");
-                assert!(constraint.is_none());
-                assert_node!(parser.tree, default.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Any);
-                });
-            });
-            // x: T
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "x");
-                assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "T");
-            });
-            // T
-            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
-        });
-    }
-
-    #[test]
-    fn test_parse_property_method_object_return_type() {
-        let mut test = TestParser::new("method(): { value: string; count: number }");
-        let mut parser = test.prepare();
-        let property_id = parser.eat_property().unwrap();
-
-        assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
-            assert_string!(parser, *name, "method");
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Object { members: properties } => {
-                assert_eq!(properties.len(), 2);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_object_property_constructor_method_as_key() {
-        let mut test = TestParser::new("constructor(x: int32);");
-        let mut parser = test.prepare();
-
-        let property_id = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property_id, Property::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
-            // constructor
-            assert_string!(parser, *name, "constructor");
-            assert!(signature.role.is_none());
-            assert!(signature.generic_parameters.is_empty());
-            // x: int32
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
-                assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_constructor_parameter_property_readonly_public_modifier_order_reports_error() {
-        let mut test = TestParser::new_with_language(
-            r"class D extends B {
-  constructor(readonly public foo: string) {}
-}",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        parser.parse();
-
-        assert_eq!(parser.errors.len(), 1);
-    }
-
-    #[test]
-    fn test_parse_member_computed_optional_method() {
-        let mut test = TestParser::new_with_language(
-            "[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void",
-            LanguageType::TypeScriptDeclaration,
-        );
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Expression(key)), signature, is_optional, .. } => {
-            assert!(*is_optional);
-            assert_expression_path!(parser, parser.tree.get(*key), "EventEmitter.captureRejectionSymbol");
-            let generic_parameters = &signature.generic_parameters;
-            assert_eq!(generic_parameters.len(), 1);
-            assert_eq!(signature.parameters.len(), 1);
-            assert!(signature.return_type.is_some());
-        });
-    }
-
-    #[test]
-    fn test_parse_member_type_with_value() {
-        let mut test = TestParser::new("type Item = string");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(value), visibility, is_ambient, .. } => {
-            assert_string!(parser, *name, "Item");
-            assert!(generic_parameters.is_empty());
-            assert!(where_clauses.is_empty());
-            assert!(visibility.is_none());
-            assert_eq!(*is_ambient, false);
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::String);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_type_with_bound() {
-        let mut test = TestParser::new("type Item: Hashable");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: Some(ty), value: None, .. } => {
-            assert_string!(parser, *name, "Item");
-            assert!(generic_parameters.is_empty());
-            assert!(where_clauses.is_empty());
-            assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
-        });
-    }
-
-    #[test]
-    fn test_parse_member_type_with_multiline_bound() {
-        let mut test = TestParser::new(
-            r#"type Item:
-    | Foo
-    | Bar"#,
-        );
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: None, .. } => {
-            assert_string!(parser, *name, "Item");
-            assert_node!(parser.tree, *ty, TypeExpression::Union { .. });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_type_with_bound_and_value() {
-        let mut test = TestParser::new("type Item: Hashable = string");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, constraint: Some(ty), value: Some(value), .. } => {
-            assert_string!(parser, *name, "Item");
-            assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::String);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_type_with_visibility() {
-        let mut test = TestParser::new("public type Item = string");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, value: Some(_), visibility, .. } => {
-            assert_eq!(*visibility, Some(Visibility::Public));
-            assert_string!(parser, *name, "Item");
-        });
-    }
-
-    #[test]
-    fn test_parse_member_type_with_generic_parameters() {
-        let mut test = TestParser::new("type View<U> = [Item, U]");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(_), .. } => {
-            assert_string!(parser, *name, "View");
-            assert!(where_clauses.is_empty());
-            assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, .. } => {
-                assert_string!(parser, *name, "U");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_static_new_method_as_key() {
-        let mut test = TestParser::new("static new<T>(): Set<T> { undefined! }");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-
-        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
-            assert_string!(parser, name.string(), "new");
-            assert!(*is_static);
-            assert!(signature.role.is_none());
-            assert_eq!(signature.generic_parameters.len(), 1);
-            assert!(signature.return_type.is_some());
-        });
-    }
-
-    #[test]
-    fn test_parse_member_static_constructor_method_as_key() {
-        let mut test = TestParser::new("static constructor<T>(): Set<T> { undefined! }");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-
-        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, is_static, .. } => {
-            assert_string!(parser, name.string(), "constructor");
-            assert!(*is_static);
-            assert!(signature.role.is_none());
-            assert_eq!(signature.generic_parameters.len(), 1);
-            assert!(signature.return_type.is_some());
-        });
-    }
-
-    #[test]
-    fn test_parse_member_associated_comptime_const() {
-        let mut test = TestParser::new("comptime const Rows: number = 128");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), is_static, .. } => {
-            assert_string!(parser, *name, "Rows");
-            assert!(!*is_static);
-            assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Number);
-            });
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(value) => {
-                assert_eq!(*value, ScalarLiteral::Integer(128));
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_associated_comptime_const_binary_default() {
-        let mut test = TestParser::new("comptime const LaneWidth: number = WidthHint * 2");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::AssociatedConst { value: Some(value), .. } => {
-            assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
-                assert_eq!(*operator, BinaryOperator::Multiply);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_associated_comptime_const_type_relation_default() {
-        let mut test = TestParser::new("comptime const Width: uint = Row extends string ? 4 : 2");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-
-        assert_node!(parser.tree, member_id, Member::AssociatedConst { value: Some(value), .. } => {
-            assert_node!(parser.tree, *value, Expression::Type { value } => {
-                assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
-                    assert_expression_path!(parser, parser.tree.get(*left), "Row");
-                    assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value: TypeLiteral::String });
-                    assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(4) });
-                    assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(2) });
-                });
-            });
-        });
-
-        test.assert_no_errors(&parser);
-    }
-
-    #[test]
-    fn test_parse_member_comptime_block() {
-        let mut test = TestParser::new("comptime { assert(true) }");
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::ComptimeBlock { body } => {
-            assert_node!(parser.tree, *body, Expression::Block(_));
-        });
-    }
-
-    #[test]
-    fn test_parse_member_comptime_block_after_line_break() {
-        let mut test = TestParser::new(
-            r#"comptime
-{ assert(true) }"#,
-        );
-        let mut parser = test.prepare();
-        let member_id = parser.eat_member().unwrap();
-
-        assert_node!(parser.tree, member_id, Member::ComptimeBlock { body } => {
-            assert_node!(parser.tree, *body, Expression::Block(_));
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_with_multiline_return_type() {
-        let mut test = TestParser::new_with_language(
-            r#"Type(object: unknown):
-    | 'Undefined'
-    | 'Boolean'
-    | 'String'"#,
-            LanguageType::TypeScriptDeclaration,
-        );
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Method { key: Some(Key::Name(name)), signature, .. } => {
-            assert_string!(parser, name.string(), "Type");
-            assert_eq!(signature.parameters.len(), 1);
-            assert!(signature.return_type.is_some());
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Union { .. });
-        });
-    }
-
-    #[test]
-    fn test_parse_member_method_with_type_predicate_return_type() {
-        let mut test = TestParser::new_with_language(
-            "public isDynamicModule(module: Type<any> | DynamicModule): module is DynamicModule",
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        parser.flags.set_in_variant(true);
-
-        let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {
-            assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Predicate { asserts, subject, target } => {
-                assert!(!asserts);
-                assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
-                assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
-        let mut test = TestParser::new_with_language(
-            r#"class Box {
-  first = 1 // first-tail
-  second = 2 // second-tail
-}"#,
-            LanguageType::TypeScript,
-        );
-        let mut parser = test.prepare();
-        let expressions = parser.parse();
-
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parser errors: {:?}",
-            parser.errors
-        );
-        assert_eq!(expressions.len(), 1);
-
-        let expression_id = parser.unwrap_label_expression(expressions[0]);
-        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
-                assert_eq!(members.len(), 2);
-
-                let first_annotations = parser.tree.get_decorators(members[0].id);
-                assert!(first_annotations.is_empty());
-
-                let second_annotations = parser.tree.get_decorators(members[1].id);
-                assert!(second_annotations.is_empty());
-            });
-        });
-        assert_eq!(parser.tree.comments().len(), 2);
-        assert_comment!(parser, 0, CommentKind::Line, "first-tail");
-        assert_comment!(parser, 1, CommentKind::Line, "second-tail");
     }
 }

@@ -1,64 +1,11 @@
 use destack_dir::{
     Expression, GenericArgument, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType,
-    TypeExpression,
 };
 use destack_source::Span;
 
 use crate::{ParseResult, Parser};
 
 impl Parser {
-    /// Eat one type-space bracket postfix.
-    pub(crate) fn eat_type_index(
-        &mut self,
-        receiver_id: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
-        let start = self.span_start();
-        let receiver_span = self.tree.get_span(receiver_id);
-
-        // open bracket
-        self.eat_token(TokenType::OpenBracket)?;
-
-        // bare brackets in type positions mean array type form: `T[]`
-        if self.peek_is(TokenType::CloseBracket) {
-            self.bump(); // eat close bracket
-            let element = receiver_id;
-
-            let array_expression = TypeExpression::Array { element };
-            let index_span = self.get_span_from(&start);
-            let span = Span::new(index_span.file, receiver_span.start, index_span.end);
-            let array_id = self.insert_node(array_expression, span);
-
-            return Ok(array_id);
-        }
-
-        // missing index
-        let is_missing_index = Self::is_expression_slot_boundary_token(self.peek_token_type());
-        let index = if is_missing_index {
-            self.recover_missing_type_expression_here(NodeType::TypeExpression)
-        } else {
-            let index_flags = self.flags.nested().in_type();
-
-            self.eat_type_expression_node_or_recover_missing(index_flags, NodeType::TypeExpression)?
-        };
-
-        // close bracket
-        if !is_missing_index {
-            self.eat_close_token_or_recover_missing(
-                TokenType::CloseBracket,
-                NodeType::TypeExpression,
-            )?;
-        }
-
-        let left = receiver_id;
-
-        let index_expression = TypeExpression::Index { left, index };
-        let index_span = self.get_span_from(&start);
-        let span = Span::new(index_span.file, receiver_span.start, index_span.end);
-        let index_id = self.insert_node(index_expression, span);
-
-        Ok(index_id)
-    }
-
     /// Eat one value-space explicit index postfix.
     ///
     /// Examples:
@@ -100,7 +47,7 @@ impl Parser {
         let index = if is_missing_index {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.eat_expression(self.flags.nested())?
+            self.eat_expression(self.flags.nested().with_sequence_expression(true))?
         };
 
         // close bracket
@@ -156,7 +103,7 @@ impl Parser {
 
         // generic arguments: may be empty
         if generic_arguments.is_none() {
-            generic_arguments = self.try_eat_generic_arguments(false, true);
+            generic_arguments = self.eat_generic_arguments_if_valid(true);
         }
 
         // dynamic arguments: untyped value mode accepts `new Foo` without parentheses
