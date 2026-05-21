@@ -149,7 +149,7 @@ impl<'a> TypeLowerer<'a> {
     /// Return whether one symbol has the given declaration form.
     pub(crate) fn symbol_is(&self, symbol: dir::GlobalSymbolId, form: dir::SymbolForm) -> bool {
         self.symbol_form(symbol)
-            .is_some_and(|actual| actual == form)
+            .is_some_and(|actual| actual.matches_form(form))
     }
 
     /// Return the diagnostic anchor for one DIR node.

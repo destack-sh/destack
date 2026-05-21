@@ -87,7 +87,7 @@ impl ModuleLowerer<'_> {
         let Some(resolution) = self.resolutions.call_resolution(node_id) else {
             return Ok(());
         };
-        let dir::CallTarget::Direct(candidate) = &resolution.target else {
+        let dir::CallTarget::Symbol(candidate) = &resolution.target else {
             return Ok(());
         };
 

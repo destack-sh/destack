@@ -106,7 +106,7 @@ impl FunctionLowerer<'_> {
                 message: "call expression missing DIR call resolution".to_string(),
             })
             .map_err(CompilerError::from)?;
-        let dir::CallTarget::Direct(target) = &resolution.target else {
+        let dir::CallTarget::Symbol(target) = &resolution.target else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id

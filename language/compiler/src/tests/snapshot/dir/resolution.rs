@@ -95,11 +95,14 @@ fn add_member_resolution_row(
         );
 
     let row = match &resolution.target {
+        dir::MemberTarget::Builtin(builtin) => row
+            .field("kind", "builtin")
+            .field("builtin", builtin_member_label(*builtin)),
         dir::MemberTarget::Field(key) => row
             .field("kind", "field")
             .field("key", builder.static_key(*key)),
-        dir::MemberTarget::Direct(candidate) => row
-            .field("kind", "direct")
+        dir::MemberTarget::Symbol(candidate) => row
+            .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
             .optional_field(
                 "instance",
@@ -140,9 +143,9 @@ fn add_call_resolution_row(
         dir::CallTarget::Builtin(builtin) => row
             .field("kind", "builtin")
             .field("builtin", builtin_call_label(*builtin)),
-        dir::CallTarget::Indirect => row.field("kind", "indirect"),
-        dir::CallTarget::Direct(candidate) => {
-            add_call_candidate_fields(builder, row.field("kind", "direct"), candidate)
+        dir::CallTarget::Value => row.field("kind", "value"),
+        dir::CallTarget::Symbol(candidate) => {
+            add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
         }
         dir::CallTarget::Select(candidates) => row.field("kind", "select").list_field(
             "targets",
@@ -153,6 +156,14 @@ fn add_call_resolution_row(
     };
 
     builder.push(row);
+}
+
+/// Return one builtin member label.
+fn builtin_member_label(builtin: dir::BuiltinMember) -> &'static str {
+    match builtin {
+        dir::BuiltinMember::Index => "subscript.index",
+        dir::BuiltinMember::Slice => "subscript.slice",
+    }
 }
 
 /// Return one builtin call label.

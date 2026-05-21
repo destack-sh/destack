@@ -50,7 +50,7 @@ impl ModuleLowerer<'_> {
     /// Return whether one symbol has the given declaration form.
     pub(crate) fn symbol_is(&self, symbol_id: dir::GlobalSymbolId, form: dir::SymbolForm) -> bool {
         self.symbol_form(symbol_id)
-            .is_some_and(|actual| actual == form)
+            .is_some_and(|actual| actual.matches_form(form))
     }
 
     /// Get the name of a symbol as a String.
