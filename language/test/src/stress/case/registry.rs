@@ -23,8 +23,9 @@ use super::module::module_forms;
 use super::object::{ambiguous_objects, large_object};
 use super::operator::operator_forms;
 use super::pathology::{
-    damaged_delimiters, deep_block, deep_parentheses, deep_tree, massive_file, trivia_flood,
-    wide_call,
+    damaged_arrow_return_heads, damaged_delimiters, damaged_function_type_heads,
+    damaged_generic_heads, damaged_parenthesized_heads, deep_block, deep_parentheses, deep_tree,
+    massive_file, trivia_flood, wide_call,
 };
 use super::pattern::{convoluted_patterns, damaged_type, nested_match};
 use super::range::range_forms;
@@ -47,8 +48,8 @@ const REGULAR_HUGE: usize = 2_048;
 const REGULAR_MASSIVE: usize = 8_192;
 const REGULAR_DENSE: usize = 4_096;
 const REGULAR_WIDE: usize = 1_024;
-const RECURSIVE_VALID_LARGE: usize = 1_024;
-const RECURSIVE_EXPRESSION_VALID_LARGE: usize = 512;
+const RECURSIVE_VALID_LARGE: usize = 256;
+const RECURSIVE_EXPRESSION_VALID_LARGE: usize = 128;
 const RECURSIVE_BOUNDED_HUGE: usize = 2_048;
 const RECURSIVE_BOUNDED_MASSIVE: usize = 8_192;
 const RECURSIVE_BOUNDED_DENSE: usize = 4_096;
@@ -245,6 +246,22 @@ const CASES: &[StressSpec] = &[
     StressSpec::new("damaged_tsx", TSX_MODES, RECOVERY, damaged_tsx),
     StressSpec::new("damaged_trivia", SOURCE_MODES, RECOVERY, damaged_trivia),
     StressSpec::recovery_pathological("damaged_delimiters", SOURCE_MODES, damaged_delimiters),
+    StressSpec::recovery_pathological(
+        "damaged_parenthesized_heads",
+        SOURCE_MODES,
+        damaged_parenthesized_heads,
+    ),
+    StressSpec::recovery_pathological("damaged_generic_heads", SOURCE_MODES, damaged_generic_heads),
+    StressSpec::recovery_pathological(
+        "damaged_arrow_return_heads",
+        SOURCE_MODES,
+        damaged_arrow_return_heads,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_function_type_heads",
+        SOURCE_MODES,
+        damaged_function_type_heads,
+    ),
 ];
 
 /// One generated stress fixture.

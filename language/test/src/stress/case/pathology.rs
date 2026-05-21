@@ -132,6 +132,82 @@ pub(super) fn damaged_delimiters(_mode: StressMode, scale: usize, _width: usize)
     source
 }
 
+/// Generate damaged parenthesized heads that should recover at later statements.
+pub(super) fn damaged_parenthesized_heads(
+    _mode: StressMode,
+    scale: usize,
+    _width: usize,
+) -> String {
+    let mut source = String::with_capacity(scale * 96);
+
+    for index in 0..scale {
+        let _ = writeln!(
+            source,
+            "const brokenHead{index} = (value{index}: {{ item: ;"
+        );
+        let _ = writeln!(source, "const recoveredHead{index} = value{index};");
+    }
+
+    source.push_str("\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
+/// Generate damaged generic heads that should recover at later statements.
+pub(super) fn damaged_generic_heads(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 112);
+
+    for index in 0..scale {
+        let _ = writeln!(
+            source,
+            "const brokenGeneric{index} = <T{index} extends {{ item: ;"
+        );
+        let _ = writeln!(source, "const recoveredGeneric{index} = value{index};");
+    }
+
+    source.push_str("\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
+/// Generate damaged arrow return types that should recover at later statements.
+pub(super) fn damaged_arrow_return_heads(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 120);
+
+    for index in 0..scale {
+        let _ = writeln!(
+            source,
+            "const brokenReturn{index} = (value{index}): {{ item: ;"
+        );
+        let _ = writeln!(source, "const recoveredReturn{index} = value{index};");
+    }
+
+    source.push_str("\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
+/// Generate damaged function type heads that should recover at later statements.
+pub(super) fn damaged_function_type_heads(
+    _mode: StressMode,
+    scale: usize,
+    _width: usize,
+) -> String {
+    let mut source = String::with_capacity(scale * 128);
+
+    for index in 0..scale {
+        let _ = writeln!(
+            source,
+            "type BrokenFunctionType{index} = (value{index}: {{ item: ;"
+        );
+        let _ = writeln!(source, "type RecoveredFunctionType{index} = string;");
+    }
+
+    source.push_str("\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
 /// Generate a large file dominated by trivia.
 pub(super) fn trivia_flood(_mode: StressMode, scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 96);
