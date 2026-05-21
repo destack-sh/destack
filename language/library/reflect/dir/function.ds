@@ -20,6 +20,14 @@ export enum FunctionKind {
     Lambda,
 }
 
+/// Function call phase.
+export enum FunctionPhase {
+    /// Runtime-callable function.
+    Normal,
+    /// Comptime-only function.
+    Comptime,
+}
+
 /// The signature of one function.
 export interface FunctionSignature {
     /// Whether the function is abstract.
@@ -34,6 +42,8 @@ export interface FunctionSignature {
     mode?: FunctionMode;
     /// The function syntax kind.
     kind: FunctionKind;
+    /// When this function may be called.
+    phase: FunctionPhase;
     /// The generic parameters.
     genericParameters: readonly GenericParameter[];
     /// The where clauses.
