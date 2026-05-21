@@ -561,7 +561,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
         assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, .. } => {
             assert_string!(parser, *name, "next");
             assert_eq!(signature.parameters.len(), 1);
-            assert_node!(parser.tree, signature.parameters[0], Parameter::VariadicPattern { pattern, declared_type } => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::VariadicPattern { pattern, declared_type, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                     assert_eq!(fields.len(), 1);
                     assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {

@@ -844,6 +844,7 @@ impl Parser {
         let visibility = modifiers.and_then(|modifier_set| modifier_set.visibility);
         let is_readonly = modifiers.is_some_and(|modifier_set| modifier_set.is_readonly);
         let is_optional = modifiers.is_some_and(|modifier_set| modifier_set.is_optional);
+        let is_comptime = modifiers.is_some_and(|modifier_set| modifier_set.is_comptime);
 
         // = value
         let parameter = {
@@ -871,6 +872,7 @@ impl Parser {
                         visibility,
                         is_readonly,
                         is_optional,
+                        is_comptime,
                         declared_type,
                         default: Some(value),
                     }
@@ -883,6 +885,7 @@ impl Parser {
                     Parameter::Pattern {
                         pattern,
                         is_optional,
+                        is_comptime,
                         declared_type,
                         default: Some(value),
                     }
@@ -895,6 +898,7 @@ impl Parser {
                         name,
                         visibility,
                         is_readonly,
+                        is_comptime,
                         declared_type,
                     }
                 } else {
@@ -903,6 +907,7 @@ impl Parser {
 
                     Parameter::VariadicPattern {
                         pattern,
+                        is_comptime,
                         declared_type,
                     }
                 }
@@ -916,6 +921,7 @@ impl Parser {
                         visibility,
                         is_readonly,
                         is_optional,
+                        is_comptime,
                         declared_type,
                         default: None,
                     }
@@ -928,6 +934,7 @@ impl Parser {
                     Parameter::Pattern {
                         pattern,
                         is_optional,
+                        is_comptime,
                         declared_type,
                         default: None,
                     }

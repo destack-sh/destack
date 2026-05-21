@@ -6,15 +6,16 @@ use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_dir::{
     Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportKind, Expression,
-    FunctionDeclaration, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration,
-    GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
-    WhereClause,
+    FunctionDeclaration, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
+    FunctionTypeDeclaration, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
+    TokenType, TypeExpression, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// The keywords that can appear before a function declaration.
-pub static FUNCTION_MODIFIERS: [Keyword; 7] = [
+pub static FUNCTION_MODIFIERS: [Keyword; 8] = [
     Keyword::Async,
+    Keyword::Comptime,
     Keyword::Abstract,
     Keyword::Override,
     Keyword::Get,
@@ -32,6 +33,8 @@ enum ArrowHeadShape {
     Named {
         /// Whether the parameter has a type annotation.
         has_type_annotation: bool,
+        /// Whether the parameter has a prefix modifier.
+        has_modifier: bool,
     },
 }
 
@@ -67,6 +70,8 @@ struct ParsedFunctionHead {
     role: Option<FunctionRole>,
     /// The source form of the function.
     form: FunctionForm,
+    /// When the function may be called.
+    phase: FunctionPhase,
     /// Whether the function is a generator.
     is_generator: bool,
     /// The optional function name.
@@ -250,6 +255,7 @@ impl Parser {
         let signature = FunctionSignature {
             asynchrony,
             form: head.form,
+            phase: head.phase,
             role: head.role,
             generic_parameters: head.generic_parameters.unwrap_or_default(),
             where_clauses: return_part.where_clauses.unwrap_or_default(),
@@ -435,6 +441,7 @@ impl Parser {
             asynchrony: Asynchrony::Sync,
             role: None,
             form: FunctionForm::Lambda,
+            phase: FunctionPhase::Normal,
             generic_parameters: vec![],
             where_clauses: vec![],
             this_parameter,
@@ -508,6 +515,7 @@ impl Parser {
         let mut second_token_type = None;
         let mut third_token_type = None;
         let mut has_parameter = false;
+        let mut has_modifier = false;
         let mut has_type_annotation = false;
         let mut has_type_tokens = false;
 
@@ -543,6 +551,15 @@ impl Parser {
 
             // require at most one named parameter
             if !has_parameter {
+                if self.language.is_destack()
+                    && (self.is_keyword(Keyword::Comptime)
+                        || self.current_identifier_str_is("comptime"))
+                {
+                    has_modifier = true;
+                    self.bump();
+                    continue;
+                }
+
                 if token_type == TokenType::Identifier {
                     has_parameter = true;
                     self.bump();
@@ -582,6 +599,7 @@ impl Parser {
         } else if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
             ArrowHeadShape::Named {
                 has_type_annotation: false,
+                has_modifier,
             }
         } else if semantic_token_count == 3
             && first_token_type == Some(TokenType::Identifier)
@@ -593,6 +611,7 @@ impl Parser {
         {
             ArrowHeadShape::Named {
                 has_type_annotation: true,
+                has_modifier,
             }
         } else if has_parameter {
             if has_type_annotation && (!has_type_tokens || !depth.is_top_level()) {
@@ -601,6 +620,7 @@ impl Parser {
 
             ArrowHeadShape::Named {
                 has_type_annotation,
+                has_modifier,
             }
         } else {
             ArrowHeadShape::Empty
@@ -634,12 +654,24 @@ impl Parser {
             return Ok(None);
         }
 
+        // let the full parameter parser handle modifiers
+        if matches!(
+            head_shape,
+            ArrowHeadShape::Named {
+                has_modifier: true,
+                ..
+            }
+        ) {
+            return Ok(None);
+        }
+
         // parse the parenthesized head
         let parameter_container_start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut parameters = Vec::with_capacity(1);
         if let ArrowHeadShape::Named {
             has_type_annotation,
+            has_modifier: _,
         } = head_shape
         {
             let parameter_start = self.span_start();
@@ -665,6 +697,7 @@ impl Parser {
                     visibility: None,
                     is_readonly: false,
                     is_optional: false,
+                    is_comptime: false,
                     declared_type: parameter_type,
                     default: None,
                 },
@@ -706,9 +739,14 @@ impl Parser {
         header: &DeclarationHeader,
     ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
-        let Some((_, follow_token_type)) = self.scan_parenthesized_arrow_head() else {
-            return Ok(None);
-        };
+        let follow_token_type =
+            if let Some((_, follow_token_type)) = self.scan_parenthesized_arrow_head() {
+                follow_token_type
+            } else if let Some(follow_token_type) = self.scan_parenthesized_modified_arrow_head() {
+                follow_token_type
+            } else {
+                return Ok(None);
+            };
         if !matches!(follow_token_type, TokenType::ArrowWide | TokenType::Colon) {
             return Ok(None);
         }
@@ -732,6 +770,51 @@ impl Parser {
             self.eat_arrow_tail(start, *header, parameters, parameter_container_span)?;
 
         Ok(Some(function_id))
+    }
+
+    /// Scan a parenthesized arrow head that starts with a parameter modifier.
+    fn scan_parenthesized_modified_arrow_head(&mut self) -> Option<TokenType> {
+        if !self.peek_is(TokenType::OpenParenthesis) {
+            return None;
+        }
+
+        self.lookahead(|parser| parser.scan_parenthesized_modified_arrow_head_here())
+    }
+
+    /// Scan a parenthesized modified arrow head at the current open parenthesis.
+    fn scan_parenthesized_modified_arrow_head_here(&mut self) -> Option<TokenType> {
+        self.bump();
+
+        let starts_modified_parameter = self.language.is_destack()
+            && (self.is_keyword(Keyword::Comptime) || self.current_identifier_str_is("comptime"));
+        if !starts_modified_parameter {
+            return None;
+        }
+
+        let mut depth = DelimiterDepth::default();
+        loop {
+            let token_type = self.peek_token_type();
+            if token_type == TokenType::End {
+                return None;
+            }
+
+            if self.current_token_is_statement_recovery_boundary(token_type) {
+                return None;
+            }
+
+            if token_type == TokenType::CloseParenthesis && depth.is_top_level() {
+                break;
+            }
+
+            if !depth.advance(token_type) {
+                return None;
+            }
+            self.bump();
+        }
+
+        self.bump();
+
+        Some(self.peek_token_type())
     }
 
     /// Eat an arrow return type and body.
@@ -835,6 +918,7 @@ impl Parser {
                 visibility: None,
                 is_readonly: false,
                 is_optional: false,
+                is_comptime: false,
                 declared_type: None,
                 default: None,
             },
@@ -857,6 +941,7 @@ impl Parser {
             header.is_abstract = true;
         }
 
+        let phase = self.eat_function_phase_modifier();
         let is_async = self.eat_function_async_modifier();
         let role = self.eat_function_role();
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
@@ -869,12 +954,24 @@ impl Parser {
             is_async,
             role,
             form,
+            phase,
             is_generator,
             name,
             name_span,
             generic_parameters,
             generic_parameter_span,
         })
+    }
+
+    /// Eat a function phase marker.
+    fn eat_function_phase_modifier(&mut self) -> FunctionPhase {
+        if !self.is_keyword(Keyword::Comptime) {
+            return FunctionPhase::Normal;
+        }
+
+        self.bump();
+
+        FunctionPhase::Comptime
     }
 
     /// Eat a function async modifier when it is not a lambda parameter.
@@ -1028,6 +1125,7 @@ impl Parser {
             visibility: None,
             is_readonly: false,
             is_optional: false,
+            is_comptime: false,
             declared_type: None,
             default: None,
         };

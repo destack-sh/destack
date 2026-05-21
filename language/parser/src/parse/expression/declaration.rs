@@ -163,6 +163,16 @@ impl Parser {
 
             Ok(Some(self.declaration_expression(start, declaration)))
         }
+        // comptime function declarations
+        else if keyword == Keyword::Comptime
+            && self.language.is_destack()
+            && self.next_keyword() == Some(Keyword::Function)
+            && !self.next_token().token.is_on_new_line
+        {
+            let declaration = self.eat_function(start, header)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
         // not a declaration expression
         else {
             Ok(None)
@@ -313,9 +323,13 @@ impl Parser {
         let starts_async_function = (keyword == Some(Keyword::Async)
             || self.current_identifier_str_is("async"))
             && self.next_keyword() == Some(Keyword::Function);
+        let starts_comptime_function = self.language.is_destack()
+            && keyword == Some(Keyword::Comptime)
+            && self.next_keyword() == Some(Keyword::Function);
 
         keyword.is_some_and(is_declaration_keyword)
             || starts_async_function
+            || starts_comptime_function
             || self.peek_is(TokenType::At)
     }
 
