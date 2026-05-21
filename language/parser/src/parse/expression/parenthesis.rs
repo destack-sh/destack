@@ -336,7 +336,7 @@ impl Parser {
         let scope = ExpressionScope::from_flags(flags);
 
         let (left, _) = self.eat_postfix(start, left, true, scope)?;
-        let left = self.eat_binary_rest(start, left, true, scope)?;
+        let left = self.eat_binary_rest(start, left, scope)?;
         let left = self.eat_conditional_rest(start, left, scope)?;
 
         self.eat_assignment_rest(start, left, scope)
