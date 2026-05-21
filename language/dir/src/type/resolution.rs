@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey};
+use crate::{BinaryOperator, GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey};
 
 /// Target selected by lexical or path lookup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,17 +58,23 @@ impl MemberResolution {
 /// Member target selected at a usage site.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MemberTarget {
-    /// Intrinsic primitive member or protocol slot.
-    Intrinsic,
+    /// Compiler builtin selected at a member usage site.
+    Builtin(BuiltinMember),
     /// Structural field selected from a shape type.
-    Field {
-        /// The selected field key.
-        key: StaticKey,
-    },
-    /// Exactly one member known at compile time.
-    Direct(MemberCandidate),
+    Field(StaticKey),
+    /// Exactly one symbol-backed member selected at compile time.
+    Symbol(MemberCandidate),
     /// Statically known variant member selection.
     Select(Vec<MemberCandidate>),
+}
+
+/// Compiler builtin member selected at a usage site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BuiltinMember {
+    /// Indexed element access, such as `value[index]`.
+    Index,
+    /// Range slice access, such as `value[start..end]`.
+    Slice,
 }
 
 /// One member candidate after receiver lookup.
@@ -111,15 +117,24 @@ impl CallResolution {
 /// Callable target selected at a call site.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CallTarget {
-    /// Intrinsic primitive callable or protocol slot.
-    Intrinsic {
-        /// The receiver type.
-        receiver: Option<LocalTypeId>,
-    },
-    /// Exactly one callable known at compile time.
-    Direct(CallCandidate),
+    /// Compiler builtin selected at a usage site.
+    Builtin(BuiltinCall),
+    /// Callable value without a declaration symbol.
+    Value,
+    /// Exactly one symbol-backed callable selected at compile time.
+    Symbol(CallCandidate),
     /// Statically known variant callable selection.
     Select(Vec<CallCandidate>),
+}
+
+/// Compiler builtin callable selected at a usage site.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum BuiltinCall {
+    /// Builtin binary operator behavior.
+    BinaryOperator {
+        /// The source operator.
+        operator: BinaryOperator,
+    },
 }
 
 /// One callable candidate after overload selection.
