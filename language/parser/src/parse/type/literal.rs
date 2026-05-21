@@ -87,93 +87,69 @@ impl Parser {
         }
     }
 
+    /// Return whether the next token is the given identifier text.
+    #[inline]
+    fn next_identifier_str_is(&mut self, expected: &str) -> bool {
+        let token = self.next_token();
+
+        token.token.ty == TokenType::Identifier && self.get_span_str(token.span) == expected
+    }
+
     /// Peek one non composite type literal.
     pub fn peek_type_literal(&mut self) -> ParseResult<TypeLiteral> {
-        // leading token
+        // require identifier text
         let next = *self.peek()?;
-        let next_type = next.token.ty;
-        let identifier_span = if next_type == TokenType::Identifier {
-            Some(next.span)
-        } else {
-            None
-        };
+        if next.token.ty != TokenType::Identifier {
+            return Err(ParseError::unexpected(next.span));
+        }
 
-        // always available type literals
-        if let Some(identifier_span) = identifier_span
-            && let Some(literal) =
-                self.type_literal_always_available_str(self.get_span_str(identifier_span))
-        {
+        // resolve literals available in all grammar spaces
+        let identifier = self.get_span_str(next.span);
+        if let Some(literal) = self.type_literal_always_available_str(identifier) {
             return Ok(literal);
         }
 
-        // bail if not inside static or type context
+        // require type space for contextual literals
         if !self.flags.is_in_type() && !self.flags.is_in_static() {
             return Err(ParseError::unexpected(next.span));
         }
 
-        // contextual identifiers like `number` or `unique symbol`
-        let next_next = self.next_token();
-        let next_next_type = next_next.token.ty;
-        if let Some(identifier_span) = identifier_span {
-            let next_identifier_span = if next_next_type == TokenType::Identifier {
-                Some(next_next.span)
-            } else {
-                None
-            };
-            let identifier = self.get_span_str(identifier_span);
-            let next_identifier = next_identifier_span.map(|span| self.get_span_str(span));
-            if let Some(literal) = self.type_literal_type_context_str(identifier, next_identifier) {
-                return Ok(literal);
-            }
+        // resolve one token contextual literals
+        if let Some(literal) = self.type_literal_type_context_str(identifier, None) {
+            return Ok(literal);
         }
 
-        let next_str = self.get_span_str(next.span);
-        let next_next_str =
-            (next_next_type != TokenType::End).then(|| self.get_span_str(next_next.span));
+        // resolve the only composite literal
+        if identifier == "unique" {
+            if self.next_identifier_str_is("symbol") {
+                return Ok(TypeLiteral::UniqueSymbol);
+            }
 
-        // regular single-token type literals like `boolean` or `uint32`
-        match next_str {
-            "boolean" => Ok(TypeLiteral::Boolean),
-            "void" => Ok(TypeLiteral::Void),
-            "char" => Ok(TypeLiteral::Character),
-            "string" => Ok(TypeLiteral::String),
-            "bigint" => Ok(TypeLiteral::Bigint),
-            "number" => Ok(TypeLiteral::Number),
-            "int" => Ok(TypeLiteral::Integer(IntegerType::Integer {
-                is_signed: true,
-            })),
-            "isize" => Ok(TypeLiteral::Integer(IntegerType::Pointer {
-                is_signed: true,
-            })),
-            int_str if let Some(width) = self.type_width_if_present("int", int_str) => {
+            return Err(ParseError::unexpected(next.span));
+        }
+
+        // resolve numeric literals with width suffixes
+        match identifier {
+            int if let Some(width) = self.type_width_if_present("int", int) => {
                 Ok(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: true,
                 }))
             }
-            "uint" => Ok(TypeLiteral::Integer(IntegerType::Integer {
-                is_signed: false,
-            })),
-            "usize" => Ok(TypeLiteral::Integer(IntegerType::Pointer {
-                is_signed: false,
-            })),
-            uint_str if let Some(width) = self.type_width_if_present("uint", uint_str) => {
+            uint if let Some(width) = self.type_width_if_present("uint", uint) => {
                 Ok(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: false,
                 }))
             }
-            uint_str if let Some(width) = self.type_width_if_present("u", uint_str) => {
+            uint if let Some(width) = self.type_width_if_present("u", uint) => {
                 Ok(TypeLiteral::Integer(IntegerType::Fixed {
                     width,
                     is_signed: false,
                 }))
             }
-            "float" => Ok(TypeLiteral::Float(FloatType::Float)),
             "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
             "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
-            "symbol" => Ok(TypeLiteral::Symbol),
-            "unique" if next_next_str == Some("symbol") => Ok(TypeLiteral::UniqueSymbol),
             _ => Err(ParseError::unexpected(next.span)),
         }
     }
