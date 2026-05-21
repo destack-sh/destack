@@ -1,8 +1,7 @@
+use crate::Parser;
 use crate::parse::r#type::operator::TypeBinaryOperator;
-use crate::{ParseError, ParseResult, Parser};
 use destack_dir::{
-    AssignOperator, BinaryOperator, Keyword, LocalNodeId, OperatorPrecedence, TokenType,
-    UnaryOperator,
+    AssignOperator, BinaryOperator, Keyword, OperatorPrecedence, TokenType, UnaryOperator,
 };
 
 /// One value expression infix operator.
@@ -112,9 +111,8 @@ impl Parser {
     /// Return an infix operator at the current token.
     pub(super) fn peek_infix_operator_maybe(&mut self) -> Option<ExpressionInfixOperator> {
         let token_type = self.peek_token_type();
-        let keyword = self.current_keyword();
 
-        self.infix_operator_from_token(token_type, keyword)
+        self.infix_operator_from_current_token_type(token_type)
     }
 
     /// Return an infix operator at one token offset.
@@ -124,26 +122,37 @@ impl Parser {
     ) -> Option<ExpressionInfixOperator> {
         let token = self.token_at_offset(offset);
         let token_type = token.token.ty;
-        let keyword = self.keyword_at_offset(offset);
 
-        self.infix_operator_from_token(token_type, keyword)
+        Self::infix_operator_from_token(self.language.is_destack(), token_type, || {
+            self.keyword_at_offset(offset)
+        })
+    }
+
+    /// Return the parser infix operator for the current token type.
+    pub(super) fn infix_operator_from_current_token_type(
+        &self,
+        token_type: TokenType,
+    ) -> Option<ExpressionInfixOperator> {
+        Self::infix_operator_from_token(self.language.is_destack(), token_type, || {
+            self.current_keyword()
+        })
     }
 
     /// Return the parser infix operator for one token and optional keyword.
     fn infix_operator_from_token(
-        &self,
+        is_destack: bool,
         token_type: TokenType,
-        keyword: Option<Keyword>,
+        keyword: impl FnOnce() -> Option<Keyword>,
     ) -> Option<ExpressionInfixOperator> {
         if let Some(operator) = AssignOperator::from_token(token_type) {
             return Some(ExpressionInfixOperator::Assign(operator));
         }
 
-        if self.language.is_destack() && token_type == TokenType::Range {
+        if is_destack && token_type == TokenType::Range {
             return Some(ExpressionInfixOperator::Range(destack_dir::RangeEnd::Open));
         }
 
-        if self.language.is_destack() && token_type == TokenType::RangeInclusive {
+        if is_destack && token_type == TokenType::RangeInclusive {
             return Some(ExpressionInfixOperator::Range(
                 destack_dir::RangeEnd::Inclusive,
             ));
@@ -157,7 +166,7 @@ impl Parser {
             return None;
         }
 
-        let operator = match keyword? {
+        let operator = match keyword()? {
             Keyword::In => ExpressionInfixOperator::Binary(BinaryOperator::In),
             Keyword::InstanceOf => ExpressionInfixOperator::InstanceOf,
             Keyword::As => ExpressionInfixOperator::As,
@@ -171,26 +180,5 @@ impl Parser {
         };
 
         Some(operator)
-    }
-
-    /// Build a value expression for one infix operator.
-    pub(super) fn make_value_infix_expression(
-        &mut self,
-        left: LocalNodeId<destack_dir::Expression>,
-        operator: ExpressionInfixOperator,
-        right: LocalNodeId<destack_dir::Expression>,
-    ) -> ParseResult<destack_dir::Expression> {
-        match operator {
-            ExpressionInfixOperator::Binary(operator) => Ok(destack_dir::Expression::Binary {
-                left,
-                operator,
-                right,
-            }),
-            ExpressionInfixOperator::InstanceOf => Ok(destack_dir::Expression::InstanceOf {
-                value: left,
-                target: right,
-            }),
-            _ => Err(ParseError::unexpected(self.tree.get_span(right))),
-        }
     }
 }

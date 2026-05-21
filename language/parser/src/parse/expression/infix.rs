@@ -3,15 +3,25 @@ use crate::parse::scope::{CONDITIONAL_PRECEDENCE, ExpressionScope};
 use crate::parse::r#type::operator::{TypeBinaryOperator, TypeInfixOperator};
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 use destack_dir::{
-    Expression, IfCondition, IfForm, Keyword, LocalNodeId, NodeType, OperatorPrecedence, RangeEnd,
-    TokenType, TypeExpression,
+    BinaryOperator, Expression, IfCondition, IfForm, Keyword, LocalNodeId, NodeType,
+    OperatorPrecedence, RangeEnd, TokenType, TypeExpression,
 };
 use destack_source::Span;
 
 /// One value infix continuation with any already parsed type-space left side.
 enum ValueInfixOperator {
-    /// A value-space operator.
-    Value(ExpressionInfixOperator),
+    /// A value binary operator.
+    Binary(BinaryOperator),
+    /// A runtime type predicate.
+    Is,
+    /// A runtime constructor predicate.
+    InstanceOf,
+    /// A TypeScript `as` assertion.
+    As,
+    /// A TypeScript `satisfies` assertion.
+    Satisfies,
+    /// A Destack range operator.
+    Range(RangeEnd),
     /// A type-space operator parsed from value position.
     Type {
         /// The parsed type binary operator.
@@ -25,8 +35,12 @@ impl ValueInfixOperator {
     /// Return this operator precedence.
     fn precedence(&self) -> u16 {
         match self {
-            Self::Value(operator) => operator.precedence(),
+            Self::Binary(operator) => operator.precedence(),
             Self::Type { operator, .. } => operator.precedence(),
+            Self::Is | Self::InstanceOf | Self::As | Self::Satisfies => {
+                OperatorPrecedence::Comparison as u16
+            }
+            Self::Range(_) => OperatorPrecedence::Range as u16,
         }
     }
 }
@@ -46,9 +60,9 @@ impl Parser {
         scope: ExpressionScope,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let (left, is_parenthesized) = self.eat_value_prefix_or_primary(start)?;
-        let (left, is_parenthesized) = self.eat_postfix(start, left, is_parenthesized, scope)?;
+        let (left, _) = self.eat_postfix(start, left, is_parenthesized, scope)?;
 
-        self.eat_binary_rest(start, left, is_parenthesized, scope)
+        self.eat_binary_rest(start, left, scope)
     }
 
     /// Eat binary operators after an already parsed left value.
@@ -63,12 +77,22 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         mut left: LocalNodeId<Expression>,
-        _left_is_parenthesized: bool,
         scope: ExpressionScope,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        // stop complete declarations before infix continuation
+        if matches!(self.tree.get(left), Expression::Declaration(_)) {
+            return Ok(left);
+        }
+
         loop {
+            // snapshot current token state once per operator
+            let token_type = self.peek_token_type();
+            let is_on_new_line = self.current_token_is_on_new_line();
+
             // select the next infix continuation
-            let Some(operator) = self.eat_next_value_infix_operator(left, scope)? else {
+            let Some(operator) =
+                self.current_value_infix_operator(left, scope, token_type, is_on_new_line)?
+            else {
                 break;
             };
 
@@ -83,7 +107,7 @@ impl Parser {
         Ok(left)
     }
 
-    /// Eat the next value infix operator when the current grammar owns it.
+    /// Return the current value infix operator when the current grammar owns it.
     ///
     /// Examples:
     /// ```ds
@@ -91,17 +115,18 @@ impl Parser {
     /// as Type
     /// extends Type
     /// ```
-    fn eat_next_value_infix_operator(
+    fn current_value_infix_operator(
         &mut self,
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
+        token_type: TokenType,
+        is_on_new_line: bool,
     ) -> ParseResult<Option<ValueInfixOperator>> {
-        if self.value_infix_is_boundary(left, scope) {
+        if self.value_infix_is_boundary(left, scope, token_type, is_on_new_line) {
             return Ok(None);
         }
 
-        let is_on_new_line = self.current_token_is_on_new_line();
-        let Some(operator) = self.peek_infix_operator_maybe() else {
+        let Some(operator) = self.infix_operator_from_current_token_type(token_type) else {
             return Ok(None);
         };
 
@@ -109,7 +134,7 @@ impl Parser {
             return Ok(None);
         }
 
-        if self.current_token_is_on_new_line() && self.can_start_tree_literal() {
+        if is_on_new_line && self.can_start_tree_literal() {
             if scope.is_statement_position {
                 return Ok(None);
             }
@@ -130,22 +155,29 @@ impl Parser {
             return Ok(None);
         }
 
-        if matches!(operator, ExpressionInfixOperator::Assign(_)) {
-            return Ok(None);
+        match operator {
+            ExpressionInfixOperator::Assign(_) => Ok(None),
+            ExpressionInfixOperator::TypeBinary(operator) => {
+                let Some(left_type) = self.static_type_left(left) else {
+                    return Ok(None);
+                };
+
+                Ok(Some(ValueInfixOperator::Type {
+                    operator,
+                    left_type,
+                }))
+            }
+            ExpressionInfixOperator::Binary(operator) => {
+                Ok(Some(ValueInfixOperator::Binary(operator)))
+            }
+            ExpressionInfixOperator::Is => Ok(Some(ValueInfixOperator::Is)),
+            ExpressionInfixOperator::InstanceOf => Ok(Some(ValueInfixOperator::InstanceOf)),
+            ExpressionInfixOperator::As => Ok(Some(ValueInfixOperator::As)),
+            ExpressionInfixOperator::Satisfies => Ok(Some(ValueInfixOperator::Satisfies)),
+            ExpressionInfixOperator::Range(end_kind) => {
+                Ok(Some(ValueInfixOperator::Range(end_kind)))
+            }
         }
-
-        if let ExpressionInfixOperator::TypeBinary(operator) = operator {
-            let Some(left_type) = self.static_type_left(left) else {
-                return Ok(None);
-            };
-
-            return Ok(Some(ValueInfixOperator::Type {
-                operator,
-                left_type,
-            }));
-        }
-
-        Ok(Some(ValueInfixOperator::Value(operator)))
     }
 
     /// Return the static type left side for one type relation.
@@ -202,19 +234,24 @@ impl Parser {
         right_scope: ExpressionScope,
     ) -> ParseResult<LocalNodeId<Expression>> {
         match operator {
-            ValueInfixOperator::Value(
-                operator @ (ExpressionInfixOperator::As | ExpressionInfixOperator::Satisfies),
-            ) => self.eat_value_assertion_expression(
+            ValueInfixOperator::As => self.eat_value_assertion_expression(
                 start,
                 left,
-                operator,
+                ExpressionInfixOperator::As,
                 operator_span,
                 right_scope,
             ),
-            ValueInfixOperator::Value(ExpressionInfixOperator::Is) => {
+            ValueInfixOperator::Satisfies => self.eat_value_assertion_expression(
+                start,
+                left,
+                ExpressionInfixOperator::Satisfies,
+                operator_span,
+                right_scope,
+            ),
+            ValueInfixOperator::Is => {
                 self.eat_value_predicate_expression(start, left, operator_span, right_scope)
             }
-            ValueInfixOperator::Value(ExpressionInfixOperator::Range(end_kind)) => {
+            ValueInfixOperator::Range(end_kind) => {
                 self.eat_value_range_operator(start, left, end_kind, operator_span, right_scope)
             }
             ValueInfixOperator::Type {
@@ -240,9 +277,22 @@ impl Parser {
                 operator_span,
                 right_scope,
             ),
-            ValueInfixOperator::Value(operator) => {
+            ValueInfixOperator::Binary(operator) => {
                 let right = self.eat_value_operand(right_scope)?;
-                let expression = self.make_value_infix_expression(left, operator, right)?;
+                let expression = Expression::Binary {
+                    left,
+                    operator,
+                    right,
+                };
+
+                Ok(self.insert_value_infix_expression(start, expression, operator_span, None))
+            }
+            ValueInfixOperator::InstanceOf => {
+                let right = self.eat_value_operand(right_scope)?;
+                let expression = Expression::InstanceOf {
+                    value: left,
+                    target: right,
+                };
 
                 Ok(self.insert_value_infix_expression(start, expression, operator_span, None))
             }
@@ -452,28 +502,30 @@ impl Parser {
         &mut self,
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
+        token_type: TokenType,
+        is_on_new_line: bool,
     ) -> bool {
         if scope.is_new_receiver {
             return true;
         }
 
-        if scope.is_static && Self::starts_type_angle_close(self.peek_token_type()) {
+        if scope.is_static && Self::starts_type_angle_close(token_type) {
             return true;
         }
 
-        if scope.is_typeof_query && self.current_token_is_on_new_line() {
+        if scope.is_typeof_query && is_on_new_line {
             return true;
         }
 
-        if self.peek_is(TokenType::Maybe) {
+        if token_type == TokenType::Maybe {
             return true;
         }
 
-        if scope.owns_colon_boundary && self.peek_is(TokenType::Colon) {
+        if scope.owns_colon_boundary && token_type == TokenType::Colon {
             return true;
         }
 
-        if self.current_token_is_on_new_line()
+        if is_on_new_line
             && (scope.is_statement_position || scope.is_match_case_body)
             && self.tree.get(left).ends_statement_on_newline()
         {
@@ -486,7 +538,7 @@ impl Parser {
             return true;
         }
 
-        matches!(self.tree.get(left), Expression::Declaration(_))
+        false
     }
 
     /// Eat a conditional expression.

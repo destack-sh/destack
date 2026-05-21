@@ -165,10 +165,9 @@ impl Parser {
         left_is_parenthesized: bool,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let scope = ExpressionScope::from_flags(self.flags);
-        let (left_expression_id, left_is_parenthesized) =
+        let (left_expression_id, _) =
             self.eat_postfix(start, left_expression_id, left_is_parenthesized, scope)?;
-        let left_expression_id =
-            self.eat_binary_rest(start, left_expression_id, left_is_parenthesized, scope)?;
+        let left_expression_id = self.eat_binary_rest(start, left_expression_id, scope)?;
         let left_expression_id = self.eat_conditional_rest(start, left_expression_id, scope)?;
         let left_expression_id = self.eat_assignment_rest(start, left_expression_id, scope)?;
 
