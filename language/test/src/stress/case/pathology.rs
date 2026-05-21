@@ -208,6 +208,23 @@ pub(super) fn damaged_function_type_heads(
     source
 }
 
+/// Generate damaged infix chains that should recover at later statements.
+pub(super) fn damaged_infix_chains(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 128);
+
+    for index in 0..scale {
+        let _ = writeln!(source, "const brokenInfix{index} = value{index} + ;");
+        let _ = writeln!(
+            source,
+            "const recoveredInfix{index} = value{index} + other{index};"
+        );
+    }
+
+    source.push_str("\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
 /// Generate a large file dominated by trivia.
 pub(super) fn trivia_flood(_mode: StressMode, scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 96);
