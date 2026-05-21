@@ -34,7 +34,7 @@ fn add_type_layout_rows(
     let anchor = builder.anchor_type(type_id);
     let ty = builder.type_label(type_id);
     let row = SnapshotRow::new(anchor, "layout", "type")
-        .field("type", ty.clone())
+        .type_field("type", ty.clone())
         .field(
             "shape",
             DirSnapshotBuilder::layout_shape_label(&layout.shape),
@@ -102,7 +102,7 @@ fn add_layout_field_row(
     let row = SnapshotRow::new(anchor, "layout", entry)
         .field("parent", parent)
         .optional_field("key", field.key.map(|key| builder.static_key(key)))
-        .field("type", builder.type_label(field.ty))
+        .type_field("type", builder.type_label(field.ty))
         .optional_field(
             "offset",
             DirSnapshotBuilder::optional_u32_label(field.offset),
@@ -127,7 +127,7 @@ fn add_variant_case_row(
     let layout = layouts.get_layout(variant.layout);
     let row = SnapshotRow::new(anchor, "layout", "variant")
         .field("parent", parent)
-        .field("type", builder.type_label(variant.ty))
+        .type_field("type", builder.type_label(variant.ty))
         .optional_field("size", DirSnapshotBuilder::optional_u32_label(layout.size))
         .optional_field(
             "align",

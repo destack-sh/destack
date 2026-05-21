@@ -3,8 +3,8 @@ use destack_dir as dir;
 use super::DirSnapshotBuilder;
 
 impl DirSnapshotBuilder<'_> {
-    /// Return one semantic type label.
-    pub(super) fn semantic_type_label(
+    /// Return one type label from a type table.
+    pub(super) fn type_table_label(
         &self,
         types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
@@ -12,11 +12,11 @@ impl DirSnapshotBuilder<'_> {
         // resolve the canonical type slot
         let ty = types.get_type(type_id);
 
-        self.type_text(types, ty)
+        self.type_label_from_value(types, ty)
     }
 
     /// Return one type text label.
-    fn type_text(&self, types: &dir::TypeTable<'_>, ty: &dir::Type) -> String {
+    fn type_label_from_value(&self, types: &dir::TypeTable<'_>, ty: &dir::Type) -> String {
         match ty {
             dir::Type::Error => "<error>".to_string(),
             dir::Type::Never => "never".to_string(),
@@ -45,6 +45,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Tuple(tuple) => self.tuple_type_label(types, tuple),
             dir::Type::Shape(shape) => self.shape_type_label(types, shape),
             dir::Type::Function(function) => self.function_type_label(types, function),
+            dir::Type::Closure(closure) => self.closure_type_label(types, closure),
             dir::Type::Union(union) => self.type_id_list_label(types, &union.elements, " | "),
             dir::Type::Intersection(intersection) => {
                 self.type_id_list_label(types, &intersection.elements, " & ")
@@ -52,9 +53,17 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
+    /// Return one closure type label.
+    fn closure_type_label(&self, types: &dir::TypeTable<'_>, closure: &dir::ClosureType) -> String {
+        let function = self.type_id_label(types, closure.function);
+        let environment = self.type_id_label(types, closure.environment);
+
+        format!("Closure<{function}, {environment}>")
+    }
+
     /// Return one type id label through a table.
     fn type_id_label(&self, types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> String {
-        self.semantic_type_label(types, type_id)
+        self.type_table_label(types, type_id)
     }
 
     /// Return one primitive type label.

@@ -45,8 +45,18 @@ fn add_name_resolution_row(
     resolution: &dir::NameResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "name")
-        .optional_field("source", builder.node_source(node_id))
-        .field("target", builder.symbol_label(resolution.symbol));
+        .optional_field("source", builder.node_source(node_id));
+    let row = if resolution.symbols.len() == 1 {
+        row.field("target", builder.symbol_label(resolution.symbols[0]))
+    } else {
+        row.list_field(
+            "target",
+            resolution
+                .symbols
+                .iter()
+                .map(|symbol| builder.symbol_label(*symbol)),
+        )
+    };
 
     builder.push(row);
 }
@@ -79,16 +89,22 @@ fn add_member_resolution_row(
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "member")
         .optional_field("source", builder.node_source(node_id))
-        .optional_field(
+        .optional_type_field(
             "receiver",
             resolution.receiver.map(|ty| builder.type_label(ty)),
         );
 
     let row = match &resolution.target {
-        dir::MemberTarget::Intrinsic => row.field("kind", "intrinsic"),
-        dir::MemberTarget::Direct(candidate) => {
-            add_member_candidate_fields(builder, row.field("kind", "direct"), candidate)
-        }
+        dir::MemberTarget::Field(key) => row
+            .field("kind", "field")
+            .field("key", builder.static_key(*key)),
+        dir::MemberTarget::Direct(candidate) => row
+            .field("kind", "direct")
+            .field("target", builder.member_candidate_label(candidate))
+            .optional_field(
+                "instance",
+                candidate.instance.map(|id| builder.instance_label(id)),
+            ),
         dir::MemberTarget::Select(candidates) => row.field("kind", "select").list_field(
             "targets",
             candidates
@@ -115,15 +131,16 @@ fn add_call_resolution_row(
                 .iter()
                 .map(|type_id| builder.type_label(*type_id)),
         )
-        .optional_field(
+        .optional_type_field(
             "return",
             resolution.return_type.map(|ty| builder.type_label(ty)),
         );
 
     let row = match &resolution.target {
-        dir::CallTarget::Intrinsic { receiver } => row
-            .field("kind", "intrinsic")
-            .optional_field("receiver", receiver.map(|ty| builder.type_label(ty))),
+        dir::CallTarget::Builtin(builtin) => row
+            .field("kind", "builtin")
+            .field("builtin", builtin_call_label(*builtin)),
+        dir::CallTarget::Indirect => row.field("kind", "indirect"),
         dir::CallTarget::Direct(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "direct"), candidate)
         }
@@ -138,21 +155,13 @@ fn add_call_resolution_row(
     builder.push(row);
 }
 
-/// Add direct member candidate fields.
-fn add_member_candidate_fields(
-    builder: &DirSnapshotBuilder<'_>,
-    row: SnapshotRow,
-    candidate: &dir::MemberCandidate,
-) -> SnapshotRow {
-    row.field("target", builder.member_candidate_label(candidate))
-        .optional_field(
-            "receiver",
-            candidate.receiver.map(|ty| builder.type_label(ty)),
-        )
-        .optional_field(
-            "instance",
-            candidate.instance.map(|id| builder.instance_label(id)),
-        )
+/// Return one builtin call label.
+fn builtin_call_label(builtin: dir::BuiltinCall) -> String {
+    match builtin {
+        dir::BuiltinCall::BinaryOperator { operator } => {
+            format!("binary.{}", DirSnapshotBuilder::variant_label(operator))
+        }
+    }
 }
 
 /// Add direct call candidate fields.
@@ -162,7 +171,7 @@ fn add_call_candidate_fields(
     candidate: &dir::CallCandidate,
 ) -> SnapshotRow {
     row.field("target", builder.call_candidate_label(candidate))
-        .optional_field(
+        .optional_type_field(
             "receiver",
             candidate.receiver.map(|ty| builder.type_label(ty)),
         )

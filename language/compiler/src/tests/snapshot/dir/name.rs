@@ -28,8 +28,20 @@ impl<'a> BindingSnapshotName<'a> {
 
     /// Return one semantic symbol path label.
     pub(super) fn symbol_path(&self, symbol_id: dir::LocalSymbolId) -> String {
+        let path = self.symbol_path_base(symbol_id);
+        let duplicate_count = self.symbol_path_count(&path);
+        if duplicate_count == 1 {
+            return path;
+        }
+
+        let duplicate_index = self.symbol_path_index(symbol_id, &path);
+        format!("{path}#{duplicate_index}")
+    }
+
+    /// Return one semantic symbol path without duplicate suffixes.
+    fn symbol_path_base(&self, symbol_id: dir::LocalSymbolId) -> String {
         let symbol = self.bindings.get_symbol(symbol_id);
-        let label = self.symbol(symbol_id);
+        let label = self.symbol_base_label(symbol_id, symbol);
         if !self.symbol_should_qualify(symbol) {
             return label;
         }
@@ -43,7 +55,7 @@ impl<'a> BindingSnapshotName<'a> {
             return label;
         }
 
-        let owner = self.symbol_path(owner);
+        let owner = self.symbol_path_base(owner);
 
         format!("{owner}.{label}")
     }
@@ -79,6 +91,15 @@ impl<'a> BindingSnapshotName<'a> {
 
         let duplicate_index = self.symbol_name_index(symbol_id, &name);
         format!("{name}#{duplicate_index}")
+    }
+
+    /// Return one symbol label without duplicate suffixes.
+    fn symbol_base_label(&self, symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol) -> String {
+        if let Some(name) = symbol.name() {
+            return self.strings.get(name).to_string();
+        }
+
+        Self::unnamed_symbol(symbol_id, symbol)
     }
 
     /// Return one unnamed symbol label.
@@ -127,6 +148,31 @@ impl<'a> BindingSnapshotName<'a> {
                 .name()
                 .is_some_and(|symbol_name| self.strings.get(symbol_name) == name)
             {
+                index += 1;
+            }
+
+            if symbol_id == target_symbol_id {
+                break;
+            }
+        }
+
+        index
+    }
+
+    /// Count symbols with one semantic path.
+    fn symbol_path_count(&self, path: &str) -> usize {
+        self.bindings
+            .symbol_ids()
+            .filter(|symbol_id| self.symbol_path_base(*symbol_id) == path)
+            .count()
+    }
+
+    /// Return the one-based duplicate index for one semantic symbol path.
+    fn symbol_path_index(&self, target_symbol_id: dir::LocalSymbolId, path: &str) -> usize {
+        let mut index = 0;
+
+        for symbol_id in self.bindings.symbol_ids() {
+            if self.symbol_path_base(symbol_id) == path {
                 index += 1;
             }
 
