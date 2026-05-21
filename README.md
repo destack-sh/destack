@@ -23,7 +23,7 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 
 ## The Destack
 
-**Destack is a universal software engine with a language, compiler, toolchain, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
+**Destack is a universal software engine with a language, compiler, toolchain, runtime, and librariesbuilt on top of TypeScript and the open web ecosystem.**
 Mechanically, Destack is a fully integrated stack for building eventually all software systems extremely well, but conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
 
@@ -34,12 +34,12 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 
 The whole point of Destack is to make software systems - including itself - fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
 The architecture is modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.
-We do provide _some_ common [apps](app/README.md) and [templates](template/README.md), but Destack is optimized for programmers of all kinds building their _own_ software processes in one integrated system.
+We aim to provide _some_ common [apps](app/README.md) and [templates](template/README.md), but Destack is optimized for programmers of all kinds building their _own_ software processes in one integrated system.
 
 ## Usage
 
 > [!WARNING]
-> **Destack is an alpha-stage, _experimental_ computing stack.**
+> **Destack is an _experimental_ software stack.**
 > Things may change or break or vanish.
 
 **Get started with Destack**:
