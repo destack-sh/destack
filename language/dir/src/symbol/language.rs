@@ -209,7 +209,7 @@ define_language_items! {
         /// `destack:types/symbol`.
         symbol {
             /// Symbol value.
-            Symbol => (Variable, "types/symbol", "Symbol"),
+            Symbol => (Class, "types/symbol", "Symbol"),
         }
     }
 
