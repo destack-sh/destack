@@ -517,17 +517,6 @@ impl DirSnapshotBuilder<'_> {
         if let dir::Type::Parameter(parameter) = types.get_type(type_id) {
             let symbol = self.symbol_label(parameter.symbol);
 
-            if let Some(generics) = self.generics.as_ref()
-                && let Some(dir::GenericSlot::Type {
-                    constraint: Some(constraint),
-                    ..
-                }) = generics.slot(parameter.symbol)
-            {
-                let constraint = self.type_id_label(types, *constraint);
-
-                return format!("{symbol}: {constraint}");
-            }
-
             symbol
         }
         // fall back to the nested type label

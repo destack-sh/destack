@@ -9,8 +9,6 @@ pub(crate) struct DirRows {
     pub(super) types: bool,
     /// Whether to render identifier type rows.
     pub(super) type_references: bool,
-    /// Whether to render generic table rows.
-    pub(super) generic: bool,
     /// Whether to render static table rows.
     pub(super) statics: bool,
     /// Whether to render resolution table rows.
@@ -46,7 +44,6 @@ impl DirRows {
             binding_nodes: false,
             types: false,
             type_references: false,
-            generic: false,
             statics: false,
             resolution: false,
             instance: false,
@@ -107,7 +104,6 @@ impl DirRows {
         Self {
             types: true,
             type_references: true,
-            generic: true,
             resolution: true,
             instance: true,
             relation: true,
@@ -177,7 +173,6 @@ impl DirRows {
     /// Return whether selected rows need semantic type labels.
     pub(crate) const fn uses_type_labels(self) -> bool {
         self.types
-            || self.generic
             || self.statics
             || self.resolution
             || self.instance

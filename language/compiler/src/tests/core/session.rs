@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirChecked,
+    ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirCheckedModule,
     DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
 };
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
@@ -483,7 +483,7 @@ impl TestSession {
             builder.add_expanded(selection, &expanded);
         }
 
-        builder.add_checked(selection, &checked);
+        builder.add_checked(selection, &bound, &expanded, &checked);
 
         if selection.includes_import() {
             let resolved = self.dir_resolved(entry);
@@ -554,7 +554,7 @@ impl TestSession {
     }
 
     /// Return checked DIR for one module entry.
-    fn dir_checked(&self, entry: &TestModule) -> Arc<DirChecked> {
+    fn dir_checked(&self, entry: &TestModule) -> Arc<DirCheckedModule> {
         let key = ArtifactKey::dir_checked(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
 

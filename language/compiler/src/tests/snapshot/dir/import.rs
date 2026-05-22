@@ -5,7 +5,7 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ImportTable {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        for (symbol_id, target) in &self.symbol_targets {
+        for (symbol_id, target) in &self.target_by_symbol {
             let anchor = builder.anchor_symbol(symbol_id.into_global(self.module_id));
             let row = match target {
                 dir::ImportTarget::Symbol(target) => SnapshotRow::new(anchor, "import", "symbol")
@@ -20,7 +20,7 @@ impl SnapshotTable for dir::ImportTable {
             builder.push(row);
         }
 
-        for (key, symbols) in &self.global_symbols {
+        for (key, symbols) in &self.global_symbol_by_key {
             let symbols = symbols
                 .iter()
                 .map(|symbol| builder.symbol_path_label(*symbol));
@@ -31,8 +31,8 @@ impl SnapshotTable for dir::ImportTable {
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "import", "summary")
-            .count_field("symbols", self.symbol_targets.len())
-            .count_field("globals", self.global_symbols.len());
+            .count_field("symbols", self.target_by_symbol.len())
+            .count_field("globals", self.global_symbol_by_key.len());
         builder.push(row);
     }
 }
