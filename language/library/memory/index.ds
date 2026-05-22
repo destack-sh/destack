@@ -8,6 +8,7 @@ export { Unique } from "./unique.ds";
 export { Any } from "./any.ds";
 export {
     AccessOf,
+    AccessOr,
     Ambient,
     AmbientFields,
     BaseOf,
@@ -20,6 +21,7 @@ export {
     IsShared,
     IsSharedIn,
     LifetimeOf,
+    LifetimeOr,
     Local,
     LocalFields,
     ManagedFields,

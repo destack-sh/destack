@@ -20,209 +20,104 @@ export type Local<T> = WithPlace<T, "local">;
 export type Ambient<T> = WithPlace<T, "ambient">;
 
 /// Extract the payload under the outermost memory form.
-export type PayloadOf<T> =
-    T extends Managed<infer U>
-        ? U
-        : T extends Owned<infer U>
-          ? U
-          : T extends Borrowed<infer U, infer L, infer A>
-            ? U
-            : T extends Raw<infer U>
-              ? U
-              : T extends Placed<infer U, infer P>
-                ? U
-                : T extends Readonly<infer U>
-                  ? U
-                  : T;
+@languageItem("memory.PayloadOf")
+export newtype PayloadOf<T> = intrinsic;
 
 /// Extract the unqualified base type of `T`.
-export type BaseOf<T> =
-    T extends Managed<infer U>
-        ? BaseOf<U>
-        : T extends Owned<infer U>
-          ? BaseOf<U>
-          : T extends Borrowed<infer U, infer L, infer A>
-            ? BaseOf<U>
-            : T extends Raw<infer U>
-              ? BaseOf<U>
-              : T extends Placed<infer U, infer P>
-                ? BaseOf<U>
-                : T extends Readonly<infer U>
-                  ? BaseOf<U>
-                  : T;
-
-/// Replace the unqualified base type of `Q` with `T`.
-export type WithBase<Q, T> =
-    Q extends Managed<infer U>
-        ? Managed<WithBase<U, T>>
-        : Q extends Owned<infer U>
-          ? Owned<WithBase<U, T>>
-          : Q extends Borrowed<infer U, infer L, infer A>
-            ? Borrowed<WithBase<U, T>, L, A>
-            : Q extends Raw<infer U>
-              ? Raw<WithBase<U, T>>
-              : Q extends Placed<infer U, infer P>
-                ? Placed<WithBase<U, T>, P>
-                : Q extends Readonly<infer U>
-                  ? Readonly<WithBase<U, T>>
-                  : T;
+@languageItem("memory.BaseOf")
+export newtype BaseOf<T> = intrinsic;
 
 /// Extract the outer ownership form of `T`.
-export type OwnershipOf<T> =
-    T extends Placed<infer U, infer P>
-        ? OwnershipOf<U>
-        : T extends Readonly<infer U>
-          ? OwnershipOf<U>
-          : T extends Managed<infer U>
-            ? "managed"
-            : T extends Owned<infer U>
-              ? "owned"
-              : T extends Borrowed<infer U, infer L, infer A>
-                ? "borrowed"
-                : T extends Raw<infer U>
-                  ? "raw"
-                  : never;
+@languageItem("memory.OwnershipOf")
+export newtype OwnershipOf<T> = intrinsic;
 
 /// Extract the ownership of `T`, or fall back to `D`.
-export type OwnershipOr<T, D: Ownership> = OwnershipOf<T> extends never ? D : OwnershipOf<T>;
+@languageItem("memory.OwnershipOr")
+export newtype OwnershipOr<T, D: Ownership> = intrinsic;
 
 /// Extract the placement of `T`.
-export type PlaceOf<T> =
-    T extends Placed<infer U, infer P>
-        ? P
-        : T extends Managed<infer U>
-          ? PlaceOf<U>
-          : T extends Owned<infer U>
-            ? PlaceOf<U>
-            : T extends Borrowed<infer U, infer L, infer A>
-              ? PlaceOf<U>
-              : T extends Raw<infer U>
-                ? PlaceOf<U>
-                : T extends Readonly<infer U>
-                  ? PlaceOf<U>
-                  : "ambient";
+@languageItem("memory.PlaceOf")
+export newtype PlaceOf<T> = intrinsic;
 
 /// Extract the placement of `T`, or fall back to `D`.
-export type PlaceOr<T, D: Place> = PlaceOf<T> extends never ? D : PlaceOf<T>;
-
-/// Extract the explicit concrete space of `T`.
-export type SpaceOf<T> = PlaceOf<T> extends infer P ? (P extends Space ? P : never) : never;
-
-/// Extract the explicit concrete space of `T`, or fall back to `D`.
-export type SpaceOr<T, D: Space> = SpaceOf<T> extends never ? D : SpaceOf<T>;
+@languageItem("memory.PlaceOr")
+export newtype PlaceOr<T, D: Place> = intrinsic;
 
 /// Resolve ambient placement in concrete space `S`.
-export type PlaceIn<T, S: Space> =
-    PlaceOf<T> extends infer P ? (P extends "ambient" ? S : P extends Space ? P : never) : never;
+@languageItem("memory.PlaceIn")
+export newtype PlaceIn<T, S: Space> = intrinsic;
+
+/// Extract the explicit concrete space of `T`.
+@languageItem("memory.SpaceOf")
+export newtype SpaceOf<T> = intrinsic;
+
+/// Extract the explicit concrete space of `T`, or fall back to `D`.
+@languageItem("memory.SpaceOr")
+export newtype SpaceOr<T, D: Space> = intrinsic;
 
 /// Extract the borrow lifetime of `T`.
-export type LifetimeOf<T> =
-    T extends Placed<infer U, infer P>
-        ? LifetimeOf<U>
-        : T extends Readonly<infer U>
-          ? LifetimeOf<U>
-          : T extends Borrowed<infer U, infer L, infer A>
-            ? L
-            : T extends Managed<infer U>
-              ? LifetimeOf<U>
-              : T extends Owned<infer U>
-                ? LifetimeOf<U>
-                : T extends Raw<infer U>
-                  ? LifetimeOf<U>
-                  : never;
+@languageItem("memory.LifetimeOf")
+export newtype LifetimeOf<T> = intrinsic;
+
+/// Extract the borrow lifetime of `T`, or fall back to `D`.
+@languageItem("memory.LifetimeOr")
+export newtype LifetimeOr<T, D: Lifetime> = intrinsic;
 
 /// Extract the access mode of `T`.
-export type AccessOf<T> =
-    T extends Readonly<infer U>
-        ? "readonly"
-        : T extends Borrowed<infer U, infer L, infer A>
-          ? A
-          : T extends Placed<infer U, infer P>
-            ? AccessOf<U>
-            : T extends Managed<infer U>
-              ? AccessOf<U>
-              : T extends Owned<infer U>
-                ? AccessOf<U>
-                : T extends Raw<infer U>
-                  ? AccessOf<U>
-                  : "mutable";
+@languageItem("memory.AccessOf")
+export newtype AccessOf<T> = intrinsic;
+
+/// Extract the access mode of `T`, or fall back to `D`.
+@languageItem("memory.AccessOr")
+export newtype AccessOr<T, D: Access> = intrinsic;
 
 /// Return whether `T` is managed.
-export type IsManaged<T> = OwnershipOr<T, "managed"> extends "managed" ? true : false;
+@languageItem("memory.IsManaged")
+export newtype IsManaged<T> = intrinsic;
 
 /// Return whether `T` is owned.
-export type IsOwned<T> = OwnershipOr<T, "managed"> extends "owned" ? true : false;
+@languageItem("memory.IsOwned")
+export newtype IsOwned<T> = intrinsic;
 
 /// Return whether `T` is borrowed.
-export type IsBorrowed<T> = OwnershipOr<T, "managed"> extends "borrowed" ? true : false;
+@languageItem("memory.IsBorrowed")
+export newtype IsBorrowed<T> = intrinsic;
 
 /// Return whether `T` is raw.
-export type IsRaw<T> = OwnershipOr<T, "managed"> extends "raw" ? true : false;
+@languageItem("memory.IsRaw")
+export newtype IsRaw<T> = intrinsic;
 
 /// Return whether `T` is explicitly placed in shared space.
-export type IsShared<T> = SpaceOf<T> extends "shared" ? true : false;
+@languageItem("memory.IsShared")
+export newtype IsShared<T> = intrinsic;
 
 /// Return whether `T` resolves to shared space in concrete space `S`.
-export type IsSharedIn<T, S: Space> = PlaceIn<T, S> extends "shared" ? true : false;
+@languageItem("memory.IsSharedIn")
+export newtype IsSharedIn<T, S: Space> = intrinsic;
+
+/// Replace the unqualified base type of `Q` with `T`.
+@languageItem("memory.WithBase")
+export newtype WithBase<Q, T> = intrinsic;
 
 /// Add ownership form `O` around `Q`.
-export type WithOwnership<Q, O: Ownership, L = LifetimeOf<Q>> = O extends "managed"
-    ? Managed<Q>
-    : O extends "owned"
-      ? Owned<Q>
-      : O extends "borrowed"
-        ? Borrowed<Q, L, AccessOf<Q>>
-        : O extends "raw"
-          ? Raw<Q>
-          : never;
-
-/// Remove placement forms from `Q`.
-type WithoutPlace<Q> =
-    Q extends Placed<infer U, infer P>
-        ? WithoutPlace<U>
-        : Q extends Managed<infer U>
-          ? Managed<WithoutPlace<U>>
-          : Q extends Owned<infer U>
-            ? Owned<WithoutPlace<U>>
-            : Q extends Borrowed<infer U, infer L, infer A>
-              ? Borrowed<WithoutPlace<U>, L, A>
-              : Q extends Raw<infer U>
-                ? Raw<WithoutPlace<U>>
-                : Q extends Readonly<infer U>
-                  ? Readonly<WithoutPlace<U>>
-                  : Q;
+@languageItem("memory.WithOwnership")
+export newtype WithOwnership<Q, O: Ownership, L = LifetimeOf<Q>> = intrinsic;
 
 /// Place `Q` in `P`.
-export type WithPlace<Q, P: Place> = Placed<WithoutPlace<Q>, P>;
+@languageItem("memory.WithPlace")
+export newtype WithPlace<Q, P: Place> = intrinsic;
 
 /// Place `Q` in concrete space `S`.
-export type WithSpace<Q, S: Space> = WithPlace<Q, S>;
+@languageItem("memory.WithSpace")
+export newtype WithSpace<Q, S: Space> = intrinsic;
 
 /// Reborrow `Q` with lifetime `L`.
-export type WithLifetime<Q, L: Lifetime> =
-    Q extends Borrowed<infer U, infer QL, infer A>
-        ? Borrowed<U, L, A>
-        : Q extends Placed<infer U, infer P>
-          ? Placed<WithLifetime<U, L>, P>
-          : Q extends Readonly<infer U>
-            ? Readonly<WithLifetime<U, L>>
-            : never;
+@languageItem("memory.WithLifetime")
+export newtype WithLifetime<Q, L: Lifetime> = intrinsic;
 
 /// Reborrow `Q` with access mode `A`.
-export type WithAccess<Q, A: Access> =
-    Q extends Borrowed<infer U, infer L, infer QA>
-        ? Borrowed<U, L, A>
-        : Q extends Placed<infer U, infer P>
-          ? Placed<WithAccess<U, A>, P>
-          : Q extends Owned<infer U>
-            ? Owned<WithAccess<U, A>>
-            : Q extends Managed<infer U>
-              ? Managed<WithAccess<U, A>>
-              : Q extends Raw<infer U>
-                ? Raw<WithAccess<U, A>>
-                : A extends "readonly"
-                  ? Readonly<Q>
-                  : Q;
+@languageItem("memory.WithAccess")
+export newtype WithAccess<Q, A: Access> = intrinsic;
 
 /// Rebase each field of `T` into managed form.
 export type ManagedFields<T> = {
