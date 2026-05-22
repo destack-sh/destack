@@ -881,13 +881,31 @@ define_language_items! {
             LanguageItem => (Newtype, "decorator/intrinsic", "languageItem"),
         }
 
-        /// `destack:decorator/memory`.
-        memory {
+        /// `destack:decorator/restriction`.
+        restriction {
             /// `@noManaged` marker
-            NoManaged => (Newtype, "decorator/memory", "noManaged"),
+            NoManaged => (Newtype, "decorator/restriction", "noManaged"),
 
             /// `@noHeap` marker
-            NoHeap => (Newtype, "decorator/memory", "noHeap"),
+            NoHeap => (Newtype, "decorator/restriction", "noHeap"),
+
+            /// `@noRuntime` marker
+            NoRuntime => (Newtype, "decorator/restriction", "noRuntime"),
+
+            /// `@noUnsafe` marker
+            NoUnsafe => (Newtype, "decorator/restriction", "noUnsafe"),
+
+            /// `@noDynamicDispatch` marker
+            NoDynamicDispatch => (Newtype, "decorator/restriction", "noDynamicDispatch"),
+
+            /// `@noReflection` marker
+            NoReflection => (Newtype, "decorator/restriction", "noReflection"),
+
+            /// `@noUnwind` marker
+            NoUnwind => (Newtype, "decorator/restriction", "noUnwind"),
+
+            /// `@exclusiveMutableBorrows` marker
+            ExclusiveMutableBorrows => (Newtype, "decorator/restriction", "exclusiveMutableBorrows"),
         }
 
         /// `destack:decorator/capture`.

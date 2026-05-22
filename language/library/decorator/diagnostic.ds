@@ -1,44 +1,60 @@
-/// Allow some diagnostic.
+/// Diagnostic selector string.
+export type DiagnosticSelector = string;
+
+/// Diagnostic control fallback.
+export type DiagnosticFallback = "allow" | "warn" | "deny" | "forbid";
+
+/// Options for scoped diagnostic controls.
+export type DiagnosticControlOptions = {
+    /// Reason shown next to the diagnostic control.
+    reason?: string;
+    /// Static condition that enables the control.
+    if?: boolean;
+    /// Control applied when `if` is false.
+    otherwise?: DiagnosticFallback;
+};
+
+/// Allow a diagnostic.
 ///
 /// ```
-/// @allow(E001)
+/// @allow("no-floating-promises", { if: import.meta.dev, otherwise: "deny" })
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.allow")
-export newtype allow = (string,) | ();
+export newtype allow = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
 
-/// Warn on some diagnostic.
+/// Warn on a diagnostic.
 ///
 /// ```
-/// @warn(E001)
+/// @warn("no-floating-promises")
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.warn")
-export newtype warn = (string,) | ();
+export newtype warn = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
 
-/// Deny some diagnostic with an error.
+/// Deny a diagnostic with an error.
 ///
 /// ```
-/// @deny(E001)
+/// @deny("no-floating-promises")
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.deny")
-export newtype deny = (string,) | ();
+export newtype deny = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
 
 /// Forbid some diagnostic.
 ///
 /// ```
-/// @forbid(E001)
+/// @forbid("unsafe-code")
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.forbid")
-export newtype forbid = (string,) | ();
+export newtype forbid = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);
 
-/// Expect some diagnostic.
+/// Expect a diagnostic.
 ///
 /// ```
-/// @expect(E001)
+/// @expect("no-floating-promises", { reason: "intentional fire-and-forget" })
 /// function oldAPI() { }
 /// ```
 @languageItem("decorator.expect")
-export newtype expect = (string,) | ();
+export newtype expect = (DiagnosticSelector,) | (DiagnosticSelector, DiagnosticControlOptions);

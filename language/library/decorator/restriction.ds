@@ -1,0 +1,71 @@
+/// Forbid managed values and managed allocation.
+///
+/// ```
+/// @noManaged
+/// function processFrame() { }
+/// ```
+@languageItem("decorator.noManaged")
+export newtype noManaged = ();
+
+/// Forbid heap allocation.
+///
+/// ```
+/// @noHeap
+/// function interruptHandler() { }
+/// ```
+@languageItem("decorator.noHeap")
+export newtype noHeap = ();
+
+/// Forbid runtime-dependent language features.
+///
+/// ```
+/// @noRuntime
+/// function kernel() { }
+/// ```
+@languageItem("decorator.noRuntime")
+export newtype noRuntime = ();
+
+/// Forbid unsafe operations.
+///
+/// ```
+/// @noUnsafe
+/// module {}
+/// ```
+@languageItem("decorator.noUnsafe")
+export newtype noUnsafe = ();
+
+/// Forbid dynamic dispatch.
+///
+/// ```
+/// @noDynamicDispatch
+/// module {}
+/// ```
+@languageItem("decorator.noDynamicDispatch")
+export newtype noDynamicDispatch = ();
+
+/// Forbid runtime reflection.
+///
+/// ```
+/// @noReflection
+/// module {}
+/// ```
+@languageItem("decorator.noReflection")
+export newtype noReflection = ();
+
+/// Forbid unwinding.
+///
+/// ```
+/// @noUnwind
+/// module {}
+/// ```
+@languageItem("decorator.noUnwind")
+export newtype noUnwind = ();
+
+/// Require mutable borrows to be exclusive.
+///
+/// ```
+/// @exclusiveMutableBorrows
+/// module {}
+/// ```
+@languageItem("decorator.exclusiveMutableBorrows")
+export newtype exclusiveMutableBorrows = ();
