@@ -150,25 +150,9 @@ function escaped(a: &Node, flag: bool): &Node {
 
 - borrow does not live long enough
 
-### single-input declarations return the input lifetime
+### declarations reject elided returned borrow lifetimes
 
-With one borrowed input, a declaration can elide the returned lifetime.
-
-```ds
-struct Node {
-    id: int32;
-}
-
-declare function only(value: &Node): &Node;
-
-function pass(value: &Node): &Node {
-    return only(value);
-}
-```
-
-### single-input declarations require a live input
-
-The input must outlive the returned borrow.
+Declaration-only signatures must spell returned borrow lifetimes explicitly.
 
 ```ds
 struct Node {
@@ -176,18 +160,13 @@ struct Node {
 }
 
 declare function only(value: &Node): &Node;
-
-function escaped(): &Node {
-    let local = ^Node { id: 1 };
-    return only(&local);
-}
 ```
 
-- borrow does not live long enough
+- declaration-only borrowed return needs an explicit lifetime relationship
 
 ### multi-input declarations need a lifetime relationship
 
-A declaration with several borrowed inputs must state which input roots the result.
+A declaration with several borrowed inputs must also state which input roots the result.
 
 ```ds
 struct Node {
@@ -287,9 +266,9 @@ function escaped(engine: &Engine): WorldBorrow {
 
 - borrow does not live long enough
 
-### single lifetime parameter applies to borrowed fields
+### explicit field lifetime uses a named parameter
 
-With only one lifetime parameter, borrowed fields are part of that lifetime.
+Use `Borrowed<T, L>` when a stored field must use a specific lifetime parameter.
 
 ```ds
 struct Node {
@@ -297,7 +276,7 @@ struct Node {
 }
 
 struct NodeBorrow<L: Lifetime> {
-    node: &Node;
+    node: Borrowed<Node, L>;
 }
 
 function borrowNode<L: Lifetime>(node: Borrowed<Node, L>): NodeBorrow<L> {
@@ -305,7 +284,7 @@ function borrowNode<L: Lifetime>(node: Borrowed<Node, L>): NodeBorrow<L> {
 }
 ```
 
-### borrowed field must satisfy the struct lifetime
+### explicit field lifetime rejects shorter borrows
 
 A struct with lifetime `L` cannot store a borrow rooted in the current function.
 
@@ -315,7 +294,7 @@ struct Node {
 }
 
 struct NodeBorrow<L: Lifetime> {
-    node: &Node;
+    node: Borrowed<Node, L>;
 }
 
 function escaped<L: Lifetime>(): NodeBorrow<L> {
@@ -326,26 +305,26 @@ function escaped<L: Lifetime>(): NodeBorrow<L> {
 
 - borrow does not live long enough
 
-### bare borrowed fields do not pick among several lifetimes
+### elided stored fields induce distinct lifetimes
 
-When several lifetime parameters are in scope, use `Borrowed<T, L>` to pick one.
+Each elided stored borrow gets its own inferred lifetime parameter.
 
 ```ds
 struct Node {
     id: int32;
 }
 
-struct Pair<A: Lifetime, B: Lifetime> {
+struct Pair {
     left: &Node;
     right: &Node;
 }
 
-function pair<A: Lifetime, B: Lifetime>(left: &Node, right: &Node): Pair<A, B> {
+function pair(left: &Node, right: &Node): Pair {
     return Pair { left, right };
 }
 ```
 
-### stored fields can name different lifetimes
+### explicit stored fields can name different lifetimes
 
 Different stored borrow lifetimes are written with `Borrowed<T, L>`.
 
