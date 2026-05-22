@@ -5,7 +5,7 @@ use destack_artifact::{EmitFormat, Host, Platform, Runtime, TargetAbi, TargetArc
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CompilerOptions, Policy};
+use crate::{CompilerOptions, CompilerRestrictions, Policy};
 
 use super::super::runtime::RuntimeOptions;
 use super::codegen::*;
@@ -38,6 +38,8 @@ pub struct Target {
     pub tree: Option<String>,
     /// Target derive providers.
     pub derive: Vec<String>,
+    /// Static semantic restrictions for this target.
+    pub restrictions: CompilerRestrictions,
     /// Glob patterns for files to include (for include-based discovery).
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
@@ -183,6 +185,7 @@ impl Target {
             globals: Vec::new(),
             tree: None,
             derive: Vec::new(),
+            restrictions: CompilerRestrictions::default(),
             include: Vec::new(),
             exclude: Vec::new(),
             module: JsModuleFormat::default(),
@@ -423,6 +426,9 @@ impl Target {
         compiler_options.tags.extend(self.tags.clone());
         compiler_options.globals.extend(self.globals.clone());
         compiler_options.derive.extend(self.derive.clone());
+        compiler_options
+            .restrictions
+            .tighten_with(&self.restrictions);
 
         // native outputs force stricter semantics
         if is_native_output {

@@ -38,17 +38,8 @@ pub struct CompilerOptions {
     /// Derive providers automatically considered for nominal declarations.
     pub derive: Vec<String>,
 
-    // static restrictions
-    /// Policy for GC-managed defaults and allocations.
-    pub no_managed: DiagnosticPolicy,
-    /// Policy for all heap allocation.
-    pub no_heap: DiagnosticPolicy,
-    /// Policy for runtime usage (no managed memory, no Promise, ...).
-    pub no_runtime: DiagnosticPolicy,
-    /// Policy for low level internal protocol imports (`platform:`).
-    pub no_internal_import: DiagnosticPolicy,
-    /// Policy for overloads that are not statically resolvable.
-    pub no_implicit_dynamic_dispatch: DiagnosticPolicy,
+    /// Static semantic restrictions.
+    pub restrictions: CompilerRestrictions,
 
     // emit
     /// Root directory of source files (controls output directory structure, not module resolution).
@@ -80,12 +71,7 @@ impl Default for CompilerOptions {
             globals: Vec::new(),
             derive: Vec::new(),
 
-            // static restrictions
-            no_managed: DiagnosticPolicy::Allow,
-            no_heap: DiagnosticPolicy::Allow,
-            no_runtime: DiagnosticPolicy::Allow,
-            no_internal_import: DiagnosticPolicy::Allow,
-            no_implicit_dynamic_dispatch: DiagnosticPolicy::Allow,
+            restrictions: CompilerRestrictions::default(),
 
             // emit
             root_dir: None,
@@ -101,28 +87,88 @@ impl Default for CompilerOptions {
 impl CompilerOptions {
     /// Enable native-only restrictions for native and wasm targets.
     pub fn apply_native_restrictions(&mut self) {
-        self.no_managed = DiagnosticPolicy::Deny;
+        self.restrictions.no_managed = DiagnosticPolicy::Deny;
     }
 
     /// Enable heap-free restrictions.
     pub fn apply_no_heap_restrictions(&mut self) {
-        if self.no_heap.is_stricter_than(self.no_managed) {
-            self.no_managed = self.no_heap;
+        if self
+            .restrictions
+            .no_heap
+            .is_stricter_than(self.restrictions.no_managed)
+        {
+            self.restrictions.no_managed = self.restrictions.no_heap;
         }
     }
 
     /// Enable runtime-free restrictions for compile-time only targets.
     pub fn apply_no_runtime_restrictions(&mut self) {
-        // force runtime control flags on when runtime is disabled
-        self.no_runtime = DiagnosticPolicy::Deny;
-        self.no_heap = DiagnosticPolicy::Deny;
-        self.no_managed = DiagnosticPolicy::Deny;
-        self.no_implicit_dynamic_dispatch = DiagnosticPolicy::Deny;
+        self.restrictions.no_runtime = DiagnosticPolicy::Deny;
+        self.restrictions.no_heap = DiagnosticPolicy::Deny;
+        self.restrictions.no_managed = DiagnosticPolicy::Deny;
+        self.restrictions.no_dynamic_dispatch = DiagnosticPolicy::Deny;
+    }
+}
+
+/// Static semantic restrictions enforced by the compiler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct CompilerRestrictions {
+    /// Policy for managed values and managed allocation.
+    pub no_managed: DiagnosticPolicy,
+    /// Policy for all heap allocation.
+    pub no_heap: DiagnosticPolicy,
+    /// Policy for runtime-dependent language features.
+    pub no_runtime: DiagnosticPolicy,
+    /// Policy for unsafe operations.
+    pub no_unsafe: DiagnosticPolicy,
+    /// Policy for calls that cannot be statically resolved.
+    pub no_dynamic_dispatch: DiagnosticPolicy,
+    /// Policy for runtime reflection and RTTI usage.
+    pub no_reflection: DiagnosticPolicy,
+    /// Policy for unwinding.
+    pub no_unwind: DiagnosticPolicy,
+    /// Policy requiring mutable borrows to be exclusive.
+    pub exclusive_mutable_borrows: DiagnosticPolicy,
+}
+
+impl Default for CompilerRestrictions {
+    fn default() -> Self {
+        Self {
+            no_managed: DiagnosticPolicy::Allow,
+            no_heap: DiagnosticPolicy::Allow,
+            no_runtime: DiagnosticPolicy::Allow,
+            no_unsafe: DiagnosticPolicy::Allow,
+            no_dynamic_dispatch: DiagnosticPolicy::Allow,
+            no_reflection: DiagnosticPolicy::Allow,
+            no_unwind: DiagnosticPolicy::Allow,
+            exclusive_mutable_borrows: DiagnosticPolicy::Allow,
+        }
+    }
+}
+
+impl CompilerRestrictions {
+    /// Tighten this set with stricter policies from another set.
+    pub fn tighten_with(&mut self, other: &Self) {
+        self.no_managed = stricter_policy(self.no_managed, other.no_managed);
+        self.no_heap = stricter_policy(self.no_heap, other.no_heap);
+        self.no_runtime = stricter_policy(self.no_runtime, other.no_runtime);
+        self.no_unsafe = stricter_policy(self.no_unsafe, other.no_unsafe);
+        self.no_dynamic_dispatch =
+            stricter_policy(self.no_dynamic_dispatch, other.no_dynamic_dispatch);
+        self.no_reflection = stricter_policy(self.no_reflection, other.no_reflection);
+        self.no_unwind = stricter_policy(self.no_unwind, other.no_unwind);
+        self.exclusive_mutable_borrows = stricter_policy(
+            self.exclusive_mutable_borrows,
+            other.exclusive_mutable_borrows,
+        );
     }
 }
 
 /// Diagnostic policy for allow/warn/deny enforcement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum DiagnosticPolicy {
@@ -162,5 +208,14 @@ impl DiagnosticPolicy {
             DiagnosticPolicy::Warn => 1,
             DiagnosticPolicy::Deny => 2,
         }
+    }
+}
+
+/// Return the stricter diagnostic policy.
+fn stricter_policy(left: DiagnosticPolicy, right: DiagnosticPolicy) -> DiagnosticPolicy {
+    if right.is_stricter_than(left) {
+        right
+    } else {
+        left
     }
 }
