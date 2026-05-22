@@ -63,13 +63,14 @@ else {
 ### Naming
 
 - Names should be obvious, clear, and idiomatic to the language and topic.
-- Where relevant prior art exists, we should follow existing modern terminology.
 - Shorter, stronger nouns and verbs are almost always better.
+- Clear naming, pristine nouns and verbs, are part of a clear design. As a corollary, muddy naming strongly indicates an unclear design with muddy boundaries.
+- Where relevant prior art exists, we should follow existing modern terminology.
 - Prefer writing out most names and words (even in variable names, `extension` > `ext`, `directory` > `dir`).
 - As with logic, symmetry in naming across related logic is simpler, and simpler is better.
 - Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
-- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
+- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
 
 ### Logic
@@ -107,7 +108,7 @@ else {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) with hardware empathy.
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
