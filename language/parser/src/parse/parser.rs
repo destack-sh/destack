@@ -18,15 +18,41 @@ use crate::{ParseError, ParseResult};
 
 use super::state::ParserState;
 
-use super::constants::{
-    ESTIMATED_STRING_TOKEN_DIVISOR, ESTIMATED_TOKEN_BYTES, MAX_RECURSIVE_DESCENT_DEPTH,
-};
 use super::flags::ParserFlags;
 use super::identifier::TypeLiteralIdentifiers;
 use super::mode::ContextualLexMode;
 use super::options::ParserOptions;
 
-type ParseErrorKey = (Span, Option<NodeType>, Option<TokenType>);
+/// Estimated source bytes per parser token.
+const ESTIMATED_TOKEN_BYTES: usize = 6;
+/// Estimated parser tokens per interned string.
+const ESTIMATED_STRING_TOKEN_DIVISOR: usize = 3;
+/// Maximum nested recursive parser descent before reporting malformed input.
+const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
+
+/// Stable parser error identity used for diagnostic deduplication.
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
+struct ParseErrorKey {
+    /// The leaf error span.
+    span: Span,
+    /// The leaf parser node type.
+    node_type: Option<NodeType>,
+    /// The expected token at the leaf.
+    expected: Option<TokenType>,
+}
+
+impl ParseErrorKey {
+    /// Create one deduplication key from one parser error.
+    fn from_error(error: &ParseError) -> Self {
+        let (span, node_type, expected) = error.leaf_content();
+
+        Self {
+            span,
+            node_type,
+            expected,
+        }
+    }
+}
 
 /// One cached parser lookahead token.
 #[derive(Debug, Copy, Clone)]
@@ -152,7 +178,7 @@ impl Parser {
         self.preserve_parenthesized_wrappers
     }
 
-    /// Run one parser descent under the shared recursion budget.
+    /// Run one parser descent under the shared recursion limit.
     #[inline(always)]
     pub(crate) fn with_recursive_descent<T>(
         &mut self,
@@ -164,7 +190,7 @@ impl Parser {
         }
 
         self.recursive_descent_depth += 1;
-        let result = parse(self);
+        let result = destack_core::ensure_sufficient_stack(|| parse(self));
         self.recursive_descent_depth -= 1;
 
         result
@@ -968,7 +994,7 @@ impl Parser {
     #[cold]
     #[inline(never)]
     pub(crate) fn error(&mut self, e: &ParseError) {
-        let key = e.leaf_content();
+        let key = ParseErrorKey::from_error(e);
         if self.error_keys.insert(key) {
             self.errors.push(e.clone());
         }
@@ -991,7 +1017,7 @@ impl Parser {
     fn rebuild_error_keys(&mut self) {
         self.error_keys.clear();
         self.error_keys
-            .extend(self.errors.iter().map(ParseError::leaf_content));
+            .extend(self.errors.iter().map(ParseErrorKey::from_error));
     }
 
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.

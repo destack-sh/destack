@@ -23,6 +23,13 @@ impl Parser {
     /// geom.Mesh<2, float32> { vertices: [2, ...] }
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
+        self.with_recursive_descent(NodeType::Pattern, |parser| {
+            parser.eat_pattern_at_current_depth()
+        })
+    }
+
+    /// Eat a pattern after recursive descent state has been entered.
+    fn eat_pattern_at_current_depth(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
         let start = self.span_start();
 
         // ------------------------------------------------------------

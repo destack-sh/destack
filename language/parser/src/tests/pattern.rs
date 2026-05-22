@@ -14,6 +14,25 @@ fn assert_integer_expression(tree: &Tree, id: LocalNodeId<Expression>, value: i6
     });
 }
 
+/// Build one deeply nested tuple pattern.
+fn nested_tuple_pattern_source(depth: usize) -> String {
+    let mut source = String::new();
+
+    // open tuple patterns
+    for _ in 0..depth {
+        source.push('(');
+    }
+
+    source.push_str("value");
+
+    // close tuple patterns
+    for _ in 0..depth {
+        source.push(')');
+    }
+
+    source
+}
+
 #[test]
 fn test_parse_pattern_wildcard() {
     // _
@@ -21,6 +40,20 @@ fn test_parse_pattern_wildcard() {
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
     assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
+}
+
+/// Parse a deeply nested tuple pattern without overflowing the parser stack.
+#[test]
+fn test_parse_deeply_nested_tuple_pattern() {
+    let source = nested_tuple_pattern_source(1024);
+    let mut test = TestParser::new(&source);
+    let mut parser = test.prepare();
+    let pattern_id = parser.eat_pattern().unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
+        assert_eq!(fields.len(), 1);
+    });
 }
 
 #[test]
