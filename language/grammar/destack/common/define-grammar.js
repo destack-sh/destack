@@ -1846,7 +1846,7 @@ module.exports = function defineGrammar(dialect) {
         const commonPrefix = [
           repeat(field('decorator', $.decorator)),
           ...(dialect === 'destack' ? [optional($.accessibility_modifier), optional('readonly')] : []),
-          ...(dialect === 'destack' ? [optional('comptime')] : []),
+          ...(dialect === 'destack' ? [optional(choice('comptime', 'static'))] : []),
         ];
 
         if (dialect === 'destack') {
@@ -2423,6 +2423,7 @@ module.exports = function defineGrammar(dialect) {
 
       constraint: $ => seq(
         choice('extends', ':'),
+        ...(dialect === 'destack' ? [optional('static')] : []),
         $.type,
       ),
 

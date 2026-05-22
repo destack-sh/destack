@@ -81,3 +81,40 @@ type Shape<comptime ...Dims: usize> = [usize; Dims];
     (tuple_type
       (type_identifier)
       (identifier))))
+
+=======================================================
+Static parameter constraints
+:language(destack)
+=======================================================
+
+type StaticLane<N: static uint> = [uint8; N];
+type StaticFactory<T extends static abstract new (...args: any) => any> = T;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (tuple_type
+      (type_identifier)
+      (identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (constructor_type
+            (formal_parameters
+              (required_parameter
+                (rest_pattern
+                  (identifier))
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type)))))
+    (type_identifier)))

@@ -658,3 +658,33 @@ declare comptime async function fetch<T>(): Promise<T>;
         (type_identifier)
         (type_arguments
           (type_identifier))))))
+
+===============================================================================
+Static dynamic parameters
+:language(destack)
+===============================================================================
+
+function specialize(static value: int32, static maybe?: int32 = 1): int32 {
+  return value;
+}
+
+-------------------------------------------------------------------------------
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))
+        (number)))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier)))))

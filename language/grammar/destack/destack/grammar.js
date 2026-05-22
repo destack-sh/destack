@@ -1750,7 +1750,7 @@ module.exports = grammar(JavaScript, {
       repeat(field('decorator', $.decorator)),
       optional($.accessibility_modifier),
       optional('readonly'),
-      optional('comptime'),
+      optional(choice('comptime', 'static')),
       field('pattern', choice(
         $.pattern,
         $.this,
@@ -2276,6 +2276,7 @@ module.exports = grammar(JavaScript, {
 
     constraint: $ => seq(
       choice('extends', ':'),
+      optional('static'),
       $.type,
     ),
 
