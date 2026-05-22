@@ -4,6 +4,8 @@ use std::marker::PhantomData;
 use destack_source::{ModuleId, ProfileId};
 use serde::{Deserialize, Serialize};
 
+use crate::Access;
+
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
@@ -520,4 +522,15 @@ pub enum Mutability {
     Mutable,
     /// May be modified through exclusive access.
     Exclusive,
+}
+
+impl Mutability {
+    /// Return the normalized access value for this mutability qualifier.
+    pub fn access(self) -> Access {
+        match self {
+            Self::Immutable => Access::Readonly,
+            Self::Mutable => Access::Mutable,
+            Self::Exclusive => Access::Exclusive,
+        }
+    }
 }

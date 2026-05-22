@@ -29,7 +29,7 @@ impl Compiler {
             types: Arc::new(dir::TypeSegment::from_base(&materialized.types)),
             statics: Arc::new(dir::StaticSegment::from_base(&materialized.statics)),
             resolutions: Arc::new(dir::ResolutionSegment::new(module)),
-            instances: Arc::new(dir::InstanceSegment::from_base(&materialized.instances)),
+            generics: Arc::new(dir::GenericSegment::from_base(&materialized.generics)),
             relations: Arc::new(dir::RelationSegment::new(module)),
             captures: Arc::new(dir::CaptureSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::from_base(&materialized.layouts)),

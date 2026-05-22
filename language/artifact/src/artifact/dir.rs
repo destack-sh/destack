@@ -213,8 +213,8 @@ pub struct DirCheckedModule {
     pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New generic instances.
-    pub instances: Arc<dir::InstanceSegment>,
+    /// New generic slots and instances.
+    pub generics: Arc<dir::GenericSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
     /// New extension records.
@@ -262,9 +262,9 @@ impl DirCheckedModule {
         dir::ResolutionTable::from_segment(self.resolutions.clone())
     }
 
-    /// Return the cumulative instance table for checked DIR.
-    pub fn instance_table(&self) -> dir::InstanceTable<'static> {
-        dir::InstanceTable::from_segment(self.instances.clone())
+    /// Return the cumulative generic table for checked DIR.
+    pub fn generic_table(&self) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segment(self.generics.clone())
     }
 
     /// Return the cumulative relation table for checked DIR.
@@ -301,8 +301,8 @@ pub struct DirMaterialized {
     pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New generic instances.
-    pub instances: Arc<dir::InstanceSegment>,
+    /// New generic slots and instances.
+    pub generics: Arc<dir::GenericSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
     /// New captures.
@@ -365,9 +365,9 @@ impl DirMaterialized {
         ])
     }
 
-    /// Return the cumulative instance table for materialized DIR.
-    pub fn instance_table(&self, checked: &DirCheckedModule) -> dir::InstanceTable<'static> {
-        dir::InstanceTable::from_segments(vec![checked.instances.clone(), self.instances.clone()])
+    /// Return the cumulative generic table for materialized DIR.
+    pub fn generic_table(&self, checked: &DirCheckedModule) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segments(vec![checked.generics.clone(), self.generics.clone()])
     }
 
     /// Return the cumulative relation table for materialized DIR.
@@ -404,8 +404,8 @@ pub struct DirElaborated {
     pub statics: Arc<dir::StaticSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
-    /// New generic instances.
-    pub instances: Arc<dir::InstanceSegment>,
+    /// New generic slots and instances.
+    pub generics: Arc<dir::GenericSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
     /// New captures.
@@ -481,16 +481,16 @@ impl DirElaborated {
         ])
     }
 
-    /// Return the cumulative instance table for elaborated DIR.
-    pub fn instance_table(
+    /// Return the cumulative generic table for elaborated DIR.
+    pub fn generic_table(
         &self,
         checked: &DirCheckedModule,
         materialized: &DirMaterialized,
-    ) -> dir::InstanceTable<'static> {
-        dir::InstanceTable::from_segments(vec![
-            checked.instances.clone(),
-            materialized.instances.clone(),
-            self.instances.clone(),
+    ) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segments(vec![
+            checked.generics.clone(),
+            materialized.generics.clone(),
+            self.generics.clone(),
         ])
     }
 

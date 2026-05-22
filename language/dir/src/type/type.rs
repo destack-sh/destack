@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GlobalSymbolId, LocalStaticId, ScalarLiteral, StaticArgument, StaticKey, StringId,
-    TypeLiteral,
+    Asynchrony, GlobalSymbolId, LocalStaticId, MappedTypeModifier, ScalarLiteral, StaticArgument,
+    StaticKey, StringId, TypeLiteral,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -43,26 +43,13 @@ impl TryFrom<&str> for BuiltinTypeFunction {
     }
 }
 
-/// A mapped-type modifier in semantic type space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TypeMappedModifier {
-    /// The plain modifier without an explicit sign.
-    Present,
-    /// Add a modifier with an explicit `+` sign.
-    Add,
-    /// Remove a modifier like `-readonly` or `-?`.
-    Remove,
-    /// No modifier specified.
-    None,
-}
-
 /// Semantic mapped-type modifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MappedTypeModifiers {
     /// The readonly modifier.
-    pub readonly: TypeMappedModifier,
+    pub readonly: MappedTypeModifier,
     /// The optional modifier.
-    pub optional: TypeMappedModifier,
+    pub optional: MappedTypeModifier,
 }
 
 /// A semantic mapped-type parameter.

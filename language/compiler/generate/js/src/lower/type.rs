@@ -216,12 +216,12 @@ impl ModuleLowerer<'_> {
     }
 
     /// Lower one mapped type modifier from DIR into JS AST.
-    fn lower_type_modifier(&self, modifier: dir::TypeMappedModifier) -> js::MappedTypeModifier {
+    fn lower_type_modifier(&self, modifier: dir::MappedTypeModifier) -> js::MappedTypeModifier {
         match modifier {
-            dir::TypeMappedModifier::Present => js::MappedTypeModifier::Present,
-            dir::TypeMappedModifier::Add => js::MappedTypeModifier::Add,
-            dir::TypeMappedModifier::Remove => js::MappedTypeModifier::Remove,
-            dir::TypeMappedModifier::None => js::MappedTypeModifier::None,
+            dir::MappedTypeModifier::Present => js::MappedTypeModifier::Present,
+            dir::MappedTypeModifier::Add => js::MappedTypeModifier::Add,
+            dir::MappedTypeModifier::Remove => js::MappedTypeModifier::Remove,
+            dir::MappedTypeModifier::None => js::MappedTypeModifier::None,
         }
     }
 
@@ -402,6 +402,11 @@ impl ModuleLowerer<'_> {
                 dir::Lifetime::Static => self.lower_static_string_type(source_id, "static"),
                 dir::Lifetime::Symbol(symbol) => {
                     self.lower_reference_type_from_symbol(source_id, *symbol, None)
+                }
+                dir::Lifetime::Generated(name) => {
+                    let name = self.source_strings.get(*name).to_string();
+
+                    self.lower_static_string_type(source_id, &name)
                 }
                 dir::Lifetime::Join(_) => Err(CodegenJsError::UnsupportedConstruct {
                     node: source_id.into_global(self.module.id),

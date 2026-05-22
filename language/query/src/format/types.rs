@@ -678,6 +678,7 @@ fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> St
     match lifetime {
         dir::Lifetime::Static => "static".to_string(),
         dir::Lifetime::Symbol(symbol) => format_symbol_name(*symbol, ctx),
+        dir::Lifetime::Generated(name) => ctx.dir().strings().get(*name).to_string(),
         dir::Lifetime::Join(elements) => {
             let elements = elements
                 .iter()
@@ -685,7 +686,7 @@ fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> St
                 .collect::<Vec<_>>()
                 .join(" | ");
 
-            format!("join({elements})")
+            elements
         }
     }
 }
@@ -741,21 +742,21 @@ fn format_builtin_type_function(function: &dir::BuiltinTypeFunction) -> String {
     }
 }
 
-fn format_type_mapped_modifier_prefix(modifier: dir::TypeMappedModifier) -> &'static str {
+fn format_type_mapped_modifier_prefix(modifier: dir::MappedTypeModifier) -> &'static str {
     match modifier {
-        dir::TypeMappedModifier::Present => "readonly ",
-        dir::TypeMappedModifier::Add => "+readonly ",
-        dir::TypeMappedModifier::Remove => "-readonly ",
-        dir::TypeMappedModifier::None => "",
+        dir::MappedTypeModifier::Present => "readonly ",
+        dir::MappedTypeModifier::Add => "+readonly ",
+        dir::MappedTypeModifier::Remove => "-readonly ",
+        dir::MappedTypeModifier::None => "",
     }
 }
 
-fn format_type_mapped_modifier_suffix(modifier: dir::TypeMappedModifier) -> &'static str {
+fn format_type_mapped_modifier_suffix(modifier: dir::MappedTypeModifier) -> &'static str {
     match modifier {
-        dir::TypeMappedModifier::Present => "?",
-        dir::TypeMappedModifier::Add => "+?",
-        dir::TypeMappedModifier::Remove => "-?",
-        dir::TypeMappedModifier::None => "",
+        dir::MappedTypeModifier::Present => "?",
+        dir::MappedTypeModifier::Add => "+?",
+        dir::MappedTypeModifier::Remove => "-?",
+        dir::MappedTypeModifier::None => "",
     }
 }
 

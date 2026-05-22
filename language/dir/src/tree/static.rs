@@ -98,6 +98,8 @@ pub enum Lifetime {
     Static,
     /// Symbolic lifetime parameter or associated constant.
     Symbol(GlobalSymbolId),
+    /// Generated lifetime parameter induced during check.
+    Generated(StringId),
     /// Joined lifetime value.
     Join(Vec<LocalStaticId>),
 }

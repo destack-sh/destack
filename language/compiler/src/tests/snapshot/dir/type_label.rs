@@ -235,12 +235,12 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one mapped modifier label.
-    fn mapped_modifier_label(token: &'static str, modifier: dir::TypeMappedModifier) -> String {
+    fn mapped_modifier_label(token: &'static str, modifier: dir::MappedTypeModifier) -> String {
         match modifier {
-            dir::TypeMappedModifier::Present => token.to_string(),
-            dir::TypeMappedModifier::Add => format!("+{token}"),
-            dir::TypeMappedModifier::Remove => format!("-{token}"),
-            dir::TypeMappedModifier::None => String::new(),
+            dir::MappedTypeModifier::Present => token.to_string(),
+            dir::MappedTypeModifier::Add => format!("+{token}"),
+            dir::MappedTypeModifier::Remove => format!("-{token}"),
+            dir::MappedTypeModifier::None => String::new(),
         }
     }
 
