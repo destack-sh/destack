@@ -1996,47 +1996,16 @@ extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
 TypeScript, like many managed high level languages, does not encode memory "ownership" in its type system: all reference types are implicitly GC-managed on some (local) heap, and all value types are copied by default.
 That is convenient and often what we want, but sometimes we need to take direct control of memory, whether for better performance, or just to express certain invariants in the code.
 
-Destack supports explicit, optional type modifiers for controlling memory _ownership_ and _placement_:
-- **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
+Destack supports explicit, optional type modifiers for controlling memory _placement_ and _ownership_:
 - **Placement** - where the value is located: ambient by default, explicitly `local` to one Worker, `shared` across Workers (or `static` for constant and `frame` for activation frames).
+- **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
 Importantly, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 
-### Ownership
-
-Ownership determines who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
-The notion of ownership is old but most commonly associated with Rust's explicit ownership system, and that is also the system most similar to Destack's implementation with a few tweaks.
-Really, "ownership" just means that _values_ have an owner and certain rules apply to how we can pass and store values to certain places, depending on which level of mutability and ownership they need.
-
-The usual explanation of "ownership" sounds more complex than it is, especially to developers used to "managed" languages, and _especially_ because Rust tradition (deliberately) unifies "liveness", "exclusivity" and "mutability".
-Unlike Rust, Destack we support _both_ multiple mutable borrows (`&T`) and exclusive mutable borrows (`&exclusive T`):
-
-| Form | Meaning | Mutable? | Exclusive? |
-|------|---------|----------|------------|
-| `T` | normal managed/default value | yes | no |
-| `^T` | owned value | yes | yes (single owner) |
-| `&T` | borrowed access | yes | no |
-| `&readonly T` | readonly borrowed access | no | no |
-| `&exclusive T` | exclusive borrowed access | yes | yes |
-| `*T` | raw pointer | yes (unchecked) | no (unchecked) |
-
-The ownership and borrow checking logic follow from the two rules that borrows must always be valid, and that exclusive borrows must indeed be exclusive.
-
-```ds
-let a: User = new User();
-let b: ^User = new User();
-let c: &User = &a;
-let d: &readonly User = &readonly a; // OK: &User is *not* exclusive
-let e: &exclusive User = &exclusive a; // ERROR: &exclusive User *is* exclusive
-let e: *User = &a;
-```
-
-Each ownership form also has a corresponding normalized representation in our little ["type algebra"](###algebra), which means we get to do regular TypeScript-style type space logic, conditionals and remapping (including for lifetimes!).
-
 ### Space
 
-Space determines where some value is actually located in memory, and since Destack follows web and JS/TS convention, we use the `Worker`-local heap as the default main memory space.
+The space of a value determines where it is actually located in memory, and since Destack follows web and TypeScript conventions, the `Worker`-_local_ heap is the default main memory space.
 Ordinary managed objects, arrays, strings, functions, closures, and module bindings live in local space, and user and library code can almost always just pretend spaces don't even exist.
 
 ```ds
@@ -2077,74 +2046,40 @@ For genuinely _shared_ process-global state, the binding _itself_ can be declare
 | `shared const world: shared World = new World()` | shared | shared | same runtime meaning, explicit on both axes |
 
 Note that making the binding itself as `shared` also types the value as `shared` (as it is illegal to point from shared storage into local storage anyway, this is convenient).
-There is no `local const` form because ordinary module bindings are already Worker-local.
 
-### Allocator
+### Ownership
 
-The primary way to construct new values is `new`, which initializes a `T` and produces the ownership form required by the _destination_ type - `new` is really just an initializer that calls the type's constructor.
-The required destination type decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
+Ownership determines who keeps a value alive, who is allowed to mutate it, and when and how it is eventually freed.
+The notion of ownership has many names and forms, but today it is most commonly associated with Rust's explicit ownership system, and that is also the system most similar to Destack.
+Really, "ownership" just means that each _value_ has an owner and certain rules apply to how we can pass and store values to certain places, depending on which level of mutability and ownership they need.
 
-```ds
-let a: User = new User();   // managed
-let b: ^User = new User();  // owned
-```
+The usual explanation of "ownership" sounds more complex than it is, especially to developers used to "managed" languages, and _especially_ because Rust tradition (deliberately) unifies "liveness", "exclusivity" and "mutability" while only liveness is required for memory safety.
+Unlike Rust, Destack supports _both_ multiple mutable borrows (`&T`) and exclusive mutable borrows (`&exclusive T`):
 
-Of course, Destack also supports direct allocation control via direct access to the underlying `Allocator`:
+| Form | Meaning | Mutable? | Exclusive? |
+|------|---------|----------|------------|
+| `T` | normal managed/default value | yes | no |
+| `^T` | owned value | yes | yes (single owner) |
+| `&T` | borrowed access | yes | no |
+| `&readonly T` | readonly borrowed access | no | no |
+| `&exclusive T` | exclusive borrowed access | yes | yes |
+| `*T` | raw pointer | yes (unchecked) | no (unchecked) |
 
-```ds
-let allocator = defaultAllocator<"shared">();
-let layout = AllocationLayout { size: 4096, align: 64 };
-let page = allocator.allocate(layout)?;
-
-page satisfies Allocation<"shared">;
-```
-
-Memory-sensitive code can also opt out of managed allocation locally:
-
-```ds
-@noManaged
-function processFrame(input: &[Sample]): ^Frame {
-    return buildFrame(input);
-}
-
-@noHeap
-function interruptHandler(input: &[Sample]): Frame {
-    return buildFrameOnStack(input);
-}
-```
-
-### Conversions
-
-The rules for converting references follow from the three basic memory rules established above:
-- References must always be valid (the referent must never be deallocated while the reference is live),
-- Exclusive references must be truly exclusive (no possibly overlapping loan is live).
-- Shared memory must not point into local memory (directly or indirectly).
-
-| From | To | Allow | Explanation |
-|------|----|-------|-------------|
-| local managed `T` | `&T` / `&readonly T` | yes | while the source place stays live and the borrow does not cross suspension |
-| local managed `T` | `&exclusive T` | yes | while no overlapping loan is live and the borrow does not cross suspension |
-| shared managed `T` | `&T` / `&readonly T` | yes | shared-safe APIs remain responsible for synchronization and data-race safety |
-| shared managed `T` | `&exclusive T` | no | a shared managed handle cannot prove uniqueness |
-| owned `^T` | `&T` / `&readonly T` / `&exclusive T` | yes | while the owned source stays live and the requested loan rules hold |
-| shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | yes | owned storage remains unique even when placed in shared space |
-| `&T` | `&readonly T` | yes | readonly reborrow |
-| `&exclusive T` | `&T` / `&readonly T` | yes | temporary reborrow that suspends the exclusive loan |
-| borrowed parameter | borrowed access across suspension | source-checked | the caller must prove the source is owned or static |
-| `T` | `^T` | no | managed ownership does not become unique ownership |
-| `&T` | `T` / `^T` | no | borrowed access does not own the value |
-| `*T` | `&T` / `&readonly T` / `&exclusive T` | yes | explicit unsafe reborrow |
-| `T` / `&T` / `^T` | `*T` | yes | explicit raw pointer conversion |
-
-The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
+The owner of a value is responsible for keeping it alive, and also for disposing of the owned value when the parent's own lifetime ends.
+The parent (owner) could be in static storage for global constants, it could be another owned or even managed value, or it could be a call frame in a method (in which case we get a stack allocation).
+The ownership and borrow checking logic follow from the two rules that borrows must always be valid, and that exclusive borrows must indeed be exclusive.
 
 ```ds
-let user = new User();
-let userBorrow: &User = &user;
-let userPointer: *User = &user;
+let a: User = new User();
+let b: ^User = new User();
+let c: &User = &a;
+let d: &readonly User = &readonly a; // OK: &User is *not* exclusive
+let e: &exclusive User = &exclusive a; // ERROR: &exclusive User *is* exclusive
+let e: *User = &a;
 ```
 
-As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is perfectly safe; only dereferencing and manipulating raw pointers becomes `@unsafe`.
+Each ownership form also has a corresponding normalized representation in our little ["type algebra"](###algebra), which means we get to do regular TypeScript-style type space logic, conditionals and remapping (including for lifetimes!).
+
 
 ### Borrowing
 
@@ -2342,6 +2277,74 @@ await using connection = await pool.connect();
 
 Low-level code can of course still control finalization explicitly:
 `drop(value)` ends ownership immediately, `forget(value)` intentionally suppresses automatic drop, `ManuallyDrop<T>` stores a value outside automatic drop handling, and `Box<T>.leak()` turns one owned allocation into a static borrow.
+
+
+### Allocator
+
+The primary way to construct new values is `new`, which initializes a `T` and produces the ownership form required by the _destination_ type - `new` is really just an initializer that calls the type's constructor.
+The required destination type decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
+
+```ds
+let a: User = new User();   // managed
+let b: ^User = new User();  // owned
+```
+
+Of course, Destack also supports direct allocation control via direct access to the underlying `Allocator`:
+
+```ds
+let allocator = defaultAllocator<"shared">();
+let layout = AllocationLayout { size: 4096, align: 64 };
+let page = allocator.allocate(layout)?;
+
+page satisfies Allocation<"shared">;
+```
+
+Memory-sensitive code can also opt out of managed allocation locally:
+
+```ds
+@noManaged
+function processFrame(input: &[Sample]): ^Frame {
+    return buildFrame(input);
+}
+
+@noHeap
+function interruptHandler(input: &[Sample]): Frame {
+    return buildFrameOnStack(input);
+}
+```
+
+### Conversions
+
+The rules for converting references follow from the three basic memory rules established above:
+- References must always be valid (the referent must never be deallocated while the reference is live),
+- Exclusive references must be truly exclusive (no possibly overlapping loan is live).
+- Shared memory must not point into local memory (directly or indirectly).
+
+| From | To | Allow | Explanation |
+|------|----|-------|-------------|
+| local managed `T` | `&T` / `&readonly T` | yes | while the source place stays live and the borrow does not cross suspension |
+| local managed `T` | `&exclusive T` | yes | while no overlapping loan is live and the borrow does not cross suspension |
+| shared managed `T` | `&T` / `&readonly T` | yes | shared-safe APIs remain responsible for synchronization and data-race safety |
+| shared managed `T` | `&exclusive T` | no | a shared managed handle cannot prove uniqueness |
+| owned `^T` | `&T` / `&readonly T` / `&exclusive T` | yes | while the owned source stays live and the requested loan rules hold |
+| shared owned `shared ^T` | `shared &T` / `shared &readonly T` / `shared &exclusive T` | yes | owned storage remains unique even when placed in shared space |
+| `&T` | `&readonly T` | yes | readonly reborrow |
+| `&exclusive T` | `&T` / `&readonly T` | yes | temporary reborrow that suspends the exclusive loan |
+| borrowed parameter | borrowed access across suspension | source-checked | the caller must prove the source is owned or static |
+| `T` | `^T` | no | managed ownership does not become unique ownership |
+| `&T` | `T` / `^T` | no | borrowed access does not own the value |
+| `*T` | `&T` / `&readonly T` / `&exclusive T` | yes | explicit unsafe reborrow |
+| `T` / `&T` / `^T` | `*T` | yes | explicit raw pointer conversion |
+
+The default type for a borrow is `&T`, and typing it as `*T` produces a raw pointer instead:
+
+```ds
+let user = new User();
+let userBorrow: &User = &user;
+let userPointer: *User = &user;
+```
+
+As in Rust, just converting a borrow `&T` to a raw pointer `*T` by itself is perfectly safe; only dereferencing and manipulating raw pointers becomes `@unsafe`.
 
 ### Unsafe
 
