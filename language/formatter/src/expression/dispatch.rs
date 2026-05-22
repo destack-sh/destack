@@ -196,6 +196,17 @@ fn format_expression_body<'ast>(
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
+    destack_core::ensure_sufficient_stack(|| {
+        format_expression_body_at_current_stack(f, node_id, expression)
+    })
+}
+
+/// Format one expression body after stack growth is handled.
+fn format_expression_body_at_current_stack<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    expression: &Expression,
+) -> FormatResult<()> {
     match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
