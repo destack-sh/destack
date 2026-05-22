@@ -1645,6 +1645,35 @@ struct User {
 }
 ```
 
+#### Diagnostics
+
+Like in other languages, (some of) Destack's diagnostics can be tuned with scoped decorators:
+ - `@allow`: explicitly allow a specific diagnostic
+ - `@warn`: warn about a specific diagnostic
+ - `@deny`: error about a specific diagnostic
+ - `@forbid`: forbid a specific diagnostic (cannot be overridden by `@allow`)
+ - `@expect`: expect a specific diagnostic (suppress, error if not produced)
+
+```ds
+@allow("no-floating-promises", {
+    if: import.meta.dev,
+    otherwise: "deny",
+    reason: "debug telemetry",
+})
+module {}
+```
+
+#### Restrictions
+
+Relatedly, restrictions may be used to allow or disallow more fundamental reaching language behavior in certain scopes:
+
+```ds
+@noHeap
+@noUnsafe
+@exclusiveMutableBorrows
+module {}
+```
+
 #### Taint
 
 Destack systematises the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its annotation system:
@@ -1725,7 +1754,7 @@ struct Buffer<T, comptime Mode: "inline" | "external"> {
 ### Module
 
 Destack modules can contain (up to) one static `module { ... }` declaration block for source-level configuration that needs to be specific to a module.
-Usually, we would configure via the compiler / target / profile options, but sometimes it's helpful to override some of these options locally:
+Usually, we would configure via the compiler / target / profile options, but sometimes it's helpful to refine a specific module locally:
 
 ```ds
 import { HtmlTree } from "destack:ui/html";
@@ -1752,6 +1781,8 @@ module {
 import.meta.role satisfies "server";
 import.meta.labels.feature satisfies readonly ["search", "billing"];
 ```
+
+It should be noted that module declarations (like global declarations) are proper static constants that are evaluated as static terms during compile time, so we could also do something slightly more dynamic like `const role = import.meta.test ? "server" : "client";`
 
 ### Globals
 
