@@ -44,6 +44,11 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 self.provide_dir_resolved(module, profile, context)
             }
+            ArtifactKey::DirCheckedComponent {
+                entry,
+                component,
+                profile,
+            } => self.provide_dir_checked_component(entry, component, profile, context),
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)
             }
