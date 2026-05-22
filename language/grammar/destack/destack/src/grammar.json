@@ -13716,8 +13716,17 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "STRING",
-              "value": "comptime"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "comptime"
+                },
+                {
+                  "type": "STRING",
+                  "value": "static"
+                }
+              ]
             },
             {
               "type": "BLANK"
@@ -16134,6 +16143,18 @@
             {
               "type": "STRING",
               "value": ":"
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "static"
+            },
+            {
+              "type": "BLANK"
             }
           ]
         },

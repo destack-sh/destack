@@ -15,6 +15,9 @@ comptime async function load(comptime value: Input): Output {}
 declare comptime function sizeOf<T>(): usize;
 //      ^^^^^^^^ keyword.other.comptime.ds
 
+function specialize(static value: int32): int32 { return value; }
+//                  ^^^^^^ keyword.other.modifier.ds
+
 // expressions / functions / calls and type arguments
 const user = create<User, comptime 4>(input);
 //           ^^^^^^ entity.name.function.call.ds

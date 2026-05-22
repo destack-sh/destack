@@ -13,3 +13,6 @@ type Tagged<comptime Tag: string> = { tag: Tag };
 
 type Shape<comptime ...Dims: usize> = [usize; Dims];
 //         ^^^^^^^^ keyword.other.comptime.ds
+
+type StaticLane<N: static uint> = [uint8; N];
+//                 ^^^^^^ keyword.other.modifier.ds
