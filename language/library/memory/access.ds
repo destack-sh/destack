@@ -1,4 +1,5 @@
 /// Access mode for qualified storage.
+@languageItem("memory.Access")
 export type Access = "readonly" | "mutable" | "exclusive";
 
 /// Readonly form for exactly `T`.

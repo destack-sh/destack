@@ -694,6 +694,9 @@ define_language_items! {
 
         /// `destack:memory/borrow`.
         borrow {
+            /// Lifetime marker.
+            Lifetime => (Type, "memory/lifetime", "Lifetime"),
+
             /// Borrowed access form.
             Borrowed => (Newtype, "memory/borrow", "Borrowed"),
         }
@@ -706,14 +709,29 @@ define_language_items! {
 
         /// `destack:memory/place`.
         place {
+            /// Concrete memory space tag kind.
+            Space => (Type, "memory/place", "Space"),
+
+            /// Placement tag kind.
+            Place => (Type, "memory/place", "Place"),
+
             /// Placement form.
             Placed => (Newtype, "memory/place", "Placed"),
         }
 
         /// `destack:memory/access`.
         access {
+            /// Access mode for qualified storage.
+            Access => (Type, "memory/access", "Access"),
+
             /// Readonly form.
             Readonly => (Newtype, "memory/access", "Readonly"),
+        }
+
+        /// `destack:memory/type`.
+        type {
+            /// Ownership kind for qualified storage.
+            Ownership => (Type, "memory/type", "Ownership"),
         }
 
         /// `destack:memory/unique`.
