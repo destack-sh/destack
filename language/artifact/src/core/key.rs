@@ -53,7 +53,7 @@ pub enum ArtifactKey {
     },
     /// Checked DIR component.
     DirCheckedComponent {
-        module: ModuleId,
+        entry: ModuleId,
         component: ComponentId,
         profile: ProfileId,
     },
@@ -198,12 +198,12 @@ impl ArtifactKey {
 
     /// Build one checked DIR component artifact key.
     pub fn dir_checked_component(
-        module: ModuleId,
+        entry: ModuleId,
         component: ComponentId,
         profile: ProfileId,
     ) -> Self {
         Self::DirCheckedComponent {
-            module,
+            entry,
             component,
             profile,
         }
@@ -324,7 +324,7 @@ impl ArtifactKey {
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
             | Self::DirResolved { module, .. }
-            | Self::DirCheckedComponent { module, .. }
+            | Self::DirCheckedComponent { entry: module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::DirElaborated { module, .. }
