@@ -184,8 +184,28 @@ pub enum GenericSlot {
         /// The variance for this slot.
         variance: Option<VarianceModifier>,
     },
+    /// Variadic type generic slot.
+    VariadicType {
+        /// The symbol bound by this slot.
+        symbol: GlobalSymbolId,
+        /// The constraint type for this slot.
+        constraint: Option<LocalTypeId>,
+        /// The default type argument.
+        default: Option<LocalTypeId>,
+        /// The variance for this slot.
+        variance: Option<VarianceModifier>,
+    },
     /// Static generic slot.
     Static {
+        /// The symbol bound by this slot.
+        symbol: GlobalSymbolId,
+        /// The constraint type for this slot.
+        constraint: Option<LocalTypeId>,
+        /// The default static argument.
+        default: Option<LocalStaticId>,
+    },
+    /// Variadic static generic slot.
+    VariadicStatic {
         /// The symbol bound by this slot.
         symbol: GlobalSymbolId,
         /// The constraint type for this slot.
@@ -199,7 +219,10 @@ impl GenericSlot {
     /// Return the symbol bound by this slot.
     pub fn symbol(&self) -> GlobalSymbolId {
         match self {
-            Self::Type { symbol, .. } | Self::Static { symbol, .. } => *symbol,
+            Self::Type { symbol, .. }
+            | Self::VariadicType { symbol, .. }
+            | Self::Static { symbol, .. }
+            | Self::VariadicStatic { symbol, .. } => *symbol,
         }
     }
 }

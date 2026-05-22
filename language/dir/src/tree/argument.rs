@@ -142,6 +142,14 @@ impl Parameter {
         }
     }
 
+    /// Return the default value attached to this parameter when present.
+    pub fn default_value(&self) -> Option<LocalNodeId<Expression>> {
+        match self {
+            Self::Named { default, .. } | Self::Pattern { default, .. } => *default,
+            Self::VariadicNamed { .. } | Self::VariadicPattern { .. } | Self::Error => None,
+        }
+    }
+
     /// Return whether this parameter must be a static call-site argument.
     pub fn is_comptime(&self) -> bool {
         match self {
