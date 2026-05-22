@@ -1,8 +1,8 @@
 use crate::{
-    Data, DirBound, DirChecked, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized,
-    MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput,
-    WorkspaceLinted, WorkspaceQueryIndex,
+    Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
+    MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
+    PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
@@ -24,7 +24,9 @@ pub enum ArtifactPayload {
     DirExported(DirExported),
     /// Resolved DIR imports.
     DirResolved(DirResolved),
-    /// Checked DIR.
+    /// Checked DIR component.
+    DirCheckedComponent(DirCheckedComponent),
+    /// Checked DIR facade.
     DirChecked(DirChecked),
     /// Materialized DIR.
     DirMaterialized(DirMaterialized),
@@ -105,6 +107,13 @@ impl From<DirResolved> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirResolved) -> Self {
         Self::DirResolved(payload)
+    }
+}
+
+impl From<DirCheckedComponent> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: DirCheckedComponent) -> Self {
+        Self::DirCheckedComponent(payload)
     }
 }
 
