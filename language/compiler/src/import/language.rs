@@ -15,9 +15,8 @@ impl Compiler {
         let mut environment = LanguageEnvironment::default();
         let artifacts = self.artifact_reader(context);
 
-        let modules = self.repository.builtin_package().module_ids();
-
         // scan builtin modules for language item declarations
+        let modules = self.repository.builtin_package().module_ids();
         for module_id in modules {
             let parsed = artifacts
                 .dir_parsed(module_id)
@@ -27,14 +26,14 @@ impl Compiler {
                 .map_err(CompilerError::from)?;
             let bindings = bound.binding_table();
 
-            self.collect_language_items(module_id, &parsed.tree, &bindings, &mut environment)?;
+            self.collect_language_items_into(module_id, &parsed.tree, &bindings, &mut environment)?;
         }
 
         Ok(environment)
     }
 
     /// Collect language item declarations from one bound module.
-    fn collect_language_items(
+    fn collect_language_items_into(
         &self,
         module: ModuleId,
         tree: &dir::Tree,
@@ -49,7 +48,9 @@ impl Compiler {
             // collect language item markers attached to this declaration
             for decorator_id in decorators {
                 let decorator = tree.get(*decorator_id);
-                self.collect_language_item(module, tree, bindings, target, decorator, environment)?;
+                if let Some(key) = self.extract_language_item_key(tree, decorator) {
+                    self.collect_language_item(module, bindings, target, key, environment)?;
+                }
             }
         }
 
@@ -60,17 +61,11 @@ impl Compiler {
     fn collect_language_item(
         &self,
         module: ModuleId,
-        tree: &dir::Tree,
         bindings: &dir::BindingTable<'_>,
         target: dir::LocalNodeIdAny,
-        decorator: &dir::Decorator,
+        key: &str,
         environment: &mut LanguageEnvironment,
     ) -> CompilerResult<()> {
-        // skip unrelated decorators
-        let Some(key) = self.read_language_item_key(tree, decorator) else {
-            return Ok(());
-        };
-
         // resolve item identity
         let Some(item) = dir::LanguageItem::from_key(key) else {
             return Err(CompilerError::Internal {
@@ -111,7 +106,7 @@ impl Compiler {
     }
 
     /// Read the stable language item key from one decorator.
-    fn read_language_item_key<'a>(
+    fn extract_language_item_key<'a>(
         &'a self,
         tree: &dir::Tree,
         decorator: &dir::Decorator,
@@ -154,8 +149,9 @@ impl Compiler {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
         // insert first definition
-        let Some(previous) = environment.items.get(&item).copied() else {
-            environment.items.insert(item, symbol);
+        let Some(previous) = environment.symbol_by_item.get(&item).copied() else {
+            environment.symbol_by_item.insert(item, symbol);
+            environment.items_by_symbol.insert(symbol, item);
 
             return Ok(());
         };
