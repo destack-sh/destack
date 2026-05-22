@@ -61,6 +61,8 @@ pub struct CompilerOptions {
     pub declaration_map: bool,
     /// Do not emit output files.
     pub no_emit: bool,
+    /// Emit checked type annotation sidecars.
+    pub emit_checked_types: bool,
 }
 
 impl Default for CompilerOptions {
@@ -91,6 +93,7 @@ impl Default for CompilerOptions {
             declaration_dir: None,
             declaration_map: false,
             no_emit: false,
+            emit_checked_types: false,
         }
     }
 }

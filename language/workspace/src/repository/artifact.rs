@@ -1,10 +1,11 @@
+use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactStore,
-    ArtifactVersion, Data, DirBound, DirChecked, DirElaborated, DirExpanded, DirExported,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactSidecar,
+    ArtifactStore, ArtifactVersion, Data, DirBound, DirChecked, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
     MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
     PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
@@ -706,14 +707,16 @@ impl Repository {
         payload: ArtifactPayload,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: DiagnosticCollection,
+        sidecars: Vec<ArtifactSidecar>,
     ) -> Result<(), RepositoryError> {
         let _revision = self.revision(revision)?;
 
         // store payload before exposing the revision binding
+        let key = version.key;
+
         self.artifact_store()
-            .publish(version, payload, dependencies, diagnostics);
-        self.artifact_versions
-            .insert((revision, version.key), version);
+            .publish(version, payload, dependencies, diagnostics, sidecars);
+        self.artifact_versions.insert((revision, key), version);
 
         Ok(())
     }
@@ -725,15 +728,17 @@ impl Repository {
         version: ArtifactVersion,
         dependencies: Vec<ArtifactDependency>,
         diagnostics: DiagnosticCollection,
+        sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), RepositoryError> {
         let _revision = self.revision(revision)?;
 
         // store failure before exposing the revision binding
+        let key = version.key;
+
         self.artifact_store()
-            .fail(version, dependencies, diagnostics, failure);
-        self.artifact_versions
-            .insert((revision, version.key), version);
+            .fail(version, dependencies, diagnostics, sidecars, failure);
+        self.artifact_versions.insert((revision, key), version);
 
         Ok(())
     }
@@ -779,5 +784,37 @@ impl Repository {
         }
 
         Ok(diagnostics)
+    }
+
+    /// Return sidecars for one revision-scoped artifact key.
+    pub fn artifact_sidecars(
+        &self,
+        revision: Revision,
+        artifact_key: ArtifactKey,
+    ) -> Result<Arc<[ArtifactSidecar]>, RepositoryError> {
+        let _revision = self.revision(revision)?;
+        let Some(version) = self.artifact_version(revision, &artifact_key)? else {
+            return Ok(Arc::from([]));
+        };
+
+        self.artifact_store()
+            .sidecars(&version)
+            .ok_or(RepositoryError::MissingArtifact { version })
+    }
+
+    /// Return one sidecar by exact name and label set.
+    pub fn artifact_sidecar(
+        &self,
+        revision: Revision,
+        artifact_key: ArtifactKey,
+        name: &str,
+        labels: &BTreeMap<String, String>,
+    ) -> Result<Option<ArtifactSidecar>, RepositoryError> {
+        let sidecars = self.artifact_sidecars(revision, artifact_key)?;
+
+        Ok(sidecars
+            .iter()
+            .find(|sidecar| sidecar.matches(name, labels))
+            .cloned())
     }
 }

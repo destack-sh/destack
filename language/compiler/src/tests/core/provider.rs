@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider,
-    ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    DiagnosticLike,
+    ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DiagnosticLike,
 };
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
@@ -135,11 +135,19 @@ impl TestProvider {
             }
         }
         let diagnostics = context.diagnostics();
+        let sidecars = context.sidecars();
         let version = ArtifactVersion::new(key, dependencies.iter().cloned());
 
         // publish ready artifact
         self.repository
-            .complete_artifact(self.revision, version, payload, dependencies, diagnostics)
+            .complete_artifact(
+                self.revision,
+                version,
+                payload,
+                dependencies,
+                diagnostics,
+                sidecars,
+            )
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Ok(version)
@@ -164,11 +172,19 @@ impl TestProvider {
         // collect attempt output
         let dependencies = context.dependencies();
         let diagnostics = context.diagnostics();
+        let sidecars = context.sidecars();
         let version = ArtifactVersion::new(key, dependencies.iter().cloned());
 
         // publish failed artifact
         self.repository
-            .fail_artifact(self.revision, version, dependencies, diagnostics, failure)
+            .fail_artifact(
+                self.revision,
+                version,
+                dependencies,
+                diagnostics,
+                sidecars,
+                failure,
+            )
             .map_err(|error| ProviderError::internal(error.to_string()))?;
 
         Err(error)
@@ -232,6 +248,8 @@ struct TestProviderContext<'a> {
     dependencies: RefCell<Vec<ArtifactDependency>>,
     /// The diagnostics recorded by this attempt.
     diagnostics: RefCell<DiagnosticCollection>,
+    /// The sidecars recorded by this attempt.
+    sidecars: RefCell<Vec<ArtifactSidecar>>,
 }
 
 impl<'a> TestProviderContext<'a> {
@@ -242,6 +260,7 @@ impl<'a> TestProviderContext<'a> {
             key,
             dependencies: RefCell::new(Vec::new()),
             diagnostics: RefCell::new(DiagnosticCollection::new()),
+            sidecars: RefCell::new(Vec::new()),
         }
     }
 
@@ -253,6 +272,11 @@ impl<'a> TestProviderContext<'a> {
     /// Return diagnostics produced by this attempt.
     fn diagnostics(&self) -> DiagnosticCollection {
         self.diagnostics.borrow().clone()
+    }
+
+    /// Return sidecars produced by this attempt.
+    fn sidecars(&self) -> Vec<ArtifactSidecar> {
+        self.sidecars.borrow().clone()
     }
 
     /// Add one exact dependency.
@@ -415,6 +439,11 @@ impl ProviderContext for TestProviderContext<'_> {
     /// Add an already-final diagnostic collection produced by this attempt.
     fn emit_collection(&self, diagnostics: DiagnosticCollection) {
         self.diagnostics.borrow_mut().merge_from(&diagnostics);
+    }
+
+    /// Add one sidecar produced by this attempt.
+    fn emit_sidecar(&self, sidecar: ArtifactSidecar) {
+        self.sidecars.borrow_mut().push(sidecar);
     }
 
     /// Add one diagnostic produced by this attempt.
