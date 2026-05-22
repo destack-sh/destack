@@ -12,9 +12,9 @@ pub struct ImportTable {
     /// Modules reached by resolved imports and active globals.
     pub dependencies: Vec<ModuleId>,
     /// Imported local symbols keyed to their resolved target.
-    pub symbol_targets: IndexMap<LocalSymbolId, ImportTarget>,
+    pub target_by_symbol: IndexMap<LocalSymbolId, ImportTarget>,
     /// Global symbols made visible by the active profile.
-    pub global_symbols: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
+    pub global_symbol_by_key: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
 }
 
 impl ImportTable {
@@ -23,8 +23,8 @@ impl ImportTable {
         Self {
             module_id,
             dependencies: Vec::new(),
-            symbol_targets: IndexMap::new(),
-            global_symbols: IndexMap::new(),
+            target_by_symbol: IndexMap::new(),
+            global_symbol_by_key: IndexMap::new(),
         }
     }
 
@@ -37,12 +37,12 @@ impl ImportTable {
 
     /// Insert one resolved local import symbol target.
     pub fn insert_symbol(&mut self, symbol: LocalSymbolId, target: ImportTarget) {
-        self.symbol_targets.insert(symbol, target);
+        self.target_by_symbol.insert(symbol, target);
     }
 
     /// Add one imported global symbol.
     pub fn push_global_symbol(&mut self, key: StaticKey, symbol: GlobalSymbolId) {
-        let symbols = self.global_symbols.entry(key).or_default();
+        let symbols = self.global_symbol_by_key.entry(key).or_default();
         if !symbols.contains(&symbol) {
             symbols.push(symbol);
         }
@@ -50,12 +50,12 @@ impl ImportTable {
 
     /// Return one resolved local import symbol target.
     pub fn symbol_target(&self, symbol: LocalSymbolId) -> Option<ImportTarget> {
-        self.symbol_targets.get(&symbol).copied()
+        self.target_by_symbol.get(&symbol).copied()
     }
 
     /// Return imported global symbols for one key.
     pub fn global_symbols(&self, key: StaticKey) -> Option<&[GlobalSymbolId]> {
-        self.global_symbols.get(&key).map(Vec::as_slice)
+        self.global_symbol_by_key.get(&key).map(Vec::as_slice)
     }
 }
 
