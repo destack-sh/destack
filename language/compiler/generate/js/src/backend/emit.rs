@@ -1,4 +1,4 @@
-use destack_artifact::{DirBound, DirChecked, DirExpanded, DirImported, DirParsed};
+use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed};
 use destack_core::StringPool;
 use destack_js as js;
 use destack_workspace::{Module, Target};
@@ -25,7 +25,7 @@ pub fn lower_module(
     bound: &DirBound,
     imported: &DirImported,
     expanded: &DirExpanded,
-    checked: &DirChecked,
+    checked: &DirCheckedModule,
     target: &Target,
 ) -> CodegenJsResult<ModuleLowerOutput> {
     let bindings = expanded.binding_table(bound);

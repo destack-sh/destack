@@ -1,5 +1,5 @@
 use destack_artifact::{
-    DiagnosticAnchor, DirBound, DirChecked, DirExpanded, DirParsed, GlobalEnvironment,
+    DiagnosticAnchor, DirBound, DirCheckedModule, DirExpanded, DirParsed, GlobalEnvironment,
 };
 use destack_core::StringPool;
 use destack_source::ModuleId;
@@ -50,7 +50,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     }
 
     /// Read one committed checked DIR snapshot for a module.
-    fn require_checked_dir_data(&self, module_id: ModuleId) -> CompilerResult<Arc<DirChecked>> {
+    fn require_checked_dir_data(&self, module_id: ModuleId) -> CompilerResult<Arc<DirCheckedModule>> {
         let snapshot = self
             .compiler
             .artifact_reader(self.context)

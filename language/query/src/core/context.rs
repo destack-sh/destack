@@ -512,7 +512,15 @@ fn read_module_query_context_from_checked(
     let dir_imported = artifacts.dir_imported(&imported_version)?;
     let dir_expanded = artifacts.dir_expanded(&expanded_version)?;
     let dir_exported = artifacts.dir_exported(&exported_version)?;
-    let dir_checked = artifacts.dir_checked(&checked_version)?;
+    let checked = artifacts.dir_checked(&checked_version)?;
+    let checked_component_key =
+        ArtifactKey::dir_checked_component(checked.entry, checked.component, profile);
+    let checked_component_version = repository
+        .artifact_version(revision, &checked_component_key)
+        .ok()
+        .flatten()?;
+    let checked_component = artifacts.dir_checked_component(&checked_component_version)?;
+    let dir_checked = checked_component.module(module.id)?.checked.clone();
     let global_environment = artifacts.global_environment(&global_environment_version)?;
     // compose cumulative table views
     let dir_bindings = dir_expanded.binding_table(&dir_bound);

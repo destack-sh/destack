@@ -921,5 +921,5 @@ fn language_item_symbol(
 ) -> Option<dir::GlobalSymbolId> {
     let environment = artifacts.global_environment(profile_id)?;
 
-    environment.language.item(item)
+    environment.language.symbol(item)
 }

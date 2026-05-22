@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
+    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
 };
 use destack_dir as dir;
 use destack_dir::{LanguageItem, StringId, StringPool};
@@ -221,7 +221,7 @@ impl<'a> LintModuleContext<'a> {
     }
 
     /// Return one checked DIR artifact for one revision-scoped module.
-    pub fn dir_checked(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
+    pub fn dir_checked(&self, module_id: ModuleId) -> Option<Arc<DirCheckedModule>> {
         self.artifacts.dir_checked(module_id, self.profile_id)
     }
 
@@ -367,7 +367,7 @@ impl<'a> LintModuleContext<'a> {
     /// Get a language item from the cache, returning None if not found.
     pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
         let environment = self.global_environment()?;
-        environment.language.item(item)
+        environment.language.symbol(item)
     }
 
     /// Get a language item from the cache, panicking if not found.
@@ -614,19 +614,19 @@ impl<'a> LintModuleContext<'a> {
     fn lint_directive_for_symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<LintDirective> {
         let environment = self.global_environment()?;
 
-        if environment.language.item(LanguageItem::Allow) == Some(symbol_id) {
+        if environment.language.symbol(LanguageItem::Allow) == Some(symbol_id) {
             return Some(LintDirective::Allow);
         }
 
-        if environment.language.item(LanguageItem::Warn) == Some(symbol_id) {
+        if environment.language.symbol(LanguageItem::Warn) == Some(symbol_id) {
             return Some(LintDirective::Warn);
         }
 
-        if environment.language.item(LanguageItem::Deny) == Some(symbol_id) {
+        if environment.language.symbol(LanguageItem::Deny) == Some(symbol_id) {
             return Some(LintDirective::Deny);
         }
 
-        if environment.language.item(LanguageItem::Forbid) == Some(symbol_id) {
+        if environment.language.symbol(LanguageItem::Forbid) == Some(symbol_id) {
             return Some(LintDirective::Forbid);
         }
 
