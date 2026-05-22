@@ -202,9 +202,12 @@ where
 {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
-        let context = f.context();
-        let node = context.tree.get(*self);
-        node.format_node(*self, f)
+        destack_core::ensure_sufficient_stack(|| {
+            let context = f.context();
+            let node = context.tree.get(*self);
+
+            node.format_node(*self, f)
+        })
     }
 }
 
