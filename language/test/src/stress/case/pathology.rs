@@ -132,6 +132,27 @@ pub(super) fn damaged_delimiters(_mode: StressMode, scale: usize, _width: usize)
     source
 }
 
+/// Generate damaged nested blocks that should recover at a later root.
+pub(super) fn damaged_nested_blocks(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 72);
+    source.push_str("export function damagedNestedBlocks(value: number): number {\n");
+
+    for index in 0..scale {
+        let _ = writeln!(source, "if (value > {index}) {{");
+        let _ = writeln!(source, "const brokenNestedBlock{index} = ;");
+    }
+
+    source.push_str("return value;\n");
+
+    for _ in 0..scale {
+        source.push_str("}\n");
+    }
+
+    source.push_str("}\n\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
 /// Generate damaged parenthesized heads that should recover at later statements.
 pub(super) fn damaged_parenthesized_heads(
     _mode: StressMode,

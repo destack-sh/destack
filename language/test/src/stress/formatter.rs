@@ -70,18 +70,19 @@ fn run_formatter_stress(test: &StressCase) -> CaseResult {
         Ok(source) => source,
         Err(message) => return CaseResult::Failed { message },
     };
-    let source_size = source.len();
-    let line_count = source.lines().count();
     let default_options = FormatterOptions::default();
     let narrow_options = FormatterOptions::default().with_line_width(60);
     let start = std::time::Instant::now();
 
-    // bounded parser fixtures can expand to pathological formatted output
+    // bounded fixtures may expand heavily, but must not crash
     if test.expectation == StressExpectation::Bounded {
-        eprintln!("bounded: {source_size} bytes, {line_count} lines");
+        check_format_bounded(test, &source, default_options, start);
+
         return CaseResult::Passed;
     }
 
+    let source_size = source.len();
+    let line_count = source.lines().count();
     let mut stats = FormatterStressStats::new(source_size, line_count);
 
     // check the default profile first
@@ -101,6 +102,35 @@ fn run_formatter_stress(test: &StressCase) -> CaseResult {
     eprintln!("{}", stats.format(start.elapsed()));
 
     CaseResult::Passed
+}
+
+/// Check one bounded formatter case for graceful success or failure.
+fn check_format_bounded(
+    test: &StressCase,
+    source: &str,
+    options: FormatterOptions,
+    start: std::time::Instant,
+) {
+    let file = stress_file(test, source);
+    let source_size = source.len();
+    let line_count = source.lines().count();
+
+    match format_file_source(&file, source, options) {
+        Ok(formatted) => {
+            let formatted_size = formatted.len();
+            eprintln!(
+                "bounded ok: {source_size} bytes, {line_count} lines -> {formatted_size} bytes in {:?}",
+                start.elapsed()
+            );
+        }
+        Err(error) => {
+            eprintln!(
+                "bounded error: {source_size} bytes, {line_count} lines in {:?}: {}",
+                start.elapsed(),
+                error.message
+            );
+        }
+    }
 }
 
 fn check_format_idempotence(
