@@ -45,7 +45,7 @@ fuzz_target!(|data: &[u8]| {
 
     if expectation == StressExpectation::Valid
         && parser
-            .diagnostics
+            .diagnostics()
             .has_diagnostics_of_severity(DiagnosticSeverity::Error)
     {
         panic!("generated parser fuzz case produced diagnostics");

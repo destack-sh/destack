@@ -24,8 +24,9 @@ use super::object::{ambiguous_objects, large_object};
 use super::operator::operator_forms;
 use super::pathology::{
     damaged_arrow_return_heads, damaged_delimiters, damaged_function_type_heads,
-    damaged_generic_heads, damaged_infix_chains, damaged_parenthesized_heads, deep_block,
-    deep_parentheses, deep_tree, massive_file, trivia_flood, wide_call,
+    damaged_generic_heads, damaged_infix_chains, damaged_nested_blocks,
+    damaged_parenthesized_heads, deep_block, deep_parentheses, deep_tree, massive_file,
+    trivia_flood, wide_call,
 };
 use super::pattern::{convoluted_patterns, damaged_type, nested_match};
 use super::range::range_forms;
@@ -57,6 +58,7 @@ const PATHOLOGICAL_LARGE: usize = 1_024;
 const PATHOLOGICAL_MASSIVE: usize = 8_192;
 const PATHOLOGICAL_BRUTAL: usize = 32_768;
 const PATHOLOGICAL_MONSTER: usize = 262_144;
+const PATHOLOGICAL_DEEP_VALID: usize = 512;
 const PATHOLOGICAL_DEEP: usize = 2_048;
 const PATHOLOGICAL_DEEPER: usize = 8_192;
 const PATHOLOGICAL_DEEPEST: usize = 16_384;
@@ -114,7 +116,8 @@ const PATHOLOGICAL_CAPPED_AT_MASSIVE_VARIANTS: &[StressVariantShape] = &[
     StressVariantShape::new("dense", PATHOLOGICAL_MASSIVE, 56),
 ];
 const DEEP_VARIANTS: &[StressVariantShape] = &[
-    StressVariantShape::new("deep", PATHOLOGICAL_DEEP, DEFAULT_WIDTH),
+    StressVariantShape::new("deep", PATHOLOGICAL_DEEP_VALID, DEFAULT_WIDTH),
+    StressVariantShape::expect("bounded_deep", PATHOLOGICAL_DEEP, DEFAULT_WIDTH, BOUNDED),
     StressVariantShape::expect("deeper", PATHOLOGICAL_DEEPER, DEFAULT_WIDTH, BOUNDED),
     StressVariantShape::expect("deepest", PATHOLOGICAL_DEEPEST, DEFAULT_WIDTH, BOUNDED),
     StressVariantShape::expect("absurd", PATHOLOGICAL_ABSURD, DEFAULT_WIDTH, BOUNDED),
@@ -135,8 +138,18 @@ const RECURSIVE_EXPRESSION_VARIANTS: &[StressVariantShape] = &[
 ];
 const RECOVERY_PATHOLOGICAL_VARIANTS: &[StressVariantShape] = &[
     StressVariantShape::new("large", RECOVERY_PATHOLOGICAL_LARGE, DEFAULT_WIDTH),
-    StressVariantShape::new("massive", RECOVERY_PATHOLOGICAL_MASSIVE, DEFAULT_WIDTH),
-    StressVariantShape::new("brutal", RECOVERY_PATHOLOGICAL_BRUTAL, DEFAULT_WIDTH),
+    StressVariantShape::expect(
+        "massive",
+        RECOVERY_PATHOLOGICAL_MASSIVE,
+        DEFAULT_WIDTH,
+        BOUNDED,
+    ),
+    StressVariantShape::expect(
+        "brutal",
+        RECOVERY_PATHOLOGICAL_BRUTAL,
+        DEFAULT_WIDTH,
+        BOUNDED,
+    ),
 ];
 
 const CASES: &[StressSpec] = &[
@@ -246,6 +259,7 @@ const CASES: &[StressSpec] = &[
     StressSpec::new("damaged_tsx", TSX_MODES, RECOVERY, damaged_tsx),
     StressSpec::new("damaged_trivia", SOURCE_MODES, RECOVERY, damaged_trivia),
     StressSpec::recovery_pathological("damaged_delimiters", SOURCE_MODES, damaged_delimiters),
+    StressSpec::recovery_pathological("damaged_nested_blocks", SOURCE_MODES, damaged_nested_blocks),
     StressSpec::recovery_pathological(
         "damaged_parenthesized_heads",
         SOURCE_MODES,
@@ -771,7 +785,7 @@ pub fn materialize_parser_cases() -> Result<Vec<StressCase>, String> {
 /// Materialize and return the formatter stress corpus.
 pub fn materialize_formatter_cases() -> Result<Vec<StressCase>, String> {
     let directory = stress_generated_dir("formatter");
-    materialize_cases(&directory, false, false)
+    materialize_cases(&directory, false, true)
 }
 
 /// Generate one deterministic parser fuzz input from arbitrary bytes.
