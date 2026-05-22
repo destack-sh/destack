@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirBound, DirChecked, DirParsed, LanguageIntrinsics};
+use destack_artifact::{DiagnosticAnchor, DirBound, DirCheckedModule, DirParsed, LanguageIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
@@ -291,7 +291,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(crate) fn require_checked_dir(
         &self,
         module_id: ModuleId,
-    ) -> CompilerResult<Arc<DirChecked>> {
+    ) -> CompilerResult<Arc<DirCheckedModule>> {
         let snapshot = self
             .context
             .compiler

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirExpanded, DirImported, DirParsed, EmitFormat, ScriptDeclaration,
+    DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, EmitFormat, ScriptDeclaration,
     ScriptLanguage, ScriptOutput,
 };
 use destack_core::StringPool;
@@ -25,7 +25,7 @@ pub struct ScriptOutputGenerator<'a> {
     /// The current expanded DIR artifact.
     expanded: Arc<DirExpanded>,
     /// The current checked DIR artifact.
-    checked: Arc<DirChecked>,
+    checked: Arc<DirCheckedModule>,
     /// The shared string pool.
     strings: Arc<StringPool>,
     /// The target configuration.
@@ -40,7 +40,7 @@ impl<'a> ScriptOutputGenerator<'a> {
         bound: Arc<DirBound>,
         imported: Arc<DirImported>,
         expanded: Arc<DirExpanded>,
-        checked: Arc<DirChecked>,
+        checked: Arc<DirCheckedModule>,
         strings: Arc<StringPool>,
         target: &'a Target,
     ) -> Self {

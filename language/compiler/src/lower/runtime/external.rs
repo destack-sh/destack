@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirChecked, DirParsed};
+use destack_artifact::{DirBound, DirCheckedModule, DirParsed};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
@@ -454,7 +454,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Read one committed checked DIR snapshot for a module when available.
-    pub(crate) fn dir_checked_if_present(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
+    pub(crate) fn dir_checked_if_present(
+        &self,
+        module_id: ModuleId,
+    ) -> Option<Arc<DirCheckedModule>> {
         self.compiler
             .artifact_reader(self.context)
             .dir_checked(module_id, self.profile)

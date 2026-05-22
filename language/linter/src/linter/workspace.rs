@@ -151,7 +151,7 @@ impl LintWorkspaceContext {
     pub fn get_language_item(&self, symbol: LanguageItem) -> Option<dir::GlobalSymbolId> {
         let environment = self.global_environment()?;
 
-        environment.language.item(symbol)
+        environment.language.symbol(symbol)
     }
 
     /// Check if a requirement is met.

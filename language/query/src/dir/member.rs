@@ -510,7 +510,7 @@ fn resolve_language_item_members(
 ) -> Vec<MemberCandidate> {
     // resolve the exact language item symbol from the current profile
     let environment = ctx.global_environment();
-    let Some(symbol_id) = environment.language.item(item) else {
+    let Some(symbol_id) = environment.language.symbol(item) else {
         return Vec::new();
     };
 

@@ -5,12 +5,12 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactSidecar,
-    ArtifactStore, ArtifactVersion, Data, DirBound, DirChecked, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
-    MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
-    PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactStore, ArtifactVersion, Data, DirBound, DirCheckedComponent, DirCheckedModule,
+    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
-use destack_source::{DiagnosticCollection, ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{ComponentId, DiagnosticCollection, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::provider::{ProviderContext, ProviderError};
 use crate::repository::{Repository, RepositoryError, Revision};
@@ -144,15 +144,40 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Require and read one checked DIR artifact.
+    /// Require and read one checked DIR module output.
     pub fn dir_checked(
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<DirChecked>, ProviderError> {
+    ) -> Result<Arc<DirCheckedModule>, ProviderError> {
+        let version = self
+            .context
+            .require(ArtifactKey::dir_checked(module, profile))?;
+        let checked = self
+            .store
+            .dir_checked(&version)
+            .ok_or(ProviderError::Corrupt { version })?;
+        let component = self.dir_checked_component(checked.entry, checked.component, profile)?;
+        let entry = component.module(module).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "checked component {} does not contain module {module:?}",
+                checked.component
+            ))
+        })?;
+
+        Ok(Arc::new(entry.checked.clone()))
+    }
+
+    /// Require and read one checked DIR component artifact.
+    pub fn dir_checked_component(
+        &self,
+        entry: ModuleId,
+        component: ComponentId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
         self.read_required(
-            ArtifactKey::dir_checked(module, profile),
-            ArtifactStore::dir_checked,
+            ArtifactKey::dir_checked_component(entry, component, profile),
+            ArtifactStore::dir_checked_component,
         )
     }
 
@@ -318,8 +343,10 @@ pub struct ArtifactCache {
     dir_exported: DashMap<(ModuleId, ProfileId), Arc<DirExported>>,
     /// Resolved DIR artifacts by module and profile.
     dir_resolved: DashMap<(ModuleId, ProfileId), Arc<DirResolved>>,
-    /// Checked DIR artifacts by module and profile.
-    dir_checked: DashMap<(ModuleId, ProfileId), Arc<DirChecked>>,
+    /// Checked DIR module outputs by module and profile.
+    dir_checked: DashMap<(ModuleId, ProfileId), Arc<DirCheckedModule>>,
+    /// Checked DIR component artifacts by entry, component, and profile.
+    dir_checked_component: DashMap<(ModuleId, ComponentId, ProfileId), Arc<DirCheckedComponent>>,
     /// Materialized DIR artifacts by module and profile.
     dir_materialized: DashMap<(ModuleId, ProfileId), Arc<DirMaterialized>>,
     /// Elaborated DIR artifacts by module and profile.
@@ -361,6 +388,7 @@ impl ArtifactCache {
             dir_exported: DashMap::new(),
             dir_resolved: DashMap::new(),
             dir_checked: DashMap::new(),
+            dir_checked_component: DashMap::new(),
             dir_materialized: DashMap::new(),
             dir_elaborated: DashMap::new(),
             mir_lowered: DashMap::new(),
@@ -480,17 +508,51 @@ impl ArtifactCache {
         )
     }
 
-    /// Read one checked DIR artifact.
+    /// Read one checked DIR module output.
     pub fn dir_checked(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> Option<Arc<DirChecked>> {
+    ) -> Option<Arc<DirCheckedModule>> {
+        // return cached module output
+        if let Some(payload) = self
+            .dir_checked
+            .get(&(module_id, profile_id))
+            .map(|payload| payload.clone())
+        {
+            return Some(payload);
+        }
+
+        // read the facade and owning component
+        let version = self.version(ArtifactKey::dir_checked(module_id, profile_id))?;
+        let checked = self.repository.artifact_store().dir_checked(&version)?;
+        let component = self.dir_checked_component(checked.entry, checked.component, profile_id)?;
+        let entry = component.module(module_id)?;
+        let checked = Arc::new(entry.checked.clone());
+
+        // retain module output for this cache lifetime
+        self.dir_checked
+            .insert((module_id, profile_id), checked.clone());
+
+        Some(checked)
+    }
+
+    /// Read one checked DIR component artifact.
+    pub fn dir_checked_component(
+        &self,
+        entry: ModuleId,
+        component_id: ComponentId,
+        profile_id: ProfileId,
+    ) -> Option<Arc<DirCheckedComponent>> {
         self.read_cached(
-            &self.dir_checked,
-            (module_id, profile_id),
-            ArtifactKey::dir_checked(module_id, profile_id),
-            |version| self.repository.artifact_store().dir_checked(version),
+            &self.dir_checked_component,
+            (entry, component_id, profile_id),
+            ArtifactKey::dir_checked_component(entry, component_id, profile_id),
+            |version| {
+                self.repository
+                    .artifact_store()
+                    .dir_checked_component(version)
+            },
         )
     }
 
