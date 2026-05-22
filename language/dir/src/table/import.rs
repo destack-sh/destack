@@ -9,6 +9,8 @@ use crate::{GlobalSymbolId, LocalSymbolId, StaticKey};
 pub struct ImportTable {
     /// The module id of the import table.
     pub module_id: ModuleId,
+    /// Modules reached by resolved imports and active globals.
+    pub dependencies: Vec<ModuleId>,
     /// Imported local symbols keyed to their resolved target.
     pub symbol_targets: IndexMap<LocalSymbolId, ImportTarget>,
     /// Global symbols made visible by the active profile.
@@ -20,8 +22,16 @@ impl ImportTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
+            dependencies: Vec::new(),
             symbol_targets: IndexMap::new(),
             global_symbols: IndexMap::new(),
+        }
+    }
+
+    /// Add one resolved dependency.
+    pub fn push_dependency(&mut self, module: ModuleId) {
+        if !self.dependencies.contains(&module) {
+            self.dependencies.push(module);
         }
     }
 
