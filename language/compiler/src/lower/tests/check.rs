@@ -612,7 +612,10 @@ function work(): void {}
 "#,
     );
 
-    test.apply_destack_config(module_id, r#"{ "compiler": { "noManaged": true } }"#);
+    test.apply_destack_config(
+        module_id,
+        r#"{ "compiler": { "restrictions": { "noManaged": "deny" } } }"#,
+    );
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
