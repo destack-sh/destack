@@ -166,6 +166,9 @@ fn profile_compiler_options_for_target(
             .features
             .extend(profile_config.features.clone());
         compiler_options.tags.extend(profile_config.tags.clone());
+        compiler_options
+            .restrictions
+            .tighten_with(&profile_config.restrictions);
     }
     if let Some(product_role) = product_role {
         compiler_options.roles.push(product_role.to_string());

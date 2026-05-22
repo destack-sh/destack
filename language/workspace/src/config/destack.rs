@@ -418,27 +418,50 @@ impl DestackFile {
         Self::apply_parent_restriction(
             source,
             "noManaged",
-            compiler.no_managed,
-            parent.no_managed,
+            compiler.restrictions.no_managed,
+            parent.restrictions.no_managed,
         )?;
-        Self::apply_parent_restriction(source, "noHeap", compiler.no_heap, parent.no_heap)?;
+        Self::apply_parent_restriction(
+            source,
+            "noHeap",
+            compiler.restrictions.no_heap,
+            parent.restrictions.no_heap,
+        )?;
         Self::apply_parent_restriction(
             source,
             "noRuntime",
-            compiler.no_runtime,
-            parent.no_runtime,
+            compiler.restrictions.no_runtime,
+            parent.restrictions.no_runtime,
         )?;
         Self::apply_parent_restriction(
             source,
-            "noInternalImport",
-            compiler.no_internal_import,
-            parent.no_internal_import,
+            "noUnsafe",
+            compiler.restrictions.no_unsafe,
+            parent.restrictions.no_unsafe,
         )?;
         Self::apply_parent_restriction(
             source,
-            "noImplicitDynamicDispatch",
-            compiler.no_implicit_dynamic_dispatch,
-            parent.no_implicit_dynamic_dispatch,
+            "noDynamicDispatch",
+            compiler.restrictions.no_dynamic_dispatch,
+            parent.restrictions.no_dynamic_dispatch,
+        )?;
+        Self::apply_parent_restriction(
+            source,
+            "noReflection",
+            compiler.restrictions.no_reflection,
+            parent.restrictions.no_reflection,
+        )?;
+        Self::apply_parent_restriction(
+            source,
+            "noUnwind",
+            compiler.restrictions.no_unwind,
+            parent.restrictions.no_unwind,
+        )?;
+        Self::apply_parent_restriction(
+            source,
+            "exclusiveMutableBorrows",
+            compiler.restrictions.exclusive_mutable_borrows,
+            parent.restrictions.exclusive_mutable_borrows,
         )?;
 
         Ok(())
@@ -470,7 +493,16 @@ impl DestackFile {
             )));
         };
 
-        compiler_json.insert(key.to_string(), policy_json_value(parent_policy));
+        let restrictions_json = compiler_json
+            .entry("restrictions")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let Some(restrictions_json) = restrictions_json.as_object_mut() else {
+            return Err(serde_json::Error::io(invalid_config_error(
+                "effective compiler restrictions declaration must be an object",
+            )));
+        };
+
+        restrictions_json.insert(key.to_string(), policy_json_value(parent_policy));
 
         Ok(())
     }

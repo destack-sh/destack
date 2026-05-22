@@ -2,8 +2,8 @@ use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, TargetVendor,
-    normalize_profile_keys,
+    normalize_profile_keys, ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch,
+    TargetVendor,
 };
 
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
@@ -19,10 +19,16 @@ pub struct ProfileFlags {
     pub no_heap: bool,
     /// Forbid runtime features.
     pub no_runtime: bool,
-    /// Forbid internal protocol imports.
-    pub no_internal_import: bool,
     /// Require static dispatch.
-    pub no_implicit_dynamic_dispatch: bool,
+    pub no_dynamic_dispatch: bool,
+    /// Forbid unsafe operations.
+    pub no_unsafe: bool,
+    /// Forbid runtime reflection.
+    pub no_reflection: bool,
+    /// Forbid unwinding.
+    pub no_unwind: bool,
+    /// Require mutable borrows to be exclusive.
+    pub exclusive_mutable_borrows: bool,
     /// Emit checked type sidecars.
     pub emit_checked_types: bool,
 }

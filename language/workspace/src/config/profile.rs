@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use destack_artifact::{Host, Platform};
 use serde::{Deserialize, Serialize};
 
-use crate::config::RuntimeOptions;
+use crate::config::{CompilerRestrictions, RuntimeOptions};
 
 /// Normalized profile options.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -33,4 +33,6 @@ pub struct ProfileOptions {
     pub globals: Vec<PathBuf>,
     /// Derive providers automatically considered in this profile.
     pub derive: Vec<String>,
+    /// Static semantic restrictions for this profile.
+    pub restrictions: CompilerRestrictions,
 }
