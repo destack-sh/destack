@@ -2,4 +2,5 @@
 export type StaticLifetime = "static";
 
 /// Lifetime marker for borrowed validity.
+@languageItem("memory.Lifetime")
 export type Lifetime = StaticLifetime | intrinsic;
