@@ -197,6 +197,16 @@ impl Parser {
         &mut self,
         allows_default: bool,
     ) -> ParseResult<LocalNodeId<AssignPattern>> {
+        self.with_recursive_descent(NodeType::AssignPattern, |parser| {
+            parser.eat_assignment_target_pattern_at_current_depth(allows_default)
+        })
+    }
+
+    /// Eat one assignment target pattern after recursive descent state has been entered.
+    fn eat_assignment_target_pattern_at_current_depth(
+        &mut self,
+        allows_default: bool,
+    ) -> ParseResult<LocalNodeId<AssignPattern>> {
         let start = self.span_start();
         let mut pattern = match self.peek_token_type() {
             TokenType::OpenBracket => self.eat_assignment_sequence_pattern(&start)?,

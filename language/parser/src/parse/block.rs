@@ -65,6 +65,15 @@ impl Parser {
 
     /// Eat one control body as a block-like expression.
     pub(crate) fn eat_control_body_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        self.with_recursive_descent(NodeType::Expression, |parser| {
+            parser.eat_control_body_expression_at_current_depth()
+        })
+    }
+
+    /// Eat one control body after recursive descent state has been entered.
+    fn eat_control_body_expression_at_current_depth(
+        &mut self,
+    ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // semicolon statement forms allow empty branches
@@ -546,6 +555,13 @@ impl Parser {
 
     /// Eat a block or a single statement wrapped in a block.
     pub fn eat_block_or_statement(&mut self) -> ParseResult<LocalNodeId<Block>> {
+        self.with_recursive_descent(NodeType::Block, |parser| {
+            parser.eat_block_or_statement_at_current_depth()
+        })
+    }
+
+    /// Eat a block or statement body after recursive descent state has been entered.
+    fn eat_block_or_statement_at_current_depth(&mut self) -> ParseResult<LocalNodeId<Block>> {
         // if it's a block, just eat it
         if self.is_block_start() {
             return self.eat_block(BlockContext::Statement);
@@ -628,6 +644,16 @@ impl Parser {
     /// block: { ... }
     /// ```
     pub fn eat_block(&mut self, block_context: BlockContext) -> ParseResult<LocalNodeId<Block>> {
+        self.with_recursive_descent(NodeType::Block, |parser| {
+            parser.eat_block_at_current_depth(block_context)
+        })
+    }
+
+    /// Eat a block after recursive descent state has been entered.
+    fn eat_block_at_current_depth(
+        &mut self,
+        block_context: BlockContext,
+    ) -> ParseResult<LocalNodeId<Block>> {
         let start = self.span_start();
 
         // `do` prefix

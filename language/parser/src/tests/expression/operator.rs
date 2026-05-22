@@ -25,6 +25,27 @@ fn assert_defaulted_assign_pattern(
     });
 }
 
+/// Build one deeply nested assignment sequence pattern.
+fn nested_assignment_sequence_source(depth: usize) -> String {
+    let mut source = String::new();
+
+    // open assignment patterns
+    for _ in 0..depth {
+        source.push('[');
+    }
+
+    source.push_str("value");
+
+    // close assignment patterns
+    for _ in 0..depth {
+        source.push(']');
+    }
+
+    source.push_str(" = input");
+
+    source
+}
+
 /// Assert that one expression rejects with a single leaf span.
 fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_leaf: &str) {
     let mut test = TestParser::new_with_language(input, language);
@@ -75,6 +96,22 @@ foo -= bar;
     for expression in expressions {
         assert_assign_or_parenthesized_assign(&parser, expression);
     }
+}
+
+/// Parse a deeply nested destructuring assignment without overflowing the parser stack.
+#[test]
+fn test_parse_deeply_nested_assignment_sequence_pattern() {
+    let source = nested_assignment_sequence_source(1024);
+    let mut test = TestParser::new(&source);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::Assign { left, .. } => {
+        assert_node!(parser.tree, *left, AssignPattern::Sequence { fields } => {
+            assert_eq!(fields.len(), 1);
+        });
+    });
 }
 
 #[test]

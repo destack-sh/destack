@@ -1369,10 +1369,8 @@ fn test_parse_statement_separator_comment_before_semicolon_attaches_to_previous_
     assert_comment!(parser, 0, CommentKind::Line, "<- keep-marker");
 }
 
-/// Parse deeply nested JavaScript if statements without overflowing the parser stack.
-#[test]
-fn test_parse_deeply_nested_if_statement() {
-    let depth = 512;
+/// Build nested if statements with explicit block bodies.
+fn nested_if_block_source(depth: usize) -> String {
     let mut source = String::new();
 
     // open nested if blocks
@@ -1380,7 +1378,6 @@ fn test_parse_deeply_nested_if_statement() {
         source.push_str("if (true) {");
     }
 
-    // terminal block expression
     source.push('0');
 
     // close nested if blocks
@@ -1388,14 +1385,81 @@ fn test_parse_deeply_nested_if_statement() {
         source.push('}');
     }
 
+    source
+}
+
+/// Build nested if statements with single statement bodies.
+fn nested_unbraced_if_source(depth: usize) -> String {
+    let mut source = String::new();
+
+    // open nested if statements
+    for _ in 0..depth {
+        source.push_str("if (true) ");
+    }
+
+    source.push_str("0;");
+
+    source
+}
+
+/// Build nested while statements with single statement bodies.
+fn nested_unbraced_while_source(depth: usize) -> String {
+    let mut source = String::new();
+
+    // open nested while statements
+    for _ in 0..depth {
+        source.push_str("while (true) ");
+    }
+
+    source.push(';');
+
+    source
+}
+
+/// Parse deeply nested JavaScript if statements without overflowing the parser stack.
+#[test]
+fn test_parse_deeply_nested_if_statement() {
+    let source = nested_if_block_source(512);
     let mut test = TestParser::new_with_language(&source, LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 1);
-    assert!(
-        parser.errors.is_empty(),
-        "unexpected parser errors: {:?}",
-        parser.errors
-    );
+    test.assert_no_errors(&parser);
+}
+
+/// Parse excessive statement nesting without overflowing the parser stack.
+#[test]
+fn test_parse_excessively_nested_if_statement() {
+    let source = nested_if_block_source(1025);
+    let mut test = TestParser::new_with_language(&source, LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    test.assert_no_errors(&parser);
+}
+
+/// Parse deeply nested unbraced if statements without overflowing the parser stack.
+#[test]
+fn test_parse_deeply_nested_unbraced_if_statement() {
+    let source = nested_unbraced_if_source(1024);
+    let mut test = TestParser::new_with_language(&source, LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    test.assert_no_errors(&parser);
+}
+
+/// Parse deeply nested unbraced while statements without overflowing the parser stack.
+#[test]
+fn test_parse_deeply_nested_unbraced_while_statement() {
+    let source = nested_unbraced_while_source(1024);
+    let mut test = TestParser::new_with_language(&source, LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    test.assert_no_errors(&parser);
 }

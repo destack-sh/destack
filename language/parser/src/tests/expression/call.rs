@@ -3,6 +3,7 @@ use destack_dir::{
     LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TypeExpression,
 };
 use destack_source::LanguageType;
+use std::fmt::Write;
 
 use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path};
 
@@ -216,6 +217,44 @@ fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     });
+}
+
+/// Build one deeply nested call source.
+fn nested_call_source(depth: usize) -> String {
+    let mut source = String::with_capacity(depth * 72);
+    source.push_str("const deepCall = ");
+
+    // open calls from outermost to innermost
+    for index in (0..depth).rev() {
+        write!(source, "wrap{index}(").unwrap();
+    }
+
+    source.push_str("input");
+
+    // close calls from innermost to outermost
+    for index in 0..depth {
+        write!(
+            source,
+            ", value{index}, () => fallback{index}, {{ index: {index} }})"
+        )
+        .unwrap();
+    }
+
+    source.push(';');
+
+    source
+}
+
+/// Parse a deeply nested call chain without overflowing the parser stack.
+#[test]
+fn test_parse_deeply_nested_call_expression() {
+    let source = nested_call_source(1024);
+    let mut test = TestParser::new_with_language(&source, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    test.assert_no_errors(&parser);
 }
 
 #[test]
