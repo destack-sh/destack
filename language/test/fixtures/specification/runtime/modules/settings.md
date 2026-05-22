@@ -22,12 +22,25 @@ Runtime capability policy can be tightened locally.
 
 ```ds
 @noRuntime
-@noImplicitDynamicDispatch
+@noDynamicDispatch
 module {}
 
 function read(value: int32): int32 {
     return value;
 }
+```
+
+### module decorators tune diagnostics
+
+Diagnostic controls use rule names and static options.
+
+```ds
+@allow("no-floating-promises", {
+    if: import.meta.dev,
+    otherwise: "deny",
+    reason: "debug telemetry",
+})
+module {}
 ```
 
 ## metadata
