@@ -32,7 +32,7 @@ impl Compiler {
             types: Arc::new(dir::TypeSegment::from_base(&checked.types)),
             statics: Arc::new(dir::StaticSegment::from_base(&checked.statics)),
             resolutions: Arc::new(dir::ResolutionSegment::new(module)),
-            instances: Arc::new(dir::InstanceSegment::from_base(&checked.instances)),
+            generics: Arc::new(dir::GenericSegment::from_base(&checked.generics)),
             relations: Arc::new(dir::RelationSegment::new(module)),
             captures: Arc::new(dir::CaptureSegment::new(module)),
             layouts: Arc::new(dir::LayoutSegment::from_base(&checked.layouts)),

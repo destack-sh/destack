@@ -106,7 +106,9 @@ fn add_member_resolution_row(
             .field("target", builder.member_candidate_label(candidate))
             .optional_field(
                 "instance",
-                candidate.instance.map(|id| builder.instance_label(id)),
+                candidate
+                    .instance
+                    .map(|id| builder.generic_instance_label(id)),
             ),
         dir::MemberTarget::Select(candidates) => row.field("kind", "select").list_field(
             "targets",
@@ -188,6 +190,8 @@ fn add_call_candidate_fields(
         )
         .optional_field(
             "instance",
-            candidate.instance.map(|id| builder.instance_label(id)),
+            candidate
+                .instance
+                .map(|id| builder.generic_instance_label(id)),
         )
 }

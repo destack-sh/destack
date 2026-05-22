@@ -29,8 +29,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) strings: &'a StringPool,
     /// The binding table used for human-readable symbol labels.
     pub(super) bindings: Option<&'a dir::BindingTable<'a>>,
-    /// The checked instance table.
-    pub(super) instances: Option<dir::InstanceTable<'static>>,
+    /// The checked generic table.
+    pub(super) generics: Option<dir::GenericTable<'static>>,
     /// The visible type table used by layout anchors.
     pub(super) types: Option<dir::TypeTable<'static>>,
     /// The visible static table used by type labels.
@@ -61,7 +61,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             tree,
             strings,
             bindings: None,
-            instances: None,
+            generics: None,
             types: None,
             statics: None,
             module_path_by_id: None,
@@ -189,7 +189,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
-            self.instances = Some(dir::InstanceTable::from_segment(checked.instances.clone()));
+            self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
 
             let types = dir::TypeTable::from_segments(vec![
                 bound.types.clone(),
@@ -220,7 +220,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.instance {
-            self.add_table(checked.instances.as_ref());
+            self.add_table(checked.generics.as_ref());
         }
 
         if selection.relation {
@@ -249,14 +249,14 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.rows.push(row);
     }
 
-    /// Return the debug label for one checked instance.
-    pub(super) fn instance_label(&self, instance_id: dir::LocalInstanceId) -> String {
-        let Some(instances) = &self.instances else {
-            panic!("dir snapshot missing instance table for {instance_id:?}");
+    /// Return the debug label for one checked generic instance.
+    pub(super) fn generic_instance_label(&self, instance_id: dir::LocalInstanceId) -> String {
+        let Some(generics) = &self.generics else {
+            panic!("dir snapshot missing generic table for {instance_id:?}");
         };
 
         // render the solved semantic application
-        let instance = instances.get_instance(instance_id);
+        let instance = generics.get_instance(instance_id);
         let symbol = self.symbol_path_label(instance.symbol);
         if instance.arguments.is_empty() {
             return symbol;
@@ -270,6 +270,14 @@ impl<'a> DirSnapshotBuilder<'a> {
             .join(", ");
 
         format!("{symbol}<{arguments}>")
+    }
+
+    /// Return the debug label for one checked generic slot key.
+    pub(super) fn generic_slot_key_label(&self, key: dir::GenericSlotKey) -> String {
+        match key {
+            dir::GenericSlotKey::Symbol(symbol) => self.symbol_path_label(symbol),
+            dir::GenericSlotKey::Generated(name) => self.strings.get(name).to_string(),
+        }
     }
 
     /// Return the source anchor for one DIR node.
@@ -745,15 +753,12 @@ impl<'a> DirSnapshotBuilder<'a> {
         match lifetime {
             dir::Lifetime::Static => "static".to_string(),
             dir::Lifetime::Symbol(symbol) => self.symbol_path_label(*symbol),
-            dir::Lifetime::Join(elements) => {
-                let elements = elements
-                    .iter()
-                    .map(|element| self.static_label(*element))
-                    .collect::<Vec<_>>()
-                    .join(" | ");
-
-                format!("join({elements})")
-            }
+            dir::Lifetime::Generated(name) => self.strings.get(*name).to_string(),
+            dir::Lifetime::Join(elements) => elements
+                .iter()
+                .map(|element| self.static_label(*element))
+                .collect::<Vec<_>>()
+                .join(" | "),
         }
     }
 
