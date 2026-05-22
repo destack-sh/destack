@@ -20,6 +20,8 @@ impl ResolveState<'_> {
 
     /// Resolve globals selected from one profile root module.
     fn resolve_global_module_symbols(&mut self, module: ModuleId) -> CompilerResult<()> {
+        self.imports.push_dependency(module);
+
         let exported = self
             .artifacts
             .dir_exported(module, self.profile)
@@ -57,6 +59,7 @@ impl ResolveState<'_> {
         };
 
         if let ExportLookup::Found(symbol) = self.resolve_export_symbol(target, export_key)? {
+            self.imports.push_dependency(symbol.module_id);
             self.imports.push_global_symbol(key, symbol);
         }
 

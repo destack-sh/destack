@@ -48,6 +48,7 @@ impl ResolveState<'_> {
             return Ok(());
         };
         let specifier = edge.specifier;
+        self.imports.push_dependency(target);
 
         if let Some(items) = items {
             self.resolve_import_items(target, specifier, items)?;
@@ -134,6 +135,7 @@ impl ResolveState<'_> {
             return Ok(());
         };
         let specifier = edge.specifier;
+        self.imports.push_dependency(target);
 
         for item_id in items {
             let item = self.view.get(*item_id);
