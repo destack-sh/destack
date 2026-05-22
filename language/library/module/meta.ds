@@ -1,3 +1,6 @@
+import { Macro } from "destack:macro";
+import { TreeTagBuilder } from "./config.ds";
+
 /// The target platform (OS) the code is being compiled for.
 export type Platform =
     | "unknown"
@@ -76,6 +79,14 @@ export interface ImportMeta {
     readonly targetName: string | undefined;
     /// Active deliverable product name.
     readonly product: string | undefined;
+    /// Tree tag builder declared by the current module.
+    readonly tree: TreeTagBuilder | undefined;
+    /// Auto-derive providers declared by the current module.
+    readonly derive: readonly Macro<unknown>[];
+    /// Active source graph role declared by the current module.
+    readonly role: string | undefined;
+    /// Module metadata labels.
+    readonly labels: { readonly [key: string]: readonly string[] };
     /// Target host environment.
     readonly host: Host;
     /// Active source graph modes.
