@@ -184,7 +184,7 @@ pub struct DirResolved {
 pub struct DirCheckedComponent {
     /// The checked component id.
     pub component: ComponentId,
-    /// The checked module outputs in canonical module order.
+    /// The checked module outputs in stable module order.
     pub modules: Vec<DirCheckedComponentEntry>,
 }
 
@@ -211,8 +211,6 @@ pub struct DirCheckedModule {
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
     pub statics: Arc<dir::StaticSegment>,
-    /// New generic binders.
-    pub generics: Arc<dir::GenericSegment>,
     /// New resolutions.
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic instances.
@@ -230,12 +228,10 @@ pub struct DirCheckedModule {
 /// Facade artifact for one module checked inside a component.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirChecked {
-    /// The checked module id.
-    pub module: ModuleId,
-    /// The canonical module used to provide the checked component.
-    pub component_module: ModuleId,
     /// The component that owns this module's checked output.
     pub component: ComponentId,
+    /// The module used to enter the checked component graph.
+    pub entry: ModuleId,
 }
 
 impl DirCheckedModule {
@@ -259,11 +255,6 @@ impl DirCheckedModule {
             expanded.statics.clone(),
             self.statics.clone(),
         ])
-    }
-
-    /// Return the cumulative generic table for checked DIR.
-    pub fn generic_table(&self) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segment(self.generics.clone())
     }
 
     /// Return the cumulative resolution table for checked DIR.

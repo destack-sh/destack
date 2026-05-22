@@ -7,20 +7,27 @@ use serde::{Deserialize, Serialize};
 /// Compiler-known language environment for one profile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LanguageEnvironment {
-    /// Resolved language items by builtin id.
-    pub items: IndexMap<LanguageItem, GlobalSymbolId>,
-    /// Resolved builtin symbols by export name.
+    /// Language item symbols by item id.
+    pub symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
+    ///  Language items by symbol id.
+    pub items_by_symbol: IndexMap<GlobalSymbolId, LanguageItem>,
+    /// Builtin symbols by export name.
     pub symbols: IndexMap<StringId, GlobalSymbolId>,
 }
 
 impl LanguageEnvironment {
     /// Return one language item symbol.
-    pub fn item(&self, item: LanguageItem) -> Option<GlobalSymbolId> {
-        self.items.get(&item).copied()
+    pub fn symbol(&self, item: LanguageItem) -> Option<GlobalSymbolId> {
+        self.symbol_by_item.get(&item).copied()
+    }
+
+    /// Return one language symbol item.
+    pub fn item(&self, symbol: GlobalSymbolId) -> Option<LanguageItem> {
+        self.items_by_symbol.get(&symbol).copied()
     }
 
     /// Return one builtin symbol by export name.
-    pub fn symbol(&self, name: &str) -> Option<GlobalSymbolId> {
+    pub fn symbol_by_name(&self, name: &str) -> Option<GlobalSymbolId> {
         self.symbols.get(&StringId::for_text(name)).copied()
     }
 }
