@@ -2153,46 +2153,76 @@ function read(user: &User): &string {
 function first<T>(items: &[T]): &T {
     return &items[0];
 }
-
-struct View<T> {
-    items: &[T];
-}
 ```
 
-Because lifetimes are part of type inference, and type inference also analyses method bodies, lifetime inference also derives from function bodies:
+Elided borrowed forms get hidden generic lifetime parameters in _all_ declarations, not just in function signatures.
 
 ```ds
-function first(a: &Node, b: &Node): &Node {
-    return a;
-}
-
-function choose(a: &Node, b: &Node, flag: boolean): &Node {
-    return flag ? a : b;
-}
-```
-
-It follows that declaration-only APIs must spell out their lifetime requirements explicitly when borrows may be ambiguous.
-
-```ds
-declare function only(value: &Node): &Node;
-
-declare function choose<L: Lifetime>(
-    a: Borrowed<Node, L>,
-    b: Borrowed<Node, L>,
-): Borrowed<Node, L>;
-```
-
-Stored borrowed fields use the same idea and get one hidden lifetime parameter, shared by all elided borrowed fields in the declaration:
-
-```ds
-struct EngineView {
-    engine: &Engine;
-}
-
+// elided form
 struct WorldView {
     engine: &Engine;
     assets: &AssetStore;
 }
+
+// explicit form
+struct WorldView<L1: Lifetime, L2: Lifetime> {
+    engine: Borrowed<Engine, L1>;
+    assets: Borrowed<AssetStore, L2>;
+}
+```
+
+Because lifetimes are part of type inference, and type inference also analyses method bodies, lifetime inference also derives from function bodies.
+Each elided borrow in the signature induces its own hidden lifetime parameter first, and the body then solves the return lifetime:
+
+```ds
+// elided form
+function first(a: &Node, b: &Node): &Node {
+    return a;
+}
+
+// explicit form
+function first<L1: Lifetime, L2: Lifetime>(
+    a: Borrowed<Node, L1>,
+    b: Borrowed<Node, L2>,
+): Borrowed<Node, L1> {
+    return a;
+}
+
+// elided form
+function choose(a: &Node, b: &Node, flag: boolean): &Node {
+    return flag ? a : b;
+}
+
+// explicit form
+function choose<L1: Lifetime, L2: Lifetime>(
+    a: Borrowed<Node, L1>,
+    b: Borrowed<Node, L2>,
+    flag: boolean,
+): Borrowed<Node, L1 | L2> {
+    return flag ? a : b;
+}
+```
+
+Because `declare` functions do not have bodies, it follows that declaration-only APIs must spell out lifetime relationships explicitly.
+
+```ds
+// rejected
+declare function only(value: &Node): &Node;
+
+// accepted
+declare function only<L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
+
+// rejected
+declare function choose(
+    a: &Node,
+    b: &Node,
+): &Node;
+
+// accepted
+declare function choose<L1: Lifetime, L2: Lifetime>(
+    a: Borrowed<Node, L1>,
+    b: Borrowed<Node, L2>,
+): Borrowed<Node, L1 | L2>;
 ```
 
 Taken together, these mechanisms of elision and inference for lifetimes allow us to implement the vast majority of low level ownership patterns without having to specify lifetimes to the compiler explicitly.
