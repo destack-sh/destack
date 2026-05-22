@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
-use destack_artifact::{DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirResolved};
+use destack_artifact::{
+    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirResolved,
+};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -27,8 +29,6 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) strings: &'a StringPool,
     /// The binding table used for human-readable symbol labels.
     pub(super) bindings: Option<&'a dir::BindingTable<'a>>,
-    /// The checked generic table.
-    pub(super) generics: Option<dir::GenericTable<'static>>,
     /// The checked instance table.
     pub(super) instances: Option<dir::InstanceTable<'static>>,
     /// The visible type table used by layout anchors.
@@ -61,7 +61,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             tree,
             strings,
             bindings: None,
-            generics: None,
             instances: None,
             types: None,
             statics: None,
@@ -179,28 +178,37 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Add selected rows for a checked DIR artifact.
-    pub(crate) fn add_checked(&mut self, selection: DirRows, checked: &DirChecked) {
+    pub(crate) fn add_checked(
+        &mut self,
+        selection: DirRows,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        checked: &DirCheckedModule,
+    ) {
         self.summaries = selection.summaries;
         self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
-            self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
             self.instances = Some(dir::InstanceTable::from_segment(checked.instances.clone()));
 
-            let types = dir::TypeTable::from_segment(checked.types.clone());
-            let statics = dir::StaticTable::from_segment(checked.statics.clone());
+            let types = dir::TypeTable::from_segments(vec![
+                bound.types.clone(),
+                expanded.types.clone(),
+                checked.types.clone(),
+            ]);
+            let statics = dir::StaticTable::from_segments(vec![
+                bound.statics.clone(),
+                expanded.statics.clone(),
+                checked.statics.clone(),
+            ]);
             self.types = Some(types.clone());
             self.statics = Some(statics.clone());
-            self.add_type_labels(&types);
             self.add_static_labels(&statics);
+            self.add_type_labels(&types);
         }
 
         if selection.types {
             self.add_table(checked.types.as_ref());
-        }
-
-        if selection.generic {
-            self.add_table(checked.generics.as_ref());
         }
 
         if selection.statics {
