@@ -9,12 +9,10 @@ export interface Module {
     readonly tree?: TreeTagBuilder;
     /// Auto-derive providers for nominal declarations in this module.
     readonly derive?: readonly Macro<unknown>[];
-    /// Forbid managed values and managed allocation in this module.
-    readonly noManaged?: boolean;
-    /// Forbid managed values and raw heap allocation in this module.
-    readonly noHeap?: boolean;
-    /// Forbid runtime-dependent language features in this module.
-    readonly noRuntime?: boolean;
-    /// Forbid dispatch that cannot be resolved statically in this module.
-    readonly noImplicitDynamicDispatch?: boolean;
+    /// Active deliverable product name for this module.
+    readonly product?: string;
+    /// Active source graph role for this module.
+    readonly role?: string;
+    /// Module metadata labels.
+    readonly labels?: { readonly [key: string]: readonly string[] };
 }
