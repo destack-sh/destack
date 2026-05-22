@@ -1,3 +1,4 @@
+mod component;
 mod file;
 mod hash;
 mod language;
@@ -10,6 +11,7 @@ mod specifier;
 mod target;
 mod r#type;
 
+pub use component::*;
 pub use file::*;
 pub use language::*;
 pub use loader::*;
