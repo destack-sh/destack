@@ -1,6 +1,6 @@
 use destack_artifact::{
-    ArtifactDependency, ArtifactKey, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
-    DiagnosticDisplay, DiagnosticError, DiagnosticLike,
+    ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor,
+    DiagnosticContext, DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_core::StringPool;
 use destack_mir as mir;
@@ -109,6 +109,9 @@ impl ProviderContext for TestMirProvider {
 
     /// Emit one diagnostic collection.
     fn emit_collection(&self, _diagnostics: DiagnosticCollection) {}
+
+    /// Emit one sidecar.
+    fn emit_sidecar(&self, _sidecar: ArtifactSidecar) {}
 
     /// Emit one diagnostic.
     fn emit(&self, _diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError> {

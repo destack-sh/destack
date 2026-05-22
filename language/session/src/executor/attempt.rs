@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
-    ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    DiagnosticLike,
+    ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
+    DiagnosticError, DiagnosticLike,
 };
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, Span,
@@ -26,6 +26,8 @@ pub(crate) struct ProviderAttempt {
     dependencies: Mutex<Vec<ArtifactDependency>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
+    /// The sidecars produced by this attempt.
+    sidecars: Mutex<Vec<ArtifactSidecar>>,
 }
 
 impl ProviderAttempt {
@@ -37,6 +39,7 @@ impl ProviderAttempt {
             key,
             dependencies: Mutex::new(Vec::new()),
             diagnostics: Mutex::new(DiagnosticCollection::new()),
+            sidecars: Mutex::new(Vec::new()),
         }
     }
 
@@ -57,6 +60,7 @@ impl ProviderAttempt {
     ) -> Result<ArtifactVersion, SessionError> {
         let dependencies = self.dependencies();
         let diagnostics = self.diagnostics();
+        let sidecars = self.sidecars();
         let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
 
         self.repository.complete_artifact(
@@ -65,6 +69,7 @@ impl ProviderAttempt {
             payload,
             dependencies,
             diagnostics,
+            sidecars,
         )?;
 
         Ok(version)
@@ -77,6 +82,7 @@ impl ProviderAttempt {
     ) -> Result<ArtifactVersion, SessionError> {
         let dependencies = self.dependencies();
         let diagnostics = self.diagnostics();
+        let sidecars = self.sidecars();
         let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
 
         self.repository.fail_artifact(
@@ -84,6 +90,7 @@ impl ProviderAttempt {
             version,
             dependencies,
             diagnostics,
+            sidecars,
             failure,
         )?;
 
@@ -98,6 +105,11 @@ impl ProviderAttempt {
     /// Return diagnostics produced by this attempt.
     fn diagnostics(&self) -> DiagnosticCollection {
         self.diagnostics.lock().clone()
+    }
+
+    /// Return sidecars produced by this attempt.
+    fn sidecars(&self) -> Vec<ArtifactSidecar> {
+        self.sidecars.lock().clone()
     }
 
     /// Add one dependency if it has not already been added.
@@ -381,6 +393,11 @@ impl ProviderContext for ProviderAttempt {
         }
 
         self.diagnostics.lock().merge_from(&diagnostics);
+    }
+
+    /// Add one sidecar produced by this attempt.
+    fn emit_sidecar(&self, sidecar: ArtifactSidecar) {
+        self.sidecars.lock().push(sidecar);
     }
 
     /// Add one diagnostic produced by this attempt.

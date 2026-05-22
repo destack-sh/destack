@@ -6,9 +6,9 @@ use std::sync::{Arc, LazyLock, Once};
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPathState,
-    ArtifactPayload, ArtifactProvider, ArtifactVersion, DiagnosticAnchor, DiagnosticContext,
-    DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile, EmitFormat, Host,
-    MemoryCacheStore, Platform, ProfileFlags, ProfileKey, Runtime, ToDiagnostic,
+    ArtifactPayload, ArtifactProvider, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor,
+    DiagnosticContext, DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile, EmitFormat,
+    Host, MemoryCacheStore, Platform, ProfileFlags, ProfileKey, Runtime, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -56,6 +56,8 @@ struct TestProviderContext {
     dependencies: Mutex<Vec<ArtifactDependency>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
+    /// The sidecars produced by this attempt.
+    sidecars: Mutex<Vec<ArtifactSidecar>>,
 }
 
 impl TestProviderContext {
@@ -67,6 +69,7 @@ impl TestProviderContext {
             artifact_key,
             dependencies: Mutex::new(Vec::new()),
             diagnostics: Mutex::new(DiagnosticCollection::new()),
+            sidecars: Mutex::new(Vec::new()),
         }
     }
 
@@ -74,10 +77,18 @@ impl TestProviderContext {
     fn publish(&self, payload: ArtifactPayload) {
         let dependencies = self.dependencies.lock().clone();
         let diagnostics = self.diagnostics.lock().clone();
+        let sidecars = self.sidecars.lock().clone();
         let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
 
         self.repository
-            .complete_artifact(self.revision, version, payload, dependencies, diagnostics)
+            .complete_artifact(
+                self.revision,
+                version,
+                payload,
+                dependencies,
+                diagnostics,
+                sidecars,
+            )
             .expect("linter test provider should record artifact version");
     }
 
@@ -85,10 +96,18 @@ impl TestProviderContext {
     fn fail(&self, failure: ArtifactFailure) {
         let dependencies = self.dependencies.lock().clone();
         let diagnostics = self.diagnostics.lock().clone();
+        let sidecars = self.sidecars.lock().clone();
         let version = ArtifactVersion::new(self.artifact_key, dependencies.iter().cloned());
 
         self.repository
-            .fail_artifact(self.revision, version, dependencies, diagnostics, failure)
+            .fail_artifact(
+                self.revision,
+                version,
+                dependencies,
+                diagnostics,
+                sidecars,
+                failure,
+            )
             .expect("linter test provider should record failed artifact version");
     }
 
@@ -540,6 +559,11 @@ impl ProviderContext for TestProviderContext {
         }
 
         self.diagnostics.lock().merge_from(&diagnostics);
+    }
+
+    /// Record one sidecar produced by this attempt.
+    fn emit_sidecar(&self, sidecar: ArtifactSidecar) {
+        self.sidecars.lock().push(sidecar);
     }
 
     /// Record one diagnostic produced by this attempt.

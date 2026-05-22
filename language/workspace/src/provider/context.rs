@@ -1,6 +1,6 @@
 use destack_artifact::{
-    ArtifactDependency, ArtifactKey, ArtifactVersion, DiagnosticContext, DiagnosticError,
-    DiagnosticLike,
+    ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext,
+    DiagnosticError, DiagnosticLike,
 };
 use destack_source::DiagnosticCollection;
 
@@ -27,6 +27,9 @@ pub trait ProviderContext: DiagnosticContext {
 
     /// Add an already-final diagnostic collection produced by this attempt.
     fn emit_collection(&self, diagnostics: DiagnosticCollection);
+
+    /// Add one sidecar produced by this attempt.
+    fn emit_sidecar(&self, sidecar: ArtifactSidecar);
 
     /// Add one diagnostic produced by this attempt.
     fn emit(&self, diagnostic: &dyn DiagnosticLike) -> Result<(), DiagnosticError>;

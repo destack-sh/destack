@@ -3,7 +3,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_source::DiagnosticCollection;
 
-use super::entry::{ArtifactEntry, ArtifactOutcome};
+use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
 use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Data,
@@ -131,6 +131,13 @@ impl ArtifactStore {
             .map(|entry| Arc::clone(&entry.dependencies))
     }
 
+    /// Return the recorded sidecars for one exact artifact version.
+    pub fn sidecars(&self, version: &ArtifactVersion) -> Option<Arc<[ArtifactSidecar]>> {
+        self.entries
+            .get(version)
+            .map(|entry| Arc::clone(&entry.sidecars))
+    }
+
     /// Return whether one exact artifact version entry exists.
     fn exists(&self, version: &ArtifactVersion) -> bool {
         self.entries.contains_key(version)
@@ -205,6 +212,7 @@ impl ArtifactStore {
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) {
         match payload {
             ArtifactPayload::GlobalEnvironment(payload) => Self::insert_payload(
@@ -363,8 +371,10 @@ impl ArtifactStore {
             ),
         }
 
-        self.entries
-            .insert(version, ArtifactEntry::ok(dependencies, diagnostics));
+        self.entries.insert(
+            version,
+            ArtifactEntry::ok(dependencies, diagnostics, sidecars),
+        );
     }
 
     /// Fail one artifact.
@@ -373,11 +383,12 @@ impl ArtifactStore {
         version: ArtifactVersion,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) {
         self.entries.insert(
             version,
-            ArtifactEntry::failed(dependencies, diagnostics, failure),
+            ArtifactEntry::failed(dependencies, diagnostics, sidecars, failure),
         );
     }
 }

@@ -327,6 +327,7 @@ impl TestSession {
                     ArtifactPayload::DirParsed(entry.dir_parsed.clone()),
                     dependencies,
                     DiagnosticCollection::new(),
+                    Vec::new(),
                 )
                 .expect("test parsed artifact should publish");
         }
