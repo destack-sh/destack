@@ -170,7 +170,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------
-    /// Runtime condition does not have boolean type.
+    /// Condition does not have boolean type.
     #[diagnostic(code = "EC400", message = "condition requires boolean type")]
     NonBooleanCondition {
         /// Report the condition expression.

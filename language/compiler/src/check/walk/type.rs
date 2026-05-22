@@ -3,14 +3,33 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one source type expression and allocate its inference id.
+    /// Walk one type expression and collect check work.
     pub(in crate::check) fn walk_type_expression(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeExpression>,
         type_expression: &dir::TypeExpression,
     ) {
-        self.source_type_infer(id);
         dir::walk_type_expression(self, tree, id, type_expression);
+    }
+
+    /// Walk one type member and collect check work.
+    pub(in crate::check) fn walk_type_member(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeMember>,
+        type_member: &dir::TypeMember,
+    ) {
+        dir::walk_type_member(self, tree, id, type_member);
+    }
+
+    /// Walk one type mapped parameter and collect check work.
+    pub(in crate::check) fn walk_type_mapped_parameter(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeMappedParameter>,
+        type_mapped_parameter: &dir::TypeMappedParameter,
+    ) {
+        dir::walk_type_mapped_parameter(self, tree, id, type_mapped_parameter);
     }
 }

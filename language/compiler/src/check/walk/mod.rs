@@ -1,4 +1,12 @@
+mod argument;
+mod block;
 mod declaration;
+mod declarator;
+mod decorator;
+mod dependency;
 mod expression;
+mod r#match;
+mod pattern;
+mod property;
 mod r#type;
 mod visit;
