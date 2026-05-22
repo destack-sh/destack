@@ -3,6 +3,64 @@ use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 use destack_dir::{Expression, LocalNodeId, NodeType, TokenType, TypeExpression};
 use destack_source::Span;
 
+/// Delimiter depth while recovering one malformed list item.
+#[derive(Debug, Default)]
+struct RecoveryDelimiterDepth {
+    /// The nested parenthesis depth.
+    parenthesis: usize,
+    /// The nested bracket depth.
+    bracket: usize,
+    /// The nested brace depth.
+    brace: usize,
+    /// The nested type angle depth.
+    angle: usize,
+    /// Whether angle brackets are item delimiters.
+    tracks_angle: bool,
+}
+
+impl RecoveryDelimiterDepth {
+    /// Create delimiter state for one list terminator.
+    fn new(terminator: TokenType) -> Self {
+        Self {
+            tracks_angle: terminator == TokenType::GreaterThan,
+            ..Self::default()
+        }
+    }
+
+    /// Return whether recovery is scanning the list item itself.
+    fn is_top_level(&self) -> bool {
+        self.parenthesis == 0 && self.bracket == 0 && self.brace == 0 && self.angle == 0
+    }
+
+    /// Advance delimiter state after one consumed token.
+    fn advance(&mut self, token_type: TokenType) {
+        match token_type {
+            TokenType::OpenParenthesis => self.parenthesis += 1,
+            TokenType::CloseParenthesis => Self::close(&mut self.parenthesis),
+            TokenType::OpenBracket => self.bracket += 1,
+            TokenType::CloseBracket => Self::close(&mut self.bracket),
+            TokenType::OpenBrace => self.brace += 1,
+            TokenType::CloseBrace => Self::close(&mut self.brace),
+            TokenType::LessThan if self.tracks_angle => self.angle += 1,
+            TokenType::ShiftLeft if self.tracks_angle => self.angle += 2,
+            TokenType::GreaterThan if self.tracks_angle => self.close_angle(1),
+            TokenType::ShiftRight if self.tracks_angle => self.close_angle(2),
+            TokenType::UnsignedShiftRight if self.tracks_angle => self.close_angle(3),
+            _ => {}
+        }
+    }
+
+    /// Close one delimiter level.
+    fn close(depth: &mut usize) {
+        *depth = depth.saturating_sub(1);
+    }
+
+    /// Close one or more angle levels.
+    fn close_angle(&mut self, width: usize) {
+        self.angle = self.angle.saturating_sub(width);
+    }
+}
+
 impl Parser {
     /// Insert one missing expression node at the current cursor position.
     pub(crate) fn insert_missing_expression_here(&mut self) -> LocalNodeId<Expression> {
@@ -221,6 +279,8 @@ impl Parser {
         terminator: TokenType,
         error: Option<ParseError>,
     ) -> ParseResult<()> {
+        let mut depth = RecoveryDelimiterDepth::new(terminator);
+
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
@@ -229,16 +289,18 @@ impl Parser {
             }
 
             let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line;
-            let is_boundary = is_new_line_boundary
-                || self.token_matches_terminator(token_type, terminator)
-                || Self::is_item_stop_token(token_type)
-                || Self::is_close_delimiter_token(token_type);
+            let is_boundary = depth.is_top_level()
+                && (is_new_line_boundary
+                    || self.token_matches_terminator(token_type, terminator)
+                    || Self::is_item_stop_token(token_type)
+                    || Self::is_close_delimiter_token(token_type));
             if is_boundary {
                 let error = ParseError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
             }
 
+            depth.advance(token_type);
             self.bump();
         }
 
