@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_dir as dir;
-use destack_source::FileId;
+use destack_source::{ComponentId, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
 /// Parsed DIR for one source module.
@@ -179,9 +179,34 @@ pub struct DirResolved {
     pub imports: dir::ImportTable,
 }
 
+/// Checked DIR output for one source component.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirCheckedComponent {
+    /// The checked component id.
+    pub component: ComponentId,
+    /// The checked module outputs in canonical module order.
+    pub modules: Vec<DirCheckedComponentEntry>,
+}
+
+impl DirCheckedComponent {
+    /// Return checked output for one module in this component.
+    pub fn module(&self, module: ModuleId) -> Option<&DirCheckedComponentEntry> {
+        self.modules.iter().find(|entry| entry.module == module)
+    }
+}
+
+/// Checked DIR entry for one module in a checked component.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirCheckedComponentEntry {
+    /// The checked module id.
+    pub module: ModuleId,
+    /// The checked side tables for this module.
+    pub checked: DirCheckedModule,
+}
+
 /// Type-checking segment for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirChecked {
+pub struct DirCheckedModule {
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
@@ -202,7 +227,18 @@ pub struct DirChecked {
     pub captures: Arc<dir::CaptureSegment>,
 }
 
-impl DirChecked {
+/// Facade artifact for one module checked inside a component.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirChecked {
+    /// The checked module id.
+    pub module: ModuleId,
+    /// The canonical module used to provide the checked component.
+    pub component_module: ModuleId,
+    /// The component that owns this module's checked output.
+    pub component: ComponentId,
+}
+
+impl DirCheckedModule {
     /// Return the cumulative type table for checked DIR.
     pub fn type_table(&self, bound: &DirBound, expanded: &DirExpanded) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
@@ -305,7 +341,7 @@ impl DirMaterialized {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
     ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
             bound.types.clone(),
@@ -320,7 +356,7 @@ impl DirMaterialized {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
             bound.statics.clone(),
@@ -331,7 +367,7 @@ impl DirMaterialized {
     }
 
     /// Return the cumulative resolution table for materialized DIR.
-    pub fn resolution_table(&self, checked: &DirChecked) -> dir::ResolutionTable<'static> {
+    pub fn resolution_table(&self, checked: &DirCheckedModule) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segments(vec![
             checked.resolutions.clone(),
             self.resolutions.clone(),
@@ -339,27 +375,27 @@ impl DirMaterialized {
     }
 
     /// Return the cumulative instance table for materialized DIR.
-    pub fn instance_table(&self, checked: &DirChecked) -> dir::InstanceTable<'static> {
+    pub fn instance_table(&self, checked: &DirCheckedModule) -> dir::InstanceTable<'static> {
         dir::InstanceTable::from_segments(vec![checked.instances.clone(), self.instances.clone()])
     }
 
     /// Return the cumulative relation table for materialized DIR.
-    pub fn relation_table(&self, checked: &DirChecked) -> dir::RelationTable<'static> {
+    pub fn relation_table(&self, checked: &DirCheckedModule) -> dir::RelationTable<'static> {
         dir::RelationTable::from_segments(vec![checked.relations.clone(), self.relations.clone()])
     }
 
     /// Return the cumulative extension table for materialized DIR.
-    pub fn extension_table(&self, checked: &DirChecked) -> dir::ExtensionTable<'static> {
+    pub fn extension_table(&self, checked: &DirCheckedModule) -> dir::ExtensionTable<'static> {
         dir::ExtensionTable::from_segment(checked.extensions.clone())
     }
 
     /// Return the cumulative capture table for materialized DIR.
-    pub fn capture_table(&self, checked: &DirChecked) -> dir::CaptureTable<'static> {
+    pub fn capture_table(&self, checked: &DirCheckedModule) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segments(vec![checked.captures.clone(), self.captures.clone()])
     }
 
     /// Return the cumulative layout table for materialized DIR.
-    pub fn layout_table(&self, checked: &DirChecked) -> dir::LayoutTable<'static> {
+    pub fn layout_table(&self, checked: &DirCheckedModule) -> dir::LayoutTable<'static> {
         dir::LayoutTable::from_segments(vec![checked.layouts.clone(), self.layouts.clone()])
     }
 }
@@ -412,7 +448,7 @@ impl DirElaborated {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::TypeTable<'static> {
         dir::TypeTable::from_segments(vec![
@@ -429,7 +465,7 @@ impl DirElaborated {
         &self,
         bound: &DirBound,
         expanded: &DirExpanded,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::StaticTable<'static> {
         dir::StaticTable::from_segments(vec![
@@ -444,7 +480,7 @@ impl DirElaborated {
     /// Return the cumulative resolution table for elaborated DIR.
     pub fn resolution_table(
         &self,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::ResolutionTable<'static> {
         dir::ResolutionTable::from_segments(vec![
@@ -457,7 +493,7 @@ impl DirElaborated {
     /// Return the cumulative instance table for elaborated DIR.
     pub fn instance_table(
         &self,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::InstanceTable<'static> {
         dir::InstanceTable::from_segments(vec![
@@ -470,7 +506,7 @@ impl DirElaborated {
     /// Return the cumulative relation table for elaborated DIR.
     pub fn relation_table(
         &self,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::RelationTable<'static> {
         dir::RelationTable::from_segments(vec![
@@ -481,14 +517,14 @@ impl DirElaborated {
     }
 
     /// Return the cumulative extension table for elaborated DIR.
-    pub fn extension_table(&self, checked: &DirChecked) -> dir::ExtensionTable<'static> {
+    pub fn extension_table(&self, checked: &DirCheckedModule) -> dir::ExtensionTable<'static> {
         dir::ExtensionTable::from_segment(checked.extensions.clone())
     }
 
     /// Return the cumulative capture table for elaborated DIR.
     pub fn capture_table(
         &self,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segments(vec![
@@ -501,7 +537,7 @@ impl DirElaborated {
     /// Return the cumulative layout table for elaborated DIR.
     pub fn layout_table(
         &self,
-        checked: &DirChecked,
+        checked: &DirCheckedModule,
         materialized: &DirMaterialized,
     ) -> dir::LayoutTable<'static> {
         dir::LayoutTable::from_segments(vec![

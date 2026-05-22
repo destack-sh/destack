@@ -7,10 +7,10 @@ use super::entry::{ArtifactEntry, ArtifactOutcome};
 use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Data,
-    DirBound, DirChecked, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
-    ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
-    WorkspaceQueryIndex,
+    DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
+    MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
+    PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -42,7 +42,9 @@ pub struct ArtifactStore {
     dir_exported: ArtifactMap<DirExported>,
     /// Resolved DIR artifacts by module and profile.
     dir_resolved: ArtifactMap<DirResolved>,
-    /// Checked DIR artifacts by module and profile.
+    /// Checked DIR component artifacts by component and profile.
+    dir_checked_component: ArtifactMap<DirCheckedComponent>,
+    /// Checked DIR facade artifacts by module and profile.
     dir_checked: ArtifactMap<DirChecked>,
     /// Materialized DIR artifacts by module and profile.
     dir_materialized: ArtifactMap<DirMaterialized>,
@@ -158,6 +160,9 @@ impl ArtifactStore {
             ArtifactKey::DirExpanded { .. } => self.dir_expanded.contains_key(version),
             ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
             ArtifactKey::DirResolved { .. } => self.dir_resolved.contains_key(version),
+            ArtifactKey::DirCheckedComponent { .. } => {
+                self.dir_checked_component.contains_key(version)
+            }
             ArtifactKey::DirChecked { .. } => self.dir_checked.contains_key(version),
             ArtifactKey::DirMaterialized { .. } => self.dir_materialized.contains_key(version),
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
@@ -257,6 +262,13 @@ impl ArtifactStore {
                 payload,
                 matches!(&version.key, ArtifactKey::DirResolved { .. }),
                 "DirResolved",
+            ),
+            ArtifactPayload::DirCheckedComponent(payload) => Self::insert_payload(
+                &self.dir_checked_component,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::DirCheckedComponent { .. }),
+                "DirCheckedComponent",
             ),
             ArtifactPayload::DirChecked(payload) => Self::insert_payload(
                 &self.dir_checked,
@@ -425,7 +437,17 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one checked DIR artifact.
+    /// Get one checked DIR component artifact.
+    pub fn dir_checked_component(
+        &self,
+        version: &ArtifactVersion,
+    ) -> Option<Arc<DirCheckedComponent>> {
+        self.dir_checked_component
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one checked DIR facade artifact.
     pub fn dir_checked(&self, version: &ArtifactVersion) -> Option<Arc<DirChecked>> {
         self.dir_checked
             .get(version)

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{ComponentId, ModuleId, PackageId, ProfileId, TargetId};
 
 /// Provider family for one artifact key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -51,7 +51,13 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
-    /// Checked DIR.
+    /// Checked DIR component.
+    DirCheckedComponent {
+        module: ModuleId,
+        component: ComponentId,
+        profile: ProfileId,
+    },
+    /// Checked DIR facade.
     DirChecked {
         module: ModuleId,
         profile: ProfileId,
@@ -124,6 +130,7 @@ impl ArtifactKey {
             | Self::DirExpanded { .. }
             | Self::DirExported { .. }
             | Self::DirResolved { .. }
+            | Self::DirCheckedComponent { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
             | Self::DirElaborated { .. }
@@ -189,7 +196,20 @@ impl ArtifactKey {
         Self::DirResolved { module, profile }
     }
 
-    /// Build one checked DIR artifact key.
+    /// Build one checked DIR component artifact key.
+    pub fn dir_checked_component(
+        module: ModuleId,
+        component: ComponentId,
+        profile: ProfileId,
+    ) -> Self {
+        Self::DirCheckedComponent {
+            module,
+            component,
+            profile,
+        }
+    }
+
+    /// Build one checked DIR facade artifact key.
     pub fn dir_checked(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirChecked { module, profile }
     }
@@ -277,6 +297,7 @@ impl ArtifactKey {
             Self::DirExpanded { .. } => "dir_expanded",
             Self::DirExported { .. } => "dir_exported",
             Self::DirResolved { .. } => "dir_resolved",
+            Self::DirCheckedComponent { .. } => "dir_checked_component",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::DirElaborated { .. } => "dir_elaborated",
@@ -303,6 +324,7 @@ impl ArtifactKey {
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
             | Self::DirResolved { module, .. }
+            | Self::DirCheckedComponent { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::DirElaborated { module, .. }
@@ -331,6 +353,7 @@ impl ArtifactKey {
             | Self::DirExpanded { profile, .. }
             | Self::DirExported { profile, .. }
             | Self::DirResolved { profile, .. }
+            | Self::DirCheckedComponent { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }
             | Self::DirElaborated { profile, .. }
