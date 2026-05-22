@@ -4,7 +4,7 @@ use super::CheckModuleState;
 
 impl CheckModuleState {
     /// Return the nearest lexical scope visible at one node.
-    pub(in crate::check) fn scope_for_node(
+    pub(in crate::check) fn find_visible_scope(
         &self,
         bindings: &dir::BindingTable<'_>,
         node: dir::LocalNodeIdAny,
@@ -27,7 +27,7 @@ impl CheckModuleState {
     }
 
     /// Return lexical symbols visible from one scope.
-    pub(in crate::check) fn scope_symbols(
+    pub(in crate::check) fn find_scope_symbols(
         &self,
         bindings: &dir::BindingTable<'_>,
         mut scope: dir::LocalScope,
@@ -36,12 +36,12 @@ impl CheckModuleState {
     ) -> Vec<dir::GlobalSymbolId> {
         loop {
             let current = bindings.get_scope(scope);
-            let symbols = current
-                .named_symbols_up_to(scope.mark)
-                .filter_map(|(binding_key, symbol)| (binding_key == key).then_some(symbol))
-                .filter(|symbol| bindings.get_symbol(*symbol).form.is_visible_in(space))
-                .map(|symbol| self.resolve_imported_symbol(symbol))
-                .collect::<Vec<_>>();
+            let mut symbols = Vec::new();
+            for (binding_key, symbol) in current.named_symbols_up_to(scope.mark) {
+                if binding_key == key && bindings.get_symbol(symbol).form.is_visible_in(space) {
+                    symbols.push(self.resolve_imported_symbol(symbol));
+                }
+            }
 
             if !symbols.is_empty() {
                 return symbols;

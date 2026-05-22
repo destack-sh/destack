@@ -1,22 +1,22 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticAnchor, DirBound, DirChecked, DirExpanded, DirExported, DirImported, DirParsed,
+    DiagnosticAnchor, DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed,
     DirResolved,
 };
 use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 use crate::CheckError;
 
 use super::{
-    Condition, Constraint, FlowState, InferOrigin, Obligation, StaticInferId, StaticInferOrigin,
-    StaticSlot, TypeInferId, TypeSlot,
+    CheckFailure, Constraint, Obligation, Step, TypeRelation, Variable, VariableId, VariableKind,
+    VariableOrigin, VariableValue,
 };
 
-/// Check state for one module.
-#[allow(dead_code)]
+/// Check state for one module inside a checked component.
 #[derive(Debug)]
 pub(in crate::check) struct CheckModuleState {
     /// The requested module.
@@ -41,8 +41,6 @@ pub(in crate::check) struct CheckModuleState {
     types: dir::TypeSegment,
     /// Checked static value segment.
     statics: dir::StaticSegment,
-    /// Checked generic segment.
-    generics: dir::GenericSegment,
     /// Checked resolution segment.
     resolutions: dir::ResolutionSegment,
     /// Checked instance segment.
@@ -59,40 +57,30 @@ pub(in crate::check) struct CheckModuleState {
     /// The visitor options used while walking this module.
     options: dir::NodeVisitorOptions,
 
-    /// Current flow while walking this module.
-    flow: FlowState,
-
-    /// Type inference variables.
-    infer_origins: Vec<InferOrigin>,
-    /// Type inference slots.
-    type_slots: Vec<TypeSlot>,
-    /// Static inference variables.
-    static_infer_origins: Vec<StaticInferOrigin>,
-    /// Static inference slots.
-    static_slots: Vec<StaticSlot>,
-    /// Type inference variables keyed by node.
-    node_infers: IndexMap<dir::GlobalNodeIdAny, TypeInferId>,
-    /// Type inference variables keyed by symbol.
-    symbol_infers: IndexMap<dir::GlobalSymbolId, TypeInferId>,
-    /// Static inference variables keyed by node.
-    node_static_infers: IndexMap<dir::GlobalNodeIdAny, StaticInferId>,
-    /// Static inference variables keyed by symbol.
-    symbol_static_infers: IndexMap<dir::GlobalSymbolId, StaticInferId>,
-    /// Imported symbol types copied into this module.
-    imported_symbol_types: IndexMap<dir::GlobalSymbolId, dir::LocalTypeId>,
+    /// Check variables owned by this module.
+    variables: Vec<Variable>,
+    /// Type variables keyed by node.
+    node_type_variables: IndexMap<dir::GlobalNodeIdAny, VariableId>,
+    /// Type variables keyed by symbol.
+    symbol_type_variables: IndexMap<dir::GlobalSymbolId, VariableId>,
+    /// Static variables keyed by node.
+    node_static_variables: IndexMap<dir::GlobalNodeIdAny, VariableId>,
+    /// Static variables keyed by symbol.
+    symbol_static_variables: IndexMap<dir::GlobalSymbolId, VariableId>,
+    /// Layout variables keyed by local type.
+    layout_variables: IndexMap<dir::LocalTypeId, VariableId>,
 
     /// Constraints produced by walking DIR.
     constraints: Vec<Constraint>,
-    /// Conditions extracted from source control flow.
-    conditions: Vec<Condition>,
     /// Obligations produced by walking DIR.
     obligations: Vec<Obligation>,
+    /// Failures found during solving.
+    failures: Vec<CheckFailure>,
 
     /// Recoverable diagnostics collected while checking.
     diagnostics: Vec<CheckError>,
 }
 
-#[allow(dead_code)]
 impl CheckModuleState {
     /// Create check state for one requested module.
     pub(in crate::check) fn new(
@@ -107,7 +95,6 @@ impl CheckModuleState {
     ) -> Self {
         let types = dir::TypeSegment::from_base(&expanded.types);
         let statics = dir::StaticSegment::from_base(&expanded.statics);
-        let generics = dir::GenericSegment::new(module);
         let resolutions = dir::ResolutionSegment::new(module);
         let instances = dir::InstanceSegment::new(module);
         let relations = dir::RelationSegment::new(module);
@@ -126,7 +113,6 @@ impl CheckModuleState {
             expanded,
             types,
             statics,
-            generics,
             resolutions,
             instances,
             relations,
@@ -134,19 +120,15 @@ impl CheckModuleState {
             layouts,
             captures,
             options: dir::NodeVisitorOptions::default(),
-            flow: FlowState::default(),
-            infer_origins: Vec::new(),
-            type_slots: Vec::new(),
-            static_infer_origins: Vec::new(),
-            static_slots: Vec::new(),
-            node_infers: IndexMap::new(),
-            symbol_infers: IndexMap::new(),
-            node_static_infers: IndexMap::new(),
-            symbol_static_infers: IndexMap::new(),
-            imported_symbol_types: IndexMap::new(),
+            variables: Vec::new(),
+            node_type_variables: IndexMap::new(),
+            symbol_type_variables: IndexMap::new(),
+            node_static_variables: IndexMap::new(),
+            symbol_static_variables: IndexMap::new(),
+            layout_variables: IndexMap::new(),
             constraints: Vec::new(),
-            conditions: Vec::new(),
             obligations: Vec::new(),
+            failures: Vec::new(),
             diagnostics: Vec::new(),
         }
     }
@@ -221,100 +203,48 @@ impl CheckModuleState {
         self.expanded.static_table(&self.bound)
     }
 
-    /// Return the checked type tail.
-    pub(in crate::check) fn types(&self) -> &dir::TypeSegment {
-        &self.types
-    }
-
-    /// Return the checked type tail mutably.
-    pub(in crate::check) fn types_mut(&mut self) -> &mut dir::TypeSegment {
-        &mut self.types
-    }
-
-    /// Return the checked static value tail.
-    pub(in crate::check) fn statics(&self) -> &dir::StaticSegment {
-        &self.statics
-    }
-
-    /// Return the checked static value tail mutably.
-    pub(in crate::check) fn statics_mut(&mut self) -> &mut dir::StaticSegment {
-        &mut self.statics
-    }
-
-    /// Return the checked generic tail mutably.
-    pub(in crate::check) fn generics_mut(&mut self) -> &mut dir::GenericSegment {
-        &mut self.generics
-    }
-
-    /// Return the checked resolution tail mutably.
-    pub(in crate::check) fn resolutions_mut(&mut self) -> &mut dir::ResolutionSegment {
-        &mut self.resolutions
-    }
-
-    /// Return the checked resolution tail.
-    pub(in crate::check) fn resolutions(&self) -> &dir::ResolutionSegment {
-        &self.resolutions
-    }
-
-    /// Return the checked instance tail mutably.
-    pub(in crate::check) fn instances_mut(&mut self) -> &mut dir::InstanceSegment {
-        &mut self.instances
-    }
-
-    /// Return the checked relation tail mutably.
-    pub(in crate::check) fn relations_mut(&mut self) -> &mut dir::RelationSegment {
-        &mut self.relations
-    }
-
-    /// Return the checked extension tail mutably.
-    pub(in crate::check) fn extensions_mut(&mut self) -> &mut dir::ExtensionSegment {
-        &mut self.extensions
-    }
-
-    /// Return the checked extension tail.
-    pub(in crate::check) fn extensions(&self) -> &dir::ExtensionSegment {
-        &self.extensions
-    }
-
-    /// Return the checked layout tail mutably.
-    pub(in crate::check) fn layouts_mut(&mut self) -> &mut dir::LayoutSegment {
-        &mut self.layouts
-    }
-
-    /// Return the checked capture tail mutably.
-    pub(in crate::check) fn captures_mut(&mut self) -> &mut dir::CaptureSegment {
-        &mut self.captures
-    }
-
-    /// Resolve one local symbol through an import when needed.
-    pub(in crate::check) fn resolve_imported_symbol(
+    /// Return the symbol introduced by a source declaration node.
+    pub(in crate::check) fn declaration_symbol(
         &self,
-        symbol: dir::LocalSymbolId,
-    ) -> dir::GlobalSymbolId {
-        if let Some(dir::ImportTarget::Symbol(target)) = self.resolved.imports.symbol_target(symbol)
-        {
-            return target;
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        self.binding_table()
+            .symbol_for_declaration(node.into_global(self.module()))
+            .map(|symbol| symbol.into_global(self.module()))
+    }
+
+    /// Add one checked type.
+    pub(in crate::check) fn intern_type(
+        &mut self,
+        ty: dir::Type,
+        source: dir::LocalNodeIdAny,
+    ) -> dir::LocalTypeId {
+        self.types.insert_type_from_any(ty, source)
+    }
+
+    /// Add or reuse one checked static value.
+    pub(in crate::check) fn intern_static(&mut self, term: dir::StaticTerm) -> dir::LocalStaticId {
+        let table = self.input_static_table();
+
+        table.intern_static(&mut self.statics, term)
+    }
+
+    /// Return one visible type by id.
+    pub(in crate::check) fn get_type(&self, type_id: dir::LocalTypeId) -> dir::Type {
+        if let Some(ty) = self.types.get_type_maybe(type_id) {
+            return ty.clone();
         }
 
-        symbol.into_global(self.module)
+        self.input_type_table().get_type(type_id).clone()
     }
 
-    /// Return imported global symbols for one key.
-    pub(in crate::check) fn global_symbols(
-        &self,
-        key: dir::StaticKey,
-    ) -> Option<&[dir::GlobalSymbolId]> {
-        self.resolved.imports.global_symbols(key)
-    }
+    /// Return one visible static value by id.
+    pub(in crate::check) fn get_static(&self, static_id: dir::LocalStaticId) -> dir::StaticTerm {
+        if let Some(term) = self.statics.get_static_maybe(static_id) {
+            return term.clone();
+        }
 
-    /// Return the current flow.
-    pub(in crate::check) fn flow(&self) -> &FlowState {
-        &self.flow
-    }
-
-    /// Return the current flow mutably.
-    pub(in crate::check) fn flow_mut(&mut self) -> &mut FlowState {
-        &mut self.flow
+        self.input_static_table().get_static(static_id).clone()
     }
 
     /// Return the effective checked type id for one node.
@@ -332,171 +262,88 @@ impl CheckModuleState {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<dir::LocalTypeId> {
-        if let Some(type_id) = self.types.get_symbol_type_id(symbol_id) {
-            return Some(type_id);
-        }
-
-        if let Some(type_id) = self.imported_symbol_types.get(&symbol_id).copied() {
-            return Some(type_id);
-        }
-
-        self.input_type_table().get_symbol_type_id(symbol_id)
+        self.types
+            .get_symbol_type_id(symbol_id)
+            .or_else(|| self.input_type_table().get_symbol_type_id(symbol_id))
     }
 
-    /// Copy imported symbol types solved by one dependency module.
-    pub(in crate::check) fn import_symbol_types_from(&mut self, source: &CheckModuleState) {
-        let symbol_targets = self
-            .resolved
-            .imports
-            .symbol_targets
-            .iter()
-            .map(|(local_symbol, target)| (*local_symbol, *target))
-            .collect::<Vec<_>>();
-        let mut copied_types = IndexMap::new();
-
-        // copy each symbol selected from this source module
-        for (local_symbol, target) in symbol_targets {
-            let dir::ImportTarget::Symbol(target_symbol) = target else {
-                continue;
-            };
-            if target_symbol.module_id != source.module() {
-                continue;
-            }
-
-            let Some(source_type) = source.symbol_type_id(target_symbol) else {
-                continue;
-            };
-            let copied_type = self.copy_imported_type(source, source_type, &mut copied_types);
-            let local_symbol = local_symbol.into_global(self.module);
-
-            self.types.set_symbol_type(local_symbol, copied_type);
-            self.imported_symbol_types
-                .insert(target_symbol, copied_type);
-            if let Some(infer) = self.symbol_infers.get(&target_symbol).copied() {
-                self.replace_infer_type(infer, copied_type);
-            }
-            if let Some(infer) = self.symbol_infers.get(&local_symbol).copied() {
-                self.replace_infer_type(infer, copied_type);
-            }
-        }
-    }
-
-    /// Return the symbol selected for one resolved expression node.
-    pub(in crate::check) fn resolution_symbol(
+    /// Return the effective checked static value id for one symbol.
+    pub(in crate::check) fn symbol_static_id(
         &self,
-        node_id: dir::GlobalNodeIdAny,
-    ) -> Option<dir::GlobalSymbolId> {
-        self.resolutions.symbol_resolution(node_id)
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Option<dir::LocalStaticId> {
+        self.statics
+            .get_symbol_static_id(symbol_id)
+            .or_else(|| self.input_static_table().get_symbol_static_id(symbol_id))
     }
 
-    /// Return one visible type by id.
-    pub(in crate::check) fn get_type(&self, type_id: dir::LocalTypeId) -> dir::Type {
-        if let Some(ty) = self.types.get_type_maybe(type_id) {
-            return ty.clone();
-        }
-
-        self.input_type_table().get_type(type_id).clone()
-    }
-
-    /// Return a local type id for one primitive type.
-    pub(in crate::check) fn primitive_type_id(
+    /// Push one check variable.
+    pub(in crate::check) fn push_variable(
         &mut self,
-        primitive: dir::PrimitiveType,
-    ) -> dir::LocalTypeId {
-        let ty = dir::Type::Primitive(primitive);
-        let input_types = self.input_type_table();
-        for type_id in input_types.iter_type_ids() {
-            if input_types.get_type(type_id) == &ty {
-                return type_id;
-            }
-        }
-
-        for type_id in self.types.iter_type_ids() {
-            if self.types.get_type(type_id) == &ty {
-                return type_id;
-            }
-        }
-
-        self.types.insert_type_from_any(ty, self.bound.module_node)
-    }
-
-    /// Return the source node that produced one visible type id.
-    pub(in crate::check) fn type_source(&self, type_id: dir::LocalTypeId) -> dir::LocalNodeIdAny {
-        if self.types.get_type_maybe(type_id).is_some() {
-            return self.types.get_type_source(type_id);
-        }
-
-        self.input_type_table().get_type_source(type_id)
-    }
-
-    /// Add one type inference variable.
-    pub(in crate::check) fn push_infer(&mut self, origin: InferOrigin) -> TypeInferId {
-        let id = TypeInferId(self.infer_origins.len() as u32);
-        self.infer_origins.push(origin);
-        self.type_slots.push(TypeSlot::default());
+        kind: VariableKind,
+        origin: VariableOrigin,
+    ) -> VariableId {
+        let id = VariableId::new(self.module, self.variables.len() as u32);
+        let variable = Variable::new(id, kind, origin);
+        self.variables.push(variable);
 
         id
     }
 
-    /// Return the origin for one type inference variable.
-    pub(in crate::check) fn infer_origin(&self, infer: TypeInferId) -> &InferOrigin {
-        &self.infer_origins[infer.0 as usize]
+    /// Return one variable.
+    pub(in crate::check) fn variable(&self, id: VariableId) -> &Variable {
+        assert_eq!(
+            id.module, self.module,
+            "check variable belongs to another module"
+        );
+
+        &self.variables[id.index as usize]
     }
 
-    /// Return the solved type for one inference variable.
-    pub(in crate::check) fn infer_type_id(&self, infer: TypeInferId) -> Option<dir::LocalTypeId> {
-        self.type_slots[infer.0 as usize].ty
+    /// Return one variable mutably.
+    pub(in crate::check) fn variable_mut(&mut self, id: VariableId) -> &mut Variable {
+        assert_eq!(
+            id.module, self.module,
+            "check variable belongs to another module"
+        );
+
+        &mut self.variables[id.index as usize]
     }
 
-    /// Return the number of type inference slots.
-    pub(in crate::check) fn type_slot_count(&self) -> usize {
-        self.type_slots.len()
+    /// Return the solved value for one variable.
+    pub(in crate::check) fn variable_value(&self, id: VariableId) -> Option<&VariableValue> {
+        self.variable(id).value.as_ref()
     }
 
-    /// Set the solved type for one inference variable.
-    pub(in crate::check) fn set_infer_type(
-        &mut self,
-        infer: TypeInferId,
-        type_id: dir::LocalTypeId,
-    ) -> bool {
-        let slot = &mut self.type_slots[infer.0 as usize];
-        if slot.ty.is_some() {
-            return false;
+    /// Bind the solved value for one variable.
+    pub(in crate::check) fn bind_variable(&mut self, id: VariableId, value: VariableValue) -> Step {
+        let variable = self.variable_mut(id);
+        let Some(existing) = &variable.value else {
+            variable.value = Some(value);
+
+            return Step::applied(id);
+        };
+
+        if existing == &value {
+            Step::Pending
+        } else {
+            Step::Failed(CheckFailure::VariableConflict { variable: id })
         }
-
-        slot.ty = Some(type_id);
-
-        true
     }
 
-    /// Set the solved type for one inference variable.
-    pub(in crate::check) fn replace_infer_type(
-        &mut self,
-        infer: TypeInferId,
-        type_id: dir::LocalTypeId,
-    ) {
-        let slot = &mut self.type_slots[infer.0 as usize];
-
-        slot.ty = Some(type_id);
-    }
-
-    /// Record a copied imported symbol type.
-    pub(in crate::check) fn set_imported_symbol_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        type_id: dir::LocalTypeId,
-    ) {
-        self.imported_symbol_types.insert(symbol, type_id);
-    }
-
-    /// Return the best source node for a type produced by one inference variable.
-    pub(in crate::check) fn infer_source_node(&self, infer: TypeInferId) -> dir::LocalNodeIdAny {
-        match self.infer_origin(infer) {
-            InferOrigin::Node(node) if node.module_id == self.module => node.local_id,
-            InferOrigin::Symbol(symbol) if symbol.module_id == self.module => {
-                let local_symbol = symbol.local_id;
+    /// Return one variable's source node for diagnostics.
+    pub(in crate::check) fn variable_source_node(&self, id: VariableId) -> dir::LocalNodeIdAny {
+        match &self.variable(id).origin {
+            VariableOrigin::Node(node) if node.module_id == self.module => node.local_id,
+            VariableOrigin::StaticExpression(node) if node.module_id == self.module => {
+                node.local_id.into_any()
+            }
+            VariableOrigin::TypeExpression(node) if node.module_id == self.module => {
+                node.local_id.into_any()
+            }
+            VariableOrigin::Symbol(symbol) if symbol.module_id == self.module => {
                 let binding_table = self.binding_table();
-                let symbol = binding_table.get_symbol(local_symbol);
+                let symbol = binding_table.get_symbol(symbol.local_id);
 
                 symbol
                     .declaration
@@ -504,106 +351,118 @@ impl CheckModuleState {
                     .map(|declaration| declaration.local_id)
                     .unwrap_or(self.bound.module_node)
             }
-            _ => self.bound.module_node,
-        }
-    }
-
-    /// Commit solved inference variables into checked type tables.
-    pub(in crate::check) fn commit_solved_types(&mut self) {
-        for index in 0..self.type_slots.len() {
-            let Some(type_id) = self.type_slots[index].ty else {
-                continue;
-            };
-            let infer = TypeInferId(index as u32);
-
-            match self.infer_origin(infer) {
-                InferOrigin::Node(node) => self.types.set_node_type(*node, type_id),
-                InferOrigin::Symbol(symbol) if symbol.module_id == self.module => {
-                    self.types.set_symbol_type(*symbol, type_id);
-                }
-                InferOrigin::Symbol(_) => {}
-                InferOrigin::Synthetic => {}
+            VariableOrigin::Layout { .. }
+            | VariableOrigin::Synthetic
+            | VariableOrigin::Symbol(_)
+            | VariableOrigin::Node(_) => self.bound.module_node,
+            VariableOrigin::TypeExpression(_) | VariableOrigin::StaticExpression(_) => {
+                self.bound.module_node
             }
         }
     }
 
-    /// Return the inference variable for one node.
-    pub(in crate::check) fn infer_node(&mut self, node: dir::GlobalNodeIdAny) -> TypeInferId {
-        if let Some(id) = self.node_infers.get(&node).copied() {
-            return id;
+    /// Return the solved type for one variable.
+    pub(in crate::check) fn variable_type_value(&self, id: VariableId) -> Option<dir::LocalTypeId> {
+        match self.variable_value(id) {
+            Some(VariableValue::Type(type_id)) => Some(*type_id),
+            _ => None,
         }
-
-        let id = self.push_infer(InferOrigin::Node(node));
-        self.node_infers.insert(node, id);
-
-        id
     }
 
-    /// Return the inference variable for one symbol.
-    pub(in crate::check) fn infer_symbol(&mut self, symbol: dir::GlobalSymbolId) -> TypeInferId {
-        if let Some(id) = self.symbol_infers.get(&symbol).copied() {
-            return id;
-        }
+    /// Return a symbol as visible from this module.
+    pub(in crate::check) fn resolve_imported_symbol(
+        &self,
+        symbol: dir::LocalSymbolId,
+    ) -> dir::GlobalSymbolId {
+        let target = self
+            .resolved
+            .imports
+            .symbol_target(symbol)
+            .and_then(|target| match target {
+                dir::ImportTarget::Symbol(symbol) => Some(symbol),
+                dir::ImportTarget::Namespace(_) => None,
+            });
 
-        let id = self.push_infer(InferOrigin::Symbol(symbol));
-        if let Some(type_id) = self.symbol_type_id(symbol) {
-            self.set_infer_type(id, type_id);
-        }
-        self.symbol_infers.insert(symbol, id);
-
-        id
+        target.unwrap_or_else(|| symbol.into_global(self.module))
     }
 
-    /// Return a fresh synthetic type inference variable.
-    pub(in crate::check) fn infer_synthetic(&mut self) -> TypeInferId {
-        self.push_infer(InferOrigin::Synthetic)
-    }
-
-    /// Add one static inference variable.
-    pub(in crate::check) fn push_static_infer(
-        &mut self,
-        origin: StaticInferOrigin,
-    ) -> StaticInferId {
-        let id = StaticInferId(self.static_infer_origins.len() as u32);
-        self.static_infer_origins.push(origin);
-        self.static_slots.push(StaticSlot::default());
-
-        id
-    }
-
-    /// Return the static inference variable for one node.
-    pub(in crate::check) fn infer_static_node(
+    /// Return or create a type variable for one node.
+    pub(in crate::check) fn node_type_variable(
         &mut self,
         node: dir::GlobalNodeIdAny,
-    ) -> StaticInferId {
-        if let Some(id) = self.node_static_infers.get(&node).copied() {
-            return id;
+    ) -> VariableId {
+        if let Some(variable) = self.node_type_variables.get(&node).copied() {
+            return variable;
         }
 
-        let id = self.push_static_infer(StaticInferOrigin::Node(node));
-        self.node_static_infers.insert(node, id);
+        let variable = self.push_variable(VariableKind::Type, VariableOrigin::Node(node));
+        self.node_type_variables.insert(node, variable);
 
-        id
+        variable
     }
 
-    /// Return the static inference variable for one symbol.
-    pub(in crate::check) fn infer_static_symbol(
+    /// Return or create a type variable for one symbol.
+    pub(in crate::check) fn symbol_type_variable(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> StaticInferId {
-        if let Some(id) = self.symbol_static_infers.get(&symbol).copied() {
-            return id;
+    ) -> VariableId {
+        if let Some(variable) = self.symbol_type_variables.get(&symbol).copied() {
+            return variable;
         }
 
-        let id = self.push_static_infer(StaticInferOrigin::Symbol(symbol));
-        self.symbol_static_infers.insert(symbol, id);
+        let variable = self.push_variable(VariableKind::Type, VariableOrigin::Symbol(symbol));
+        if let Some(type_id) = self.symbol_type_id(symbol) {
+            let _ = self.bind_variable(variable, VariableValue::Type(type_id));
+        }
+        self.symbol_type_variables.insert(symbol, variable);
 
-        id
+        variable
     }
 
-    /// Return a fresh synthetic static inference variable.
-    pub(in crate::check) fn infer_static_synthetic(&mut self) -> StaticInferId {
-        self.push_static_infer(StaticInferOrigin::Synthetic)
+    /// Return or create a static variable for one node.
+    pub(in crate::check) fn node_static_variable(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> VariableId {
+        if let Some(variable) = self.node_static_variables.get(&node).copied() {
+            return variable;
+        }
+
+        let variable = self.push_variable(VariableKind::Static, VariableOrigin::Node(node));
+        self.node_static_variables.insert(node, variable);
+
+        variable
+    }
+
+    /// Return or create a static variable for one symbol.
+    pub(in crate::check) fn symbol_static_variable(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> VariableId {
+        if let Some(variable) = self.symbol_static_variables.get(&symbol).copied() {
+            return variable;
+        }
+
+        let variable = self.push_variable(VariableKind::Static, VariableOrigin::Symbol(symbol));
+        if let Some(static_id) = self.symbol_static_id(symbol) {
+            let _ = self.bind_variable(variable, VariableValue::Static(static_id));
+        }
+        self.symbol_static_variables.insert(symbol, variable);
+
+        variable
+    }
+
+    /// Return or create a layout variable for one local type.
+    pub(in crate::check) fn layout_variable(&mut self, type_id: dir::LocalTypeId) -> VariableId {
+        if let Some(variable) = self.layout_variables.get(&type_id).copied() {
+            return variable;
+        }
+
+        let variable =
+            self.push_variable(VariableKind::Layout, VariableOrigin::Layout { ty: type_id });
+        self.layout_variables.insert(type_id, variable);
+
+        variable
     }
 
     /// Add one constraint.
@@ -616,24 +475,24 @@ impl CheckModuleState {
         &self.constraints
     }
 
-    /// Add one condition.
-    pub(in crate::check) fn push_condition(&mut self, condition: Condition) {
-        self.conditions.push(condition);
-    }
-
-    /// Return collected conditions.
-    pub(in crate::check) fn conditions(&self) -> &[Condition] {
-        &self.conditions
-    }
-
     /// Add one obligation.
     pub(in crate::check) fn push_obligation(&mut self, obligation: Obligation) {
         self.obligations.push(obligation);
     }
 
-    /// Return collected obligations.
-    pub(in crate::check) fn obligations(&self) -> &[Obligation] {
-        &self.obligations
+    /// Drain collected obligations.
+    pub(in crate::check) fn take_obligations(&mut self) -> Vec<Obligation> {
+        std::mem::take(&mut self.obligations)
+    }
+
+    /// Add one check failure.
+    pub(in crate::check) fn push_failure(&mut self, failure: CheckFailure) {
+        self.failures.push(failure);
+    }
+
+    /// Drain check failures.
+    pub(in crate::check) fn take_failures(&mut self) -> Vec<CheckFailure> {
+        std::mem::take(&mut self.failures)
     }
 
     /// Return the source anchor for one local node.
@@ -643,6 +502,23 @@ impl CheckModuleState {
             .get_span_by_id(node_id.id)
             .map(DiagnosticAnchor::from)
             .unwrap_or_else(|| DiagnosticAnchor::from(self.module))
+    }
+
+    /// Return the source anchor for one global node.
+    pub(in crate::check) fn anchor_global_node(
+        &self,
+        node_id: dir::GlobalNodeIdAny,
+    ) -> DiagnosticAnchor {
+        if node_id.module_id == self.module {
+            self.anchor_node(node_id.local_id)
+        } else {
+            self.anchor_module()
+        }
+    }
+
+    /// Return the source anchor for the whole module.
+    pub(in crate::check) fn anchor_module(&self) -> DiagnosticAnchor {
+        DiagnosticAnchor::from(self.module)
     }
 
     /// Add one recoverable check diagnostic.
@@ -655,137 +531,57 @@ impl CheckModuleState {
         std::mem::take(&mut self.diagnostics)
     }
 
-    /// Copy one imported type into this module.
-    fn copy_imported_type(
-        &mut self,
-        source: &CheckModuleState,
-        type_id: dir::LocalTypeId,
-        copied_types: &mut IndexMap<dir::LocalTypeId, dir::LocalTypeId>,
-    ) -> dir::LocalTypeId {
-        if let Some(type_id) = copied_types.get(&type_id).copied() {
-            return type_id;
-        }
-
-        let ty = source.get_type(type_id);
-        let ty = self.copy_imported_type_value(source, ty, copied_types);
-        let copied_type = self
-            .types
-            .insert_imported_type_from_any(ty, self.bound.module_node);
-
-        copied_types.insert(type_id, copied_type);
-
-        copied_type
-    }
-
-    /// Copy local type references inside one imported type value.
-    fn copy_imported_type_value(
-        &mut self,
-        source: &CheckModuleState,
-        ty: dir::Type,
-        copied_types: &mut IndexMap<dir::LocalTypeId, dir::LocalTypeId>,
-    ) -> dir::Type {
-        match ty {
-            dir::Type::Form(mut form) => {
-                form.value = self.copy_imported_type(source, form.value, copied_types);
-
-                dir::Type::Form(form)
-            }
-            dir::Type::ErasedAny(mut erased) => {
-                erased.constraint =
-                    self.copy_imported_type(source, erased.constraint, copied_types);
-
-                dir::Type::ErasedAny(erased)
-            }
-            dir::Type::Predicate(mut predicate) => {
-                predicate.target = predicate
-                    .target
-                    .map(|target| self.copy_imported_type(source, target, copied_types));
-
-                dir::Type::Predicate(predicate)
-            }
-            dir::Type::FixedArray(mut array) => {
-                array.element = self.copy_imported_type(source, array.element, copied_types);
-
-                dir::Type::FixedArray(array)
-            }
-            dir::Type::Slice(mut slice) => {
-                slice.element = self.copy_imported_type(source, slice.element, copied_types);
-
-                dir::Type::Slice(slice)
-            }
-            dir::Type::Tuple(mut tuple) => {
-                for element in &mut tuple.elements {
-                    element.ty = self.copy_imported_type(source, element.ty, copied_types);
-                }
-
-                dir::Type::Tuple(tuple)
-            }
-            dir::Type::Shape(mut shape) => {
-                for field in &mut shape.fields {
-                    field.ty = self.copy_imported_type(source, field.ty, copied_types);
-                }
-                for signature in &mut shape.call_signatures {
-                    *signature = self.copy_imported_type(source, *signature, copied_types);
-                }
-                for signature in &mut shape.construct_signatures {
-                    *signature = self.copy_imported_type(source, *signature, copied_types);
-                }
-                for signature in &mut shape.index_signatures {
-                    signature.key_type =
-                        self.copy_imported_type(source, signature.key_type, copied_types);
-                    signature.value_type =
-                        self.copy_imported_type(source, signature.value_type, copied_types);
-                }
-
-                dir::Type::Shape(shape)
-            }
-            dir::Type::Function(mut function) => {
-                for parameter in &mut function.generic_parameters {
-                    *parameter = self.copy_imported_type(source, *parameter, copied_types);
-                }
-                function.this_parameter = function
-                    .this_parameter
-                    .map(|parameter| self.copy_imported_type(source, parameter, copied_types));
-                for parameter in &mut function.parameters {
-                    *parameter = self.copy_imported_type(source, *parameter, copied_types);
-                }
-                function.return_type = function
-                    .return_type
-                    .map(|return_type| self.copy_imported_type(source, return_type, copied_types));
-
-                dir::Type::Function(function)
-            }
-            dir::Type::Closure(mut closure) => {
-                closure.function = self.copy_imported_type(source, closure.function, copied_types);
-                closure.environment =
-                    self.copy_imported_type(source, closure.environment, copied_types);
-
-                dir::Type::Closure(closure)
-            }
-            dir::Type::Union(mut union) => {
-                for element in &mut union.elements {
-                    *element = self.copy_imported_type(source, *element, copied_types);
-                }
-
-                dir::Type::Union(union)
-            }
-            dir::Type::Intersection(mut intersection) => {
-                for element in &mut intersection.elements {
-                    *element = self.copy_imported_type(source, *element, copied_types);
-                }
-
-                dir::Type::Intersection(intersection)
-            }
-            _ => ty,
+    /// Return the relation diagnostic for one type relation.
+    pub(in crate::check) fn type_relation_diagnostic(
+        &self,
+        relation: TypeRelation,
+        anchor: DiagnosticAnchor,
+    ) -> CheckError {
+        match relation {
+            TypeRelation::Equal | TypeRelation::Assignable => CheckError::NotAssignable {
+                anchor,
+                module: self.module,
+            },
+            TypeRelation::Satisfies => CheckError::ConstraintNotSatisfied {
+                anchor,
+                module: self.module,
+            },
+            TypeRelation::Extends => CheckError::DoesNotExtend {
+                anchor,
+                module: self.module,
+            },
+            TypeRelation::Implements => CheckError::DoesNotImplement {
+                anchor,
+                module: self.module,
+            },
         }
     }
 
     /// Finish check state into checked DIR.
-    pub(in crate::check) fn finish(self) -> DirChecked {
-        DirChecked {
+    pub(in crate::check) fn finish(mut self) -> DirCheckedModule {
+        // write solved node and symbol facts
+        for variable in &self.variables {
+            match (&variable.origin, &variable.value) {
+                (VariableOrigin::Node(node), Some(VariableValue::Type(type_id))) => {
+                    self.types.set_node_type(*node, *type_id);
+                }
+                (VariableOrigin::Symbol(symbol), Some(VariableValue::Type(type_id)))
+                    if symbol.module_id == self.module =>
+                {
+                    self.types.set_symbol_type(*symbol, *type_id);
+                }
+                (VariableOrigin::Symbol(symbol), Some(VariableValue::Static(static_id)))
+                    if symbol.module_id == self.module =>
+                {
+                    self.statics.set_symbol_static(*symbol, *static_id);
+                }
+                _ => {}
+            }
+        }
+
+        DirCheckedModule {
             types: Arc::new(self.types),
             statics: Arc::new(self.statics),
-            generics: Arc::new(self.generics),
             resolutions: Arc::new(self.resolutions),
             instances: Arc::new(self.instances),
             relations: Arc::new(self.relations),
@@ -794,4 +590,9 @@ impl CheckModuleState {
             captures: Arc::new(self.captures),
         }
     }
+}
+
+/// Return a small vector with one variable.
+pub(in crate::check) fn one_variable(variable: VariableId) -> SmallVec<[VariableId; 4]> {
+    smallvec::smallvec![variable]
 }

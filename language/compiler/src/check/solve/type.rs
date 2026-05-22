@@ -1,330 +1,297 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
-use crate::check::{CheckModuleState, TypeInferId, TypeTerm};
+use crate::CompilerResult;
+use crate::check::{CheckComponentState, VariableId};
 
-impl CheckModuleState {
-    /// Solve one type term.
-    pub(in crate::check) fn solve_type_term(
+impl CheckComponentState<'_> {
+    /// Evaluate one source type expression.
+    pub(in crate::check) fn evaluate_type_expression(
         &mut self,
-        result: TypeInferId,
-        term: &TypeTerm,
-    ) -> Option<dir::LocalTypeId> {
-        match term {
-            TypeTerm::Type(ty) => {
-                let source = self.infer_source_node(result);
-                Some(self.types_mut().insert_type_from_any(ty.clone(), source))
-            }
-            TypeTerm::Infer(infer) => self.infer_type_id(*infer),
-            TypeTerm::Symbol(symbol) => self.symbol_type_id(*symbol),
-            TypeTerm::Static(_) => None,
-            TypeTerm::TypeExpression(source) => self.solve_source_type(source),
-            TypeTerm::Function {
-                source,
-                asynchrony,
-                parameters,
-                return_type,
-                is_generator,
-            } => self.solve_function_type(
-                *source,
-                *asynchrony,
-                parameters,
-                *return_type,
-                *is_generator,
-            ),
-        }
-    }
-
-    /// Solve one function type.
-    fn solve_function_type(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        asynchrony: dir::Asynchrony,
-        parameters: &[TypeInferId],
-        return_type: Option<TypeInferId>,
-        is_generator: bool,
-    ) -> Option<dir::LocalTypeId> {
-        let mut parameter_types = Vec::new();
-        for parameter in parameters {
-            parameter_types.push(self.infer_type_id(*parameter)?);
-        }
-        let return_type = match return_type {
-            Some(ty) => Some(self.infer_type_id(ty)?),
-            None => None,
+        variable: VariableId,
+        node: dir::GlobalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<Option<dir::LocalTypeId>> {
+        let ty = self.type_expression_type(variable.module, node.clone())?;
+        let Some(ty) = ty else {
+            return Ok(None);
         };
-        let ty = dir::Type::Function(dir::FunctionType {
-            asynchrony,
-            generic_parameters: Vec::new(),
-            this_parameter: None,
-            parameters: parameter_types,
-            return_type,
-            is_generator,
-        });
 
-        Some(self.types_mut().insert_type_from_any(ty, source.local_id))
+        let type_id = self
+            .module_mut(variable.module)?
+            .intern_type(ty, node.local_id.into_any());
+
+        Ok(Some(type_id))
     }
 
-    /// Solve one source type expression.
-    fn solve_source_type(
+    /// Evaluate one type expression into a semantic type.
+    fn type_expression_type(
         &mut self,
-        node: &dir::GlobalNodeId<dir::TypeExpression>,
-    ) -> Option<dir::LocalTypeId> {
-        if node.module_id != self.module() {
-            return None;
+        module: ModuleId,
+        node: dir::GlobalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<Option<dir::Type>> {
+        if let Some(type_id) = self.module(module)?.node_type_id(node.clone().into_any()) {
+            let ty = self.module(module)?.get_type(type_id);
+
+            return Ok(Some(ty));
         }
 
-        let local_id = dir::LocalNodeId::<dir::TypeExpression>::new(node.local_id.id);
-        let node_any = local_id.into_global_any(node.module_id);
-        if let Some(type_id) = self.node_type_id(node_any) {
-            return Some(type_id);
-        }
+        let expression = self
+            .module(module)?
+            .parsed()
+            .tree
+            .get(node.local_id)
+            .clone();
 
-        let expression = self.parsed().tree.get(local_id).clone();
-
-        self.solve_type_expression(local_id, &expression)
-    }
-
-    /// Solve one local source type expression.
-    fn solve_type_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        expression: &dir::TypeExpression,
-    ) -> Option<dir::LocalTypeId> {
-        match expression {
+        let ty = match expression {
             dir::TypeExpression::Parenthesized { expression } => {
-                let node = expression.into_global(self.module());
+                let expression = expression.into_global(module);
 
-                self.solve_source_type(&node)
+                return self.type_expression_type(module, expression);
             }
-            dir::TypeExpression::ScalarLiteral { value } => {
-                let ty = dir::Type::Literal(value.clone());
+            dir::TypeExpression::ScalarLiteral { value } => dir::Type::from(value),
+            dir::TypeExpression::Literal { value } => dir::Type::from(value),
+            dir::TypeExpression::This => dir::Type::This,
+            dir::TypeExpression::Tuple { elements }
+            | dir::TypeExpression::ArrayTuple { elements } => {
+                let Some(tuple) = self.tuple_type(module, &elements)? else {
+                    return Ok(None);
+                };
 
-                Some(self.types_mut().insert_type_from_any(ty, id.into_any()))
+                dir::Type::Tuple(tuple)
             }
-            dir::TypeExpression::Literal { value } => {
-                let ty = dir::Type::from(value.clone());
+            dir::TypeExpression::Array { element } | dir::TypeExpression::Slice { element } => {
+                let Some(element) = self.child_type_id(module, element)? else {
+                    return Ok(None);
+                };
 
-                Some(self.types_mut().insert_type_from_any(ty, id.into_any()))
+                dir::Type::Slice(dir::SliceType {
+                    element,
+                    is_readonly: false,
+                })
+            }
+            dir::TypeExpression::Object { members } => {
+                let Some(shape) = self.shape_type(module, &members)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Shape(shape)
             }
             dir::TypeExpression::Reference {
                 path,
                 generic_arguments,
-            } => self.solve_reference_type(id, path, generic_arguments),
-            dir::TypeExpression::Union { elements } => self.solve_union_type(id, elements),
+            } => {
+                let Some(ty) = self.reference_type(
+                    module,
+                    node.local_id.into_any(),
+                    &path,
+                    &generic_arguments,
+                )?
+                else {
+                    return Ok(None);
+                };
+
+                ty
+            }
+            dir::TypeExpression::Readonly { target_type } => {
+                let Some(value) = self.child_type_id(module, target_type)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Readonly,
+                    value,
+                })
+            }
+            dir::TypeExpression::OwnedOf { target_type, .. } => {
+                let Some(value) = self.child_type_id(module, target_type)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Owned,
+                    value,
+                })
+            }
+            dir::TypeExpression::PointerOf { target_type, .. } => {
+                let Some(value) = self.child_type_id(module, target_type)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Raw,
+                    value,
+                })
+            }
+            dir::TypeExpression::KeyOf { target_type } => {
+                let Some(target) = self.child_type_id(module, target_type)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Operation(dir::TypeOperation::KeyOf(dir::UnaryType { target }))
+            }
+            dir::TypeExpression::Union { elements } => {
+                let Some(elements) = self.child_type_ids(module, &elements)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Union(dir::UnionType { elements })
+            }
             dir::TypeExpression::Intersection { elements } => {
-                self.solve_intersection_type(id, elements)
+                let Some(elements) = self.child_type_ids(module, &elements)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Intersection(dir::IntersectionType { elements })
             }
-            dir::TypeExpression::Object { members } => self.solve_shape_type(id, members),
-            dir::TypeExpression::Tuple { elements }
-            | dir::TypeExpression::ArrayTuple { elements } => self.solve_tuple_type(id, elements),
-            dir::TypeExpression::Error => Some(
-                self.types_mut()
-                    .insert_type_from_any(dir::Type::Error, id.into_any()),
-            ),
-            dir::TypeExpression::Missing => None,
-            _ => None,
-        }
-    }
+            dir::TypeExpression::Conditional {
+                left,
+                extends_type,
+                then_type,
+                else_type,
+            } => {
+                let Some(left) = self.child_type_id(module, left)? else {
+                    return Ok(None);
+                };
+                let Some(right) = self.child_type_id(module, extends_type)? else {
+                    return Ok(None);
+                };
+                let Some(then_type) = self.child_type_id(module, then_type)? else {
+                    return Ok(None);
+                };
+                let Some(else_type) = self.child_type_id(module, else_type)? else {
+                    return Ok(None);
+                };
 
-    /// Solve one named type reference.
-    fn solve_reference_type(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        path: &dir::Path,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> Option<dir::LocalTypeId> {
-        let name = path.last_segment()?;
-        if name == dir::StringId::for_text("Function") {
-            return self.solve_function_intrinsic_type(id, generic_arguments);
-        }
+                dir::Type::Operation(dir::TypeOperation::Conditional(dir::ConditionalType {
+                    distributive_symbol: None,
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                }))
+            }
+            dir::TypeExpression::Index { left, index } => {
+                let Some(left) = self.child_type_id(module, left)? else {
+                    return Ok(None);
+                };
+                let Some(index) = self.child_type_id(module, index)? else {
+                    return Ok(None);
+                };
 
-        let key = dir::StaticKey::Name(name);
-        let symbols = self.resolve_name_symbols(id.into_any(), key, dir::SymbolSpace::Type);
-        let symbol = symbols.first().copied()?;
-        let ty = if self.is_generic_parameter(symbol) {
-            dir::Type::Parameter(dir::ParameterType { symbol })
-        } else {
-            dir::Type::Named(dir::NamedType {
-                symbol,
-                arguments: Vec::new(),
-            })
+                dir::Type::Operation(dir::TypeOperation::Index(dir::IndexType { left, index }))
+            }
+            dir::TypeExpression::TemplateLiteral { strings, spans } => {
+                let Some(spans) = self.child_type_ids(module, &spans)? else {
+                    return Ok(None);
+                };
+
+                dir::Type::Operation(dir::TypeOperation::TemplateLiteral(
+                    dir::TemplateLiteralType { strings, spans },
+                ))
+            }
+            dir::TypeExpression::Infer {
+                name, constraint, ..
+            } => {
+                let constraint = if let Some(constraint) = constraint {
+                    let Some(constraint) = self.child_type_id(module, constraint)? else {
+                        return Ok(None);
+                    };
+
+                    Some(constraint)
+                } else {
+                    None
+                };
+
+                dir::Type::Operation(dir::TypeOperation::Infer(dir::InferType {
+                    name,
+                    constraint,
+                }))
+            }
+            dir::TypeExpression::Missing | dir::TypeExpression::Error => dir::Type::Error,
+            dir::TypeExpression::Intrinsic
+            | dir::TypeExpression::FixedArray { .. }
+            | dir::TypeExpression::Declaration { .. }
+            | dir::TypeExpression::FunctionTypeDeclaration(_)
+            | dir::TypeExpression::ConstructorTypeDeclaration(_)
+            | dir::TypeExpression::Member { .. }
+            | dir::TypeExpression::Range { .. }
+            | dir::TypeExpression::Const
+            | dir::TypeExpression::Local { .. }
+            | dir::TypeExpression::Shared { .. }
+            | dir::TypeExpression::TypeOfValue { .. }
+            | dir::TypeExpression::Must { .. }
+            | dir::TypeExpression::Not { .. }
+            | dir::TypeExpression::BorrowedOf { .. }
+            | dir::TypeExpression::Extends { .. }
+            | dir::TypeExpression::Implements { .. }
+            | dir::TypeExpression::Mapped { .. }
+            | dir::TypeExpression::Predicate { .. } => return Ok(None),
         };
 
-        Some(self.types_mut().insert_type_from_any(ty, id.into_any()))
+        Ok(Some(ty))
     }
 
-    /// Solve one intrinsic `Function<Parameters, Return>` reference.
-    fn solve_function_intrinsic_type(
+    /// Evaluate one child type expression and intern it on the same module.
+    fn child_type_id(
         &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> Option<dir::LocalTypeId> {
-        let [parameters, return_type] = generic_arguments else {
-            return None;
+        module: ModuleId,
+        node: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<Option<dir::LocalTypeId>> {
+        let global = node.into_global(module);
+        let variable = self
+            .module_mut(module)?
+            .node_type_variable(global.clone().into_any());
+        let Some(ty) = self.type_expression_type(module, global)? else {
+            return Ok(None);
         };
-        let parameters = self.generic_argument_type_expression(*parameters)?;
-        let return_type = self.generic_argument_type_expression(*return_type)?;
-        let parameters = self.solve_function_parameter_types(parameters)?;
-        let return_type = self.solve_source_type(&return_type.into_global(self.module()))?;
-        let ty = dir::Type::Function(dir::FunctionType {
-            asynchrony: dir::Asynchrony::Sync,
-            generic_parameters: Vec::new(),
-            this_parameter: None,
-            parameters,
-            return_type: Some(return_type),
-            is_generator: false,
-        });
+        let type_id = self.module_mut(module)?.intern_type(ty, node.into_any());
+        let value = crate::check::VariableValue::Type(type_id);
+        let _ = self.module_mut(module)?.bind_variable(variable, value);
 
-        Some(self.types_mut().insert_type_from_any(ty, id.into_any()))
+        Ok(Some(type_id))
     }
 
-    /// Return the type expression carried by one generic type argument.
-    fn generic_argument_type_expression(
-        &self,
-        argument: dir::LocalNodeId<dir::GenericArgument>,
-    ) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
-        match self.parsed().tree.get(argument) {
-            dir::GenericArgument::Type { value } => Some(*value),
-            dir::GenericArgument::Value { .. }
-            | dir::GenericArgument::SpreadType { .. }
-            | dir::GenericArgument::SpreadValue { .. }
-            | dir::GenericArgument::Error => None,
-        }
-    }
-
-    /// Solve the parameter tuple of one intrinsic function type.
-    fn solve_function_parameter_types(
+    /// Evaluate child type expressions.
+    fn child_type_ids(
         &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> Option<Vec<dir::LocalTypeId>> {
-        let expression = self.parsed().tree.get(id).clone();
-        let elements = match expression {
-            dir::TypeExpression::Tuple { elements }
-            | dir::TypeExpression::ArrayTuple { elements } => elements,
-            _ => return None,
-        };
-        let mut parameters = Vec::new();
+        module: ModuleId,
+        nodes: &[dir::LocalNodeId<dir::TypeExpression>],
+    ) -> CompilerResult<Option<Vec<dir::LocalTypeId>>> {
+        let mut types = Vec::with_capacity(nodes.len());
 
-        for element in elements {
-            let element = self.parsed().tree.get(element).clone();
-            match element {
-                dir::TupleElement::Element { value, .. } => {
-                    let ty = self.solve_source_type(&value.into_global(self.module()))?;
-
-                    parameters.push(ty);
-                }
-                dir::TupleElement::Spread { .. } | dir::TupleElement::Error => return None,
-            }
-        }
-
-        Some(parameters)
-    }
-
-    /// Solve one union type expression.
-    fn solve_union_type(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        elements: &[dir::LocalNodeId<dir::TypeExpression>],
-    ) -> Option<dir::LocalTypeId> {
-        let mut types = Vec::new();
-        for element in elements {
-            let node = element.into_global(self.module());
-            let type_id = self.solve_source_type(&node)?;
-            if !types.contains(&type_id) {
-                types.push(type_id);
-            }
-        }
-
-        Some(self.types_mut().insert_type_from_any(
-            dir::Type::Union(dir::UnionType { elements: types }),
-            id.into_any(),
-        ))
-    }
-
-    /// Solve one intersection type expression.
-    fn solve_intersection_type(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        elements: &[dir::LocalNodeId<dir::TypeExpression>],
-    ) -> Option<dir::LocalTypeId> {
-        let mut types = Vec::new();
-        for element in elements {
-            let node = element.into_global(self.module());
-            let type_id = self.solve_source_type(&node)?;
-            if !types.contains(&type_id) {
-                types.push(type_id);
-            }
-        }
-
-        Some(self.types_mut().insert_type_from_any(
-            dir::Type::Intersection(dir::IntersectionType { elements: types }),
-            id.into_any(),
-        ))
-    }
-
-    /// Solve one structural object type expression.
-    fn solve_shape_type(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-        members: &[dir::LocalNodeId<dir::TypeMember>],
-    ) -> Option<dir::LocalTypeId> {
-        let mut fields = Vec::new();
-
-        for member_id in members {
-            let member = self.parsed().tree.get(*member_id).clone();
-            let dir::TypeMember::Field {
-                key,
-                declared_type: Some(declared_type),
-                is_static: false,
-                is_optional,
-                is_readonly,
-            } = member
-            else {
-                continue;
+        // evaluate each child in source order
+        for node in nodes {
+            let Some(type_id) = self.child_type_id(module, *node)? else {
+                return Ok(None);
             };
-            let key = key.direct_static_key()?;
-            let node = declared_type.into_global(self.module());
-            let ty = self.solve_source_type(&node)?;
 
-            fields.push(dir::TypeField {
-                key,
-                ty,
-                is_optional,
-                is_readonly,
-            });
+            types.push(type_id);
         }
 
-        let shape = dir::ShapeType {
-            fields,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
-        };
-
-        Some(
-            self.types_mut()
-                .insert_type_from_any(dir::Type::Shape(shape), id.into_any()),
-        )
+        Ok(Some(types))
     }
 
-    /// Solve one tuple type expression.
-    fn solve_tuple_type(
+    /// Evaluate one tuple type.
+    fn tuple_type(
         &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
+        module: ModuleId,
         elements: &[dir::LocalNodeId<dir::TupleElement>],
-    ) -> Option<dir::LocalTypeId> {
-        let mut types = Vec::new();
+    ) -> CompilerResult<Option<dir::TupleType>> {
+        let mut type_elements = Vec::with_capacity(elements.len());
 
-        for element_id in elements {
-            let element = self.parsed().tree.get(*element_id).clone();
-            let type_element = match element {
+        // evaluate tuple elements in source order
+        for element in elements {
+            let element_node = self.module(module)?.parsed().tree.get(*element).clone();
+            let type_element = match element_node {
                 dir::TupleElement::Element {
                     label,
                     value,
                     is_optional,
                     is_readonly,
                 } => {
-                    let node = value.into_global(self.module());
-                    let ty = self.solve_source_type(&node)?;
+                    let Some(ty) = self.child_type_id(module, value)? else {
+                        return Ok(None);
+                    };
 
                     dir::TypeElement {
                         label,
@@ -335,8 +302,9 @@ impl CheckModuleState {
                     }
                 }
                 dir::TupleElement::Spread { label, value } => {
-                    let node = value.into_global(self.module());
-                    let ty = self.solve_source_type(&node)?;
+                    let Some(ty) = self.child_type_id(module, value)? else {
+                        return Ok(None);
+                    };
 
                     dir::TypeElement {
                         label,
@@ -349,25 +317,124 @@ impl CheckModuleState {
                 dir::TupleElement::Error => continue,
             };
 
-            types.push(type_element);
+            type_elements.push(type_element);
         }
 
-        let ty = dir::Type::Tuple(dir::TupleType {
-            elements: types,
+        Ok(Some(dir::TupleType {
+            elements: type_elements,
             is_readonly: false,
-        });
-
-        Some(self.types_mut().insert_type_from_any(ty, id.into_any()))
+        }))
     }
 
-    /// Return whether one symbol is a generic parameter.
-    fn is_generic_parameter(&self, symbol: dir::GlobalSymbolId) -> bool {
-        if symbol.module_id != self.module() {
-            return false;
+    /// Evaluate one structural shape type.
+    fn shape_type(
+        &mut self,
+        module: ModuleId,
+        members: &[dir::LocalNodeId<dir::TypeMember>],
+    ) -> CompilerResult<Option<dir::ShapeType>> {
+        let mut fields = Vec::new();
+        let mut index_signatures = Vec::new();
+
+        // evaluate fields and index signatures
+        for member in members {
+            let member_node = self.module(module)?.parsed().tree.get(*member).clone();
+            match member_node {
+                dir::TypeMember::Field {
+                    key,
+                    declared_type,
+                    is_optional,
+                    is_readonly,
+                    ..
+                } => {
+                    let Some(key) = key.static_key(&self.module(module)?.parsed().tree) else {
+                        continue;
+                    };
+                    let Some(declared_type) = declared_type else {
+                        return Ok(None);
+                    };
+                    let Some(ty) = self.child_type_id(module, declared_type)? else {
+                        return Ok(None);
+                    };
+
+                    fields.push(dir::TypeField {
+                        key,
+                        ty,
+                        is_optional,
+                        is_readonly,
+                    });
+                }
+                dir::TypeMember::IndexSignature {
+                    name,
+                    key_type,
+                    value_type,
+                    is_optional,
+                    is_readonly,
+                } => {
+                    let Some(key_type) = self.child_type_id(module, key_type)? else {
+                        return Ok(None);
+                    };
+                    let Some(value_type) = self.child_type_id(module, value_type)? else {
+                        return Ok(None);
+                    };
+
+                    index_signatures.push(dir::TypeIndexSignature {
+                        name,
+                        key_type,
+                        value_type,
+                        is_optional,
+                        is_readonly,
+                    });
+                }
+                dir::TypeMember::Error => {}
+                dir::TypeMember::Method { .. }
+                | dir::TypeMember::CallSignature { .. }
+                | dir::TypeMember::ConstructSignature { .. }
+                | dir::TypeMember::AssociatedType { .. }
+                | dir::TypeMember::AssociatedConst { .. } => return Ok(None),
+            }
         }
 
-        self.binding_table()
-            .get_symbol(symbol.local_id)
-            .is_generic_parameter()
+        Ok(Some(dir::ShapeType {
+            fields,
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_signatures,
+        }))
+    }
+
+    /// Evaluate one simple type reference.
+    fn reference_type(
+        &self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        path: &dir::Path,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    ) -> CompilerResult<Option<dir::Type>> {
+        if !generic_arguments.is_empty() {
+            return Ok(None);
+        }
+        if path.segments.len() != 1 {
+            return Ok(None);
+        }
+
+        let key = dir::StaticKey::Name(path.segments[0]);
+        let bindings = self.module(module)?.binding_table();
+        let Some(scope) = self.module(module)?.find_visible_scope(&bindings, source) else {
+            return Ok(None);
+        };
+        let symbols =
+            self.module(module)?
+                .find_scope_symbols(&bindings, scope, key, dir::SymbolSpace::Type);
+        let Some(symbol) = symbols.first().copied() else {
+            return Ok(None);
+        };
+        if symbols.len() != 1 {
+            return Ok(None);
+        }
+
+        Ok(Some(dir::Type::Named(dir::NamedType {
+            symbol,
+            arguments: Vec::new(),
+        })))
     }
 }
