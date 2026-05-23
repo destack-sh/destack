@@ -1,4 +1,5 @@
 /// Callable value type.
 @languageItem("types.Function")
-export newtype Function<Parameters extends readonly (...unknown[]) = (), Return = unknown> =
-    (...parameters: Parameters) => Return;
+export newtype Function<Parameters: readonly (...unknown[],) = (), Return = unknown> = (
+    ...parameters: Parameters
+) => Return;
