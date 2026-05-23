@@ -48,7 +48,7 @@ pub struct CommandInfoPayload {
     /// Workspace metadata.
     pub workspace: CommandInfoWorkspace,
     /// Resolved destack.json path.
-    pub config: Option<String>,
+    pub manifest: Option<String>,
     /// Targets for the active package.
     pub targets: Option<Vec<CommandInfoTarget>>,
     /// Targets for all workspace packages.
@@ -76,13 +76,13 @@ impl CommandContext<'_> {
             .map(|path| path.display().to_string())
             .collect();
 
-        // resolve config from cwd
-        let config_path = if self.common.config_path.is_some() {
-            Some(self.resolve_destack_config_path(self.common.config_path.as_deref())?)
+        // resolve manifest from cwd
+        let manifest_path = if self.common.manifest_path.is_some() {
+            Some(self.resolve_destack_config_path(self.common.manifest_path.as_deref())?)
         } else {
             self.find_destack_config(self.session.cwd())
         };
-        let config = config_path
+        let config = manifest_path
             .as_ref()
             .and_then(|path| self.load_destack_config(path).ok());
 
@@ -148,7 +148,9 @@ impl CommandContext<'_> {
                 kind: format!("{:?}", workspace.kind),
                 packages: package_roots,
             },
-            config: config_path.as_ref().map(|path| path.display().to_string()),
+            manifest: manifest_path
+                .as_ref()
+                .map(|path| path.display().to_string()),
             targets,
             workspace_targets,
         };

@@ -216,10 +216,14 @@ pub struct DaemonLaunchConfig {
     pub root: PathBuf,
     /// Socket path for the daemon.
     pub socket_path: PathBuf,
-    /// Cache dir override for the daemon.
+    /// Destack home directory override for the daemon.
+    pub home: Option<PathBuf>,
+    /// Package directory override for the daemon.
+    pub package_dir: Option<PathBuf>,
+    /// Workspace cache directory override for the daemon.
     pub cache_dir: Option<PathBuf>,
-    /// Config path override for the daemon.
-    pub config_path: Option<PathBuf>,
+    /// Manifest path override for the daemon.
+    pub manifest_path: Option<PathBuf>,
     /// Cwd override for the daemon.
     pub cwd: Option<PathBuf>,
 }
@@ -231,8 +235,10 @@ impl DaemonLaunchConfig {
         Self {
             root: instance.root.clone(),
             socket_path: instance.socket_path.clone(),
+            home: None,
+            package_dir: None,
             cache_dir: None,
-            config_path: None,
+            manifest_path: None,
             cwd: None,
         }
     }
@@ -255,11 +261,17 @@ impl DaemonLaunchConfig {
         command.arg("--socket").arg(&self.socket_path);
 
         // append optional overrides
+        if let Some(home) = self.home.as_ref() {
+            command.arg("--home").arg(home);
+        }
+        if let Some(package_dir) = self.package_dir.as_ref() {
+            command.arg("--package-dir").arg(package_dir);
+        }
         if let Some(cache_dir) = self.cache_dir.as_ref() {
             command.arg("--cache-dir").arg(cache_dir);
         }
-        if let Some(config_path) = self.config_path.as_ref() {
-            command.arg("--config").arg(config_path);
+        if let Some(manifest_path) = self.manifest_path.as_ref() {
+            command.arg("--manifest").arg(manifest_path);
         }
         if let Some(cwd) = self.cwd.as_ref() {
             command.arg("--cwd").arg(cwd);
@@ -351,7 +363,9 @@ mod tests {
 
     use destack_artifact::DiskCacheStore;
     use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
-    use destack_workspace::{Environment, Repository};
+    use destack_workspace::{
+        DestackLayout, DestackLayoutOverride, Environment, Repository, Settings,
+    };
 
     use super::{DaemonInstance, DaemonInstanceError};
 
@@ -361,11 +375,22 @@ mod tests {
         // build two instances for the same root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_paths");
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            root.root(),
+            root.root(),
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root.clone());
@@ -383,11 +408,22 @@ mod tests {
         // create a daemon instance for a temporary root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_lock");
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            root.root(),
+            root.root(),
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);

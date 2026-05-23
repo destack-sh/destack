@@ -5,7 +5,6 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use super::CommandResult;
-use super::cache::resolve_cache_directory;
 use super::context::CommandContext;
 use super::dispatch::CommandOutcome;
 
@@ -39,10 +38,9 @@ impl CommandContext<'_> {
     /// Execute a clean command.
     pub(super) fn run_clean_command(
         &mut self,
-        root: &Path,
+        _root: &Path,
         options: &CommandCleanOptions,
     ) -> CommandResult<CommandOutcome> {
-        let cwd = options.dir.as_deref().unwrap_or(root);
         let fs = self.daemon.repository.file_system().clone();
 
         // decide which outputs to clean
@@ -51,17 +49,16 @@ impl CommandContext<'_> {
 
         // resolve workspace context
         let revision = self.revision()?;
-        let workspace = self
-            .daemon
-            .repository
-            .workspace(revision)
-            .map_err(|error| format!("failed to derive workspace: {error}"))?;
 
         // resolve configs for output cleanup
         let destack_configs = if options.all_packages {
             self.load_workspace_configs(revision)?
         } else {
-            match self.resolve_destack_config_path(self.common.config_path.as_deref()) {
+            let manifest_path = options
+                .dir
+                .as_deref()
+                .or(self.common.manifest_path.as_deref());
+            match self.resolve_destack_config_path(manifest_path) {
                 Ok(path) => vec![self.load_destack_config(&path)?],
                 Err(error) => {
                     if clean_dist {
@@ -80,20 +77,7 @@ impl CommandContext<'_> {
             }
         }
         if clean_cache {
-            if destack_configs.is_empty() {
-                let cache_dir =
-                    resolve_cache_directory(self.common.cache_dir.as_ref(), &workspace.root, cwd);
-                paths.insert(cache_dir);
-            } else {
-                for _ in &destack_configs {
-                    let cache_dir = resolve_cache_directory(
-                        self.common.cache_dir.as_ref(),
-                        &workspace.root,
-                        cwd,
-                    );
-                    paths.insert(cache_dir);
-                }
-            }
+            paths.insert(self.repository.layout().workspace_cache.clone());
         }
 
         // delete selected paths

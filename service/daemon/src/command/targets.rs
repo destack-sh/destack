@@ -53,7 +53,7 @@ impl CommandContext<'_> {
             self.load_workspace_configs(revision)?
         } else {
             let config_path =
-                self.resolve_destack_config_path(self.common.config_path.as_deref())?;
+                self.resolve_destack_config_path(self.common.manifest_path.as_deref())?;
             vec![self.load_destack_config(&config_path)?]
         };
 
