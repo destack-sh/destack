@@ -3,14 +3,15 @@ use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
-use destack_daemon::protocol::ConfigPatch;
+use destack_daemon::protocol::ManifestOverride;
 use destack_session::{Session, open_repository_from_fs};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
-    Environment, FormatterOptions, LintPreset, LintSeverity, LinterOptions, Ref, Repository,
+    DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, LintPreset, LintSeverity,
+    LinterOptions, Ref, Repository, Settings,
 };
 
-use crate::pipeline::daemon::config_patches_from_program;
+use crate::pipeline::daemon::manifest_overrides_from_program;
 
 use crate::common::{ReportArgs, report_error};
 
@@ -223,15 +224,23 @@ pub struct ProgramArgs {
     #[arg(long = "cwd", global = true)]
     pub cwd: Option<PathBuf>,
 
-    /// Path to one project directory or destack.json configuration file.
-    #[arg(long = "config", short = 'c', global = true)]
-    pub config: Option<PathBuf>,
+    /// Path to one project directory or destack.json manifest file.
+    #[arg(long = "manifest", short = 'm', global = true)]
+    pub manifest: Option<PathBuf>,
 
     /// Workspace root directory (defaults to resolved workspace from cwd).
     #[arg(long = "workspace", global = true)]
     pub workspace: Option<PathBuf>,
 
-    /// Cache directory override.
+    /// Destack home directory override.
+    #[arg(long = "home", global = true)]
+    pub home: Option<PathBuf>,
+
+    /// Package directory override.
+    #[arg(long = "package-dir", global = true)]
+    pub package_dir: Option<PathBuf>,
+
+    /// Workspace cache directory override.
     #[arg(long = "cache-dir", global = true)]
     pub cache_dir: Option<PathBuf>,
 
@@ -277,9 +286,9 @@ impl ProgramArgs {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
     }
 
-    /// Build config patches from explicit CLI options.
-    pub fn config_patches(&self) -> Vec<ConfigPatch> {
-        config_patches_from_program(self)
+    /// Build manifest overrides from explicit CLI options.
+    pub fn manifest_overrides(&self) -> Vec<ManifestOverride> {
+        manifest_overrides_from_program(self)
     }
 
     /// Attach a file system override for testing.
@@ -302,11 +311,28 @@ impl ProgramArgs {
             let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
             fs
         });
+        let mut environment = Environment::capture_process();
+        environment.cwd = Some(cwd.clone());
+
+        // resolve machine settings before opening the repository
+        let layout_override = DestackLayoutOverride {
+            home: self.home.clone(),
+            packages: self.package_dir.clone(),
+            workspace_cache: self.cache_dir.clone(),
+        };
+        let home = DestackLayout::resolve_home(&cwd, &environment, layout_override.home.as_deref());
+        let settings =
+            Settings::load_from_home(fs.as_ref(), &home).expect("failed to load Destack settings");
 
         // discover and import the repository in one step
-        let mut repository =
-            open_repository_from_fs(workspace_root, fs.clone(), Environment::capture_process())
-                .expect("failed to import repository from file system");
+        let mut repository = open_repository_from_fs(
+            workspace_root,
+            fs.clone(),
+            environment,
+            settings,
+            layout_override,
+        )
+        .expect("failed to import repository from file system");
 
         // prefer in memory cache stores for test file systems
         if has_fs_override {

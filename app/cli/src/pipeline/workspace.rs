@@ -98,24 +98,24 @@ pub fn resolve_destack_config_path(
     revision: Revision,
     cwd: &Path,
 ) -> CliResult<PathBuf> {
-    // honor explicit config paths when provided
-    if let Some(config) = program_args.config.as_ref() {
-        let path = if config.is_absolute() {
-            config.clone()
+    // honor explicit manifest paths when provided
+    if let Some(manifest) = program_args.manifest.as_ref() {
+        let path = if manifest.is_absolute() {
+            manifest.clone()
         } else {
-            cwd.join(config)
+            cwd.join(manifest)
         };
 
         let metadata = repository
             .file_metadata(revision, &path)
             .map_err(|error| {
                 CliError::message(format!(
-                    "failed to read config path {}: {error}",
+                    "failed to read manifest path {}: {error}",
                     path.display()
                 ))
             })?
             .ok_or_else(|| {
-                CliError::message(format!("config path not found: {}", path.display()))
+                CliError::message(format!("manifest path not found: {}", path.display()))
             })?;
 
         if metadata.is_directory {
@@ -128,7 +128,7 @@ pub fn resolve_destack_config_path(
         }
 
         return Err(CliError::message(format!(
-            "config path not found: {}",
+            "manifest path not found: {}",
             path.display()
         )));
     }
@@ -156,8 +156,8 @@ pub fn default_target_for_program(
     revision: Revision,
     cwd: &Path,
 ) -> CliResult<Option<String>> {
-    // honor explicit config paths
-    if program_args.config.is_some() {
+    // honor explicit manifest paths
+    if program_args.manifest.is_some() {
         let config = load_destack_config_for_program(program_args, repository, revision, cwd)?;
         return Ok(config.default_target.clone());
     }
