@@ -1,4 +1,4 @@
-use crate::tests::{DirRows, TestSession, assert_snapshot};
+use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_import_records_loader_attribute() {
@@ -9,7 +9,14 @@ fn test_import_records_loader_attribute() {
 import data from "./data.json" with { type: "json" };
 "#,
         )
-        .data("data.json", r#"{ "ok": true }"#)
+        .data(
+            "data.json",
+            r#"
+{
+    "ok": true
+}
+"#,
+        )
         .build();
 
     compiler.assert_dir_imported(
@@ -33,7 +40,14 @@ fn test_import_applies_loader_extension() {
 import data from "./data" with { type: "json" };
 "#,
         )
-        .data("data.json", r#"{ "ok": true }"#)
+        .data(
+            "data.json",
+            r#"
+{
+    "ok": true
+}
+"#,
+        )
         .build();
 
     compiler.assert_dir_imported(
@@ -57,14 +71,18 @@ fn test_import_reports_invalid_loader_attribute() {
 import data from "./data.json" with { type: true };
 "#,
         )
-        .data("data.json", r#"{ "ok": true }"#)
+        .data(
+            "data.json",
+            r#"
+{
+    "ok": true
+}
+"#,
+        )
         .build();
 
-    compiler
-        .provide_dir_imported("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_imported_key("main.ds")),
+    compiler.assert_dir_imported_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=EI203 message="invalid import attribute type '<non-string>'"
 /// @diagnostic.label line=2 column=1 source="import data from \"./data.json\" with { type: true };"
@@ -81,14 +99,18 @@ fn test_import_reports_unknown_loader_attribute() {
 import data from "./data.json" with { type: "xml" };
 "#,
         )
-        .data("data.json", r#"{ "ok": true }"#)
+        .data(
+            "data.json",
+            r#"
+{
+    "ok": true
+}
+"#,
+        )
         .build();
 
-    compiler
-        .provide_dir_imported("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_imported_key("main.ds")),
+    compiler.assert_dir_imported_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=EI203 message="invalid import attribute type 'xml'"
 /// @diagnostic.label line=2 column=1 source="import data from \"./data.json\" with { type: \"xml\" };"

@@ -38,7 +38,14 @@ fn test_import_records_reexport_loader_attribute() {
 export { schema } from "./schema" with { type: "json" };
 "#,
         )
-        .data("schema.json", r#"{ "type": "object" }"#)
+        .data(
+            "schema.json",
+            r#"
+{
+    "type": "object"
+}
+"#,
+        )
         .build();
 
     compiler.assert_dir_imported(
