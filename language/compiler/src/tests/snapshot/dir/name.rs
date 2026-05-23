@@ -5,14 +5,24 @@ use destack_dir as dir;
 pub(super) struct BindingSnapshotName<'a> {
     /// The binding table being named.
     bindings: &'a dir::BindingTable<'a>,
+    /// The DIR tree that owns the bindings when available.
+    tree: Option<&'a dir::Tree>,
     /// The string pool used by source names.
     strings: &'a StringPool,
 }
 
 impl<'a> BindingSnapshotName<'a> {
     /// Create a binding table namer.
-    pub(super) fn new(bindings: &'a dir::BindingTable<'a>, strings: &'a StringPool) -> Self {
-        Self { bindings, strings }
+    pub(super) fn new(
+        bindings: &'a dir::BindingTable<'a>,
+        tree: Option<&'a dir::Tree>,
+        strings: &'a StringPool,
+    ) -> Self {
+        Self {
+            bindings,
+            tree,
+            strings,
+        }
     }
 
     /// Return one local symbol label.
@@ -98,8 +108,30 @@ impl<'a> BindingSnapshotName<'a> {
         if let Some(name) = symbol.name() {
             return self.strings.get(name).to_string();
         }
+        if let Some(label) = self.member_slot_label(symbol) {
+            return label.to_string();
+        }
 
         Self::unnamed_symbol(symbol_id, symbol)
+    }
+
+    /// Return the label for an anonymous role member symbol.
+    fn member_slot_label(&self, symbol: &dir::Symbol) -> Option<&'static str> {
+        let tree = self.tree?;
+        let declaration = symbol.declaration?;
+        if declaration.local_id.ty != dir::NodeType::Member {
+            return None;
+        }
+
+        let member = tree.get(dir::LocalNodeId::<dir::Member>::new(
+            declaration.local_id.id,
+        ));
+        match member.slot()? {
+            dir::MemberSlot::Constructor => Some("constructor"),
+            dir::MemberSlot::New => Some("new"),
+            dir::MemberSlot::Call => Some("<call>"),
+            dir::MemberSlot::Key(_) => None,
+        }
     }
 
     /// Return one unnamed symbol label.

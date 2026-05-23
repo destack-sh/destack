@@ -4,6 +4,26 @@ use crate::{
     BinaryOperator, GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey, UnaryOperator,
 };
 
+/// Receiver selected by contextual lookup, such as `this` or `super`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReceiverResolution {
+    /// The receiver syntax kind.
+    pub kind: ReceiverKind,
+    /// The declaration that introduces the receiver, when symbol-backed.
+    pub owner: Option<GlobalSymbolId>,
+    /// The receiver type after inference.
+    pub ty: Option<LocalTypeId>,
+}
+
+/// Receiver syntax resolved by contextual lookup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReceiverKind {
+    /// The active `this` receiver.
+    This,
+    /// The active superclass receiver.
+    Super,
+}
+
 /// Target selected by lexical or path lookup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NameResolution {

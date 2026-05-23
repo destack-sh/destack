@@ -96,7 +96,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         foreign_bindings: Vec<dir::BindingTable<'a>>,
     ) -> Self {
         for bindings in &foreign_bindings {
-            let names = BindingSnapshotName::new(bindings, self.strings);
+            let names = BindingSnapshotName::new(bindings, None, self.strings);
             let labels = bindings
                 .symbol_ids()
                 .map(|symbol_id| (symbol_id, names.symbol_path(symbol_id)))
@@ -815,7 +815,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Return the binding snapshot names.
     fn binding_names(&self) -> BindingSnapshotName<'a> {
-        BindingSnapshotName::new(self.binding_table(), self.strings)
+        BindingSnapshotName::new(self.binding_table(), Some(self.tree), self.strings)
     }
 
     /// Return the active binding table.

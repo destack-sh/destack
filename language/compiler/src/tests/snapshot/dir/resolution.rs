@@ -13,6 +13,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_label_resolution_row(builder, node_id, *resolution);
         }
 
+        for (node_id, resolution) in self.receiver_entries() {
+            add_receiver_resolution_row(builder, node_id, *resolution);
+        }
+
         for (node_id, resolution) in self.member_entries() {
             add_member_resolution_row(builder, node_id, resolution);
         }
@@ -23,15 +27,22 @@ impl SnapshotTable for dir::ResolutionSegment {
 
         let name_count = self.name_entries().count();
         let label_count = self.label_entries().count();
+        let receiver_count = self.receiver_entries().count();
         let member_count = self.member_entries().count();
         let call_count = self.call_entries().count();
-        if name_count == 0 && label_count == 0 && member_count == 0 && call_count == 0 {
+        if name_count == 0
+            && label_count == 0
+            && receiver_count == 0
+            && member_count == 0
+            && call_count == 0
+        {
             return;
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
             .count_field("names", name_count)
             .count_field("labels", label_count)
+            .count_field("receivers", receiver_count)
             .count_field("members", member_count)
             .count_field("calls", call_count);
         builder.push(row);
@@ -47,14 +58,14 @@ fn add_name_resolution_row(
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "name")
         .optional_field("source", builder.node_source(node_id));
     let row = if resolution.symbols.len() == 1 {
-        row.field("target", builder.symbol_label(resolution.symbols[0]))
+        row.field("target", builder.symbol_path_label(resolution.symbols[0]))
     } else {
         row.list_field(
             "target",
             resolution
                 .symbols
                 .iter()
-                .map(|symbol| builder.symbol_label(*symbol)),
+                .map(|symbol| builder.symbol_path_label(*symbol)),
         )
     };
 
@@ -77,6 +88,26 @@ fn add_label_resolution_row(
         dir::LabelResolution::Loop => row.field("kind", "loop"),
         dir::LabelResolution::Function => row.field("kind", "function"),
     };
+
+    builder.push(row);
+}
+
+/// Add one receiver resolution row.
+fn add_receiver_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: dir::ReceiverResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "receiver")
+        .optional_field("source", builder.node_source(node_id))
+        .field("kind", receiver_kind_label(resolution.kind))
+        .optional_field(
+            "owner",
+            resolution
+                .owner
+                .map(|symbol| builder.symbol_path_label(symbol)),
+        )
+        .optional_type_field("type", resolution.ty.map(|ty| builder.type_label(ty)));
 
     builder.push(row);
 }
@@ -146,6 +177,9 @@ fn add_call_resolution_row(
             .field("kind", "builtin")
             .field("builtin", builtin_call_label(*builtin)),
         dir::CallTarget::Value => row.field("kind", "value"),
+        dir::CallTarget::Construct(candidate) => {
+            add_call_candidate_fields(builder, row.field("kind", "construct"), candidate)
+        }
         dir::CallTarget::Symbol(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
         }
@@ -160,6 +194,14 @@ fn add_call_resolution_row(
     builder.push(row);
 }
 
+/// Return one receiver kind label.
+fn receiver_kind_label(kind: dir::ReceiverKind) -> &'static str {
+    match kind {
+        dir::ReceiverKind::This => "this",
+        dir::ReceiverKind::Super => "super",
+    }
+}
+
 /// Return one builtin member label.
 fn builtin_member_label(builtin: dir::BuiltinMember) -> &'static str {
     match builtin {
@@ -171,6 +213,9 @@ fn builtin_member_label(builtin: dir::BuiltinMember) -> &'static str {
 /// Return one builtin call label.
 fn builtin_call_label(builtin: dir::BuiltinCall) -> String {
     match builtin {
+        dir::BuiltinCall::UnaryOperator { operator } => {
+            format!("unary.{}", DirSnapshotBuilder::variant_label(operator))
+        }
         dir::BuiltinCall::BinaryOperator { operator } => {
             format!("binary.{}", DirSnapshotBuilder::variant_label(operator))
         }

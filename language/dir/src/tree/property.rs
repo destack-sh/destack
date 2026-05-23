@@ -221,9 +221,7 @@ impl Member {
                 Some(MemberSlot::Key(StaticKey::Name(*name)))
             }
             Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
-            Self::Method {
-                key: Some(key), ..
-            } => key.direct_static_key().map(MemberSlot::Key),
+            Self::Method { key: Some(key), .. } => key.direct_static_key().map(MemberSlot::Key),
             Self::Method {
                 key: None,
                 signature,

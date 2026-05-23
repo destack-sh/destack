@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     CallResolution, GlobalNodeIdAny, GlobalSymbolId, LabelResolution, MemberResolution,
-    NameResolution, SegmentView,
+    NameResolution, ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -69,6 +69,13 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.labels)
     }
 
+    /// Iterate visible receiver resolutions.
+    pub fn receiver_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReceiverResolution)> + '_ {
+        self.visible_entries(|segment| &segment.receivers)
+    }
+
     /// Iterate visible member resolutions.
     pub fn member_entries(
         &self,
@@ -95,6 +102,11 @@ impl<'a> ResolutionTable<'a> {
     /// Get the label resolution for a node.
     pub fn label_resolution(&self, node_id: GlobalNodeIdAny) -> Option<LabelResolution> {
         self.lookup(node_id, |segment| &segment.labels).copied()
+    }
+
+    /// Get the receiver resolution for a node.
+    pub fn receiver_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReceiverResolution> {
+        self.lookup(node_id, |segment| &segment.receivers)
     }
 
     /// Get the member resolution for a node.
@@ -160,6 +172,8 @@ pub struct ResolutionSegment {
     pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution>,
     /// Checked label resolutions keyed by DIR node.
     pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution>,
+    /// Checked receiver resolutions keyed by DIR node.
+    pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution>,
     /// Checked member resolutions keyed by DIR node.
     pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution>,
     /// Checked call resolutions keyed by DIR node.
@@ -173,6 +187,7 @@ impl ResolutionSegment {
             module_id,
             names: IndexMap::new(),
             labels: IndexMap::new(),
+            receivers: IndexMap::new(),
             members: IndexMap::new(),
             calls: IndexMap::new(),
         }
@@ -186,6 +201,10 @@ impl ResolutionSegment {
 
         if let Some(resolution) = self.labels.get(&source).copied() {
             self.labels.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.receivers.get(&source).copied() {
+            self.receivers.insert(target, resolution);
         }
 
         if let Some(resolution) = self.members.get(&source).cloned() {
@@ -228,6 +247,20 @@ impl ResolutionSegment {
         self.labels.get(&node_id).copied()
     }
 
+    /// Set the receiver resolution for a node.
+    pub fn set_receiver_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: ReceiverResolution,
+    ) {
+        self.receivers.insert(node_id, resolution);
+    }
+
+    /// Get the receiver resolution for a node.
+    pub fn receiver_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ReceiverResolution> {
+        self.receivers.get(&node_id)
+    }
+
     /// Set the member resolution for a node.
     pub fn set_member_resolution(
         &mut self,
@@ -266,6 +299,15 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible receiver resolutions.
+    pub fn receiver_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ReceiverResolution)> + '_ {
+        self.receivers
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Iterate visible member resolutions.
     pub fn member_entries(
         &self,
@@ -286,6 +328,7 @@ impl ResolutionSegment {
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
             && self.labels.is_empty()
+            && self.receivers.is_empty()
             && self.members.is_empty()
             && self.calls.is_empty()
     }
