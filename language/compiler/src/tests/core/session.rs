@@ -9,9 +9,9 @@ use destack_artifact::{
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
 
-use crate::tests::snapshot::{DirRows, DirSnapshotBuilder, assert_snapshot, render_diagnostics};
+use crate::tests::snapshot::{render_diagnostics, DirRows, DirSnapshotBuilder};
 
-use super::module::{TestModule, parse_module, parsed_dependencies};
+use super::module::{parse_module, parsed_dependencies, TestModule};
 use super::provider::TestProvider;
 
 /// A test session builder.
@@ -252,8 +252,34 @@ impl TestSession {
         let dir = self.render_dir_snapshots(&[path], rows, true);
         let diagnostics = self.diagnostic_snapshot(self.dir_checked_component_key(path));
 
-        assert_snapshot(dir, expected_dir);
-        assert_snapshot(diagnostics, expected_diagnostics);
+        assert_equal(dir, expected_dir);
+        assert_equal(diagnostics, expected_diagnostics);
+    }
+
+    /// Assert imported DIR diagnostics for one module.
+    pub(crate) fn assert_dir_imported_diagnostics(&self, path: &str, expected: &str) {
+        self.provide_dir_imported(path)
+            .expect("artifact should be provided with diagnostics");
+        self.assert_diagnostics(self.dir_imported_key(path), expected);
+    }
+
+    /// Assert exported DIR diagnostics for one module.
+    pub(crate) fn assert_dir_exported_diagnostics(&self, path: &str, expected: &str) {
+        self.provide_dir_exported(path)
+            .expect("artifact should be provided with diagnostics");
+        self.assert_diagnostics(self.dir_exported_key(path), expected);
+    }
+
+    /// Assert resolved DIR diagnostics for one module.
+    pub(crate) fn assert_dir_resolved_diagnostics(&self, path: &str, expected: &str) {
+        self.provide_dir_resolved(path)
+            .expect("artifact should be provided with diagnostics");
+        self.assert_diagnostics(self.dir_resolved_key(path), expected);
+    }
+
+    /// Assert diagnostics for one artifact key.
+    pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
+        assert_equal(self.diagnostic_snapshot(key), expected);
     }
 
     /// Assert checked DIR rows for multiple modules.
@@ -452,10 +478,10 @@ impl TestSession {
             } else {
                 artifact_key(self, path)
             };
-            assert_snapshot(self.diagnostic_snapshot(key), "");
+            assert_equal(self.diagnostic_snapshot(key), "");
         }
 
-        assert_snapshot(dir, expected);
+        assert_equal(dir, expected);
     }
 
     /// Render selected DIR snapshots.
@@ -672,4 +698,12 @@ impl TestSession {
             .get(path)
             .unwrap_or_else(|| panic!("missing test module path '{path}'"))
     }
+}
+
+/// Assert exact multiline text equality.
+fn assert_equal(actual: impl AsRef<str>, expected: &str) {
+    let actual = actual.as_ref();
+    let expected = expected.trim_matches('\n');
+
+    pretty_assertions::assert_eq!(actual, expected);
 }

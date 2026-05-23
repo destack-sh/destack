@@ -17,7 +17,7 @@ impl SnapshotTable for dir::GenericSegment {
                     ..
                 } => SnapshotRow::new(anchor, "generic", "slot")
                     .field("key", builder.generic_slot_key_label(*key))
-                    .field("index", index.to_string())
+                    .field("index", index.get().to_string())
                     .field("kind", "type")
                     .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
                     .optional_type_field("default", default.map(|id| builder.type_label(id))),
@@ -29,7 +29,7 @@ impl SnapshotTable for dir::GenericSegment {
                     ..
                 } => SnapshotRow::new(anchor, "generic", "slot")
                     .field("key", builder.generic_slot_key_label(*key))
-                    .field("index", index.to_string())
+                    .field("index", index.get().to_string())
                     .field("kind", "variadicType")
                     .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
                     .optional_type_field("default", default.map(|id| builder.type_label(id))),
@@ -41,7 +41,7 @@ impl SnapshotTable for dir::GenericSegment {
                     ..
                 } => SnapshotRow::new(anchor, "generic", "slot")
                     .field("key", builder.generic_slot_key_label(*key))
-                    .field("index", index.to_string())
+                    .field("index", index.get().to_string())
                     .field("kind", "static")
                     .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
                     .optional_field("default", default.map(|id| builder.static_label(id))),
@@ -53,7 +53,7 @@ impl SnapshotTable for dir::GenericSegment {
                     ..
                 } => SnapshotRow::new(anchor, "generic", "slot")
                     .field("key", builder.generic_slot_key_label(*key))
-                    .field("index", index.to_string())
+                    .field("index", index.get().to_string())
                     .field("kind", "variadicStatic")
                     .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
                     .optional_field("default", default.map(|id| builder.static_label(id))),
