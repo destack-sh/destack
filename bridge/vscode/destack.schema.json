@@ -107,6 +107,14 @@
       },
       "default": []
     },
+    "exports": {
+      "description": "Public package exports.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Export"
+      },
+      "default": {}
+    },
     "dependencies": {
       "description": "Package dependencies.",
       "type": "object",
@@ -139,19 +147,23 @@
       },
       "default": {}
     },
-    "registries": {
-      "description": "Package registries.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/Registry"
-      },
-      "default": {}
-    },
-    "vendoring": {
+    "vendor": {
       "description": "Vendored dependency resolution declaration.",
       "$ref": "#/$defs/Vendor",
       "default": {
-        "mode": "auto"
+        "mode": "auto",
+        "path": "vendor",
+        "include": [],
+        "exclude": [],
+        "verify": true
+      }
+    },
+    "topology": {
+      "description": "Package topology definition.",
+      "$ref": "#/$defs/Topology",
+      "default": {
+        "entities": {},
+        "edges": {}
       }
     },
     "compiler": {
@@ -169,16 +181,22 @@
         "tree": null,
         "globals": [],
         "derive": [],
-        "noManaged": "allow",
-        "noHeap": "allow",
-        "noRuntime": "allow",
-        "noInternalImport": "allow",
-        "noImplicitDynamicDispatch": "allow",
+        "restrictions": {
+          "noManaged": "allow",
+          "noHeap": "allow",
+          "noRuntime": "allow",
+          "noUnsafe": "allow",
+          "noDynamicDispatch": "allow",
+          "noReflection": "allow",
+          "noUnwind": "allow",
+          "exclusiveMutableBorrows": "allow"
+        },
         "rootDir": null,
         "outDir": null,
         "declarationDir": null,
         "declarationMap": false,
-        "noEmit": false
+        "noEmit": false,
+        "emitCheckedTypes": false
       }
     },
     "policy": {
@@ -626,119 +644,79 @@
         }
       }
     },
-    "Dependency": {
-      "description": "Package dependency declaration.",
-      "oneOf": [
-        {
-          "description": "Package resolved from the Destack package registry.",
-          "type": "object",
-          "properties": {
-            "version": {
-              "description": "Version requirement.",
-              "type": "string"
-            },
-            "source": {
-              "type": "string",
-              "const": "registry"
-            }
-          },
-          "required": [
-            "source",
-            "version"
-          ]
-        },
-        {
-          "description": "Package resolved from the current workspace.",
-          "type": "object",
-          "properties": {
-            "source": {
-              "type": "string",
-              "const": "workspace"
-            }
-          },
-          "required": [
-            "source"
-          ]
-        },
-        {
-          "description": "Package resolved from one local package path.",
-          "type": "object",
-          "properties": {
-            "path": {
-              "description": "Package path.",
-              "type": "string"
-            },
-            "source": {
-              "type": "string",
-              "const": "path"
-            }
-          },
-          "required": [
-            "source",
-            "path"
-          ]
-        },
-        {
-          "description": "Package resolved from one Git repository.",
-          "type": "object",
-          "properties": {
-            "url": {
-              "description": "Repository URL.",
-              "type": "string"
-            },
-            "ref": {
-              "description": "Optional branch, tag, or revision selector.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "source": {
-              "type": "string",
-              "const": "git"
-            }
-          },
-          "required": [
-            "source",
-            "url"
-          ]
-        }
-      ]
-    },
-    "ConditionalDependencies": {
-      "description": "Dependency declarations guarded by one active condition predicate.",
+    "Export": {
+      "description": "Public package material declaration.",
       "type": "object",
       "properties": {
-        "when": {
-          "description": "Condition predicate enabling these dependencies.",
-          "$ref": "#/$defs/ConditionPredicate",
-          "default": {
-            "mode": null,
-            "role": null,
-            "feature": null,
-            "tag": null,
-            "target": null,
-            "product": null,
-            "platform": null,
-            "host": null,
-            "runtime": null
-          }
+        "kind": {
+          "description": "Exported material kind.",
+          "$ref": "#/$defs/ExportKind",
+          "default": "module"
         },
-        "dependencies": {
-          "description": "Dependency declarations enabled when the predicate matches.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/Dependency"
-          },
-          "default": {}
+        "path": {
+          "description": "Package relative material path.",
+          "type": "string",
+          "default": ""
+        },
+        "when": {
+          "description": "Condition predicate required for this export.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionPredicate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       }
+    },
+    "ExportKind": {
+      "description": "Public package material kind.",
+      "oneOf": [
+        {
+          "description": "Source module.",
+          "type": "string",
+          "const": "module"
+        },
+        {
+          "description": "Static or generated asset.",
+          "type": "string",
+          "const": "asset"
+        },
+        {
+          "description": "Template material.",
+          "type": "string",
+          "const": "template"
+        },
+        {
+          "description": "Reflect-derived schema material.",
+          "type": "string",
+          "const": "schema"
+        },
+        {
+          "description": "Simulation scenario or model material.",
+          "type": "string",
+          "const": "simulation"
+        },
+        {
+          "description": "Service definition material.",
+          "type": "string",
+          "const": "service"
+        },
+        {
+          "description": "Application definition material.",
+          "type": "string",
+          "const": "app"
+        }
+      ]
     },
     "ConditionPredicate": {
       "description": "Predicate selecting one active condition set.",
       "anyOf": [
         {
-          "description": "Named condition alias.",
+          "description": "Named active condition.",
           "type": "string"
         },
         {
@@ -877,23 +855,123 @@
         "patterns"
       ]
     },
+    "Dependency": {
+      "description": "Package dependency declaration.",
+      "oneOf": [
+        {
+          "description": "Package resolved from the current workspace.",
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "workspace"
+            }
+          },
+          "required": [
+            "source"
+          ]
+        },
+        {
+          "description": "Package resolved from one local package path.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "Package path.",
+              "type": "string"
+            },
+            "source": {
+              "type": "string",
+              "const": "path"
+            }
+          },
+          "required": [
+            "source",
+            "path"
+          ]
+        },
+        {
+          "description": "Package resolved from one Git repository.",
+          "type": "object",
+          "properties": {
+            "url": {
+              "description": "Repository URL.",
+              "type": "string"
+            },
+            "path": {
+              "description": "Repository subdirectory containing the package.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rev": {
+              "description": "Exact commit revision.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tag": {
+              "description": "Git tag selector.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "branch": {
+              "description": "Git branch selector.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source": {
+              "type": "string",
+              "const": "git"
+            }
+          },
+          "required": [
+            "source",
+            "url"
+          ]
+        }
+      ]
+    },
+    "ConditionalDependencies": {
+      "description": "Dependency declarations guarded by one active condition predicate.",
+      "type": "object",
+      "properties": {
+        "when": {
+          "description": "Condition predicate enabling these dependencies.",
+          "$ref": "#/$defs/ConditionPredicate",
+          "default": {
+            "mode": null,
+            "role": null,
+            "feature": null,
+            "tag": null,
+            "target": null,
+            "product": null,
+            "platform": null,
+            "host": null,
+            "runtime": null
+          }
+        },
+        "dependencies": {
+          "description": "Dependency declarations enabled when the predicate matches.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Dependency"
+          },
+          "default": {}
+        }
+      }
+    },
     "PackagePatch": {
       "description": "Patch file applied to one resolved package.",
       "type": "object",
       "properties": {
         "path": {
           "description": "Patch file path.",
-          "type": "string",
-          "default": ""
-        }
-      }
-    },
-    "Registry": {
-      "description": "Package registry declaration.",
-      "type": "object",
-      "properties": {
-        "url": {
-          "description": "Registry base URL.",
           "type": "string",
           "default": ""
         }
@@ -907,6 +985,32 @@
           "description": "Vendored dependency resolution mode.",
           "$ref": "#/$defs/VendorMode",
           "default": "auto"
+        },
+        "path": {
+          "description": "Project-owned vendor directory.",
+          "type": "string",
+          "default": "vendor"
+        },
+        "include": {
+          "description": "Package patterns included in the vendor mirror.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "exclude": {
+          "description": "Package patterns excluded from the vendor mirror.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "verify": {
+          "description": "Whether vendored packages must match the lock.",
+          "type": "boolean",
+          "default": true
         }
       }
     },
@@ -934,6 +1038,92 @@
           "const": "ignore"
         }
       ]
+    },
+    "Topology": {
+      "description": "Package topology definition.",
+      "type": "object",
+      "properties": {
+        "entities": {
+          "description": "Declared topology entities.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/TopologyEntity"
+          },
+          "default": {}
+        },
+        "edges": {
+          "description": "Declared topology edges.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/TopologyEdge"
+          },
+          "default": {}
+        }
+      }
+    },
+    "TopologyEntity": {
+      "description": "One declared topology entity.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Stable entity kind identifier.",
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "description": "Stable entity name.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "labels": {
+          "description": "Entity labels.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      }
+    },
+    "TopologyEdge": {
+      "description": "One declared topology edge.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Stable edge kind identifier.",
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "description": "Stable edge name.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "from": {
+          "description": "Source node name.",
+          "type": "string",
+          "default": ""
+        },
+        "to": {
+          "description": "Target node name.",
+          "type": "string",
+          "default": ""
+        },
+        "labels": {
+          "description": "Edge labels.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      }
     },
     "CompilerOptions": {
       "description": "Normalized Destack compiler options.\n\n`.ds` semantics are always strict; these options only describe project,\nbuild, interop, and compile-time policy.",
@@ -1024,30 +1214,19 @@
           },
           "default": []
         },
-        "noManaged": {
-          "description": "Policy for GC-managed defaults and allocations.",
-          "$ref": "#/$defs/DiagnosticPolicy",
-          "default": "allow"
-        },
-        "noHeap": {
-          "description": "Policy for all heap allocation.",
-          "$ref": "#/$defs/DiagnosticPolicy",
-          "default": "allow"
-        },
-        "noRuntime": {
-          "description": "Policy for runtime usage (no managed memory, no Promise, ...).",
-          "$ref": "#/$defs/DiagnosticPolicy",
-          "default": "allow"
-        },
-        "noInternalImport": {
-          "description": "Policy for low level internal protocol imports (`platform:`).",
-          "$ref": "#/$defs/DiagnosticPolicy",
-          "default": "allow"
-        },
-        "noImplicitDynamicDispatch": {
-          "description": "Policy for overloads that are not statically resolvable.",
-          "$ref": "#/$defs/DiagnosticPolicy",
-          "default": "allow"
+        "restrictions": {
+          "description": "Static semantic restrictions.",
+          "$ref": "#/$defs/CompilerRestrictions",
+          "default": {
+            "noManaged": "allow",
+            "noHeap": "allow",
+            "noRuntime": "allow",
+            "noUnsafe": "allow",
+            "noDynamicDispatch": "allow",
+            "noReflection": "allow",
+            "noUnwind": "allow",
+            "exclusiveMutableBorrows": "allow"
+          }
         },
         "rootDir": {
           "description": "Root directory of source files (controls output directory structure, not module resolution).",
@@ -1080,6 +1259,11 @@
         },
         "noEmit": {
           "description": "Do not emit output files.",
+          "type": "boolean",
+          "default": false
+        },
+        "emitCheckedTypes": {
+          "description": "Emit checked type annotation sidecars.",
           "type": "boolean",
           "default": false
         }
@@ -1174,6 +1358,52 @@
           "const": "esnext"
         }
       ]
+    },
+    "CompilerRestrictions": {
+      "description": "Static semantic restrictions enforced by the compiler.",
+      "type": "object",
+      "properties": {
+        "noManaged": {
+          "description": "Policy for managed values and managed allocation.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noHeap": {
+          "description": "Policy for all heap allocation.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noRuntime": {
+          "description": "Policy for runtime-dependent language features.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noUnsafe": {
+          "description": "Policy for unsafe operations.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noDynamicDispatch": {
+          "description": "Policy for calls that cannot be statically resolved.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noReflection": {
+          "description": "Policy for runtime reflection and RTTI usage.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noUnwind": {
+          "description": "Policy for unwinding.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "exclusiveMutableBorrows": {
+          "description": "Policy requiring mutable borrows to be exclusive.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        }
+      }
     },
     "DiagnosticPolicy": {
       "description": "Diagnostic policy for allow/warn/deny enforcement.",
@@ -1279,17 +1509,6 @@
         "access": {
           "description": "Access outcome selected by this rule.",
           "$ref": "#/$defs/PolicyAccess"
-        },
-        "route": {
-          "description": "Route selected when access is allowed.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolicyRoute"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "required": [
@@ -1574,21 +1793,6 @@
           "description": "Deny the matching action.",
           "type": "string",
           "const": "deny"
-        }
-      ]
-    },
-    "PolicyRoute": {
-      "description": "Binding route used for allowed actions.",
-      "oneOf": [
-        {
-          "description": "Execute against the live host.",
-          "type": "string",
-          "const": "host"
-        },
-        {
-          "description": "Execute against the configured simulation model.",
-          "type": "string",
-          "const": "simulation"
         }
       ]
     },
@@ -5029,6 +5233,20 @@
           },
           "default": []
         },
+        "restrictions": {
+          "description": "Static semantic restrictions for this target.",
+          "$ref": "#/$defs/CompilerRestrictions",
+          "default": {
+            "noManaged": "allow",
+            "noHeap": "allow",
+            "noRuntime": "allow",
+            "noUnsafe": "allow",
+            "noDynamicDispatch": "allow",
+            "noReflection": "allow",
+            "noUnwind": "allow",
+            "exclusiveMutableBorrows": "allow"
+          }
+        },
         "include": {
           "description": "Glob patterns for files to include (for include-based discovery).",
           "type": "array",
@@ -7292,6 +7510,20 @@
             "type": "string"
           },
           "default": []
+        },
+        "restrictions": {
+          "description": "Static semantic restrictions for this profile.",
+          "$ref": "#/$defs/CompilerRestrictions",
+          "default": {
+            "noManaged": "allow",
+            "noHeap": "allow",
+            "noRuntime": "allow",
+            "noUnsafe": "allow",
+            "noDynamicDispatch": "allow",
+            "noReflection": "allow",
+            "noUnwind": "allow",
+            "exclusiveMutableBorrows": "allow"
+          }
         }
       }
     },
