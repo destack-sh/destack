@@ -28,11 +28,18 @@ impl Compiler {
         let discovered_component_id =
             ComponentId::from_modules(profile, component_modules.iter().copied());
 
-        // reject stale component keys after import graph changes
-        if entry != discovered_entry || component_id != discovered_component_id {
+        // validate the artifact key against the current dependency graph
+        if entry != discovered_entry {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "checked component key entry={entry:?} component={component_id} does not match discovered entry={discovered_entry:?} component={discovered_component_id}"
+                    "checked component key entry={entry:?} does not match discovered entry={discovered_entry:?}"
+                ),
+            });
+        }
+        if component_id != discovered_component_id {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "checked component key component={component_id} does not match discovered component={discovered_component_id}"
                 ),
             });
         }
