@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
 use destack_source::{File, FileId, FileSystem, FileType, Uri};
-use destack_workspace::{DestackFile, Environment, Ref, Repository, RepositoryError};
+use destack_workspace::{
+    DestackFile, DestackLayout, DestackLayoutOverride, Environment, Ref, Repository,
+    RepositoryError, Settings,
+};
 
 use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
 use super::{FileSystemSource, RepositorySource, RepositorySourceFilter};
@@ -15,8 +18,13 @@ pub fn open_repository_from_fs(
     path: PathBuf,
     fs: Arc<dyn FileSystem>,
     environment: Environment,
+    settings: Settings,
+    layout_override: DestackLayoutOverride,
 ) -> Result<Repository, SessionError> {
     let root = find_source_root_from_fs(fs.as_ref(), &path)?;
+    let cwd = environment.cwd.as_deref().unwrap_or(&path);
+    let layout =
+        DestackLayout::resolve(&root, cwd, &environment, &settings, &layout_override, None);
 
     // create repository at the selected source root
     let repository = Repository::new(
@@ -24,6 +32,8 @@ pub fn open_repository_from_fs(
         Arc::new(DiskCacheStore::new()),
         fs,
         environment,
+        settings,
+        layout,
     );
     let workspace_ref = Ref::for_workspace_root(&root);
     let base_revision = repository.current(&workspace_ref)?;

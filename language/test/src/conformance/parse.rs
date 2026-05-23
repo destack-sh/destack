@@ -11,7 +11,9 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
 };
-use destack_workspace::{Environment, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
+};
 
 use crate::core::{
     format_diagnostics, module_artifact_diagnostics, module_id_for_path,
@@ -157,11 +159,22 @@ impl SharedConformanceEnvironment {
         let cwd = PathBuf::from("/test/conformance");
         fs.create_dir_all(&cwd)
             .expect("failed to create conformance workspace root");
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            &cwd,
+            &cwd,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             cwd.clone(),
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         Self {
             repository,

@@ -15,7 +15,9 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, PhysicalFileSystem, TargetId};
-use destack_workspace::{Environment, Ref, Repository, Target};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Environment, Ref, Repository, Settings, Target,
+};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
@@ -142,11 +144,22 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // set up the repository with the physical filesystem
     let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem);
+    let environment = Environment::capture_process();
+    let layout = DestackLayout::resolve(
+        &test.path,
+        &test.path,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
     let repository = Arc::new(Repository::new(
         test.path.clone(),
         Arc::new(MemoryCacheStore::new()),
         fs,
-        Environment::capture_process(),
+        environment,
+        Settings::default(),
+        layout,
     ));
     let actual_root = emit_actual_root(test);
 

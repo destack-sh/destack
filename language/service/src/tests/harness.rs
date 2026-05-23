@@ -6,7 +6,7 @@ use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::Environment;
+use destack_workspace::{DestackLayoutOverride, Environment, Settings};
 
 use crate::{FileChange, LanguageService, LanguageServiceResult};
 
@@ -43,6 +43,8 @@ impl TestLanguageService {
                 root.clone(),
                 overlay.clone(),
                 Environment::capture_process(),
+                Settings::default(),
+                DestackLayoutOverride::default(),
             )
             .expect("failed to import repository from overlay fs"),
         );

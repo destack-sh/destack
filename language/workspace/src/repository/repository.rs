@@ -14,7 +14,7 @@ use crate::repository::{
     BuiltinPackage, FileCache, FileEntry, FileStore, Ref, RepositoryError, Revision, RevisionEntry,
     RevisionState,
 };
-use crate::{Environment, Workspace, WorkspaceKind, resolve_cache_root};
+use crate::{DestackLayout, Environment, Settings, Workspace, WorkspaceKind};
 
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
@@ -31,6 +31,10 @@ pub struct Repository {
 
     /// Shared persistent cache backend.
     pub(crate) cache: Arc<dyn CacheStore>,
+    /// Resolved storage layout for this repository.
+    pub(crate) layout: DestackLayout,
+    /// Machine-local settings used to open this repository.
+    pub(crate) settings: Settings,
     /// The file system backing repository discovery and loads.
     pub(crate) fs: Arc<dyn FileSystem>,
     /// Shared immutable file contents.
@@ -52,6 +56,8 @@ impl Repository {
         cache: Arc<dyn CacheStore>,
         fs: Arc<dyn FileSystem>,
         environment: Environment,
+        settings: Settings,
+        layout: DestackLayout,
     ) -> Self {
         let file_contents = FileStore::new();
 
@@ -73,6 +79,8 @@ impl Repository {
             artifacts: Arc::new(ArtifactStore::default()),
             strings: Arc::new(StringPool::new()),
             cache,
+            layout,
+            settings,
         };
 
         // initial repository revision
@@ -118,6 +126,16 @@ impl Repository {
         &self.cache
     }
 
+    /// Return the resolved repository layout.
+    pub fn layout(&self) -> &DestackLayout {
+        &self.layout
+    }
+
+    /// Return the loaded machine-local settings.
+    pub fn settings(&self) -> &Settings {
+        &self.settings
+    }
+
     /// Return the repository workspace root.
     pub fn workspace_root(&self) -> &Path {
         &self.root
@@ -153,12 +171,12 @@ impl Repository {
 
     /// Resolve the repository cache directory.
     pub fn cache_directory(&self) -> PathBuf {
-        self.resolve_cache_root()
+        self.layout.workspace_cache.clone()
     }
 
     /// Build one persisted artifact cache layout.
     pub fn artifact_image_cache_layout(&self, cache_abi: &str) -> ArtifactImageCacheLayout {
-        let cache_root = self.resolve_cache_root();
+        let cache_root = self.cache_directory();
         let is_shared_root = !cache_root.starts_with(self.workspace_root());
 
         ArtifactImageCacheLayout::new(
@@ -174,11 +192,6 @@ impl Repository {
         let layout = self.artifact_image_cache_layout(cache_abi);
 
         ArtifactImageCache::new(self.cache().as_ref(), &layout)
-    }
-
-    /// Resolve one cache root from repository runtime options.
-    fn resolve_cache_root(&self) -> PathBuf {
-        resolve_cache_root(self.workspace_root(), None)
     }
 
     /// Return the current revision for one ref.

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use destack_artifact::DiskCacheStore;
 use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{Environment, Repository};
+use destack_workspace::{DestackLayout, DestackLayoutOverride, Environment, Repository, Settings};
 
 use crate::daemon::{DaemonInstance, DaemonServer, DaemonServerOptions};
 use crate::protocol::{
@@ -127,11 +127,22 @@ impl TestIpcDaemon {
         // build a root and daemon instance
         let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            root.root(),
+            root.root(),
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.root().to_path_buf(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);

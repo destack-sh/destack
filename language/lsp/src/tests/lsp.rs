@@ -8,7 +8,7 @@ use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, Span, TargetId, TemporaryPhysicalFileSystem,
 };
-use destack_workspace::Environment;
+use destack_workspace::{DestackLayoutOverride, Environment, Settings};
 use {destack_lsp_types as lsp, destack_query as query};
 
 use super::fixture::TestLsp;
@@ -42,6 +42,8 @@ fn test_lsp_language_service_file_update_emits_diagnostics() {
             root.clone(),
             overlay.clone(),
             Environment::capture_process(),
+            Settings::default(),
+            DestackLayoutOverride::default(),
         )
         .expect("failed to import repository from overlay fs"),
     );
@@ -102,6 +104,8 @@ fn test_lsp_language_service_query_uses_current_file_update() {
             root.clone(),
             overlay.clone(),
             Environment::capture_process(),
+            Settings::default(),
+            DestackLayoutOverride::default(),
         )
         .expect("failed to import repository from overlay fs"),
     );

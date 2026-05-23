@@ -7,7 +7,10 @@ use destack_query as query;
 use destack_source::{
     FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, ProfileId, Span,
 };
-use destack_workspace::{Edit as RepositoryEdit, Environment, Ref, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Edit as RepositoryEdit, Environment, Ref, Repository,
+    Revision, Settings,
+};
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 
@@ -41,12 +44,24 @@ fn missing_file_id() -> FileId {
 /// Create one empty test repository.
 fn test_repository() -> Repository {
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+    let root = PathBuf::from(".");
+    let environment = Environment::capture_process();
+    let layout = DestackLayout::resolve(
+        &root,
+        &root,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
 
     Repository::new(
-        PathBuf::from("."),
+        root,
         Arc::new(DiskCacheStore::new()),
         file_system,
-        Environment::capture_process(),
+        environment,
+        Settings::default(),
+        layout,
     )
 }
 

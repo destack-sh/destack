@@ -4,7 +4,10 @@ use std::sync::Arc;
 use destack_artifact::DiskCacheStore;
 use destack_lsp_server::UriExt;
 use destack_source::{File, FileId, FileSystem, FileType, PhysicalFileSystem, Span, Uri};
-use destack_workspace::{Edit as RepositoryEdit, Environment, Ref, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Edit as RepositoryEdit, Environment, Ref, Repository,
+    Revision, Settings,
+};
 
 use crate::query::common::{
     byte_span_to_range, byte_to_utf16_position, position_to_byte, span_to_location,
@@ -18,12 +21,24 @@ fn missing_file_id() -> FileId {
 /// Create one empty test repository.
 fn test_repository() -> Repository {
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+    let root = PathBuf::from(".");
+    let environment = Environment::capture_process();
+    let layout = DestackLayout::resolve(
+        &root,
+        &root,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
 
     Repository::new(
-        PathBuf::from("."),
+        root,
         Arc::new(DiskCacheStore::new()),
         file_system,
-        Environment::capture_process(),
+        environment,
+        Settings::default(),
+        layout,
     )
 }
 
