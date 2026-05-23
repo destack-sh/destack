@@ -592,6 +592,8 @@ export interface ArrayType {
 export interface TupleType {
     /// The type kind.
     kind: "tuple";
+    /// The tuple source form.
+    form: "tuple" | "array";
     /// The tuple elements.
     elements: readonly TypeElement[];
     /// Whether the tuple is readonly.
