@@ -53,6 +53,18 @@ impl ImportTable {
         self.target_by_symbol.get(&symbol).copied()
     }
 
+    /// Return imported local symbols that resolve to concrete exported symbols.
+    pub fn symbol_targets(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
+        self.target_by_symbol
+            .iter()
+            .filter_map(|(symbol, target)| match target {
+                ImportTarget::Symbol(target) => {
+                    Some(((*symbol).into_global(self.module_id), *target))
+                }
+                ImportTarget::Namespace(_) => None,
+            })
+    }
+
     /// Return imported global symbols for one key.
     pub fn global_symbols(&self, key: StaticKey) -> Option<&[GlobalSymbolId]> {
         self.global_symbol_by_key.get(&key).map(Vec::as_slice)
