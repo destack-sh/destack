@@ -19,14 +19,25 @@ const value = 1;
 
 const copy = value;
 /// @type.symbol symbol=copy type=1
+/// @type.node source=value type=1
 /// @resolution.name source=value target=value
 "#,
     );
 }
 
 #[test]
-fn test_check_resolves_imported_global_bindings_as_names() {
+fn test_check_resolves_profile_global_bindings_as_names() {
     let session = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
         .module(
             "globals.ds",
             r#"
@@ -38,8 +49,6 @@ global {
         .module(
             "main.ds",
             r#"
-import "./globals.ds";
-
 const value = answer;
 "#,
         )
@@ -58,10 +67,9 @@ global {
 }
 
 === main.ds ===
-import "./globals.ds";
-
 const value = answer;
 /// @type.symbol symbol=value type=int32
+/// @type.node source=answer type=int32
 /// @resolution.name source=answer target=globals.answer
 "#,
     );
@@ -83,16 +91,19 @@ const debug = import.meta.debug;
         r#"
 const runtime = import.meta.runtime;
 /// @type.symbol symbol=runtime type="destack" | "js"
+/// @type.node source=import.meta type={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean }
 /// @type.node source=import.meta.runtime type="destack" | "js"
 /// @resolution.member source=import.meta.runtime receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean } kind=field key=runtime
 
 const platform = import.meta.platform;
 /// @type.symbol symbol=platform type="unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"
+/// @type.node source=import.meta type={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean }
 /// @type.node source=import.meta.platform type="unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"
 /// @resolution.member source=import.meta.platform receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean } kind=field key=platform
 
 const debug = import.meta.debug;
 /// @type.symbol symbol=debug type=boolean
+/// @type.node source=import.meta type={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean }
 /// @type.node source=import.meta.debug type=boolean
 /// @resolution.member source=import.meta.debug receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean } kind=field key=debug
 "#,
@@ -130,18 +141,19 @@ module {
 
         feature: ["search"] as const,
         /// @type.node source="[\"search\"] as const" type=readonly ["search"]
-        /// @type.node source="\"search\"" type="search"
 
     };
 }
 
 const role = import.meta.role;
 /// @type.symbol symbol=role#2 type="server"
+/// @type.node source=import.meta type={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean; readonly role: "server"; readonly labels: { feature: readonly ["search"] } }
 /// @type.node source=import.meta.role type="server"
 /// @resolution.member source=import.meta.role receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean; readonly role: "server"; readonly labels: { feature: readonly ["search"] } } kind=field key=role
 
 const features = import.meta.labels.feature;
 /// @type.symbol symbol=features type=readonly ["search"]
+/// @type.node source=import.meta type={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean; readonly role: "server"; readonly labels: { feature: readonly ["search"] } }
 /// @type.node source=import.meta.labels type={ feature: readonly ["search"] }
 /// @type.node source=import.meta.labels.feature type=readonly ["search"]
 /// @resolution.member source=import.meta.labels receiver={ readonly runtime: "destack" | "js"; readonly platform: "unknown" | "windows" | "macos" | "linux" | "freebsd" | "openbsd" | "netbsd" | "dragonfly" | "solaris" | "illumos" | "haiku" | "fuchsia" | "redox" | "hermit" | "none"; readonly debug: boolean; readonly role: "server"; readonly labels: { feature: readonly ["search"] } } kind=field key=labels

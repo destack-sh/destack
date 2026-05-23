@@ -26,12 +26,6 @@ const value = 1 + 2;
 fn test_check_records_overloaded_operator_resolution() {
     let session = TestSession::single(
         r#"
-newtype interface Add<T> {
-    type Output;
-
-    add(other: T): this.Output;
-}
-
 struct Vector {
     x: int32;
     y: int32;
@@ -59,19 +53,6 @@ const sum = left + right;
         "main.ds",
         DirRows::checked(),
         r#"
-newtype interface Add<T> {
-/// @type.symbol symbol=Add type=Add
-
-    type Output;
-    /// @type.symbol symbol=Add.Output type=unknown
-
-    add(other: T): this.Output;
-    /// @type.symbol symbol=Add.add type=(this: Add, T) => unknown
-    /// @type.symbol symbol=other#1 type=T
-    /// @resolution.name source=T target=T
-
-}
-
 struct Vector {
 /// @type.symbol symbol=Vector type=Vector
 
@@ -84,47 +65,62 @@ struct Vector {
 }
 
 extension VectorAdd of Vector implements Add<Vector> {
-/// @type.symbol symbol=VectorAdd type=VectorAdd
-/// @relation.entry symbol=VectorAdd kind=implements type=Add<Vector>
+/// @relation.entry symbol=VectorAdd kind=implements type=ops.plus.Add<Vector>
 /// @extension.entry symbol=VectorAdd form=inherent target=Vector
-/// @resolution.name source=Vector target=Vector
-/// @resolution.name source=Add<Vector> target=Add
-/// @resolution.name source=Vector target=Vector
+/// @instance.application source=Add<Vector> id=ops.plus.Add<Vector>
 
     type Output = Vector;
     /// @type.symbol symbol=VectorAdd.Output type=Vector
-    /// @resolution.name source=Vector target=Vector
 
     add(other: Vector): Vector {
     /// @type.symbol symbol=VectorAdd.add type=(this: Vector, Vector) => Vector
-    /// @type.symbol symbol=other#2 type=Vector
-    /// @resolution.name source=Vector target=Vector
-    /// @resolution.name source=Vector target=Vector
+    /// @type.symbol symbol=other type=Vector
 
         return Vector {
         /// @type.node type=Vector
         /// @resolution.name source=Vector target=Vector
 
             x: this.x + other.x,
+            /// @type.node source="this.x + other.x" type=int32
+            /// @type.node source=this type=Vector
+            /// @type.node source=this.x type=int32
+            /// @resolution.member source=this.x receiver=Vector kind=symbol target=Vector.x
+            /// @resolution.call source="this.x + other.x" parameters=[int32, int32] return=int32 kind=builtin builtin=binary.add
+            /// @type.node source=other type=Vector
+            /// @type.node source=other.x type=int32
+            /// @resolution.name source=other target=other
+            /// @resolution.member source=other.x receiver=Vector kind=symbol target=Vector.x
+
             y: this.y + other.y,
+            /// @type.node source="this.y + other.y" type=int32
+            /// @type.node source=this type=Vector
+            /// @type.node source=this.y type=int32
+            /// @resolution.member source=this.y receiver=Vector kind=symbol target=Vector.y
+            /// @resolution.call source="this.y + other.y" parameters=[int32, int32] return=int32 kind=builtin builtin=binary.add
+            /// @type.node source=other type=Vector
+            /// @type.node source=other.y type=int32
+            /// @resolution.name source=other target=other
+            /// @resolution.member source=other.y receiver=Vector kind=symbol target=Vector.y
+
         };
     }
 }
 
 declare const left: Vector;
 /// @type.symbol symbol=left type=Vector
-/// @resolution.name source=Vector target=Vector
 
 declare const right: Vector;
 /// @type.symbol symbol=right type=Vector
-/// @resolution.name source=Vector target=Vector
 
 const sum = left + right;
 /// @type.symbol symbol=sum type=Vector
 /// @type.node source="left + right" type=Vector
+/// @type.node source=left type=Vector
 /// @resolution.name source=left target=left
 /// @resolution.member source="left + right" receiver=Vector kind=symbol target=VectorAdd.add
 /// @resolution.call source="left + right" parameters=[Vector] return=Vector kind=symbol target=VectorAdd.add receiver=Vector
+/// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
+/// @instance.entry id=ops.plus.Add<Vector> symbol=ops.plus.Add arguments=[Vector]
 "#);
 }
