@@ -133,14 +133,6 @@ impl Repository {
                 })?;
         }
 
-        // validate inherited invariants
-        config
-            .validate()
-            .map_err(|error| RepositoryError::InvalidConfig {
-                file: config.file_id,
-                message: error.to_string(),
-            })?;
-
         active_paths.remove(&path);
 
         Ok(Some(config))

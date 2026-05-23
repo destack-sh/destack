@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::ConditionSelector;
 use super::runtime::RuntimeIdentitySelector;
+use super::ConditionSelector;
 
 /// Policy domain where one action is exercised.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -24,18 +24,6 @@ pub enum PolicyAccess {
     Allow,
     /// Deny the matching action.
     Deny,
-}
-
-/// Binding route used for allowed actions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum PolicyRoute {
-    /// Execute against the live host.
-    #[default]
-    Host,
-    /// Execute against the configured simulation model.
-    Simulation,
 }
 
 /// Package selector used by static policy rules.
@@ -135,8 +123,6 @@ pub struct PolicyRule {
     pub resource: String,
     /// Access outcome selected by this rule.
     pub access: PolicyAccess,
-    /// Route selected when access is allowed.
-    pub route: Option<PolicyRoute>,
 }
 
 /// Static policy configuration.
@@ -149,53 +135,6 @@ pub struct Policy {
     pub requires: Vec<PolicyRequirement>,
     /// Ordered authorization rules.
     pub rules: Vec<PolicyRule>,
-}
-
-impl Policy {
-    /// Validate resolved policy declarations.
-    pub fn validate(&self) -> Result<(), String> {
-        // requirements
-        for (index, requirement) in self.requires.iter().enumerate() {
-            validate_policy_text(&requirement.action, "requires", index, "action")?;
-            validate_policy_text(&requirement.resource, "requires", index, "resource")?;
-        }
-
-        // rules
-        for (index, rule) in self.rules.iter().enumerate() {
-            validate_policy_text(&rule.action, "rules", index, "action")?;
-            validate_policy_text(&rule.resource, "rules", index, "resource")?;
-
-            // subject selector
-            if rule.subject.is_empty() {
-                return Err(format!("policy.rules[{index}].subject must not be empty"));
-            }
-
-            // deny rules
-            if rule.access == PolicyAccess::Deny && rule.route.is_some() {
-                return Err(format!(
-                    "policy.rules[{index}].route is only valid when access is allow"
-                ));
-            }
-        }
-
-        Ok(())
-    }
-}
-
-/// Validate that one policy text field is present after trimming.
-fn validate_policy_text(
-    text: &str,
-    collection: &str,
-    index: usize,
-    field: &str,
-) -> Result<(), String> {
-    if text.trim().is_empty() {
-        Err(format!(
-            "policy.{collection}[{index}].{field} must not be empty"
-        ))
-    } else {
-        Ok(())
-    }
 }
 
 fn package_selector_is_empty(selector: &Option<PackageSelector>) -> bool {

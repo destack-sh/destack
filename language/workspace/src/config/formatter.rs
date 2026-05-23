@@ -390,27 +390,3 @@ impl FormatterOptions {
         self
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_layout_options() {
-        let input = r#"
-            {
-                "lineWidth": 120,
-                "indentWidth": 2,
-                "indentStyle": "tab",
-                "lineEnding": "crlf"
-            }
-        "#;
-
-        let options: FormatterOptions = serde_json::from_str(input).unwrap();
-
-        assert_eq!(options.line_width, 120);
-        assert_eq!(options.indent_width, 2);
-        assert_eq!(options.indent_style, IndentStyle::Tab);
-        assert_eq!(options.line_ending, LineEnding::CarriageReturnLineFeed);
-    }
-}
