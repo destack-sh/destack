@@ -93,6 +93,28 @@ pub enum GenericSlotKey {
     Generated(StringId),
 }
 
+/// Declaration order index for one generic slot.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GenericSlotIndex(pub u32);
+
+impl GenericSlotIndex {
+    /// Wrap an index as a generic slot index.
+    pub fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Return the following generic slot index.
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+
+    /// Return the raw index.
+    pub fn get(self) -> u32 {
+        self.0
+    }
+}
+
 /// One declaration-side generic slot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericSlot {
@@ -103,7 +125,7 @@ pub enum GenericSlot {
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
-        index: u32,
+        index: GenericSlotIndex,
         /// The slot variance.
         variance: Option<VarianceModifier>,
         /// The optional type constraint.
@@ -120,7 +142,7 @@ pub enum GenericSlot {
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
-        index: u32,
+        index: GenericSlotIndex,
         /// The slot variance.
         variance: Option<VarianceModifier>,
         /// The optional type constraint.
@@ -137,7 +159,7 @@ pub enum GenericSlot {
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
-        index: u32,
+        index: GenericSlotIndex,
         /// The optional static value type constraint.
         constraint: Option<LocalTypeId>,
         /// The optional static default.
@@ -152,7 +174,7 @@ pub enum GenericSlot {
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
-        index: u32,
+        index: GenericSlotIndex,
         /// The optional static value type constraint.
         constraint: Option<LocalTypeId>,
         /// The optional static default.
@@ -184,7 +206,7 @@ impl GenericSlot {
     }
 
     /// Return the declaration order index.
-    pub fn index(&self) -> u32 {
+    pub fn index(&self) -> GenericSlotIndex {
         match self {
             Self::Type { index, .. }
             | Self::VariadicType { index, .. }
