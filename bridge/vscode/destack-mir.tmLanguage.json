@@ -150,7 +150,7 @@
         },
         {
           "name": "keyword.other.memory.dsmir",
-          "match": "\\b(?:managed|borrowed|owned|raw|copy|readonly|const|shared|gpu)\\b"
+          "match": "\\b(?:managed|borrowed|owned|raw|unique|copy|readonly|const|nullable|undefined|nullish|exclusive)\\b"
         },
         {
           "name": "keyword.declaration.function.dsmir",
@@ -186,7 +186,7 @@
       "patterns": [
         {
           "name": "support.type.dsmir",
-          "match": "\\b(?:i\\d+|u\\d+|f\\d+|int\\d+|uint\\d+|float\\d+|boolean|bool|void|isize|usize|typeDescriptor|typeId|ref\\??|slice|tensorView|tensorRef\\??|tensor|vector|space|struct|newtype|unique|nullable|any|fn|closure|addressSpace)\\b"
+          "match": "\\b(?:i\\d+|u\\d+|f\\d+|int\\d+|uint\\d+|float\\d+|boolean|bool|void|isize|usize|typeDescriptor|typeId|ref\\??|slice|tensorView|tensorRef\\??|tensor|vector|space|struct|newtype|any|fn|closure|addressSpace)\\b"
         }
       ]
     },
