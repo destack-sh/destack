@@ -135,7 +135,7 @@ pub fn resolution_target_symbols(
 
     if let Some(resolution) = resolutions.call_resolution(node_id) {
         match &resolution.target {
-            dir::CallTarget::Symbol(candidate) => {
+            dir::CallTarget::Construct(candidate) | dir::CallTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
             dir::CallTarget::Select(candidates) => {

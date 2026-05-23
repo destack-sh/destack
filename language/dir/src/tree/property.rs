@@ -43,6 +43,19 @@ pub enum FunctionRole {
     Call,
 }
 
+/// A nominal member slot.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MemberSlot {
+    /// Property keyed by a static key.
+    Key(StaticKey),
+    /// Constructor role member.
+    Constructor,
+    /// New role member.
+    New,
+    /// Callable role member.
+    Call,
+}
+
 impl FunctionRole {
     /// Get the keyword for the function accessor.
     #[inline]
@@ -53,6 +66,19 @@ impl FunctionRole {
             FunctionRole::Constructor => Some(Keyword::Constructor),
             FunctionRole::New => Some(Keyword::New),
             FunctionRole::Call => None,
+        }
+    }
+}
+
+impl MemberSlot {
+    /// Return the slot for one anonymous function role.
+    #[inline]
+    pub fn from_function_role(role: FunctionRole) -> Option<Self> {
+        match role {
+            FunctionRole::Constructor => Some(Self::Constructor),
+            FunctionRole::New => Some(Self::New),
+            FunctionRole::Call => Some(Self::Call),
+            FunctionRole::Getter | FunctionRole::Setter => None,
         }
     }
 }
@@ -188,6 +214,25 @@ impl Node for Member {
 }
 
 impl Member {
+    /// Return the nominal slot occupied by this member.
+    pub fn slot(&self) -> Option<MemberSlot> {
+        match self {
+            Self::AssociatedType { name, .. } | Self::AssociatedConst { name, .. } => {
+                Some(MemberSlot::Key(StaticKey::Name(*name)))
+            }
+            Self::Field { key, .. } => key.direct_static_key().map(MemberSlot::Key),
+            Self::Method {
+                key: Some(key), ..
+            } => key.direct_static_key().map(MemberSlot::Key),
+            Self::Method {
+                key: None,
+                signature,
+                ..
+            } => signature.role.and_then(MemberSlot::from_function_role),
+            Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => None,
+        }
+    }
+
     /// Return the symbol key introduced by this member.
     pub fn symbol_key(&self) -> Option<StaticKey> {
         match self {

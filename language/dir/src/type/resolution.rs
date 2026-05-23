@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{BinaryOperator, GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey};
+use crate::{
+    BinaryOperator, GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey, UnaryOperator,
+};
 
 /// Target selected by lexical or path lookup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,6 +123,8 @@ pub enum CallTarget {
     Builtin(BuiltinCall),
     /// Callable value without a declaration symbol.
     Value,
+    /// Exactly one symbol-backed constructor selected at compile time.
+    Construct(CallCandidate),
     /// Exactly one symbol-backed callable selected at compile time.
     Symbol(CallCandidate),
     /// Statically known variant callable selection.
@@ -130,6 +134,11 @@ pub enum CallTarget {
 /// Compiler builtin callable selected at a usage site.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BuiltinCall {
+    /// Builtin unary operator behavior.
+    UnaryOperator {
+        /// The source operator.
+        operator: UnaryOperator,
+    },
     /// Builtin binary operator behavior.
     BinaryOperator {
         /// The source operator.

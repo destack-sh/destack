@@ -135,7 +135,7 @@ fn call_target_symbols(
     };
 
     match &resolution.target {
-        DirCallTarget::Symbol(candidate) => {
+        DirCallTarget::Construct(candidate) | DirCallTarget::Symbol(candidate) => {
             targets.push(candidate.symbol);
             targets.push(dir.canonical_symbol(candidate.symbol));
         }

@@ -82,7 +82,7 @@ pub(crate) fn build_reference_targets_for_module(
         }
         if let Some(resolution) = dir.resolutions().call_resolution(node_id) {
             match &resolution.target {
-                DirCallTarget::Symbol(candidate) => {
+                DirCallTarget::Construct(candidate) | DirCallTarget::Symbol(candidate) => {
                     insert_reference_target_keys(dir, &mut targets, candidate.symbol)
                 }
                 DirCallTarget::Select(candidates) => {
