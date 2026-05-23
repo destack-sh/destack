@@ -1,6 +1,7 @@
 import { Access, WithAccess } from "destack:memory";
 
 /// A yielded iterator value.
+@languageItem("iter.IteratorYield")
 export type IteratorYield<TYield> = {
     /// The iterator is not complete.
     done: false;
@@ -9,6 +10,7 @@ export type IteratorYield<TYield> = {
 };
 
 /// A completed iterator value.
+@languageItem("iter.IteratorReturn")
 export type IteratorReturn<TReturn> = {
     /// The iterator is complete.
     done: true;
@@ -17,6 +19,7 @@ export type IteratorReturn<TReturn> = {
 };
 
 /// The union of iterator yield and return results.
+@languageItem("iter.IteratorResult")
 export type IteratorResult<T, TReturn = unknown> = IteratorYield<T> | IteratorReturn<TReturn>;
 
 /// A protocol for producing a sequence of values.
@@ -38,12 +41,14 @@ export interface Iterable<T, TReturn = unknown, TNext = unknown> {
 }
 
 /// Collection built from an iterator.
+@languageItem("iter.FromIterator")
 export newtype interface FromIterator<T> {
     /// Build this value from `values`.
     static fromIterator(values: Iterator<T>): this;
 }
 
 /// Collection extended from an iterable sequence.
+@languageItem("iter.Extend")
 export newtype interface Extend<T, A: Access = "mutable"> {
     /// Append `values`.
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;

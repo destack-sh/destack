@@ -1,7 +1,9 @@
 /// Mark a type as copyable without ownership transfer.
+@languageItem("memory.Copy")
 export newtype interface Copy {}
 
 /// Mark a type as explicitly cloneable.
+@languageItem("memory.Clone")
 export newtype interface Clone {
     /// Clone this value.
     clone(): this;
@@ -15,19 +17,24 @@ export extension<T> of T implements Clone where T: Copy {
 }
 
 /// Mark a type as safe to move out of pinned storage.
+@languageItem("memory.Unpin")
 export newtype interface Unpin {}
 
 /// Mark a type as valid when all bytes are zero.
+@languageItem("memory.Zeroable")
 export newtype interface Zeroable {}
 
 /// Mark a type as having a conventional default value.
+@languageItem("memory.Default")
 export newtype interface Default {
     /// Create the default value.
     static default(): this;
 }
 
 /// Mark a type as safe to send across Workers.
+@languageItem("memory.Send")
 export newtype interface Send {}
 
 /// Mark a type as safe to share through shared storage.
+@languageItem("memory.Sync")
 export newtype interface Sync {}

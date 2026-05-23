@@ -13,6 +13,7 @@ import { WithAccess } from "./type.ds";
 import { Unique } from "./unique.ds";
 
 /// A uniquely owned heap allocation for an owned `T`.
+@languageItem("memory.Box")
 export newtype Box<T> = Unique<Owned<T>>;
 
 extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, A>, Borrow<T, A> {
