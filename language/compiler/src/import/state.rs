@@ -4,7 +4,7 @@ use destack_artifact::{DiagnosticAnchor, DirImported};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::Loader;
-use destack_workspace::{Module, Revision};
+use destack_workspace::{ConditionSet, Module, Revision};
 
 use crate::{ImportError, ImportResult};
 
@@ -14,6 +14,8 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) revision: Revision,
     /// The current module.
     pub(in crate::import) module: &'a Module,
+    /// The active source graph conditions.
+    pub(in crate::import) conditions: &'a ConditionSet,
     /// The shared string pool.
     pub(in crate::import) strings: &'a StringPool,
     /// The DIR view being imported.
@@ -29,12 +31,14 @@ impl<'a> ImportState<'a> {
     pub(crate) fn new(
         revision: Revision,
         module: &'a Module,
+        conditions: &'a ConditionSet,
         strings: &'a StringPool,
         view: dir::View<'a>,
     ) -> Self {
         Self {
             revision,
             module,
+            conditions,
             strings,
             view,
             dependencies: dir::DependencySegment::new(module.id),
@@ -62,7 +66,7 @@ impl<'a> ImportState<'a> {
     }
 
     /// Read the loader selected by one import attribute clause.
-    pub(in crate::import) fn read_module_loader(
+    pub(in crate::import) fn extract_module_loader(
         &mut self,
         anchor: &DiagnosticAnchor,
         attributes: Option<&dir::ImportAttributeClause>,
