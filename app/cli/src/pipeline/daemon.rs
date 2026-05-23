@@ -7,9 +7,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandRunPayload, CommandTargetOverrides,
-    CommonCommandOptions, ConfigPatch, DaemonMessageKind as ProtocolMessageKind,
-    DaemonMessageRecord, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse,
-    DiagnosticBatch, FileUpdateImage, OpenRootRequest, OutputStream, ProtocolClient,
+    CommonCommandOptions, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord,
+    DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch,
+    FileUpdateImage, ManifestOverride, OpenRootRequest, OutputStream, ProtocolClient,
     QueryRequestBody, QueryRequestPayload, QueryResponseBody, RootHandleId, RootOpenOptions,
     WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
 };
@@ -61,10 +61,14 @@ struct RootHandle {
 pub(crate) struct DaemonLaunchContext {
     /// Current working directory for the daemon.
     cwd: PathBuf,
-    /// Cache directory override.
+    /// Destack home directory override.
+    home: Option<PathBuf>,
+    /// Package directory override.
+    package_dir: Option<PathBuf>,
+    /// Workspace cache directory override.
     cache_dir: Option<PathBuf>,
-    /// Config path override.
-    config_path: Option<PathBuf>,
+    /// Manifest path override.
+    manifest_path: Option<PathBuf>,
 }
 
 impl DaemonLaunchContext {
@@ -87,8 +91,10 @@ impl DaemonLaunchContext {
 
         Self {
             cwd,
+            home: program.home.clone(),
+            package_dir: program.package_dir.clone(),
             cache_dir,
-            config_path: program.config.clone(),
+            manifest_path: program.manifest.clone(),
         }
     }
 
@@ -98,8 +104,10 @@ impl DaemonLaunchContext {
         let mut launch = DaemonLaunchConfig::for_instance(instance);
 
         // apply overrides from program settings
+        launch.home = self.home.clone();
+        launch.package_dir = self.package_dir.clone();
         launch.cache_dir = self.cache_dir.clone();
-        launch.config_path = self.config_path.clone();
+        launch.manifest_path = self.manifest_path.clone();
         launch.cwd = Some(self.cwd.clone());
 
         launch
@@ -208,13 +216,12 @@ impl CommandOptionsBuilder {
             inputs: Vec::new(),
             allow_destack_config_fallback: false,
             cwd: Some(program.effective_cwd()),
-            cache_dir: program.cache_dir.clone(),
-            config_path: program.config.clone(),
+            manifest_path: program.manifest.clone(),
             target: None,
             target_overrides: None,
             profile: None,
             env: Vec::new(),
-            config_patches: config_patches_from_program(program),
+            manifest_overrides: manifest_overrides_from_program(program),
             watch: false,
             dry_run: false,
         };
@@ -258,16 +265,16 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Set config patches.
-    pub fn config_patches(mut self, patches: Vec<ConfigPatch>) -> Self {
-        self.options.config_patches = patches;
+    /// Set manifest overrides.
+    pub fn manifest_overrides(mut self, overrides: Vec<ManifestOverride>) -> Self {
+        self.options.manifest_overrides = overrides;
         self
     }
 
-    /// Add one optional config patch.
-    pub fn config_patch(mut self, patch: Option<ConfigPatch>) -> Self {
-        if let Some(patch) = patch {
-            self.options.config_patches.push(patch);
+    /// Add one optional manifest override.
+    pub fn manifest_override(mut self, override_: Option<ManifestOverride>) -> Self {
+        if let Some(override_) = override_ {
+            self.options.manifest_overrides.push(override_);
         }
 
         self
@@ -285,13 +292,13 @@ impl CommandOptionsBuilder {
     }
 }
 
-/// Build command config patches from explicit CLI formatter and linter options.
-pub fn config_patches_from_program(program: &ProgramArgs) -> Vec<ConfigPatch> {
-    let mut patches = Vec::new();
+/// Build manifest overrides from explicit CLI formatter and linter options.
+pub fn manifest_overrides_from_program(program: &ProgramArgs) -> Vec<ManifestOverride> {
+    let mut overrides = Vec::new();
 
     // formatter
     if let Some(value) = formatter_override_value(&program.formatter) {
-        patches.push(ConfigPatch {
+        overrides.push(ManifestOverride {
             path: "formatter".to_string(),
             value,
         });
@@ -299,13 +306,13 @@ pub fn config_patches_from_program(program: &ProgramArgs) -> Vec<ConfigPatch> {
 
     // linter
     if let Some(value) = linter_override_value(&program.linter) {
-        patches.push(ConfigPatch {
+        overrides.push(ManifestOverride {
             path: "linter".to_string(),
             value,
         });
     }
 
-    patches
+    overrides
 }
 
 /// Build one formatter override object from explicit CLI flags.

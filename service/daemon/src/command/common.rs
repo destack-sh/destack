@@ -4,7 +4,7 @@ use destack_source::FileType;
 use destack_workspace::Target;
 use serde::{Deserialize, Serialize};
 
-pub use destack_workspace::ConfigPatch;
+pub use destack_workspace::ManifestOverride;
 
 /// Command input sources.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -85,10 +85,8 @@ pub struct CommonCommandOptions {
     pub allow_destack_config_fallback: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional cache directory override.
-    pub cache_dir: Option<PathBuf>,
-    /// Optional Destack config path override.
-    pub config_path: Option<PathBuf>,
+    /// Optional Destack manifest path override.
+    pub manifest_path: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
     /// Optional target overrides.
@@ -97,8 +95,8 @@ pub struct CommonCommandOptions {
     pub profile: Option<String>,
     /// Optional environment overrides.
     pub env: Vec<CommandEnvVar>,
-    /// Optional config patches.
-    pub config_patches: Vec<ConfigPatch>,
+    /// Optional manifest overrides.
+    pub manifest_overrides: Vec<ManifestOverride>,
     /// Whether the command should watch for changes.
     pub watch: bool,
     /// Whether the command should skip writes.
