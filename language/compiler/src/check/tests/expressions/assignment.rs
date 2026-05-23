@@ -14,7 +14,7 @@ const value: int32 = "text";
         r#"
 const value: int32 = "text";
 /// @type.symbol symbol=value type=int32
-/// @type.node source="\"text\"" type=string
+/// @type.node source="\"text\"" type="text"
 
 "#,
         r#"
@@ -43,6 +43,7 @@ let value: int32 = 1;
 
 value = 2;
 /// @type.node source="value = 2" type=int32
+/// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @type.node source=2 type=int32
 "#,
@@ -68,8 +69,9 @@ let value: int32 = 1;
 
 value = "text";
 /// @type.node source="value = \"text\"" type=int32
+/// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source="\"text\"" type=string
+/// @type.node source="\"text\"" type="text"
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
@@ -96,6 +98,8 @@ const value: int32 = 1;
 /// @type.node source=1 type=int32
 
 value = 2;
+/// @type.node source="value = 2" type=int32
+/// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @type.node source=2 type=int32
 "#,
@@ -121,11 +125,14 @@ state.count = 1;
         r#"
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state type={ count: int32 }
+/// @type.symbol symbol=count type=int32
 /// @type.node source="{ count: 0 }" type={ count: int32 }
 /// @type.node source=0 type=int32
 
 state.count = 1;
 /// @type.node source="state.count = 1" type=int32
+/// @type.node source=state type={ count: int32 }
+/// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.count receiver={ count: int32 } kind=field key=count
 /// @type.node source=1 type=int32
@@ -148,10 +155,14 @@ state.count = 1;
         r#"
 const state: { readonly count: int32 } = { count: 0 };
 /// @type.symbol symbol=state type={ readonly count: int32 }
-/// @type.node source="{ count: 0 }" type={ readonly count: int32 }
+/// @type.symbol symbol=count type=int32
+/// @type.node source="{ count: 0 }" type={ count: int32 }
 /// @type.node source=0 type=int32
 
 state.count = 1;
+/// @type.node source="state.count = 1" type=int32
+/// @type.node source=state type={ readonly count: int32 }
+/// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.count receiver={ readonly count: int32 } kind=field key=count
 /// @type.node source=1 type=int32
@@ -182,11 +193,13 @@ let value: string;
 
 value = "ready";
 /// @type.node source="value = \"ready\"" type=string
+/// @type.node source=value type=string
 /// @resolution.name source=value target=value
 /// @type.node source="\"ready\"" type=string
 
 const copy = value;
 /// @type.symbol symbol=copy type=string
+/// @type.node source=value type=string
 /// @resolution.name source=value target=value
 "#,
     );
@@ -210,6 +223,7 @@ let value: string;
 
 const copy = value;
 /// @type.symbol symbol=copy type=string
+/// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
 "#,
@@ -245,9 +259,10 @@ counter = 1;
         r#"
 import { counter } from "./counter.ds";
 /// @type.symbol symbol=counter type=int32
-/// @resolution.name source=counter target=counter.counter
 
 counter = 1;
+/// @type.node source="counter = 1" type=int32
+/// @type.node source=counter type=int32
 /// @resolution.name source=counter target=counter.counter
 /// @type.node source=1 type=int32
 "#,

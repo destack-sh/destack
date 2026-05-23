@@ -58,6 +58,27 @@ const first = values[0];
 }
 
 #[test]
+fn test_check_records_explicit_cast_coercion() {
+    let session = TestSession::single(
+        r#"
+const value = 1 as int32;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+const value = 1 as int32;
+/// @type.symbol symbol=value type=int32
+/// @type.node source="1 as int32" type=int32
+/// @type.node source=1 type=1
+/// @coercion.node source="1 as int32" from=1 to=int32 origin=explicit
+"#,
+    );
+}
+
+#[test]
 fn test_check_preserves_satisfies_literal_members() {
     let session = TestSession::single(
         r#"
