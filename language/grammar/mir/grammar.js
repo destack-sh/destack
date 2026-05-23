@@ -75,8 +75,6 @@ module.exports = grammar({
         "struct",
         "newtype",
         "slice",
-        "unique",
-        "nullable",
         "any",
         "isize",
         "usize",
@@ -92,11 +90,14 @@ module.exports = grammar({
         "borrowed",
         "owned",
         "raw",
+        "unique",
         "copy",
         "readonly",
         "const",
-        "shared",
-        "gpu"
+        "nullable",
+        "undefined",
+        "nullish",
+        "exclusive"
       ))),
 
     arrow: () => "->",

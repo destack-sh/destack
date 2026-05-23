@@ -309,14 +309,6 @@
             },
             {
               "type": "STRING",
-              "value": "unique"
-            },
-            {
-              "type": "STRING",
-              "value": "nullable"
-            },
-            {
-              "type": "STRING",
               "value": "any"
             },
             {
@@ -373,6 +365,10 @@
             },
             {
               "type": "STRING",
+              "value": "unique"
+            },
+            {
+              "type": "STRING",
               "value": "copy"
             },
             {
@@ -385,11 +381,19 @@
             },
             {
               "type": "STRING",
-              "value": "shared"
+              "value": "nullable"
             },
             {
               "type": "STRING",
-              "value": "gpu"
+              "value": "undefined"
+            },
+            {
+              "type": "STRING",
+              "value": "nullish"
+            },
+            {
+              "type": "STRING",
+              "value": "exclusive"
             }
           ]
         }

@@ -71,6 +71,26 @@ external function @host.print(v0: ref<borrowed vector<i32, 4>>) -> void
 //                                    ^^^^^^^^ keyword.other.memory.dsmir
 //                                             ^^^^^^ support.type.dsmir
 
+function @refs(v0: ref<int32, managed, nullable>) -> typeDescriptor {
+//                 ^^^ support.type.dsmir
+//                            ^^^^^^^ keyword.other.memory.dsmir
+//                                     ^^^^^^^^ keyword.other.memory.dsmir
+}
+
+function @unique(v0: ref<int32, unique, readonly>) -> void {
+//                              ^^^^^^ keyword.other.memory.dsmir
+//                                      ^^^^^^^^ keyword.other.memory.dsmir
+}
+
+function @raw(v0: ref<int32, raw, space(shared)>) -> void {
+//                           ^^^ keyword.other.memory.dsmir
+//                                ^^^^^ support.type.dsmir
+}
+
+function @borrow(v0: ref<int32, borrowed, lifetime(0)>) -> void {
+//                              ^^^^^^^^ keyword.other.memory.dsmir
+}
+
 export global @COUNTER: ref<raw const int64>
 // <- keyword.declaration.dsmir
 //            ^^^^^^^^ entity.name.symbol.dsmir
