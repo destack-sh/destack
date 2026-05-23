@@ -3,6 +3,7 @@ import { Access, WithAccess } from "destack:memory";
 /// Equivalent borrowed form of a value.
 ///
 /// Borrowed values must preserve equality, hashing, and ordering with the owner.
+@languageItem("convert.Borrow")
 export newtype interface Borrow<T, A: Access = "readonly"> {
     /// Borrow this value.
     borrow(this: WithAccess<&this, A>): WithAccess<&T, A>;
@@ -16,6 +17,7 @@ export extension<T, A: Access = "readonly"> of T implements Borrow<T, A> {
 }
 
 /// Owned form of a borrowed value.
+@languageItem("convert.ToOwned")
 export newtype interface ToOwned {
     /// The owned value type.
     type Owned;

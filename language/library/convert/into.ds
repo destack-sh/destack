@@ -3,6 +3,7 @@ import { Error, Result } from "destack:error";
 import { From, TryFrom } from "./from.ds";
 
 /// Infallible conversion into `T`.
+@languageItem("convert.Into")
 export newtype interface Into<T> {
     /// Convert this value.
     into(): T;
@@ -16,6 +17,7 @@ export extension<T, U> of T implements Into<U> where U: From<T> {
 }
 
 /// Fallible conversion into `T`.
+@languageItem("convert.TryInto")
 export newtype interface TryInto<T, E = Error> {
     /// Convert this value, or return an error.
     tryInto(): Result<T, E>;
