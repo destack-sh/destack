@@ -1,4 +1,5 @@
 /// A stateful hash sink.
+@languageItem("ops.Hasher")
 export newtype interface Hasher {
     /// Add raw bytes to the hash state.
     write(bytes: &readonly [uint8]): void;
@@ -14,6 +15,7 @@ export newtype interface Hasher {
 }
 
 /// A value that can feed itself into a hasher.
+@languageItem("ops.Hash")
 export newtype interface Hash {
     /// Add this value to `state`.
     hash(state: &Hasher): void;

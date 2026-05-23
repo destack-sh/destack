@@ -31,6 +31,7 @@ export newtype interface Try {
 }
 
 /// Target protocol for rebuilding a return type from a propagated failure.
+@languageItem("ops.FromFailure")
 export newtype interface FromFailure<F> {
     /// Construct this type from a failure value.
     static fromFailure(failure: F): this;

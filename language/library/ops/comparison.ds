@@ -1,3 +1,5 @@
+import { Equal, PartialEqual } from "./equality.ds";
+
 /// Result of a comparison operation.
 ///
 /// Used by the `Compare` interface.
@@ -8,28 +10,21 @@ export const enum Ordering {
     Greater = 1,
 }
 
-/// Interface for comparison operators (`<`, `<=`, `>`, `>=`) and ordering.
+/// Interface for partial comparison.
+///
+/// `partialCompare` returns `null` when comparison is undefined.
+@languageItem("ops.PartialCompare")
+export newtype interface PartialCompare<T = this> extends PartialEqual<T> {
+    partialCompare(other: T): Ordering | null;
+}
+
+/// Interface for total comparison and ordering.
 ///
 /// `a < b` becomes `a.compare(b) == Ordering.Less`.
 /// `a <= b` becomes `a.compare(b) != Ordering.Greater`.
 /// `a > b` becomes `a.compare(b) == Ordering.Greater`.
 /// `a >= b` becomes `a.compare(b) != Ordering.Less`.
-///
-/// Types that implement `Compare` should also implement `Equal` for consistency.
 @languageItem("ops.Compare")
-export newtype interface Compare<T = this> {
+export newtype interface Compare<T = this> extends Equal<T>, PartialCompare<T> {
     compare(other: T): Ordering;
-}
-
-/// Interface for partial comparison (when comparison might fail).
-///
-/// Some types (like floats with NaN) cannot always be compared.
-/// `partialCompare` returns `null` when comparison is undefined.
-///
-/// `a < b` for PartialCompare types:
-/// - If `a.partialCompare(b)` is `null`, result is `false`
-/// - Otherwise, checks if result is `Ordering.Less`
-@languageItem("ops.PartialCompare")
-export newtype interface PartialCompare<T = this> {
-    partialCompare(other: T): Ordering | null;
 }
