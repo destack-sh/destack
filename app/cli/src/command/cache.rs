@@ -48,8 +48,8 @@ pub fn run(args: &CacheArgs) -> i32 {
         |_, payload| {
             let list_entries = payload.caches.into_iter().map(|entry| {
                 let location = entry.directory;
-                let source = entry.source;
-                let title = format!("{location} ({source})");
+                let kind = entry.kind;
+                let title = format!("{kind}: {location}");
                 ListEntry::new(title)
             });
             let list_entries: Vec<ListEntry> = list_entries.collect();

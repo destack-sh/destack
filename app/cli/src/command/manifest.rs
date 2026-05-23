@@ -4,16 +4,16 @@ use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_from
 use crate::console;
 use crate::pipeline::daemon::{CommandOptionsBuilder, run_root_payload_command_or_report};
 use clap::Args;
-use destack_daemon::protocol::{CommandConfigOptions, CommandConfigPayload, CommandPayload};
+use destack_daemon::protocol::{CommandManifestOptions, CommandManifestPayload, CommandPayload};
 
-/// Arguments for the config command.
+/// Arguments for the manifest command.
 #[derive(Args, Debug, Clone)]
-pub struct ConfigArgs {
-    /// The config file or directory to inspect.
+pub struct ManifestArgs {
+    /// The manifest file or directory to inspect.
     #[arg(value_name = "PATH")]
     pub path: Option<PathBuf>,
 
-    /// Show full config content in text mode.
+    /// Show full manifest content in text mode.
     #[arg(long)]
     pub full: bool,
 
@@ -26,31 +26,31 @@ pub struct ConfigArgs {
     pub report: ReportArgs,
 }
 
-/// Show the resolved configuration.
-pub fn run(args: &ConfigArgs) -> i32 {
-    if let Some(code) = ensure_no_watch_or_dev("config", &args.program, &args.report) {
+/// Show the resolved manifest.
+pub fn run(args: &ManifestArgs) -> i32 {
+    if let Some(code) = ensure_no_watch_or_dev("manifest", &args.program, &args.report) {
         return code;
     }
 
     // build daemon command options
     let common = CommandOptionsBuilder::new(&args.program).build();
-    let payload = CommandPayload::Config(CommandConfigOptions {
+    let payload = CommandPayload::Manifest(CommandManifestOptions {
         path: args.path.clone(),
         full: args.full,
     });
 
-    run_root_payload_command_or_report::<CommandConfigPayload, _, _>(
-        "config",
+    run_root_payload_command_or_report::<CommandManifestPayload, _, _>(
+        "manifest",
         &args.report,
         &args.program,
         common,
         payload,
-        "config",
+        "manifest",
         |exit_code, _, payload_value| {
-            report_from_payload("config", exit_code, Some(payload_value), None, None)
+            report_from_payload("manifest", exit_code, Some(payload_value), None, None)
         },
         |_, payload| {
-            console::info(&format!("config: {}", payload.path));
+            console::info(&format!("manifest: {}", payload.path));
             if let Some(default_target) = payload.default_target.as_ref() {
                 console::info(&format!("default target: {default_target}"));
             }
@@ -60,8 +60,9 @@ pub fn run(args: &ConfigArgs) -> i32 {
                 console::info(&format!("targets: {}", payload.targets.join(", ")));
             }
 
+            // print full manifest text when requested
             if args.full
-                && let Ok(pretty) = serde_json::to_string_pretty(&payload.config)
+                && let Ok(pretty) = serde_json::to_string_pretty(&payload.manifest)
             {
                 println!("{pretty}");
             }

@@ -63,7 +63,7 @@ pub fn run(args: &DoctorArgs) -> i32 {
                     console::info(&format!("package: {package}"));
                 }
             }
-            if let Some(path) = payload.config.as_ref() {
+            if let Some(path) = payload.manifest.as_ref() {
                 console::info(&format!("destack.json: {path}"));
             } else {
                 console::warn("destack.json: not found");

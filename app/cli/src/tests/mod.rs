@@ -1,8 +1,6 @@
 mod build;
-mod cache;
 mod check;
 mod clean;
-mod config;
 mod eval;
 mod fmt;
 mod info;

@@ -164,7 +164,7 @@ fn resolve_destack_config_task(
     revision: destack_workspace::Revision,
     cwd: &Path,
 ) -> CliResult<Option<TaskSpec>> {
-    let destack_config_path = if program_args.config.is_some() {
+    let destack_config_path = if program_args.manifest.is_some() {
         Some(resolve_destack_config_path(
             program_args,
             repository,
@@ -222,19 +222,19 @@ fn task_base_dir(
         return parent.to_path_buf();
     }
 
-    if let Some(config) = program_args.config.as_ref() {
-        let config_path = if config.is_absolute() {
-            config.clone()
+    if let Some(manifest) = program_args.manifest.as_ref() {
+        let manifest_path = if manifest.is_absolute() {
+            manifest.clone()
         } else {
-            cwd.join(config)
+            cwd.join(manifest)
         };
 
-        if let Ok(Some(metadata)) = repository.file_metadata(revision, &config_path) {
+        if let Ok(Some(metadata)) = repository.file_metadata(revision, &manifest_path) {
             if metadata.is_directory {
-                return config_path;
+                return manifest_path;
             }
             if metadata.is_file
-                && let Some(parent) = config_path.parent()
+                && let Some(parent) = manifest_path.parent()
             {
                 return parent.to_path_buf();
             }

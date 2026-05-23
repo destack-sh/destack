@@ -1,4 +1,3 @@
-pub mod cache;
 pub mod compile;
 pub mod daemon;
 pub mod input;

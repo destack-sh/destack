@@ -11,6 +11,6 @@ pub mod pipeline;
 pub mod tests;
 
 pub use command::{
-    bench, build, cache, check, clean, completions, config, daemon, doc, doctor, eval, explain,
-    fmt, info, init, lint, lsp, repl, run, targets, task, test, update, version,
+    bench, build, cache, check, clean, completions, daemon, doc, doctor, eval, explain, fmt, info,
+    init, lint, lsp, manifest, repl, run, settings, targets, task, test, update, version,
 };

@@ -3,8 +3,8 @@ use clap::builder::styling::{AnsiColor, Style, Styles};
 use clap::{CommandFactory, Parser};
 
 use crate::{
-    bench, build, cache, check, clean, completions, config, console, daemon, doc, doctor, eval,
-    explain, fmt, info, init, lint, lsp, repl, run, targets, task, test, update, version,
+    bench, build, cache, check, clean, completions, console, daemon, doc, doctor, eval, explain,
+    fmt, info, init, lint, lsp, repl, run, settings, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -12,9 +12,10 @@ use crate::command::DevCommand;
 #[cfg(feature = "dev")]
 use crate::command::dev::{VersionCommands, release, stats, version as dev_version};
 use crate::command::{
-    BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
-    DocArgs, DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
-    ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
+    BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs,
+    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
+    ManifestArgs, ReplArgs, RunArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs,
+    VersionArgs,
 };
 use crate::common::TracingArgs;
 
@@ -81,14 +82,17 @@ pub enum Command {
     /// Remove build outputs and caches.
     Clean(CleanArgs),
 
-    /// Show cache locations and settings.
+    /// Show cache locations.
     Cache(CacheArgs),
+
+    /// Show resolved machine and workspace settings.
+    Settings(SettingsArgs),
 
     /// Show workspace and target information.
     Info(InfoArgs),
 
-    /// Show the resolved configuration.
-    Config(ConfigArgs),
+    /// Show the resolved manifest.
+    Manifest(ManifestArgs),
 
     /// List configured build targets.
     Targets(TargetsArgs),
@@ -149,8 +153,9 @@ impl Command {
             Self::Init(args) => init::run(&args),
             Self::Clean(args) => clean::run(&args),
             Self::Cache(args) => cache::run(&args),
+            Self::Settings(args) => settings::run(&args),
             Self::Info(args) => info::run(&args),
-            Self::Config(args) => config::run(&args),
+            Self::Manifest(args) => manifest::run(&args),
             Self::Targets(args) => targets::run(&args),
             Self::Version(args) => version::run(&args),
             Self::Update(args) => update::run(&args),
@@ -322,13 +327,19 @@ fn build_commands_help(color_enabled: bool) -> String {
             group: 2,
         },
         CommandEntry {
+            name: "settings",
+            example: "",
+            help: None,
+            group: 2,
+        },
+        CommandEntry {
             name: "info",
             example: "",
             help: None,
             group: 2,
         },
         CommandEntry {
-            name: "config",
+            name: "manifest",
             example: "destack.json",
             help: None,
             group: 2,
