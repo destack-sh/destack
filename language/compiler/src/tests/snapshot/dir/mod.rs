@@ -1,6 +1,7 @@
 mod binding;
 mod builder;
 mod capture;
+mod coercion;
 mod dependency;
 mod export;
 mod extension;
