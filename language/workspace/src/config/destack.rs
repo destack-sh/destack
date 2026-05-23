@@ -8,10 +8,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, ConditionCatalog, ConditionGate, ConditionalDependencies, Dependency,
-    DiagnosticPolicy, FormatterOptions, LinterOptions, PackagePatch, Policy, Product,
-    ProfileOptions, Registry, RuntimeOptions, Target, Task, Vendor, builtin_modes, builtin_roles,
-    parse_jsonc_file, validate_dependency_map,
+    builtin_modes, builtin_roles, parse_jsonc_file, CompilerOptions, ConditionCatalog,
+    ConditionGate, ConditionalDependencies, Dependency, DiagnosticPolicy, Export, FormatterOptions,
+    LinterOptions, PackagePatch, Policy, Product, ProfileOptions, RuntimeOptions, Target, Task,
+    Topology, Vendor,
 };
 
 /// Destack configuration document.
@@ -26,8 +26,7 @@ pub struct Destack {
     /// Package version.
     pub version: Option<String>,
     /// Whether the package is private.
-    #[serde(rename = "private")]
-    pub is_private: Option<bool>,
+    pub r#private: Option<bool>,
     /// Package description.
     pub description: Option<String>,
     /// Package license identifier.
@@ -48,6 +47,8 @@ pub struct Destack {
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
+    /// Public package exports.
+    pub exports: IndexMap<String, Export>,
     /// Package dependencies.
     pub dependencies: IndexMap<String, Dependency>,
     /// Dependencies enabled by condition predicates.
@@ -56,10 +57,10 @@ pub struct Destack {
     pub overrides: IndexMap<String, Dependency>,
     /// Package patch files.
     pub patches: IndexMap<String, PackagePatch>,
-    /// Package registries.
-    pub registries: IndexMap<String, Registry>,
     /// Vendored dependency resolution declaration.
-    pub vendoring: Vendor,
+    pub vendor: Vendor,
+    /// Package topology definition.
+    pub topology: Topology,
     /// Compiler configuration.
     pub compiler: CompilerOptions,
     /// Package policy declarations and rules.
@@ -93,7 +94,7 @@ impl Destack {
     }
 
     /// Complete derived config fields after deserialization.
-    pub(crate) fn finish(&mut self) -> Result<(), serde_json::Error> {
+    pub(crate) fn finish(&mut self) {
         let mut modes = builtin_modes();
         modes.extend(std::mem::take(&mut self.conditions.modes));
         self.conditions.modes = modes;
@@ -104,64 +105,21 @@ impl Destack {
 
         let mut aliases = IndexMap::new();
         for name in self.conditions.modes.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::mode(name.clone()))?;
+            insert_condition_alias(&mut aliases, name, ConditionGate::mode(name.clone()));
         }
         for name in self.conditions.roles.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::role(name.clone()))?;
+            insert_condition_alias(&mut aliases, name, ConditionGate::role(name.clone()));
         }
         for name in self.conditions.features.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::feature(name.clone()))?;
+            insert_condition_alias(&mut aliases, name, ConditionGate::feature(name.clone()));
         }
         for name in self.conditions.tags.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::tag(name.clone()))?;
+            insert_condition_alias(&mut aliases, name, ConditionGate::tag(name.clone()));
         }
         for (name, alias) in std::mem::take(&mut self.conditions.aliases) {
-            if aliases.contains_key(&name) {
-                let error = format!("condition alias '{name}' conflicts with a condition name");
-                return Err(serde_json::Error::io(invalid_config_error(error)));
-            }
-            if alias.is_empty() {
-                let error = format!("condition alias '{name}' must define at least one selector");
-                return Err(serde_json::Error::io(invalid_config_error(error)));
-            }
-
             aliases.insert(name, alias);
         }
         self.conditions.aliases = aliases;
-
-        Ok(())
-    }
-
-    /// Validate resolved configuration invariants.
-    pub fn validate(&self) -> Result<(), String> {
-        self.policy.validate()?;
-
-        for target in self.targets.values() {
-            target.policy.validate()?;
-        }
-        for product in self.products.values() {
-            product.policy.validate()?;
-            product.validate()?;
-        }
-        for (product_name, product) in &self.products {
-            for (role, target_name) in &product.targets {
-                if !self.targets.contains_key(target_name) {
-                    let error = format!(
-                        "product '{product_name}' role '{role}' references unknown target '{target_name}'"
-                    );
-                    return Err(error);
-                }
-            }
-        }
-
-        validate_extends("mode", &self.conditions.modes, |mode| &mode.extends)?;
-        validate_extends("role", &self.conditions.roles, |role| &role.extends)?;
-        validate_extends("feature", &self.conditions.features, |feature| {
-            &feature.extends
-        })?;
-        validate_extends("tag", &self.conditions.tags, |tag| &tag.extends)?;
-
-        Ok(())
     }
 }
 
@@ -230,15 +188,6 @@ impl DestackFile {
         self.destack.extends()
     }
 
-    /// Validate resolved configuration invariants.
-    pub fn validate(&self) -> Result<(), serde_json::Error> {
-        self.destack
-            .validate()
-            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
-
-        Ok(())
-    }
-
     /// Return explicit workspace package root patterns.
     pub fn workspace_packages(&self) -> Option<&[String]> {
         self.destack
@@ -279,12 +228,7 @@ impl DestackFile {
     ) -> Result<Self, serde_json::Error> {
         let mut file: Destack = serde_json::from_value(source.clone())?;
 
-        file.finish()?;
-        file.validate()
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-        validate_dependency_map(Some(&file.dependencies))
-            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
-
+        file.finish();
         let directory = path.parent().map(PathBuf::from).ok_or_else(|| {
             serde_json::Error::io(Error::new(
                 ErrorKind::InvalidData,
@@ -324,8 +268,8 @@ impl DestackFile {
                     let merged_value = if let Some(parent_value) = merged.get(key) {
                         match key.as_str() {
                             "policy" => Self::merge_policy_json(parent_value, child_value),
-                            "dependencies" | "overrides" => {
-                                Self::merge_dependency_json(parent_value, child_value)
+                            "dependencies" | "overrides" | "exports" => {
+                                Self::merge_map_json(parent_value, child_value)
                             }
                             "conditionalDependencies" => {
                                 Self::merge_array_json(parent_value, child_value)
@@ -359,8 +303,8 @@ impl DestackFile {
         }
     }
 
-    /// Merge dependency maps without merging individual dependency declarations.
-    fn merge_dependency_json(parent: &Value, child: &Value) -> Value {
+    /// Merge maps without merging individual entries.
+    fn merge_map_json(parent: &Value, child: &Value) -> Value {
         match (parent, child) {
             (Value::Object(parent), Value::Object(child)) => {
                 let mut merged = parent.clone();
@@ -518,15 +462,8 @@ fn insert_condition_alias(
     aliases: &mut IndexMap<String, ConditionGate>,
     name: &str,
     gate: ConditionGate,
-) -> Result<(), serde_json::Error> {
-    if aliases.contains_key(name) {
-        let error = format!("condition alias '{name}' is declared by multiple condition groups");
-        return Err(serde_json::Error::io(invalid_config_error(error)));
-    }
-
+) {
     aliases.insert(name.to_string(), gate);
-
-    Ok(())
 }
 
 /// Merge declaration file ids in inherited order.
@@ -551,25 +488,4 @@ fn policy_json_value(policy: DiagnosticPolicy) -> Value {
     };
 
     Value::String(value.to_string())
-}
-
-/// Validate named declaration inheritance edges.
-fn validate_extends<T>(
-    kind: &str,
-    items: &IndexMap<String, T>,
-    extends: impl Fn(&T) -> &[String],
-) -> Result<(), String> {
-    for (name, item) in items {
-        for parent in extends(item) {
-            if parent == name {
-                return Err(format!("{kind} '{name}' extends itself"));
-            }
-
-            if !items.contains_key(parent) {
-                return Err(format!("{kind} '{name}' extends unknown {kind} '{parent}'"));
-            }
-        }
-    }
-
-    Ok(())
 }

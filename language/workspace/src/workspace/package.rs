@@ -5,7 +5,9 @@ use destack_source::{FileId, PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
-use crate::config::{Dependency, Target, Vendor};
+use crate::config::{
+    ConditionSet, ConditionalDependencies, Dependency, Export, Target, Topology, Vendor,
+};
 
 /// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,12 +35,16 @@ pub struct Package {
     pub name: Option<String>,
     /// The package version.
     pub version: Option<String>,
-    /// Package dependencies enabled for all modes.
+    /// Package dependencies enabled unconditionally.
     pub dependencies: IndexMap<String, Dependency>,
-    /// Package dependencies enabled by source graph mode.
-    pub mode_dependencies: IndexMap<String, IndexMap<String, Dependency>>,
+    /// Package dependencies enabled by source graph conditions.
+    pub conditional_dependencies: Vec<ConditionalDependencies>,
     /// Vendored dependency resolution options.
-    pub vendoring: Vendor,
+    pub vendor: Vendor,
+    /// Public package exports.
+    pub exports: IndexMap<String, Export>,
+    /// Package topology definition.
+    pub topology: Topology,
     /// The `destack.json` file id when present.
     pub destack_file_id: Option<FileId>,
     /// The package targets.
@@ -51,16 +57,24 @@ impl Package {
         self.targets.get(target)
     }
 
-    /// Return dependencies enabled by the active source graph modes.
-    pub fn dependencies_for_modes(&self, modes: &[String]) -> IndexMap<String, Dependency> {
+    /// Get one package export by key.
+    pub fn export(&self, key: &str) -> Option<&Export> {
+        self.exports.get(key)
+    }
+
+    /// Return dependencies enabled by the active source graph conditions.
+    pub fn dependencies_for_conditions(
+        &self,
+        conditions: &ConditionSet,
+    ) -> IndexMap<String, Dependency> {
         let mut dependencies = self.dependencies.clone();
 
-        for mode in modes {
-            let Some(mode_dependencies) = self.mode_dependencies.get(mode) else {
+        for conditional in &self.conditional_dependencies {
+            if !conditional.when.matches(conditions) {
                 continue;
-            };
+            }
 
-            for (name, dependency) in mode_dependencies {
+            for (name, dependency) in &conditional.dependencies {
                 dependencies.insert(name.clone(), dependency.clone());
             }
         }
@@ -106,6 +120,22 @@ impl PackageIndex {
     /// Return one package by id.
     pub(crate) fn package(&self, package_id: PackageId) -> Option<Arc<Package>> {
         self.packages.get(&package_id).cloned()
+    }
+
+    /// Return one package by declared package name.
+    pub(crate) fn package_by_name(&self, name: &str) -> Option<Arc<Package>> {
+        self.packages
+            .values()
+            .find(|package| package.name.as_deref() == Some(name))
+            .cloned()
+    }
+
+    /// Return one package by package root path.
+    pub(crate) fn package_by_path(&self, path: &Path) -> Option<Arc<Package>> {
+        self.packages
+            .values()
+            .find(|package| package.path.as_deref() == Some(path))
+            .cloned()
     }
 
     /// Return all package ids.

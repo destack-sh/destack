@@ -2,10 +2,11 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, PackageId, TargetId, Uri, matches as glob_matches};
+use destack_source::{matches as glob_matches, FileId, PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
+use crate::config::{ConditionGate, ConditionPredicate, ConditionalDependencies};
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
 use crate::{Package, PackageIndex, PackageKind};
 
@@ -37,7 +38,7 @@ impl Repository {
             .map(Arc::new);
         let config = destack_config.as_deref();
         let mut targets = IndexMap::new();
-        let mut mode_dependencies = IndexMap::new();
+        let mut conditional_dependencies = Vec::new();
 
         // explicit targets
         if let Some(config) = config {
@@ -47,11 +48,8 @@ impl Repository {
                 targets.insert(target_id, target.clone());
             }
 
-            for (name, mode) in &config.conditions.modes {
-                if !mode.dependencies.is_empty() {
-                    mode_dependencies.insert(name.clone(), mode.dependencies.clone());
-                }
-            }
+            conditional_dependencies.extend(Self::condition_dependencies(config));
+            conditional_dependencies.extend(config.conditional_dependencies.clone());
         }
 
         let package = Package {
@@ -64,8 +62,16 @@ impl Repository {
             dependencies: config
                 .map(|config| config.dependencies.clone())
                 .unwrap_or_default(),
-            mode_dependencies,
-            vendoring: config.map(|config| config.vendoring).unwrap_or_default(),
+            conditional_dependencies,
+            vendor: config
+                .map(|config| config.vendor.clone())
+                .unwrap_or_default(),
+            exports: config
+                .map(|config| config.exports.clone())
+                .unwrap_or_default(),
+            topology: config
+                .map(|config| config.topology.clone())
+                .unwrap_or_default(),
             destack_file_id,
             targets,
         };
@@ -94,7 +100,30 @@ impl Repository {
             packages.insert(package.id, package);
         }
 
+        Self::reject_duplicate_package_names(packages.values().map(Arc::as_ref))?;
+
         Ok(PackageIndex::new(packages))
+    }
+
+    /// Reject duplicate package names used by package specifier imports.
+    fn reject_duplicate_package_names<'a>(
+        packages: impl IntoIterator<Item = &'a Package>,
+    ) -> Result<(), RepositoryError> {
+        let mut names = HashSet::new();
+
+        for package in packages {
+            let Some(name) = package.name.as_deref() else {
+                continue;
+            };
+
+            if !names.insert(name.to_string()) {
+                return Err(RepositoryError::DuplicatePackageName {
+                    name: name.to_string(),
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Return package roots for one file map.
@@ -187,6 +216,28 @@ impl Repository {
         Ok(packages.package(package_id))
     }
 
+    /// Return one package by declared package name.
+    pub fn package_by_name(
+        &self,
+        revision: Revision,
+        name: &str,
+    ) -> Result<Option<Arc<Package>>, RepositoryError> {
+        let packages = self.package_index(revision)?;
+
+        Ok(packages.package_by_name(name))
+    }
+
+    /// Return one package by package root path.
+    pub fn package_by_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<Arc<Package>>, RepositoryError> {
+        let packages = self.package_index(revision)?;
+
+        Ok(packages.package_by_path(path))
+    }
+
     /// Return one display string for one package id.
     pub fn package_display(
         &self,
@@ -232,11 +283,53 @@ impl Repository {
             name: None,
             version: None,
             dependencies: IndexMap::new(),
-            mode_dependencies: IndexMap::new(),
-            vendoring: Default::default(),
+            conditional_dependencies: Vec::new(),
+            vendor: Default::default(),
+            exports: IndexMap::new(),
+            topology: Default::default(),
             destack_file_id: None,
             targets: IndexMap::new(),
         }
+    }
+
+    /// Return dependencies declared by named conditions.
+    fn condition_dependencies(config: &crate::Destack) -> Vec<ConditionalDependencies> {
+        let mut dependencies = Vec::new();
+
+        for (name, condition) in &config.conditions.modes {
+            if !condition.dependencies.is_empty() {
+                dependencies.push(ConditionalDependencies {
+                    when: ConditionPredicate::Gate(ConditionGate::mode(name.clone())),
+                    dependencies: condition.dependencies.clone(),
+                });
+            }
+        }
+        for (name, condition) in &config.conditions.roles {
+            if !condition.dependencies.is_empty() {
+                dependencies.push(ConditionalDependencies {
+                    when: ConditionPredicate::Gate(ConditionGate::role(name.clone())),
+                    dependencies: condition.dependencies.clone(),
+                });
+            }
+        }
+        for (name, condition) in &config.conditions.features {
+            if !condition.dependencies.is_empty() {
+                dependencies.push(ConditionalDependencies {
+                    when: ConditionPredicate::Gate(ConditionGate::feature(name.clone())),
+                    dependencies: condition.dependencies.clone(),
+                });
+            }
+        }
+        for (name, condition) in &config.conditions.tags {
+            if !condition.dependencies.is_empty() {
+                dependencies.push(ConditionalDependencies {
+                    when: ConditionPredicate::Gate(ConditionGate::tag(name.clone())),
+                    dependencies: condition.dependencies.clone(),
+                });
+            }
+        }
+
+        dependencies
     }
 
     /// Return true when one package root is selected by workspace config.
