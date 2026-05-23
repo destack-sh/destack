@@ -9,9 +9,9 @@ use destack_artifact::{
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
 use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
 
-use crate::tests::snapshot::{render_diagnostics, DirRows, DirSnapshotBuilder};
+use crate::tests::snapshot::{DirRows, DirSnapshotBuilder, render_diagnostics};
 
-use super::module::{parse_module, parsed_dependencies, TestModule};
+use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::provider::TestProvider;
 
 /// A test session builder.

@@ -328,10 +328,19 @@ impl DirSnapshotBuilder<'_> {
     /// Return one tuple type label.
     fn tuple_type_label(&self, types: &dir::TypeTable<'_>, tuple: &dir::TupleType) -> String {
         // render tuple elements with labels and modifiers
-        let elements = self.tuple_element_list_label(types, &tuple.elements);
+        let mut elements = self.tuple_element_list_label(types, &tuple.elements);
         let prefix = if tuple.is_readonly { "readonly " } else { "" };
 
-        format!("{prefix}[{elements}]")
+        match tuple.form {
+            dir::TupleForm::Tuple => {
+                if tuple.elements.len() == 1 {
+                    elements.push(',');
+                }
+
+                format!("{prefix}({elements})")
+            }
+            dir::TupleForm::Array => format!("{prefix}[{elements}]"),
+        }
     }
 
     /// Return one tuple element label.
