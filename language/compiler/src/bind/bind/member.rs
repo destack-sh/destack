@@ -13,27 +13,51 @@ impl Compiler {
         node_id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
     ) -> Option<dir::LocalScopeId> {
-        // ignore non symbolic members
-        let Some(key) = member.symbol_key() else {
-            return None;
-        };
-        let Some(form) = member.symbol_form() else {
-            return None;
-        };
+        // bind keyed members through normal member lookup
+        if let Some(key) = member.symbol_key() {
+            let form = member.symbol_form()?;
+            let scope_kind = member.symbol_scope_kind();
 
+            return self.bind_member_symbol_key(state, node_id, form, Some(key), scope_kind);
+        }
+
+        // bind role members as anonymous symbols (can't be referenced directly)
+        let Some(slot) = member.slot() else {
+            return None;
+        };
+        if !matches!(
+            slot,
+            dir::MemberSlot::Constructor | dir::MemberSlot::New | dir::MemberSlot::Call
+        ) {
+            return None;
+        }
+
+        self.bind_member_symbol_key(
+            state,
+            node_id,
+            dir::SymbolForm::Function,
+            None,
+            Some(dir::ScopeKind::Function),
+        )
+    }
+
+    /// Bind one member symbol with an optional lookup key.
+    fn bind_member_symbol_key(
+        &self,
+        state: &mut BindState<'_>,
+        node_id: dir::LocalNodeId<dir::Member>,
+        form: dir::SymbolForm,
+        key: Option<dir::StaticKey>,
+        scope_kind: Option<dir::ScopeKind>,
+    ) -> Option<dir::LocalScopeId> {
         // declare scoped or plain member symbol
-        let (symbol_id, scope_id) = if let Some(scope_kind) = member.symbol_scope_kind() {
-            let (symbol_id, scope_id) = state.insert_symbol_with_scope(
-                dir::SymbolRole::Item,
-                form,
-                Some(key),
-                None,
-                scope_kind,
-            );
+        let (symbol_id, scope_id) = if let Some(scope_kind) = scope_kind {
+            let (symbol_id, scope_id) =
+                state.insert_symbol_with_scope(dir::SymbolRole::Item, form, key, None, scope_kind);
 
             (symbol_id, Some(scope_id))
         } else {
-            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, form, Some(key), None);
+            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, form, key, None);
 
             (symbol_id, None)
         };
