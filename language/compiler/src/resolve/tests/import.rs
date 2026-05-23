@@ -1,4 +1,3 @@
-use crate::tests::snapshot::assert_snapshot;
 use crate::tests::{DirRows, TestSession};
 
 #[test]
@@ -134,12 +133,8 @@ export let value = 1;
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_resolved("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_resolved_key("main.ds")),
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'missing' from './dep.ds'"
 /// @diagnostic.label line=2 column=10 source="import { missing } from \"./dep.ds\";"
@@ -170,12 +165,8 @@ export { value as default };
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_resolved("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_resolved_key("main.ds")),
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'default' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 source="import { default as value } from \"./mid.ds\";"
@@ -212,12 +203,8 @@ export let value = 2;
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_resolved("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_resolved_key("main.ds")),
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ER201 message="ambiguous export 'value' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 source="import { value } from \"./mid.ds\";"

@@ -1,4 +1,3 @@
-use crate::tests::snapshot::assert_snapshot;
 use crate::tests::{DirRows, TestSession};
 
 #[test]
@@ -213,12 +212,8 @@ export * from "./a.ds";
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_resolved("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_resolved_key("main.ds")),
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'missing' from './a.ds'"
 /// @diagnostic.label line=2 column=10 source="import { missing } from \"./a.ds\";"
@@ -242,12 +237,8 @@ export let value = 1;
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_resolved("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_resolved_key("main.ds")),
+    compiler.assert_dir_resolved_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ER200 message="missing export 'missing' from './dep.ds'"
 /// @diagnostic.label line=2 column=10 source="export { missing } from \"./dep.ds\";"

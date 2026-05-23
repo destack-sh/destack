@@ -1,5 +1,4 @@
 use crate::tests::TestSession;
-use crate::tests::snapshot::assert_snapshot;
 
 #[test]
 fn test_export_reports_duplicate_key() {
@@ -12,12 +11,8 @@ export { value };
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_exported("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_exported_key("main.ds")),
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ET101 message="duplicate export 'value'"
 /// @diagnostic.label line=3 column=10 source="export { value };"
@@ -37,12 +32,8 @@ export type { Foo };
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_exported("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_exported_key("main.ds")),
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ET101 message="duplicate export 'Foo'"
 /// @diagnostic.label line=4 column=15 source="export type { Foo };"
@@ -60,12 +51,8 @@ export { missing };
 "#,
         )
         .build();
-
-    compiler
-        .provide_dir_exported("main.ds")
-        .expect("artifact should be provided with diagnostics");
-    assert_snapshot(
-        compiler.diagnostic_snapshot(compiler.dir_exported_key("main.ds")),
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds",
         r#"
 /// @diagnostic.error code=ET100 message="missing exported local binding 'missing'"
 /// @diagnostic.label line=2 column=10 source="export { missing };"
