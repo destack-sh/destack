@@ -1,9 +1,105 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
 
-use super::{
-    ArgumentTerm, FieldTerm, FormTerm, OperandTerm, OperatorTerm, Predicate, Term, VariableId,
-};
+use destack_dir as dir;
+
+use super::{CheckModuleState, StaticTerm, TypeTerm, VariableId, VariableOrigin};
+
+/// One check constraint.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum Constraint {
+    /// Define one type variable from one type term.
+    ///
+    /// ```ts
+    /// value.name
+    /// ```
+    ///
+    /// This defines the expression type as a member projection over `value`.
+    TypeDefine {
+        /// The type variable being solved.
+        result: VariableId,
+        /// The type term assigned to it.
+        term: TypeTerm,
+        /// The source that produced this constraint.
+        origin: ConstraintOrigin,
+    },
+    /// Define one static variable from one static term.
+    ///
+    /// ```ts
+    /// type Both = L | R;
+    /// ```
+    ///
+    /// This defines the static lifetime value as a lifetime join.
+    StaticDefine {
+        /// The static variable being solved.
+        result: VariableId,
+        /// The static term assigned to it.
+        term: StaticTerm,
+        /// The source that produced this constraint.
+        origin: ConstraintOrigin,
+    },
+    /// Relate two type variables.
+    ///
+    /// ```ts
+    /// const value: int32 = 1;
+    /// ```
+    TypeRelate {
+        /// The required relation.
+        relation: TypeRelation,
+        /// The left type.
+        left: VariableId,
+        /// The right type.
+        right: VariableId,
+        /// The source that produced this constraint.
+        origin: ConstraintOrigin,
+    },
+    /// Check whether one assignment target accepts a write.
+    ///
+    /// ```ts
+    /// const value = 1;
+    /// value = 2;
+    /// ```
+    TargetWrite {
+        /// The target being written.
+        target: AssignmentTarget,
+        /// The source that produced this constraint.
+        origin: ConstraintOrigin,
+    },
+}
+
+impl Constraint {
+    /// Return variables that must be solved before this constraint can finish.
+    pub(in crate::check) fn input_variables(&self) -> SmallVec<[VariableId; 4]> {
+        match self {
+            Self::TypeDefine {
+                result,
+                term,
+                origin: _,
+            } => {
+                let mut variables = smallvec::smallvec![*result];
+                variables.extend(term.referenced_variables());
+
+                variables
+            }
+            Self::StaticDefine {
+                result,
+                term,
+                origin: _,
+            } => {
+                let mut variables = smallvec::smallvec![*result];
+                variables.extend(term.referenced_variables());
+
+                variables
+            }
+            Self::TypeRelate {
+                relation: _,
+                left,
+                right,
+                origin: _,
+            } => smallvec::smallvec![*left, *right],
+            Self::TargetWrite { target, origin: _ } => smallvec::smallvec![target.ty],
+        }
+    }
+}
 
 /// A relation between two type variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,6 +108,8 @@ pub(in crate::check) enum TypeRelation {
     Equal,
     /// Source must be assignable to target.
     Assignable,
+    /// Source must be explicitly castable to target.
+    Castable,
     /// Value must satisfy a constraint.
     Satisfies,
     /// Subtype must extend supertype.
@@ -27,472 +125,126 @@ pub(in crate::check) enum StaticRelation {
     Equal,
 }
 
-/// One check constraint.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct Constraint {
-    /// The guard that controls this constraint.
-    pub(in crate::check) guard: Predicate,
-    /// The constraint payload.
-    pub(in crate::check) kind: ConstraintKind,
+/// Source location that produced one constraint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ConstraintOrigin {
+    /// Constraint came from one source node.
+    Node(dir::GlobalNodeIdAny),
+    /// Constraint came from one source symbol.
+    Symbol(dir::GlobalSymbolId),
+    /// Constraint came from compiler induced work.
+    Synthetic,
 }
 
-impl Constraint {
-    /// Create one bind constraint.
-    pub(in crate::check) fn bind(guard: Predicate, variable: VariableId, term: Term) -> Self {
-        Self {
-            guard,
-            kind: ConstraintKind::Bind { variable, term },
-        }
-    }
-
-    /// Create one relation constraint.
-    pub(in crate::check) fn relate(guard: Predicate, relation: Relation) -> Self {
-        Self {
-            guard,
-            kind: ConstraintKind::Relate(relation),
-        }
-    }
-
-    /// Create one construction constraint.
-    pub(in crate::check) fn construct(guard: Predicate, construction: Construction) -> Self {
-        Self {
-            guard,
-            kind: ConstraintKind::Construct(construction),
-        }
-    }
-
-    /// Create one resolution constraint.
-    pub(in crate::check) fn resolve(guard: Predicate, resolution: Resolution) -> Self {
-        Self {
-            guard,
-            kind: ConstraintKind::Resolve(resolution),
-        }
-    }
-
-    /// Return variables referenced by this constraint.
-    pub(in crate::check) fn variables(&self) -> SmallVec<[VariableId; 4]> {
-        let mut variables = SmallVec::new();
-        self.guard.variables(&mut variables);
-        self.kind.variables(&mut variables);
-
-        variables
-    }
+/// A value that can appear on the left side of an assignment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct AssignmentTarget {
+    /// The target type variable.
+    pub(in crate::check) ty: VariableId,
+    /// The selected target key.
+    pub(in crate::check) key: AssignmentTargetKey,
+    /// The assignment syntax node for diagnostics.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
 }
 
-/// Check constraint payload.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum ConstraintKind {
-    /// Bind a variable to a term.
-    Bind {
-        /// The variable to bind.
-        variable: VariableId,
-        /// The term being bound.
-        term: Term,
-    },
-    /// Relate variables.
-    Relate(Relation),
-    /// Construct a derived value.
-    Construct(Construction),
-    /// Resolve a type-dependent selection.
-    Resolve(Resolution),
-}
-
-impl ConstraintKind {
-    /// Push variables referenced by this constraint payload.
-    fn variables(&self, variables: &mut SmallVec<[VariableId; 4]>) {
-        match self {
-            Self::Bind { variable, term } => {
-                variables.push(*variable);
-                term_variables(term, variables);
-            }
-            Self::Relate(relation) => relation.variables(variables),
-            Self::Construct(construction) => construction.variables(variables),
-            Self::Resolve(resolution) => resolution.variables(variables),
-        }
-    }
-}
-
-/// Relation constraint.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum Relation {
-    /// Type relation.
-    Type {
-        /// The required relation.
-        relation: TypeRelation,
-        /// The left type.
-        left: VariableId,
-        /// The right type.
-        right: VariableId,
-    },
-    /// Static relation.
-    Static {
-        /// The required relation.
-        relation: StaticRelation,
-        /// The left static value.
-        left: VariableId,
-        /// The right static value.
-        right: VariableId,
-    },
-}
-
-impl Relation {
-    /// Push variables referenced by this relation.
-    fn variables(&self, variables: &mut SmallVec<[VariableId; 4]>) {
-        match self {
-            Self::Type { left, right, .. } | Self::Static { left, right, .. } => {
-                variables.push(*left);
-                variables.push(*right);
-            }
-        }
-    }
-}
-
-/// Construction constraint.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum Construction {
-    /// Construct a function type.
-    Function {
-        /// The function type result.
-        result: VariableId,
-        /// The parameter types.
-        parameters: SmallVec<[VariableId; 4]>,
-        /// The return type.
-        return_type: Option<VariableId>,
-    },
-    /// Construct a union type.
-    Union {
-        /// The union result type.
-        result: VariableId,
-        /// The input types.
-        values: SmallVec<[VariableId; 4]>,
-    },
-    /// Construct a tuple type.
-    Tuple {
-        /// The tuple result type.
-        result: VariableId,
-        /// The element types.
-        elements: SmallVec<[VariableId; 4]>,
-    },
-    /// Construct an object type.
-    Object {
-        /// The object result type.
-        result: VariableId,
-        /// The direct fields.
-        fields: SmallVec<[FieldTerm; 4]>,
-        /// The spread source types.
-        spreads: SmallVec<[VariableId; 2]>,
-    },
-    /// Construct a fixed array type.
-    FixedArray {
-        /// The fixed array result type.
-        result: VariableId,
-        /// The repeated value type.
-        value: VariableId,
-        /// The static array length.
-        length: VariableId,
-    },
-    /// Construct a memory form type.
-    Form {
-        /// The form result type.
-        result: VariableId,
-        /// The form constructor.
-        form: FormTerm,
-        /// The carried value type.
-        value: VariableId,
-    },
-    /// Construct a layout for a type.
-    LayoutOf {
-        /// The layout result.
-        result: VariableId,
-        /// The type being laid out.
+impl AssignmentTarget {
+    /// Create an assignment target.
+    pub(in crate::check) fn new(
         ty: VariableId,
-    },
-    /// Construct a static size from a layout.
-    SizeOf {
-        /// The static size result.
-        result: VariableId,
-        /// The source layout.
-        layout: VariableId,
-    },
-    /// Construct a static alignment from a layout.
-    AlignOf {
-        /// The static alignment result.
-        result: VariableId,
-        /// The source layout.
-        layout: VariableId,
-    },
-    /// Construct a static field offset from a layout.
-    OffsetOf {
-        /// The static offset result.
-        result: VariableId,
-        /// The source layout.
-        layout: VariableId,
-        /// The field key.
-        field: VariableId,
-    },
-}
-
-impl Construction {
-    /// Push variables referenced by this construction.
-    fn variables(&self, variables: &mut SmallVec<[VariableId; 4]>) {
-        match self {
-            Self::Function {
-                result,
-                parameters,
-                return_type,
-            } => {
-                variables.push(*result);
-                variables.extend(parameters.iter().copied());
-                variables.extend(return_type.iter().copied());
-            }
-            Self::Union { result, values }
-            | Self::Tuple {
-                result,
-                elements: values,
-            } => {
-                variables.push(*result);
-                variables.extend(values.iter().copied());
-            }
-            Self::Object {
-                result,
-                fields,
-                spreads,
-            } => {
-                variables.push(*result);
-                variables.extend(fields.iter().map(|field| field.value));
-                variables.extend(spreads.iter().copied());
-            }
-            Self::FixedArray {
-                result,
-                value,
-                length,
-            } => {
-                variables.push(*result);
-                variables.push(*value);
-                variables.push(*length);
-            }
-            Self::Form {
-                result,
-                form,
-                value,
-            } => {
-                variables.push(*result);
-                variables.push(*value);
-                form_variables(form, variables);
-            }
-            Self::LayoutOf { result, ty } => {
-                variables.push(*result);
-                variables.push(*ty);
-            }
-            Self::SizeOf { result, layout } | Self::AlignOf { result, layout } => {
-                variables.push(*result);
-                variables.push(*layout);
-            }
-            Self::OffsetOf {
-                result,
-                layout,
-                field,
-            } => {
-                variables.push(*result);
-                variables.push(*layout);
-                variables.push(*field);
-            }
-        }
+        key: AssignmentTargetKey,
+        source: dir::GlobalNodeIdAny,
+    ) -> Self {
+        Self { ty, key, source }
     }
 }
 
-/// Resolution constraint.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum Resolution {
-    /// Resolve a name.
-    Name {
-        /// The selected result.
-        result: VariableId,
-        /// The selected key.
-        key: dir::StaticKey,
-        /// The selected symbol space.
-        space: dir::SymbolSpace,
+/// The selected assignment target key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum AssignmentTargetKey {
+    /// Local or imported value binding.
+    Binding {
+        /// The local binding symbol selected by syntax.
+        symbol: dir::GlobalSymbolId,
     },
-    /// Resolve a member.
+    /// Structural or nominal member target.
     Member {
-        /// The selected result.
-        result: VariableId,
         /// The receiver type.
-        receiver: VariableId,
-        /// The member key.
-        key: dir::StaticKey,
-    },
-    /// Resolve a call.
-    Call {
-        /// The call result.
-        result: VariableId,
-        /// The callee type.
-        callee: VariableId,
-        /// The generic arguments.
-        generics: SmallVec<[ArgumentTerm; 4]>,
-        /// The call arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
-    },
-    /// Resolve a constructor call.
-    New {
-        /// The constructed result.
-        result: VariableId,
-        /// The callee type.
-        callee: VariableId,
-        /// The generic arguments.
-        generics: SmallVec<[ArgumentTerm; 4]>,
-        /// The call arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
-    },
-    /// Resolve an index operation.
-    Index {
-        /// The index result.
-        result: VariableId,
-        /// The indexed receiver type.
-        receiver: VariableId,
-        /// The optional index type.
-        index: Option<VariableId>,
-    },
-    /// Resolve an operator operation.
-    Operator {
-        /// The operator result.
-        result: VariableId,
-        /// The operator.
-        operator: OperatorTerm,
-        /// The operands.
-        operands: SmallVec<[OperandTerm; 2]>,
-    },
-    /// Instantiate a generic target.
-    Instantiate {
-        /// The instantiated result.
-        result: VariableId,
-        /// The target type.
-        target: VariableId,
-        /// The arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
-    },
-    /// Resolve an associated type.
-    AssociatedType {
-        /// The associated type result.
-        result: VariableId,
-        /// The owner type.
         owner: VariableId,
-        /// The member key.
+        /// The selected member key.
         key: dir::StaticKey,
-        /// The arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
     },
-    /// Resolve an associated const.
-    AssociatedConst {
-        /// The associated const result.
-        result: VariableId,
-        /// The owner type.
-        owner: VariableId,
-        /// The member key.
-        key: dir::StaticKey,
-        /// The arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
-    },
+    /// Destructuring or invalid target.
+    Unknown,
 }
 
-impl Resolution {
-    /// Push variables referenced by this resolution.
-    fn variables(&self, variables: &mut SmallVec<[VariableId; 4]>) {
-        match self {
-            Self::Name { result, .. } => variables.push(*result),
-            Self::Member {
-                result, receiver, ..
-            } => {
-                variables.push(*result);
-                variables.push(*receiver);
-            }
-            Self::Call {
-                result,
-                callee,
-                generics,
-                arguments,
-            }
-            | Self::New {
-                result,
-                callee,
-                generics,
-                arguments,
-            } => {
-                variables.push(*result);
-                variables.push(*callee);
-                variables.extend(generics.iter().map(ArgumentTerm::variable));
-                variables.extend(arguments.iter().map(ArgumentTerm::variable));
-            }
-            Self::Index {
-                result,
-                receiver,
-                index,
-            } => {
-                variables.push(*result);
-                variables.push(*receiver);
-                variables.extend(index.iter().copied());
-            }
-            Self::Operator {
-                result, operands, ..
-            } => {
-                variables.push(*result);
-                variables.extend(operands.iter().map(OperandTerm::variable));
-            }
-            Self::Instantiate {
-                result,
-                target,
-                arguments,
-            }
-            | Self::AssociatedType {
-                result,
-                owner: target,
-                arguments,
-                ..
-            }
-            | Self::AssociatedConst {
-                result,
-                owner: target,
-                arguments,
-                ..
-            } => {
-                variables.push(*result);
-                variables.push(*target);
-                variables.extend(arguments.iter().map(ArgumentTerm::variable));
-            }
+impl CheckModuleState {
+    /// Add one constraint.
+    pub(in crate::check) fn push_constraint(&mut self, constraint: Constraint) {
+        self.constraints.push(constraint);
+    }
+
+    /// Define one type variable from one term.
+    pub(in crate::check) fn define_type_term(&mut self, variable: VariableId, term: TypeTerm) {
+        let origin = self.constraint_origin(variable);
+        let constraint = Constraint::TypeDefine {
+            result: variable,
+            term,
+            origin,
+        };
+
+        self.push_constraint(constraint);
+    }
+
+    /// Define one static variable from one term.
+    pub(in crate::check) fn define_static_term(&mut self, variable: VariableId, term: StaticTerm) {
+        let origin = self.constraint_origin(variable);
+        let constraint = Constraint::StaticDefine {
+            result: variable,
+            term,
+            origin,
+        };
+
+        self.push_constraint(constraint);
+    }
+
+    /// Add one type relation constraint.
+    pub(in crate::check) fn push_type_relation(
+        &mut self,
+        origin: ConstraintOrigin,
+        relation: TypeRelation,
+        left: VariableId,
+        right: VariableId,
+    ) {
+        let constraint = Constraint::TypeRelate {
+            relation,
+            left,
+            right,
+            origin,
+        };
+
+        self.push_constraint(constraint);
+    }
+
+    /// Add one target write constraint.
+    pub(in crate::check) fn push_target_write(&mut self, target: AssignmentTarget) {
+        let origin = ConstraintOrigin::Node(target.source);
+        let constraint = Constraint::TargetWrite { target, origin };
+
+        self.push_constraint(constraint);
+    }
+
+    /// Return one diagnostic origin for a variable constraint.
+    pub(in crate::check) fn constraint_origin(&self, variable: VariableId) -> ConstraintOrigin {
+        match &self.variable(variable).origin {
+            VariableOrigin::Node(node) => ConstraintOrigin::Node(*node),
+            VariableOrigin::Symbol(symbol) => ConstraintOrigin::Symbol(*symbol),
+            VariableOrigin::Generic(generic) => ConstraintOrigin::Symbol(generic.slot().owner),
+            VariableOrigin::Synthetic => ConstraintOrigin::Synthetic,
         }
     }
-}
 
-/// Push variables referenced by a term.
-fn term_variables(term: &Term, variables: &mut SmallVec<[VariableId; 4]>) {
-    match term {
-        Term::Type(term) => {
-            if let super::TypeTerm::Variable(variable) = term {
-                variables.push(*variable);
-            }
-        }
-        Term::Static(term) => {
-            if let super::StaticTerm::Variable(variable) = term {
-                variables.push(*variable);
-            }
-        }
-        Term::Layout(term) => {
-            if let super::LayoutTerm::Variable(variable) = term {
-                variables.push(*variable);
-            }
-        }
-        Term::Resolution(_) => {}
-    }
-}
-
-/// Push variables referenced by a form term.
-fn form_variables(form: &FormTerm, variables: &mut SmallVec<[VariableId; 4]>) {
-    match form {
-        FormTerm::Borrowed { lifetime, access } => {
-            variables.push(*lifetime);
-            variables.push(*access);
-        }
-        FormTerm::Placed { place } => variables.push(*place),
-        FormTerm::Managed | FormTerm::Owned | FormTerm::Raw | FormTerm::Readonly => {}
+    /// Return collected constraints.
+    pub(in crate::check) fn constraints(&self) -> &[Constraint] {
+        &self.constraints
     }
 }

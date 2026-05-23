@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use super::CheckModuleState;
 
@@ -11,17 +12,18 @@ impl CheckModuleState {
     ) -> Option<dir::LocalScope> {
         let mut current = Some(node);
 
+        // find nearest parent with a scope
         while let Some(node) = current {
-            let global = node.into_global(self.module());
+            let global = node.into_global(self.module);
             if let Some(scope) = bindings.scope_for_node(global) {
                 return Some(scope);
             }
-
-            current = self.parsed().tree.get_parent(node.id);
+            current = self.parsed.tree.get_parent(node.id);
         }
 
+        // use module namespace when no child scope owns the node
         Some(dir::LocalScope::new(
-            self.bound().namespace_scope,
+            self.bound.namespace_scope,
             dir::LocalScopeMark::end(),
         ))
     }
@@ -33,22 +35,25 @@ impl CheckModuleState {
         mut scope: dir::LocalScope,
         key: dir::StaticKey,
         space: dir::SymbolSpace,
-    ) -> Vec<dir::GlobalSymbolId> {
+    ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
         loop {
+            // collect matching symbols in the current scope
             let current = bindings.get_scope(scope);
-            let mut symbols = Vec::new();
+            let mut symbols = SmallVec::new();
             for (binding_key, symbol) in current.named_symbols_up_to(scope.mark) {
                 if binding_key == key && bindings.get_symbol(symbol).form.is_visible_in(space) {
-                    symbols.push(self.resolve_imported_symbol(symbol));
+                    symbols.push(self.visible_symbol(symbol));
                 }
             }
 
+            // use nearest visible scope hits
             if !symbols.is_empty() {
                 return symbols;
             }
 
+            // climb to the parent scope
             let Some(parent) = current.parent else {
-                return Vec::new();
+                return SmallVec::new();
             };
 
             scope = dir::LocalScope::new(parent.id, dir::LocalScopeMark::end());

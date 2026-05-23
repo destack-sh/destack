@@ -1,22 +1,40 @@
-use destack_artifact::{DirCheckedComponentEntry, DirCheckedModule, ToDiagnostic};
-use destack_source::{DiagnosticCollection, ModuleId, ProfileId};
+use std::sync::Arc;
+
+use destack_artifact::GlobalEnvironment;
+use destack_dir as dir;
+use destack_source::{ModuleId, ProfileId};
 use destack_workspace::ProviderContext;
 use indexmap::IndexMap;
+use indexmap::map::Entry;
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
-use super::CheckModuleState;
+use super::{CheckModuleState, StaticTerm, TypeTerm, VariableId};
 
 /// State for checking one resolved component.
 pub(in crate::check) struct CheckComponentState<'a> {
     /// The compiler running this check attempt.
-    compiler: &'a Compiler,
+    pub(in crate::check) compiler: &'a Compiler,
     /// The provider context that owns artifact reads and diagnostics.
-    context: &'a dyn ProviderContext,
+    pub(in crate::check) context: &'a dyn ProviderContext,
     /// The active profile.
-    profile: ProfileId,
+    pub(in crate::check) profile: ProfileId,
+    /// The component modules in stable order.
+    pub(in crate::check) component_modules: Vec<ModuleId>,
+
+    /// The active global environment.
+    pub(in crate::check) environment: Arc<GlobalEnvironment>,
     /// Loaded modules keyed by module id.
     pub(in crate::check) modules: IndexMap<ModuleId, CheckModuleState>,
+    /// Call-local generic variables keyed by call, symbol, and slot index.
+    pub(in crate::check) call_generic_variables: IndexMap<
+        (
+            dir::GlobalNodeIdAny,
+            Option<dir::GlobalSymbolId>,
+            dir::GenericSlotIndex,
+        ),
+        VariableId,
+    >,
 }
 
 impl<'a> CheckComponentState<'a> {
@@ -25,20 +43,27 @@ impl<'a> CheckComponentState<'a> {
         compiler: &'a Compiler,
         context: &'a dyn ProviderContext,
         profile: ProfileId,
+        component_modules: Vec<ModuleId>,
+        environment: Arc<GlobalEnvironment>,
     ) -> Self {
         Self {
             compiler,
             context,
             profile,
+            component_modules,
+            environment,
             modules: IndexMap::new(),
+            call_generic_variables: IndexMap::new(),
         }
     }
 
     /// Load all modules in one check component.
-    pub(in crate::check) fn load(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
+    pub(in crate::check) fn load(&mut self) -> CompilerResult<()> {
+        let modules = self.component_modules.clone();
+
         // load modules in stable component order
         for module in modules {
-            self.load_module(*module)?;
+            self.load_module(module)?;
         }
 
         Ok(())
@@ -55,28 +80,22 @@ impl<'a> CheckComponentState<'a> {
         let bound = artifacts
             .dir_bound(module, self.profile)
             .map_err(CompilerError::from)?;
-        let imported = artifacts
-            .dir_imported(module, self.profile)
-            .map_err(CompilerError::from)?;
-        let exported = artifacts
-            .dir_exported(module, self.profile)
-            .map_err(CompilerError::from)?;
         let resolved = artifacts
             .dir_resolved(module, self.profile)
             .map_err(CompilerError::from)?;
         let expanded = artifacts
             .dir_expanded(module, self.profile)
             .map_err(CompilerError::from)?;
+        let strings = Arc::clone(self.compiler.repository.string_pool());
 
         let check_module = CheckModuleState::new(
             module,
-            self.profile,
+            strings,
             parsed,
             bound,
-            imported,
-            exported,
             resolved,
             expanded,
+            Arc::clone(&self.environment),
         );
 
         // publish loaded module state
@@ -85,67 +104,138 @@ impl<'a> CheckComponentState<'a> {
         Ok(())
     }
 
-    /// Walk every loaded module.
-    pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
-        // walk root first, matching source entry order
-        for module in self.loaded_modules() {
-            let check_module = self.module_mut(module)?;
+    /// Alias imported symbols to their resolved targets.
+    fn alias_imported_symbols(&mut self) -> CompilerResult<()> {
+        let modules = self.component_modules.clone();
+        let mut dependency_tables = IndexMap::new();
 
-            check_module.walk().map_err(CompilerError::from)?;
+        // alias each imported symbol after every component module is walked
+        for module in modules {
+            let imports = self
+                .module(module)?
+                .resolved
+                .imports
+                .symbol_targets()
+                .collect::<Vec<_>>();
+
+            for (symbol, target) in imports {
+                // component internal symbol
+                if self.modules.contains_key(&target.module_id) {
+                    self.alias_component_imported_symbol(symbol, target)?;
+                }
+                // import external symbol values locally
+                else {
+                    let tables = match dependency_tables.entry(target.module_id) {
+                        Entry::Occupied(entry) => entry.into_mut(),
+                        Entry::Vacant(entry) => {
+                            let tables = self.load_dependency_tables(target.module_id)?;
+
+                            entry.insert(tables)
+                        }
+                    };
+                    let (types, statics) = tables;
+
+                    self.import_dependency_symbol(symbol, target, types, statics)?;
+                }
+            }
         }
 
         Ok(())
     }
 
-    /// Validate every loaded module.
-    pub(in crate::check) fn validate(&mut self) -> CompilerResult<DiagnosticCollection> {
-        let mut collection = DiagnosticCollection::new();
+    /// Alias one imported symbol to another module in the same component.
+    fn alias_component_imported_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let type_variable = self
+            .module_mut(symbol.module_id)?
+            .symbol_type_variable(symbol);
+        let target_type_variable = self
+            .module_mut(target.module_id)?
+            .symbol_type_variable(target);
+        let has_static_alias = self
+            .module(symbol.module_id)?
+            .symbol_static_variables
+            .contains_key(&symbol);
+        let module = self.module_mut(symbol.module_id)?;
 
-        // validate and finalize diagnostics
-        for module in self.loaded_modules() {
-            let diagnostics = {
-                let check_module = self.module_mut(module)?;
-                check_module.validate().map_err(CompilerError::from)?;
-                check_module.take_diagnostics()
-            };
+        module.define_type_term(type_variable, TypeTerm::Variable(target_type_variable));
+        if has_static_alias {
+            let static_variable = self
+                .module_mut(symbol.module_id)?
+                .symbol_static_variable(symbol);
+            let target_static_variable = self
+                .module_mut(target.module_id)?
+                .symbol_static_variable(target);
+            let module = self.module_mut(symbol.module_id)?;
 
-            for diagnostic in diagnostics {
-                collection.insert(diagnostic.to_diagnostic(self.context)?);
-            }
+            module.define_static_term(
+                static_variable,
+                StaticTerm::Variable(target_static_variable),
+            );
         }
 
-        Ok(collection)
+        Ok(())
     }
 
-    /// Return loaded modules in component order.
-    pub(in crate::check) fn loaded_modules(&self) -> Vec<ModuleId> {
-        self.modules.keys().copied().collect()
+    /// Load checked tables for one dependency module.
+    fn load_dependency_tables(
+        &self,
+        module: ModuleId,
+    ) -> CompilerResult<(dir::TypeTable<'static>, dir::StaticTable<'static>)> {
+        let artifacts = self.compiler.artifact_reader(self.context);
+        let bound = artifacts
+            .dir_bound(module, self.profile)
+            .map_err(CompilerError::from)?;
+        let expanded = artifacts
+            .dir_expanded(module, self.profile)
+            .map_err(CompilerError::from)?;
+        let checked = artifacts
+            .dir_checked(module, self.profile)
+            .map_err(CompilerError::from)?;
+        let types = checked.type_table(bound.as_ref(), expanded.as_ref());
+        let statics = checked.static_table(bound.as_ref(), expanded.as_ref());
+
+        Ok((types, statics))
     }
 
-    /// Finish every loaded module into component output modules.
-    pub(in crate::check) fn finish(&mut self) -> CompilerResult<Vec<DirCheckedComponentEntry>> {
-        let mut modules = Vec::new();
-
-        // finish modules in stable load order
-        for module in self.loaded_modules() {
-            let checked = self.finish_module(module)?;
-
-            modules.push(DirCheckedComponentEntry { module, checked });
+    /// Import one checked symbol from a dependency module.
+    fn import_dependency_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
+        types: &dir::TypeTable<'static>,
+        statics: &dir::StaticTable<'static>,
+    ) -> CompilerResult<()> {
+        let imported = self
+            .module_mut(symbol.module_id)?
+            .import_symbol(symbol, target, types, statics);
+        if !imported {
+            return Err(CompilerError::Internal {
+                message: format!("checked dependency symbol {target:?} has no checked value"),
+            });
         }
 
-        Ok(modules)
+        Ok(())
     }
 
-    /// Finish one checked module.
-    fn finish_module(&mut self, module: ModuleId) -> CompilerResult<DirCheckedModule> {
-        let check_module =
-            self.modules
-                .swap_remove(&module)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("checked module {module:?} was not loaded"),
-                })?;
+    /// Walk every loaded module.
+    pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
+        let modules = self.component_modules.clone();
 
-        Ok(check_module.finish())
+        // walk modules in stable component order
+        for module in modules {
+            let check_module = self.module_mut(module)?;
+
+            check_module.walk().map_err(CompilerError::from)?;
+        }
+
+        // alias imported symbols after walk has created the demanded variables
+        self.alias_imported_symbols()?;
+
+        Ok(())
     }
 
     /// Return one loaded module.

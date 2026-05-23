@@ -1,23 +1,19 @@
-mod component;
-mod condition;
 mod constraint;
-mod failure;
 mod flow;
+mod generic;
+mod graph;
+mod import;
 mod module;
-mod obligation;
 mod scope;
 mod state;
+mod symbol;
 mod term;
 mod variable;
-mod work;
 
-pub(in crate::check) use condition::*;
 pub(in crate::check) use constraint::*;
-pub(in crate::check) use failure::*;
 pub(in crate::check) use flow::*;
+pub(in crate::check) use generic::*;
 pub(in crate::check) use module::*;
-pub(in crate::check) use obligation::*;
 pub(in crate::check) use state::*;
 pub(in crate::check) use term::*;
 pub(in crate::check) use variable::*;
-pub(in crate::check) use work::*;
