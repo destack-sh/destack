@@ -1,16 +1,14 @@
-/// Interface for the `==` and `!=` operators.
+/// Interface for partial equality.
 ///
 /// `a == b` becomes `a.equal(b)`.
 /// `a != b` becomes `!a.equal(b)`.
-@languageItem("ops.Equal")
-export newtype interface Equal<T = this> {
-    equal(other: T): boolean;
-}
-
-/// Interface for partial equality.
 ///
 /// Some values, like floating-point NaN, do not have total equality.
 @languageItem("ops.PartialEqual")
 export newtype interface PartialEqual<T = this> {
-    partialEqual(other: T): boolean | null;
+    equal(other: T): boolean;
 }
+
+/// Marker interface for total equality.
+@languageItem("ops.Equal")
+export newtype interface Equal<T = this> extends PartialEqual<T> {}
