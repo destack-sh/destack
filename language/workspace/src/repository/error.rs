@@ -22,6 +22,8 @@ pub enum RepositoryError {
     MissingPackage { package: PackageId },
     /// The requested package has no file system path.
     MissingPackagePath { package: PackageId },
+    /// Multiple packages declare the same package name.
+    DuplicatePackageName { name: String },
     /// The requested target does not exist in the given revision.
     MissingTarget { target: TargetId },
     /// The requested module path does not resolve to a package module.
@@ -91,6 +93,9 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingPackagePath { package } => {
                 write!(formatter, "missing repository package path for '{package}'")
+            }
+            Self::DuplicatePackageName { name } => {
+                write!(formatter, "duplicate package name '{name}'")
             }
             Self::MissingTarget { target } => {
                 write!(formatter, "missing repository target '{target}'")

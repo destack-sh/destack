@@ -12,6 +12,7 @@ use crate::{Module, Package, PackageKind, Repository};
 const BUILTIN_PACKAGE_NAME: &str = "destack";
 const BUILTIN_PACKAGE_URI: &str = "destack://";
 
+// NOTE: the builtin library package is generated at build time and auto included as raw strings here.
 include!(concat!(env!("OUT_DIR"), "/builtin.rs"));
 
 /// One builtin source file shipped with the toolchain.
@@ -47,8 +48,10 @@ impl BuiltinPackage {
             name: Some(BUILTIN_PACKAGE_NAME.to_string()),
             version: None,
             dependencies: IndexMap::new(),
-            mode_dependencies: IndexMap::new(),
-            vendoring: Default::default(),
+            conditional_dependencies: Vec::new(),
+            vendor: Default::default(),
+            exports: IndexMap::new(),
+            topology: Default::default(),
             destack_file_id: None,
             targets: IndexMap::new(),
         };
