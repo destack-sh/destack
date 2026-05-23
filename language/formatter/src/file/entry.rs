@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
-use destack_dir::{Expression, LocalNodeId, NodeParentIndex};
+use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
@@ -28,6 +28,35 @@ impl Display for FormatFileError {
 
 impl Error for FormatFileError {}
 
+/// Format one parser DIR tree.
+pub fn format_file_tree(
+    file: &File,
+    tree: &Tree,
+    tokens: &[TokenSpan],
+    side_tokens: &[TokenSpan],
+    roots: &[LocalNodeId<Expression>],
+    strings: &StringPool,
+    options: FormatterOptions,
+) -> Result<String, FormatFileError> {
+    let side_span = Parser::compute_side_span_from_tree(tree);
+    let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
+        message: format!("formatter received non-code file type: {:?}", file.ty),
+    })?;
+    let parents = NodeParentIndex::from_expression_roots(tree, roots);
+    let options = DestackFormatOptions::from_formatter_options(options, language_type);
+    let context = DestackFormatContext::new(
+        options,
+        file,
+        tree,
+        tokens,
+        side_tokens,
+        &side_span,
+        strings,
+        parents,
+    );
+
+    render_program_roots(&context, roots)
+}
 /// Format one full source file from authored text.
 pub fn format_file_source(
     file: &File,
