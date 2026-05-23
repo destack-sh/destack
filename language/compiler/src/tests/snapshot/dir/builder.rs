@@ -227,6 +227,10 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.relations.as_ref());
         }
 
+        if selection.coercion {
+            self.add_table(checked.coercions.as_ref());
+        }
+
         if selection.extension {
             self.add_table(checked.extensions.as_ref());
         }
@@ -538,8 +542,12 @@ impl<'a> DirSnapshotBuilder<'a> {
     pub(crate) fn static_term_label(&self, term: &dir::StaticTerm) -> String {
         match term {
             dir::StaticTerm::Symbol { symbol } => self.symbol_path_label(*symbol),
-            dir::StaticTerm::Access { access } => Self::variant_label(access),
-            dir::StaticTerm::Space { space } => Self::variant_label(space),
+            dir::StaticTerm::Access { access } => {
+                Self::string_literal_label(&Self::variant_label(access))
+            }
+            dir::StaticTerm::Space { space } => {
+                Self::string_literal_label(&Self::variant_label(space))
+            }
             dir::StaticTerm::Place { place } => Self::place_label(place),
             dir::StaticTerm::Lifetime { lifetime } => self.lifetime_label(lifetime),
             dir::StaticTerm::ScalarLiteral { value } => self.scalar_literal_label(value),
@@ -742,10 +750,17 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one normalized place label.
     fn place_label(place: &dir::Place) -> String {
-        match place {
+        let value = match place {
             dir::Place::Ambient => "ambient".to_string(),
             dir::Place::Space(space) => Self::variant_label(space),
-        }
+        };
+
+        Self::string_literal_label(&value)
+    }
+
+    /// Render one static string literal label.
+    fn string_literal_label(value: &str) -> String {
+        format!("{value:?}")
     }
 
     /// Render one normalized lifetime label.

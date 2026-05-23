@@ -184,6 +184,18 @@ impl TestSession {
         ArtifactKey::dir_checked(entry.module.id, entry.profile)
     }
 
+    /// Return the checked component key for one module.
+    pub(crate) fn dir_checked_component_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+        let version = self.require_artifact(self.dir_checked_key(path));
+        let checked = self
+            .artifacts()
+            .dir_checked(&version)
+            .expect("test checked facade should exist");
+
+        ArtifactKey::dir_checked_component(checked.entry, checked.component, entry.profile)
+    }
+
     /// Render diagnostics produced by one artifact key.
     pub(crate) fn diagnostic_snapshot(&self, key: ArtifactKey) -> String {
         let diagnostics = self
@@ -238,7 +250,7 @@ impl TestSession {
         expected_diagnostics: &str,
     ) {
         let dir = self.render_dir_snapshots(&[path], rows, true);
-        let diagnostics = self.diagnostic_snapshot(self.dir_checked_key(path));
+        let diagnostics = self.diagnostic_snapshot(self.dir_checked_component_key(path));
 
         assert_snapshot(dir, expected_dir);
         assert_snapshot(diagnostics, expected_diagnostics);
@@ -339,7 +351,7 @@ impl TestSession {
         revision: Revision,
         files: &BTreeMap<String, FileContent>,
     ) -> BTreeMap<ModuleId, String> {
-        files
+        let mut paths = files
             .iter()
             .filter_map(|(path, _)| {
                 let module_id = repository
@@ -354,7 +366,17 @@ impl TestSession {
 
                 Some((module_id, path.clone()))
             })
-            .collect()
+            .collect::<BTreeMap<_, _>>();
+
+        // include builtin modules referenced by language item types
+        let package = repository.builtin_package().package_id();
+        for builtin in repository.builtin_package().files() {
+            let module_id = builtin.module_id(package);
+
+            paths.insert(module_id, builtin.path.to_string());
+        }
+
+        paths
     }
 
     /// Render one module snapshot.
@@ -423,9 +445,13 @@ impl TestSession {
     ) {
         let dir = self.render_dir_snapshots(paths, rows, is_checked);
 
-        // require diagnostic free artifacts by default
+        // require artifacts without diagnostics by default
         for path in paths {
-            let key = artifact_key(self, path);
+            let key = if is_checked {
+                self.dir_checked_component_key(path)
+            } else {
+                artifact_key(self, path)
+            };
             assert_snapshot(self.diagnostic_snapshot(key), "");
         }
 
@@ -558,10 +584,22 @@ impl TestSession {
     fn dir_checked(&self, entry: &TestModule) -> Arc<DirCheckedModule> {
         let key = ArtifactKey::dir_checked(entry.module.id, entry.profile);
         let version = self.require_artifact(key);
-
-        self.artifacts()
+        let checked = self
+            .artifacts()
             .dir_checked(&version)
-            .expect("test checked artifact should exist")
+            .expect("test checked facade should exist");
+        let component_key =
+            ArtifactKey::dir_checked_component(checked.entry, checked.component, entry.profile);
+        let component_version = self.require_artifact(component_key);
+        let component = self
+            .artifacts()
+            .dir_checked_component(&component_version)
+            .expect("test checked component should exist");
+        let entry = component
+            .module(entry.module.id)
+            .expect("test checked component should contain module");
+
+        Arc::new(entry.checked.clone())
     }
 
     /// Require one artifact through the test provider.
@@ -596,11 +634,36 @@ impl TestSession {
             return Vec::new();
         }
 
-        self.modules_by_path
+        let mut artifacts = self
+            .modules_by_path
             .values()
             .filter(|foreign| foreign.module.id != entry.module.id)
             .map(|foreign| (self.dir_bound(foreign), self.dir_expanded(foreign)))
-            .collect()
+            .collect::<Vec<_>>();
+
+        // include builtin labels for language item references
+        for module_id in self.repository.builtin_package().module_ids() {
+            if module_id == entry.module.id {
+                continue;
+            }
+
+            let key = ArtifactKey::dir_bound(module_id, entry.profile);
+            let bound_version = self.require_artifact(key);
+            let bound = self
+                .artifacts()
+                .dir_bound(&bound_version)
+                .expect("test builtin bound artifact should exist");
+            let key = ArtifactKey::dir_expanded(module_id, entry.profile);
+            let expanded_version = self.require_artifact(key);
+            let expanded = self
+                .artifacts()
+                .dir_expanded(&expanded_version)
+                .expect("test builtin expanded artifact should exist");
+
+            artifacts.push((bound, expanded));
+        }
+
+        artifacts
     }
 
     /// Return one module entry by path.

@@ -17,6 +17,8 @@ pub(crate) struct DirRows {
     pub(super) instance: bool,
     /// Whether to render relation table rows.
     pub(super) relation: bool,
+    /// Whether to render coercion table rows.
+    pub(super) coercion: bool,
     /// Whether to render extension table rows.
     pub(super) extension: bool,
     /// Whether to render dependency table rows.
@@ -48,6 +50,7 @@ impl DirRows {
             resolution: false,
             instance: false,
             relation: false,
+            coercion: false,
             extension: false,
             dependency: false,
             import: false,
@@ -144,6 +147,12 @@ impl DirRows {
         self
     }
 
+    /// Include coercion table rows.
+    pub(crate) const fn with_coercion(mut self) -> Self {
+        self.coercion = true;
+        self
+    }
+
     /// Include summary rows.
     pub(crate) const fn with_summaries(mut self) -> Self {
         self.summaries = true;
@@ -177,6 +186,7 @@ impl DirRows {
             || self.resolution
             || self.instance
             || self.relation
+            || self.coercion
             || self.capture
             || self.layout
     }
