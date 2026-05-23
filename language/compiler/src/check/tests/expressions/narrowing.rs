@@ -31,6 +31,7 @@ struct Rectangle {
 
     width: int32;
     /// @type.symbol symbol=Rectangle.width type=int32
+
 }
 
 struct Circle {
@@ -38,26 +39,34 @@ struct Circle {
 
     radius: int32;
     /// @type.symbol symbol=Circle.radius type=int32
+
 }
 
 function read<L: Lifetime>(shape: Borrowed<Rectangle | Circle, L>): int32 {
-/// @generic.slot symbol=read.L index=0 kind=static constraint=Lifetime
-/// @type.symbol symbol=read type=<L: Lifetime>(Borrowed<Rectangle | Circle, read.L, mutable>) => int32
+/// @type.symbol symbol=read type=(Borrowed<Rectangle | Circle, read.L, "mutable">) => int32
+/// @generic.slot key=read.L index=0 kind=static constraint=memory.lifetime.Lifetime
+/// @type.symbol symbol=shape type=Borrowed<Rectangle | Circle, read.L, "mutable">
 
     if (shape is Borrowed<Rectangle, L>) {
+    /// @type.node type=void
+    /// @type.node source="shape is Borrowed<Rectangle, L>" type=boolean
+    /// @type.node source=shape type=Borrowed<Rectangle | Circle, read.L, "mutable">
     /// @resolution.name source=shape target=shape
-    /// @type.node source=shape type=Borrowed<Rectangle, read.L, mutable>
 
         return shape.width;
-        /// @resolution.name source=shape target=shape
-        /// @resolution.member source=shape.width receiver=Borrowed<Rectangle, read.L, mutable> kind=symbol target=Rectangle.width
+        /// @type.node source=shape type=Borrowed<Rectangle, read.L, "mutable">
         /// @type.node source=shape.width type=int32
+        /// @resolution.name source=shape target=shape
+        /// @resolution.member source=shape.width receiver=Borrowed<Rectangle, read.L, "mutable"> kind=symbol target=Rectangle.width
+
     }
 
     return shape.radius;
-    /// @resolution.name source=shape target=shape
-    /// @resolution.member source=shape.radius receiver=Borrowed<Circle, read.L, mutable> kind=symbol target=Circle.radius
+    /// @type.node source=shape type=Borrowed<Circle, read.L, "mutable">
     /// @type.node source=shape.radius type=int32
+    /// @resolution.name source=shape target=shape
+    /// @resolution.member source=shape.radius receiver=Borrowed<Circle, read.L, "mutable"> kind=symbol target=Circle.radius
+
 }
 "#);
 }
@@ -78,8 +87,8 @@ function value<L: Lifetime, R: Lifetime>(
     left: Borrowed<Text, L>,
     right: Borrowed<Number, R>,
     flag: boolean,
-): Borrowed<string | int32, join(L, R)> {
-    return flag ? &left.value : &right.value;
+): Borrowed<string | int32, L | R> {
+    return flag ? (&left.value) : (&right.value);
 }
 "#,
     );
@@ -93,6 +102,7 @@ struct Text {
 
     value: string;
     /// @type.symbol symbol=Text.value type=string
+
 }
 
 struct Number {
@@ -100,24 +110,41 @@ struct Number {
 
     value: int32;
     /// @type.symbol symbol=Number.value type=int32
+
 }
 
 function value<L: Lifetime, R: Lifetime>(
-/// @generic.slot symbol=value.L index=0 kind=static constraint=Lifetime
-/// @generic.slot symbol=value.R index=1 kind=static constraint=Lifetime
-/// @type.symbol symbol=value type=<L: Lifetime, R: Lifetime>(Borrowed<Text, value.L, mutable>, Borrowed<Number, value.R, mutable>, boolean) => Borrowed<string | int32, join(value.L | value.R), mutable>
+/// @type.symbol symbol=value type=(Borrowed<Text, value.L, "mutable">, Borrowed<Number, value.R, "mutable">, boolean) => Borrowed<string | int32, value.L | value.R, "mutable">
+/// @generic.slot key=value.L index=0 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.slot key=value.R index=1 kind=static constraint=memory.lifetime.Lifetime
 
     left: Borrowed<Text, L>,
+    /// @type.symbol symbol=left type=Borrowed<Text, value.L, "mutable">
+
     right: Borrowed<Number, R>,
+    /// @type.symbol symbol=right type=Borrowed<Number, value.R, "mutable">
+
     flag: boolean,
-): Borrowed<string | int32, join(L, R)> {
-    return flag ? &left.value : &right.value;
+    /// @type.symbol symbol=flag type=boolean
+
+): Borrowed<string | int32, L | R> {
+    return flag ? (&left.value) : (&right.value);
+    /// @type.node source="flag ? (&left.value) : (&right.value)" type=Borrowed<string | int32, value.L | value.R, "mutable">
+    /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=flag
+    /// @type.node source=(&left.value) type=Borrowed<string, value.L, "mutable">
+    /// @type.node source=&left.value type=Borrowed<string, value.L, "mutable">
+    /// @type.node source=left type=Borrowed<Text, value.L, "mutable">
+    /// @type.node source=left.value type=string
     /// @resolution.name source=left target=left
-    /// @resolution.member source=left.value receiver=Borrowed<Text, value.L, mutable> kind=symbol target=Text.value
+    /// @resolution.member source=left.value receiver=Borrowed<Text, value.L, "mutable"> kind=symbol target=Text.value
+    /// @type.node source=(&right.value) type=Borrowed<int32, value.R, "mutable">
+    /// @type.node source=&right.value type=Borrowed<int32, value.R, "mutable">
+    /// @type.node source=right type=Borrowed<Number, value.R, "mutable">
+    /// @type.node source=right.value type=int32
     /// @resolution.name source=right target=right
-    /// @resolution.member source=right.value receiver=Borrowed<Number, value.R, mutable> kind=symbol target=Number.value
-    /// @type.node source="flag ? &left.value : &right.value" type=Borrowed<string | int32, join(value.L | value.R), mutable>
+    /// @resolution.member source=right.value receiver=Borrowed<Number, value.R, "mutable"> kind=symbol target=Number.value
+
 }
 "#);
 }
