@@ -217,6 +217,8 @@ pub struct DirCheckedModule {
     pub generics: Arc<dir::GenericSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
+    /// New implicit coercions.
+    pub coercions: Arc<dir::CoercionSegment>,
     /// New extension records.
     pub extensions: Arc<dir::ExtensionSegment>,
     /// New layouts.
@@ -272,6 +274,11 @@ impl DirCheckedModule {
         dir::RelationTable::from_segment(self.relations.clone())
     }
 
+    /// Return the cumulative coercion table for checked DIR.
+    pub fn coercion_table(&self) -> dir::CoercionTable<'static> {
+        dir::CoercionTable::from_segment(self.coercions.clone())
+    }
+
     /// Return the cumulative extension table for checked DIR.
     pub fn extension_table(&self) -> dir::ExtensionTable<'static> {
         dir::ExtensionTable::from_segment(self.extensions.clone())
@@ -305,6 +312,8 @@ pub struct DirMaterialized {
     pub generics: Arc<dir::GenericSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
+    /// New implicit coercions.
+    pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
     /// New layouts.
@@ -375,6 +384,11 @@ impl DirMaterialized {
         dir::RelationTable::from_segments(vec![checked.relations.clone(), self.relations.clone()])
     }
 
+    /// Return the cumulative coercion table for materialized DIR.
+    pub fn coercion_table(&self, checked: &DirCheckedModule) -> dir::CoercionTable<'static> {
+        dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
+    }
+
     /// Return the cumulative extension table for materialized DIR.
     pub fn extension_table(&self, checked: &DirCheckedModule) -> dir::ExtensionTable<'static> {
         dir::ExtensionTable::from_segment(checked.extensions.clone())
@@ -408,6 +422,8 @@ pub struct DirElaborated {
     pub generics: Arc<dir::GenericSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
+    /// New implicit coercions.
+    pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
     /// New layouts.
@@ -504,6 +520,19 @@ impl DirElaborated {
             checked.relations.clone(),
             materialized.relations.clone(),
             self.relations.clone(),
+        ])
+    }
+
+    /// Return the cumulative coercion table for elaborated DIR.
+    pub fn coercion_table(
+        &self,
+        checked: &DirCheckedModule,
+        materialized: &DirMaterialized,
+    ) -> dir::CoercionTable<'static> {
+        dir::CoercionTable::from_segments(vec![
+            checked.coercions.clone(),
+            materialized.coercions.clone(),
+            self.coercions.clone(),
         ])
     }
 
