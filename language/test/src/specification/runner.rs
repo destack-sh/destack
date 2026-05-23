@@ -9,7 +9,10 @@ use destack_parser::source_colorizer;
 use destack_source::{
     DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, TargetId, Uri,
 };
-use destack_workspace::{Environment, Repository, Revision, parse_jsonc_file};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
+    parse_jsonc_file,
+};
 use serde_json::json;
 
 use crate::core::print::color;
@@ -157,11 +160,22 @@ fn run_specification_test(test: &MdTestCase) -> CaseResult {
         let root = specification_root_for(test);
         let cwd = PathBuf::from("/test/spec");
         let fs = Arc::new(MemoryFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            &cwd,
+            &cwd,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             cwd,
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         crate::mdtest::setup_test_environment_with_repository(test, repository, fs, root)
     };

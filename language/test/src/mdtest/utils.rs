@@ -11,7 +11,10 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
-use destack_workspace::{Environment, Mode, Profile, Ref, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Environment, Mode, Profile, Ref, Repository, Revision,
+    Settings,
+};
 use indexmap::IndexSet;
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
@@ -291,11 +294,22 @@ pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, P
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
     let fs: Arc<dyn FileSystem> = memory_fs.clone();
+    let environment = Environment::capture_process();
+    let layout = DestackLayout::resolve(
+        &cwd,
+        &cwd,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
     let repository = Arc::new(Repository::new(
         cwd.clone(),
         Arc::new(MemoryCacheStore::new()),
         fs,
-        Environment::capture_process(),
+        environment,
+        Settings::default(),
+        layout,
     ));
 
     // delegate to repository based setup

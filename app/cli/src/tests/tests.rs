@@ -8,7 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::{Edit, Environment, Ref, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
+};
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -35,11 +37,22 @@ impl TestProgram {
 
         // initialize the file system and repository
         let fs = Arc::new(MemoryFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            &root,
+            &root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
 
         // return the test harness

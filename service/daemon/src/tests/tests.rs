@@ -9,7 +9,7 @@ use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
-use destack_workspace::{Ref, Repository, Revision};
+use destack_workspace::{DestackLayoutOverride, Ref, Repository, Revision, Settings};
 
 use crate::protocol::{
     DaemonRequest, DaemonResponse, OpenRootRequest, ProtocolClient, ProtocolClientOptions,
@@ -123,6 +123,8 @@ impl TestDaemon {
                 workspace_root,
                 fs.clone(),
                 destack_workspace::Environment::capture_process(),
+                Settings::default(),
+                DestackLayoutOverride::default(),
             )
             .expect("failed to import repository from test file system")
             .with_cache(Arc::new(MemoryCacheStore::new())),

@@ -5,7 +5,9 @@ use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_session::Session;
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
-use destack_workspace::{Edit, Environment, Ref, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
+};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
@@ -119,11 +121,22 @@ fn build_workspace(
     // repository
     let workspace_root = workspace_root.to_path_buf();
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+    let environment = Environment::capture_process();
+    let layout = DestackLayout::resolve(
+        &workspace_root,
+        &workspace_root,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
     let repository = Arc::new(Repository::new(
         workspace_root.clone(),
         Arc::new(DiskCacheStore::new()),
         file_system,
-        Environment::capture_process(),
+        environment,
+        Settings::default(),
+        layout,
     ));
 
     // materialize modules into the workspace revision

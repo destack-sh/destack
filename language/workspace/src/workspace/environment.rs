@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 
 /// Environment key used to override the cache directory.
 pub const DESTACK_CACHE_DIR: &str = "DESTACK_CACHE_DIR";
+/// Environment key used to override the Destack home directory.
+pub const DESTACK_HOME: &str = "DESTACK_HOME";
+/// Environment key used to override the package directory.
+pub const DESTACK_PACKAGE_DIR: &str = "DESTACK_PACKAGE_DIR";
 /// Environment key used to override the watch mode.
 pub const DESTACK_WATCH_MODE: &str = "DESTACK_WATCH_MODE";
 /// Environment key used to override the watch poll interval in milliseconds.

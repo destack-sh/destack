@@ -187,8 +187,8 @@ mod tests {
     use destack_artifact::DiskCacheStore;
     use destack_source::{FileSystem, PhysicalFileSystem};
 
-    use crate::Environment;
     use crate::repository::{Edit, Ref, Repository, Revision};
+    use crate::{DestackLayout, DestackLayoutOverride, Environment, Settings};
 
     /// Keep one anonymous revision alive while it is pinned.
     #[test]
@@ -197,11 +197,22 @@ mod tests {
         fs::create_dir_all(&root).expect("repository pin test root should exist");
 
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            &root,
+            &root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         let reference = Ref::for_workspace_root(&root);
         let base_revision = repository
@@ -253,11 +264,22 @@ mod tests {
         fs::create_dir_all(&root).expect("repository history test root should exist");
 
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            &root,
+            &root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             Arc::new(DiskCacheStore::new()),
             file_system,
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         let reference = Ref::for_workspace_root(&root);
 

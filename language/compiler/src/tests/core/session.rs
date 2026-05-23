@@ -7,7 +7,10 @@ use destack_artifact::{
     DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
 };
 use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
-use destack_workspace::{Edit, Environment, ProviderError, Ref, Repository, Revision};
+use destack_workspace::{
+    DestackLayout, DestackLayoutOverride, Edit, Environment, ProviderError, Ref, Repository,
+    Revision, Settings,
+};
 
 use crate::tests::snapshot::{DirRows, DirSnapshotBuilder, render_diagnostics};
 
@@ -81,11 +84,23 @@ impl TestSession {
 
     /// Build one test session from source files.
     fn build(files: BTreeMap<String, FileContent>) -> Self {
+        let root = PathBuf::new();
+        let environment = Environment::default();
+        let layout = DestackLayout::resolve(
+            &root,
+            &root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
-            PathBuf::new(),
+            root,
             Arc::new(MemoryCacheStore::new()),
             Arc::new(MemoryFileSystem::new()),
-            Environment::default(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         let reference = Ref::for_workspace_root(repository.workspace_root());
         let revision = repository

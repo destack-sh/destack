@@ -11,7 +11,8 @@ use destack_source::{
     DiagnosticCollection, FileContent, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
 use destack_workspace::{
-    Edit, Environment, FormatterOptions, LinterOptions, Ref, Repository, Revision,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, LinterOptions, Ref,
+    Repository, Revision, Settings,
 };
 use serde_json::{Map, Value, json};
 
@@ -35,11 +36,22 @@ impl SharedMemoryWorkspace {
         let fs = Arc::new(MemoryFileSystem::new());
         fs.create_dir_all(&root)
             .expect("failed to create core workspace root");
+        let environment = Environment::capture_process();
+        let layout = DestackLayout::resolve(
+            &root,
+            &root,
+            &environment,
+            &Settings::default(),
+            &DestackLayoutOverride::default(),
+            None,
+        );
         let repository = Arc::new(Repository::new(
             root.clone(),
             Arc::new(MemoryCacheStore::new()),
             fs.clone(),
-            Environment::capture_process(),
+            environment,
+            Settings::default(),
+            layout,
         ));
         materialize_workspace_root(repository.clone(), &root);
 
@@ -84,11 +96,22 @@ pub fn open_repository_with_options(
     fs.create_dir_all(&root)
         .expect("failed to create core workspace root");
 
+    let environment = Environment::capture_process();
+    let layout = DestackLayout::resolve(
+        &root,
+        &root,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
     let repository = Arc::new(Repository::new(
         root,
         Arc::new(MemoryCacheStore::new()),
         fs,
-        Environment::capture_process(),
+        environment,
+        Settings::default(),
+        layout,
     ));
     let root = repository.workspace_root().to_path_buf();
     materialize_workspace_root(repository.clone(), &root);

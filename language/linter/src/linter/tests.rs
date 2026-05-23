@@ -25,8 +25,9 @@ use destack_source::{
     print_diff,
 };
 use destack_workspace::{
-    Edit as RepositoryEdit, Environment, LintCategory, LintSeverity, LinterOptions, Module,
-    Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
+    DestackLayoutOverride, Edit as RepositoryEdit, Environment, LintCategory, LintSeverity,
+    LinterOptions, Module, Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
+    Settings,
 };
 use parking_lot::Mutex;
 
@@ -746,9 +747,15 @@ impl TestProgram {
         let environment = Environment::capture_process();
 
         let repository = Arc::new(
-            open_repository_from_fs(cwd.clone(), fs.clone(), environment.clone())
-                .expect("failed to import repository from linter test file system")
-                .with_cache(TEST_CACHE_STORE.clone()),
+            open_repository_from_fs(
+                cwd.clone(),
+                fs.clone(),
+                environment.clone(),
+                Settings::default(),
+                DestackLayoutOverride::default(),
+            )
+            .expect("failed to import repository from linter test file system")
+            .with_cache(TEST_CACHE_STORE.clone()),
         );
 
         // libs
