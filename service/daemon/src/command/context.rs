@@ -9,8 +9,8 @@ use destack_query::Query;
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
-    ConfigPatch, DestackFile, Edit, OptimizeLevel, Ref, Repository, Revision, Target,
-    TargetDiscovery, apply_config_patches_to_json, parse_jsonc_text,
+    DestackFile, Edit, ManifestOverride, OptimizeLevel, Ref, Repository, Revision, Target,
+    TargetDiscovery, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use serde_json::{Map, Value};
 
@@ -84,7 +84,7 @@ impl<'a> CommandContext<'a> {
         .map_err(|error| {
             DaemonCommandError::internal(format!("failed to initialize command session: {error}"))
         })?;
-        Self::apply_config_patches(&session, repository.as_ref(), &common.config_patches)?;
+        Self::apply_manifest_overrides(&session, repository.as_ref(), &common.manifest_overrides)?;
 
         Ok(Self {
             daemon,
@@ -96,33 +96,33 @@ impl<'a> CommandContext<'a> {
         })
     }
 
-    /// Apply command config patches to the private session revision.
-    fn apply_config_patches(
+    /// Apply command manifest overrides to the private session revision.
+    fn apply_manifest_overrides(
         session: &Session,
         repository: &Repository,
-        patches: &[ConfigPatch],
+        overrides: &[ManifestOverride],
     ) -> CommandResult<()> {
-        if patches.is_empty() {
+        if overrides.is_empty() {
             return Ok(());
         }
 
-        // collect package configs visible to this command
+        // collect package manifests visible to this command
         let before = session.revision(session.head()).map_err(|error| {
             DaemonCommandError::internal(format!(
                 "failed to read command session revision: {error}"
             ))
         })?;
-        let config_paths = Self::config_paths(session, repository, before)?;
-        let mut edits = Vec::with_capacity(config_paths.len());
+        let manifest_paths = Self::manifest_paths(session, repository, before)?;
+        let mut edits = Vec::with_capacity(manifest_paths.len());
 
-        // apply patches to each config image
-        for path in config_paths {
-            let mut config = Self::load_config_json(repository, before, &path)?;
-            apply_config_patches_to_json(&mut config, patches).map_err(|detail| {
+        // apply overrides to each manifest image
+        for path in manifest_paths {
+            let mut manifest = Self::load_manifest_json(repository, before, &path)?;
+            apply_manifest_overrides_to_json(&mut manifest, overrides).map_err(|detail| {
                 DaemonCommandError::config(format!("failed to update {}: {detail}", path.display()))
             })?;
 
-            let content = serde_json::to_string_pretty(&config).map_err(|error| {
+            let content = serde_json::to_string_pretty(&manifest).map_err(|error| {
                 DaemonCommandError::config(format!(
                     "failed to serialize {}: {error}",
                     path.display()
@@ -134,7 +134,7 @@ impl<'a> CommandContext<'a> {
             edits.push(Edit::set_text(logical_path, content));
         }
 
-        // publish the patched private revision
+        // publish the overridden private revision
         let revision = repository.fork_with_edits(before, edits).map_err(|error| {
             DaemonCommandError::internal(format!("failed to apply command config edits: {error}"))
         })?;
@@ -154,8 +154,8 @@ impl<'a> CommandContext<'a> {
         Ok(())
     }
 
-    /// Return config paths visible to one command revision.
-    fn config_paths(
+    /// Return manifest paths visible to one command revision.
+    fn manifest_paths(
         session: &Session,
         repository: &Repository,
         revision: Revision,
@@ -175,8 +175,8 @@ impl<'a> CommandContext<'a> {
         Ok(paths)
     }
 
-    /// Load one config json value from repository or filesystem source truth.
-    fn load_config_json(
+    /// Load one manifest JSON value from repository or filesystem source truth.
+    fn load_manifest_json(
         repository: &Repository,
         revision: Revision,
         path: &Path,
@@ -221,7 +221,7 @@ impl<'a> CommandContext<'a> {
             return Err("no input files provided".to_string().into());
         }
 
-        let config_path = self.resolve_destack_config_path(self.common.config_path.as_deref())?;
+        let config_path = self.resolve_destack_config_path(self.common.manifest_path.as_deref())?;
         let config = self.load_destack_config(&config_path)?;
         let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref());
 

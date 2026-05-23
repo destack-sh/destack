@@ -1,5 +1,5 @@
 use clap::{Args, ValueEnum};
-use destack_workspace::ConfigPatch;
+use destack_workspace::ManifestOverride;
 use serde_json::{Map, Value};
 use std::path::PathBuf;
 
@@ -132,8 +132,8 @@ impl RuntimeArgs {
             && self.heap_shared_hard_limit_bytes.is_none()
     }
 
-    /// Convert runtime arguments into one config patch.
-    pub fn to_config_patch(&self) -> Option<ConfigPatch> {
+    /// Convert runtime arguments into one manifest override.
+    pub fn to_manifest_override(&self) -> Option<ManifestOverride> {
         if self.is_empty() {
             return None;
         }
@@ -314,7 +314,7 @@ impl RuntimeArgs {
             );
         }
 
-        Some(ConfigPatch {
+        Some(ManifestOverride {
             path: "runtime".to_string(),
             value: Value::Object(runtime),
         })
@@ -430,7 +430,7 @@ fn insert_runtime_value(runtime: &mut Map<String, Value>, section: &str, key: &s
     }
 }
 
-/// Build one heap space patch object.
+/// Build one heap space override object.
 fn heap_space_value(space: &str, key: &str, value: Value) -> Value {
     let mut field = Map::new();
     field.insert(key.to_string(), value);

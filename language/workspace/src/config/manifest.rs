@@ -1,47 +1,51 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// Configuration patch applied to one config value.
+/// Invocation override applied to one manifest value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ConfigPatch {
-    /// Patch path (e.g. compiler.target).
+pub struct ManifestOverride {
+    /// Manifest path, such as `compiler.target`.
     pub path: String,
-    /// Patch payload value.
+    /// Override payload value.
     pub value: Value,
 }
 
-impl ConfigPatch {
-    /// Return the validated path segments for this patch.
+impl ManifestOverride {
+    /// Return the validated path segments for this override.
     pub fn path_segments(&self) -> Result<Vec<&str>, String> {
-        let segments = self.path.split('.').collect::<Vec<_>>();
-
-        if segments.is_empty() {
-            return Err("empty config patch path".to_string());
+        // reject empty paths
+        if self.path.is_empty() {
+            return Err("empty manifest override path".to_string());
         }
 
+        // split path
+        let segments = self.path.split('.').collect::<Vec<_>>();
+
+        // reject empty path segments
         if segments.iter().any(|segment| segment.is_empty()) {
-            return Err(format!("invalid config patch path: {}", self.path));
+            return Err(format!("invalid manifest override path: {}", self.path));
         }
 
         Ok(segments)
     }
 }
 
-/// Apply one list of config patches to one json value.
-pub fn apply_config_patches_to_json(
+/// Apply one list of manifest overrides to one JSON value.
+pub fn apply_manifest_overrides_to_json(
     json: &mut Value,
-    patches: &[ConfigPatch],
+    overrides: &[ManifestOverride],
 ) -> Result<(), String> {
-    for patch in patches {
-        let path = patch.path_segments()?;
-        apply_config_patch_to_json(json, &path, &patch.value);
+    // apply overrides in order
+    for override_ in overrides {
+        let path = override_.path_segments()?;
+        apply_manifest_override_to_json(json, &path, &override_.value);
     }
 
     Ok(())
 }
 
-/// Apply one config patch to one json path.
-fn apply_config_patch_to_json(target: &mut Value, path: &[&str], value: &Value) {
+/// Apply one manifest override to one JSON path.
+fn apply_manifest_override_to_json(target: &mut Value, path: &[&str], value: &Value) {
     ensure_json_object(target);
 
     let Value::Object(object) = target else {
@@ -57,14 +61,15 @@ fn apply_config_patch_to_json(target: &mut Value, path: &[&str], value: &Value) 
         return;
     }
 
+    // descend into child object
     let child = object
         .entry(path[0].to_string())
         .or_insert_with(|| Value::Object(Map::new()));
 
-    apply_config_patch_to_json(child, &path[1..], value);
+    apply_manifest_override_to_json(child, &path[1..], value);
 }
 
-/// Merge one patch value into one json value.
+/// Merge one override value into one JSON value.
 fn merge_json_value(target: &mut Value, value: &Value) {
     match (target, value) {
         (Value::Object(target_object), Value::Object(value_object)) => {
@@ -79,7 +84,7 @@ fn merge_json_value(target: &mut Value, value: &Value) {
     }
 }
 
-/// Ensure one json value is an object.
+/// Ensure one JSON value is an object.
 fn ensure_json_object(value: &mut Value) {
     if !value.is_object() {
         *value = Value::Object(Map::new());

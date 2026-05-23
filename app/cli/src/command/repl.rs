@@ -54,7 +54,7 @@ pub fn run(args: &ReplArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program)
         .target(target_name)
         .target_overrides(target_overrides_from_args(&args.target))
-        .config_patch(args.runtime.to_config_patch())
+        .manifest_override(args.runtime.to_manifest_override())
         .build();
     let payload = CommandPayload::Repl(CommandReplOptions::default());
 
