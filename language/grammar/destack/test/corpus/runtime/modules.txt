@@ -41,6 +41,43 @@ import.meta.role satisfies "server";
       (string
         (string_fragment)))))
 
+==========================================
+Decorated module and global re-export
+:language(destack)
+==========================================
+
+@noHeap
+module {
+  const product = "editor";
+}
+
+global {
+  export { Add, Subtract } from "destack:ops";
+}
+
+---
+
+(program
+  (module_declaration
+    (decorator
+      (identifier))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (string
+            (string_fragment))))))
+  (global_declaration
+    (statement_block
+      (export_statement
+        (export_clause
+          (export_specifier
+            (identifier))
+          (export_specifier
+            (identifier)))
+        (string
+          (string_fragment))))))
+
 ====================================
 Top-level exports
 :language(destack)

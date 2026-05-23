@@ -10,8 +10,13 @@ type Slice = [uint8];
 type Fixed<comptime N: uint> = [uint8; N];
 
 type Pair = (string, uint32);
+//          ^ punctuation.section.group.begin.ds
+
+type One = (int32,);
+
+type Empty = ();
+//           ^ punctuation.section.group.begin.ds
 
 // types / arrays / readonly
 type ReadonlyNames = readonly string[];
 // <- keyword.declaration.type.ds
-
