@@ -251,10 +251,21 @@ pub struct SliceType {
 /// A tuple type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TupleType {
+    /// The tuple source form.
+    pub form: TupleForm,
     /// The tuple elements.
     pub elements: Vec<TypeElement>,
     /// Whether the tuple is readonly.
     pub is_readonly: bool,
+}
+
+/// The source form of a tuple type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TupleForm {
+    /// Parenthesized tuple form.
+    Tuple,
+    /// Bracket tuple form.
+    Array,
 }
 
 /// A structural object shape type.

@@ -601,6 +601,9 @@ define_language_items! {
             /// `?` operator for early return
             Try => (NewtypeInterface, "ops/try", "Try"),
 
+            /// Rebuilds a return type from propagated failure
+            FromFailure => (NewtypeInterface, "ops/try", "FromFailure"),
+
             /// Try branch shape for ? and ??
             TryBranch => (Type, "ops/try", "TryBranch"),
         }
