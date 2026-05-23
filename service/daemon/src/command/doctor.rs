@@ -69,8 +69,8 @@ pub struct CommandDoctorPayload {
     /// Workspace metadata.
     pub workspace: CommandDoctorWorkspace,
     /// Resolved destack.json path.
-    pub config: Option<String>,
-    /// Config extends entries.
+    pub manifest: Option<String>,
+    /// Manifest extends entries.
     pub extends: Option<Vec<String>>,
     /// Default target name.
     pub default_target: Option<String>,
@@ -105,20 +105,20 @@ impl CommandContext<'_> {
             .workspace(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
 
-        // resolve config
-        let config_path = if self.common.config_path.is_some() {
-            self.resolve_destack_config_path(self.common.config_path.as_deref())
+        // resolve manifest
+        let manifest_path = if self.common.manifest_path.is_some() {
+            self.resolve_destack_config_path(self.common.manifest_path.as_deref())
                 .ok()
         } else {
             self.find_destack_config(self.session.cwd())
         };
-        let config = config_path
+        let config = manifest_path
             .as_ref()
             .and_then(|path| self.load_destack_config(path).ok());
 
-        // collect config warnings
+        // collect manifest warnings
         let mut warnings = Vec::new();
-        if config_path.is_none() {
+        if manifest_path.is_none() {
             warnings.push("destack.json not found".to_string());
         }
 
@@ -177,7 +177,9 @@ impl CommandContext<'_> {
                     None
                 },
             },
-            config: config_path.as_ref().map(|path| path.display().to_string()),
+            manifest: manifest_path
+                .as_ref()
+                .map(|path| path.display().to_string()),
             extends: if extends.is_empty() {
                 None
             } else {

@@ -5,13 +5,14 @@ use super::build::CommandBuildOptions;
 use super::cache::CommandCacheOptions;
 use super::check::{CommandCheckOptions, CommandLintOptions};
 use super::clean::CommandCleanOptions;
-use super::config::CommandConfigOptions;
 use super::doc::CommandDocOptions;
 use super::doctor::CommandDoctorOptions;
 use super::format::CommandFormatOptions;
 use super::info::CommandInfoOptions;
+use super::manifest::CommandManifestOptions;
 use super::repl::CommandReplOptions;
 use super::run::CommandRunOptions;
+use super::settings::CommandSettingsOptions;
 use super::targets::CommandTargetsOptions;
 use super::task::CommandTaskOptions;
 use super::test::CommandTestOptions;
@@ -37,12 +38,14 @@ pub enum CommandPayload {
     Bench(CommandBenchOptions),
     /// Show workspace and target information.
     Info(CommandInfoOptions),
-    /// Show resolved configuration.
-    Config(CommandConfigOptions),
+    /// Show resolved manifest.
+    Manifest(CommandManifestOptions),
     /// List configured build targets.
     Targets(CommandTargetsOptions),
     /// Show cache directory locations.
     Cache(CommandCacheOptions),
+    /// Show resolved machine and workspace settings.
+    Settings(CommandSettingsOptions),
     /// Show environment and workspace diagnostics.
     Doctor(CommandDoctorOptions),
     /// Run workspace tasks.

@@ -235,7 +235,7 @@ impl CommandContext<'_> {
                 self.repository.as_ref(),
                 revision,
                 self.repository.workspace_root(),
-                self.common.config_path.as_deref(),
+                self.common.manifest_path.as_deref(),
             )?;
             vec![load_task_project(
                 self.repository.as_ref(),
