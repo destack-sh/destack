@@ -3,13 +3,6 @@ use std::ops::Range;
 
 use super::{SnapshotAnchor, SnapshotField, SnapshotFieldStyle, SnapshotRow};
 
-/// Assert rendered snapshot text.
-pub(crate) fn assert_snapshot(actual: String, expected: &str) {
-    let expected = expected.trim_matches('\n');
-
-    assert_eq!(actual, expected);
-}
-
 /// Renderer for source text with snapshot rows.
 pub(super) struct SnapshotRenderer<'a> {
     /// The source text to render.

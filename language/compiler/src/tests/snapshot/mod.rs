@@ -5,5 +5,4 @@ mod row;
 
 pub(crate) use diagnostic::*;
 pub(crate) use dir::*;
-pub(crate) use render::assert_snapshot;
 pub(crate) use row::*;
