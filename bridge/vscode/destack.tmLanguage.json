@@ -1732,6 +1732,10 @@
           }
         },
         {
+          "name": "entity.name.type.ds",
+          "match": "(?x)\\b[A-Z][$A-Za-z0-9_]*(?=\\.[A-Za-z_][$A-Za-z0-9_]*\\s*=>)"
+        },
+        {
           "name": "meta.binding.destack.for.in.ds",
           "match": "(?x)\\b(for)\\s+([$A-Za-z_][$A-Za-z0-9_]*)(?=\\s+\\bin\\b)",
           "captures": {

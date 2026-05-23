@@ -12,6 +12,10 @@ match (value) {
     { kind: "ok", value } => value,
     { id, ...rest } => rest,
     Point { x, y } if (x == y) => x,
+    Some(value) => value,
+//  ^^^^ entity.name.function.call.ds
+    State.Ready => "ready",
+//  ^^^^^ entity.name.type.ds
     ^owned => owned,
     &readonly borrowed => borrowed,
     &exclusive exclusive => exclusive,

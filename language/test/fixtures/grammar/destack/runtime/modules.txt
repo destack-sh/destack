@@ -12,6 +12,12 @@ module {
     };
 }
 
+@noHeap
+// <- entity.name.function.decorator.ds
+module {
+    const product = "editor";
+}
+
 import.meta.role satisfies "server";
 //          ^^^^ variable.other.member.ds
 //               ^^^^^^^^^ keyword.operator.type.binary.ds
@@ -22,3 +28,9 @@ import data from "./schema.json" with { type: "json" };
 
 export * as runtimeConfig from "./config.ds";
 // <- keyword.declaration.import.ds
+
+global {
+// <- keyword.declaration.type.ds
+    export { Add, Subtract } from "destack:ops";
+//  ^^^^^^ keyword.declaration.import.ds
+}
