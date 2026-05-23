@@ -104,6 +104,33 @@ pub enum CheckError {
         key: String,
     },
 
+    /// Type cannot be explicitly cast to the requested target type.
+    #[diagnostic(code = "EC206", message = "type cannot be cast")]
+    InvalidCast {
+        /// Report the cast expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Intrinsic marker type appears outside a compiler-recognized language item.
+    #[diagnostic(code = "EC207", message = "intrinsic type is not valid here")]
+    InvalidIntrinsicType {
+        /// Report the intrinsic type expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Const assertion marker appears outside an `as const` expression.
+    #[diagnostic(code = "EC208", message = "const type is not valid here")]
+    InvalidConstType {
+        /// Report the const type expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: selection
     // -------------------------------------------------------------------------
@@ -165,6 +192,17 @@ pub enum CheckError {
         module: ModuleId,
         /// The selected member key.
         key: String,
+    },
+
+    /// No operator overload matches the supplied operands.
+    #[diagnostic(code = "EC306", message = "no matching operator '{operator}'")]
+    NoMatchingOperator {
+        /// Report the operator expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The selected operator.
+        operator: String,
     },
 
     // -------------------------------------------------------------------------
