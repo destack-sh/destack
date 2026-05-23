@@ -1,5 +1,6 @@
 mod binding;
 mod capture;
+mod coercion;
 mod dependency;
 mod export;
 mod extension;
@@ -17,6 +18,7 @@ mod r#type;
 
 pub use binding::*;
 pub use capture::*;
+pub use coercion::*;
 pub use dependency::*;
 pub use export::*;
 pub use extension::*;

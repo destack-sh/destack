@@ -732,6 +732,81 @@ define_language_items! {
         type {
             /// Ownership kind for qualified storage.
             Ownership => (Type, "memory/type", "Ownership"),
+
+            /// Extract the payload under the outermost memory form.
+            PayloadOf => (Newtype, "memory/type", "PayloadOf"),
+
+            /// Extract the unqualified base type.
+            BaseOf => (Newtype, "memory/type", "BaseOf"),
+
+            /// Extract the outer ownership form.
+            OwnershipOf => (Newtype, "memory/type", "OwnershipOf"),
+
+            /// Extract the ownership form or a default.
+            OwnershipOr => (Newtype, "memory/type", "OwnershipOr"),
+
+            /// Extract the placement.
+            PlaceOf => (Newtype, "memory/type", "PlaceOf"),
+
+            /// Extract the placement or a default.
+            PlaceOr => (Newtype, "memory/type", "PlaceOr"),
+
+            /// Resolve ambient placement inside a concrete space.
+            PlaceIn => (Newtype, "memory/type", "PlaceIn"),
+
+            /// Extract the concrete memory space.
+            SpaceOf => (Newtype, "memory/type", "SpaceOf"),
+
+            /// Extract the concrete memory space or a default.
+            SpaceOr => (Newtype, "memory/type", "SpaceOr"),
+
+            /// Extract the borrow lifetime.
+            LifetimeOf => (Newtype, "memory/type", "LifetimeOf"),
+
+            /// Extract the borrow lifetime or a default.
+            LifetimeOr => (Newtype, "memory/type", "LifetimeOr"),
+
+            /// Extract the access mode.
+            AccessOf => (Newtype, "memory/type", "AccessOf"),
+
+            /// Extract the access mode or a default.
+            AccessOr => (Newtype, "memory/type", "AccessOr"),
+
+            /// Return whether a type is managed.
+            IsManaged => (Newtype, "memory/type", "IsManaged"),
+
+            /// Return whether a type is owned.
+            IsOwned => (Newtype, "memory/type", "IsOwned"),
+
+            /// Return whether a type is borrowed.
+            IsBorrowed => (Newtype, "memory/type", "IsBorrowed"),
+
+            /// Return whether a type is raw.
+            IsRaw => (Newtype, "memory/type", "IsRaw"),
+
+            /// Return whether a type is in shared space.
+            IsShared => (Newtype, "memory/type", "IsShared"),
+
+            /// Return whether a type resolves to shared space.
+            IsSharedIn => (Newtype, "memory/type", "IsSharedIn"),
+
+            /// Replace the unqualified base type.
+            WithBase => (Newtype, "memory/type", "WithBase"),
+
+            /// Add an ownership form.
+            WithOwnership => (Newtype, "memory/type", "WithOwnership"),
+
+            /// Place a type.
+            WithPlace => (Newtype, "memory/type", "WithPlace"),
+
+            /// Place a type in a concrete space.
+            WithSpace => (Newtype, "memory/type", "WithSpace"),
+
+            /// Reborrow with a lifetime.
+            WithLifetime => (Newtype, "memory/type", "WithLifetime"),
+
+            /// Reborrow with an access mode.
+            WithAccess => (Newtype, "memory/type", "WithAccess"),
         }
 
         /// `destack:memory/unique`.
