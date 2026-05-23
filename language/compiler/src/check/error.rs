@@ -205,6 +205,18 @@ pub enum CheckError {
         operator: String,
     },
 
+    /// Strict equality operands do not have identity-compatible types.
+    #[diagnostic(
+        code = "EC307",
+        message = "strict equality requires identity-compatible operands"
+    )]
+    InvalidStrictEquality {
+        /// Report the strict equality expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------
