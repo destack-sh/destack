@@ -10,7 +10,7 @@ use super::queue::Progress;
 
 impl CheckComponentState<'_> {
     /// Solve one type variable and return the queue progress.
-    pub(super) fn solve_type_variable(
+    pub(in crate::check) fn solve_type_variable(
         &mut self,
         variable: VariableId,
         term: TypeTerm,
@@ -24,7 +24,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Solve one static variable and return the queue progress.
-    pub(super) fn solve_static_variable(
+    pub(in crate::check) fn solve_static_variable(
         &mut self,
         variable: VariableId,
         term: StaticTerm,
@@ -38,7 +38,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Push one solved type variable for a reduced term.
-    pub(super) fn push_solved_type_variable(
+    pub(in crate::check) fn push_solved_type_variable(
         &mut self,
         module: ModuleId,
         term: TypeTerm,
@@ -53,7 +53,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Push one solved static variable for a reduced DIR term.
-    pub(super) fn push_solved_static_value_variable(
+    pub(in crate::check) fn push_solved_static_value_variable(
         &mut self,
         module: ModuleId,
         term: dir::StaticTerm,
@@ -62,7 +62,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Push one solved static variable for a reduced check term.
-    pub(super) fn push_solved_static_term_variable(
+    pub(in crate::check) fn push_solved_static_term_variable(
         &mut self,
         module: ModuleId,
         term: StaticTerm,
@@ -77,7 +77,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Solve variables whose lower bounds determine a concrete solution.
-    pub(super) fn solve_bound_variables(&mut self) -> CompilerResult<Progress> {
+    pub(in crate::check) fn solve_bound_variables(&mut self) -> CompilerResult<Progress> {
         let variables = self
             .modules
             .values()
@@ -228,15 +228,14 @@ impl CheckComponentState<'_> {
     }
 
     /// Return one locally concrete static expression term.
-    pub(super) fn static_expression_term(
+    pub(in crate::check) fn static_expression_term(
         &self,
         expression: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
         let expression_node = self
             .module(expression.module_id)?
             .input
-            .parsed
-            .tree
+            .view()
             .get(expression.local_id);
         let term = match expression_node {
             dir::Expression::ScalarLiteral(value) => Some(dir::StaticTerm::ScalarLiteral {
