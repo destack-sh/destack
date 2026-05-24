@@ -1,26 +1,24 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_source::{
     CODE_FILE_TYPES, FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri,
 };
-use destack_workspace::{ConditionSet, Dependency, ExportKind, Package, PackageExport};
 
 use crate::import::state::ImportState;
 use crate::{Compiler, CompilerResult, DiagnosticAnchor, ImportError};
 
-use super::specifier::{DependencySpecifier, PackageSpecifier};
+use super::specifier::{ImportSpecifier, PackageSpecifier};
 
 impl Compiler {
-    /// Import one dependency edge.
-    pub(in crate::import) fn collect_dependency(
+    /// Import one module edge.
+    pub(in crate::import) fn collect_module(
         &self,
         state: &mut ImportState<'_>,
         expression_id: dir::LocalNodeId<dir::Expression>,
         specifier: dir::StringId,
         attributes: Option<&dir::ImportAttributeClause>,
-        relation: dir::DependencyRelation,
+        relation: dir::ModuleRelation,
     ) -> CompilerResult<()> {
         let anchor = state.anchor_node(expression_id.id)?;
         let specifier_text = state.strings().get(specifier).to_string();
@@ -29,10 +27,10 @@ impl Compiler {
         let loader = state.extract_module_loader(&anchor, attributes);
 
         // resolve target module
-        let target = self.resolve_dependency_module(state, &anchor, &specifier_text, loader)?;
+        let target = self.resolve_module(state, &anchor, &specifier_text, loader)?;
 
-        // append dependency edge
-        let dependency = dir::DependencyEdge {
+        // append module edge
+        let edge = dir::ModuleEdge {
             source: expression_id.into_global_any(state.module.id),
             specifier,
             relation,
@@ -40,20 +38,20 @@ impl Compiler {
             target,
         };
 
-        state.push_dependency(dependency);
+        state.push_module(edge);
 
         Ok(())
     }
 
-    /// Resolve the target module for one dependency specifier.
-    fn resolve_dependency_module(
+    /// Resolve the target module for one import specifier.
+    fn resolve_module(
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
         specifier: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        let specifier_parts = DependencySpecifier::parse(specifier);
+        let specifier_parts = ImportSpecifier::parse(specifier);
 
         // resolve builtin module edges in builtin package space
         if self
@@ -61,39 +59,39 @@ impl Compiler {
             .builtin_package()
             .contains_uri(state.module.uri.as_ref())
         {
-            self.resolve_builtin_dependency_module(state, anchor, specifier, specifier_parts)
+            self.resolve_builtin_module(state, anchor, specifier, specifier_parts)
         }
         // resolve user module edges through package space
         else {
-            self.resolve_user_dependency_module(state, anchor, specifier, specifier_parts, loader)
+            self.resolve_user_module(state, anchor, specifier, specifier_parts, loader)
         }
     }
 
-    /// Resolve one builtin package dependency module.
-    fn resolve_builtin_dependency_module(
+    /// Resolve one builtin package module.
+    fn resolve_builtin_module(
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
         specifier: &str,
-        specifier_parts: DependencySpecifier,
+        specifier_parts: ImportSpecifier,
     ) -> CompilerResult<Option<ModuleId>> {
         let builtin = self.repository.builtin_package();
 
         // resolve absolute builtin specifier
         if let Some(uri) = builtin.module_uri_for_specifier(specifier) {
-            return self.resolve_dependency_uri(state, anchor, specifier, &uri);
+            return self.resolve_module_uri(state, anchor, specifier, &uri);
         }
 
         match specifier_parts {
             // resolve relative builtin specifier
-            DependencySpecifier::Relative(specifier_parts) => {
+            ImportSpecifier::Relative(specifier_parts) => {
                 let specifier = specifier_parts.path();
                 let uri =
                     builtin.module_uri_for_relative_specifier(state.module.uri.as_ref(), specifier);
 
                 // relative builtin module exists
                 if let Some(uri) = uri {
-                    self.resolve_dependency_uri(state, anchor, specifier, &uri)
+                    self.resolve_module_uri(state, anchor, specifier, &uri)
                 }
                 // relative builtin module escapes the package
                 else {
@@ -118,49 +116,40 @@ impl Compiler {
         }
     }
 
-    /// Resolve one user package dependency module.
-    fn resolve_user_dependency_module(
+    /// Resolve one user package module.
+    fn resolve_user_module(
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
         specifier: &str,
-        specifier_parts: DependencySpecifier,
+        specifier_parts: ImportSpecifier,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
         let builtin = self.repository.builtin_package();
 
         // resolve internal package specifier
         if let Some(uri) = builtin.module_uri_for_specifier(specifier) {
-            self.resolve_dependency_uri(state, anchor, specifier, &uri)
+            self.resolve_module_uri(state, anchor, specifier, &uri)
         }
         // resolve source graph specifier
         else {
             match specifier_parts {
                 // same package module
-                DependencySpecifier::Relative(specifier_parts) => self
-                    .resolve_relative_dependency_module(
-                        state,
-                        anchor,
-                        &specifier_parts,
-                        specifier,
-                        loader,
-                    ),
+                ImportSpecifier::Relative(specifier_parts) => {
+                    self.resolve_relative_module(state, anchor, &specifier_parts, specifier, loader)
+                }
 
-                // dependency package export
-                DependencySpecifier::Package(specifier_parts) => self.resolve_dependency_export(
-                    state,
-                    anchor,
-                    &specifier_parts,
-                    specifier,
-                    loader,
-                ),
+                // package export
+                ImportSpecifier::Package(specifier_parts) => {
+                    self.resolve_package_export(state, anchor, &specifier_parts, specifier, loader)
+                }
 
                 // unsupported user module specifier
-                DependencySpecifier::Absolute
-                | DependencySpecifier::Private
-                | DependencySpecifier::Internal
-                | DependencySpecifier::Scheme
-                | DependencySpecifier::Invalid => {
+                ImportSpecifier::Absolute
+                | ImportSpecifier::Private
+                | ImportSpecifier::Internal
+                | ImportSpecifier::Scheme
+                | ImportSpecifier::Invalid => {
                     state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
                         anchor: anchor.clone(),
                         target: specifier.to_string(),
@@ -173,7 +162,7 @@ impl Compiler {
     }
 
     /// Resolve one dependency package export.
-    fn resolve_dependency_export(
+    fn resolve_package_export(
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
@@ -181,12 +170,18 @@ impl Compiler {
         target: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        // collect active declarations
-        let package = self.package(state.revision, state.module.package_id)?;
-        let dependencies = package.dependencies_for_conditions(state.conditions);
-
         // require explicit dependency declarations
-        let Some(dependency) = dependencies.get(&specifier.package) else {
+        let Some(current_package) = state.index.package(state.module.package_id) else {
+            return Err(ImportError::Internal {
+                anchor: anchor.clone(),
+                message: format!(
+                    "package {:?} is missing from dependency index",
+                    state.module.package_id
+                ),
+            }
+            .into());
+        };
+        let Some(dependency) = current_package.dependency(&specifier.package) else {
             state.report_diagnostic(ImportError::MissingPackageDependency {
                 anchor: anchor.clone(),
                 package: specifier.package.clone(),
@@ -195,15 +190,8 @@ impl Compiler {
             return Ok(None);
         };
 
-        // resolve target package
-        let Some(package) = self.resolve_dependency_package(
-            state,
-            anchor,
-            &package,
-            &specifier.package,
-            dependency,
-        )?
-        else {
+        // require loaded dependency package
+        let Some(package_id) = dependency else {
             state.report_diagnostic(ImportError::UnloadedPackageDependency {
                 anchor: anchor.clone(),
                 package: specifier.package.clone(),
@@ -211,11 +199,16 @@ impl Compiler {
 
             return Ok(None);
         };
+        let Some(package) = state.index.package(package_id) else {
+            return Err(ImportError::Internal {
+                anchor: anchor.clone(),
+                message: format!("package {package_id:?} is missing from dependency index"),
+            }
+            .into());
+        };
 
         // select matching export
-        let Some((export, export_path)) =
-            self.matching_package_export(package.as_ref(), &specifier.export, state.conditions)
-        else {
+        let Some(export) = package.exports.get(&specifier.export) else {
             state.report_diagnostic(ImportError::MissingPackageExport {
                 anchor: anchor.clone(),
                 package: specifier.package.clone(),
@@ -226,7 +219,7 @@ impl Compiler {
         };
 
         // require source modules
-        if export.kind != ExportKind::Module {
+        if !export.target.is_module {
             state.report_diagnostic(ImportError::NonModulePackageExport {
                 anchor: anchor.clone(),
                 package: specifier.package.clone(),
@@ -237,7 +230,7 @@ impl Compiler {
         }
 
         // resolve package relative export path
-        let Some(package_root) = package.path.as_deref() else {
+        let Some(package_root) = package.root.as_deref() else {
             return Err(ImportError::Internal {
                 anchor: anchor.clone(),
                 message: format!(
@@ -247,66 +240,13 @@ impl Compiler {
             }
             .into());
         };
-        let path = package_root.join(export_path.as_str());
+        let path = package_root.join(export.path.as_ref());
 
-        self.resolve_export_package_module(state, anchor, package.id, &path, target, loader)
+        self.resolve_export_package_module(state, anchor, package_id, &path, target, loader)
     }
 
-    /// Return the matching export and resolved package path for one export key.
-    fn matching_package_export<'a>(
-        &self,
-        package: &'a Package,
-        key: &str,
-        conditions: &ConditionSet,
-    ) -> Option<(&'a PackageExport, String)> {
-        // exact export match
-        if let Some(export) = package
-            .export(key)
-            .filter(|export| export.matches(conditions))
-        {
-            return Some((export, export.path.clone()));
-        }
-
-        self.matching_package_pattern_export(package, key, conditions)
-    }
-
-    /// Return the most specific matching pattern export for one export key.
-    fn matching_package_pattern_export<'a>(
-        &self,
-        package: &'a Package,
-        key: &str,
-        conditions: &ConditionSet,
-    ) -> Option<(&'a PackageExport, String)> {
-        let mut best = None;
-
-        // scan pattern export matches
-        for (pattern, export) in &package.exports {
-            let Some((replacement, prefix_len, suffix_len)) =
-                package_export_replacement(pattern, key)
-            else {
-                continue;
-            };
-            if !export.matches(conditions) {
-                continue;
-            }
-
-            let score = (prefix_len, suffix_len, pattern.len());
-            let path = export.path.replace('*', replacement);
-
-            // keep the most specific pattern
-            if best
-                .as_ref()
-                .is_none_or(|(best_score, _, _)| score > *best_score)
-            {
-                best = Some((score, export, path));
-            }
-        }
-
-        best.map(|(_, export, path)| (export, path))
-    }
-
-    /// Resolve one same-package relative dependency.
-    fn resolve_relative_dependency_module(
+    /// Resolve one same-package relative module.
+    fn resolve_relative_module(
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
@@ -325,26 +265,6 @@ impl Compiler {
         }
 
         self.resolve_package_module(state, anchor, specifier_parts.path(), specifier, loader)
-    }
-
-    /// Resolve one declared dependency package from its configured source.
-    fn resolve_dependency_package(
-        &self,
-        state: &ImportState<'_>,
-        anchor: &DiagnosticAnchor,
-        current_package: &Package,
-        package_name: &str,
-        dependency: &Dependency,
-    ) -> CompilerResult<Option<Arc<Package>>> {
-        let package = self
-            .repository
-            .dependency_package(state.revision, current_package, package_name, dependency)
-            .map_err(|error| ImportError::Internal {
-                anchor: anchor.clone(),
-                message: format!("failed to read dependency package '{package_name}': {error}"),
-            })?;
-
-        Ok(package)
     }
 
     /// Resolve one exported package module path.
@@ -422,11 +342,11 @@ impl Compiler {
             .module(state.revision, module_id)
             .map_err(|error| ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("failed to read dependency module {module_id:?}: {error}"),
+                message: format!("failed to read imported module {module_id:?}: {error}"),
             })?
             .ok_or_else(|| ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("missing dependency module {module_id:?}"),
+                message: format!("missing imported module {module_id:?}"),
             })?;
 
         // reject direct imports of conditional module files
@@ -455,8 +375,8 @@ impl Compiler {
         }
     }
 
-    /// Resolve one canonical dependency URI into a loaded module.
-    fn resolve_dependency_uri(
+    /// Resolve one canonical URI into a loaded module.
+    fn resolve_module_uri(
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
@@ -475,7 +395,7 @@ impl Compiler {
         Ok(Some(module_id))
     }
 
-    /// Resolve one same-package dependency module.
+    /// Resolve one same-package module.
     fn resolve_package_module(
         &self,
         state: &mut ImportState<'_>,
@@ -537,11 +457,11 @@ impl Compiler {
             .module(state.revision, module_id)
             .map_err(|error| ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("failed to read dependency module {module_id:?}: {error}"),
+                message: format!("failed to read imported module {module_id:?}: {error}"),
             })?
             .ok_or_else(|| ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("missing dependency module {module_id:?}"),
+                message: format!("missing imported module {module_id:?}"),
             })?;
 
         // reject direct imports of conditional module files
@@ -609,7 +529,7 @@ impl Compiler {
             .as_deref()
             .ok_or_else(|| ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("module {:?} has no dependency base path", state.module.id),
+                message: format!("module {:?} has no import base path", state.module.id),
             })?;
 
         // resolve against the current module path
@@ -618,7 +538,7 @@ impl Compiler {
         } else {
             let parent = current_path.parent().ok_or_else(|| ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("module {:?} has no dependency parent path", state.module.id),
+                message: format!("module {:?} has no import parent path", state.module.id),
             })?;
 
             parent.join(specifier_path)
@@ -675,20 +595,4 @@ impl Compiler {
                 .collect()
         }
     }
-}
-
-/// Return the replacement for one package export pattern.
-fn package_export_replacement<'a>(pattern: &str, key: &'a str) -> Option<(&'a str, usize, usize)> {
-    let (prefix, suffix) = pattern.split_once('*')?;
-    if !key.starts_with(prefix) || !key.ends_with(suffix) {
-        return None;
-    }
-
-    let start = prefix.len();
-    let end = key.len().checked_sub(suffix.len())?;
-    if start > end {
-        return None;
-    }
-
-    Some((&key[start..end], prefix.len(), suffix.len()))
 }

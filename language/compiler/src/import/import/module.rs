@@ -4,8 +4,8 @@ use crate::import::state::ImportState;
 use crate::{Compiler, CompilerResult};
 
 impl Compiler {
-    /// Collect dependency edges from one DIR view.
-    pub(in crate::import) fn collect_dependencies(
+    /// Collect module edges from one DIR view.
+    pub(in crate::import) fn collect_modules(
         &self,
         state: &mut ImportState<'_>,
         roots: &[dir::LocalNodeId<dir::Expression>],
@@ -13,7 +13,7 @@ impl Compiler {
         // scan active expressions
         for root in roots {
             let expression = state.view.get(*root);
-            self.collect_expression_dependencies(state, *root, expression)?;
+            self.collect_expression_modules(state, *root, expression)?;
         }
 
         Ok(())

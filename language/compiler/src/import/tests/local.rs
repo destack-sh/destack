@@ -19,12 +19,12 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Foo } from "./dep.ds";
-/// @dependency.edge relation=import specifier=./dep.ds module=dep.ds
+/// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -48,12 +48,12 @@ let value = 1;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import "./dep.ds";
-/// @dependency.edge relation=import specifier=./dep.ds module=dep.ds
+/// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -77,12 +77,12 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Foo } from "./dep";
-/// @dependency.edge relation=import specifier=./dep module=dep.ds
+/// @module.edge relation=import specifier=./dep module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -106,12 +106,12 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "src/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Foo } from "../dep.ds";
-/// @dependency.edge relation=import specifier=../dep.ds module=dep.ds
+/// @module.edge relation=import specifier=../dep.ds module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -135,18 +135,18 @@ export type Foo = string;
 
     compiler.assert_dir_imported_many(
         &["main.ds", "dep.ds"],
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 === main.ds ===
 import { Foo } from "./dep.ds";
-/// @dependency.edge relation=import specifier=./dep.ds module=dep.ds
+/// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 
 === dep.ds ===
 export type Foo = string;
 
-/// @dependency.summary edges=0
+/// @module.summary edges=0
 "#,
     );
 }

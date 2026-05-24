@@ -19,12 +19,12 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 export { Foo as Bar } from "./dep.ds";
-/// @dependency.edge relation=re_export specifier=./dep.ds module=dep.ds
+/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -50,12 +50,12 @@ export { schema } from "./schema" with { type: "json" };
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 export { schema } from "./schema" with { type: "json" };
-/// @dependency.edge relation=re_export specifier=./schema loader=json module=schema.json
+/// @module.edge relation=re_export specifier=./schema loader=json module=schema.json
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
