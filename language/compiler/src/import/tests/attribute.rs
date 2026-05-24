@@ -21,12 +21,12 @@ import data from "./data.json" with { type: "json" };
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import data from "./data.json" with { type: "json" };
-/// @dependency.edge relation=import specifier=./data.json loader=json module=data.json
+/// @module.edge relation=import specifier=./data.json loader=json module=data.json
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -52,12 +52,12 @@ import data from "./data" with { type: "json" };
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import data from "./data" with { type: "json" };
-/// @dependency.edge relation=import specifier=./data loader=json module=data.json
+/// @module.edge relation=import specifier=./data loader=json module=data.json
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }

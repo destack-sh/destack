@@ -1,7 +1,7 @@
 use destack_source::ModuleSpecifier;
 
-/// Parsed dependency module specifier.
-pub(super) enum DependencySpecifier {
+/// Parsed import module specifier.
+pub(super) enum ImportSpecifier {
     /// Relative module path.
     Relative(ModuleSpecifier),
     /// Absolute module path.
@@ -18,8 +18,8 @@ pub(super) enum DependencySpecifier {
     Package(PackageSpecifier),
 }
 
-impl DependencySpecifier {
-    /// Parse one dependency module specifier.
+impl ImportSpecifier {
+    /// Parse one import module specifier.
     pub(super) fn parse(specifier: &str) -> Self {
         let path = ModuleSpecifier::parse(specifier);
         let specifier_path = path.path().to_string();
@@ -62,7 +62,7 @@ impl DependencySpecifier {
 
 /// Package export specifier.
 pub(super) struct PackageSpecifier {
-    /// Dependency package name.
+    /// Package name.
     pub(super) package: String,
     /// Export key inside the package.
     pub(super) export: String,

@@ -56,12 +56,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -122,12 +122,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui";
-/// @dependency.edge relation=import specifier=@acme/ui module=packages/@acme/ui/index.ds
+/// @module.edge relation=import specifier=@acme/ui module=packages/@acme/ui/index.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -188,12 +188,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/src/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/src/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -254,12 +254,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/forms/button";
-/// @dependency.edge relation=import specifier=@acme/ui/forms/button module=packages/@acme/ui/src/forms/button.ds
+/// @module.edge relation=import specifier=@acme/ui/forms/button module=packages/@acme/ui/src/forms/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -330,12 +330,12 @@ export type Button = never;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -405,12 +405,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -449,6 +449,11 @@ fn test_import_resolves_export_enabled_by_condition() {
             r#"
 {
     "name": "@acme/ui",
+    "conditions": {
+        "modes": {
+            "preview": {}
+        }
+    },
     "exports": {
         "./button": {
             "kind": "module",
@@ -475,12 +480,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -542,12 +547,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -609,12 +614,12 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::dependencies().with_summaries(),
+        DirRows::modules().with_summaries(),
         r#"
 import { Button } from "@acme/ui/button";
-/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 "#,
     );
 }
@@ -759,6 +764,11 @@ fn test_import_reports_export_disabled_by_condition() {
             r#"
 {
     "name": "@acme/ui",
+    "conditions": {
+        "modes": {
+            "preview": {}
+        }
+    },
     "exports": {
         "./button": {
             "kind": "module",
