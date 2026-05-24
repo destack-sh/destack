@@ -25,6 +25,8 @@ pub enum ArtifactKey {
 
     /// Explicit global environment for one profile.
     GlobalEnvironment { profile: ProfileId },
+    /// Active dependency index for one profile.
+    DependencyIndex { profile: ProfileId },
 
     /// Bound DIR.
     DirBound {
@@ -125,6 +127,7 @@ impl ArtifactKey {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
+            | Self::DependencyIndex { .. }
             | Self::DirBound { .. }
             | Self::DirImported { .. }
             | Self::DirExpanded { .. }
@@ -159,6 +162,11 @@ impl ArtifactKey {
     /// Build one global environment artifact key.
     pub fn global_environment(profile: ProfileId) -> Self {
         Self::GlobalEnvironment { profile }
+    }
+
+    /// Build one dependency index artifact key.
+    pub fn dependency_index(profile: ProfileId) -> Self {
+        Self::DependencyIndex { profile }
     }
 
     /// Build one DIR artifact key.
@@ -290,6 +298,7 @@ impl ArtifactKey {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "global_environment",
+            Self::DependencyIndex { .. } => "dependency_index",
             Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir_bound",
@@ -335,6 +344,7 @@ impl ArtifactKey {
             | Self::ModuleOutput { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
+            | Self::DependencyIndex { .. }
             | Self::WorkspaceQueryIndex { .. }
             | Self::PackageOutput { .. }
             | Self::PackageLinted { .. }
@@ -348,6 +358,7 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
+            | Self::DependencyIndex { profile }
             | Self::DirBound { profile, .. }
             | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }

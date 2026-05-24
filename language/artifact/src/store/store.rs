@@ -7,10 +7,10 @@ use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
 use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Data,
-    DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
-    MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
-    PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    DependencyIndex, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -31,6 +31,8 @@ pub struct ArtifactStore {
 
     /// Global environment by profile.
     global_environment: ArtifactMap<GlobalEnvironment>,
+    /// Dependency indexes by profile.
+    dependency_index: ArtifactMap<DependencyIndex>,
 
     /// Bound DIR artifacts by module and profile.
     dir_bound: ArtifactMap<DirBound>,
@@ -160,6 +162,7 @@ impl ArtifactStore {
     pub fn has(&self, version: &ArtifactVersion) -> bool {
         match &version.key {
             ArtifactKey::GlobalEnvironment { .. } => self.global_environment.contains_key(version),
+            ArtifactKey::DependencyIndex { .. } => self.dependency_index.contains_key(version),
             ArtifactKey::DirParsed { .. } => self.dir_parsed.contains_key(version),
             ArtifactKey::Data { .. } => self.data.contains_key(version),
             ArtifactKey::DirBound { .. } => self.dir_bound.contains_key(version),
@@ -221,6 +224,13 @@ impl ArtifactStore {
                 payload,
                 matches!(&version.key, ArtifactKey::GlobalEnvironment { .. }),
                 "GlobalEnvironment",
+            ),
+            ArtifactPayload::DependencyIndex(payload) => Self::insert_payload(
+                &self.dependency_index,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::DependencyIndex { .. }),
+                "DependencyIndex",
             ),
             ArtifactPayload::DirParsed(payload) => Self::insert_payload(
                 &self.dir_parsed,
@@ -397,6 +407,13 @@ impl ArtifactStore {
     /// Get one global environment artifact.
     pub fn global_environment(&self, version: &ArtifactVersion) -> Option<Arc<GlobalEnvironment>> {
         self.global_environment
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one dependency index artifact.
+    pub fn dependency_index(&self, version: &ArtifactVersion) -> Option<Arc<DependencyIndex>> {
+        self.dependency_index
             .get(version)
             .map(|entry| entry.value().clone())
     }

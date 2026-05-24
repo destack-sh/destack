@@ -1,3 +1,4 @@
+mod dependency;
 mod error;
 mod import;
 mod language;

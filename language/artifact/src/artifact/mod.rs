@@ -1,6 +1,7 @@
 mod binary;
 mod css;
 mod data;
+mod dependency;
 mod dir;
 mod emit;
 mod environment;
@@ -17,6 +18,7 @@ mod script;
 pub use binary::*;
 pub use css::*;
 pub use data::*;
+pub use dependency::*;
 pub use dir::*;
 pub use emit::*;
 pub use environment::*;

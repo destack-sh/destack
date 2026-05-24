@@ -5,10 +5,11 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactSidecar,
-    ArtifactStore, ArtifactVersion, Data, DirBound, DirCheckedComponent, DirCheckedModule,
-    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactStore, ArtifactVersion, Data, DependencyIndex, DirBound, DirCheckedComponent,
+    DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
+    ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 use destack_source::{ComponentId, DiagnosticCollection, ModuleId, PackageId, ProfileId, TargetId};
 
@@ -81,6 +82,17 @@ impl<'a> ArtifactReader<'a> {
         self.read_required(
             ArtifactKey::global_environment(profile),
             ArtifactStore::global_environment,
+        )
+    }
+
+    /// Require and read one dependency index artifact.
+    pub fn dependency_index(
+        &self,
+        profile: ProfileId,
+    ) -> Result<Arc<DependencyIndex>, ProviderError> {
+        self.read_required(
+            ArtifactKey::dependency_index(profile),
+            ArtifactStore::dependency_index,
         )
     }
 

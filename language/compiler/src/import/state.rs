@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, DirImported};
+use destack_artifact::{DependencyIndex, DiagnosticAnchor, DirImported};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::Loader;
-use destack_workspace::{ConditionSet, Module, Revision};
+use destack_workspace::{Module, Revision};
 
 use crate::{ImportError, ImportResult};
 
@@ -14,14 +14,14 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) revision: Revision,
     /// The current module.
     pub(in crate::import) module: &'a Module,
-    /// The active source graph conditions.
-    pub(in crate::import) conditions: &'a ConditionSet,
+    /// The active package dependency index.
+    pub(in crate::import) index: &'a DependencyIndex,
     /// The shared string pool.
     pub(in crate::import) strings: &'a StringPool,
     /// The DIR view being imported.
     pub(in crate::import) view: dir::View<'a>,
-    /// The dependency table being built.
-    pub(in crate::import) dependencies: dir::DependencySegment,
+    /// The module table being built.
+    pub(in crate::import) modules: dir::ModuleSegment,
     /// The recoverable diagnostics produced while importing.
     pub(in crate::import) diagnostics: Vec<ImportError>,
 }
@@ -31,17 +31,17 @@ impl<'a> ImportState<'a> {
     pub(crate) fn new(
         revision: Revision,
         module: &'a Module,
-        conditions: &'a ConditionSet,
+        index: &'a DependencyIndex,
         strings: &'a StringPool,
         view: dir::View<'a>,
     ) -> Self {
         Self {
             revision,
             module,
-            conditions,
+            index,
             strings,
             view,
-            dependencies: dir::DependencySegment::new(module.id),
+            modules: dir::ModuleSegment::new(module.id),
             diagnostics: Vec::new(),
         }
     }
@@ -49,15 +49,15 @@ impl<'a> ImportState<'a> {
     /// Finish imported DIR.
     pub(in crate::import) fn finish(self) -> (DirImported, Vec<ImportError>) {
         let imported = DirImported {
-            dependencies: Arc::new(self.dependencies),
+            modules: Arc::new(self.modules),
         };
 
         (imported, self.diagnostics)
     }
 
-    /// Push one dependency edge.
-    pub(in crate::import) fn push_dependency(&mut self, dependency: dir::DependencyEdge) {
-        self.dependencies.push(dependency);
+    /// Push one module import edge.
+    pub(in crate::import) fn push_module(&mut self, edge: dir::ModuleEdge) {
+        self.modules.push(edge);
     }
 
     /// Report one recoverable import diagnostic.

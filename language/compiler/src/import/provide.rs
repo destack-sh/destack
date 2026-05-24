@@ -23,6 +23,20 @@ impl Compiler {
         Ok(ArtifactPayload::GlobalEnvironment(environment))
     }
 
+    /// Build the active dependency index for one profile.
+    pub(crate) fn provide_dependency_index(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        let profile_id = profile;
+        let profile = self.profile(context.revision(), profile_id)?;
+        let index =
+            self.build_dependency_index(context.revision(), profile_id, profile.conditions())?;
+
+        Ok(ArtifactPayload::DependencyIndex(index))
+    }
+
     /// Load the global modules selected by one profile.
     pub(crate) fn load_global_module_ids(
         &self,
@@ -60,19 +74,21 @@ impl Compiler {
         let bound = artifacts
             .dir_bound(module, profile)
             .map_err(CompilerError::from)?;
+        let dependency_index = artifacts
+            .dependency_index(profile)
+            .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
-        let profile = self.profile(context.revision(), profile)?;
 
-        // build local dependency table
+        // build local module table
         let view = dir::View::new(&parsed.tree);
         let mut state = ImportState::new(
             context.revision(),
             module.as_ref(),
-            profile.conditions(),
+            dependency_index.as_ref(),
             self.strings(),
             view,
         );
-        self.collect_dependencies(&mut state, &bound.roots)?;
+        self.collect_modules(&mut state, &bound.roots)?;
         let (imported, diagnostics) = state.finish();
         for diagnostic in diagnostics {
             self.emit_diagnostic(context, diagnostic)?;
