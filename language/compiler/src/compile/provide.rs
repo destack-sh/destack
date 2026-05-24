@@ -29,6 +29,9 @@ impl Compiler {
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.provide_global_environment(profile, context)
             }
+            ArtifactKey::DependencyIndex { profile } => {
+                self.provide_dependency_index(profile, context)
+            }
             ArtifactKey::DirBound { module, profile } => {
                 self.provide_dir_bound(module, profile, context)
             }

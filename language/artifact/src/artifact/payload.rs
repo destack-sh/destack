@@ -1,8 +1,8 @@
 use crate::{
-    Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirLowered,
-    MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex, PackageLinted,
-    PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    Data, DependencyIndex, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
+    MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
@@ -14,6 +14,8 @@ pub enum ArtifactPayload {
     Data(Data),
     /// Explicit global environment for one profile.
     GlobalEnvironment(GlobalEnvironment),
+    /// Active dependency index for one profile.
+    DependencyIndex(DependencyIndex),
     /// Bound DIR.
     DirBound(DirBound),
     /// Imported DIR.
@@ -72,6 +74,13 @@ impl From<GlobalEnvironment> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: GlobalEnvironment) -> Self {
         Self::GlobalEnvironment(payload)
+    }
+}
+
+impl From<DependencyIndex> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: DependencyIndex) -> Self {
+        Self::DependencyIndex(payload)
     }
 }
 
