@@ -56,36 +56,18 @@ impl<'a> RelationTable<'a> {
         RelationTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Return the latest parent relation for a symbol.
-    pub fn extends(&self, symbol: GlobalSymbolId) -> Option<Relation> {
-        for segment in self.segments.iter().rev() {
-            if let Some(relation) = segment.extends(symbol) {
-                return Some(relation);
-            }
-        }
-
-        None
+    /// Return visible parent relations for a symbol.
+    pub fn extends(&self, symbol: GlobalSymbolId) -> impl Iterator<Item = Relation> + '_ {
+        self.segments
+            .iter()
+            .flat_map(move |segment| segment.extends(symbol))
     }
 
     /// Iterate visible parent relations.
     pub fn extends_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, Relation)> + '_ {
         self.segments
             .iter()
-            .enumerate()
-            .flat_map(move |(segment_index, segment)| {
-                segment
-                    .extends
-                    .iter()
-                    .filter_map(move |(symbol, relation)| {
-                        let is_shadowed = self
-                            .segments
-                            .iter()
-                            .skip(segment_index + 1)
-                            .any(|segment| segment.extends.contains_key(symbol));
-
-                        (!is_shadowed).then_some((*symbol, *relation))
-                    })
-            })
+            .flat_map(|segment| segment.extends_entries())
     }
 
     /// Return visible implemented relations for a symbol.
@@ -113,8 +95,8 @@ impl<'a> RelationTable<'a> {
 pub struct RelationSegment {
     /// The module id of the relation segment.
     pub module_id: ModuleId,
-    /// Single inheritance parent relation by declaration symbol.
-    pub(crate) extends: IndexMap<GlobalSymbolId, Relation>,
+    /// Parent relations by declaration symbol.
+    pub(crate) extends: IndexMap<GlobalSymbolId, Vec<Relation>>,
     /// Implemented interface relations by declaration symbol.
     pub(crate) implements: IndexMap<GlobalSymbolId, Vec<Relation>>,
 }
@@ -129,26 +111,26 @@ impl RelationSegment {
         }
     }
 
-    /// Set the parent relation for a declaration symbol.
-    pub fn set_extends(&mut self, symbol: GlobalSymbolId, relation: Relation) {
+    /// Add one parent relation for a declaration symbol.
+    pub fn push_extends(&mut self, symbol: GlobalSymbolId, relation: Relation) {
         assert_eq!(
             relation.kind,
             RelationKind::Extends,
             "extends relation must have extends kind"
         );
-        self.extends.insert(symbol, relation);
+        self.extends.entry(symbol).or_default().push(relation);
     }
 
-    /// Return the parent relation for a declaration symbol.
-    pub fn extends(&self, symbol: GlobalSymbolId) -> Option<Relation> {
-        self.extends.get(&symbol).copied()
+    /// Return parent relations for a declaration symbol.
+    pub fn extends(&self, symbol: GlobalSymbolId) -> impl Iterator<Item = Relation> + '_ {
+        self.extends.get(&symbol).into_iter().flatten().copied()
     }
 
     /// Iterate parent relations in insertion order.
     pub fn extends_entries(&self) -> impl Iterator<Item = (GlobalSymbolId, Relation)> + '_ {
-        self.extends
-            .iter()
-            .map(|(symbol, relation)| (*symbol, *relation))
+        self.extends.iter().flat_map(|(symbol, relations)| {
+            relations.iter().map(move |relation| (*symbol, *relation))
+        })
     }
 
     /// Add one implemented relation for a declaration symbol.
