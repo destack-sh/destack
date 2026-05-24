@@ -2,15 +2,15 @@
 Operator-heavy instruction lines
 ==================================
 
-function @ops(v0: i64, v1: i64) -> i64 {
-block0(v0: i64, v1: i64):
-    v2: i64 = binary.add v0, v1
-    v3: i64 = unary.neg v2
-    v4: bool = compare.eq v2, v3
-    v5: i64 = select v4, v2, v3
-    v6: i64 = v5 << 1i64
-    v7: i64 = v6 >> 1i64
-    v8: i64 = v7 & v2 | v3 ^ v1
+function @ops(v0: int64, v1: int64) -> int64 {
+block0(v0: int64, v1: int64):
+    v2: int64 = binary.add v0, v1
+    v3: int64 = unary.neg v2
+    v4: boolean = compare.eq v2, v3
+    v5: int64 = select v4, v2, v3
+    v6: int64 = v5 << 1i64
+    v7: int64 = v6 >> 1i64
+    v8: int64 = v7 & v2 | v3 ^ v1
     return v8
 }
 
@@ -59,7 +59,7 @@ block0(v0: i64, v1: i64):
   (ssa_identifier)
   (ssa_identifier)
   (punctuation)
-  (identifier)
+  (type_keyword)
   (operator)
   (identifier)
   (ssa_identifier)

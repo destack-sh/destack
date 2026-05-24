@@ -2,12 +2,12 @@
 Control flow terminators and block args
 ==================================
 
-function @flow(v0: i64, v1: i64) -> i64 {
-block0(v0: i64, v1: i64):
+function @flow(v0: int64, v1: int64) -> int64 {
+block0(v0: int64, v1: int64):
     branch v0, block1(v1), block2(v0)
-block1(v2: i64):
+block1(v2: int64):
     check v2, block3, block4
-block2(v3: i64):
+block2(v3: int64):
     jump block4
 block3:
     yield v2

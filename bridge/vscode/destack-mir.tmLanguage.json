@@ -186,7 +186,7 @@
       "patterns": [
         {
           "name": "support.type.dsmir",
-          "match": "\\b(?:i\\d+|u\\d+|f\\d+|int\\d+|uint\\d+|float\\d+|boolean|bool|void|isize|usize|typeDescriptor|typeId|ref\\??|slice|tensorView|tensorRef\\??|tensor|vector|space|struct|newtype|any|fn|closure|addressSpace)\\b"
+          "match": "\\b(?:(?:int|uint)(?:8|16|32|64|128|256)|float(?:32|64)|boolean|void|isize|usize|typeDescriptor|typeId|ref|slice|tensorView|tensor|vector|space|struct|newtype|atomic|variant|any)\\b"
         }
       ]
     },
