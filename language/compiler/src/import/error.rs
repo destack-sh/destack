@@ -37,19 +37,29 @@ pub enum ImportError {
         candidates: String,
     },
 
-    /// Local module specifier resolves outside the importing package.
+    /// Relative module specifier resolves outside the importing package.
     #[diagnostic(
         code = "EI206",
-        message = "local module specifier '{target}' crosses package boundaries"
+        message = "relative module specifier '{target}' crosses package boundaries"
     )]
-    CrossPackageImport {
+    CrossPackageRelativeImport {
+        anchor: DiagnosticAnchor,
+        target: String,
+    },
+
+    /// Package export path resolves outside the exporting package.
+    #[diagnostic(
+        code = "EI207",
+        message = "package export path '{target}' crosses package boundaries"
+    )]
+    CrossPackageExport {
         anchor: DiagnosticAnchor,
         target: String,
     },
 
     /// Package specifier is not declared as a dependency.
     #[diagnostic(
-        code = "EI207",
+        code = "EI208",
         message = "package '{package}' is not declared as a dependency"
     )]
     MissingPackageDependency {
@@ -59,7 +69,7 @@ pub enum ImportError {
 
     /// Package export does not exist.
     #[diagnostic(
-        code = "EI208",
+        code = "EI209",
         message = "package '{package}' has no active export '{export}'"
     )]
     MissingPackageExport {
@@ -70,7 +80,7 @@ pub enum ImportError {
 
     /// Package export cannot be imported as a source module.
     #[diagnostic(
-        code = "EI209",
+        code = "EI210",
         message = "package '{package}' export '{export}' is not a module"
     )]
     NonModulePackageExport {
@@ -81,7 +91,7 @@ pub enum ImportError {
 
     /// Package dependency is declared but not loaded in the source graph.
     #[diagnostic(
-        code = "EI210",
+        code = "EI211",
         message = "package '{package}' dependency is not loaded"
     )]
     UnloadedPackageDependency {

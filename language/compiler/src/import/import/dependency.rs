@@ -444,9 +444,9 @@ impl Compiler {
         if module.package_id == package_id {
             Ok(Some(module_id))
         }
-        // reject cross package module
+        // reject cross package export path
         else {
-            state.report_diagnostic(ImportError::CrossPackageImport {
+            state.report_diagnostic(ImportError::CrossPackageExport {
                 anchor: anchor.clone(),
                 target: specifier.to_string(),
             });
@@ -559,7 +559,7 @@ impl Compiler {
         if module.package_id == state.module.package_id {
             Ok(Some(module_id))
         } else {
-            state.report_diagnostic(ImportError::CrossPackageImport {
+            state.report_diagnostic(ImportError::CrossPackageRelativeImport {
                 anchor: anchor.clone(),
                 target: specifier.to_string(),
             });

@@ -249,7 +249,7 @@ export let value = 1;
     compiler.assert_dir_imported_diagnostics(
         "packages/app/main.ds",
         r#"
-/// @diagnostic.error code=EI206 message="local module specifier '../lib/dep.ds' crosses package boundaries"
+/// @diagnostic.error code=EI206 message="relative module specifier '../lib/dep.ds' crosses package boundaries"
 /// @diagnostic.label line=2 column=1 source="import { value } from \"../lib/dep.ds\";"
 "#,
     );

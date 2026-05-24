@@ -633,7 +633,7 @@ import { value } from "pkg";
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI207 message="package 'pkg' is not declared as a dependency"
+/// @diagnostic.error code=EI208 message="package 'pkg' is not declared as a dependency"
 /// @diagnostic.label line=2 column=1 source="import { value } from \"pkg\";"
 "#,
     );
@@ -653,7 +653,7 @@ import { value } from "@scope/pkg";
     compiler.assert_dir_imported_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EI207 message="package '@scope/pkg' is not declared as a dependency"
+/// @diagnostic.error code=EI208 message="package '@scope/pkg' is not declared as a dependency"
 /// @diagnostic.label line=2 column=1 source="import { value } from \"@scope/pkg\";"
 "#,
     );
@@ -722,7 +722,7 @@ export type Button = string;
     compiler.assert_dir_imported_diagnostics(
         "packages/app/main.ds",
         r#"
-/// @diagnostic.error code=EI207 message="package '@acme/ui' is not declared as a dependency"
+/// @diagnostic.error code=EI208 message="package '@acme/ui' is not declared as a dependency"
 /// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
@@ -786,7 +786,7 @@ export type Button = string;
     compiler.assert_dir_imported_diagnostics(
         "packages/app/main.ds",
         r#"
-/// @diagnostic.error code=EI208 message="package '@acme/ui' has no active export './button'"
+/// @diagnostic.error code=EI209 message="package '@acme/ui' has no active export './button'"
 /// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
@@ -843,7 +843,78 @@ import { Button } from "@acme/ui/button";
     compiler.assert_dir_imported_diagnostics(
         "packages/app/main.ds",
         r#"
-/// @diagnostic.error code=EI209 message="package '@acme/ui' export './button' is not a module"
+/// @diagnostic.error code=EI210 message="package '@acme/ui' export './button' is not a module"
+/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
+"#,
+    );
+}
+
+#[test]
+fn test_import_reports_cross_package_export_path() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "workspace": {
+        "packages": ["packages/*", "packages/@*/*"]
+    }
+}
+"#,
+        )
+        .data(
+            "packages/app/destack.json",
+            r#"
+{
+    "name": "app",
+    "dependencies": {
+        "@acme/ui": {
+            "source": "workspace"
+        }
+    }
+}
+"#,
+        )
+        .data(
+            "packages/@acme/ui/destack.json",
+            r#"
+{
+    "name": "@acme/ui",
+    "exports": {
+        "./button": {
+            "kind": "module",
+            "path": "../other/button.ds"
+        }
+    }
+}
+"#,
+        )
+        .data(
+            "packages/@acme/other/destack.json",
+            r#"
+{
+    "name": "@acme/other"
+}
+"#,
+        )
+        .module(
+            "packages/app/main.ds",
+            r#"
+import { Button } from "@acme/ui/button";
+"#,
+        )
+        .module(
+            "packages/@acme/other/button.ds",
+            r#"
+export type Button = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported_diagnostics(
+        "packages/app/main.ds",
+        r#"
+/// @diagnostic.error code=EI207 message="package export path '@acme/ui/button' crosses package boundaries"
 /// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
