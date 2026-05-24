@@ -93,3 +93,41 @@ let x: number = x;
 "#,
     );
 }
+
+#[test]
+fn test_bind_declaration_context_stays_on_declared_pattern() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+export let result = try {
+    fallback
+} catch (error) {
+    fallback
+};
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding(),
+        r#"
+export let result = try {
+/// @binding.symbol symbol=result role=local form=variable scope=<module>@1 mutability=mutable export=named
+/// @binding.scope scope=scope2 kind=block parent=<module>@1
+
+    fallback
+} catch (error) {
+/// @binding.scope scope=scope3 kind=block parent=<module>@1
+/// @binding.symbol symbol=error role=local form=variable scope=scope3@0
+/// @binding.scope scope=scope4 kind=block parent=scope3@1
+
+    fallback
+};
+/// @binding.symbol symbol=<module> role=namespace form=variable scope=<module>@end
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+"#,
+    );
+}

@@ -170,16 +170,11 @@ impl Compiler {
         declarators: &[dir::LocalNodeId<dir::Declarator>],
         binding: BindingContext,
     ) {
-        // enter binding context
-        state.push_binding(binding);
-
-        // visit declarators
+        // visit declarators with binding context scoped to their patterns
         for declarator_id in declarators {
             let declarator = tree.get(*declarator_id);
-            state.visit_declarator(tree, *declarator_id, declarator);
+            self.bind_declarator(state, tree, *declarator_id, declarator, binding);
         }
-
-        state.pop_binding();
     }
 
     /// Bind one if expression.
@@ -386,7 +381,9 @@ impl Compiler {
         // bind catch pattern before the catch body
         if let Some(pattern) = catch.pattern {
             let pattern_node = tree.get(pattern);
+            state.push_binding(BindingContext::default());
             state.visit_pattern(tree, pattern, pattern_node);
+            state.pop_binding();
         }
 
         // visit catch body

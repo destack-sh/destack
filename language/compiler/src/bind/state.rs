@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use crate::Compiler;
 
 /// Symbol context applied while binding declaration patterns.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub(in crate::bind) struct BindingContext {
     /// The export attached to introduced symbols.
     pub(in crate::bind) export: Option<dir::ExportKind>,

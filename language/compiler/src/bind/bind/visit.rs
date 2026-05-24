@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use super::super::state::BindState;
+use super::super::state::{BindState, BindingContext};
 
 impl dir::NodeVisitor for BindState<'_> {
     fn options(&self) -> &dir::NodeVisitorOptions {
@@ -17,8 +17,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_expression(self, tree, id, expression);
+        self.compiler.bind_expression(self, tree, id, expression);
     }
 
     fn visit_block(
@@ -52,21 +51,19 @@ impl dir::NodeVisitor for BindState<'_> {
             self.push_scope(self.global_scope);
 
             // visit global declarations
-            let compiler = self.compiler;
-            compiler.bind_declaration_body(self, tree, declaration);
+            self.compiler.bind_declaration_body(self, tree, declaration);
 
             self.pop_scope();
             return;
         }
 
         // bind named declarations with their owned surface scope
-        let compiler = self.compiler;
-        if let Some(scope_id) = compiler.bind_declaration_symbol(self, id, declaration) {
+        if let Some(scope_id) = self.compiler.bind_declaration_symbol(self, id, declaration) {
             self.bind_node_to_scope(id.into_any(), scope_id);
 
             // visit declaration body
             self.push_scope(scope_id);
-            compiler.bind_declaration_body(self, tree, declaration);
+            self.compiler.bind_declaration_body(self, tree, declaration);
             self.pop_scope();
         }
         // bind anonymous module blocks as namespace scopes
@@ -76,7 +73,7 @@ impl dir::NodeVisitor for BindState<'_> {
 
             // visit declaration body
             self.push_scope(scope_id);
-            compiler.bind_declaration_body(self, tree, declaration);
+            self.compiler.bind_declaration_body(self, tree, declaration);
             self.pop_scope();
         }
     }
@@ -87,8 +84,8 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_dependency_item(self, tree, id, dependency_item);
+        self.compiler
+            .bind_dependency_item(self, tree, id, dependency_item);
     }
 
     fn visit_generic_parameter(
@@ -97,8 +94,8 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_generic_parameter(self, tree, id, generic_parameter);
+        self.compiler
+            .bind_generic_parameter(self, tree, id, generic_parameter);
     }
 
     fn visit_parameter(
@@ -107,8 +104,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_parameter(self, tree, id, parameter);
+        self.compiler.bind_parameter(self, tree, id, parameter);
     }
 
     fn visit_pattern(
@@ -120,8 +116,7 @@ impl dir::NodeVisitor for BindState<'_> {
         self.bind_node(id.into_any());
 
         // bind pattern symbol
-        let compiler = self.compiler;
-        compiler.bind_pattern_symbol(self, id, pattern);
+        self.compiler.bind_pattern_symbol(self, id, pattern);
 
         // visit nested pattern structure
         dir::walk_pattern(self, tree, id, pattern);
@@ -133,8 +128,8 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::PatternField>,
         pattern_field: &dir::PatternField,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_pattern_field(self, tree, id, pattern_field);
+        self.compiler
+            .bind_pattern_field(self, tree, id, pattern_field);
     }
 
     fn visit_member(
@@ -144,18 +139,17 @@ impl dir::NodeVisitor for BindState<'_> {
         member: &dir::Member,
     ) {
         self.bind_node(id.into_any());
-        let compiler = self.compiler;
 
         // visit scoped member body
-        if let Some(scope_id) = compiler.bind_member_symbol(self, id, member) {
+        if let Some(scope_id) = self.compiler.bind_member_symbol(self, id, member) {
             self.bind_node_to_scope(id.into_any(), scope_id);
             self.push_scope(scope_id);
-            compiler.bind_member_body(self, tree, member);
+            self.compiler.bind_member_body(self, tree, member);
             self.pop_scope();
         }
         // visit unscoped member body
         else {
-            compiler.bind_member_body(self, tree, member);
+            self.compiler.bind_member_body(self, tree, member);
         }
     }
 
@@ -165,8 +159,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::TypeMember>,
         type_member: &dir::TypeMember,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_type_member(self, tree, id, type_member);
+        self.compiler.bind_type_member(self, tree, id, type_member);
     }
 
     fn visit_property(
@@ -175,8 +168,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Property>,
         property: &dir::Property,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_property(self, tree, id, property);
+        self.compiler.bind_property(self, tree, id, property);
     }
 
     fn visit_match_case(
@@ -191,7 +183,7 @@ impl dir::NodeVisitor for BindState<'_> {
 
         // visit case body
         self.push_scope(scope_id);
-        dir::walk_match_case(self, tree, id, match_case);
+        self.compiler.bind_match_case(self, tree, id, match_case);
         self.pop_scope();
     }
 
@@ -201,8 +193,8 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_declarator(self, tree, id, declarator);
+        self.compiler
+            .bind_declarator(self, tree, id, declarator, BindingContext::default());
     }
 
     fn visit_catch(
@@ -211,8 +203,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Catch>,
         catch: &dir::Catch,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_catch(self, tree, id, catch);
+        self.compiler.bind_catch(self, tree, id, catch);
     }
 
     fn visit_type_expression(
@@ -221,8 +212,8 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         type_expression: &dir::TypeExpression,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_type_expression(self, tree, id, type_expression);
+        self.compiler
+            .bind_type_expression(self, tree, id, type_expression);
     }
 
     fn visit_type_mapped_parameter(
@@ -231,7 +222,6 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::TypeMappedParameter>,
         _parameter: &dir::TypeMappedParameter,
     ) {
-        let compiler = self.compiler;
-        compiler.bind_type_mapped_parameter(self, tree, id);
+        self.compiler.bind_type_mapped_parameter(self, tree, id);
     }
 }

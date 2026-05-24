@@ -245,6 +245,7 @@ pub fn format_simple_signature(symbol_form: dir::SymbolForm, name: Option<&str>)
         dir::SymbolForm::Interface => format!("interface {name}"),
         dir::SymbolForm::NewtypeInterface => format!("newtype interface {name}"),
         dir::SymbolForm::Enum => format!("enum {name}"),
+        dir::SymbolForm::EnumField => format!("enum field {name}"),
         dir::SymbolForm::Function => format!("function {name}"),
         dir::SymbolForm::Label => format!("label {name}"),
         dir::SymbolForm::Import => format!("import {name}"),
