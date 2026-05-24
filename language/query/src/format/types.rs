@@ -62,9 +62,9 @@ pub fn format_type(
             format_type_reference(reference.symbol, &reference.arguments, types, ctx)
         }
         dir::Type::Form(form) => format_form_type(form, types, ctx),
-        dir::Type::ErasedAny(erased) => {
-            let constraint = format_local_type(erased.constraint, types, ctx);
-            format!("Any<{constraint}>")
+        dir::Type::Dynamic(dynamic) => {
+            let constraint = format_local_type(dynamic.constraint, types, ctx);
+            format!("Dynamic<{constraint}>")
         }
         dir::Type::Predicate(predicate) => {
             let subject = format_type_predicate_subject(predicate.subject, ctx);

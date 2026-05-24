@@ -32,10 +32,10 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Named(named) => self.named_type_label(named),
             dir::Type::This => "this".to_string(),
             dir::Type::Form(form) => self.form_type_label(types, form),
-            dir::Type::ErasedAny(any) => {
+            dir::Type::Dynamic(any) => {
                 let constraint = self.type_id_label(types, any.constraint);
 
-                format!("Any<{constraint}>")
+                format!("Dynamic<{constraint}>")
             }
             dir::Type::Predicate(predicate) => self.predicate_type_label(types, predicate),
             dir::Type::Operation(operation) => self.operation_type_label(types, operation),

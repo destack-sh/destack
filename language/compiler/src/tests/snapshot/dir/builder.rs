@@ -482,7 +482,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         match shape {
             dir::LayoutShape::None => "none".to_string(),
             dir::LayoutShape::Scalar => "scalar".to_string(),
-            dir::LayoutShape::Any => "any".to_string(),
+            dir::LayoutShape::Dynamic => "dynamic".to_string(),
             dir::LayoutShape::Struct(_) => "struct".to_string(),
             dir::LayoutShape::Tuple(_) => "tuple".to_string(),
             dir::LayoutShape::Variant(_) => "variant".to_string(),

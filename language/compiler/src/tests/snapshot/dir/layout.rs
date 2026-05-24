@@ -65,7 +65,7 @@ fn add_type_layout_rows(
         }
         dir::LayoutShape::None
         | dir::LayoutShape::Scalar
-        | dir::LayoutShape::Any
+        | dir::LayoutShape::Dynamic
         | dir::LayoutShape::Newtype(_)
         | dir::LayoutShape::Function => {}
     }
