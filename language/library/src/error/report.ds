@@ -1,4 +1,4 @@
-import { Any, MaybeOwned } from "destack:memory";
+import { Dynamic, MaybeOwned } from "destack:memory";
 
 import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
@@ -6,7 +6,7 @@ import { todo } from "./panic.ds";
 /// Erased error value for application boundaries.
 export struct Report {
     /// The erased error.
-    error: Any<Error>;
+    error: Dynamic<Error>;
 
     /// Additional user-facing context.
     context?: string;
@@ -36,7 +36,7 @@ extension of Report implements Error {
     }
 
     /// Return the wrapped error.
-    source(): Any<Error> | undefined {
+    source(): Dynamic<Error> | undefined {
         this.error
     }
 }

@@ -1,4 +1,4 @@
-import { Any, MaybeOwned } from "destack:memory";
+import { Dynamic, MaybeOwned } from "destack:memory";
 
 /// Recoverable failure protocol.
 @languageItem("error.Error")
@@ -7,5 +7,5 @@ export newtype interface Error {
     display(): MaybeOwned<string>;
 
     /// Return the underlying cause.
-    source(): Any<Error> | undefined;
+    source(): Dynamic<Error> | undefined;
 }

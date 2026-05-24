@@ -1,0 +1,6 @@
+/// Erased runtime value for interface constraint `T`.
+///
+/// `Dynamic<T>` stores an erased value pointer and dispatch table.
+/// It is compiler-known because static interface constraints are specialized by default, while `Dynamic<T>` explicitly requests runtime erasure.
+@languageItem("memory.Dynamic")
+export newtype Dynamic<T> = intrinsic;

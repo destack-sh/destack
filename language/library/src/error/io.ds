@@ -1,4 +1,4 @@
-import { Any, MaybeOwned } from "destack:memory";
+import { Dynamic, MaybeOwned } from "destack:memory";
 
 import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
@@ -61,7 +61,7 @@ export struct IoError {
     message?: string;
 
     /// Underlying cause.
-    cause?: Any<Error>;
+    cause?: Dynamic<Error>;
 }
 
 extension of IoError implements Error {
@@ -71,7 +71,7 @@ extension of IoError implements Error {
     }
 
     /// Return the underlying cause.
-    source(): Any<Error> | undefined {
+    source(): Dynamic<Error> | undefined {
         this.cause
     }
 }
@@ -95,7 +95,7 @@ extension of PathError implements Error {
     }
 
     /// Return the underlying I/O error.
-    source(): Any<Error> | undefined {
+    source(): Dynamic<Error> | undefined {
         this.error
     }
 }

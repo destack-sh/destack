@@ -47,7 +47,7 @@ global {
         Allocator,
         Ambient,
         AmbientFields,
-        Any,
+        Dynamic,
         AsyncDispose,
         BaseOf,
         Borrowed,
