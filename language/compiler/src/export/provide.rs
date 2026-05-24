@@ -30,12 +30,12 @@ impl Compiler {
         // build expanded export inputs
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let bindings = expanded.binding_table(&bound);
-        let dependencies = expanded.dependency_table(&imported);
+        let modules = expanded.module_table(&imported);
         let mut state = ExportState::new(
             view,
             bound.namespace_scope,
             bindings,
-            dependencies,
+            modules,
             self.strings(),
         );
         self.collect_exports(&mut state, &expanded.roots)

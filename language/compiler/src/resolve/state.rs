@@ -21,16 +21,16 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) view: dir::View<'a>,
     /// The expanded binding table.
     pub(in crate::resolve) bindings: dir::BindingTable<'static>,
-    /// The expanded dependency table.
-    pub(in crate::resolve) dependencies: dir::DependencyTable<'static>,
+    /// The expanded module table.
+    pub(in crate::resolve) modules: dir::ModuleTable<'static>,
     /// The shared string pool.
     pub(in crate::resolve) strings: &'a StringPool,
     /// The import table being built.
     pub(in crate::resolve) imports: dir::ImportTable,
     /// The recoverable diagnostics produced while resolving.
     pub(in crate::resolve) diagnostics: Vec<ResolveError>,
-    /// The dependency clauses collected from active roots.
-    pub(in crate::resolve) dependency_clauses: Vec<DependencyClause>,
+    /// The module clauses collected from active roots.
+    pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
     /// Export lookups already computed during this provider run.
     pub(in crate::resolve) export_lookups: HashMap<ExportLookupKey, ExportLookupState>,
     /// The DIR visitor options.
@@ -57,7 +57,7 @@ pub(in crate::resolve) enum ExportLookupState {
 
 /// One import or re-export clause to resolve.
 #[derive(Debug, Clone)]
-pub(in crate::resolve) enum DependencyClause {
+pub(in crate::resolve) enum ModuleClause {
     /// An import declaration.
     Import {
         /// The expression node id.
@@ -82,7 +82,7 @@ impl<'a> ResolveState<'a> {
         module: ModuleId,
         view: dir::View<'a>,
         bindings: dir::BindingTable<'static>,
-        dependencies: dir::DependencyTable<'static>,
+        modules: dir::ModuleTable<'static>,
         strings: &'a StringPool,
     ) -> Self {
         // initialize phase output
@@ -92,19 +92,19 @@ impl<'a> ResolveState<'a> {
             module,
             view,
             bindings,
-            dependencies,
+            modules,
             strings,
             imports: dir::ImportTable::new(module),
             diagnostics: Vec::new(),
-            dependency_clauses: Vec::new(),
+            module_clauses: Vec::new(),
             export_lookups: HashMap::new(),
             options: dir::NodeVisitorOptions::default(),
         }
     }
 
-    /// Record one dependency clause for later target lookup.
-    pub(in crate::resolve) fn record_dependency_clause(&mut self, clause: DependencyClause) {
-        self.dependency_clauses.push(clause);
+    /// Record one module clause for later target lookup.
+    pub(in crate::resolve) fn record_module_clause(&mut self, clause: ModuleClause) {
+        self.module_clauses.push(clause);
     }
 
     /// Drain recoverable diagnostics.

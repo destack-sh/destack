@@ -90,7 +90,7 @@ pub fn document_highlights(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<Doc
     let reference_search = SymbolReferenceSearch {
         include_expressions: true,
         include_members: true,
-        include_dependencies: true,
+        include_dependency_items: true,
         include_namespace_receivers: false,
         skip_dependency_aliases: false,
         use_dependency_name_spans: true,

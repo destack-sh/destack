@@ -190,7 +190,7 @@ fn rename_reference_search<'a>(target_name: &'a str) -> SymbolReferenceSearch<'a
     SymbolReferenceSearch {
         include_expressions: true,
         include_members: true,
-        include_dependencies: true,
+        include_dependency_items: true,
         include_namespace_receivers: true,
         skip_dependency_aliases: true,
         use_dependency_name_spans: true,

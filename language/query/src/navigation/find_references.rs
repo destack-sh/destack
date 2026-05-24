@@ -131,7 +131,7 @@ fn find_references_to_symbol(
     let reference_search = SymbolReferenceSearch {
         include_expressions: true,
         include_members: true,
-        include_dependencies: true,
+        include_dependency_items: true,
         include_namespace_receivers: true,
         skip_dependency_aliases: false,
         use_dependency_name_spans: true,

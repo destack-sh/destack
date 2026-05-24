@@ -19,13 +19,13 @@ export let Foo = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::dependencies().with_export().with_summaries(),
+        DirRows::modules().with_export().with_summaries(),
         r#"
 export { Foo as Bar } from "./dep.ds";
-/// @dependency.edge relation=re_export specifier=./dep.ds module=dep.ds
+/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
 /// @export.indirect key=Bar imported=Foo module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 /// @export.summary exports=1
 "#,
     );
@@ -51,14 +51,14 @@ export let named = 2;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::dependencies().with_export().with_summaries(),
+        DirRows::modules().with_export().with_summaries(),
         r#"
 export { default as value, named as default } from "./dep.ds";
-/// @dependency.edge relation=re_export specifier=./dep.ds module=dep.ds
+/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
 /// @export.indirect key=value imported=<default> module=dep.ds
 /// @export.indirect key=<default> imported=named module=dep.ds
 
-/// @dependency.summary edges=1
+/// @module.summary edges=1
 /// @export.summary exports=2
 "#,
     );

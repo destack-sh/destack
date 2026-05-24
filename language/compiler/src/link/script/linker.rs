@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{Data, DirExported, DirImported, ModuleOutput};
+use destack_artifact::{Data, DirExported, ModuleOutput};
 use destack_dir as dir;
 use destack_source::{
     File, FileId, FileType, ModuleId, PackageId, ProfileId, Span, StringId, TargetId,
@@ -125,7 +125,7 @@ impl<'a> ScriptLinker<'a> {
         Ok(())
     }
 
-    /// Return the resolved dependency edges for one linked module.
+    /// Return the resolved module edges for one linked module.
     pub(crate) fn module_edges_for_module(
         &self,
         module_id: ModuleId,
@@ -139,6 +139,13 @@ impl<'a> ScriptLinker<'a> {
                 package: self.package_id,
                 message: format!("module imports are not ready: {error:?}"),
             })?;
+        let expanded = artifacts
+            .dir_expanded(module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("module expansion is not ready: {error:?}"),
+            })?;
         let exported = artifacts
             .dir_exported(module_id, profile_id)
             .map_err(|error| LinkError::Internal {
@@ -146,11 +153,9 @@ impl<'a> ScriptLinker<'a> {
                 package: self.package_id,
                 message: format!("module exports are not ready: {error:?}"),
             })?;
+        let modules = expanded.module_table(&imported);
 
-        Ok(module_dependency_edges(
-            imported.as_ref(),
-            exported.as_ref(),
-        ))
+        Ok(module_import_edges(&modules, exported.as_ref()))
     }
 
     /// Return the parsed data payload for one linked module.
@@ -174,7 +179,7 @@ impl<'a> ScriptLinker<'a> {
         Compiler::link_error(self.package_id, error)
     }
 
-    /// Return one dependency edge with a matching relation, source site, and specifier.
+    /// Return one module edge with a matching relation, source site, and specifier.
     pub(crate) fn module_edge_for_site_specifier(
         &self,
         edges: &[ModuleEdge],
@@ -198,18 +203,18 @@ impl<'a> ScriptLinker<'a> {
     }
 }
 
-/// Collect resolved module dependency edges from one module DIR surface.
-fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Vec<ModuleEdge> {
+/// Collect resolved module edges from one module DIR surface.
+fn module_import_edges(modules: &dir::ModuleTable<'_>, exported: &DirExported) -> Vec<ModuleEdge> {
     let mut edges = Vec::new();
 
     // import resolutions
-    for dependency in imported.dependencies.iter() {
+    for module in modules.iter() {
         push_module_edge(
             &mut edges,
-            dependency.target,
-            dependency_relation(dependency.relation),
-            Some(dependency.specifier),
-            dependency.loader,
+            module.target,
+            module_relation(module.relation),
+            Some(module.specifier),
+            module.loader,
         );
     }
 
@@ -230,11 +235,11 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     edges
 }
 
-/// Return the script-linker relation for one DIR dependency relation.
-fn dependency_relation(relation: dir::DependencyRelation) -> ModuleRelation {
+/// Return the script-linker relation for one DIR module relation.
+fn module_relation(relation: dir::ModuleRelation) -> ModuleRelation {
     match relation {
-        dir::DependencyRelation::Import => ModuleRelation::Import,
-        dir::DependencyRelation::ReExport => ModuleRelation::ReExport,
+        dir::ModuleRelation::Import => ModuleRelation::Import,
+        dir::ModuleRelation::ReExport => ModuleRelation::ReExport,
     }
 }
 

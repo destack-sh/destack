@@ -113,14 +113,11 @@ pub fn document_links(ctx: &ModuleQueryContext<'_>) -> Vec<DocumentLink> {
 
         let node_id = expression_id.into_global_any(ctx.module_id());
         let relation = match expression {
-            Expression::Import { .. } => dir::DependencyRelation::Import,
-            Expression::Export { .. } => dir::DependencyRelation::ReExport,
+            Expression::Import { .. } => dir::ModuleRelation::Import,
+            Expression::Export { .. } => dir::ModuleRelation::ReExport,
             _ => unreachable!(),
         };
-        let Some(target_module_id) = ctx
-            .dir()
-            .dependencies()
-            .target_for_source(node_id, relation)
+        let Some(target_module_id) = ctx.dir().modules().target_for_source(node_id, relation)
         else {
             continue;
         };

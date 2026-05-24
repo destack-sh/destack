@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
 use crate::{LintPackageContext, LintReport, LintRule, declare_lint};
-use destack_artifact::{DirExported, DirImported};
+use destack_artifact::DirExported;
+use destack_dir as dir;
 use destack_source::{FileType, ModuleId, Span};
 
 declare_lint! {
@@ -215,9 +216,12 @@ fn build_adjacency(
     for module_id in module_ids {
         let mut dependencies = Vec::new();
 
-        // collect imported module edges so binding targets stay visible
-        if let Some(imported) = ctx.dir_imported(module_id) {
-            collect_imported_module_dependencies(&imported, &mut dependencies);
+        // collect post expansion import edges
+        if let (Some(imported), Some(expanded)) =
+            (ctx.dir_imported(module_id), ctx.dir_expanded(module_id))
+        {
+            let modules = expanded.module_table(&imported);
+            collect_module_table_dependencies(&modules, &mut dependencies);
         }
 
         // collect export edges
@@ -236,9 +240,13 @@ fn build_adjacency(
 }
 
 /// Extend one dependency list with direct import edges.
-fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &mut Vec<ModuleId>) {
+fn collect_module_table_dependencies(
+    modules: &dir::ModuleTable<'_>,
+    dependencies: &mut Vec<ModuleId>,
+) {
     // collect import edges for both value and type space
-    for dependency in imported.dependencies.iter() {
+    for dependency in modules.iter() {
+        // keep resolved module edges
         if let Some(module_id) = dependency.target {
             dependencies.push(module_id);
         }

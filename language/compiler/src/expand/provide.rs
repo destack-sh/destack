@@ -32,7 +32,7 @@ impl Compiler {
         let expanded = DirExpanded {
             patch: dir::Patch::new(&parsed.tree, "expand"),
             bindings: Arc::new(dir::BindingSegment::from_base(&bound.bindings)),
-            dependencies: Arc::new(dir::DependencySegment::new(module)),
+            modules: Arc::new(dir::ModuleSegment::new(module)),
             types: Arc::new(dir::TypeSegment::from_base(&bound.types)),
             statics: Arc::new(dir::StaticSegment::from_base(&bound.statics)),
             macros: dir::MacroTable::new(module),

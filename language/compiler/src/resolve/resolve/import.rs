@@ -3,22 +3,22 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::resolve::resolve::ExportLookup;
-use crate::resolve::state::{DependencyClause, ResolveState};
+use crate::resolve::state::{ModuleClause, ResolveState};
 
 impl ResolveState<'_> {
     /// Resolve recorded import and re-export clauses.
-    pub(in crate::resolve) fn resolve_dependency_clauses(&mut self) -> CompilerResult<()> {
-        let clauses = std::mem::take(&mut self.dependency_clauses);
+    pub(in crate::resolve) fn resolve_module_clauses(&mut self) -> CompilerResult<()> {
+        let clauses = std::mem::take(&mut self.module_clauses);
 
         for clause in clauses {
             match clause {
-                DependencyClause::Import {
+                ModuleClause::Import {
                     expression_id,
                     items,
                 } => {
                     self.resolve_import_expression(expression_id, items.as_deref())?;
                 }
-                DependencyClause::ReExport {
+                ModuleClause::ReExport {
                     expression_id,
                     items,
                 } => {
@@ -39,8 +39,8 @@ impl ResolveState<'_> {
         let source = expression_id.into_global_any(self.module);
 
         let Some(edge) = self
-            .dependencies
-            .edge_for_source(source, dir::DependencyRelation::Import)
+            .modules
+            .edge_for_source(source, dir::ModuleRelation::Import)
         else {
             return Ok(());
         };
@@ -125,8 +125,8 @@ impl ResolveState<'_> {
         let source = expression_id.into_global_any(self.module);
 
         let Some(edge) = self
-            .dependencies
-            .edge_for_source(source, dir::DependencyRelation::ReExport)
+            .modules
+            .edge_for_source(source, dir::ModuleRelation::ReExport)
         else {
             return Ok(());
         };

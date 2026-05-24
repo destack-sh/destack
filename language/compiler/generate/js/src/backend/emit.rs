@@ -29,7 +29,7 @@ pub fn lower_module(
     target: &Target,
 ) -> CodegenJsResult<ModuleLowerOutput> {
     let bindings = expanded.binding_table(bound);
-    let dependencies = expanded.dependency_table(imported);
+    let modules = expanded.module_table(imported);
     let types = checked.type_table(bound, expanded);
     let statics = checked.static_table(bound, expanded);
     let resolutions = checked.resolution_table();
@@ -42,7 +42,7 @@ pub fn lower_module(
         &types,
         &statics,
         &resolutions,
-        dependencies,
+        modules,
         target,
     );
     lowerer.lower_module()?;

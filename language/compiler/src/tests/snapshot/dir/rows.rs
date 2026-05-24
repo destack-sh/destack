@@ -21,8 +21,8 @@ pub(crate) struct DirRows {
     pub(super) coercion: bool,
     /// Whether to render extension table rows.
     pub(super) extension: bool,
-    /// Whether to render dependency table rows.
-    pub(super) dependency: bool,
+    /// Whether to render module table rows.
+    pub(super) module: bool,
     /// Whether to render resolved import table rows.
     pub(super) import: bool,
     /// Whether to render export table rows.
@@ -52,7 +52,7 @@ impl DirRows {
             relation: false,
             coercion: false,
             extension: false,
-            dependency: false,
+            module: false,
             import: false,
             export: false,
             capture: false,
@@ -70,10 +70,10 @@ impl DirRows {
         }
     }
 
-    /// Select dependency rows.
-    pub(crate) const fn dependencies() -> Self {
+    /// Select module rows.
+    pub(crate) const fn modules() -> Self {
         Self {
-            dependency: true,
+            module: true,
             ..Self::none()
         }
     }
@@ -159,9 +159,9 @@ impl DirRows {
         self
     }
 
-    /// Return whether dependency rows are selected.
+    /// Return whether module rows are selected.
     pub(crate) const fn includes_dependency(self) -> bool {
-        self.dependency
+        self.module
     }
 
     /// Return whether resolved import rows are selected.

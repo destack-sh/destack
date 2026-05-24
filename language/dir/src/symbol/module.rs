@@ -3,26 +3,26 @@ use serde::{Deserialize, Serialize};
 
 use crate::{GlobalNodeIdAny, StringId};
 
-/// The relation declared by a resolved dependency edge.
+/// The relation declared by a resolved module import edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
-pub enum DependencyRelation {
+pub enum ModuleRelation {
     /// Binding import.
     Import,
     /// Binding re-export.
     ReExport,
 }
 
-/// One resolved module dependency edge.
+/// One resolved module import edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DependencyEdge {
+pub struct ModuleEdge {
     /// The DIR node that declared the dependency.
     pub source: GlobalNodeIdAny,
     /// The static import specifier.
     pub specifier: StringId,
-    /// The import edge relation.
-    pub relation: DependencyRelation,
+    /// The module import relation.
+    pub relation: ModuleRelation,
     /// The loader override selected for the import.
     pub loader: Option<Loader>,
-    /// The resolved dependency module.
+    /// The resolved module.
     pub target: Option<ModuleId>,
 }

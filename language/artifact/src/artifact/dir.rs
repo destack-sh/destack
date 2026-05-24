@@ -108,14 +108,14 @@ impl DirBound {
 /// Source import resolution for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirImported {
-    /// Resolved dependencies.
-    pub dependencies: Arc<dir::DependencySegment>,
+    /// Resolved module imports.
+    pub modules: Arc<dir::ModuleSegment>,
 }
 
 impl DirImported {
-    /// Return the cumulative dependency table for imported DIR.
-    pub fn dependency_table(&self) -> dir::DependencyTable<'static> {
-        dir::DependencyTable::from_segment(Arc::clone(&self.dependencies))
+    /// Return the cumulative module table for imported DIR.
+    pub fn module_table(&self) -> dir::ModuleTable<'static> {
+        dir::ModuleTable::from_segment(Arc::clone(&self.modules))
     }
 }
 
@@ -126,8 +126,8 @@ pub struct DirExpanded {
     pub patch: dir::Patch,
     /// New bindings.
     pub bindings: Arc<dir::BindingSegment>,
-    /// New dependencies.
-    pub dependencies: Arc<dir::DependencySegment>,
+    /// New module imports.
+    pub modules: Arc<dir::ModuleSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
@@ -144,12 +144,9 @@ impl DirExpanded {
         dir::BindingTable::from_segments(vec![bound.bindings.clone(), self.bindings.clone()])
     }
 
-    /// Return the cumulative dependency table for expanded DIR.
-    pub fn dependency_table(&self, imported: &DirImported) -> dir::DependencyTable<'static> {
-        dir::DependencyTable::from_segments(vec![
-            imported.dependencies.clone(),
-            self.dependencies.clone(),
-        ])
+    /// Return the cumulative module table for expanded DIR.
+    pub fn module_table(&self, imported: &DirImported) -> dir::ModuleTable<'static> {
+        dir::ModuleTable::from_segments(vec![imported.modules.clone(), self.modules.clone()])
     }
 
     /// Return the cumulative type table for expanded DIR.

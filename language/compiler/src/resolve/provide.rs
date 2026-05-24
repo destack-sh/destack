@@ -34,22 +34,22 @@ impl Compiler {
         let patches = std::slice::from_ref(&expanded.patch);
         let view = dir::View::with_patches(&parsed.tree, patches);
         let bindings = expanded.binding_table(&bound);
-        let dependencies = expanded.dependency_table(&imported);
+        let modules = expanded.module_table(&imported);
         let mut state = ResolveState::new(
             artifacts,
             profile,
             module,
             view,
             bindings,
-            dependencies,
+            modules,
             self.strings(),
         );
 
         // collect import and re-export clauses from active roots
         state.walk(&expanded.roots);
 
-        // resolve dependency clauses through export tables
-        state.resolve_dependency_clauses()?;
+        // resolve module clauses through export tables
+        state.resolve_module_clauses()?;
 
         // resolve profile globals through global tables
         state.resolve_profile_globals(&environment.globals)?;
