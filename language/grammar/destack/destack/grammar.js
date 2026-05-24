@@ -2140,6 +2140,7 @@ module.exports = grammar(JavaScript, {
       token.immediate(prec(1, '<')),
       commaSep1(
         choice(
+          $.rest_type,
           $.type,
           $.explicit_type_argument,
           $.static_value_argument,
@@ -2335,6 +2336,7 @@ module.exports = grammar(JavaScript, {
       seq('[', $.type, ';', $._fixed_array_length, ']'),
       seq('[', commaSep($._tuple_type_member), optional(','), ']'),
       seq('(', ')'),
+      seq('(', $.rest_type, ')'),
       seq('(', $._parenthesized_tuple_type_member, ',', ')'),
       seq('(', $._parenthesized_tuple_type_member, ',', commaSep1($._parenthesized_tuple_type_member), optional(','), ')'),
     ),

@@ -8568,6 +8568,10 @@
           "named": true
         },
         {
+          "type": "rest_type",
+          "named": true
+        },
+        {
           "type": "static_value_argument",
           "named": true
         },

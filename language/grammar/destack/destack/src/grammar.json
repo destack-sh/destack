@@ -15403,6 +15403,10 @@
               "members": [
                 {
                   "type": "SYMBOL",
+                  "name": "rest_type"
+                },
+                {
+                  "type": "SYMBOL",
                   "name": "type"
                 },
                 {
@@ -15431,6 +15435,10 @@
                   {
                     "type": "CHOICE",
                     "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "rest_type"
+                      },
                       {
                         "type": "SYMBOL",
                         "name": "type"
@@ -16640,6 +16648,23 @@
             {
               "type": "STRING",
               "value": "("
+            },
+            {
+              "type": "STRING",
+              "value": ")"
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "("
+            },
+            {
+              "type": "SYMBOL",
+              "name": "rest_type"
             },
             {
               "type": "STRING",
