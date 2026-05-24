@@ -2,17 +2,17 @@ use destack_dir as dir;
 
 use crate::CheckError;
 
-use super::{CheckVariableState, Constraint, FlowState, Obligation, VariableId};
+use super::{CheckImportState, CheckVariableState, Constraint, FlowState, Obligation};
 
 /// Check work state for one module.
 #[derive(Debug)]
 pub(in crate::check) struct CheckWorkState {
+    /// Checked dependency ids imported into this module.
+    pub(in crate::check) imports: CheckImportState,
     /// Variable graph built and solved by check.
     pub(in crate::check) variables: CheckVariableState,
     /// Flow state while walking this module.
     pub(in crate::check) flow: FlowState,
-    /// Receiver resolutions collected while walking.
-    pub(in crate::check) receivers: Vec<ReceiverResolution>,
     /// Function captures collected while walking.
     pub(in crate::check) captures: Vec<Capture>,
     /// Constraints produced by walking DIR.
@@ -28,35 +28,15 @@ impl CheckWorkState {
     /// Create empty check work state.
     pub(in crate::check) fn new() -> Self {
         Self {
+            imports: CheckImportState::new(),
             variables: CheckVariableState::new(),
             flow: FlowState::default(),
-            receivers: Vec::new(),
             captures: Vec::new(),
             constraints: Vec::new(),
             obligations: Vec::new(),
             diagnostics: Vec::new(),
         }
     }
-}
-
-impl CheckWorkState {
-    /// Record one receiver resolution whose type still needs commit.
-    pub(in crate::check) fn record_receiver_resolution(&mut self, receiver: ReceiverResolution) {
-        self.receivers.push(receiver);
-    }
-}
-
-/// Receiver resolution collected while walking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct ReceiverResolution {
-    /// The receiver expression node.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The receiver syntax kind.
-    pub(in crate::check) kind: dir::ReceiverKind,
-    /// The declaration that introduces the receiver, when known.
-    pub(in crate::check) owner: Option<dir::GlobalSymbolId>,
-    /// The receiver type variable.
-    pub(in crate::check) ty: VariableId,
 }
 
 /// Captures discovered for one walked function body.

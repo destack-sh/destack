@@ -22,17 +22,6 @@ impl CheckModuleState {
             .map(|symbol| symbol.into_global(self.input.module))
     }
 
-    /// Return the symbol introduced by a source declaration node.
-    pub(in crate::check) fn required_declaration_symbol(
-        &mut self,
-        node: dir::LocalNodeIdAny,
-        context: &'static str,
-    ) -> Option<dir::GlobalSymbolId> {
-        let _ = context;
-
-        self.declaration_symbol(node)
-    }
-
     /// Return the symbol selected by a nominal member key.
     pub(in crate::check) fn member_symbol(
         &self,

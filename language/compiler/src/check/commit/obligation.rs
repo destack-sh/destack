@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::check::solve::Decision;
 use crate::check::{
-    CheckComponentState, CheckError, DisposeMode, Obligation, StaticTerm, TypeRelation, TypeTerm,
-    VariableId,
+    CheckComponentState, CheckError, DisposeMode, Obligation, StaticTerm, TypeLiteralTerm,
+    TypeRelation, TypeTerm, VariableId,
 };
 use crate::{CompilerError, CompilerResult, DiagnosticAnchor};
 
@@ -702,13 +702,13 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let values = match term {
-            TypeTerm::Literal(dir::Type::Primitive(dir::PrimitiveType::Boolean)) => {
+            TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::Boolean)) => {
                 vec![
                     dir::ScalarLiteral::Boolean(false),
                     dir::ScalarLiteral::Boolean(true),
                 ]
             }
-            TypeTerm::Literal(dir::Type::Literal(literal)) => vec![literal],
+            TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) => vec![literal],
             TypeTerm::Union { elements } => {
                 let Some(values) = self.literal_union_values(elements)? else {
                     return Ok(None);
@@ -725,8 +725,8 @@ impl CheckComponentState<'_> {
     /// Return whether one type term has known finite scalar values.
     fn type_term_has_finite_scalar_values(&self, term: &TypeTerm) -> CompilerResult<bool> {
         let has_values = match term {
-            TypeTerm::Literal(dir::Type::Primitive(dir::PrimitiveType::Boolean)) => true,
-            TypeTerm::Literal(dir::Type::Literal(_)) => true,
+            TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::Boolean)) => true,
+            TypeTerm::Literal(TypeLiteralTerm::Scalar(_)) => true,
             TypeTerm::Union { elements } => self.literal_union_values(elements.clone())?.is_some(),
             _ => false,
         };
@@ -743,7 +743,7 @@ impl CheckComponentState<'_> {
 
         // collect literal union members
         for element in elements {
-            let Some(TypeTerm::Literal(dir::Type::Literal(literal))) =
+            let Some(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal))) =
                 self.solved_type_term(element)?
             else {
                 return Ok(None);

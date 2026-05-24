@@ -1,10 +1,24 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use indexmap::IndexMap;
 
-use super::{CheckModuleState, StaticTerm, TypeTerm};
+use crate::check::{StaticTerm, TypeTerm};
+
+use super::CheckModuleState;
+
+/// Imported checked ids for one module.
+#[derive(Debug)]
+pub(in crate::check) struct CheckImportState {
+    /// Imported type ids keyed by source id.
+    pub(in crate::check) types: IndexMap<dir::GlobalTypeId, dir::LocalTypeId>,
+    /// Imported static ids keyed by source id.
+    pub(in crate::check) statics: IndexMap<dir::GlobalStaticId, dir::LocalStaticId>,
+}
 
 /// State for importing one checked dependency symbol graph.
 struct DependencyImportState<'a> {
+    /// Source checked module.
+    source_module: ModuleId,
     /// Source checked type table.
     source_types: &'a dir::TypeTable<'a>,
     /// Source checked static table.
@@ -15,10 +29,25 @@ struct DependencyImportState<'a> {
     imported_statics: IndexMap<dir::LocalStaticId, dir::LocalStaticId>,
 }
 
+impl CheckImportState {
+    /// Create empty import state.
+    pub(in crate::check) fn new() -> Self {
+        Self {
+            types: IndexMap::new(),
+            statics: IndexMap::new(),
+        }
+    }
+}
+
 impl<'a> DependencyImportState<'a> {
     /// Create import state for one checked dependency symbol graph.
-    fn new(source_types: &'a dir::TypeTable<'a>, source_statics: &'a dir::StaticTable<'a>) -> Self {
+    fn new(
+        source_module: ModuleId,
+        source_types: &'a dir::TypeTable<'a>,
+        source_statics: &'a dir::StaticTable<'a>,
+    ) -> Self {
         Self {
+            source_module,
             source_types,
             source_statics,
             imported_types: IndexMap::new(),
@@ -28,6 +57,19 @@ impl<'a> DependencyImportState<'a> {
 }
 
 impl CheckModuleState {
+    /// Import one dependency type id into this module.
+    pub(in crate::check) fn import_dependency_type_id(
+        &mut self,
+        source_module: ModuleId,
+        source: dir::LocalTypeId,
+        source_types: &dir::TypeTable<'_>,
+        source_statics: &dir::StaticTable<'_>,
+    ) -> dir::LocalTypeId {
+        let mut import = DependencyImportState::new(source_module, source_types, source_statics);
+
+        self.import_type_by_id(source, &mut import)
+    }
+
     /// Import one checked symbol into this module.
     pub(in crate::check) fn import_symbol(
         &mut self,
@@ -36,7 +78,7 @@ impl CheckModuleState {
         source_types: &dir::TypeTable<'_>,
         source_statics: &dir::StaticTable<'_>,
     ) -> bool {
-        let mut import = DependencyImportState::new(source_types, source_statics);
+        let mut import = DependencyImportState::new(target.module_id, source_types, source_statics);
         let mut imported = false;
 
         if let Some(ty) = source_types.get_symbol_type_id(target) {
@@ -60,7 +102,7 @@ impl CheckModuleState {
     ) {
         let ty = self.import_type_by_id(source, import);
         let variable = self.symbol_type_variable(symbol);
-        let term = TypeTerm::Literal(self.get_type(ty));
+        let term = TypeTerm::Variable(self.materialize_type_id(ty.into_global(self.input.module)));
 
         if symbol.module_id == self.input.module {
             self.output.types.set_symbol_type(symbol, ty);
@@ -77,7 +119,8 @@ impl CheckModuleState {
     ) {
         let value = self.import_static_id(source, import);
         let variable = self.symbol_static_variable(symbol);
-        let term = StaticTerm::Literal(self.get_static(value));
+        let term =
+            StaticTerm::Variable(self.materialize_static_id(value.into_global(self.input.module)));
 
         if symbol.module_id == self.input.module {
             self.output.statics.set_symbol_static(symbol, value);
@@ -91,6 +134,10 @@ impl CheckModuleState {
         source: dir::LocalTypeId,
         import: &mut DependencyImportState<'_>,
     ) -> dir::LocalTypeId {
+        let source_id = source.into_global(import.source_module);
+        if let Some(target) = self.work.imports.types.get(&source_id).copied() {
+            return target;
+        }
         if let Some(target) = import.imported_types.get(&source).copied() {
             return target;
         }
@@ -102,6 +149,7 @@ impl CheckModuleState {
             .insert_imported_type_from_any(ty, self.input.bound.module_node);
 
         import.imported_types.insert(source, target);
+        self.work.imports.types.insert(source_id, target);
 
         target
     }
@@ -134,7 +182,7 @@ impl CheckModuleState {
                 form: self.import_form(form.form, import),
                 value: self.import_type_by_id(form.value, import),
             }),
-            dir::Type::ErasedAny(erased) => dir::Type::ErasedAny(dir::ErasedAnyType {
+            dir::Type::Dynamic(erased) => dir::Type::Dynamic(dir::DynamicType {
                 constraint: self.import_type_by_id(erased.constraint, import),
             }),
             dir::Type::Predicate(predicate) => dir::Type::Predicate(dir::PredicateType {
@@ -339,6 +387,10 @@ impl CheckModuleState {
         source: dir::LocalStaticId,
         import: &mut DependencyImportState<'_>,
     ) -> dir::LocalStaticId {
+        let source_id = source.into_global(import.source_module);
+        if let Some(target) = self.work.imports.statics.get(&source_id).copied() {
+            return target;
+        }
         if let Some(target) = import.imported_statics.get(&source).copied() {
             return target;
         }
@@ -347,6 +399,7 @@ impl CheckModuleState {
         let target = self.intern_static(term);
 
         import.imported_statics.insert(source, target);
+        self.work.imports.statics.insert(source_id, target);
 
         target
     }

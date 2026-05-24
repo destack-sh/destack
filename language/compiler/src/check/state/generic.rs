@@ -1,6 +1,8 @@
 use destack_dir as dir;
 
-use super::{ArgumentTerm, CheckModuleState, VariableId, VariableOrigin};
+use crate::check::ArgumentTerm;
+
+use super::{CheckModuleState, VariableId, VariableOrigin};
 
 /// Stable key for one inferred generic argument.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

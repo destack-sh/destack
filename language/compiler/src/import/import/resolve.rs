@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_dir as dir;
 use destack_source::{
-    FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri, CODE_FILE_TYPES,
+    CODE_FILE_TYPES, FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri,
 };
 
 use crate::import::state::ImportState;

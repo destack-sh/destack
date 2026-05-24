@@ -4,15 +4,17 @@ use destack_artifact::{DirCheckedModule, GlobalEnvironment};
 use destack_dir as dir;
 
 use crate::check::{
-    ArgumentTerm, CheckModuleState, FormTerm, FunctionTerm, GenericInstance, ShapeMemberTerm,
-    Solution, StaticTerm, TupleElementTerm, TypeOperationTerm, TypeTerm, VariableId,
-    VariableOrigin,
+    ArgumentTerm, CheckModuleState, ConcreteLayout, ConcreteLayoutField, ConcreteLayoutShape,
+    ConcreteVariantLayout, FormTerm, FunctionTerm, GenericInstance, LayoutOutcome,
+    LayoutResolution, LayoutType, ShapeMemberTerm, Solution, StaticTerm, TupleElementTerm,
+    TypeOperationTerm, TypeTerm, VariableId, VariableOrigin,
 };
 
 impl CheckModuleState {
     /// Commit this module's solved checker state as checked DIR tables.
     pub(in crate::check) fn commit(mut self, environment: &GlobalEnvironment) -> DirCheckedModule {
         self.commit_variables(environment);
+        self.commit_layouts(environment);
         self.commit_relations_and_extensions(environment);
         self.commit_receiver_resolutions(environment);
         self.commit_member(environment);
@@ -29,6 +31,136 @@ impl CheckModuleState {
             extensions: Arc::new(self.output.extensions),
             layouts: Arc::new(self.output.layouts),
             captures: Arc::new(self.output.captures),
+        }
+    }
+
+    /// Commit solved concrete layouts into checked DIR side tables.
+    fn commit_layouts(&mut self, environment: &GlobalEnvironment) {
+        let layouts = self
+            .decisions
+            .layout
+            .values()
+            .filter_map(|outcome| match outcome {
+                LayoutOutcome::Resolved(layout) => Some(layout.clone()),
+                LayoutOutcome::Rejected(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        // write one layout binding per resolved query target
+        for layout in layouts {
+            self.commit_layout_resolution(environment, &layout);
+        }
+    }
+
+    /// Commit one solved layout query.
+    fn commit_layout_resolution(
+        &mut self,
+        environment: &GlobalEnvironment,
+        resolution: &LayoutResolution,
+    ) {
+        let Some(type_id) = self.commit_variable_type(environment, resolution.target) else {
+            return;
+        };
+        let Some(layout_id) = self.commit_concrete_layout(environment, &resolution.layout) else {
+            return;
+        };
+
+        self.output.layouts.set_type_layout(type_id, layout_id);
+    }
+
+    /// Commit one concrete layout tree.
+    fn commit_concrete_layout(
+        &mut self,
+        environment: &GlobalEnvironment,
+        layout: &ConcreteLayout,
+    ) -> Option<dir::LocalLayoutId> {
+        let shape = match &layout.shape {
+            ConcreteLayoutShape::None => dir::LayoutShape::None,
+            ConcreteLayoutShape::Scalar => dir::LayoutShape::Scalar,
+            ConcreteLayoutShape::Dynamic => dir::LayoutShape::Dynamic,
+            ConcreteLayoutShape::Struct { fields } => {
+                let fields = self.commit_concrete_layout_fields(environment, fields)?;
+
+                dir::LayoutShape::Struct(dir::StructLayout { fields })
+            }
+            ConcreteLayoutShape::Tuple { elements } => {
+                let elements = self.commit_concrete_layout_fields(environment, elements)?;
+
+                dir::LayoutShape::Tuple(dir::TupleLayout { elements })
+            }
+            ConcreteLayoutShape::Variant { variants } => {
+                let variants = self.commit_concrete_variant_layouts(environment, variants)?;
+
+                dir::LayoutShape::Variant(dir::VariantLayout { variants })
+            }
+            ConcreteLayoutShape::Newtype { backing } => {
+                let backing = self.commit_concrete_layout(environment, backing)?;
+
+                dir::LayoutShape::Newtype(dir::NewtypeLayout { backing })
+            }
+            ConcreteLayoutShape::Function => dir::LayoutShape::Function,
+        };
+        let layout = dir::Layout {
+            shape,
+            size: layout.size,
+            alignment: layout.alignment,
+        };
+
+        Some(self.output.layouts.insert_layout(layout))
+    }
+
+    /// Commit aggregate layout fields.
+    fn commit_concrete_layout_fields(
+        &mut self,
+        environment: &GlobalEnvironment,
+        fields: &[ConcreteLayoutField],
+    ) -> Option<Vec<dir::LayoutField>> {
+        let mut committed = Vec::with_capacity(fields.len());
+
+        // commit fields in source layout order
+        for field in fields {
+            let ty = self.commit_layout_type(environment, field.ty)?;
+            let layout = self.commit_concrete_layout(environment, &field.layout)?;
+            committed.push(dir::LayoutField {
+                key: field.key,
+                ty,
+                layout,
+                offset: field.offset,
+                size: field.size,
+                alignment: field.alignment,
+            });
+        }
+
+        Some(committed)
+    }
+
+    /// Commit variant case layouts.
+    fn commit_concrete_variant_layouts(
+        &mut self,
+        environment: &GlobalEnvironment,
+        variants: &[ConcreteVariantLayout],
+    ) -> Option<Vec<dir::VariantCaseLayout>> {
+        let mut committed = Vec::with_capacity(variants.len());
+
+        // commit variants in source layout order
+        for variant in variants {
+            let ty = self.commit_layout_type(environment, variant.ty)?;
+            let layout = self.commit_concrete_layout(environment, &variant.layout)?;
+            committed.push(dir::VariantCaseLayout { ty, layout });
+        }
+
+        Some(committed)
+    }
+
+    /// Commit the type attached to one layout node.
+    fn commit_layout_type(
+        &mut self,
+        environment: &GlobalEnvironment,
+        ty: LayoutType,
+    ) -> Option<dir::LocalTypeId> {
+        match ty {
+            LayoutType::Variable(variable) => self.commit_variable_type(environment, variable),
+            LayoutType::TypeId(ty) => Some(ty),
         }
     }
 
@@ -248,7 +380,11 @@ impl CheckModuleState {
         source: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalTypeId> {
         let ty = match term {
-            TypeTerm::Literal(ty) => ty.clone(),
+            TypeTerm::Literal(atom) => atom.to_type(),
+            TypeTerm::Parameter { symbol } => {
+                dir::Type::Parameter(dir::ParameterType { symbol: *symbol })
+            }
+            TypeTerm::This => dir::Type::This,
             TypeTerm::Intrinsic | TypeTerm::ConstAssertion => return None,
             TypeTerm::Variable(variable) => {
                 return self.commit_variable_type(environment, *variable);
@@ -346,6 +482,7 @@ impl CheckModuleState {
             | TypeTerm::Construct(_)
             | TypeTerm::Operator(_)
             | TypeTerm::Index(_)
+            | TypeTerm::IndexWrite(_)
             | TypeTerm::KeyMembership(_)
             | TypeTerm::InstanceCheck(_)
             | TypeTerm::Identity(_)
@@ -362,6 +499,23 @@ impl CheckModuleState {
                 subject: *subject,
                 target: target.and_then(|target| self.commit_variable_type(environment, target)),
             }),
+            TypeTerm::Dynamic { constraint } => {
+                let constraint = self.commit_variable_type(environment, *constraint)?;
+
+                dir::Type::Dynamic(dir::DynamicType { constraint })
+            }
+            TypeTerm::Closure {
+                function,
+                environment: capture,
+            } => {
+                let function = self.commit_variable_type(environment, *function)?;
+                let environment = self.commit_variable_type(environment, *capture)?;
+
+                dir::Type::Closure(dir::ClosureType {
+                    function,
+                    environment,
+                })
+            }
         };
 
         Some(self.intern_type(ty, source))
@@ -388,7 +542,8 @@ impl CheckModuleState {
                 }
             }
             StaticTerm::Member { .. }
-            | StaticTerm::LifetimeJoin { .. }
+            | StaticTerm::Operation(_)
+            | StaticTerm::Layout(_)
             | StaticTerm::Intrinsic { .. } => {
                 return None;
             }

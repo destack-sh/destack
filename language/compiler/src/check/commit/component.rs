@@ -29,7 +29,7 @@ impl CheckComponentState<'_> {
 
     /// Commit accepted type changes into coercion tables.
     fn commit_coercions(&mut self) -> CompilerResult<()> {
-        let constraints = self.constraints();
+        let constraints = self.collect_constraints();
 
         // write coercions for accepted value type changes
         for constraint in constraints {
