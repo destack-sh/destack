@@ -352,7 +352,7 @@ impl LintRunner {
 
         let strings = repository.string_pool().clone();
         let symbols = expanded.binding_table(&bound);
-        let dependencies = expanded.dependency_table(&imported);
+        let modules = expanded.module_table(&imported);
         let types = checked.type_table(&bound, &expanded);
         let statics = checked.static_table(&bound, &expanded);
         let resolutions = checked.resolution_table();
@@ -367,7 +367,7 @@ impl LintRunner {
             expanded.as_ref(),
             strings.as_ref(),
             symbols,
-            dependencies,
+            modules,
             &types,
             &statics,
             &resolutions,

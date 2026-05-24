@@ -4,7 +4,7 @@ use dir::NodeVisitor as _;
 use crate::resolve::state::ResolveState;
 
 impl ResolveState<'_> {
-    /// Walk active roots and collect dependency clauses.
+    /// Walk active roots and collect module clauses.
     pub(in crate::resolve) fn walk(&mut self, roots: &[dir::LocalNodeId<dir::Expression>]) {
         let tree = self.view.tree();
 

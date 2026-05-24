@@ -103,9 +103,9 @@ fn resolved_import_target_module(
 ) -> Option<ModuleId> {
     let specifier = ctx.strings().get(target);
     let target_id = ctx.strings().intern(specifier);
-    let dependency = ctx.dependencies().iter().find(|dependency| {
+    let dependency = ctx.modules().iter().find(|dependency| {
         dependency.specifier == target_id
-            && dependency.relation == dir::DependencyRelation::Import
+            && dependency.relation == dir::ModuleRelation::Import
             && dependency.loader.is_none()
     })?;
 

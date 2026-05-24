@@ -26,8 +26,8 @@ pub struct ModuleQueryContext<'a> {
     dir_exported: Arc<DirExported>,
     /// The expanded binding table.
     dir_bindings: dir::BindingTable<'static>,
-    /// The expanded dependency table.
-    dir_dependencies: dir::DependencyTable<'static>,
+    /// The expanded module table.
+    dir_modules: dir::ModuleTable<'static>,
     /// The checked type table.
     dir_types: dir::TypeTable<'static>,
     /// The checked static table.
@@ -111,8 +111,8 @@ pub(crate) struct DirQueryContext<'a> {
     side_tokens: &'a [dir::TokenSpan],
     /// The expanded binding table.
     symbols: &'a dir::BindingTable<'static>,
-    /// The expanded dependency table.
-    dependencies: &'a dir::DependencyTable<'static>,
+    /// The expanded module table.
+    modules: &'a dir::ModuleTable<'static>,
     /// The exported symbol table.
     exports: &'a dir::ExportTable,
     /// The checked type table.
@@ -239,9 +239,9 @@ impl<'a> DirQueryContext<'a> {
         self.resolutions
     }
 
-    /// Return the DIR dependency table.
-    pub(crate) fn dependencies(self) -> &'a dir::DependencyTable<'static> {
-        self.dependencies
+    /// Return the DIR module table.
+    pub(crate) fn modules(self) -> &'a dir::ModuleTable<'static> {
+        self.modules
     }
 
     /// Return the DIR export table.
@@ -340,7 +340,7 @@ impl<'a> ModuleQueryContext<'a> {
             tokens: &self.dir_parsed.tokens,
             side_tokens: &self.dir_parsed.side_tokens,
             symbols: &self.dir_bindings,
-            dependencies: &self.dir_dependencies,
+            modules: &self.dir_modules,
             exports: &self.dir_exported.exports,
             types: &self.dir_types,
             statics: &self.dir_statics,
@@ -524,7 +524,7 @@ fn read_module_query_context_from_checked(
     let global_environment = artifacts.global_environment(&global_environment_version)?;
     // compose cumulative table views
     let dir_bindings = dir_expanded.binding_table(&dir_bound);
-    let dir_dependencies = dir_expanded.dependency_table(&dir_imported);
+    let dir_modules = dir_expanded.module_table(&dir_imported);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
     let dir_statics = dir_checked.static_table(&dir_bound, &dir_expanded);
     let dir_extensions = dir_checked.extension_table();
@@ -537,7 +537,7 @@ fn read_module_query_context_from_checked(
         dir_expanded,
         dir_exported,
         dir_bindings,
-        dir_dependencies,
+        dir_modules,
         dir_types,
         dir_statics,
         dir_extensions,
@@ -591,7 +591,7 @@ pub(crate) fn require_module_query_context<'a>(
 
     // compose cumulative table views
     let dir_bindings = dir_expanded.binding_table(&dir_bound);
-    let dir_dependencies = dir_expanded.dependency_table(&dir_imported);
+    let dir_modules = dir_expanded.module_table(&dir_imported);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
     let dir_statics = dir_checked.static_table(&dir_bound, &dir_expanded);
     let dir_extensions = dir_checked.extension_table();
@@ -604,7 +604,7 @@ pub(crate) fn require_module_query_context<'a>(
         dir_expanded,
         dir_exported,
         dir_bindings,
-        dir_dependencies,
+        dir_modules,
         dir_types,
         dir_statics,
         dir_extensions,

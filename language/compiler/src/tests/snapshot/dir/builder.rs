@@ -81,7 +81,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         self
     }
 
-    /// Set module paths used for dependency target rendering.
+    /// Set module paths used for module target rendering.
     pub(crate) fn with_module_paths(
         mut self,
         module_path_by_id: &'a BTreeMap<ModuleId, String>,
@@ -144,8 +144,8 @@ impl<'a> DirSnapshotBuilder<'a> {
     pub(crate) fn add_imported(&mut self, selection: DirRows, imported: &DirImported) {
         self.summaries = selection.summaries;
 
-        if selection.dependency {
-            self.add_table(imported.dependencies.as_ref());
+        if selection.module {
+            self.add_table(imported.modules.as_ref());
         }
     }
 
@@ -161,6 +161,10 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add selected rows for an expanded DIR artifact.
     pub(crate) fn add_expanded(&mut self, selection: DirRows, expanded: &DirExpanded) {
         self.summaries = selection.summaries;
+
+        if selection.module {
+            self.add_table(expanded.modules.as_ref());
+        }
 
         if selection.macros {
             self.add_table(&expanded.macros);
@@ -492,11 +496,8 @@ impl<'a> DirSnapshotBuilder<'a> {
         value.map(|value| value.to_string())
     }
 
-    /// Return one dependency target field.
-    pub(crate) fn dependency_target_field(
-        &self,
-        target: Option<ModuleId>,
-    ) -> (&'static str, String) {
+    /// Return one module target field.
+    pub(crate) fn module_target_field(&self, target: Option<ModuleId>) -> (&'static str, String) {
         match target {
             Some(module_id) => ("module", self.module_path(module_id)),
             None => ("target", "<unresolved>".to_string()),

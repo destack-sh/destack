@@ -28,8 +28,8 @@ pub struct ModuleLowerer<'a> {
     pub(crate) statics: &'a dir::StaticTable<'static>,
     /// The resolution table.
     pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
-    /// The dependency table.
-    pub(crate) dependencies: dir::DependencyTable<'static>,
+    /// The module table.
+    pub(crate) modules: dir::ModuleTable<'static>,
     /// The target configuration.
     pub(crate) target: &'a Target,
 
@@ -125,7 +125,7 @@ impl<'a> ModuleLowerer<'a> {
         types: &'a dir::TypeTable<'static>,
         statics: &'a dir::StaticTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
-        dependencies: dir::DependencyTable<'static>,
+        modules: dir::ModuleTable<'static>,
         target: &'a Target,
     ) -> Self {
         let strings = StringPool::new();
@@ -141,7 +141,7 @@ impl<'a> ModuleLowerer<'a> {
             types,
             statics,
             resolutions,
-            dependencies,
+            modules,
             target,
             tree: js::Tree::new(),
             roots: Vec::new(),

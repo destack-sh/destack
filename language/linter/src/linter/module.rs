@@ -101,8 +101,8 @@ pub struct LintModuleContext<'a> {
     pub strings: &'a StringPool,
     /// The symbol table.
     pub symbols: dir::BindingTable<'static>,
-    /// The dependency table.
-    pub dependencies: dir::DependencyTable<'static>,
+    /// The module table.
+    pub modules: dir::ModuleTable<'static>,
     /// The type table.
     pub types: &'a dir::TypeTable<'static>,
     /// The static table.
@@ -150,7 +150,7 @@ impl<'a> LintModuleContext<'a> {
         expanded: &'a DirExpanded,
         strings: &'a StringPool,
         symbols: dir::BindingTable<'static>,
-        dependencies: dir::DependencyTable<'static>,
+        modules: dir::ModuleTable<'static>,
         types: &'a dir::TypeTable<'static>,
         statics: &'a dir::StaticTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
@@ -171,7 +171,7 @@ impl<'a> LintModuleContext<'a> {
             dir: dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch)),
             strings,
             symbols,
-            dependencies,
+            modules,
             types,
             statics,
             resolutions,

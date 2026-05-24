@@ -25,7 +25,7 @@ pub(crate) struct SymbolReferenceSearch<'a> {
     /// Whether to include member access references.
     pub include_members: bool,
     /// Whether to include dependency item references.
-    pub include_dependencies: bool,
+    pub include_dependency_items: bool,
     /// Whether to include namespace receiver references.
     pub include_namespace_receivers: bool,
     /// Whether to skip dependency aliases that target the symbol.
@@ -162,7 +162,7 @@ pub(crate) fn symbol_references(
     }
 
     // collect dependency item references
-    if options.include_dependencies {
+    if options.include_dependency_items {
         let dependency_spans = collect_dependency_reference_spans(ctx, canonical_id, options);
         spans.extend(dependency_spans);
     }
@@ -813,8 +813,8 @@ fn namespace_import_aliases_for_module(
             let local_symbol = ctx.symbol_for_node(item_id.into())?;
             let node_id = item_id.into_global_any(ctx.module_id());
             let target_module_id = ctx
-                .dependencies()
-                .target_for_source(node_id, dir::DependencyRelation::Import)?;
+                .modules()
+                .target_for_source(node_id, dir::ModuleRelation::Import)?;
             if target_module_id != module_id {
                 return None;
             }

@@ -23,8 +23,7 @@ impl SnapshotTable for dir::GlobalTable {
                             SnapshotRow::new(builder.anchor_node(node_id), "global", "indirect")
                                 .field("key", builder.static_key(*key))
                                 .field("imported", builder.export_selector_label(entry.imported));
-                        let (target_key, target_value) =
-                            builder.dependency_target_field(entry.target);
+                        let (target_key, target_value) = builder.module_target_field(entry.target);
                         let row = row.field(target_key, target_value);
                         builder.push(row);
                     }

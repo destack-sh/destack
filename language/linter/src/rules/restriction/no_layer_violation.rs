@@ -1,7 +1,8 @@
 use crate::LintMeta;
 use std::collections::HashMap;
 
-use destack_artifact::{DirExported, DirImported};
+use destack_artifact::DirExported;
+use destack_dir as dir;
 use destack_source::{FileId, FileType, ModuleId, Span};
 use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
@@ -220,10 +221,15 @@ fn collect_forbidden_dependency_diagnostics(
 fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
-    if let Some(imported) = ctx.dir_imported(module_id) {
-        collect_imported_module_dependencies(&imported, &mut dependencies);
+    // collect post expansion import edges
+    if let (Some(imported), Some(expanded)) =
+        (ctx.dir_imported(module_id), ctx.dir_expanded(module_id))
+    {
+        let modules = expanded.module_table(&imported);
+        collect_module_table_dependencies(&modules, &mut dependencies);
     }
 
+    // collect export edges
     if let Some(exported) = ctx.dir_exported(module_id) {
         collect_exported_module_dependencies(&exported, &mut dependencies);
     }
@@ -232,9 +238,13 @@ fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<M
 }
 
 /// Extend one dependency list with direct import edges.
-fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &mut Vec<ModuleId>) {
+fn collect_module_table_dependencies(
+    modules: &dir::ModuleTable<'_>,
+    dependencies: &mut Vec<ModuleId>,
+) {
     // collect import edges for both value and type space
-    for dependency in imported.dependencies.iter() {
+    for dependency in modules.iter() {
+        // keep resolved module edges
         if let Some(module_id) = dependency.target {
             dependencies.push(module_id);
         }

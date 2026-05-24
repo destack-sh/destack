@@ -13,11 +13,11 @@ impl ModuleLowerer<'_> {
     ) -> Option<ModuleId> {
         let source = source_id.into_global(self.module.id);
 
-        self.dependencies
-            .target_for_source(source, dir::DependencyRelation::Import)
+        self.modules
+            .target_for_source(source, dir::ModuleRelation::Import)
             .or_else(|| {
-                self.dependencies
-                    .target_for_source(source, dir::DependencyRelation::ReExport)
+                self.modules
+                    .target_for_source(source, dir::ModuleRelation::ReExport)
             })
     }
 

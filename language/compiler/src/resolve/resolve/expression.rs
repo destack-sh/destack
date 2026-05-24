@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
-use crate::resolve::state::{DependencyClause, ResolveState};
+use crate::resolve::state::{ModuleClause, ResolveState};
 
 impl ResolveState<'_> {
-    /// Walk one expression and record dependency clauses.
+    /// Walk one expression and record module clauses.
     pub(in crate::resolve) fn walk_expression(
         &mut self,
         tree: &dir::Tree,
@@ -12,22 +12,22 @@ impl ResolveState<'_> {
     ) {
         match expression {
             dir::Expression::Import { items, .. } => {
-                let clause = DependencyClause::Import {
+                let clause = ModuleClause::Import {
                     expression_id: id,
                     items: items.clone(),
                 };
-                self.record_dependency_clause(clause);
+                self.record_module_clause(clause);
             }
             dir::Expression::Export {
                 target: Some(_),
                 items,
                 ..
             } => {
-                let clause = DependencyClause::ReExport {
+                let clause = ModuleClause::ReExport {
                     expression_id: id,
                     items: items.clone(),
                 };
-                self.record_dependency_clause(clause);
+                self.record_module_clause(clause);
             }
             _ => dir::walk_expression(self, tree, id, expression),
         }

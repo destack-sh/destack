@@ -211,12 +211,12 @@ fn expression_target_module(
     }
 
     let relation = match expression {
-        dir::Expression::Import { .. } => dir::DependencyRelation::Import,
-        dir::Expression::Export { .. } => dir::DependencyRelation::ReExport,
+        dir::Expression::Import { .. } => dir::ModuleRelation::Import,
+        dir::Expression::Export { .. } => dir::ModuleRelation::ReExport,
         _ => unreachable!(),
     };
 
-    ctx.dependencies
+    ctx.modules
         .target_for_source(expression_id.into_global_any(ctx.module_id()), relation)
 }
 

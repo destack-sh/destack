@@ -155,12 +155,12 @@ pub(crate) fn build_specifier_candidates_for_module(
             dir::Expression::Import { .. } | dir::Expression::Export { .. } => {
                 let node_id = expression_id.into_global_any(module_id);
                 let relation = match expression {
-                    dir::Expression::Import { .. } => dir::DependencyRelation::Import,
-                    dir::Expression::Export { .. } => dir::DependencyRelation::ReExport,
+                    dir::Expression::Import { .. } => dir::ModuleRelation::Import,
+                    dir::Expression::Export { .. } => dir::ModuleRelation::ReExport,
                     _ => unreachable!(),
                 };
 
-                dir.dependencies().target_for_source(node_id, relation)
+                dir.modules().target_for_source(node_id, relation)
             }
             _ => None,
         };

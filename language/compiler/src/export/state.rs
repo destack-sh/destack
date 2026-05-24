@@ -11,8 +11,8 @@ pub(crate) struct ExportState<'a> {
     pub(in crate::export) view: dir::View<'a>,
     /// The expanded binding table.
     pub(in crate::export) bindings: dir::BindingTable<'static>,
-    /// The expanded dependency table.
-    pub(in crate::export) dependencies: dir::DependencyTable<'static>,
+    /// The expanded module table.
+    pub(in crate::export) modules: dir::ModuleTable<'static>,
     /// The module namespace scope.
     pub(in crate::export) namespace_scope: dir::LocalScopeId,
     /// The shared string pool.
@@ -31,13 +31,13 @@ impl<'a> ExportState<'a> {
         view: dir::View<'a>,
         namespace_scope: dir::LocalScopeId,
         bindings: dir::BindingTable<'static>,
-        dependencies: dir::DependencyTable<'static>,
+        modules: dir::ModuleTable<'static>,
         strings: &'a StringPool,
     ) -> Self {
         Self {
             view,
             bindings,
-            dependencies,
+            modules,
             namespace_scope,
             strings,
             exports: dir::ExportTable::new(view.tree().module_id),
@@ -88,13 +88,13 @@ impl<'a> ExportState<'a> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> ExportResult<Option<ModuleId>> {
         let node_id = expression_id.into_global_any(self.view.tree().module_id);
-        self.dependencies
-            .edge_for_source(node_id, dir::DependencyRelation::ReExport)
+        self.modules
+            .edge_for_source(node_id, dir::ModuleRelation::ReExport)
             .map(|edge| edge.target)
             .ok_or_else(|| ExportError::Internal {
                 anchor: self.module_anchor(),
                 module: self.view.tree().module_id,
-                message: format!("missing re-export dependency edge for {node_id:?}"),
+                message: format!("missing re-export module edge for {node_id:?}"),
             })
     }
 

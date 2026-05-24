@@ -25,7 +25,7 @@ impl SnapshotTable for dir::ExportTable {
                     let row = SnapshotRow::new(builder.anchor_node(node_id), "export", "indirect")
                         .field("key", builder.export_key_label(export.key))
                         .field("imported", builder.export_selector_label(export.imported));
-                    let (target_key, target_value) = builder.dependency_target_field(export.target);
+                    let (target_key, target_value) = builder.module_target_field(export.target);
                     let row = row.field(target_key, target_value);
                     builder.push(row);
                 }
@@ -35,7 +35,7 @@ impl SnapshotTable for dir::ExportTable {
         for export in &self.star_exports {
             let node_id = export.item.into_global(builder.tree.module_id).into_any();
             let row = SnapshotRow::new(builder.anchor_node(node_id), "export", "star");
-            let (target_key, target_value) = builder.dependency_target_field(export.target);
+            let (target_key, target_value) = builder.module_target_field(export.target);
             let row = row.field(target_key, target_value);
             builder.push(row);
         }
