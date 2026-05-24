@@ -28,18 +28,27 @@ class Counter {
 
     constructor(value: int32) {
     /// @type.symbol symbol=Counter.constructor type=(int32) => Counter
+    /// @type.symbol symbol=value type=int32
 
         this.value = value;
-        /// @resolution.name source=this target=this
+        /// @type.node source="this.value = value" type=int32
+        /// @type.node source=this type=Counter
+        /// @type.node source=this.value type=int32
         /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.receiver source=this kind=this owner=Counter type=Counter
+        /// @type.node source=value type=int32
         /// @resolution.name source=value target=value
+
     }
 }
 
 const counter = new Counter(1);
-/// @resolution.name source=Counter target=Counter
-/// @resolution.call source="new Counter(1)" parameters=[int32] return=Counter kind=construct target=Counter.constructor
 /// @type.symbol symbol=counter type=Counter
+/// @type.node source="new Counter(1)" type=Counter
+/// @resolution.call source="new Counter(1)" parameters=[int32] return=Counter kind=construct target=Counter.constructor
+/// @type.node source=Counter type=Counter
+/// @resolution.name source=Counter target=Counter
+/// @type.node source=1 type=int32
 "#,
     );
 }
@@ -75,29 +84,43 @@ class Box {
 
     constructor(value: string);
     /// @type.symbol symbol=Box.constructor#1 type=(string) => Box
+    /// @type.symbol symbol=value#1 type=string
 
     constructor(value: int32);
     /// @type.symbol symbol=Box.constructor#2 type=(int32) => Box
+    /// @type.symbol symbol=value#2 type=int32
 
     constructor(value: string | int32) {
     /// @type.symbol symbol=Box.constructor#3 type=(string | int32) => Box
+    /// @type.symbol symbol=value#3 type=string | int32
 
         this.value = value;
-        /// @resolution.name source=this target=this
+        /// @type.node source="this.value = value" type=string | int32
+        /// @type.node source=this type=Box
+        /// @type.node source=this.value type=string | int32
         /// @resolution.member source=this.value receiver=Box kind=symbol target=Box.value
-        /// @resolution.name source=value target=value
+        /// @resolution.receiver source=this kind=this owner=Box type=Box
+        /// @type.node source=value type=string | int32
+        /// @resolution.name source=value target=value#3
+
     }
 }
 
 const text = new Box("x");
-/// @resolution.name source=Box target=Box
-/// @resolution.call source="new Box(\"x\")" parameters=[string] return=Box kind=construct target=Box.constructor#1
 /// @type.symbol symbol=text type=Box
+/// @type.node source="new Box(\"x\")" type=Box
+/// @resolution.call source="new Box(\"x\")" parameters=[string] return=Box kind=construct target=Box.constructor#1
+/// @type.node source=Box type=Box
+/// @resolution.name source=Box target=Box
+/// @type.node source="\"x\"" type=string
 
 const number = new Box(1);
-/// @resolution.name source=Box target=Box
-/// @resolution.call source="new Box(1)" parameters=[int32] return=Box kind=construct target=Box.constructor#2
 /// @type.symbol symbol=number type=Box
+/// @type.node source="new Box(1)" type=Box
+/// @resolution.call source="new Box(1)" parameters=[int32] return=Box kind=construct target=Box.constructor#2
+/// @type.node source=Box type=Box
+/// @resolution.name source=Box target=Box
+/// @type.node source=1 type=int32
 "#,
     );
 }
@@ -132,27 +155,37 @@ class Box {
 
     constructor(value: string);
     /// @type.symbol symbol=Box.constructor#1 type=(string) => Box
+    /// @type.symbol symbol=value#1 type=string
 
     constructor(value: int32);
     /// @type.symbol symbol=Box.constructor#2 type=(int32) => Box
+    /// @type.symbol symbol=value#2 type=int32
 
     constructor(value: string | int32) {
     /// @type.symbol symbol=Box.constructor#3 type=(string | int32) => Box
+    /// @type.symbol symbol=value#3 type=string | int32
 
         this.value = value;
-        /// @resolution.name source=this target=this
+        /// @type.node source="this.value = value" type=string | int32
+        /// @type.node source=this type=Box
+        /// @type.node source=this.value type=string | int32
         /// @resolution.member source=this.value receiver=Box kind=symbol target=Box.value
-        /// @resolution.name source=value target=value
+        /// @resolution.receiver source=this kind=this owner=Box type=Box
+        /// @type.node source=value type=string | int32
+        /// @resolution.name source=value target=value#3
+
     }
 }
 
 new Box(true);
+/// @type.node source=Box type=Box
 /// @resolution.name source=Box target=Box
+/// @type.node source=true type=boolean
 
 "#,
         r#"
 /// @diagnostic.error code=EC302 message="no matching call overload"
-/// @diagnostic.label line=12 column=8 source="new Box(true);"
+/// @diagnostic.label line=12 column=1 source="new Box(true);"
 "#,
     );
 }

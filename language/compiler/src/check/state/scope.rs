@@ -5,31 +5,29 @@ use super::CheckModuleState;
 
 impl CheckModuleState {
     /// Return the nearest lexical scope visible at one node.
-    pub(in crate::check) fn find_visible_scope(
+    pub(in crate::check) fn visible_scope(
         &self,
         bindings: &dir::BindingTable<'_>,
         node: dir::LocalNodeIdAny,
-    ) -> Option<dir::LocalScope> {
+    ) -> dir::LocalScope {
         let mut current = Some(node);
+        let view = self.input.view();
 
         // find nearest parent with a scope
         while let Some(node) = current {
-            let global = node.into_global(self.module);
+            let global = node.into_global(self.input.module);
             if let Some(scope) = bindings.scope_for_node(global) {
-                return Some(scope);
+                return scope;
             }
-            current = self.parsed.tree.get_parent(node.id);
+            current = view.get_parent(node.id);
         }
 
         // use module namespace when no child scope owns the node
-        Some(dir::LocalScope::new(
-            self.bound.namespace_scope,
-            dir::LocalScopeMark::end(),
-        ))
+        dir::LocalScope::new(self.input.bound.namespace_scope, dir::LocalScopeMark::end())
     }
 
     /// Return lexical symbols visible from one scope.
-    pub(in crate::check) fn find_scope_symbols(
+    pub(in crate::check) fn visible_scope_symbols(
         &self,
         bindings: &dir::BindingTable<'_>,
         mut scope: dir::LocalScope,

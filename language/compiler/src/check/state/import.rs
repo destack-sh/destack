@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use super::{CheckModuleState, StaticTerm, TypeTerm};
 
 /// State for importing one checked dependency symbol graph.
-struct CheckImportState<'a> {
+struct DependencyImportState<'a> {
     /// Source checked type table.
     source_types: &'a dir::TypeTable<'a>,
     /// Source checked static table.
@@ -15,7 +15,7 @@ struct CheckImportState<'a> {
     imported_statics: IndexMap<dir::LocalStaticId, dir::LocalStaticId>,
 }
 
-impl<'a> CheckImportState<'a> {
+impl<'a> DependencyImportState<'a> {
     /// Create import state for one checked dependency symbol graph.
     fn new(source_types: &'a dir::TypeTable<'a>, source_statics: &'a dir::StaticTable<'a>) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl CheckModuleState {
         source_types: &dir::TypeTable<'_>,
         source_statics: &dir::StaticTable<'_>,
     ) -> bool {
-        let mut import = CheckImportState::new(source_types, source_statics);
+        let mut import = DependencyImportState::new(source_types, source_statics);
         let mut imported = false;
 
         if let Some(ty) = source_types.get_symbol_type_id(target) {
@@ -56,13 +56,15 @@ impl CheckModuleState {
         &mut self,
         symbol: dir::GlobalSymbolId,
         source: dir::LocalTypeId,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) {
         let ty = self.import_type_by_id(source, import);
         let variable = self.symbol_type_variable(symbol);
-        let term = TypeTerm::Type(self.get_type(ty));
+        let term = TypeTerm::Literal(self.get_type(ty));
 
-        self.types.set_symbol_type(symbol, ty);
+        if symbol.module_id == self.input.module {
+            self.output.types.set_symbol_type(symbol, ty);
+        }
         self.define_type_term(variable, term);
     }
 
@@ -71,13 +73,15 @@ impl CheckModuleState {
         &mut self,
         symbol: dir::GlobalSymbolId,
         source: dir::LocalStaticId,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) {
         let value = self.import_static_id(source, import);
         let variable = self.symbol_static_variable(symbol);
-        let term = StaticTerm::Value(self.get_static(value));
+        let term = StaticTerm::Literal(self.get_static(value));
 
-        self.statics.set_symbol_static(symbol, value);
+        if symbol.module_id == self.input.module {
+            self.output.statics.set_symbol_static(symbol, value);
+        }
         self.define_static_term(variable, term);
     }
 
@@ -85,7 +89,7 @@ impl CheckModuleState {
     fn import_type_by_id(
         &mut self,
         source: dir::LocalTypeId,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) -> dir::LocalTypeId {
         if let Some(target) = import.imported_types.get(&source).copied() {
             return target;
@@ -93,8 +97,9 @@ impl CheckModuleState {
         let ty = import.source_types.get_type(source).clone();
         let ty = self.import_type(ty, import);
         let target = self
+            .output
             .types
-            .insert_imported_type_from_any(ty, self.bound.module_node);
+            .insert_imported_type_from_any(ty, self.input.bound.module_node);
 
         import.imported_types.insert(source, target);
 
@@ -102,7 +107,7 @@ impl CheckModuleState {
     }
 
     /// Import one checked type into this module.
-    fn import_type(&mut self, ty: dir::Type, import: &mut CheckImportState<'_>) -> dir::Type {
+    fn import_type(&mut self, ty: dir::Type, import: &mut DependencyImportState<'_>) -> dir::Type {
         match ty {
             dir::Type::Parameter(_)
             | dir::Type::Error
@@ -152,6 +157,7 @@ impl CheckModuleState {
                 is_readonly: slice.is_readonly,
             }),
             dir::Type::Tuple(tuple) => dir::Type::Tuple(dir::TupleType {
+                form: tuple.form,
                 elements: tuple
                     .elements
                     .into_iter()
@@ -242,7 +248,11 @@ impl CheckModuleState {
     }
 
     /// Import one checked memory form constructor into this module.
-    fn import_form(&mut self, form: dir::Form, import: &mut CheckImportState<'_>) -> dir::Form {
+    fn import_form(
+        &mut self,
+        form: dir::Form,
+        import: &mut DependencyImportState<'_>,
+    ) -> dir::Form {
         match form {
             dir::Form::Borrowed { lifetime, access } => dir::Form::Borrowed {
                 lifetime: self.import_static_id(lifetime, import),
@@ -259,7 +269,7 @@ impl CheckModuleState {
     fn import_type_operation(
         &mut self,
         operation: dir::TypeOperation,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) -> dir::TypeOperation {
         match operation {
             dir::TypeOperation::BuiltinTypeFunction(_) => operation,
@@ -315,7 +325,7 @@ impl CheckModuleState {
     fn import_static_argument(
         &mut self,
         argument: dir::StaticArgument,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) -> dir::StaticArgument {
         dir::StaticArgument {
             name: argument.name,
@@ -327,7 +337,7 @@ impl CheckModuleState {
     fn import_static_id(
         &mut self,
         source: dir::LocalStaticId,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) -> dir::LocalStaticId {
         if let Some(target) = import.imported_statics.get(&source).copied() {
             return target;
@@ -345,7 +355,7 @@ impl CheckModuleState {
     fn import_static(
         &mut self,
         term: dir::StaticTerm,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) -> dir::StaticTerm {
         match term {
             dir::StaticTerm::Type { ty } => dir::StaticTerm::Type {
@@ -388,7 +398,7 @@ impl CheckModuleState {
     fn import_static_property(
         &mut self,
         property: dir::StaticProperty,
-        import: &mut CheckImportState<'_>,
+        import: &mut DependencyImportState<'_>,
     ) -> dir::StaticProperty {
         match property {
             dir::StaticProperty::Field { key, value } => dir::StaticProperty::Field {
