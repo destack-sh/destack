@@ -12,9 +12,7 @@ pub(in crate::check) enum Constraint {
     /// ```ts
     /// value.name
     /// ```
-    ///
-    /// This defines the expression type as a member projection over `value`.
-    TypeDefine {
+    DefineType {
         /// The type variable being solved.
         result: VariableId,
         /// The type term assigned to it.
@@ -27,9 +25,7 @@ pub(in crate::check) enum Constraint {
     /// ```ts
     /// type Both = L | R;
     /// ```
-    ///
-    /// This defines the static lifetime value as a lifetime join.
-    StaticDefine {
+    DefineStatic {
         /// The static variable being solved.
         result: VariableId,
         /// The static term assigned to it.
@@ -42,7 +38,7 @@ pub(in crate::check) enum Constraint {
     /// ```ts
     /// const value: int32 = 1;
     /// ```
-    TypeRelate {
+    RelateType {
         /// The required relation.
         relation: TypeRelation,
         /// The left type.
@@ -52,25 +48,40 @@ pub(in crate::check) enum Constraint {
         /// The source that produced this constraint.
         origin: ConstraintOrigin,
     },
-    /// Check whether one assignment target accepts a write.
+    /// Relate two static variables.
+    ///
+    /// ```ts
+    /// const size: 4 = value.length;
+    /// ```
+    RelateStatic {
+        /// The required relation.
+        relation: StaticRelation,
+        /// The left static value.
+        left: VariableId,
+        /// The right static value.
+        right: VariableId,
+        /// The source that produced this constraint.
+        origin: ConstraintOrigin,
+    },
+    /// Require one place to accept a write.
     ///
     /// ```ts
     /// const value = 1;
     /// value = 2;
     /// ```
-    TargetWrite {
-        /// The target being written.
-        target: AssignmentTarget,
+    RequirePlaceWrite {
+        /// The place being written.
+        place: Place,
         /// The source that produced this constraint.
         origin: ConstraintOrigin,
     },
 }
 
 impl Constraint {
-    /// Return variables that must be solved before this constraint can finish.
-    pub(in crate::check) fn input_variables(&self) -> SmallVec<[VariableId; 4]> {
+    /// Return variables whose changes should wake this constraint.
+    pub(in crate::check) fn wake_variables(&self) -> SmallVec<[VariableId; 4]> {
         match self {
-            Self::TypeDefine {
+            Self::DefineType {
                 result,
                 term,
                 origin: _,
@@ -80,7 +91,7 @@ impl Constraint {
 
                 variables
             }
-            Self::StaticDefine {
+            Self::DefineStatic {
                 result,
                 term,
                 origin: _,
@@ -90,13 +101,19 @@ impl Constraint {
 
                 variables
             }
-            Self::TypeRelate {
+            Self::RelateType {
+                relation: _,
+                left,
+                right,
+                origin: _,
+            }
+            | Self::RelateStatic {
                 relation: _,
                 left,
                 right,
                 origin: _,
             } => smallvec::smallvec![*left, *right],
-            Self::TargetWrite { target, origin: _ } => smallvec::smallvec![target.ty],
+            Self::RequirePlaceWrite { place, origin: _ } => place.referenced_variables(),
         }
     }
 }
@@ -136,31 +153,45 @@ pub(in crate::check) enum ConstraintOrigin {
     Synthetic,
 }
 
-/// A value that can appear on the left side of an assignment.
+/// A (writable) place for storage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct AssignmentTarget {
-    /// The target type variable.
+pub(in crate::check) struct Place {
+    /// The place value type variable.
     pub(in crate::check) ty: VariableId,
-    /// The selected target key.
-    pub(in crate::check) key: AssignmentTargetKey,
-    /// The assignment syntax node for diagnostics.
+    /// How source syntax selected the place.
+    pub(in crate::check) target: PlaceTarget,
+    /// The source syntax node for diagnostics.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
 }
 
-impl AssignmentTarget {
-    /// Create an assignment target.
+impl Place {
+    /// Create a place.
     pub(in crate::check) fn new(
         ty: VariableId,
-        key: AssignmentTargetKey,
+        target: PlaceTarget,
         source: dir::GlobalNodeIdAny,
     ) -> Self {
-        Self { ty, key, source }
+        Self { ty, target, source }
+    }
+
+    /// Return variables that must be solved before this place can be checked.
+    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+        match self.target {
+            PlaceTarget::Binding { symbol: _ } | PlaceTarget::Pattern { pattern: _ } => {
+                smallvec::smallvec![self.ty]
+            }
+            PlaceTarget::Member { owner, key: _ } => smallvec::smallvec![self.ty, owner],
+            PlaceTarget::Index { receiver, index } => {
+                smallvec::smallvec![self.ty, receiver, index]
+            }
+            PlaceTarget::Dereference { output } => smallvec::smallvec![self.ty, output],
+        }
     }
 }
 
-/// The selected assignment target key.
+/// How source syntax selects a place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum AssignmentTargetKey {
+pub(in crate::check) enum PlaceTarget {
     /// Local or imported value binding.
     Binding {
         /// The local binding symbol selected by syntax.
@@ -173,20 +204,35 @@ pub(in crate::check) enum AssignmentTargetKey {
         /// The selected member key.
         key: dir::StaticKey,
     },
-    /// Destructuring or invalid target.
-    Unknown,
+    /// Protocol-backed index target.
+    Index {
+        /// The indexed receiver type.
+        receiver: VariableId,
+        /// The index expression type.
+        index: VariableId,
+    },
+    /// Protocol-backed dereference target.
+    Dereference {
+        /// The dereference output type.
+        output: VariableId,
+    },
+    /// Destructuring pattern target.
+    Pattern {
+        /// The assignment pattern node.
+        pattern: dir::GlobalNodeIdAny,
+    },
 }
 
 impl CheckModuleState {
     /// Add one constraint.
     pub(in crate::check) fn push_constraint(&mut self, constraint: Constraint) {
-        self.constraints.push(constraint);
+        self.work.constraints.push(constraint);
     }
 
     /// Define one type variable from one term.
     pub(in crate::check) fn define_type_term(&mut self, variable: VariableId, term: TypeTerm) {
         let origin = self.constraint_origin(variable);
-        let constraint = Constraint::TypeDefine {
+        let constraint = Constraint::DefineType {
             result: variable,
             term,
             origin,
@@ -198,7 +244,7 @@ impl CheckModuleState {
     /// Define one static variable from one term.
     pub(in crate::check) fn define_static_term(&mut self, variable: VariableId, term: StaticTerm) {
         let origin = self.constraint_origin(variable);
-        let constraint = Constraint::StaticDefine {
+        let constraint = Constraint::DefineStatic {
             result: variable,
             term,
             origin,
@@ -215,7 +261,7 @@ impl CheckModuleState {
         left: VariableId,
         right: VariableId,
     ) {
-        let constraint = Constraint::TypeRelate {
+        let constraint = Constraint::RelateType {
             relation,
             left,
             right,
@@ -225,10 +271,28 @@ impl CheckModuleState {
         self.push_constraint(constraint);
     }
 
-    /// Add one target write constraint.
-    pub(in crate::check) fn push_target_write(&mut self, target: AssignmentTarget) {
-        let origin = ConstraintOrigin::Node(target.source);
-        let constraint = Constraint::TargetWrite { target, origin };
+    /// Add one static relation constraint.
+    pub(in crate::check) fn push_static_relation(
+        &mut self,
+        origin: ConstraintOrigin,
+        relation: StaticRelation,
+        left: VariableId,
+        right: VariableId,
+    ) {
+        let constraint = Constraint::RelateStatic {
+            relation,
+            left,
+            right,
+            origin,
+        };
+
+        self.push_constraint(constraint);
+    }
+
+    /// Require one place to accept a write.
+    pub(in crate::check) fn require_writable_place(&mut self, place: Place) {
+        let origin = ConstraintOrigin::Node(place.source);
+        let constraint = Constraint::RequirePlaceWrite { place, origin };
 
         self.push_constraint(constraint);
     }
@@ -239,12 +303,12 @@ impl CheckModuleState {
             VariableOrigin::Node(node) => ConstraintOrigin::Node(*node),
             VariableOrigin::Symbol(symbol) => ConstraintOrigin::Symbol(*symbol),
             VariableOrigin::Generic(generic) => ConstraintOrigin::Symbol(generic.slot().owner),
-            VariableOrigin::Synthetic => ConstraintOrigin::Synthetic,
+            VariableOrigin::Generated { origin } => *origin,
         }
     }
 
     /// Return collected constraints.
     pub(in crate::check) fn constraints(&self) -> &[Constraint] {
-        &self.constraints
+        &self.work.constraints
     }
 }

@@ -3,14 +3,34 @@ use destack_dir as dir;
 use super::CheckModuleState;
 
 impl CheckModuleState {
+    /// Record one resolved name directly into the checked DIR table.
+    pub(in crate::check) fn record_name_resolution(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        target: dir::NameResolution,
+    ) {
+        self.output.resolutions.set_name_resolution(source, target);
+    }
+
     /// Return the symbol introduced by a source declaration node.
     pub(in crate::check) fn declaration_symbol(
         &self,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         self.binding_table()
-            .symbol_for_declaration(node.into_global(self.module))
-            .map(|symbol| symbol.into_global(self.module))
+            .symbol_for_declaration(node.into_global(self.input.module))
+            .map(|symbol| symbol.into_global(self.input.module))
+    }
+
+    /// Return the symbol introduced by a source declaration node.
+    pub(in crate::check) fn required_declaration_symbol(
+        &mut self,
+        node: dir::LocalNodeIdAny,
+        context: &'static str,
+    ) -> Option<dir::GlobalSymbolId> {
+        let _ = context;
+
+        self.declaration_symbol(node)
     }
 
     /// Return the symbol selected by a nominal member key.
@@ -30,7 +50,7 @@ impl CheckModuleState {
 
             return scope
                 .find_symbol(key)
-                .map(|symbol| symbol.into_global(self.module));
+                .map(|symbol| symbol.into_global(self.input.module));
         }
 
         None
@@ -43,20 +63,19 @@ impl CheckModuleState {
     ) -> Option<dir::GlobalSymbolId> {
         let binding_table = self.binding_table();
         let mut current = Some(node);
+        let view = self.input.view();
 
         // walk parents until a scoped symbol owner is found
         while let Some(node) = current {
-            let global = node.into_global(self.module);
+            let global = node.into_global(self.input.module);
             if let Some(scope) = binding_table.scope_for_node(global) {
                 let scope = binding_table.get_scope(scope);
                 if let Some(owner) = scope.owner {
-                    return Some(owner.into_global(self.module));
+                    return Some(owner.into_global(self.input.module));
                 }
             }
 
-            current = self.parsed.parents.get_by_id(node.id).map(|parent| {
-                dir::LocalNodeIdAny::new(parent, self.parsed.tree.get_node_type(parent))
-            });
+            current = view.get_parent(node.id);
         }
 
         None
@@ -72,7 +91,7 @@ impl CheckModuleState {
 
         symbol
             .declaration
-            .filter(|declaration| declaration.module_id == self.module)
+            .filter(|declaration| declaration.module_id == self.input.module)
             .map(|declaration| declaration.local_id)
     }
 
@@ -81,12 +100,35 @@ impl CheckModuleState {
         &self,
         symbol: dir::LocalSymbolId,
     ) -> dir::GlobalSymbolId {
-        match self.resolved.imports.symbol_target(symbol) {
+        match self.input.resolved.imports.symbol_target(symbol) {
             // imported aliases use their resolved target
             Some(dir::ImportTarget::Symbol(symbol)) => symbol,
 
             // local and namespace bindings keep their local symbol
-            Some(dir::ImportTarget::Namespace(_)) | None => symbol.into_global(self.module),
+            Some(dir::ImportTarget::Namespace(_)) | None => symbol.into_global(self.input.module),
+        }
+    }
+
+    /// Return the type symbol named by one interface heritage expression.
+    pub(in crate::check) fn interface_heritage_symbol(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let view = self.input.view();
+
+        match view.get(expression) {
+            dir::Expression::Identifier { name } => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![*name],
+                };
+
+                self.reference_type_symbol(expression.into_any(), &path)
+            }
+            dir::Expression::QualifiedReference {
+                path,
+                generic_arguments: _,
+            } => self.reference_type_symbol(expression.into_any(), path),
+            _ => None,
         }
     }
 
@@ -96,7 +138,8 @@ impl CheckModuleState {
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<dir::LocalTypeId> {
         // prefer checked tables produced during this phase
-        self.types
+        self.output
+            .types
             .get_symbol_type_id(symbol_id)
             .or_else(|| self.input_type_table().get_symbol_type_id(symbol_id))
     }
@@ -107,7 +150,8 @@ impl CheckModuleState {
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<dir::LocalStaticId> {
         // prefer checked tables produced during this phase
-        self.statics
+        self.output
+            .statics
             .get_symbol_static_id(symbol_id)
             .or_else(|| self.input_static_table().get_symbol_static_id(symbol_id))
     }
@@ -119,7 +163,7 @@ impl CheckModuleState {
 
         // derive an internal label for unnamed owners
         if let Some(name) = symbol.name() {
-            self.strings.get(name).to_string()
+            self.input.strings.get(name).to_string()
         } else {
             format!("symbol{}", symbol_id.local_id.id)
         }
