@@ -119,6 +119,8 @@ pub enum SymbolForm {
     NewtypeInterface,
     /// Enum symbol.
     Enum,
+    /// Enum field constant symbol.
+    EnumField,
     /// Function symbol.
     Function,
     /// Label symbol.
@@ -154,6 +156,7 @@ impl SymbolForm {
             Self::Label => SymbolSpace::Label,
             Self::Class
             | Self::Enum
+            | Self::EnumField
             | Self::Extension
             | Self::Function
             | Self::Import
@@ -170,6 +173,7 @@ impl SymbolForm {
                 self,
                 Self::Class
                     | Self::Enum
+                    | Self::EnumField
                     | Self::Extension
                     | Self::Import
                     | Self::Interface
@@ -182,6 +186,7 @@ impl SymbolForm {
                 self,
                 Self::Class
                     | Self::Enum
+                    | Self::EnumField
                     | Self::Function
                     | Self::Import
                     | Self::Newtype
