@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_source::{
-    FileType, Loader, ModuleId, ModuleSpecifier as PathSpecifier, PackageId, Uri, CODE_FILE_TYPES,
+    CODE_FILE_TYPES, FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri,
 };
-use destack_workspace::{ConditionSet, Dependency, Export, ExportKind, Package};
+use destack_workspace::{ConditionSet, Dependency, ExportKind, Package, PackageExport};
 
 use crate::import::state::ImportState;
 use crate::{Compiler, CompilerResult, DiagnosticAnchor, ImportError};
 
-use super::specifier::{ModuleSpecifier, PackageSpecifier};
+use super::specifier::{DependencySpecifier, PackageSpecifier};
 
 impl Compiler {
     /// Import one dependency edge.
@@ -53,7 +53,7 @@ impl Compiler {
         specifier: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        let specifier_parts = ModuleSpecifier::parse(specifier);
+        let specifier_parts = DependencySpecifier::parse(specifier);
 
         // resolve builtin module edges in builtin package space
         if self
@@ -75,7 +75,7 @@ impl Compiler {
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
         specifier: &str,
-        specifier_parts: ModuleSpecifier,
+        specifier_parts: DependencySpecifier,
     ) -> CompilerResult<Option<ModuleId>> {
         let builtin = self.repository.builtin_package();
 
@@ -86,7 +86,7 @@ impl Compiler {
 
         match specifier_parts {
             // resolve relative builtin specifier
-            ModuleSpecifier::Relative(specifier_parts) => {
+            DependencySpecifier::Relative(specifier_parts) => {
                 let specifier = specifier_parts.path();
                 let uri =
                     builtin.module_uri_for_relative_specifier(state.module.uri.as_ref(), specifier);
@@ -124,7 +124,7 @@ impl Compiler {
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
         specifier: &str,
-        specifier_parts: ModuleSpecifier,
+        specifier_parts: DependencySpecifier,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
         let builtin = self.repository.builtin_package();
@@ -137,7 +137,7 @@ impl Compiler {
         else {
             match specifier_parts {
                 // same package module
-                ModuleSpecifier::Relative(specifier_parts) => self
+                DependencySpecifier::Relative(specifier_parts) => self
                     .resolve_relative_dependency_module(
                         state,
                         anchor,
@@ -147,7 +147,7 @@ impl Compiler {
                     ),
 
                 // dependency package export
-                ModuleSpecifier::Package(specifier_parts) => self.resolve_dependency_export(
+                DependencySpecifier::Package(specifier_parts) => self.resolve_dependency_export(
                     state,
                     anchor,
                     &specifier_parts,
@@ -156,11 +156,11 @@ impl Compiler {
                 ),
 
                 // unsupported user module specifier
-                ModuleSpecifier::Absolute
-                | ModuleSpecifier::Private
-                | ModuleSpecifier::Internal
-                | ModuleSpecifier::Scheme
-                | ModuleSpecifier::Invalid => {
+                DependencySpecifier::Absolute
+                | DependencySpecifier::Private
+                | DependencySpecifier::Internal
+                | DependencySpecifier::Scheme
+                | DependencySpecifier::Invalid => {
                     state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
                         anchor: anchor.clone(),
                         target: specifier.to_string(),
@@ -258,7 +258,7 @@ impl Compiler {
         package: &'a Package,
         key: &str,
         conditions: &ConditionSet,
-    ) -> Option<(&'a Export, String)> {
+    ) -> Option<(&'a PackageExport, String)> {
         // exact export match
         if let Some(export) = package
             .export(key)
@@ -276,7 +276,7 @@ impl Compiler {
         package: &'a Package,
         key: &str,
         conditions: &ConditionSet,
-    ) -> Option<(&'a Export, String)> {
+    ) -> Option<(&'a PackageExport, String)> {
         let mut best = None;
 
         // scan pattern export matches
@@ -310,7 +310,7 @@ impl Compiler {
         &self,
         state: &mut ImportState<'_>,
         anchor: &DiagnosticAnchor,
-        specifier_parts: &PathSpecifier,
+        specifier_parts: &ModuleSpecifier,
         specifier: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
