@@ -115,6 +115,25 @@ pub enum UnaryOperator {
 }
 
 impl UnaryOperator {
+    /// Return the source text for this unary operator.
+    #[inline]
+    pub fn text(self) -> &'static str {
+        match self {
+            UnaryOperator::PostIncrement => "++",
+            UnaryOperator::PostDecrement => "--",
+            UnaryOperator::PreIncrement => "++",
+            UnaryOperator::PreDecrement => "--",
+            UnaryOperator::Not => "!",
+            UnaryOperator::Plus => "+",
+            UnaryOperator::Negate => "-",
+            UnaryOperator::ElementwiseNot => "~",
+            UnaryOperator::Typeof => "typeof",
+            UnaryOperator::Void => "void",
+            UnaryOperator::Dereference => "*",
+            UnaryOperator::Spread => "...",
+        }
+    }
+
     /// Get the precedence of the unary operator.
     #[inline]
     pub fn precedence_group(&self) -> OperatorPrecedence {
@@ -258,6 +277,37 @@ pub enum BinaryOperator {
 }
 
 impl BinaryOperator {
+    /// Return the source text for this binary operator.
+    #[inline]
+    pub fn text(self) -> &'static str {
+        match self {
+            BinaryOperator::Exponent => "**",
+            BinaryOperator::Multiply => "*",
+            BinaryOperator::Divide => "/",
+            BinaryOperator::Remainder => "%",
+            BinaryOperator::Add => "+",
+            BinaryOperator::Subtract => "-",
+            BinaryOperator::ShiftLeft => "<<",
+            BinaryOperator::ShiftRight => ">>",
+            BinaryOperator::UnsignedShiftRight => ">>>",
+            BinaryOperator::ElementwiseAnd => "&",
+            BinaryOperator::ElementwiseXor => "^",
+            BinaryOperator::ElementwiseOr => "|",
+            BinaryOperator::Equal => "==",
+            BinaryOperator::NotEqual => "!=",
+            BinaryOperator::EqualStrict => "===",
+            BinaryOperator::NotEqualStrict => "!==",
+            BinaryOperator::LessThan => "<",
+            BinaryOperator::LessThanOrEqual => "<=",
+            BinaryOperator::GreaterThan => ">",
+            BinaryOperator::GreaterThanOrEqual => ">=",
+            BinaryOperator::And => "&&",
+            BinaryOperator::Or => "||",
+            BinaryOperator::Coalesce => "??",
+            BinaryOperator::In => "in",
+        }
+    }
+
     /// Get the precedence of the binary operator.
     #[inline]
     pub fn precedence_group(&self) -> OperatorPrecedence {
@@ -415,6 +465,29 @@ pub enum AssignOperator {
 }
 
 impl AssignOperator {
+    /// Return the binary operator used by this compound assignment operator.
+    #[inline]
+    pub fn binary_operator(self) -> Option<BinaryOperator> {
+        match self {
+            AssignOperator::AddAssign => Some(BinaryOperator::Add),
+            AssignOperator::SubtractAssign => Some(BinaryOperator::Subtract),
+            AssignOperator::MultiplyAssign => Some(BinaryOperator::Multiply),
+            AssignOperator::DivideAssign => Some(BinaryOperator::Divide),
+            AssignOperator::RemainderAssign => Some(BinaryOperator::Remainder),
+            AssignOperator::ExponentAssign => Some(BinaryOperator::Exponent),
+            AssignOperator::ShiftLeftAssign => Some(BinaryOperator::ShiftLeft),
+            AssignOperator::ShiftRightAssign => Some(BinaryOperator::ShiftRight),
+            AssignOperator::UnsignedShiftRightAssign => Some(BinaryOperator::UnsignedShiftRight),
+            AssignOperator::ElementwiseAndAssign => Some(BinaryOperator::ElementwiseAnd),
+            AssignOperator::ElementwiseXorAssign => Some(BinaryOperator::ElementwiseXor),
+            AssignOperator::ElementwiseOrAssign => Some(BinaryOperator::ElementwiseOr),
+            AssignOperator::Assign
+            | AssignOperator::AndAssign
+            | AssignOperator::OrAssign
+            | AssignOperator::CoalesceAssign => None,
+        }
+    }
+
     /// Return the shared assignment precedence.
     #[inline]
     pub fn precedence_group(&self) -> OperatorPrecedence {
