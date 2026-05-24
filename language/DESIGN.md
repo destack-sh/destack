@@ -1,7 +1,7 @@
 # "Language"
 
-The Destack language (`.ds`) and toolchain, colloquially "TypeScript++", are a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated language toolchain, _and_ it can also compile nicely to standard JS/TS targets.
-We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack (Destack), and thus by "language" ("TypeScript++") we mean much more than "just" a syntax form: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
+The Destack language (`.ds`) is a superset of "strict modern" TypeScript with support for `.ts` and `.tsx` files, native AOT compilation and a fully integrated toolchain, _and_ it can also compile nicely to standard JS/TS targets.
+We believe that the ideal way to build correct, optimal, integrated software systems is to build a fully integrated stack, and thus by "language" ("TypeScript++") we mean much more than "just" a coding language: a language, a runtime, a toolchain, plugins, and ultimately, a way of programming.
 
 ## Universality
 
@@ -9,11 +9,11 @@ We're very early in software, and we're still figuring out how to build optimal,
 Over 50 years, we have grown more and more layers of software sediment and need ever _more_ tools to get any code out the door, and yet confidence and performance have plummeted.
 We can do better, but not by adding _more_ and more inscrutable pieces.
 
-The best possible stack must be fully integrated across the language itself, the toolchain with linters and formatters, a VM, compiler, runtime, and basically anything that touches the code.
-Only TypeScript is close to being a universal software foundation, because it runs directly on the web, and the web is the most ubiquitous application platform.
-The TypeScript ecosystem has good - if not perfect - answers to all modern software needs, from great developer tools to rich interactive frontends to quite _decent_ and performant backends.
+The best possible stack must be fully integrated across the language itself, the toolchain, the runtime, and basically anything that touches the code.
+Only TypeScript is close to being a universal software foundation, because it runs directly on the web, and the web is the most ubiquitous software platform.
+The TypeScript ecosystem has good - if not perfect - answers to all modern software needs, from great developer tools to rich interactive frontends to quite performant backends.
 
-Excluding legacy JavaScript baggage and dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
+Excluding the legacy JavaScript baggage and all the dynamic prototype mess, modern TypeScript is surprisingly close to a fully AOT-compilable language (and most browsers retrofit compilation internally already based on these assumptions).
 Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that truly covers the full stack, is immediately familiar to millions of developers, runs transparently on existing targets, and can be completely free of JS overhead and (some) historic baggage.
 
 ## Compatibility
@@ -512,7 +512,7 @@ const counter: Counter = new Counter(1);
 counter.increment() satisfies int32;
 ```
 
-Class methods are concrete by default and must be declared as `virtual` to enable _virtual_ dispatch of instances methods in subclasses.
+Class methods are concrete (have only one implementation) by default and must be declared as `virtual` to enable _virtual_ dispatch of instances methods in subclasses.
 Similarly, class methods are marked as `abstract` to require an override before the class can be constructed.
 
 ```ds
@@ -1157,7 +1157,8 @@ for (using file of files) {
 ### Operators
 
 Destack extends TypeScript operators with typed overloads and some additional precision.
-Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict identity (`===`, `!==`) are not (directly) overloadable, as usual.
+Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict identity (`===`, `!==`) are not (directly) overloadable, as usual, and same for increment (`++`) and decrement (`--`).
+Compound assignment operators like `+=` are desugared into their component operations (`+` and `=`), and are thus indirectly overloadable.
 
 | Operator | Example | Interface |
 |----------|---------|----------|
@@ -1176,28 +1177,29 @@ Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict 
 | `<<` | `a << b` | `ShiftLeft<T>` |
 | `>>` | `a >> b` | `ShiftRight<T>` |
 | `>>>` | `a >>> b` | `ShiftRightUnsigned<T>` |
-| `==`, `!=` | `a == b` | `Equal<T>` or `PartialEqual<T>` |
+| `==`, `!=` | `a == b` | `PartialEqual<T>` |
 | `<`, `<=`, `>`, `>=` | `a < b` | `Compare<T>` or `PartialCompare<T>` |
 | `[]` | `a[i]` | `Index<I>` |
 | `[] =` | `a[i] = v` | `IndexSet<I, V>` |
-| `*` | `*a` | `ReadonlyDereference` |
-| `* =` | `*a = v` | `Dereference` |
+| `*` | `*a` | `Dereference<"readonly">` |
+| `* =` | `*a = v` | `Dereference<"exclusive">` |
 
-Dereference operators are a little different from the main "value-shaped" operators.
-`ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, access, and lifetimes.
+Equality `==` / `!=` follows Rust's split between "partial" and "total" equality:
+- Equality operators `==` and `!=` dispatch through `PartialEqual<T>.equal`
+- `Equal<T>` is a stronger _marker_ interface based on `PartialEqual<T>`
+
+The distinction between `Equal` and `PartialEqual` is mainly to deal with floating point numbers (since e.g. `NaN` does not equal itself, defintionally).
+Comparison operators `<` / `>` follow the same pattern and support `PartialCompare<T>` when ordering may be undefined (e.g., floats), and `Compare<T>` when ordering is total (e.g., integers).
+
+Dereference operators are a little different from the main "value-shaped" operators, because `Dereference<A>` transparently _dereferences_ (projects) access forms.
 
 ```ds
 struct Box<T> {
     ptr: ^T;
 }
 
-extension<T> of Box<T> implements Dereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Box<T> implements Dereference<"readonly"> {
     type Output = &T;
-
-    readonlyDereference(): this.ReadonlyOutput {
-        &readonly *this.ptr
-    }
 
     dereference(): this.Output {
         &*this.ptr
@@ -1205,9 +1207,8 @@ extension<T> of Box<T> implements Dereference {
 }
 ```
 
-Explicit `*box` uses `ReadonlyDereference`, while assignment through `*box` needs mutable `Dereference`.
-Member lookup and method calls may autoderef through `ReadonlyDereference` / `Dereference`, but only after checking the wrapper's own members first.
-Autoderef does not make `Box<T>` generally assignable to `T`; it is just member lookup ergonomics for smart pointers and view-like wrappers.
+For example, `*box` flows through `Dereference<"readonly">`, while assignment through `*box` needs `Dereference<"exclusive">`.
+Importantly, member lookup and method calls may auto-dereference transparently through `Dereference` without any special syntax - this is what enables ergonomic access to smart pointer like wrappers and guards.
 
 ### Ranges
 
