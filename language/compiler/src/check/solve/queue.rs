@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::check::{Constraint, VariableId};
 
-/// Component solver work queue.
-pub(in crate::check) struct WorkQueue {
+/// Component constraint solver queue.
+pub(in crate::check) struct ConstraintQueue {
     /// Constraints in component solve order.
     constraints: Vec<Constraint>,
     /// Constraint indexes keyed by variables that wake them.
@@ -17,7 +17,7 @@ pub(in crate::check) struct WorkQueue {
     queued: Vec<bool>,
 }
 
-impl WorkQueue {
+impl ConstraintQueue {
     /// Create a queue containing every work item.
     pub(in crate::check) fn new(constraints: Vec<Constraint>) -> Self {
         let pending = (0..constraints.len()).collect::<VecDeque<_>>();
@@ -75,7 +75,7 @@ impl WorkQueue {
 
 /// Variable changes produced by one solver reduction.
 #[derive(Debug, Clone, PartialEq)]
-pub(super) enum Progress {
+pub(in crate::check) enum Progress {
     /// The reduction did not change any variable.
     Unchanged,
     /// The work item changed these variables.
@@ -84,12 +84,12 @@ pub(super) enum Progress {
 
 impl Progress {
     /// Return one changed variable.
-    pub(super) fn changed(variable: VariableId) -> Self {
+    pub(in crate::check) fn changed(variable: VariableId) -> Self {
         Self::Changed(smallvec::smallvec![variable])
     }
 
     /// Return progress from a conditional variable change.
-    pub(super) fn from_change(variable: VariableId, is_changed: bool) -> Self {
+    pub(in crate::check) fn from_change(variable: VariableId, is_changed: bool) -> Self {
         if is_changed {
             Self::changed(variable)
         } else {
@@ -98,12 +98,12 @@ impl Progress {
     }
 
     /// Return whether this progress did not change any variable.
-    pub(super) fn is_unchanged(&self) -> bool {
+    pub(in crate::check) fn is_unchanged(&self) -> bool {
         matches!(self, Self::Unchanged)
     }
 
     /// Merge two progress values.
-    pub(super) fn merge(self, other: Self) -> Self {
+    pub(in crate::check) fn merge(self, other: Self) -> Self {
         match (self, other) {
             (Self::Unchanged, progress) | (progress, Self::Unchanged) => progress,
             (Self::Changed(mut left), Self::Changed(right)) => {

@@ -1,18 +1,8 @@
-mod call;
-mod construct;
-mod control;
-mod decide;
-mod decompose;
-mod expected;
-mod index;
-mod intrinsic;
-mod member;
-mod operator;
+mod decision;
 mod queue;
-mod reduce;
 mod relation;
 mod solution;
 mod solve;
-mod substitute;
 
-pub(in crate::check) use decide::*;
+pub(in crate::check) use decision::*;
+pub(in crate::check) use queue::Progress;

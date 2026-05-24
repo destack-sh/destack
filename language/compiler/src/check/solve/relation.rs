@@ -5,7 +5,7 @@ use super::queue::Progress;
 
 impl CheckComponentState<'_> {
     /// Reduce one type relation.
-    pub(super) fn relate_type(
+    pub(in crate::check) fn relate_type(
         &mut self,
         relation: TypeRelation,
         left: VariableId,
@@ -22,7 +22,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one type equality relation.
-    pub(super) fn relate_type_equal(
+    pub(in crate::check) fn relate_type_equal(
         &mut self,
         left: VariableId,
         right: VariableId,
@@ -42,7 +42,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one assignability relation.
-    pub(super) fn relate_type_assignable(
+    pub(in crate::check) fn relate_type_assignable(
         &mut self,
         source: VariableId,
         target: VariableId,
@@ -53,7 +53,7 @@ impl CheckComponentState<'_> {
 
         let progress = match (source_value, target_value) {
             (Some(source_term), Some(target_term)) => {
-                let expected = self.expect_type(source, &source_term, &target_term)?;
+                let expected = self.expect_literal_type(source, &source_term, &target_term)?;
                 let relation = self.relate_solved_type_assignable(&source_term, &target_term)?;
 
                 Ok::<Progress, CompilerError>(expected.merge(relation))
@@ -65,7 +65,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one static equality relation.
-    pub(super) fn relate_static_equal(
+    pub(in crate::check) fn relate_static_equal(
         &mut self,
         left: VariableId,
         right: VariableId,
@@ -84,7 +84,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one static relation.
-    pub(super) fn relate_static(
+    pub(in crate::check) fn relate_static(
         &mut self,
         relation: StaticRelation,
         left: VariableId,
