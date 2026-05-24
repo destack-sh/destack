@@ -206,6 +206,47 @@ type A<B> = { [B in keyof C & string as `${P}1` | `${P}2`]: A[B] }
             (type_identifier)
             (type_identifier)))))))
 
+=======================================
+Variadic tuple and type argument spreads
+:language(destack)
+=======================================
+
+type Row<...Fields: readonly (string | number)[]> = (...Fields);
+type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (parenthesized_type
+                (union_type
+                  (predefined_type)
+                  (predefined_type))))))))
+    (tuple_type
+      (rest_type
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (readonly_type
+            (array_type
+              (type_identifier))))))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (rest_type
+          (type_identifier))))))
+
 ======================
 Explicit type argument
 :language(destack)

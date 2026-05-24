@@ -2280,6 +2280,7 @@ module.exports = function defineGrammar(dialect) {
         commaSep1(
           dialect === 'destack' ?
             choice(
+              $.rest_type,
               $.type,
               $.static_value_argument,
               $.comptime_type_argument,
@@ -2473,6 +2474,7 @@ module.exports = function defineGrammar(dialect) {
           choice(
             seq('[', commaSep($._tuple_type_member), optional(','), ']'),
             seq('(', ')'),
+            seq('(', $.rest_type, ')'),
             seq('(', $.type, ',', ')'),
             seq('(', $.type, ',', commaSep1($.type), optional(','), ')'),
           ) :

@@ -118,3 +118,53 @@ type StaticFactory<T extends static abstract new (...args: any) => any> = T;
                   (predefined_type))))
             (predefined_type)))))
     (type_identifier)))
+
+=======================================================
+Static and comptime parameter modifiers compose
+:language(destack)
+=======================================================
+
+function allocate<T: static Type, comptime ...Shape: usize>(
+  static allocator: Allocator,
+  comptime count: uint,
+): [T; count] {
+  return allocator.make<T, count>();
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier)))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (tuple_type
+        (type_identifier)
+        (identifier)))
+    (statement_block
+      (return_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (type_arguments
+            (type_identifier)
+            (type_identifier))
+          (arguments))))))

@@ -14,6 +14,13 @@ type InlineBytes<T, comptime N: uint = comptime 64> = [uint8; N];
 type Label<T: Message> = T.Label<"created">;
 //                         ^ entity.name.type.ds
 
+type Row<...Fields: readonly (string | number)[]> = (...Fields);
+//       ^^^ keyword.operator.prefix.ds
+
+type Buffer<comptime ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
+//          ^^^^^^^^ keyword.other.comptime.ds
+//                   ^^^ keyword.operator.prefix.ds
+
 extension MessageOps of Message {
     type Output = string;
 //  ^^^^ keyword.declaration.type.ds
