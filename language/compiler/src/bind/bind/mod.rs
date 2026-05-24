@@ -5,6 +5,7 @@ mod expression;
 mod function;
 mod generic;
 mod member;
+mod r#match;
 mod parameter;
 mod pattern;
 mod property;

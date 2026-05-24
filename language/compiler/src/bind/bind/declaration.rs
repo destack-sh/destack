@@ -111,10 +111,10 @@ impl Compiler {
                     state.visit_type_expression(tree, *expression_id, expression);
                 }
 
-                // visit enum fields
+                // bind enum fields
                 for field_id in &declaration.fields {
                     let field = tree.get(*field_id);
-                    state.visit_enum_field(tree, *field_id, field);
+                    self.bind_enum_field(state, tree, *field_id, field);
                 }
 
                 // visit enum members
@@ -175,6 +175,32 @@ impl Compiler {
                     state.visit_expression(tree, body_id, expression);
                 }
             }
+        }
+    }
+
+    /// Bind one enum field symbol and visit its value.
+    fn bind_enum_field(
+        &self,
+        state: &mut BindState<'_>,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::EnumField>,
+        field: &dir::EnumField,
+    ) {
+        state.bind_node(id.into_any());
+
+        // declare enum constant
+        let symbol_id = state.insert_symbol(
+            dir::SymbolRole::Item,
+            dir::SymbolForm::EnumField,
+            Some(field.name.static_key()),
+            None,
+        );
+        state.declare_symbol(symbol_id, id);
+
+        // visit enum value
+        if let Some(value_id) = field.value {
+            let value = tree.get(value_id);
+            state.visit_expression(tree, value_id, value);
         }
     }
 }

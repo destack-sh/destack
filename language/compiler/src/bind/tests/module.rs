@@ -90,7 +90,7 @@ type Pick<T> = {
 /// @binding.symbol symbol=<module> role=namespace form=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 
-/// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=62
+/// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=63
 "#,
     );
 }

@@ -76,3 +76,50 @@ interface Reader<T> {
 "#,
     );
 }
+
+#[test]
+fn test_bind_enum_fields() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+enum Priority {
+    Low = 1,
+    High = 2,
+
+    label(): string {
+        "priority";
+    }
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding(),
+        r#"
+enum Priority {
+/// @binding.symbol symbol=Priority role=namespace form=enum scope=<module>@1
+/// @binding.scope scope=Priority kind=namespace parent=<module>@2 owner=Priority
+
+    Low = 1,
+    /// @binding.symbol symbol=Low role=item form=enum_field scope=Priority@0
+
+    High = 2,
+    /// @binding.symbol symbol=High role=item form=enum_field scope=Priority@1
+
+    label(): string {
+    /// @binding.symbol symbol=label role=item form=function scope=Priority@2
+    /// @binding.scope scope=label kind=function parent=Priority@3 owner=label
+    /// @binding.scope scope=scope4 kind=block parent=label@0
+
+        "priority";
+    }
+}
+/// @binding.symbol symbol=<module> role=namespace form=variable scope=<module>@end
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+"#,
+    );
+}
