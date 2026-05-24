@@ -553,6 +553,73 @@ import { Button } from "@acme/ui/button";
 }
 
 #[test]
+fn test_import_resolves_path_dependency_outside_workspace_members() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "workspace": {
+        "packages": ["packages/app"]
+    }
+}
+"#,
+        )
+        .data(
+            "packages/app/destack.json",
+            r#"
+{
+    "name": "app",
+    "dependencies": {
+        "@acme/ui": {
+            "source": "path",
+            "path": "../@acme/ui"
+        }
+    }
+}
+"#,
+        )
+        .data(
+            "packages/@acme/ui/destack.json",
+            r#"
+{
+    "name": "@acme/ui",
+    "exports": {
+        "./button": {
+            "kind": "module",
+            "path": "button.ds"
+        }
+    }
+}
+"#,
+        )
+        .module(
+            "packages/app/main.ds",
+            r#"
+import { Button } from "@acme/ui/button";
+"#,
+        )
+        .module(
+            "packages/@acme/ui/button.ds",
+            r#"
+export type Button = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported(
+        "packages/app/main.ds",
+        DirRows::dependencies().with_summaries(),
+        r#"
+import { Button } from "@acme/ui/button";
+/// @dependency.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+
+/// @dependency.summary edges=1
+"#,
+    );
+}
+
+#[test]
 fn test_import_reports_missing_bare_package_dependency() {
     let compiler = TestSession::new()
         .module(
