@@ -81,10 +81,10 @@ pub struct NamedType {
     pub arguments: Vec<StaticArgument>,
 }
 
-/// Explicit erased runtime `Any<T>` representation.
+/// Explicit runtime `Dynamic<T>` representation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ErasedAnyType {
-    /// The erased `Any<T>` constraint.
+pub struct DynamicType {
+    /// The `Dynamic<T>` constraint.
     pub constraint: LocalTypeId,
 }
 
@@ -347,7 +347,7 @@ pub enum Type {
     Error,
     /// Never type `never`.
     Never,
-    /// Any type `any`.
+    /// TypeScript `any` compatibility marker.
     Any,
     /// Unknown type.
     Unknown,
@@ -373,8 +373,8 @@ pub enum Type {
 
     /// Canonical memory or access form.
     Form(FormType),
-    /// Explicit erased runtime `Any<T>` representation.
-    ErasedAny(ErasedAnyType),
+    /// Explicit runtime `Dynamic<T>` representation.
+    Dynamic(DynamicType),
 
     /// Type predicate expression.
     Predicate(PredicateType),

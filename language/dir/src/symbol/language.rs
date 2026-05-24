@@ -608,10 +608,10 @@ define_language_items! {
             Readonly => (Newtype, "memory/access", "Readonly"),
         }
 
-        /// `destack:memory/any`.
-        any {
+        /// `destack:memory/dynamic`.
+        dynamic {
             /// Erased runtime value.
-            Any => (Newtype, "memory/any", "Any"),
+            Dynamic => (Newtype, "memory/dynamic", "Dynamic"),
         }
 
         /// `destack:memory/arc`.

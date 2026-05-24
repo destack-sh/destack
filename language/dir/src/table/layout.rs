@@ -258,7 +258,7 @@ pub enum LayoutShape {
     /// Builtin scalar storage.
     Scalar,
     /// Pointer-sized erased value storage.
-    Any,
+    Dynamic,
     /// Struct or object storage.
     Struct(StructLayout),
     /// Tuple storage.

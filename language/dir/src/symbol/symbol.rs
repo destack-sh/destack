@@ -113,9 +113,9 @@ pub enum SymbolForm {
     Class,
     /// Struct symbol.
     Struct,
-    /// Interface symbol.
+    /// Structural interface constraint symbol.
     Interface,
-    /// Nominal interface symbol.
+    /// Nominal interface constraint symbol.
     NewtypeInterface,
     /// Enum symbol.
     Enum,
@@ -129,7 +129,7 @@ pub enum SymbolForm {
     Extension,
     /// Transparent type alias symbol.
     TypeAlias,
-    /// Nominal newtype symbol.
+    /// Concrete nominal newtype symbol.
     Newtype,
 }
 
