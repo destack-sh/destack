@@ -550,9 +550,6 @@
           "include": "#literal-template"
         },
         {
-          "include": "#type-import"
-        },
-        {
           "include": "#type-arguments"
         },
         {
@@ -565,36 +562,6 @@
         {
           "name": "entity.name.type.ds",
           "match": "(?x)(?<![$\\w])(?!extends\\b|implements\\b|satisfies\\b|as\\b|is\\b|infer\\b|keyof\\b|typeof\\b|new\\b|in\\b|of\\b|const\\b|import\\b|self\\b|this\\b|super\\b|package\\b)([$A-Za-z_][$A-Za-z0-9_]*(?:\\.[$A-Za-z_][$A-Za-z0-9_]*)*)(?![$\\w])"
-        }
-      ]
-    },
-    "type-import": {
-      "patterns": [
-        {
-          "name": "meta.type.import.ds",
-          "begin": "(?x)(\\bimport\\b)\\s*(\\()",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.declaration.import.ds"
-            },
-            "2": {
-              "name": "punctuation.section.group.begin.ds"
-            }
-          },
-          "end": "\\)",
-          "endCaptures": {
-            "0": {
-              "name": "punctuation.section.group.end.ds"
-            }
-          },
-          "patterns": [
-            {
-              "include": "#literal-string"
-            },
-            {
-              "include": "#literal-template"
-            }
-          ]
         }
       ]
     },
