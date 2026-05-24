@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one generic parameter and collect check work.
+    /// Walk one generic parameter.
     pub(in crate::check) fn walk_generic_parameter(
         &mut self,
         tree: &dir::Tree,
@@ -13,7 +13,7 @@ impl CheckModuleState {
         dir::walk_generic_parameter(self, tree, id, generic_parameter);
     }
 
-    /// Walk one parameter and collect declared type work.
+    /// Walk one parameter.
     pub(in crate::check) fn walk_parameter(
         &mut self,
         tree: &dir::Tree,
@@ -23,7 +23,7 @@ impl CheckModuleState {
         dir::walk_parameter(self, tree, id, parameter);
     }
 
-    /// Walk one generic argument and collect check work.
+    /// Walk one generic argument.
     pub(in crate::check) fn walk_generic_argument(
         &mut self,
         tree: &dir::Tree,
@@ -33,7 +33,7 @@ impl CheckModuleState {
         dir::walk_generic_argument(self, tree, id, generic_argument);
     }
 
-    /// Walk one tuple element and collect check work.
+    /// Walk one tuple element.
     pub(in crate::check) fn walk_tuple_element(
         &mut self,
         tree: &dir::Tree,
@@ -43,7 +43,7 @@ impl CheckModuleState {
         dir::walk_tuple_element(self, tree, id, tuple_element);
     }
 
-    /// Walk one argument and collect check work.
+    /// Walk one runtime argument.
     pub(in crate::check) fn walk_argument(
         &mut self,
         tree: &dir::Tree,

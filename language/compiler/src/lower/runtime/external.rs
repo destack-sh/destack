@@ -87,8 +87,11 @@ impl ModuleLowerer<'_> {
         let Some(resolution) = self.resolutions.call_resolution(node_id) else {
             return Ok(());
         };
-        let dir::CallTarget::Symbol(candidate) = &resolution.target else {
-            return Ok(());
+        let candidate = match &resolution.target {
+            dir::CallTarget::Construct(candidate) | dir::CallTarget::Symbol(candidate) => candidate,
+            _ => {
+                return Ok(());
+            }
         };
 
         // skip local targets and already declared symbols

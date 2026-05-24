@@ -106,16 +106,19 @@ impl FunctionLowerer<'_> {
                 message: "call expression missing DIR call resolution".to_string(),
             })
             .map_err(CompilerError::from)?;
-        let dir::CallTarget::Symbol(target) = &resolution.target else {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "call resolution must be direct before Lower".to_string(),
+        let target = match &resolution.target {
+            dir::CallTarget::Construct(target) | dir::CallTarget::Symbol(target) => target,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    message: "call resolution must be direct before Lower".to_string(),
+                }
+                .into());
             }
-            .into());
         };
         let resolution_receiver = target.receiver;
         let target_symbol = target.symbol;

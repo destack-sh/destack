@@ -132,6 +132,28 @@ impl CheckModuleState {
         }
     }
 
+    /// Return one visible type symbol for a source reference.
+    pub(in crate::check) fn reference_type_symbol(
+        &self,
+        source: dir::LocalNodeIdAny,
+        path: &dir::Path,
+    ) -> Option<dir::GlobalSymbolId> {
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let key = dir::StaticKey::Name(path.segments[0]);
+        let bindings = self.binding_table();
+        let scope = self.visible_scope(&bindings, source);
+        let symbols = self.visible_scope_symbols(&bindings, scope, key, dir::SymbolSpace::Type);
+
+        if symbols.len() == 1 {
+            symbols.first().copied()
+        } else {
+            None
+        }
+    }
+
     /// Return the visible checked type id for one symbol.
     pub(in crate::check) fn visible_symbol_type_id(
         &self,

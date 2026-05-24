@@ -358,6 +358,36 @@ impl CheckModuleState {
         variable
     }
 
+    /// Return or create a type variable for one expression node.
+    pub(in crate::check) fn expression_type_variable(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> VariableId {
+        self.node_type_variable(id.into_global_any(self.input.module))
+    }
+
+    /// Return or create a type variable for one type expression node.
+    pub(in crate::check) fn type_expression_variable(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> VariableId {
+        self.node_type_variable(id.into_global_any(self.input.module))
+    }
+
+    /// Return or create a static variable for one expression node.
+    pub(in crate::check) fn static_expression_variable(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> VariableId {
+        let expression = id.into_global(self.input.module);
+        let variable = self.node_static_variable(expression.clone().into_any());
+        let term = StaticTerm::Expression(expression);
+
+        self.define_static_term(variable, term);
+
+        variable
+    }
+
     /// Return or create a static variable for one symbol.
     pub(in crate::check) fn symbol_static_variable(
         &mut self,
