@@ -65,7 +65,7 @@ bb0(v0: int64):
 // <- comment.line.double-slash.dsmir
 }
 
-external function @host.print(v0: ref<borrowed vector<i32, 4>>) -> void
+external function @host.print(v0: ref<borrowed vector<int32, 4>>) -> void
 // <- keyword.declaration.dsmir
 //                                ^^^ support.type.dsmir
 //                                    ^^^^^^^^ keyword.other.memory.dsmir
@@ -91,6 +91,17 @@ function @borrow(v0: ref<int32, borrowed, lifetime(0)>) -> void {
 //                              ^^^^^^^^ keyword.other.memory.dsmir
 }
 
+type @AtomicCounter = atomic<uint32>;
+//                    ^^^^^^ support.type.dsmir
+//                           ^^^^^^ support.type.dsmir
+
+type @Outcome = variant<uint8, { ok: int32; error: int32 }> {
+//              ^^^^^^^ support.type.dsmir
+//                      ^^^^^ support.type.dsmir
+    0uint8 = int32;
+//  ^^^^^^ constant.numeric.dsmir
+}
+
 export global @COUNTER: ref<raw const int64>
 // <- keyword.declaration.dsmir
 //            ^^^^^^^^ entity.name.symbol.dsmir
@@ -112,11 +123,11 @@ block1:
     switch v0, block2, block3
 //  ^^^^^^ keyword.control.flow.dsmir
 block2:
-    tailCall.class @Klass.method(v0) -> (i64) -> void
+    tailCall.class @Klass.method(v0) -> (int64) -> void
 //  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
-    call.interface @Iface.method(v0) -> (i64) -> void
+    call.interface @Iface.method(v0) -> (int64) -> void
 //  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
-    call.indirect v0(v1) -> (i64) -> void
+    call.indirect v0(v1) -> (int64) -> void
 //  ^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
     v2: boolean = select true, false, true
 //                ^^^^^^ keyword.operator.instruction.dsmir

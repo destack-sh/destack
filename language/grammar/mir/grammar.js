@@ -74,14 +74,16 @@ module.exports = grammar({
         "space",
         "struct",
         "newtype",
+        "atomic",
+        "variant",
         "slice",
         "any",
         "isize",
         "usize",
         "typeDescriptor",
         "typeId",
-        /(?:int|uint|float)(?:8|16|32|64|128|256)/,
-        /[iuf](?:8|16|32|64|128)/
+        /(?:int|uint)(?:8|16|32|64|128|256)/,
+        /float(?:32|64)/
       ))),
 
     memory_keyword: () =>

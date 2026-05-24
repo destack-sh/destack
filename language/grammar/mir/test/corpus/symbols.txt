@@ -4,8 +4,8 @@ Comments, globals, and dotted symbols
 
 // header comment
 /* block comment */
-function @misc.foo_bar(v0: bool) -> void {
-block0(v0: bool):
+function @misc.foo_bar(v0: boolean) -> void {
+block0(v0: boolean):
     intrinsic.memset(v0, v0)
     local.set v0, v0
     local.get v0
@@ -28,7 +28,7 @@ block0(v0: bool):
   (punctuation)
   (ssa_identifier)
   (punctuation)
-  (identifier)
+  (type_keyword)
   (punctuation)
   (arrow)
   (type_keyword)
@@ -37,7 +37,7 @@ block0(v0: bool):
   (punctuation)
   (ssa_identifier)
   (punctuation)
-  (identifier)
+  (type_keyword)
   (punctuation)
   (punctuation)
   (identifier)

@@ -2,9 +2,9 @@
 Function with block and return
 ==================================
 
-function @fib(v0: i64) -> i64 {
-block0(v0: i64):
-    v1: i64 = iconst 2i64
+function @fib(v0: int64) -> int64 {
+block0(v0: int64):
+    v1: int64 = iconst 2i64
     return v1
 }
 

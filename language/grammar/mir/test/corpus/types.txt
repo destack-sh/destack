@@ -126,3 +126,54 @@ block0(v0: ref<int32, managed>, v1: ref<int32, unique, readonly>, v2: ref<int32,
   (terminator_keyword)
   (ssa_identifier)
   (punctuation))
+
+==================================
+Composite type token forms
+==================================
+
+type @AtomicCounter = atomic<uint32>;
+type @Outcome = variant<uint8, { ok: int32; error: int32 }> {
+    0uint8 = int32;
+    1uint8 = int32;
+};
+
+
+---
+
+(source_file
+  (declaration_keyword)
+  (symbol_identifier)
+  (operator)
+  (type_keyword)
+  (operator)
+  (type_keyword)
+  (operator)
+  (punctuation)
+  (declaration_keyword)
+  (symbol_identifier)
+  (operator)
+  (type_keyword)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (punctuation)
+  (identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (operator)
+  (punctuation)
+  (number_literal)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (number_literal)
+  (operator)
+  (type_keyword)
+  (punctuation)
+  (punctuation)
+  (punctuation))

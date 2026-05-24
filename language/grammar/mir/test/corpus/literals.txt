@@ -4,12 +4,12 @@ Numbers, booleans, strings, and characters
 
 function @literals() -> void {
 block0:
-    v0: i64 = iconst 0i64
-    v1: i64 = iconst -1i64
-    v2: u32 = iconst +255u32
-    v3: f64 = fconst 3.1415
-    v4: f64 = fconst 1.25e+10
-    v5: i64 = iconst 1_000_000i64
+    v0: int64 = iconst 0i64
+    v1: int64 = iconst -1i64
+    v2: uint32 = iconst +255u32
+    v3: float64 = fconst 3.1415
+    v4: float64 = fconst 1.25e+10
+    v5: int64 = iconst 1_000_000i64
     v6: boolean = select true, false, true
     call @log("line\\nvalue", 'x', v0, v1, v2, v3, v4, v5, v6) -> () -> void
     return

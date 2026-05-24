@@ -2,11 +2,11 @@
 Memory qualifiers and memory ops
 ==================================
 
-function @memory(v0: i64) -> void {
-block0(v0: i64):
-    v1: slice<i64> = new.slice i64, v0
-    v2: ref<borrowed i64> = element.addr v1, v0
-    v3: ref<owned i64> = raw.alloc i64
+function @memory(v0: int64) -> void {
+block0(v0: int64):
+    v1: slice<int64> = new.slice int64, v0
+    v2: ref<borrowed int64> = element.addr v1, v0
+    v3: ref<owned int64> = raw.alloc int64
     store v2, v0
     raw.free v3
     return
