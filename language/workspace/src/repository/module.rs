@@ -8,9 +8,7 @@ use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{
-    ConditionGate, Module, ModuleFile, ModuleIndex, PackageIndex, builtin_condition_aliases,
-};
+use crate::{ConditionGate, ConditionRefError, Module, ModuleFile, ModuleIndex, PackageIndex};
 
 /// One file before it is assigned to its canonical module.
 #[derive(Debug)]
@@ -132,6 +130,32 @@ impl Repository {
         }))
     }
 
+    /// Return the known condition aliases for one package.
+    fn condition_aliases_for_package(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<IndexMap<String, ConditionGate>, RepositoryError> {
+        let aliases = if let Some(config) = self.destack_for_package_id(revision, package_id)? {
+            config
+                .conditions
+                .suffix_aliases()
+                .map_err(|error| Self::module_condition_ref_error(config.file_id, error))?
+        } else {
+            crate::builtin_condition_aliases()
+        };
+
+        Ok(aliases)
+    }
+
+    /// Build one repository error for an invalid condition reference.
+    fn module_condition_ref_error(file: FileId, error: ConditionRefError) -> RepositoryError {
+        RepositoryError::InvalidConfig {
+            file,
+            message: error.to_string(),
+        }
+    }
+
     /// Build one module from its base file candidate.
     fn module_from_candidate(&self, candidate: ModuleFileCandidate) -> Module {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
@@ -178,26 +202,6 @@ impl Repository {
             aliases,
             gates,
         )
-    }
-
-    /// Return the known condition aliases for one package.
-    fn condition_aliases_for_package(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-    ) -> Result<IndexMap<String, ConditionGate>, RepositoryError> {
-        let aliases = if let Some(config) = self.destack_for_package_id(revision, package_id)? {
-            config
-                .conditions
-                .aliases
-                .iter()
-                .map(|(name, alias)| (name.clone(), alias.clone()))
-                .collect()
-        } else {
-            builtin_condition_aliases()
-        };
-
-        Ok(aliases)
     }
 
     /// Return condition aliases for one path when it has any.

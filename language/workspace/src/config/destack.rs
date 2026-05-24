@@ -8,10 +8,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    builtin_modes, builtin_roles, parse_jsonc_file, CompilerOptions, ConditionCatalog,
-    ConditionGate, ConditionalDependencies, Dependency, DiagnosticPolicy, Export, FormatterOptions,
-    LinterOptions, PackagePatch, Policy, Product, ProfileOptions, RuntimeOptions, Target, Task,
-    Topology, Vendor,
+    CompilerOptions, ConditionCatalog, ConditionalDependencies, Dependency, DiagnosticPolicy,
+    Export, FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions,
+    RuntimeOptions, Target, Task, Topology, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
 };
 
 /// Destack configuration document.
@@ -102,24 +101,6 @@ impl Destack {
         let mut roles = builtin_roles();
         roles.extend(std::mem::take(&mut self.conditions.roles));
         self.conditions.roles = roles;
-
-        let mut aliases = IndexMap::new();
-        for name in self.conditions.modes.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::mode(name.clone()));
-        }
-        for name in self.conditions.roles.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::role(name.clone()));
-        }
-        for name in self.conditions.features.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::feature(name.clone()));
-        }
-        for name in self.conditions.tags.keys() {
-            insert_condition_alias(&mut aliases, name, ConditionGate::tag(name.clone()));
-        }
-        for (name, alias) in std::mem::take(&mut self.conditions.aliases) {
-            aliases.insert(name, alias);
-        }
-        self.conditions.aliases = aliases;
     }
 }
 
@@ -455,15 +436,6 @@ impl DestackFile {
 /// Return one invalid config IO error.
 fn invalid_config_error(message: impl Into<String>) -> Error {
     Error::new(ErrorKind::InvalidData, message.into())
-}
-
-/// Insert one automatic condition alias.
-fn insert_condition_alias(
-    aliases: &mut IndexMap<String, ConditionGate>,
-    name: &str,
-    gate: ConditionGate,
-) {
-    aliases.insert(name.to_string(), gate);
 }
 
 /// Merge declaration file ids in inherited order.

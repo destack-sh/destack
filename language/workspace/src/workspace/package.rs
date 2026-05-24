@@ -6,7 +6,7 @@ use im::OrdMap;
 use indexmap::IndexMap;
 
 use crate::config::{
-    ConditionSet, ConditionalDependencies, Dependency, Export, Target, Topology, Vendor,
+    ConditionGate, ConditionSet, Dependency, ExportKind, Target, Topology, Vendor,
 };
 
 /// The ownership kind for a package.
@@ -38,11 +38,11 @@ pub struct Package {
     /// Package dependencies enabled unconditionally.
     pub dependencies: IndexMap<String, Dependency>,
     /// Package dependencies enabled by source graph conditions.
-    pub conditional_dependencies: Vec<ConditionalDependencies>,
+    pub conditional_dependencies: Vec<PackageDependencies>,
     /// Vendored dependency resolution options.
     pub vendor: Vendor,
     /// Public package exports.
-    pub exports: IndexMap<String, Export>,
+    pub exports: IndexMap<String, PackageExport>,
     /// Package topology definition.
     pub topology: Topology,
     /// The `destack.json` file id when present.
@@ -58,7 +58,7 @@ impl Package {
     }
 
     /// Get one package export by key.
-    pub fn export(&self, key: &str) -> Option<&Export> {
+    pub fn export(&self, key: &str) -> Option<&PackageExport> {
         self.exports.get(key)
     }
 
@@ -70,7 +70,7 @@ impl Package {
         let mut dependencies = self.dependencies.clone();
 
         for conditional in &self.conditional_dependencies {
-            if !conditional.when.matches(conditions) {
+            if !conditional.matches(conditions) {
                 continue;
             }
 
@@ -80,6 +80,42 @@ impl Package {
         }
 
         dependencies
+    }
+}
+
+/// Dependencies enabled by one resolved condition gate.
+#[derive(Debug, Clone, Default)]
+pub struct PackageDependencies {
+    /// Condition gate enabling these dependencies.
+    pub when: ConditionGate,
+    /// Dependency declarations enabled when the gate matches.
+    pub dependencies: IndexMap<String, Dependency>,
+}
+
+impl PackageDependencies {
+    /// Return whether these dependencies are active for one condition set.
+    pub fn matches(&self, conditions: &ConditionSet) -> bool {
+        self.when.matches(conditions)
+    }
+}
+
+/// Public package material after condition references are resolved.
+#[derive(Debug, Clone)]
+pub struct PackageExport {
+    /// Exported material kind.
+    pub kind: ExportKind,
+    /// Package relative material path.
+    pub path: String,
+    /// Condition gate required for this export.
+    pub when: Option<ConditionGate>,
+}
+
+impl PackageExport {
+    /// Return whether this export is active for one condition set.
+    pub fn matches(&self, conditions: &ConditionSet) -> bool {
+        self.when
+            .as_ref()
+            .is_none_or(|gate| gate.matches(conditions))
     }
 }
 

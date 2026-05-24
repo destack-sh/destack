@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{ConditionGate, ConditionSet};
+use crate::config::ConditionRef;
 
 /// Package dependency declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -39,41 +39,9 @@ pub enum Dependency {
 #[serde(rename_all = "camelCase")]
 pub struct ConditionalDependencies {
     /// Condition predicate enabling these dependencies.
-    pub when: ConditionPredicate,
+    pub when: ConditionRef,
     /// Dependency declarations enabled when the predicate matches.
     pub dependencies: IndexMap<String, Dependency>,
-}
-
-/// Predicate selecting one active condition set.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum ConditionPredicate {
-    /// Named active condition.
-    Alias(String),
-    /// Inline condition gate.
-    Gate(ConditionGate),
-}
-
-impl Default for ConditionPredicate {
-    fn default() -> Self {
-        Self::Gate(ConditionGate::default())
-    }
-}
-
-impl ConditionPredicate {
-    /// Return whether this predicate matches one active condition set.
-    pub fn matches(&self, conditions: &ConditionSet) -> bool {
-        match self {
-            Self::Alias(name) => {
-                conditions.contains_mode(name)
-                    || conditions.contains_role(name)
-                    || conditions.contains_feature(name)
-                    || conditions.contains_tag(name)
-            }
-            Self::Gate(gate) => gate.matches(conditions),
-        }
-    }
 }
 
 /// Patch file applied to one resolved package.
