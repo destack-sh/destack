@@ -12,6 +12,13 @@ use crate::config::ConditionRef;
 pub enum Dependency {
     /// Package resolved from the current workspace.
     Workspace,
+    /// Package resolved from the configured package registry.
+    Registry {
+        /// Registry name.
+        registry: Option<String>,
+        /// Exact package version.
+        version: String,
+    },
     /// Package resolved from one local package path.
     Path {
         /// Package path.

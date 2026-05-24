@@ -16,6 +16,8 @@ pub enum PackageKind {
     Builtin,
     /// Declared package rooted by authored workspace config.
     Declared,
+    /// Package captured because another package depends on it.
+    Dependency,
     /// Implicit package rooted by one loose-file directory.
     Implicit,
 }

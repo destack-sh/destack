@@ -49,6 +49,13 @@ pub enum SourceLock {
         /// Workspace relative package path.
         path: String,
     },
+    /// Package resolved from a registry.
+    Registry {
+        /// Registry name.
+        registry: Option<String>,
+        /// Exact package version.
+        version: String,
+    },
     /// Package resolved from a local path.
     Path {
         /// Package path.
