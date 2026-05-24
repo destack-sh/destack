@@ -127,11 +127,11 @@ type B = T | {};
 #[test]
 fn test_format_type_object_generic_argument_marker() {
     assert_format_program!(
-        r#"declare const value: Any<type {}>
-value satisfies Any<type {}>
+        r#"declare const value: Dynamic<type {}>
+value satisfies Dynamic<type {}>
 "#,
-        r#"declare const value: Any<type {}>;
-value satisfies Any<type {}>;
+        r#"declare const value: Dynamic<type {}>;
+value satisfies Dynamic<type {}>;
 "#,
         FileType::Destack
     );

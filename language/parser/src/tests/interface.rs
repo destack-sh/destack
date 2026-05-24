@@ -952,7 +952,7 @@ fn test_parse_newtype_interface_default_method_body() {
     let mut test = TestParser::new(
         r#"
 newtype interface Error {
-    source(): Any<Error> | undefined {
+    source(): Dynamic<Error> | undefined {
         undefined
     }
 }
@@ -970,7 +970,7 @@ newtype interface Error {
             assert!(*is_nominal);
             assert_eq!(members.len(), 1);
 
-            // source(): Any<Error> | undefined { undefined }
+            // source(): Dynamic<Error> | undefined { undefined }
             assert_node!(parser.tree, members[0], TypeMember::Method { key: Key::Name(Name::Identifier(name)), signature, body: Some(body), .. } => {
                 assert_string!(parser, *name, "source");
                 assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Union { elements } => {

@@ -1003,7 +1003,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: Any<Drawable> = struct Any<Drawable> (v0, <table>)
+    /// v1: Dynamic<Drawable> = struct Dynamic<Drawable> (v0, <table>)
     /// ```
     pub(crate) fn lower_any_upcast(
         &mut self,

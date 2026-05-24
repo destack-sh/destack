@@ -645,7 +645,7 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Intersection(_)
             | dir::Type::Predicate(_)
             | dir::Type::Form(_)
-            | dir::Type::ErasedAny(_)
+            | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
             | dir::Type::Error => true,
         },
@@ -1425,7 +1425,7 @@ fn type_truthiness_inner(
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Predicate(_)
-            | dir::Type::ErasedAny(_)
+            | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
             dir::Type::Named(_)
@@ -1487,7 +1487,7 @@ fn type_nullishness_inner(
             dir::Type::Parameter(_)
             | dir::Type::This
             | dir::Type::Predicate(_)
-            | dir::Type::ErasedAny(_)
+            | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)
             | dir::Type::Error => TypeNullishness::Maybe,
             dir::Type::Named(_)

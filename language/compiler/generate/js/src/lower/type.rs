@@ -916,7 +916,7 @@ impl ModuleLowerer<'_> {
                 self.set_global_node_symbol(type_id, reference.symbol);
                 type_id
             }
-            dir::Type::ErasedAny(erased) => self.lower_type(erased.constraint)?,
+            dir::Type::Dynamic(dynamic) => self.lower_type(dynamic.constraint)?,
             dir::Type::Predicate(predicate) => {
                 let subject = self.lower_type_predicate_subject(source_id, predicate.subject)?;
                 let target = predicate

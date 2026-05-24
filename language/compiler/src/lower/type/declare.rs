@@ -67,7 +67,7 @@ impl ModuleLowerer<'_> {
                     self.declare_nominal_layouts_for_type(target, visited)?;
                 }
             }
-            dir::Type::ErasedAny(erased) => {
+            dir::Type::Dynamic(erased) => {
                 self.declare_nominal_layouts_for_type(erased.constraint, visited)?;
             }
             dir::Type::FixedArray(array) => {

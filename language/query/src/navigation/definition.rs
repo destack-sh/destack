@@ -266,7 +266,7 @@ fn resolve_nominal_type_symbol(
     match types.get_type(type_id) {
         dir::Type::Named(reference) => Some(reference.symbol),
         dir::Type::Form(value) => resolve_nominal_type_symbol(types, value.value),
-        dir::Type::ErasedAny(erased) => resolve_nominal_type_symbol(types, erased.constraint),
+        dir::Type::Dynamic(dynamic) => resolve_nominal_type_symbol(types, dynamic.constraint),
         dir::Type::Operation(operation) => {
             resolve_nominal_type_symbol_from_operation(types, operation)
         }
