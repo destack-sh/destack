@@ -1,13 +1,15 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
+use std::sync::Arc;
 
-use crate::check::{CheckModuleState, CheckResult};
+use crate::CompilerResult;
+use crate::check::CheckModuleState;
 
 impl CheckModuleState {
     /// Visit DIR and collect check constraints and obligations.
-    pub(in crate::check) fn walk(&mut self) -> CheckResult<()> {
-        let parsed = self.parsed_arc();
-        let expanded = self.expanded_arc();
+    pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
+        let parsed = Arc::clone(&self.input.parsed);
+        let expanded = Arc::clone(&self.input.expanded);
         let tree = &parsed.tree;
 
         for root in &expanded.roots {
@@ -21,7 +23,7 @@ impl CheckModuleState {
 
 impl dir::NodeVisitor for CheckModuleState {
     fn options(&self) -> &dir::NodeVisitorOptions {
-        self.visitor_options()
+        &self.input.options
     }
 
     fn visit_expression(
@@ -138,7 +140,7 @@ impl dir::NodeVisitor for CheckModuleState {
         id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
     ) {
-        self.walk_dependency_item(tree, id, dependency_item);
+        dir::walk_dependency_item(self, tree, id, dependency_item);
     }
 
     fn visit_generic_parameter(
@@ -237,6 +239,6 @@ impl dir::NodeVisitor for CheckModuleState {
         id: dir::LocalNodeId<dir::Decorator>,
         decorator: &dir::Decorator,
     ) {
-        self.walk_decorator(tree, id, decorator);
+        dir::walk_decorator(self, tree, id, decorator);
     }
 }

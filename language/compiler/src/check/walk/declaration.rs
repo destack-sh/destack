@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one declaration and collect declaration-owned check work.
+    /// Walk one declaration.
     pub(in crate::check) fn walk_declaration(
         &mut self,
         tree: &dir::Tree,
@@ -13,7 +13,7 @@ impl CheckModuleState {
         dir::walk_declaration(self, tree, id, declaration);
     }
 
-    /// Walk one enum field and collect check work.
+    /// Walk one enum field.
     pub(in crate::check) fn walk_enum_field(
         &mut self,
         tree: &dir::Tree,

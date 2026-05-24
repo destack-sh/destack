@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one catch clause and collect check work.
+    /// Walk one catch clause.
     pub(in crate::check) fn walk_catch(
         &mut self,
         tree: &dir::Tree,
@@ -13,7 +13,7 @@ impl CheckModuleState {
         dir::walk_catch(self, tree, id, catch);
     }
 
-    /// Walk one expression and collect check work.
+    /// Walk one expression.
     pub(in crate::check) fn walk_expression(
         &mut self,
         tree: &dir::Tree,
@@ -23,7 +23,7 @@ impl CheckModuleState {
         dir::walk_expression(self, tree, id, expression);
     }
 
-    /// Walk one where clause and collect check work.
+    /// Walk one where clause.
     pub(in crate::check) fn walk_where_clause(
         &mut self,
         tree: &dir::Tree,

@@ -1,7 +1,7 @@
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 
-use crate::check::CheckModuleState;
+use crate::check::{ArgumentTerm, CheckModuleState};
 
 impl CheckModuleState {
     /// Commit declaration relations and extension entries.
@@ -112,7 +112,7 @@ impl CheckModuleState {
         heritage: &dir::InterfaceHeritage,
     ) -> Option<dir::LocalTypeId> {
         let symbol = self.interface_heritage_symbol(heritage.expression)?;
-        let arguments = self.generic_argument_terms(&heritage.generic_arguments);
+        let arguments = self.build_generic_argument_terms(&heritage.generic_arguments);
         let arguments = self.commit_argument_terms(environment, &arguments)?;
         let source = heritage
             .expression
@@ -180,5 +180,37 @@ impl CheckModuleState {
             dir::Type::Named(named) => Some(named.symbol),
             _ => None,
         }
+    }
+
+    /// Build static argument terms for one committed heritage clause.
+    fn build_generic_argument_terms(
+        &mut self,
+        arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    ) -> Vec<ArgumentTerm> {
+        let mut terms = Vec::with_capacity(arguments.len());
+
+        // build terms from explicit argument syntax
+        for argument in arguments {
+            let argument = self.input.view().get(*argument).clone();
+            let term = match argument {
+                dir::GenericArgument::Type { value } => {
+                    ArgumentTerm::Type(self.type_expression_variable(value))
+                }
+                dir::GenericArgument::SpreadType { value } => {
+                    ArgumentTerm::SpreadType(self.type_expression_variable(value))
+                }
+                dir::GenericArgument::Value { value } => {
+                    ArgumentTerm::Static(self.static_expression_variable(value))
+                }
+                dir::GenericArgument::SpreadValue { value } => {
+                    ArgumentTerm::SpreadStatic(self.static_expression_variable(value))
+                }
+                dir::GenericArgument::Error => continue,
+            };
+
+            terms.push(term);
+        }
+
+        terms
     }
 }

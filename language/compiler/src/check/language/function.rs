@@ -1,61 +1,53 @@
 use destack_dir as dir;
 
-const TYPE_ARGUMENTS: &[IntrinsicFunctionArgument] = &[IntrinsicFunctionArgument::Type];
-const TYPE_TYPE_ARGUMENTS: &[IntrinsicFunctionArgument] = &[
-    IntrinsicFunctionArgument::Type,
-    IntrinsicFunctionArgument::Type,
-];
-const TYPE_STATIC_ARGUMENTS: &[IntrinsicFunctionArgument] = &[
-    IntrinsicFunctionArgument::Type,
-    IntrinsicFunctionArgument::Static,
-];
+/// One type argument.
+const TYPE_ARGUMENTS: &[IntrinsicFunctionValue] = &[IntrinsicFunctionValue::Type];
 
-/// Solver signature for one compiler-recognized intrinsic language item.
+/// Two type arguments.
+const TYPE_TYPE_ARGUMENTS: &[IntrinsicFunctionValue] =
+    &[IntrinsicFunctionValue::Type, IntrinsicFunctionValue::Type];
+
+/// One type argument followed by one static argument.
+const TYPE_STATIC_ARGUMENTS: &[IntrinsicFunctionValue] =
+    &[IntrinsicFunctionValue::Type, IntrinsicFunctionValue::Static];
+
+/// Signature for one compiler-recognized intrinsic function language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct IntrinsicFunctionSignature {
-    /// The solver space produced by the intrinsic.
-    pub(in crate::check) result: IntrinsicFunctionResult,
-    /// The solver spaces required by intrinsic arguments.
-    pub(in crate::check) arguments: &'static [IntrinsicFunctionArgument],
+    /// The value produced by the intrinsic function.
+    pub(in crate::check) result: IntrinsicFunctionValue,
+    /// The values required by intrinsic function arguments.
+    pub(in crate::check) arguments: &'static [IntrinsicFunctionValue],
 }
 
 impl IntrinsicFunctionSignature {
-    /// Create a type-producing intrinsic signature.
-    const fn ty(arguments: &'static [IntrinsicFunctionArgument]) -> Self {
+    /// Create a type-producing intrinsic function signature.
+    const fn ty(arguments: &'static [IntrinsicFunctionValue]) -> Self {
         Self {
-            result: IntrinsicFunctionResult::Type,
+            result: IntrinsicFunctionValue::Type,
             arguments,
         }
     }
 
-    /// Create a static-producing intrinsic signature.
-    const fn static_value(arguments: &'static [IntrinsicFunctionArgument]) -> Self {
+    /// Create a static-producing intrinsic function signature.
+    const fn static_value(arguments: &'static [IntrinsicFunctionValue]) -> Self {
         Self {
-            result: IntrinsicFunctionResult::Static,
+            result: IntrinsicFunctionValue::Static,
             arguments,
         }
     }
 }
 
-/// Solver space produced by one compiler-recognized intrinsic language item.
+/// Type or static value slot in an intrinsic function signature.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum IntrinsicFunctionResult {
-    /// The intrinsic produces a type.
+pub(in crate::check) enum IntrinsicFunctionValue {
+    /// Type-level value.
     Type,
-    /// The intrinsic produces a static value.
+    /// Static-level value.
     Static,
 }
 
-/// Solver space required by one compiler-recognized intrinsic language item argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum IntrinsicFunctionArgument {
-    /// The argument is a type.
-    Type,
-    /// The argument is a static value.
-    Static,
-}
-
-/// Return the solver signature for one compiler-recognized intrinsic language item.
+/// Return the signature for one compiler-recognized intrinsic function language item.
 pub(in crate::check) fn intrinsic_function_signature(
     item: dir::LanguageItem,
 ) -> Option<IntrinsicFunctionSignature> {

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one block and collect check work.
+    /// Walk one block.
     pub(in crate::check) fn walk_block(
         &mut self,
         tree: &dir::Tree,

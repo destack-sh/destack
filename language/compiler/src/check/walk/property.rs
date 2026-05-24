@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one property and collect check work.
+    /// Walk one property.
     pub(in crate::check) fn walk_property(
         &mut self,
         tree: &dir::Tree,
@@ -13,7 +13,7 @@ impl CheckModuleState {
         dir::walk_property(self, tree, id, property);
     }
 
-    /// Walk one member and collect check work.
+    /// Walk one member.
     pub(in crate::check) fn walk_member(
         &mut self,
         tree: &dir::Tree,

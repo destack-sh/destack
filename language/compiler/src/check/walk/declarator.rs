@@ -3,7 +3,7 @@ use destack_dir as dir;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
-    /// Walk one declarator and collect initializer work.
+    /// Walk one declarator.
     pub(in crate::check) fn walk_declarator(
         &mut self,
         tree: &dir::Tree,

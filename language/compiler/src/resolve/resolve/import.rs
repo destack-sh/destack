@@ -47,11 +47,10 @@ impl ResolveState<'_> {
         let Some(target) = edge.target else {
             return Ok(());
         };
-        let specifier = edge.specifier;
         self.imports.push_dependency(target);
 
         if let Some(items) = items {
-            self.resolve_import_items(target, specifier, items)?;
+            self.resolve_import_items(target, edge.specifier, items)?;
         }
 
         Ok(())
