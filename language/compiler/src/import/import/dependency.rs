@@ -1,4 +1,4 @@
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_dir as dir;
@@ -336,48 +336,15 @@ impl Compiler {
         package_name: &str,
         dependency: &Dependency,
     ) -> CompilerResult<Option<Arc<Package>>> {
-        match dependency {
-            // resolve workspace package by declared name
-            Dependency::Workspace | Dependency::Git { .. } => {
-                let package = self
-                    .repository
-                    .package_by_name(state.revision, package_name)
-                    .map_err(|error| ImportError::Internal {
-                        anchor: anchor.clone(),
-                        message: format!(
-                            "failed to read dependency package '{package_name}': {error}"
-                        ),
-                    })?;
+        let package = self
+            .repository
+            .dependency_package(state.revision, current_package, package_name, dependency)
+            .map_err(|error| ImportError::Internal {
+                anchor: anchor.clone(),
+                message: format!("failed to read dependency package '{package_name}': {error}"),
+            })?;
 
-                Ok(package)
-            }
-
-            // resolve path package relative to the importer
-            Dependency::Path { path } => {
-                let Some(current_root) = current_package.path.as_deref() else {
-                    return Err(ImportError::Internal {
-                        anchor: anchor.clone(),
-                        message: format!("package importing '{package_name}' has no root path"),
-                    }
-                    .into());
-                };
-                let package_path = self.dependency_package_path(current_root, path);
-
-                // resolve package by normalized root path
-                let package = self
-                    .repository
-                    .package_by_path(state.revision, &package_path)
-                    .map_err(|error| ImportError::Internal {
-                        anchor: anchor.clone(),
-                        message: format!(
-                            "failed to read dependency package at '{}': {error}",
-                            package_path.display()
-                        ),
-                    })?;
-
-                Ok(package)
-            }
-        }
+        Ok(package)
     }
 
     /// Resolve one exported package module path.
@@ -707,31 +674,6 @@ impl Compiler {
                 .map(|extension| path.with_extension(extension))
                 .collect()
         }
-    }
-
-    /// Resolve one dependency package root path relative to the importing package.
-    fn dependency_package_path(&self, current_root: &Path, path: &Path) -> PathBuf {
-        // resolve configured path
-        let path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            current_root.join(path)
-        };
-        let mut normalized = PathBuf::new();
-
-        // fold lexical path components
-        for component in path.components() {
-            match component {
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    normalized.pop();
-                }
-                Component::Normal(component) => normalized.push(component),
-                Component::RootDir | Component::Prefix(_) => normalized.push(component.as_os_str()),
-            }
-        }
-
-        normalized
     }
 }
 
