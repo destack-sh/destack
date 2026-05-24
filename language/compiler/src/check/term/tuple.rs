@@ -1,0 +1,189 @@
+use destack_dir as dir;
+use destack_source::ModuleId;
+
+use crate::CompilerResult;
+use crate::check::{
+    CheckComponentState, Decision, GenericSubstitution, Progress, TypeRelation, VariableId,
+};
+
+/// Tuple element term.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct TupleElementTerm {
+    /// The optional label for the element.
+    pub(in crate::check) label: Option<dir::StringId>,
+    /// The element type.
+    pub(in crate::check) ty: VariableId,
+    /// Whether the element is optional.
+    pub(in crate::check) is_optional: bool,
+    /// Whether the element is readonly.
+    pub(in crate::check) is_readonly: bool,
+    /// Whether the element is a rest element.
+    pub(in crate::check) is_rest: bool,
+}
+
+impl TupleElementTerm {
+    /// Substitute generic arguments through this tuple element.
+    pub(in crate::check) fn substitute(
+        &self,
+        module: ModuleId,
+        substitution: &GenericSubstitution,
+        state: &mut CheckComponentState<'_>,
+    ) -> CompilerResult<Self> {
+        Ok(Self {
+            label: self.label,
+            ty: state.substitute_type_variable(module, substitution, self.ty)?,
+            is_optional: self.is_optional,
+            is_readonly: self.is_readonly,
+            is_rest: self.is_rest,
+        })
+    }
+
+    /// Substitute generic arguments through tuple elements.
+    pub(in crate::check) fn substitute_all(
+        elements: &[Self],
+        module: ModuleId,
+        substitution: &GenericSubstitution,
+        state: &mut CheckComponentState<'_>,
+    ) -> CompilerResult<Vec<Self>> {
+        elements
+            .iter()
+            .map(|element| element.substitute(module, substitution, state))
+            .collect()
+    }
+}
+
+impl CheckComponentState<'_> {
+    /// Decide exact equality for tuple element lists.
+    pub(in crate::check) fn decide_tuple_elements_equal(
+        &self,
+        left: &[TupleElementTerm],
+        right: &[TupleElementTerm],
+    ) -> CompilerResult<Decision> {
+        if left.len() != right.len() {
+            return Ok(Decision::No);
+        }
+        let mut decision = Decision::Yes;
+
+        // compare matching element slots
+        for (left, right) in left.iter().zip(right) {
+            decision = decision.and(self.decide_tuple_element_equal(left, right)?);
+            if decision == Decision::No {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Decide tuple element assignability.
+    pub(in crate::check) fn decide_tuple_elements_assignable(
+        &self,
+        source: &[TupleElementTerm],
+        target: &[TupleElementTerm],
+    ) -> CompilerResult<Decision> {
+        if source.len() != target.len() {
+            return Ok(Decision::No);
+        }
+        let mut decision = Decision::Yes;
+
+        // compare matching element slots
+        for (source, target) in source.iter().zip(target) {
+            decision = decision.and(self.decide_tuple_element_assignable(source, target)?);
+            if decision == Decision::No {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Relate matching tuple elements by equality.
+    pub(in crate::check) fn relate_tuple_elements_equal(
+        &mut self,
+        left: &[TupleElementTerm],
+        right: &[TupleElementTerm],
+    ) -> CompilerResult<Progress> {
+        if left.len() != right.len() {
+            return Ok(Progress::Unchanged);
+        }
+        let mut progress = Progress::Unchanged;
+
+        // propagate each matching element
+        for (left, right) in left.iter().zip(right) {
+            progress = progress.merge(self.relate_type_equal(left.ty, right.ty)?);
+        }
+
+        Ok(progress)
+    }
+
+    /// Relate matching tuple elements by assignability.
+    pub(in crate::check) fn relate_tuple_elements_assignable(
+        &mut self,
+        source: &[TupleElementTerm],
+        target: &[TupleElementTerm],
+    ) -> CompilerResult<Progress> {
+        if source.len() != target.len() {
+            return Ok(Progress::Unchanged);
+        }
+        let mut progress = Progress::Unchanged;
+
+        // propagate each matching element
+        for (source, target) in source.iter().zip(target) {
+            progress = progress.merge(self.relate_type_assignable(source.ty, target.ty)?);
+        }
+
+        Ok(progress)
+    }
+
+    /// Apply expected tuple elements to a tuple term.
+    pub(in crate::check) fn expect_tuple_elements(
+        &mut self,
+        elements: &[TupleElementTerm],
+        targets: &[TupleElementTerm],
+    ) -> CompilerResult<Progress> {
+        if elements.len() != targets.len() {
+            return Ok(Progress::Unchanged);
+        }
+        let mut progress = Progress::Unchanged;
+
+        // push each expected element type
+        for (element, target) in elements.iter().zip(targets) {
+            progress = progress.merge(self.relate_type_assignable(element.ty, target.ty)?);
+        }
+
+        Ok(progress)
+    }
+
+    /// Decide exact equality for one tuple element.
+    fn decide_tuple_element_equal(
+        &self,
+        left: &TupleElementTerm,
+        right: &TupleElementTerm,
+    ) -> CompilerResult<Decision> {
+        if left.label != right.label
+            || left.is_optional != right.is_optional
+            || left.is_readonly != right.is_readonly
+            || left.is_rest != right.is_rest
+        {
+            return Ok(Decision::No);
+        }
+
+        self.decide_type_relation(TypeRelation::Equal, left.ty, right.ty)
+    }
+
+    /// Decide one tuple element assignability.
+    fn decide_tuple_element_assignable(
+        &self,
+        source: &TupleElementTerm,
+        target: &TupleElementTerm,
+    ) -> CompilerResult<Decision> {
+        if source.is_rest != target.is_rest
+            || source.is_readonly && !target.is_readonly
+            || source.is_optional && !target.is_optional
+        {
+            return Ok(Decision::No);
+        }
+
+        self.decide_type_relation(TypeRelation::Assignable, source.ty, target.ty)
+    }
+}
