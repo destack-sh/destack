@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_dir as dir;
 use destack_source::{
-    CODE_FILE_TYPES, FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri,
+    FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri, CODE_FILE_TYPES,
 };
 
 use crate::import::state::ImportState;
@@ -78,7 +78,7 @@ impl Compiler {
         let builtin = self.repository.builtin_package();
 
         // resolve absolute builtin specifier
-        if let Some(uri) = builtin.module_uri_for_specifier(specifier) {
+        if let Some(uri) = builtin.module_uri_for_internal_specifier(specifier) {
             return self.resolve_module_uri(state, anchor, specifier, &uri);
         }
 
