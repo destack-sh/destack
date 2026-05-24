@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirParsed, GlobalEnvironment};
+use destack_artifact::{DirExpanded, DirParsed, GlobalEnvironment};
 use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::ProviderContext;
 use indexmap::IndexMap;
 
+use crate::check::{StaticTerm, TypeTerm};
 use crate::{Compiler, CompilerError, CompilerResult};
 
-use super::{CheckModuleState, StaticTerm, TypeTerm};
+use super::CheckModuleState;
 
 /// State for checking one resolved component.
 pub(in crate::check) struct CheckComponentState<'a> {
@@ -33,12 +34,26 @@ pub(in crate::check) struct CheckComponentState<'a> {
 pub(in crate::check) struct CheckDependencyState {
     /// The parsed dependency module.
     pub(in crate::check) parsed: Arc<DirParsed>,
+    /// The expanded dependency module.
+    pub(in crate::check) expanded: Arc<DirExpanded>,
     /// The checked binding table.
     pub(in crate::check) bindings: dir::BindingTable<'static>,
     /// The checked type table.
     pub(in crate::check) types: dir::TypeTable<'static>,
     /// The checked static table.
     pub(in crate::check) statics: dir::StaticTable<'static>,
+    /// The checked extension table.
+    pub(in crate::check) extensions: dir::ExtensionTable<'static>,
+}
+
+impl CheckDependencyState {
+    /// Return the post-expansion DIR tree view visible to check.
+    pub(in crate::check) fn view(&self) -> dir::View<'_> {
+        dir::View::with_patches(
+            &self.parsed.tree,
+            std::slice::from_ref(&self.expanded.patch),
+        )
+    }
 }
 
 impl<'a> CheckComponentState<'a> {
@@ -196,6 +211,10 @@ impl<'a> CheckComponentState<'a> {
         symbol: dir::GlobalSymbolId,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
+        if self.component_symbol_is_extension(target)? {
+            return Ok(());
+        }
+
         let type_variable = self.module_mut(module)?.symbol_type_variable(symbol);
         let target_type_variable = self
             .module_mut(target.module_id)?
@@ -232,6 +251,7 @@ impl<'a> CheckComponentState<'a> {
         symbol: dir::GlobalSymbolId,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
+        let is_extension = self.dependency_symbol_is_extension(target)?;
         let dependency = self.dependency_input(target.module_id)?;
         let types = dependency.types.clone();
         let statics = dependency.statics.clone();
@@ -239,13 +259,42 @@ impl<'a> CheckComponentState<'a> {
             .module_mut(module)?
             .import_symbol(symbol, target, &types, &statics);
 
-        if !imported {
+        if !imported && !is_extension {
             return Err(CompilerError::Internal {
                 message: format!("checked dependency symbol {target:?} has no checked value"),
             });
         }
 
         Ok(())
+    }
+
+    /// Return whether one component symbol declares an extension.
+    fn component_symbol_is_extension(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        let check_module = self.module(symbol.module_id)?;
+        let Some(source) = check_module.symbol_source_node(symbol) else {
+            return Ok(false);
+        };
+        if source.ty != dir::NodeType::Declaration {
+            return Ok(false);
+        }
+        let declaration = dir::LocalNodeId::<dir::Declaration>::new(source.id);
+        let is_extension = matches!(
+            check_module.input.view().get(declaration),
+            dir::Declaration::Extension(_)
+        );
+
+        Ok(is_extension)
+    }
+
+    /// Return whether one dependency symbol declares an extension.
+    fn dependency_symbol_is_extension(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let dependency = self.dependency_input(symbol.module_id)?;
+        let is_extension = dependency.extensions.symbol_extension_id(symbol).is_some();
+
+        Ok(is_extension)
     }
 
     /// Return checked inputs for one dependency module.
@@ -282,12 +331,15 @@ impl<'a> CheckComponentState<'a> {
         let bindings = expanded.binding_table(bound.as_ref());
         let types = checked.type_table(bound.as_ref(), expanded.as_ref());
         let statics = checked.static_table(bound.as_ref(), expanded.as_ref());
+        let extensions = checked.extension_table();
 
         Ok(CheckDependencyState {
             parsed,
+            expanded,
             bindings,
             types,
             statics,
+            extensions,
         })
     }
 

@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use destack_dir as dir;
 use indexmap::IndexMap;
 
-use super::{
-    CheckModuleState, ConstraintOrigin, GenericArgumentKey, GenericParameter, StaticTerm, TypeTerm,
-};
+use crate::check::{StaticTerm, TypeTerm};
+
+use super::{CheckModuleState, ConstraintOrigin, GenericArgumentKey, GenericParameter};
 
 /// Component-valid id for one check variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -60,6 +60,10 @@ pub(in crate::check) struct CheckVariableState {
     pub(in crate::check) static_by_node: IndexMap<dir::GlobalNodeIdAny, VariableId>,
     /// Static variables keyed by source symbol.
     pub(in crate::check) static_by_symbol: IndexMap<dir::GlobalSymbolId, VariableId>,
+    /// Materialized type variables keyed by visible checked type id.
+    pub(in crate::check) type_by_id: IndexMap<dir::GlobalTypeId, VariableId>,
+    /// Materialized static variables keyed by visible checked static id.
+    pub(in crate::check) static_by_id: IndexMap<dir::GlobalStaticId, VariableId>,
     /// Inferred generic arguments keyed by source and slot.
     pub(in crate::check) generic_argument: IndexMap<GenericArgumentKey, VariableId>,
     /// Next generic slot index keyed by owner.
@@ -79,6 +83,8 @@ impl CheckVariableState {
             type_by_symbol: IndexMap::new(),
             static_by_node: IndexMap::new(),
             static_by_symbol: IndexMap::new(),
+            type_by_id: IndexMap::new(),
+            static_by_id: IndexMap::new(),
             generic_argument: IndexMap::new(),
             generic_slot_index: IndexMap::new(),
             induced_generic_index: IndexMap::new(),
@@ -334,8 +340,10 @@ impl CheckModuleState {
 
         // seed declarations that already have checked input types
         if let Some(type_id) = self.visible_symbol_type_id(symbol) {
-            let ty = self.get_type(type_id);
-            let _ = self.solve_variable(variable, Solution::Type(TypeTerm::Literal(ty)));
+            let materialized = self.materialize_type_id(type_id.into_global(self.input.module));
+            let term = TypeTerm::Variable(materialized);
+
+            self.solve_variable(variable, Solution::Type(term));
         }
 
         self.work.variables.type_by_symbol.insert(symbol, variable);
@@ -401,8 +409,10 @@ impl CheckModuleState {
 
         // seed declarations that already have checked input statics
         if let Some(static_id) = self.visible_symbol_static_id(symbol) {
-            let term = self.get_static(static_id);
-            let _ = self.solve_variable(variable, Solution::Static(StaticTerm::Literal(term)));
+            let materialized = self.materialize_static_id(static_id.into_global(self.input.module));
+            let term = StaticTerm::Variable(materialized);
+
+            self.solve_variable(variable, Solution::Static(term));
         }
 
         self.work

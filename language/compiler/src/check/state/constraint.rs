@@ -2,7 +2,9 @@ use smallvec::SmallVec;
 
 use destack_dir as dir;
 
-use super::{CheckModuleState, StaticTerm, TypeTerm, VariableId, VariableOrigin};
+use crate::check::{StaticTerm, TypeTerm};
+
+use super::{CheckModuleState, VariableId, VariableOrigin};
 
 /// One check constraint.
 #[derive(Debug, Clone, PartialEq)]

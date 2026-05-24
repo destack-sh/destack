@@ -35,7 +35,7 @@ impl CheckComponentState<'_> {
     /// Commit solved component diagnostics.
     pub(in crate::check) fn commit_diagnostics(&mut self) -> CompilerResult<DiagnosticCollection> {
         let mut reported = IndexSet::new();
-        let constraints = self.constraints();
+        let constraints = self.collect_constraints();
 
         // replay every solved constraint
         for constraint in &constraints {
@@ -234,7 +234,7 @@ impl CheckComponentState<'_> {
         let static_term = self.solved_static_term(result)?;
         if static_term.is_none() {
             if reported.insert(result) {
-                let diagnostic = self.static_diagnostic(origin, result.module)?;
+                let diagnostic = self.static_term_diagnostic(term, origin, result.module)?;
 
                 self.module_mut(result.module)?
                     .work
@@ -264,6 +264,24 @@ impl CheckComponentState<'_> {
             .push(diagnostic);
 
         Ok(())
+    }
+
+    /// Return a diagnostic for one failed static term.
+    fn static_term_diagnostic(
+        &self,
+        term: &StaticTerm,
+        origin: ConstraintOrigin,
+        fallback: ModuleId,
+    ) -> CompilerResult<CheckError> {
+        match term {
+            StaticTerm::Layout(_) => self.layout_not_realizable_diagnostic(origin, fallback),
+            StaticTerm::Literal(_)
+            | StaticTerm::Variable(_)
+            | StaticTerm::Expression(_)
+            | StaticTerm::Member { .. }
+            | StaticTerm::Operation(_)
+            | StaticTerm::Intrinsic { .. } => self.static_diagnostic(origin, fallback),
+        }
     }
 
     /// Check one solved type relation for diagnostics.
@@ -390,17 +408,6 @@ impl CheckComponentState<'_> {
             return Ok(true);
         }
 
-        // committed shapes carry the same field access
-        if let TypeTerm::Literal(dir::Type::Shape(shape)) = owner {
-            for field in shape.fields {
-                if field.key.matches(&key) {
-                    return Ok(!field.is_readonly);
-                }
-            }
-
-            return Ok(true);
-        }
-
         Ok(true)
     }
 
@@ -446,6 +453,9 @@ impl CheckComponentState<'_> {
             }
             TypeTerm::Index(index) => {
                 self.call_failure_diagnostic(index.source, origin, fallback)?
+            }
+            TypeTerm::IndexWrite(write) => {
+                self.call_failure_diagnostic(write.source, origin, fallback)?
             }
             TypeTerm::KeyMembership(membership) => {
                 self.type_diagnostic(ConstraintOrigin::Node(membership.source), fallback)?
@@ -699,6 +709,17 @@ impl CheckComponentState<'_> {
         let (module, anchor) = self.anchor(origin, fallback)?;
 
         Ok(CheckError::InvalidConstType { anchor, module })
+    }
+
+    /// Return a layout realization diagnostic.
+    fn layout_not_realizable_diagnostic(
+        &self,
+        origin: ConstraintOrigin,
+        fallback: ModuleId,
+    ) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin, fallback)?;
+
+        Ok(CheckError::LayoutNotRealizable { anchor, module })
     }
 
     /// Return the diagnostic anchor for a constraint origin.

@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use indexmap::IndexMap;
 
-use super::{CheckModuleState, FunctionTerm, GenericInstance, OperatorTermKind, VariableId};
+use crate::check::{ConcreteLayout, FunctionTerm, LayoutQuery, OperatorTermKind};
+
+use super::{CheckModuleState, GenericInstance, VariableId};
 
 /// Solver decisions recorded for one module.
 #[derive(Debug)]
@@ -20,8 +22,12 @@ pub(in crate::check) struct CheckDecisionState {
     pub(in crate::check) identity: IndexMap<dir::GlobalNodeIdAny, IdentityOutcome>,
     /// Runtime tagged templates resolved or rejected by solve.
     pub(in crate::check) tagged_template: IndexMap<dir::GlobalNodeIdAny, TaggedTemplateOutcome>,
+    /// Concrete layout queries resolved or rejected by solve.
+    pub(in crate::check) layout: IndexMap<dir::GlobalNodeIdAny, LayoutOutcome>,
     /// Runtime members resolved or rejected by solve.
     pub(in crate::check) member: IndexMap<dir::GlobalNodeIdAny, MemberOutcome>,
+    /// Contextual receivers resolved by check.
+    pub(in crate::check) receiver: IndexMap<dir::GlobalNodeIdAny, ReceiverResolution>,
 }
 
 impl CheckDecisionState {
@@ -35,9 +41,24 @@ impl CheckDecisionState {
             instance_check: IndexMap::new(),
             identity: IndexMap::new(),
             tagged_template: IndexMap::new(),
+            layout: IndexMap::new(),
             member: IndexMap::new(),
+            receiver: IndexMap::new(),
         }
     }
+}
+
+/// Contextual receiver resolved by check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct ReceiverResolution {
+    /// The receiver expression node.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The receiver syntax kind.
+    pub(in crate::check) kind: dir::ReceiverKind,
+    /// The declaration that introduces the receiver, when known.
+    pub(in crate::check) owner: Option<dir::GlobalSymbolId>,
+    /// The receiver type variable.
+    pub(in crate::check) ty: VariableId,
 }
 
 /// Solved runtime call resolved by the solver.
@@ -74,6 +95,23 @@ pub(in crate::check) enum CallResolutionTarget {
         /// The resolved generic instance.
         instance: Option<GenericInstance>,
     },
+}
+
+impl CallResolutionTarget {
+    /// Return the construct symbol and instance represented by this target.
+    pub(in crate::check) fn as_construct_target(
+        &self,
+    ) -> (Option<dir::GlobalSymbolId>, Option<&GenericInstance>) {
+        match self {
+            Self::Construct { symbol, instance } => (Some(*symbol), instance.as_ref()),
+            Self::Value
+            | Self::Symbol {
+                symbol: _,
+                instance: _,
+                receiver: _,
+            } => (None, None),
+        }
+    }
 }
 
 /// Runtime call failure resolved by the solver.
@@ -309,6 +347,39 @@ pub(in crate::check) enum TaggedTemplateOutcome {
     Rejected(TaggedTemplateFailure),
 }
 
+/// Solved concrete layout query resolved by the solver.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct LayoutResolution {
+    /// The source layout query expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The queried type.
+    pub(in crate::check) target: VariableId,
+    /// The requested layout property.
+    pub(in crate::check) query: LayoutQuery,
+    /// The resolved concrete layout.
+    pub(in crate::check) layout: ConcreteLayout,
+}
+
+/// Concrete layout query failure resolved by the solver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct LayoutFailure {
+    /// The source layout query expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The queried type.
+    pub(in crate::check) target: VariableId,
+    /// The requested layout property.
+    pub(in crate::check) query: LayoutQuery,
+}
+
+/// Concrete layout query outcome resolved by the solver.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum LayoutOutcome {
+    /// One concrete layout resolved.
+    Resolved(LayoutResolution),
+    /// Concrete layout resolution failed.
+    Rejected(LayoutFailure),
+}
+
 /// Solved member projection resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct MemberResolution {
@@ -418,6 +489,15 @@ impl CheckModuleState {
         self.decisions.tagged_template.insert(source, outcome);
     }
 
+    /// Record one concrete layout outcome.
+    pub(in crate::check) fn record_layout_outcome(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        outcome: LayoutOutcome,
+    ) {
+        self.decisions.layout.insert(source, outcome);
+    }
+
     /// Record one member outcome.
     pub(in crate::check) fn record_member_outcome(
         &mut self,
@@ -425,5 +505,10 @@ impl CheckModuleState {
         outcome: MemberOutcome,
     ) {
         self.decisions.member.insert(source, outcome);
+    }
+
+    /// Record one receiver resolution.
+    pub(in crate::check) fn record_receiver_resolution(&mut self, receiver: ReceiverResolution) {
+        self.decisions.receiver.insert(receiver.source, receiver);
     }
 }
