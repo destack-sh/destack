@@ -2,13 +2,13 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{matches as glob_matches, FileId, PackageId, TargetId, Uri};
+use destack_source::{FileId, PackageId, TargetId, Uri, matches as glob_matches};
 use im::OrdMap;
 use indexmap::IndexMap;
 
-use crate::config::{ConditionGate, ConditionPredicate, ConditionalDependencies};
+use crate::config::{ConditionGate, Export};
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{Package, PackageIndex, PackageKind};
+use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
 
 impl Repository {
     /// Build one tracked file id for one package-relative file when it exists.
@@ -39,6 +39,7 @@ impl Repository {
         let config = destack_config.as_deref();
         let mut targets = IndexMap::new();
         let mut conditional_dependencies = Vec::new();
+        let mut exports = IndexMap::new();
 
         // explicit targets
         if let Some(config) = config {
@@ -49,7 +50,8 @@ impl Repository {
             }
 
             conditional_dependencies.extend(Self::condition_dependencies(config));
-            conditional_dependencies.extend(config.conditional_dependencies.clone());
+            conditional_dependencies.extend(Self::resolve_conditional_dependencies(config)?);
+            exports.extend(Self::resolve_exports(config)?);
         }
 
         let package = Package {
@@ -66,9 +68,7 @@ impl Repository {
             vendor: config
                 .map(|config| config.vendor.clone())
                 .unwrap_or_default(),
-            exports: config
-                .map(|config| config.exports.clone())
-                .unwrap_or_default(),
+            exports,
             topology: config
                 .map(|config| config.topology.clone())
                 .unwrap_or_default(),
@@ -146,7 +146,9 @@ impl Repository {
             } else {
                 PackageKind::Implicit
             };
-            Self::push_package_root(&mut package_roots, &mut seen, self.root.clone(), kind);
+            if seen.insert(self.root.clone()) {
+                package_roots.push((self.root.clone(), kind));
+            }
 
             return Ok(package_roots);
         }
@@ -162,12 +164,9 @@ impl Repository {
                 let package_root = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
 
                 if self.is_workspace_package_root(&package_root, workspace_packages) {
-                    Self::push_package_root(
-                        &mut package_roots,
-                        &mut seen,
-                        package_root,
-                        PackageKind::Declared,
-                    );
+                    if seen.insert(package_root.clone()) {
+                        package_roots.push((package_root, PackageKind::Declared));
+                    }
                 }
             }
         }
@@ -293,43 +292,104 @@ impl Repository {
     }
 
     /// Return dependencies declared by named conditions.
-    fn condition_dependencies(config: &crate::Destack) -> Vec<ConditionalDependencies> {
+    fn condition_dependencies(config: &DestackFile) -> Vec<PackageDependencies> {
         let mut dependencies = Vec::new();
 
         for (name, condition) in &config.conditions.modes {
             if !condition.dependencies.is_empty() {
-                dependencies.push(ConditionalDependencies {
-                    when: ConditionPredicate::Gate(ConditionGate::mode(name.clone())),
+                dependencies.push(PackageDependencies {
+                    when: ConditionGate::mode(name.clone()),
                     dependencies: condition.dependencies.clone(),
                 });
             }
         }
         for (name, condition) in &config.conditions.roles {
             if !condition.dependencies.is_empty() {
-                dependencies.push(ConditionalDependencies {
-                    when: ConditionPredicate::Gate(ConditionGate::role(name.clone())),
+                dependencies.push(PackageDependencies {
+                    when: ConditionGate::role(name.clone()),
                     dependencies: condition.dependencies.clone(),
                 });
             }
         }
         for (name, condition) in &config.conditions.features {
             if !condition.dependencies.is_empty() {
-                dependencies.push(ConditionalDependencies {
-                    when: ConditionPredicate::Gate(ConditionGate::feature(name.clone())),
+                dependencies.push(PackageDependencies {
+                    when: ConditionGate::feature(name.clone()),
                     dependencies: condition.dependencies.clone(),
                 });
             }
         }
         for (name, condition) in &config.conditions.tags {
             if !condition.dependencies.is_empty() {
-                dependencies.push(ConditionalDependencies {
-                    when: ConditionPredicate::Gate(ConditionGate::tag(name.clone())),
+                dependencies.push(PackageDependencies {
+                    when: ConditionGate::tag(name.clone()),
                     dependencies: condition.dependencies.clone(),
                 });
             }
         }
 
         dependencies
+    }
+
+    /// Resolve condition references in conditional dependency declarations.
+    fn resolve_conditional_dependencies(
+        config: &DestackFile,
+    ) -> Result<Vec<PackageDependencies>, RepositoryError> {
+        let mut dependencies = Vec::new();
+
+        for conditional in &config.conditional_dependencies {
+            let when = config
+                .conditions
+                .resolve(&conditional.when)
+                .map_err(|error| RepositoryError::InvalidConfig {
+                    file: config.file_id,
+                    message: error.to_string(),
+                })?;
+
+            dependencies.push(PackageDependencies {
+                when,
+                dependencies: conditional.dependencies.clone(),
+            });
+        }
+
+        Ok(dependencies)
+    }
+
+    /// Resolve condition references in package export declarations.
+    fn resolve_exports(
+        config: &DestackFile,
+    ) -> Result<IndexMap<String, PackageExport>, RepositoryError> {
+        let mut exports = IndexMap::new();
+
+        for (specifier, export) in &config.exports {
+            let export = Self::resolve_export(config, export)?;
+
+            exports.insert(specifier.clone(), export);
+        }
+
+        Ok(exports)
+    }
+
+    /// Resolve one package export declaration.
+    fn resolve_export(
+        config: &DestackFile,
+        export: &Export,
+    ) -> Result<PackageExport, RepositoryError> {
+        let when = export
+            .when
+            .as_ref()
+            .map(|reference| config.conditions.resolve(reference))
+            .transpose()
+            .map_err(|error| RepositoryError::InvalidConfig {
+                file: config.file_id,
+                message: error.to_string(),
+            })?;
+
+        Ok(PackageExport {
+            kind: export.kind,
+            path: export.path.clone(),
+            when,
+        })
     }
 
     /// Return true when one package root is selected by workspace config.
@@ -365,24 +425,7 @@ impl Repository {
             config_path.as_str()
         };
 
-        Self::matches_workspace_glob(pattern, relative_root)
-            || Self::matches_workspace_glob(pattern, config_path)
-    }
-
-    /// Match one workspace glob pattern.
-    fn matches_workspace_glob(pattern: &str, path: &str) -> bool {
-        glob_matches(pattern.as_bytes(), 0, path.as_bytes(), 0)
-    }
-
-    /// Push one package root when it has not been seen before.
-    fn push_package_root(
-        package_roots: &mut Vec<(PathBuf, PackageKind)>,
-        seen: &mut HashSet<PathBuf>,
-        package_root: PathBuf,
-        kind: PackageKind,
-    ) {
-        if seen.insert(package_root.clone()) {
-            package_roots.push((package_root, kind));
-        }
+        glob_matches(pattern.as_bytes(), 0, relative_root.as_bytes(), 0)
+            || glob_matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0)
     }
 }

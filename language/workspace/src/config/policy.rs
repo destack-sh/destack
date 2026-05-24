@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::runtime::RuntimeIdentitySelector;
 use super::ConditionSelector;
+use super::runtime::RuntimeIdentitySelector;
 
 /// Policy domain where one action is exercised.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
