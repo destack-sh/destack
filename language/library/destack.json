@@ -1,0 +1,190 @@
+{
+  "name": "destack",
+  "private": true,
+  "description": "Destack standard library.",
+  "exports": {
+    ".": {
+      "path": "./src/index.ds"
+    },
+    "./accessibility": {
+      "path": "./src/accessibility/index.ds"
+    },
+    "./assert": {
+      "path": "./src/assert/index.ds"
+    },
+    "./async": {
+      "path": "./src/async/index.ds"
+    },
+    "./audio": {
+      "path": "./src/audio/index.ds"
+    },
+    "./bench": {
+      "path": "./src/bench/index.ds"
+    },
+    "./bytes": {
+      "path": "./src/bytes/index.ds"
+    },
+    "./channel": {
+      "path": "./src/channel/index.ds"
+    },
+    "./collections": {
+      "path": "./src/collections/index.ds"
+    },
+    "./compute": {
+      "path": "./src/compute/index.ds"
+    },
+    "./console": {
+      "path": "./src/console/index.ds"
+    },
+    "./convert": {
+      "path": "./src/convert/index.ds"
+    },
+    "./crypto": {
+      "path": "./src/crypto/index.ds"
+    },
+    "./debug": {
+      "path": "./src/debug/index.ds"
+    },
+    "./decorator": {
+      "path": "./src/decorator/index.ds"
+    },
+    "./device": {
+      "path": "./src/device/index.ds"
+    },
+    "./display": {
+      "path": "./src/display/index.ds"
+    },
+    "./dns": {
+      "path": "./src/dns/index.ds"
+    },
+    "./error": {
+      "path": "./src/error/index.ds"
+    },
+    "./fs": {
+      "path": "./src/fs/index.ds"
+    },
+    "./fuzz": {
+      "path": "./src/fuzz/index.ds"
+    },
+    "./gpu": {
+      "path": "./src/gpu/index.ds"
+    },
+    "./http": {
+      "path": "./src/http/index.ds"
+    },
+    "./https": {
+      "path": "./src/https/index.ds"
+    },
+    "./input": {
+      "path": "./src/input/index.ds"
+    },
+    "./io": {
+      "path": "./src/io/index.ds"
+    },
+    "./ipc": {
+      "path": "./src/ipc/index.ds"
+    },
+    "./iter": {
+      "path": "./src/iter/index.ds"
+    },
+    "./json": {
+      "path": "./src/json/index.ds"
+    },
+    "./macro": {
+      "path": "./src/macro/index.ds"
+    },
+    "./math": {
+      "path": "./src/math/index.ds"
+    },
+    "./memory": {
+      "path": "./src/memory/index.ds"
+    },
+    "./module": {
+      "path": "./src/module/index.ds"
+    },
+    "./net": {
+      "path": "./src/net/index.ds"
+    },
+    "./ops": {
+      "path": "./src/ops/index.ds"
+    },
+    "./os": {
+      "path": "./src/os/index.ds"
+    },
+    "./path": {
+      "path": "./src/path/index.ds"
+    },
+    "./prelude": {
+      "path": "./src/prelude.ds"
+    },
+    "./process": {
+      "path": "./src/process/index.ds"
+    },
+    "./random": {
+      "path": "./src/random/index.ds"
+    },
+    "./range": {
+      "path": "./src/range/index.ds"
+    },
+    "./reflect": {
+      "path": "./src/reflect/index.ds"
+    },
+    "./regexp": {
+      "path": "./src/regexp/index.ds"
+    },
+    "./runtime": {
+      "path": "./src/runtime/index.ds"
+    },
+    "./schema": {
+      "path": "./src/schema/index.ds"
+    },
+    "./serde": {
+      "path": "./src/serde/index.ds"
+    },
+    "./simulation": {
+      "path": "./src/simulation/index.ds"
+    },
+    "./stream": {
+      "path": "./src/stream/index.ds"
+    },
+    "./string": {
+      "path": "./src/string/index.ds"
+    },
+    "./sync": {
+      "path": "./src/sync/index.ds"
+    },
+    "./sys": {
+      "path": "./src/sys/index.ds"
+    },
+    "./telemetry": {
+      "path": "./src/telemetry/index.ds"
+    },
+    "./tensor": {
+      "path": "./src/tensor/index.ds"
+    },
+    "./test": {
+      "path": "./src/test/index.ds"
+    },
+    "./time": {
+      "path": "./src/time/index.ds"
+    },
+    "./tls": {
+      "path": "./src/tls/index.ds"
+    },
+    "./tty": {
+      "path": "./src/tty/index.ds"
+    },
+    "./types": {
+      "path": "./src/types/index.ds"
+    },
+    "./url": {
+      "path": "./src/url/index.ds"
+    },
+    "./worker": {
+      "path": "./src/worker/index.ds"
+    },
+    "./zlib": {
+      "path": "./src/zlib/index.ds"
+    }
+  }
+}

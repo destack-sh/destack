@@ -7,20 +7,30 @@ use destack_source::{
 };
 use indexmap::IndexMap;
 
-use crate::{Module, Package, PackageKind, Repository};
+use crate::{ExportKind, Module, Package, PackageExport, PackageKind, Repository};
 
-const BUILTIN_PACKAGE_NAME: &str = "destack";
 const BUILTIN_PACKAGE_URI: &str = "destack://";
 
 // NOTE: the builtin library package is generated at build time and auto included as raw strings here.
 include!(concat!(env!("OUT_DIR"), "/builtin.rs"));
+
+/// One builtin package export shipped with the toolchain.
+#[derive(Debug, Clone, Copy)]
+pub struct BuiltinExport {
+    /// The public export specifier.
+    pub specifier: &'static str,
+    /// The package relative export path.
+    pub path: &'static str,
+    /// The exported material kind.
+    pub kind: ExportKind,
+}
 
 /// One builtin source file shipped with the toolchain.
 #[derive(Debug, Clone, Copy)]
 pub struct BuiltinFile {
     /// The canonical module URI.
     pub uri: &'static str,
-    /// The path relative to `language/library`.
+    /// The path relative to `language/library/src`.
     pub path: &'static str,
     /// The source content.
     pub content: &'static str,
@@ -40,6 +50,10 @@ pub struct BuiltinPackage {
 impl BuiltinPackage {
     /// Create the builtin package.
     pub fn new() -> Self {
+        let exports = BUILTIN_EXPORTS
+            .iter()
+            .map(|export| (export.specifier.to_string(), export.package_export()))
+            .collect();
         let package = Package {
             id: PackageId::from_uri(&Uri::from_string(BUILTIN_PACKAGE_NAME)),
             kind: PackageKind::Builtin,
@@ -50,7 +64,7 @@ impl BuiltinPackage {
             dependencies: IndexMap::new(),
             conditional_dependencies: Vec::new(),
             vendor: Default::default(),
-            exports: IndexMap::new(),
+            exports,
             topology: Default::default(),
             destack_file_id: None,
             targets: IndexMap::new(),
@@ -91,6 +105,15 @@ impl BuiltinPackage {
 
     /// Return one builtin module URI from an absolute builtin specifier.
     pub fn module_uri_for_specifier(&self, specifier: &str) -> Option<Uri> {
+        let path = specifier
+            .strip_prefix(BUILTIN_PACKAGE_URI)
+            .or_else(|| specifier.strip_prefix("destack:"))?;
+
+        self.module_uri_for_export_key(&builtin_export_key(path))
+    }
+
+    /// Return one internal builtin module URI from an absolute builtin specifier.
+    pub fn module_uri_for_internal_specifier(&self, specifier: &str) -> Option<Uri> {
         let path = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
             .or_else(|| specifier.strip_prefix("destack:"))?;
@@ -163,6 +186,17 @@ impl BuiltinPackage {
     /// Return builtin module ids.
     pub fn module_ids(&self) -> impl Iterator<Item = ModuleId> + '_ {
         self.modules.iter().map(|(module_id, _)| *module_id)
+    }
+}
+
+impl BuiltinExport {
+    /// Return this builtin export as a resolved package export.
+    fn package_export(self) -> PackageExport {
+        PackageExport {
+            kind: self.kind,
+            path: self.path.to_string(),
+            when: None,
+        }
     }
 }
 
@@ -246,6 +280,36 @@ impl BuiltinFile {
     /// Return whether this builtin matches one path or URI.
     fn matches_path(self, path: &str) -> bool {
         path == self.uri || path == self.path
+    }
+}
+
+impl BuiltinPackage {
+    /// Return one builtin module URI from one package export key.
+    fn module_uri_for_export_key(&self, export_key: &str) -> Option<Uri> {
+        let export = self.package.export(export_key)?;
+        if export.kind != ExportKind::Module {
+            return None;
+        }
+
+        let path = export.path.strip_prefix("./src/")?;
+        let path = canonical_builtin_path(path);
+        let uri = format!("{BUILTIN_PACKAGE_URI}{path}");
+
+        Some(Uri::from_string(uri))
+    }
+}
+
+/// Return the package export key for one builtin specifier path.
+fn builtin_export_key(path: &str) -> String {
+    let path = canonical_builtin_path(path);
+
+    // package root
+    if path.is_empty() {
+        ".".to_string()
+    }
+    // package subpath
+    else {
+        format!("./{path}")
     }
 }
 

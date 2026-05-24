@@ -1,4 +1,47 @@
-use crate::tests::TestSession;
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_import_resolves_builtin_package_export() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import { Math } from "destack:math";
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported(
+        "main.ds",
+        DirRows::modules().with_summaries(),
+        r#"
+import { Math } from "destack:math";
+/// @module.edge relation=import specifier=destack:math module=destack://math
+
+/// @module.summary edges=1
+"#,
+    );
+}
+
+#[test]
+fn test_import_reports_builtin_internal_subpath() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import { HostError } from "destack:error/host";
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=EI204 message="unsupported module specifier 'destack:error/host'"
+/// @diagnostic.label line=2 column=1 source="import { HostError } from \"destack:error/host\";"
+"#,
+    );
+}
 
 #[test]
 fn test_import_reports_private_specifier() {

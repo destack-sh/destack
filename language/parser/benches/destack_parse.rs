@@ -1,10 +1,10 @@
 use criterion::profiler::Profiler;
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
-use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
-use pprof::ProfilerGuard;
+use destack_source::{glob, File, FileId, FileType, LanguageType, Uri};
 use pprof::flamegraph::Options as FlamegraphOptions;
+use pprof::ProfilerGuard;
 use rayon::prelude::*;
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
@@ -79,7 +79,11 @@ fn parser_files_from_env() -> Option<Vec<PathBuf>> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .collect();
-    if files.is_empty() { None } else { Some(files) }
+    if files.is_empty() {
+        None
+    } else {
+        Some(files)
+    }
 }
 
 /// Collect parser source files for the workspace benchmark.
@@ -205,7 +209,7 @@ fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
     }
 
     // fall back to a representative library file
-    workspace_root.join("language/library/fs/host/file.ds")
+    workspace_root.join("language/library/src/fs/host/file.ds")
 }
 
 /// Load a single source file for benchmarking.
