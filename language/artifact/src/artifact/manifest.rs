@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildManifest {
-    /// The primary HTML document path when one exists.
+    /// The primary entry path when one exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub index: Option<String>,
     /// The emitted file records for this target.
@@ -66,8 +66,6 @@ pub enum BuildManifestLoader {
     Css,
     /// TypeScript output.
     Ts,
-    /// HTML output.
-    Html,
     /// Source map output.
     #[serde(rename = "map")]
     Map,

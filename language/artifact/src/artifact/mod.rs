@@ -1,11 +1,9 @@
 mod binary;
-mod css;
 mod data;
 mod dependency;
 mod dir;
 mod emit;
 mod environment;
-mod html;
 mod lint;
 mod manifest;
 mod map;
@@ -16,13 +14,11 @@ mod query;
 mod script;
 
 pub use binary::*;
-pub use css::*;
 pub use data::*;
 pub use dependency::*;
 pub use dir::*;
 pub use emit::*;
 pub use environment::*;
-pub use html::*;
 pub use lint::*;
 pub use manifest::*;
 pub use map::*;
