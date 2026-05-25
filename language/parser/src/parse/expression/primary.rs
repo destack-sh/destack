@@ -2,8 +2,8 @@ use crate::parse::DeclarationHeader;
 use crate::parse::scope::ExpressionScope;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
-    BinaryOperator, BlockContext, Expression, Keyword, LocalNodeId, Path, ScalarLiteral, TokenType,
-    TypeExpression, UnaryOperator,
+    BinaryOperator, BlockContext, Expression, Keyword, LocalNodeId, NodeType, Path, ScalarLiteral,
+    TokenType, TypeExpression, UnaryOperator,
 };
 use smallvec::smallvec;
 
@@ -382,7 +382,9 @@ impl Parser {
         let operator_span = self.get_span_from(&operator_start);
         let right_scope = ExpressionScope::from_flags(self.flags.not_in_position())
             .at_precedence(Some(operator.precedence()));
-        let right = self.eat_value_operand(right_scope)?;
+        let right = self.with_recursive_descent(NodeType::Expression, |parser| {
+            parser.eat_value_operand(right_scope)
+        })?;
 
         let id = self.insert_node(
             Expression::Unary { operator, right },

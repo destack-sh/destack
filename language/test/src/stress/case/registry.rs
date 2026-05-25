@@ -39,7 +39,8 @@ use super::signature::large_signature;
 use super::ternary::nested_ternary;
 use super::torture::{
     long_assignment_chain, long_binary_chain, long_conditional_type_chain, long_logical_chain,
-    long_nullish_chain, long_postfix_chain, long_type_operator_chain, nested_lambda_chain,
+    long_nullish_chain, long_pattern_prefix_chain, long_postfix_chain, long_type_operator_chain,
+    long_type_prefix_chain, long_value_prefix_chain, nested_lambda_chain,
     parenthesized_binary_chain,
 };
 use super::tree::{ambiguous_tsx, damaged_tree_nesting, damaged_tsx, nested_tsx};
@@ -243,6 +244,17 @@ const CASES: &[StressSpec] = &[
         SOURCE_MODES,
         VALID,
         long_assignment_chain,
+    ),
+    StressSpec::recursive_expression(
+        "long_value_prefix_chain",
+        SOURCE_MODES,
+        long_value_prefix_chain,
+    ),
+    StressSpec::recursive_expression("long_type_prefix_chain", ALL_MODES, long_type_prefix_chain),
+    StressSpec::recursive(
+        "long_pattern_prefix_chain",
+        DESTACK_MODES,
+        long_pattern_prefix_chain,
     ),
     StressSpec::pathological(
         "long_type_operator_chain",

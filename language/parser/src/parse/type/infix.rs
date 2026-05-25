@@ -591,7 +591,9 @@ impl Parser {
         // target
         let target = TypeScope::from_flags(self.type_nested_flags())
             .at_precedence(Some(OperatorPrecedence::Prefix as u16));
-        let target_type = self.eat_type_infix_right(target)?;
+        let target_type = self.with_recursive_descent(NodeType::TypeExpression, |parser| {
+            parser.eat_type_infix_right(target)
+        })?;
 
         // node
         let expression = if token_type == TokenType::ElementwiseAnd {
