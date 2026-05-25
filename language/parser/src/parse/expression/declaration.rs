@@ -191,6 +191,10 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
+        if self.current_token_starts_export_clause() {
+            return self.eat_export().map(Some);
+        }
+
         let checkpoint = self.checkpoint();
         let mark = self.tree.next_id();
         let mut header = DeclarationHeader::default();
@@ -306,6 +310,26 @@ impl Parser {
         }
 
         Ok(ExportPrefix::Expression)
+    }
+
+    /// Return whether the current cursor starts a standalone export clause.
+    fn current_token_starts_export_clause(&mut self) -> bool {
+        if self.current_keyword() != Some(Keyword::Export) {
+            return false;
+        }
+
+        if matches!(
+            self.token_type_at_offset(1),
+            TokenType::OpenBrace | TokenType::Multiply | TokenType::Assign
+        ) {
+            return true;
+        }
+
+        self.keyword_at_offset(1) == Some(Keyword::Type)
+            && matches!(
+                self.token_type_at_offset(2),
+                TokenType::OpenBrace | TokenType::Multiply | TokenType::End
+            )
     }
 
     /// Return whether `export type` starts an export clause.
