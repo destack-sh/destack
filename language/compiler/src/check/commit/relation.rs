@@ -4,8 +4,8 @@ use destack_dir as dir;
 use crate::check::{ArgumentTerm, CheckModuleState};
 
 impl CheckModuleState {
-    /// Commit declaration relations and extension entries.
-    pub(super) fn commit_relations_and_extensions(&mut self, environment: &GlobalEnvironment) {
+    /// Commit declaration relations and extension entries into checked tables.
+    pub(super) fn commit_relation_and_extension_tables(&mut self, environment: &GlobalEnvironment) {
         let declarations = self
             .input
             .parsed
@@ -77,7 +77,8 @@ impl CheckModuleState {
         let Some(expression) = expression else {
             return;
         };
-        let variable = self.node_type_variable(expression.into_global_any(self.input.module));
+        let variable =
+            self.intern_node_type_variable(expression.into_global_any(self.input.module));
         let Some(ty) = self.commit_variable_type(environment, variable) else {
             return;
         };
@@ -112,7 +113,7 @@ impl CheckModuleState {
         heritage: &dir::InterfaceHeritage,
     ) -> Option<dir::LocalTypeId> {
         let symbol = self.interface_heritage_symbol(heritage.expression)?;
-        let arguments = self.build_generic_argument_terms(&heritage.generic_arguments);
+        let arguments = self.build_committed_generic_argument_terms(&heritage.generic_arguments);
         let arguments = self.commit_argument_terms(environment, &arguments)?;
         let source = heritage
             .expression
@@ -131,7 +132,7 @@ impl CheckModuleState {
         implemented: &[dir::LocalNodeId<dir::TypeExpression>],
     ) {
         for implemented in implemented {
-            let variable = self.type_expression_variable(*implemented);
+            let variable = self.intern_type_expression_variable(*implemented);
             let Some(ty) = self.commit_variable_type(environment, variable) else {
                 continue;
             };
@@ -149,7 +150,7 @@ impl CheckModuleState {
         symbol: dir::GlobalSymbolId,
         declaration: &dir::ExtensionDeclaration,
     ) {
-        let target = self.type_expression_variable(declaration.target_type);
+        let target = self.intern_type_expression_variable(declaration.target_type);
         let Some(target_type) = self.commit_variable_type(environment, target) else {
             return;
         };
@@ -183,7 +184,7 @@ impl CheckModuleState {
     }
 
     /// Build static argument terms for one committed heritage clause.
-    fn build_generic_argument_terms(
+    fn build_committed_generic_argument_terms(
         &mut self,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     ) -> Vec<ArgumentTerm> {
@@ -194,16 +195,16 @@ impl CheckModuleState {
             let argument = self.input.view().get(*argument).clone();
             let term = match argument {
                 dir::GenericArgument::Type { value } => {
-                    ArgumentTerm::Type(self.type_expression_variable(value))
+                    ArgumentTerm::Type(self.intern_type_expression_variable(value))
                 }
                 dir::GenericArgument::SpreadType { value } => {
-                    ArgumentTerm::SpreadType(self.type_expression_variable(value))
+                    ArgumentTerm::SpreadType(self.intern_type_expression_variable(value))
                 }
                 dir::GenericArgument::Value { value } => {
-                    ArgumentTerm::Static(self.static_expression_variable(value))
+                    ArgumentTerm::Static(self.define_static_expression_variable(value))
                 }
                 dir::GenericArgument::SpreadValue { value } => {
-                    ArgumentTerm::SpreadStatic(self.static_expression_variable(value))
+                    ArgumentTerm::SpreadStatic(self.define_static_expression_variable(value))
                 }
                 dir::GenericArgument::Error => continue,
             };
