@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GlobalSymbolId, LocalStaticId, MappedTypeModifier, ScalarLiteral, StaticArgument,
-    StaticKey, StringId, TypeLiteral,
+    Asynchrony, GenericSlotIndex, GenericSlotKey, GlobalSymbolId, LocalStaticId,
+    MappedTypeModifier, ScalarLiteral, StaticArgument, StaticKey, StringId, TypeLiteral,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -68,8 +68,35 @@ pub struct MappedTypeParameter {
 /// A semantic type parameter reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParameterType {
-    /// The referenced generic parameter symbol.
-    pub symbol: GlobalSymbolId,
+    /// The owner that declared the referenced generic slot.
+    pub owner: GlobalSymbolId,
+    /// The referenced generic slot key.
+    pub key: GenericSlotKey,
+    /// The referenced generic slot index.
+    pub index: GenericSlotIndex,
+}
+
+impl ParameterType {
+    /// Return a parameter reference for an explicit source symbol.
+    pub fn explicit(
+        owner: GlobalSymbolId,
+        symbol: GlobalSymbolId,
+        index: GenericSlotIndex,
+    ) -> Self {
+        Self {
+            owner,
+            key: GenericSlotKey::Symbol(symbol),
+            index,
+        }
+    }
+
+    /// Return the explicit source symbol when this parameter has one.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
+        match self.key {
+            GenericSlotKey::Symbol(symbol) => Some(symbol),
+            GenericSlotKey::Generated(_) => None,
+        }
+    }
 }
 
 /// Reference to one named type declaration.
@@ -290,12 +317,23 @@ pub struct FunctionType {
     pub generic_parameters: Vec<LocalTypeId>,
     /// The optional `this` parameter type.
     pub this_parameter: Option<LocalTypeId>,
-    /// The parameter types.
-    pub parameters: Vec<LocalTypeId>,
+    /// The runtime parameters.
+    pub parameters: Vec<FunctionParameterType>,
     /// The optional return type.
     pub return_type: Option<LocalTypeId>,
     /// Whether this is a generator function.
     pub is_generator: bool,
+}
+
+/// A runtime parameter in a function type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FunctionParameterType {
+    /// The parameter type.
+    pub ty: LocalTypeId,
+    /// Whether the parameter may be omitted at the call site.
+    pub is_optional: bool,
+    /// Whether the parameter captures remaining call arguments.
+    pub is_rest: bool,
 }
 
 /// A closure type with its function contract and captured environment.
@@ -471,7 +509,7 @@ impl Type {
     /// Return the symbol if this type directly references one declaration.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Parameter(parameter) => Some(parameter.symbol),
+            Self::Parameter(parameter) => parameter.symbol(),
             Self::Named(named) => Some(named.symbol),
             _ => None,
         }

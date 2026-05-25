@@ -1669,7 +1669,7 @@ fn function_parameter_type_at_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Function(function) => function.parameters.get(index).copied(),
+        dir::Type::Function(function) => function.parameters.get(index).map(|parameter| parameter.ty),
         dir::Type::Shape(object) => {
             object
                 .call_signatures
@@ -1713,7 +1713,7 @@ fn function_parameter_types_at_inner(
     let ty = types.get_type(type_id);
     match ty {
         dir::Type::Function(function) => {
-            if let Some(parameter_type_id) = function.parameters.get(index).copied()
+            if let Some(parameter_type_id) = function.parameters.get(index).map(|parameter| parameter.ty)
                 && !results.contains(&parameter_type_id)
             {
                 results.push(parameter_type_id);
