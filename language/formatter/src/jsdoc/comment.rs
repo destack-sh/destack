@@ -67,7 +67,7 @@ fn comment_documents_declaration(context: &DestackFormatContext<'_>, comment: Co
     if candidates
         .iter()
         .filter(|candidate| candidate.span.start == attached_to)
-        .any(|candidate| node_documents_declaration(context, candidate.idx))
+        .any(|candidate| node_documents_declaration(context, candidate.source_id))
     {
         return true;
     }

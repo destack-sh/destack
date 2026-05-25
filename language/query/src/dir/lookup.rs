@@ -240,7 +240,7 @@ fn find_symbol_at_offset_impl(ctx: &ModuleQueryContext<'_>, offset: u32) -> Opti
 
     // sort by length: smallest first
     let mut enclosing = enclosing;
-    enclosing.sort_by_key(|span| (span.length, -(span.idx as i64)));
+    enclosing.sort_by_key(|span| (span.length, -(span.source_id as i64)));
 
     // skip doc and comment tokens before resolving symbols
     let mut is_comment_token = |token: &dir::TokenSpan| {
@@ -287,7 +287,7 @@ fn find_symbol_at_offset_impl(ctx: &ModuleQueryContext<'_>, offset: u32) -> Opti
 
     // try each source node from smallest to largest
     for enclosing_span in &enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.source_id) else {
             continue;
         };
 
@@ -684,7 +684,7 @@ fn declaration_modifier_symbol_at_offset(
     enclosing.sort_by_key(|span| span.length);
 
     for enclosing_span in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.source_id) else {
             continue;
         };
 
@@ -692,7 +692,12 @@ fn declaration_modifier_symbol_at_offset(
             continue;
         }
 
-        let Some(name_span) = ctx.dir().tree().source_index.get_main(enclosing_span.idx) else {
+        let Some(name_span) = ctx
+            .dir()
+            .tree()
+            .source_index
+            .get_main(enclosing_span.source_id)
+        else {
             continue;
         };
         if token.span.start >= name_span.start {

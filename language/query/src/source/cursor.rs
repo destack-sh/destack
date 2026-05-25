@@ -68,10 +68,10 @@ pub(crate) fn offset_is_in_source_type_side_span(ctx: DirQueryContext<'_>, offse
 
     for enclosing in enclosing_spans_with_previous(ctx, offset) {
         // type side spans own both the cursor and the previous byte boundary
-        if let Some(span) = ctx
-            .source_index()
-            .get_side(enclosing.idx, NodeSpanType::Region(NodeSpanRegion::Type))
-            && (span.contains(offset) || span.contains(previous_offset))
+        if let Some(span) = ctx.source_index().get_side(
+            enclosing.source_id,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+        ) && (span.contains(offset) || span.contains(previous_offset))
         {
             return true;
         }
@@ -87,11 +87,11 @@ pub(crate) fn enclosing_missing_expression(
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // walk inward to outward until one missing expression claims the cursor
     for enclosing in enclosing_spans_at_cursor(ctx, offset) {
-        if ctx.tree().get_node_type(enclosing.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enclosing.source_id) != dir::NodeType::Expression {
             continue;
         }
 
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.idx);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.source_id);
 
         // only recovered missing expressions classify expression slots
         if matches!(ctx.tree().get(expr_id), dir::Expression::Missing) {

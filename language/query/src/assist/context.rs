@@ -387,7 +387,7 @@ fn statement_position_from_block(ctx: DirQueryContext<'_>, offset: u32) -> Optio
     // scan for the nearest block that opens one statement position
     for enc in &enclosing {
         if block_statement_position(ctx, enc, offset).is_some() {
-            return scope_from_block_span(ctx, enc.idx, offset);
+            return scope_from_block_span(ctx, enc.source_id, offset);
         }
     }
 
@@ -410,11 +410,11 @@ fn detect_type_position(ctx: DirQueryContext<'_>, source: &str, offset: u32) -> 
 
     // check enclosing expressions that are known type expressions
     for enc in &enclosing {
-        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
             continue;
         }
 
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
         let expr = ctx.tree().get(expr_id);
 
         if is_type_expression(expr) {
@@ -468,11 +468,11 @@ fn is_type_declaration_value_position(
 
     // scan enclosing declarations for type and value declarations
     for enc in enclosing {
-        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Declaration {
+        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Declaration {
             continue;
         }
 
-        let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(enc.idx);
+        let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(enc.source_id);
         let declaration = ctx.tree().get(declaration_id);
 
         let dir::Declaration::Type(declaration) = declaration else {

@@ -110,7 +110,7 @@ fn scope_from_enclosing_dir_nodes(
     let symbols = ctx.symbols();
 
     for enc in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
             continue;
         };
 
@@ -178,7 +178,7 @@ fn scope_from_enclosing_dir_blocks(
     let symbols = ctx.symbols();
 
     for enc in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
             continue;
         };
 
@@ -214,7 +214,7 @@ fn scope_from_enclosing_owned_declarations(
     let symbols = ctx.symbols();
 
     for enc in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
             continue;
         };
 
@@ -242,7 +242,7 @@ fn source_parent_scope_at_offset(
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
-    let start_id = enclosing.first().map(|enc| enc.idx)?;
+    let start_id = enclosing.first().map(|enc| enc.source_id)?;
 
     let dir_tree = ctx.view();
     let symbols = ctx.symbols();
@@ -320,7 +320,7 @@ fn source_parent_block_scope_at_offset(
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
-    let start_id = enclosing.first().map(|enc| enc.idx)?;
+    let start_id = enclosing.first().map(|enc| enc.source_id)?;
 
     let dir_tree = ctx.view();
     let symbols = ctx.symbols();

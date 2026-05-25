@@ -125,7 +125,7 @@ pub fn signature_help(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Signa
 
     // scan enclosing calls at the cursor
     for enclosing_span in &enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.source_id) else {
             continue;
         };
         if dir_node_id.ty != NodeType::Expression {

@@ -9,7 +9,7 @@ use crate::{
     SimpleSelector, Stylesheet, SupportsCondition,
 };
 use destack_core::{Arena, StringId, StringPool, StringRef};
-use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 
 /// Dense metadata for one CSS node id.
@@ -86,8 +86,8 @@ pub struct Tree {
     pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
-    /// The source spans for all nodes.
-    pub source_map: NodeSourceMap,
+    /// The source ranges and anchors for all nodes.
+    pub source_index: SourceIndex,
     /// The interned strings used by pooled css identifiers.
     pub strings: StringPool,
 
@@ -148,7 +148,7 @@ impl Tree {
         Self {
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
-            source_map: NodeSourceMap::with_capacity(capacity),
+            source_index: SourceIndex::with_capacity(capacity),
             strings: StringPool::new(),
             stylesheets: Arena::new(),
             component_fragments: Arena::new(),
@@ -192,7 +192,7 @@ impl Tree {
         let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
-        self.source_map.append(span);
+        self.source_index.append(span);
 
         LocalNodeId::new(global_id)
     }
@@ -223,7 +223,7 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
     {
-        self.source_map.get(id.id)
+        self.source_index.get(id.id)
     }
 
     /// Return one side span for one node when it exists.
@@ -232,7 +232,7 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
     {
-        self.source_map.get_side(id.id, span_type)
+        self.source_index.get_side(id.id, span_type)
     }
 
     /// Store one side span for one node.
@@ -241,7 +241,7 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
     {
-        self.source_map.set_side(id.id, span_type, span);
+        self.source_index.set_side(id.id, span_type, span);
     }
 
     /// Return the number of nodes stored in this tree.
@@ -274,7 +274,7 @@ impl Tree {
 
     /// Rebind every stored span to one file id.
     pub fn rebind_file(&mut self, file_id: FileId) {
-        self.source_map.rebind_file(file_id);
+        self.source_index.rebind_file(file_id);
     }
 }
 

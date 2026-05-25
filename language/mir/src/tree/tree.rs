@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
 use destack_core::Arena;
-use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::source::{Token, TokenType};
@@ -101,8 +101,8 @@ pub struct Tree {
     /// DIR source id keyed by MIR node id.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
 
-    /// Source spans for parsed MIR node ownership.
-    pub source_map: NodeSourceMap,
+    /// Source ranges and anchors for parsed MIR node ownership.
+    pub source_index: SourceIndex,
     /// The parsed MIR source text.
     pub(crate) source_text: Option<String>,
 
@@ -182,7 +182,7 @@ impl Tree {
             node_index_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
             source_id_by_node_id: Vec::with_capacity(capacity),
-            source_map: NodeSourceMap::with_capacity(capacity),
+            source_index: SourceIndex::with_capacity(capacity),
             source_text: None,
             tokens: Vec::new(),
             leading_comment_spans_by_node_id: Vec::new(),
@@ -566,7 +566,7 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_id_by_node_id.push(None);
-        self.source_map.append(empty_source_span());
+        self.source_index.append(empty_source_span());
 
         LocalNodeId::new(global_id)
     }
@@ -584,7 +584,7 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_id_by_node_id.push(Some(source_dir_id));
-        self.source_map.append(empty_source_span());
+        self.source_index.append(empty_source_span());
 
         LocalNodeId::new(global_id)
     }
@@ -1043,7 +1043,7 @@ impl Tree {
     /// Get the span for a node by raw id.
     #[inline]
     pub fn get_span_by_id(&self, id: u32) -> Option<Span> {
-        let span = self.source_map.get(self.node_index(id) as u32);
+        let span = self.source_index.get(self.node_index(id) as u32);
 
         (span.end > span.start).then_some(span)
     }
@@ -1060,7 +1060,7 @@ impl Tree {
     /// Set the span for a node by raw id.
     #[inline]
     pub fn set_span_by_id(&mut self, id: u32, span: Span) {
-        self.source_map.set(self.node_index(id) as u32, span);
+        self.source_index.set(self.node_index(id) as u32, span);
     }
 
     /// Set the span for one parsed MIR node and anchor it to the parsed text.
@@ -1069,7 +1069,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map.set(self.node_index(id.id) as u32, span);
+        self.source_index.set(self.node_index(id.id) as u32, span);
     }
 
     /// Get the main source span for a MIR node when present.
@@ -1078,13 +1078,13 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map.get_main(self.node_index(id.id) as u32)
+        self.source_index.get_main(self.node_index(id.id) as u32)
     }
 
     /// Get the main source span for a MIR node by raw id.
     #[inline]
     pub fn get_main_span_by_id(&self, id: u32) -> Option<Span> {
-        self.source_map.get_main(self.node_index(id) as u32)
+        self.source_index.get_main(self.node_index(id) as u32)
     }
 
     /// Set the main source span for a MIR node.
@@ -1093,7 +1093,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map
+        self.source_index
             .set_main(self.node_index(id.id) as u32, span);
     }
 
@@ -1103,14 +1103,14 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map
+        self.source_index
             .get_side(self.node_index(id.id) as u32, span_type)
     }
 
     /// Get one side span for a MIR node by raw id when present.
     #[inline]
     pub fn get_side_span_by_id(&self, id: u32, span_type: NodeSpanType) -> Option<Span> {
-        self.source_map
+        self.source_index
             .get_side(self.node_index(id) as u32, span_type)
     }
 
@@ -1120,7 +1120,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map
+        self.source_index
             .set_side(self.node_index(id.id) as u32, span_type, span);
     }
 

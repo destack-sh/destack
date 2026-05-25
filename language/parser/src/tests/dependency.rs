@@ -633,8 +633,11 @@ fn test_parse_import_block_keeps_statement_owner_in_missing_close_gap() {
             });
     });
 
-    let enclosing = parser.tree.source_map.get_enclosing_spans(cursor, cursor);
-    assert!(enclosing.iter().any(|span| span.idx == root_id.id));
+    let enclosing = parser
+        .tree
+        .source_index
+        .get_enclosing_spans(parser.file_id, cursor, cursor);
+    assert!(enclosing.iter().any(|span| span.source_id == root_id.id));
 }
 
 #[test]
@@ -652,10 +655,13 @@ fn test_parse_import_keeps_target_main_span_for_unterminated_path() {
             assert_import_target_string(&parser, *target, "./u");
     });
 
-    let enclosing = parser.tree.source_map.get_enclosing_spans(probe, probe);
-    assert!(enclosing.iter().any(|span| span.idx == root_id.id));
+    let enclosing = parser
+        .tree
+        .source_index
+        .get_enclosing_spans(parser.file_id, probe, probe);
+    assert!(enclosing.iter().any(|span| span.source_id == root_id.id));
 
-    let main_span = parser.tree.source_map.get_main(root_id.id).unwrap();
+    let main_span = parser.tree.source_index.get_main(root_id.id).unwrap();
     assert!(main_span.contains(probe));
 }
 

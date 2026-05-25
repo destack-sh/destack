@@ -1,5 +1,5 @@
+mod index;
 mod interval;
-mod map;
 
+pub use index::*;
 pub use interval::*;
-pub use map::*;
