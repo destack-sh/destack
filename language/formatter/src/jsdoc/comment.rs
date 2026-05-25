@@ -57,10 +57,11 @@ fn comment_documents_declaration(context: &DestackFormatContext<'_>, comment: Co
 
     // leading comments attach to the next source position
     let attached_to = comment.attached_to;
-    let candidates = context
-        .tree
-        .source_map
-        .get_enclosing_spans(attached_to, attached_to);
+    let candidates =
+        context
+            .tree
+            .source_index
+            .get_enclosing_spans(context.file.id, attached_to, attached_to);
 
     // declarations can be direct nodes or expression wrappers
     if candidates

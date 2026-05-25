@@ -154,7 +154,7 @@ fn format_parser_file_source(
     parser.attach_comments();
 
     // build the formatter context
-    let (tokens, side_tokens) = parser.take_tokens();
+    let (tokens, side_tokens) = parser.take_token_spans();
     let side_span = parser.compute_side_span();
     let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, &expressions);

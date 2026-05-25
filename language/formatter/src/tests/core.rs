@@ -83,7 +83,7 @@ impl TestFormatter {
             // finalize retained comments for every entrypoint
             parser.attach_comments();
 
-            let (tokens, side_tokens) = parser.take_tokens();
+            let (tokens, side_tokens) = parser.take_token_spans();
             (
                 parser.compute_side_span(),
                 parser.tree,
