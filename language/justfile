@@ -336,6 +336,10 @@ bench-lexer:
 bench-parser:
     cargo bench -p destack_parser --bench destack_parse
 
+# run parser benches for one or more named corpora
+bench-parser-corpus corpus="library" trivia="documentation" stage="parse":
+    DESTACK_PARSE_CORPUS={{corpus}} DESTACK_PARSE_TRIVIA={{trivia}} DESTACK_PARSE_STAGE={{stage}} cargo bench -p destack_parser --bench destack_parse
+
 # --- fuzz ---
 
 # run all fuzzers

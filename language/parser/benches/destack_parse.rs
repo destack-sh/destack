@@ -11,6 +11,74 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{env, fs};
 
+const GENERATED_APP_FILE_COUNT: usize = 64;
+const GENERATED_APP_ITEM_COUNT: usize = 192;
+const GENERATED_TYPE_FILE_COUNT: usize = 32;
+const GENERATED_TYPE_ITEM_COUNT: usize = 384;
+const GENERATED_RECOVERY_FILE_COUNT: usize = 16;
+const GENERATED_RECOVERY_ITEM_COUNT: usize = 256;
+
+/// One parser benchmark corpus.
+#[derive(Debug)]
+struct ParserBenchCorpus {
+    /// The benchmark corpus name.
+    name: String,
+    /// The source files in this corpus.
+    files: Vec<Arc<File>>,
+    /// Total corpus source bytes.
+    bytes: u64,
+    /// Total corpus source lines.
+    lines: u64,
+}
+
+/// One parser benchmark stage.
+#[derive(Debug, Copy, Clone)]
+enum ParserBenchStage {
+    /// Lex the file into token buffers without parsing.
+    Lex,
+    /// Parse the file and retain raw comments without attaching them.
+    ParseWithoutAttach,
+    /// Parse the file through the full parser pipeline.
+    Parse,
+}
+
+impl ParserBenchStage {
+    /// Return the benchmark name for this stage.
+    fn name(self) -> &'static str {
+        match self {
+            Self::Lex => "lex",
+            Self::ParseWithoutAttach => "parse_without_attach",
+            Self::Parse => "parse",
+        }
+    }
+}
+
+/// One parser stage summary from a dry run.
+#[derive(Debug, Copy, Clone, Default)]
+struct ParserBenchStageStats {
+    /// The semantic token count.
+    tokens: u64,
+    /// The retained side token count.
+    side_tokens: u64,
+    /// The parsed DIR node count.
+    nodes: u64,
+    /// The retained comment count.
+    comments: u64,
+    /// The parser diagnostic count.
+    errors: u64,
+}
+
+impl ParserBenchStageStats {
+    /// Accumulate one summary into this summary.
+    fn add(&mut self, other: Self) {
+        self.tokens = self.tokens.saturating_add(other.tokens);
+        self.side_tokens = self.side_tokens.saturating_add(other.side_tokens);
+        self.nodes = self.nodes.saturating_add(other.nodes);
+        self.comments = self.comments.saturating_add(other.comments);
+        self.errors = self.errors.saturating_add(other.errors);
+    }
+}
+
 /// Return whether a file type is supported by the parser bench.
 fn is_parser_source_file_type(file_type: FileType) -> bool {
     matches!(
@@ -25,17 +93,21 @@ fn is_parser_source_file_type(file_type: FileType) -> bool {
     )
 }
 
+/// Return source extensions covered by corpus collection.
+fn parser_source_extensions() -> &'static [&'static str] {
+    &["ds", "d.ds", "ts", "tsx", "d.ts"]
+}
+
 /// Return the parser bench worker count.
 fn parser_bench_worker_count() -> usize {
     let physical_cores = num_cpus::get_physical();
     physical_cores.max(1)
 }
 
-/// Parse one file through the full parser pipeline.
-fn parse_file(file: Arc<File>) -> Parser {
+/// Create one parser for a source file.
+fn lex_parser(file: Arc<File>, trivia_mode: ParserTriviaMode) -> Parser {
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    let trivia_mode = parser_trivia_mode();
-    let mut parser = Parser::lex_file_with_options(
+    Parser::lex_file_with_options(
         file,
         language_type,
         ParserOptions {
@@ -43,7 +115,12 @@ fn parse_file(file: Arc<File>) -> Parser {
             ..ParserOptions::default()
         },
         Arc::new(StringPool::new()),
-    );
+    )
+}
+
+/// Parse one file through the full parser pipeline.
+fn parse_file(file: Arc<File>, trivia_mode: ParserTriviaMode) -> Parser {
+    let mut parser = lex_parser(file, trivia_mode);
     if trivia_mode.keeps_comments() {
         parser.parse();
     } else {
@@ -53,13 +130,111 @@ fn parse_file(file: Arc<File>) -> Parser {
     parser
 }
 
+/// Run one parser benchmark stage for one file.
+fn run_parser_stage(file: Arc<File>, stage: ParserBenchStage, trivia_mode: ParserTriviaMode) {
+    match stage {
+        ParserBenchStage::Lex => {
+            let mut parser = lex_parser(file, trivia_mode);
+            let tokens = parser.take_tokens();
+            black_box(tokens);
+        }
+        ParserBenchStage::ParseWithoutAttach => {
+            let mut parser = lex_parser(file, trivia_mode);
+            let roots = parser.parse_without_attaching_comments();
+            black_box((parser, roots));
+        }
+        ParserBenchStage::Parse => {
+            let mut parser = lex_parser(file, trivia_mode);
+            let roots = if trivia_mode.keeps_comments() {
+                parser.parse()
+            } else {
+                parser.parse_without_attaching_comments()
+            };
+            black_box((parser, roots));
+        }
+    }
+}
+
+/// Summarize one parser benchmark stage for one file.
+fn summarize_parser_stage(
+    file: Arc<File>,
+    stage: ParserBenchStage,
+    trivia_mode: ParserTriviaMode,
+) -> ParserBenchStageStats {
+    let mut parser = lex_parser(file, trivia_mode);
+
+    match stage {
+        ParserBenchStage::Lex => {
+            let (tokens, side_tokens) = parser.take_tokens();
+
+            ParserBenchStageStats {
+                tokens: tokens.len() as u64,
+                side_tokens: side_tokens.len() as u64,
+                ..ParserBenchStageStats::default()
+            }
+        }
+        ParserBenchStage::ParseWithoutAttach => {
+            parser.parse_without_attaching_comments();
+            let (tokens, side_tokens) = parser.take_tokens();
+
+            ParserBenchStageStats {
+                tokens: tokens.len() as u64,
+                side_tokens: side_tokens.len() as u64,
+                nodes: parser.tree.node_count() as u64,
+                comments: parser.tree.comments().len() as u64,
+                errors: parser.errors.len() as u64,
+            }
+        }
+        ParserBenchStage::Parse => {
+            if trivia_mode.keeps_comments() {
+                parser.parse();
+            } else {
+                parser.parse_without_attaching_comments();
+            }
+            let (tokens, side_tokens) = parser.take_tokens();
+
+            ParserBenchStageStats {
+                tokens: tokens.len() as u64,
+                side_tokens: side_tokens.len() as u64,
+                nodes: parser.tree.node_count() as u64,
+                comments: parser.tree.comments().len() as u64,
+                errors: parser.errors.len() as u64,
+            }
+        }
+    }
+}
+
+/// Summarize one parser benchmark stage for one corpus.
+fn summarize_parser_corpus(
+    corpus: &ParserBenchCorpus,
+    stage: ParserBenchStage,
+    trivia_mode: ParserTriviaMode,
+) -> ParserBenchStageStats {
+    let mut stats = ParserBenchStageStats::default();
+
+    for file in &corpus.files {
+        stats.add(summarize_parser_stage(file.clone(), stage, trivia_mode));
+    }
+
+    stats
+}
+
+/// Return the benchmark name for a parser trivia mode.
+fn parser_trivia_mode_name(trivia_mode: ParserTriviaMode) -> &'static str {
+    match trivia_mode {
+        ParserTriviaMode::Ignore => "ignore",
+        ParserTriviaMode::Documentation => "documentation",
+        ParserTriviaMode::Full => "full",
+    }
+}
+
 /// Return the parser trivia mode for benchmarks.
 fn parser_trivia_mode() -> ParserTriviaMode {
     let Some(value) = env::var("DESTACK_PARSE_TRIVIA")
         .ok()
         .or_else(|| env::var("DESTACK_PARSE_RETAIN_TRIVIA").ok())
     else {
-        return ParserTriviaMode::Full;
+        return ParserTriviaMode::Documentation;
     };
 
     match value.as_str() {
@@ -67,6 +242,22 @@ fn parser_trivia_mode() -> ParserTriviaMode {
         "doc" | "docs" | "documentation" => ParserTriviaMode::Documentation,
         "1" | "true" | "True" | "TRUE" | "full" | "trivia" => ParserTriviaMode::Full,
         _ => panic!("invalid parser trivia mode: {value}"),
+    }
+}
+
+/// Return the parser benchmark stage from the environment.
+fn parser_bench_stage() -> ParserBenchStage {
+    let Some(value) = env::var("DESTACK_PARSE_STAGE").ok() else {
+        return ParserBenchStage::Parse;
+    };
+
+    match value.as_str() {
+        "lex" | "lexer" => ParserBenchStage::Lex,
+        "parse-no-attach" | "parse_no_attach" | "parse_without_attach" => {
+            ParserBenchStage::ParseWithoutAttach
+        }
+        "parse" | "full" => ParserBenchStage::Parse,
+        _ => panic!("invalid parser benchmark stage: {value}"),
     }
 }
 
@@ -79,17 +270,297 @@ fn parser_files_from_env() -> Option<Vec<PathBuf>> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .collect();
+
     if files.is_empty() { None } else { Some(files) }
 }
 
-/// Collect parser source files for the workspace benchmark.
-fn collect_workspace_parser_sources(workspace_root: &str) -> Vec<PathBuf> {
-    let mut source_files: Vec<PathBuf> = Vec::new();
-    source_files.extend(glob(&format!("{workspace_root}/**/*.ds")));
-    source_files.extend(glob(&format!("{workspace_root}/**/*.d.ds")));
+/// Return the parser corpus filter from the environment.
+fn parser_corpus_filter() -> Option<Vec<String>> {
+    let corpus_env = env::var("DESTACK_PARSE_CORPUS").ok()?;
+    let filters = corpus_env
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    if filters.is_empty() {
+        None
+    } else {
+        Some(filters)
+    }
+}
+
+/// Return whether a corpus should run.
+fn should_run_corpus(name: &str, filter: Option<&[String]>) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    filter.iter().any(|item| item == name)
+}
+
+/// Return whether a path has a component with the given name.
+fn path_has_component(path: &Path, component: &str) -> bool {
+    path.components().any(|part| part.as_os_str() == component)
+}
+
+/// Collect parser source files under one root.
+fn collect_parser_sources(
+    root: &Path,
+    include_stress: bool,
+    include_conformance: bool,
+) -> Vec<PathBuf> {
+    let root = root.to_string_lossy();
+    let mut source_files = Vec::new();
+
+    for extension in parser_source_extensions() {
+        source_files.extend(glob(&format!("{root}/**/*.{extension}")));
+    }
+
+    source_files.retain(|path| {
+        if !include_stress && path_has_component(path, "stress") {
+            return false;
+        }
+
+        if !include_conformance && path_has_component(path, "conformance") {
+            return false;
+        }
+
+        true
+    });
     source_files.sort();
     source_files.dedup();
+
     source_files
+}
+
+/// Load one file backed parser corpus.
+fn load_file_corpus(name: impl Into<String>, paths: &[PathBuf]) -> Option<ParserBenchCorpus> {
+    let name = name.into();
+    let mut lines = 0_u64;
+    let mut bytes = 0_u64;
+    let mut files = Vec::with_capacity(paths.len());
+
+    for path in paths {
+        let file_type = FileType::from_path_or_unknown(path);
+        let is_parser_source = is_parser_source_file_type(file_type);
+        assert!(is_parser_source, "path is not a parser source: {path:?}");
+
+        let content = fs::read_to_string(path)
+            .unwrap_or_else(|_| panic!("file system error while reading {}", path.display()));
+        lines = lines.saturating_add(content.lines().count() as u64);
+        bytes = bytes.saturating_add(content.len() as u64);
+
+        let file_id = FileId::new(files.len() as u128);
+        let (file_name, uri) = Uri::from_path_with_name(path);
+        let file = File::from_text(file_id, file_name, uri, None, file_type, content);
+        files.push(Arc::new(file));
+    }
+
+    if files.is_empty() {
+        None
+    } else {
+        Some(ParserBenchCorpus {
+            name,
+            files,
+            bytes,
+            lines,
+        })
+    }
+}
+
+/// Build one generated parser corpus.
+fn generated_corpus(
+    name: &str,
+    file_type: FileType,
+    extension: &str,
+    file_count: usize,
+    generate: impl Fn(usize) -> String,
+) -> ParserBenchCorpus {
+    let mut lines = 0_u64;
+    let mut bytes = 0_u64;
+    let mut files = Vec::with_capacity(file_count);
+
+    for index in 0..file_count {
+        let content = generate(index);
+        lines = lines.saturating_add(content.lines().count() as u64);
+        bytes = bytes.saturating_add(content.len() as u64);
+
+        let file_name = format!("{name}_{index}.{extension}");
+        let file = File::from_text(
+            FileId::new(index as u128),
+            file_name.clone(),
+            Uri::from_string(&file_name),
+            None,
+            file_type,
+            content,
+        );
+        files.push(Arc::new(file));
+    }
+
+    ParserBenchCorpus {
+        name: name.to_string(),
+        files,
+        bytes,
+        lines,
+    }
+}
+
+/// Generate one app shaped parser source file.
+fn generate_app_source(module_index: usize, item_count: usize, include_tree: bool) -> String {
+    let mut source = String::with_capacity(item_count * 420);
+    source.push_str("import { sharedValue } from \"./shared\";\n");
+    source.push_str("export type Maybe<T> = T | null | undefined;\n");
+
+    for index in 0..item_count {
+        source.push_str(&format!(
+            "/** Model shape for generated app item {module_index}_{index}. */\n"
+        ));
+        source.push_str(&format!(
+            "export type Model{module_index}_{index}<T> = {{ readonly id: string; readonly value: T; readonly next?: Maybe<Model{module_index}_{index}<T>>; readonly items: readonly T[] }};\n"
+        ));
+        source.push_str(&format!(
+            "// ordinary service comment {module_index}_{index}\n"
+        ));
+        source.push_str(&format!(
+            "export interface Service{module_index}_{index}<T> {{ load(value: T): Promise<Model{module_index}_{index}<T>>; save(model: Model{module_index}_{index}<T>): void; }}\n"
+        ));
+        source.push_str(&format!(
+            "export const value{module_index}_{index} = {{ id: \"{module_index}_{index}\", value: sharedValue + {index}, items: [sharedValue, {index}] }};\n"
+        ));
+        source.push_str(&format!(
+            "/// Compute generated app item {module_index}_{index}.\n"
+        ));
+        source.push_str(&format!(
+            "export function compute{module_index}_{index}<T extends {{ readonly score: number }}>(items: readonly T[], fallback: T): Model{module_index}_{index}<T> {{ const selected = items.find((item) => item.score > {index}) ?? fallback; return {{ id: \"{module_index}_{index}\", value: selected, items: [...items, fallback] }}; }}\n"
+        ));
+
+        if include_tree && index % 4 == 0 {
+            source.push_str(&format!(
+                "/* ordinary tree comment {module_index}_{index} */\n"
+            ));
+            source.push_str(&format!(
+                "export const View{module_index}_{index} = <Panel key={{value{module_index}_{index}.id}}><Item value={{value{module_index}_{index}.value}} /></Panel>;\n"
+            ));
+        }
+    }
+
+    source
+}
+
+/// Generate one type heavy parser source file.
+fn generate_type_source(module_index: usize, item_count: usize) -> String {
+    let mut source = String::with_capacity(item_count * 260);
+
+    for index in 0..item_count {
+        source.push_str(&format!(
+            "/** Conditional type case {module_index}_{index}. */\n"
+        ));
+        source.push_str(&format!(
+            "export type TypeCase{module_index}_{index}<T> = T extends {{ readonly tag: \"case{index}\" }} ? {{ readonly value: T; readonly next: TypeCase{module_index}_{index}<readonly T[]> }} : {{ readonly fallback: keyof T }};\n"
+        ));
+        source.push_str(&format!(
+            "// ordinary mapped type comment {module_index}_{index}\n"
+        ));
+        source.push_str(&format!(
+            "export type MappedCase{module_index}_{index}<T> = {{ readonly [Key in keyof T as `case${{Key & string}}`]: T[Key] }};\n"
+        ));
+    }
+
+    source
+}
+
+/// Generate one damaged parser recovery source file.
+fn generate_recovery_source(module_index: usize, item_count: usize) -> String {
+    let mut source = String::with_capacity(item_count * 180);
+
+    for index in 0..item_count {
+        source.push_str(&format!(
+            "/** Broken call recovery case {module_index}_{index}. */\n"
+        ));
+        source.push_str(&format!(
+            "export const brokenCall{module_index}_{index} = invoke{index}(alpha{index}, , beta{index});\n"
+        ));
+        source.push_str(&format!(
+            "// ordinary recovered call comment {module_index}_{index}\n"
+        ));
+        source.push_str(&format!(
+            "export const recoveredCall{module_index}_{index} = invoke{index}(alpha{index}, beta{index});\n"
+        ));
+        source.push_str(&format!(
+            "export type BrokenType{module_index}_{index}<T> = T extends ;\n"
+        ));
+        source.push_str(&format!(
+            "export type RecoveredType{module_index}_{index}<T> = T | null;\n"
+        ));
+    }
+
+    source
+}
+
+/// Build the default parser benchmark corpora.
+fn collect_default_corpora(workspace_root: &Path) -> Vec<ParserBenchCorpus> {
+    let filter = parser_corpus_filter();
+    let filter = filter.as_deref();
+    let mut corpora = Vec::new();
+
+    if should_run_corpus("library", filter) {
+        let paths = collect_parser_sources(&workspace_root.join("language/library"), false, false);
+        if let Some(corpus) = load_file_corpus("library", &paths) {
+            corpora.push(corpus);
+        }
+    }
+
+    if should_run_corpus("fixtures", filter) {
+        let paths =
+            collect_parser_sources(&workspace_root.join("language/test/fixtures"), false, false);
+        if let Some(corpus) = load_file_corpus("fixtures", &paths) {
+            corpora.push(corpus);
+        }
+    }
+
+    if should_run_corpus("generated_app_ds", filter) {
+        corpora.push(generated_corpus(
+            "generated_app_ds",
+            FileType::Destack,
+            "ds",
+            GENERATED_APP_FILE_COUNT,
+            |index| generate_app_source(index, GENERATED_APP_ITEM_COUNT, false),
+        ));
+    }
+
+    if should_run_corpus("generated_app_tsx", filter) {
+        corpora.push(generated_corpus(
+            "generated_app_tsx",
+            FileType::TypeScriptXml,
+            "tsx",
+            GENERATED_APP_FILE_COUNT,
+            |index| generate_app_source(index, GENERATED_APP_ITEM_COUNT, true),
+        ));
+    }
+
+    if should_run_corpus("generated_types_dts", filter) {
+        corpora.push(generated_corpus(
+            "generated_types_dts",
+            FileType::TypeScriptDeclaration,
+            "d.ts",
+            GENERATED_TYPE_FILE_COUNT,
+            |index| generate_type_source(index, GENERATED_TYPE_ITEM_COUNT),
+        ));
+    }
+
+    if should_run_corpus("generated_recovery_ts", filter) {
+        corpora.push(generated_corpus(
+            "generated_recovery_ts",
+            FileType::TypeScript,
+            "ts",
+            GENERATED_RECOVERY_FILE_COUNT,
+            |index| generate_recovery_source(index, GENERATED_RECOVERY_ITEM_COUNT),
+        ));
+    }
+
+    corpora
 }
 
 /// Pprof profiler for Criterion benches.
@@ -142,58 +613,60 @@ impl Profiler for PprofProfiler {
 
 /// Benchmark parsing for workspace sources.
 fn bench_parse(criterion: &mut Criterion) {
-    // workspace root
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
         .find(|p| p.join("VERSION.txt").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
-    let workspace_root = workspace_root_path.to_string_lossy().into_owned();
+    let corpora = match parser_files_from_env() {
+        Some(paths) => load_file_corpus("custom", &paths).into_iter().collect(),
+        None => collect_default_corpora(&workspace_root_path),
+    };
+    assert!(
+        !corpora.is_empty(),
+        "no parser benchmark corpora selected, check DESTACK_PARSE_CORPUS"
+    );
 
-    // collect source files
-    let parser_files = parser_files_from_env()
-        .unwrap_or_else(|| collect_workspace_parser_sources(&workspace_root));
+    let mut group = criterion.benchmark_group("destack_parser");
+    let trivia_mode = parser_trivia_mode();
+    let trivia_mode_name = parser_trivia_mode_name(trivia_mode);
+    let stage = parser_bench_stage();
+    let stage_name = stage.name();
 
-    // load sources and count lines
-    let mut total_lines = 0u64;
-    let mut source_files: Vec<Arc<File>> = Vec::with_capacity(parser_files.len());
-
-    for path in parser_files.iter() {
-        // file type
-        let file_type = FileType::from_path_or_unknown(path);
-        let is_parser_source = is_parser_source_file_type(file_type);
-        assert!(is_parser_source, "path is not a parser source: {path:?}");
-
-        // file content
-        let content = fs::read_to_string(path)
-            .unwrap_or_else(|_| panic!("file system error while reading {}", path.display()));
-        let line_count = content.lines().count() as u64;
-        total_lines = total_lines.saturating_add(line_count);
-
-        // register file
-        let file_id = FileId::new(source_files.len() as u128);
-        let (file_name, uri) = Uri::from_path_with_name(path);
-        let file = File::from_text(file_id, file_name, uri, None, file_type, content);
-        source_files.push(Arc::new(file));
+    for corpus in &corpora {
+        let stats = summarize_parser_corpus(corpus, stage, trivia_mode);
+        eprintln!(
+            "parser corpus {}: {} stage, {} trivia, {} files, {} bytes, {} lines, {} tokens, {} side tokens, {} nodes, {} comments, {} errors",
+            corpus.name,
+            stage_name,
+            trivia_mode_name,
+            corpus.files.len(),
+            corpus.bytes,
+            corpus.lines,
+            stats.tokens,
+            stats.side_tokens,
+            stats.nodes,
+            stats.comments,
+            stats.errors
+        );
+        group.throughput(Throughput::Bytes(corpus.bytes));
+        group.bench_with_input(
+            BenchmarkId::new(
+                format!("{stage_name}_{trivia_mode_name}"),
+                corpus.name.as_str(),
+            ),
+            corpus,
+            |bencher, corpus| {
+                bencher.iter(|| {
+                    for file in corpus.files.iter() {
+                        run_parser_stage(file.clone(), stage, trivia_mode);
+                    }
+                });
+            },
+        );
     }
 
-    // benchmark
-    let mut group = criterion.benchmark_group("destack_parser");
-    group.throughput(Throughput::Elements(total_lines));
-    group.bench_with_input(
-        BenchmarkId::new("parse", "all"),
-        &source_files,
-        |bencher, source_files| {
-            bencher.iter(|| {
-                // parse each file
-                for file in source_files.iter() {
-                    let parser = parse_file(file.clone());
-                    black_box(parser);
-                }
-            });
-        },
-    );
     group.finish();
 }
 
@@ -246,15 +719,17 @@ fn bench_parse_single(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("destack_parser_single");
     group.throughput(Throughput::Elements(total_lines));
     let worker_count = parser_bench_worker_count();
+    let trivia_mode = parser_trivia_mode();
+    let trivia_mode_name = parser_trivia_mode_name(trivia_mode);
 
     // oxc style: single thread parse
     group.bench_with_input(
-        BenchmarkId::new("parse", "single-thread"),
+        BenchmarkId::new(format!("parse_{trivia_mode_name}"), "single-thread"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
                 // parse full pipeline
-                let parser = parse_file(file.clone());
+                let parser = parse_file(file.clone(), trivia_mode);
                 black_box(parser);
             });
         },
@@ -262,21 +737,21 @@ fn bench_parse_single(criterion: &mut Criterion) {
 
     // oxc style: no drop parse
     group.bench_with_input(
-        BenchmarkId::new("parse", "no-drop"),
+        BenchmarkId::new(format!("parse_{trivia_mode_name}"), "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_file(file.clone()));
+            bencher.iter_with_large_drop(|| parse_file(file.clone(), trivia_mode));
         },
     );
 
     // oxc style: parallel parse throughput
     group.bench_with_input(
-        BenchmarkId::new("parse", "parallel"),
+        BenchmarkId::new(format!("parse_{trivia_mode_name}"), "parallel"),
         &file,
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_file(file.clone());
+                    let parser = parse_file(file.clone(), trivia_mode);
                     black_box(parser);
                 });
             });
@@ -289,7 +764,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         &file,
         |bencher, file| {
             bencher.iter(|| {
-                let parser = parse_file(file.clone());
+                let parser = parse_file(file.clone(), trivia_mode);
                 black_box(parser);
             });
         },
@@ -301,7 +776,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         &file,
         |bencher, file| {
             bencher.iter(|| {
-                let parser = parse_file(file.clone());
+                let parser = parse_file(file.clone(), trivia_mode);
                 black_box(parser);
             });
         },
@@ -312,7 +787,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         BenchmarkId::new("main", "no-drop"),
         &file,
         |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_file(file.clone()));
+            bencher.iter_with_large_drop(|| parse_file(file.clone(), trivia_mode));
         },
     );
 
@@ -323,7 +798,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
         |bencher, file| {
             bencher.iter(|| {
                 (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_file(file.clone());
+                    let parser = parse_file(file.clone(), trivia_mode);
                     black_box(parser);
                 });
             });
