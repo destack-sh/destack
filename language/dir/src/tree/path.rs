@@ -17,7 +17,7 @@ use crate::StringId;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Path {
     /// The path segments.
-    pub segments: SmallVec<[StringId; 3]>,
+    pub segments: SmallVec<[StringId; 1]>,
 }
 
 impl Path {

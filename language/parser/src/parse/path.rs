@@ -8,7 +8,7 @@ use destack_dir::{Expression, LocalNodeId, Path, TokenType};
 impl Parser {
     /// Eat a path.
     pub fn eat_path(&mut self) -> ParserResult<Path> {
-        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
 
         // first identifier
         let first = self.eat_identifier()?;
@@ -26,7 +26,7 @@ impl Parser {
 
     /// Eat a path and return the spans of all its segments.
     pub fn eat_path_with_segment_spans(&mut self) -> ParserResult<(Path, SmallVec<[Span; 3]>)> {
-        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
         // first identifier
@@ -59,7 +59,7 @@ impl Parser {
 
     /// Eat a tree literal path.
     pub fn eat_tree_literal_path(&mut self) -> ParserResult<Path> {
-        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
         let first = self.eat_tree_literal_identifier()?;
@@ -79,7 +79,7 @@ impl Parser {
     pub fn eat_tree_literal_path_with_segment_spans(
         &mut self,
     ) -> ParserResult<(Path, SmallVec<[Span; 3]>)> {
-        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
