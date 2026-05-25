@@ -13,8 +13,6 @@ pub enum TargetOutputName {
     Module,
     /// Primary runnable entry output.
     Entry,
-    /// Primary document output.
-    Document,
     /// Declaration or type surface.
     Types,
     /// Asset collection emitted by this target.
@@ -33,7 +31,6 @@ impl TargetOutputName {
         match self {
             Self::Module => "module",
             Self::Entry => "entry",
-            Self::Document => "document",
             Self::Types => "types",
             Self::Assets => "assets",
             Self::Manifest => "manifest",
@@ -125,14 +122,6 @@ impl OutputContent {
         Self::Text {
             code: Self::normalize_text_payload(code),
             file_type: FileType::TypeScriptDeclaration,
-        }
-    }
-
-    /// Create HTML content.
-    pub fn html(code: String) -> Self {
-        Self::Text {
-            code: Self::normalize_text_payload(code),
-            file_type: FileType::Html,
         }
     }
 

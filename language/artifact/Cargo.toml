@@ -17,9 +17,7 @@ schema = ["schemars"]
 [dependencies]
 # language
 destack_core = { workspace = true }
-destack_css = { workspace = true }
 destack_dir = { workspace = true }
-destack_html = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
 destack_qir = { workspace = true }

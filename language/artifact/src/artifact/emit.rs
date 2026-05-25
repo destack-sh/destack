@@ -12,8 +12,6 @@ pub enum EmitFormat {
     Js,
     /// TypeScript (.ts).
     Ts,
-    /// HTML document output.
-    Html,
     /// WebAssembly (.wasm).
     Wasm,
     /// Native binary.
@@ -31,11 +29,6 @@ impl EmitFormat {
         matches!(self, Self::Ts)
     }
 
-    /// Whether this family produces HTML document output.
-    pub fn is_html(&self) -> bool {
-        matches!(self, Self::Html)
-    }
-
     /// Whether this family produces WebAssembly output.
     pub fn is_wasm(&self) -> bool {
         matches!(self, Self::Wasm)
@@ -48,7 +41,7 @@ impl EmitFormat {
 
     /// Whether this family uses the JavaScript generation pipeline.
     pub fn is_js_family(&self) -> bool {
-        matches!(self, Self::Js | Self::Ts | Self::Html)
+        matches!(self, Self::Js | Self::Ts)
     }
 
     /// Whether this family uses the native generation pipeline.
@@ -58,6 +51,6 @@ impl EmitFormat {
 
     /// Whether this family typically produces a single output file.
     pub fn is_single_file(&self) -> bool {
-        matches!(self, Self::Html | Self::Wasm | Self::Native)
+        matches!(self, Self::Wasm | Self::Native)
     }
 }

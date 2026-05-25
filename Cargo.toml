@@ -27,13 +27,11 @@ members = [
 	"language/compiler/generate/core",
 	"language/compiler/generate/js",
 	"language/core",
-	"language/css",
 	"language/dir",
 	"language/engine",
 	"language/fir",
 	"language/formatter",
 	"language/heap",
-	"language/html",
 	"language/json",
 	"language/js",
 	"language/linter",
@@ -85,13 +83,11 @@ destack_codegen_lib = { path = "language/compiler/generate/core" }
 destack_codegen_native = { path = "language/compiler/generate/native" }
 destack_compiler = { path = "language/compiler" }
 destack_core = { path = "language/core" }
-destack_css = { path = "language/css" }
 destack_dir = { path = "language/dir" }
 destack_engine = { path = "language/engine" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
 destack_heap = { path = "language/heap" }
-destack_html = { path = "language/html" }
 destack_json = { path = "language/json" }
 destack_js = { path = "language/js" }
 destack_linter = { path = "language/linter" }
@@ -202,18 +198,15 @@ serde_repr = "0.1.20"
 stacker = "0.1.22"
 crossbeam-channel = "0.5.15"
 crossbeam-deque = "0.8.6"
-cssparser = "0.33.0"
 dashmap = "6.1.0"
 filetime = "0.2.26"
 fs2 = "0.4.3"
 indexmap = "2.13.0"
 interprocess = "2.2.1"
 jiff = "0.2.23"
-lightningcss = "1.0.0-alpha.71"
 memchr = "2.7"
 markdown = "1.0.0"
 mime_guess = "2.0.5"
-parcel_selectors = "0.28.2"
 notify = "8.2.0"
 proc-macro2 = "1.0"
 papaya = "0.2.3"
