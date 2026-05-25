@@ -245,15 +245,7 @@ fn parse_code_dir(
     let expressions = parser.parse();
     context.emit_collection(parser.diagnostics());
 
-    let (file_tokens, file_side_tokens) = parser.take_tokens();
-    let tokens = file_tokens
-        .into_iter()
-        .map(dir::TokenRange::from_token_span)
-        .collect();
-    let side_tokens = file_side_tokens
-        .into_iter()
-        .map(dir::TokenRange::from_token_span)
-        .collect();
+    let (tokens, side_tokens) = parser.take_tokens();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
 
     let parsed_file = DirParsedFile {
@@ -1553,7 +1545,7 @@ impl<'a> LintResult<'a> {
         // format context
         let side_span = parser.compute_side_span();
         let parents = NodeParentIndex::from_tree(&parser.tree);
-        let (tokens, side_tokens) = parser.take_tokens();
+        let (tokens, side_tokens) = parser.take_token_spans();
         let strings = parser.strings.as_ref();
         let format_options = DestackFormatOptions::default();
         let context = DestackFormatContext::new(

@@ -272,7 +272,7 @@ pub(super) fn format_range(
 
     // build format context
     let side_span = parser.compute_side_span();
-    let (tokens, side_tokens) = parser.take_tokens();
+    let (tokens, side_tokens) = parser.take_token_spans();
     let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {

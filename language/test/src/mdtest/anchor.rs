@@ -116,7 +116,7 @@ fn collect_word_spans(file_path: &str, text: &str) -> Vec<WordSpan> {
         text.to_string(),
     ));
     let mut parser = Parser::lex_file(file, language_type, Arc::new(StringPool::new()));
-    let (tokens, _) = parser.take_tokens();
+    let (tokens, _) = parser.take_token_spans();
 
     tokens
         .into_iter()

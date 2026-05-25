@@ -3,7 +3,7 @@ use core::fmt;
 use destack_core::StringPool;
 use destack_dir::{
     BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token, TokenLiteral,
-    TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
+    TokenRange, TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
 };
 use destack_source::{
     Diagnostic, DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType, ModuleId,
@@ -77,9 +77,9 @@ pub struct Parser {
     /// The live lexer cursor.
     lexer: Lexer,
     /// The tokens consumed by parser context-sensitive interpretation.
-    consumed_tokens: Vec<TokenSpan>,
+    consumed_tokens: Vec<TokenRange>,
     /// The side token stream.
-    side_tokens: Vec<TokenSpan>,
+    side_tokens: Vec<TokenRange>,
     /// The structured comments collected during lexing.
     comments: Vec<Comment>,
     /// The parser trivia retention mode.
@@ -424,8 +424,12 @@ impl Parser {
 
     /// Return the current semantic tokens.
     #[inline]
-    pub(crate) fn tokens(&self) -> &[TokenSpan] {
-        &self.consumed_tokens
+    pub(crate) fn tokens(&self) -> Vec<TokenSpan> {
+        self.consumed_tokens
+            .iter()
+            .copied()
+            .map(|token| token.with_file(self.file_id))
+            .collect()
     }
 
     /// Return the innermost expression after skipping parenthesized wrappers.
@@ -719,9 +723,9 @@ impl Parser {
     }
 
     /// Return owned token buffers after lexing to EOF.
-    pub fn take_tokens(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
+    pub fn take_tokens(&mut self) -> (Vec<TokenRange>, Vec<TokenRange>) {
         let mut tokens = mem::take(&mut self.consumed_tokens);
-        tokens.push(self.current_token);
+        tokens.push(TokenRange::from_token_span(self.current_token));
 
         if self.current_token.token.ty() == TokenType::End {
             self.drain_lexer_side_tokens();
@@ -735,7 +739,7 @@ impl Parser {
         loop {
             let token = self.lexer.next_semantic_token();
             let is_end = token.token.ty() == TokenType::End;
-            tokens.push(token);
+            tokens.push(TokenRange::from_token_span(token));
 
             if is_end {
                 break;
@@ -746,6 +750,22 @@ impl Parser {
         self.side_tokens.shrink_to_fit();
 
         (tokens, mem::take(&mut self.side_tokens))
+    }
+
+    /// Return owned full token span buffers after lexing to EOF.
+    pub fn take_token_spans(&mut self) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
+        let file_id = self.file_id;
+        let (tokens, side_tokens) = self.take_tokens();
+        let tokens = tokens
+            .into_iter()
+            .map(|token| token.with_file(file_id))
+            .collect();
+        let side_tokens = side_tokens
+            .into_iter()
+            .map(|token| token.with_file(file_id))
+            .collect();
+
+        (tokens, side_tokens)
     }
 
     /// Return the EOF span without forcing a full lex.
@@ -878,7 +898,8 @@ impl Parser {
 
     /// Move produced side tokens into the parser output buffer.
     fn drain_lexer_side_tokens(&mut self) {
-        self.lexer.drain_side_tokens_into(&mut self.side_tokens);
+        self.lexer
+            .drain_side_token_ranges_into(&mut self.side_tokens);
     }
 
     /// Parse root expressions as an implicit namespace.
@@ -1019,7 +1040,9 @@ impl Parser {
 
     /// Build one source diagnostic from one parser error.
     pub fn diagnostic(&self, error: &ParserError) -> Diagnostic {
-        error.to_diagnostic(self.file.as_ref(), self.tokens())
+        let tokens = self.tokens();
+
+        error.to_diagnostic(self.file.as_ref(), &tokens)
     }
 
     /// Rebuild parser error keys after speculative rollback.
@@ -1083,7 +1106,7 @@ impl Parser {
     }
 
     /// Restore the parser and tree to one full checkpoint.
-    pub fn restore(&mut self, checkpoint: ParserCheckpoint, idx: u32) {
+    pub fn restore(&mut self, checkpoint: ParserCheckpoint, source_id: u32) {
         self.lexer.restore(checkpoint.lexer_checkpoint);
         self.contextual_lex_mode = checkpoint.contextual_lex_mode;
         self.consumed_tokens
@@ -1093,7 +1116,7 @@ impl Parser {
         self.previous_token_end = checkpoint.previous_token_end;
         self.last_consumed_token = checkpoint.last_consumed_token;
         self.next_token_cache = None;
-        debug_assert_eq!(checkpoint.tree_mark.next_global_id(), idx);
+        debug_assert_eq!(checkpoint.tree_mark.next_global_id(), source_id);
         self.tree.restore_to_mark(checkpoint.tree_mark);
         self.errors.truncate(checkpoint.error_count);
         self.rebuild_error_keys();
@@ -1321,7 +1344,8 @@ impl Parser {
         let consumed = self.current_token;
         self.last_consumed_token = consumed;
         self.previous_token_end = consumed.span.end;
-        self.consumed_tokens.push(consumed);
+        self.consumed_tokens
+            .push(TokenRange::from_token_span(consumed));
         self.read_next_token();
 
         Ok(&self.last_consumed_token)
@@ -1334,7 +1358,8 @@ impl Parser {
 
         self.last_consumed_token = self.current_token;
         self.previous_token_end = self.current_token.span.end;
-        self.consumed_tokens.push(self.current_token);
+        self.consumed_tokens
+            .push(TokenRange::from_token_span(self.current_token));
         self.read_next_token();
     }
 
@@ -1355,8 +1380,9 @@ impl Parser {
             return;
         }
 
-        self.side_tokens
-            .retain(|side_token| !token.span.contains_span(side_token.span));
+        self.side_tokens.retain(|side_token| {
+            side_token.start < token.span.start || side_token.end() > token.span.end
+        });
     }
 
     /// Peek the next token.
@@ -1503,9 +1529,11 @@ impl Parser {
         filter: impl Fn(&EnclosingSpan) -> bool,
     ) -> Option<EnclosingSpan> {
         let mut best = None;
-        self.tree
-            .source_index
-            .visit_enclosing_spans(start, end_inclusive, |candidate| {
+        self.tree.source_index.visit_enclosing_spans(
+            self.file_id,
+            start,
+            end_inclusive,
+            |candidate| {
                 if !filter(&candidate) {
                     return;
                 }
@@ -1519,7 +1547,8 @@ impl Parser {
                         best = Some(candidate);
                     }
                 }
-            });
+            },
+        );
         best
     }
 
@@ -1532,21 +1561,21 @@ impl Parser {
     ) -> bool {
         let candidate_len = candidate.length;
         let current_len = current.length;
-        let candidate_idx = candidate.idx;
-        let current_idx = current.idx;
+        let candidate_source_id = candidate.source_id;
+        let current_source_id = current.source_id;
 
         match search {
             NodeSearchMode::BiggestOutermost => {
                 candidate_len > current_len
-                    || (candidate_len == current_len && candidate_idx > current_idx)
+                    || (candidate_len == current_len && candidate_source_id > current_source_id)
             }
             NodeSearchMode::SmallestOutermost => {
                 candidate_len < current_len
-                    || (candidate_len == current_len && candidate_idx > current_idx)
+                    || (candidate_len == current_len && candidate_source_id > current_source_id)
             }
             NodeSearchMode::SmallestInnermost => {
                 candidate_len < current_len
-                    || (candidate_len == current_len && candidate_idx < current_idx)
+                    || (candidate_len == current_len && candidate_source_id < current_source_id)
             }
         }
     }

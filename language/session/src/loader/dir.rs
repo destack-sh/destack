@@ -112,15 +112,7 @@ impl SessionState {
         attempt.emit_collection(parser.diagnostics());
 
         // preserve parser side data in the artifact payload
-        let (file_tokens, file_side_tokens) = parser.take_tokens();
-        let tokens = file_tokens
-            .into_iter()
-            .map(dir::TokenRange::from_token_span)
-            .collect();
-        let side_tokens = file_side_tokens
-            .into_iter()
-            .map(dir::TokenRange::from_token_span)
-            .collect();
+        let (tokens, side_tokens) = parser.take_tokens();
 
         // restore the shared tree
         *tree = parser.tree;
