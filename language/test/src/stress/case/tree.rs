@@ -53,3 +53,21 @@ pub(super) fn damaged_tsx(_mode: StressMode, scale: usize, _width: usize) -> Str
 
     source
 }
+
+/// Generate damaged TSX nesting with a later recovered declaration.
+pub(super) fn damaged_tree_nesting(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::new();
+
+    for index in 0..scale {
+        source.push_str(&format!(
+            "const brokenTreeNesting{index} = <Panel><Item value={{items[{index}]}}><Child flag={{ ;</Panel>;\n"
+        ));
+        source.push_str(&format!(
+            "const recoveredTreeNesting{index} = <Recovered value={{items[{index}]}} />;\n"
+        ));
+    }
+
+    source.push_str("\nconst stressRecovered = <Recovered />;\n");
+
+    source
+}

@@ -52,6 +52,61 @@ pub(super) fn long_nullish_chain(mode: StressMode, scale: usize, width: usize) -
     generator.finish()
 }
 
+/// Generate one very long union and intersection type expression.
+pub(super) fn long_type_operator_chain(mode: StressMode, scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(mode, scale, width, scale * 18);
+    generator.emit("type LongTypeOperatorChain<T> = ");
+
+    if mode.is_destack() {
+        generator.emit("(");
+    }
+
+    generator.emit("{ readonly seed: T }");
+
+    for index in 0..scale {
+        let operator = if index % 2 == 0 { "|" } else { "&" };
+        emit!(
+            generator,
+            " {operator} {{ readonly item{index}: Item{index}<T> }}"
+        );
+    }
+
+    if mode.is_destack() {
+        generator.emit(")");
+    }
+
+    generator.emit(";\n");
+
+    generator.finish()
+}
+
+/// Generate one long conditional type fallback ladder.
+pub(super) fn long_conditional_type_chain(mode: StressMode, scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(mode, scale, width, scale * 34);
+    generator.emit("type LongConditionalTypeChain<T> = ");
+
+    if mode.is_destack() {
+        generator.emit("(");
+    }
+
+    for index in 0..scale {
+        emit!(
+            generator,
+            "T extends {{ readonly tag: \"case{index}\" }} ? Result{index}<T> : "
+        );
+    }
+
+    generator.emit("never");
+
+    if mode.is_destack() {
+        generator.emit(")");
+    }
+
+    generator.emit(";\n");
+
+    generator.finish()
+}
+
 /// Generate one very long postfix chain.
 pub(super) fn long_postfix_chain(mode: StressMode, scale: usize, width: usize) -> String {
     let mut generator = Generator::new(mode, scale, width, scale * 24);
