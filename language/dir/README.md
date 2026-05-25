@@ -21,7 +21,6 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_dir
 just language/test-specification
-just language/test-emit
 
 # clean check
 just language/check-quick

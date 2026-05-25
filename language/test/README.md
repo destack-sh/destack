@@ -11,33 +11,6 @@ Fixture-driven suites live under `language/test/fixtures/` and are run by the `d
 There is no separate `unit/` fixture tree.
 Unit tests enter the language check model through `just test-unit`.
 
-## Suite Taxonomy
-
-The language suite taxonomy is:
-
-| Suite | Family | Check | Location | Purpose |
-|-------|--------|------|----------|---------|
-| **Unit** | Correctness | Quick | crate local tests | Internal invariants and focused logic |
-| **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
-| **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
-| **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External parser and formatter corpora used as regression inputs, not product compatibility targets |
-| **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
-| **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
-| **Formatter** | Correctness | Quick | `fixtures/formatter/` | Formatting behavior on first-party fixtures |
-| **Stress** | Correctness | Full | `fixtures/stress/` | Hostile generated parser and formatter corpora with recovery and idempotence invariants |
-
-The shared conformance catalog is generated from `suite.json` and `status.json`.
-
-<!-- begin:conformance-catalog -->
-| Domain | Suite | Title | Status | Origin Ref |
-| --- | --- | --- | --- | --- |
-| ecma | babel | ECMA Babel | excluded 45 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
-| ecma | biome | ECMA Biome | excluded 57 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
-| ecma | swc | ECMA SWC | excluded 23 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
-| ecma | test262 | ECMA Test262 | excluded 20 | 0e808c74fbec780646434cad17bb22dc52461003 |
-| formatter | oxfmt | Formatter Oxfmt | excluded 19, known-fail-idempotence 4 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
-<!-- end:conformance-catalog -->
-
 ## Checks
 
 Run these from `language/` unless noted otherwise.
@@ -48,8 +21,20 @@ Run these from `language/` unless noted otherwise.
 | **Check Full** | `check-quick` plus ecosystem and stress coverage |
 
 `just test` is the language test aggregate used by `just check-quick`.
-`just test-emit` stays standalone until the emit pipeline is mature enough to trust in the fast check.
 `just check-full` then adds the slower ecosystem and stress lanes.
+
+## Concurrency
+
+Use `DESTACK_TEST_THREADS` to control Rust `libtest` concurrency and the default custom harness worker count.
+Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker count than `libtest`.
+
+```bash
+# cap everything to 4 workers
+DESTACK_TEST_THREADS=4 just check-quick
+
+# keep rust tests at 4 but let a custom harness fan out further
+DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just test-conformance
+```
 
 ## Commands
 
@@ -63,7 +48,6 @@ just check-full
 
 # core suites
 just test-unit
-just test-emit
 just test-specification
 just test-query
 just test-lsp

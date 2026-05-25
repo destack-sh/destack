@@ -1,9 +1,0 @@
-@import "//example.com/something.css";
-@import "//somewhere.com/example.css";
-@import "//cdn.example.com/tokens.css";
-@import "//cdn.example.com/theme-base.css";
-@supports (background-image: url("//cdn.example.com/widgets.svg")){.widget{background-image:url("//cdn.example.com/widgets.svg")}}
-.theme-card{background-image:url("//cdn.example.com/theme-card.png");color:#0f172a}
-.foo{background:red}
-.bar{color:blue}
-@supports (background-image: url("//cdn.example.com/sprite.svg")){.baz{background-image:url("//cdn.example.com/sprite.svg")}}

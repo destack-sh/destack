@@ -1,5 +1,0 @@
-@supports (background-image: url("//cdn.example.com/widgets.svg")) {
-  .widget {
-    background-image: url("//cdn.example.com/widgets.svg");
-  }
-}

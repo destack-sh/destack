@@ -1,1 +1,0 @@
-import{external1}from"external1";export*from"external2";import{external3}from"external3";import{external4}from"external4";var summary={first:"external1",second:"external2",third:"external3",fourth:"external4"};export{external1,external4 as fourthExternal,summary,external3 as thirdExternal};

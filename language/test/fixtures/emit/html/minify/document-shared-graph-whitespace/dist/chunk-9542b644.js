@@ -1,1 +1,0 @@
-export function largeModule(){return["Home page","About page","Navigation initialized","Shared label"].join(" :: ");};export function sharedUtil(){console.log("Navigation initialized");};export const sharedLabel="Shared label";

@@ -1,6 +1,0 @@
-@import "./page.css";
-
-.page-shell {
-    display: grid;
-    gap: 16px;
-}

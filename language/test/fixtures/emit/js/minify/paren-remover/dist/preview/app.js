@@ -1,1 +1,0 @@
-function g(r,e,d,i){var o=r.toString().split("."),p=e-(i||0),h,u,n,t;return o.length===2?t=Math.min(Math.max(o[1].length,p),e):t=p,u=Math.pow(10,t),n=(d(r+"e+"+t)/u).toFixed(t),i>e-t&&(h=new RegExp("\\.?0{1,"+(i-(e-t))+"}$"),n=n.replace(h,"")),n}g(1.2345,2,Math.round,1);

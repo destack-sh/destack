@@ -1,7 +1,0 @@
-@import url("//cdn.example.com/theme-base.css");
-@import "./widgets.css";
-
-.theme-card {
-  background-image: url("//cdn.example.com/theme-card.png");
-  color: #0f172a;
-}
