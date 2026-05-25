@@ -270,8 +270,11 @@ fn parser_files_from_env() -> Option<Vec<PathBuf>> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .collect();
-
-    if files.is_empty() { None } else { Some(files) }
+    if files.is_empty() {
+        None
+    } else {
+        Some(files)
+    }
 }
 
 /// Return the parser corpus filter from the environment.

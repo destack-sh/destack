@@ -556,6 +556,7 @@ impl Parser {
 
             while !self.peek_is(TokenType::CloseBrace) {
                 let item_start = self.span_start();
+                let decorators = self.eat_decorators_maybe()?;
 
                 let item = match self.eat_dependency_item(allow_type_modifier, allow_literal_alias)
                 {
@@ -570,6 +571,7 @@ impl Parser {
                         self.insert_node(DependencyItem::Error, self.get_span_from(&item_start))
                     }
                 };
+                self.attach_decorators(item.id, decorators);
 
                 items.push(item);
 
