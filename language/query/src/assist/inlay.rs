@@ -91,7 +91,7 @@ pub fn inlay_hints(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<InlayHint> 
         }
 
         let source_node_id = dir_tree.get_source(expression_id);
-        let call_span = ctx.dir().tree().source_map.get(source_node_id);
+        let call_span = ctx.dir().tree().source_index.get(source_node_id);
         if call_span.end < range.start || call_span.start > range.end {
             continue;
         }
@@ -122,7 +122,7 @@ pub fn inlay_hints(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<InlayHint> 
             }
 
             let argument_source_node_id = dir_tree.get_source(argument_value);
-            let arg_span = ctx.dir().tree().source_map.get(argument_source_node_id);
+            let arg_span = ctx.dir().tree().source_index.get(argument_source_node_id);
             hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
         }
     }
@@ -139,7 +139,7 @@ pub fn inlay_hints(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<InlayHint> 
         }
 
         let source_node_id = dir_tree.get_source(declarator.pattern);
-        let Some(name_span) = ctx.dir().tree().source_map.get_main(source_node_id) else {
+        let Some(name_span) = ctx.dir().tree().source_index.get_main(source_node_id) else {
             continue;
         };
         if name_span.end < range.start || name_span.start > range.end {

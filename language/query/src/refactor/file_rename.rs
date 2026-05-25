@@ -141,7 +141,9 @@ pub fn rename_files(
             }
 
             // resolve the string literal span for the import target
-            let source_span = dir.source_map().get_main_or_enclosing(entry.source_node_id);
+            let source_span = dir
+                .source_index()
+                .get_main_or_enclosing(entry.source_node_id);
             let enclosing = Span::new(module.file_id, source_span.start, source_span.end);
             let span =
                 string_literal_span_in_enclosing(&file, dir.tokens(), enclosing, &entry.specifier)

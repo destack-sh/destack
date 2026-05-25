@@ -69,7 +69,9 @@ pub fn selection_ranges(ctx: &ModuleQueryContext<'_>, positions: &[u32]) -> Vec<
 
     // build one selection chain per requested position
     for &offset in positions {
-        let enclosing = ctx.source_map().get_enclosing_spans(offset, offset);
+        let enclosing = ctx
+            .source_index()
+            .get_enclosing_spans(ctx.file_id(), offset, offset);
         if enclosing.is_empty() {
             results.push(SelectionRange::leaf(Span::new(
                 ctx.file_id(),

@@ -132,7 +132,7 @@ pub(crate) fn is_object_literal_key_position(
 ) -> bool {
     // check for any property key span hit
     for property_id in properties {
-        if let Some(span) = parsed_tree.source_map.get_main(property_id.id)
+        if let Some(span) = parsed_tree.source_index.get_main(property_id.id)
             && span.contains(offset)
         {
             return true;
@@ -146,7 +146,7 @@ pub(crate) fn is_object_literal_key_position(
 
     // avoid property spans when not on keys
     for property_id in properties {
-        let span = parsed_tree.source_map.get(property_id.id);
+        let span = parsed_tree.source_index.get(property_id.id);
         if span.contains(offset) {
             return false;
         }
@@ -209,21 +209,21 @@ fn is_object_literal_value_position(
 
         match property {
             dir::Property::Field { value, .. } => {
-                let span = parsed_tree.source_map.get(value.id);
+                let span = parsed_tree.source_index.get(value.id);
                 if span.contains(cursor) {
                     return true;
                 }
             }
             dir::Property::Method { body, .. } => {
                 if let Some(body_id) = body {
-                    let span = parsed_tree.source_map.get(body_id.id);
+                    let span = parsed_tree.source_index.get(body_id.id);
                     if span.contains(cursor) {
                         return true;
                     }
                 }
             }
             dir::Property::Spread { value, .. } => {
-                let span = parsed_tree.source_map.get(value.id);
+                let span = parsed_tree.source_index.get(value.id);
                 if span.contains(cursor) {
                     return true;
                 }
@@ -234,12 +234,12 @@ fn is_object_literal_value_position(
 
     // use property spans outside keys
     for property_id in properties {
-        let span = parsed_tree.source_map.get(property_id.id);
+        let span = parsed_tree.source_index.get(property_id.id);
         if !span.contains(cursor) {
             continue;
         }
 
-        let key_span = parsed_tree.source_map.get_main(property_id.id);
+        let key_span = parsed_tree.source_index.get_main(property_id.id);
         let is_in_key = key_span
             .map(|key_span| key_span.contains(cursor))
             .unwrap_or(false);

@@ -11,7 +11,7 @@ pub(crate) fn doc_strings_for_node(
     source: &str,
     node_id: u32,
 ) -> Vec<String> {
-    let node_span = ctx.source_map().get_main_or_enclosing(node_id);
+    let node_span = ctx.source_index().get_main_or_enclosing(node_id);
 
     ctx.tree()
         .comments()
@@ -44,7 +44,7 @@ pub(crate) fn doc_strings_for_node_or_line(
 
     // collect adjacent line docs when source docs are missing
     if doc_strings.is_empty() {
-        let span = ctx.source_map().get_main_or_enclosing(node_id);
+        let span = ctx.source_index().get_main_or_enclosing(node_id);
         doc_strings = line_doc_strings_before_span(source, span.start);
     }
 
@@ -63,10 +63,12 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
 
     // collect docs from enclosing nodes when no docs are attached
     if doc_strings.is_empty() {
-        let span = ctx.source_map().get_main_or_enclosing(node_id);
-        let mut enclosing = ctx
-            .source_map()
-            .get_enclosing_spans(span.start, span.end.saturating_sub(1));
+        let span = ctx.source_index().get_main_or_enclosing(node_id);
+        let mut enclosing = ctx.source_index().get_enclosing_spans(
+            ctx.file_id(),
+            span.start,
+            span.end.saturating_sub(1),
+        );
 
         // check innermost nodes first
         enclosing.sort_by_key(|entry| entry.length);
@@ -83,7 +85,7 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
 
     // collect adjacent line docs when source docs are missing
     if doc_strings.is_empty() {
-        let span = ctx.source_map().get_main_or_enclosing(node_id);
+        let span = ctx.source_index().get_main_or_enclosing(node_id);
         doc_strings = line_doc_strings_before_span(source, span.start);
     }
 

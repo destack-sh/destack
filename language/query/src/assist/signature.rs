@@ -117,11 +117,11 @@ pub fn signature_help(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Signa
         .ok()
         .flatten()?;
     let source = source_file.text();
-    let enclosing = ctx
-        .dir()
-        .tree()
-        .source_map
-        .get_enclosing_spans(offset, offset);
+    let enclosing =
+        ctx.dir()
+            .tree()
+            .source_index
+            .get_enclosing_spans(ctx.file_id(), offset, offset);
 
     // scan enclosing calls at the cursor
     for enclosing_span in &enclosing {

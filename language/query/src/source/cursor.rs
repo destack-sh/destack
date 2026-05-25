@@ -69,7 +69,7 @@ pub(crate) fn offset_is_in_source_type_side_span(ctx: DirQueryContext<'_>, offse
     for enclosing in enclosing_spans_with_previous(ctx, offset) {
         // type side spans own both the cursor and the previous byte boundary
         if let Some(span) = ctx
-            .source_map()
+            .source_index()
             .get_side(enclosing.idx, NodeSpanType::Region(NodeSpanRegion::Type))
             && (span.contains(offset) || span.contains(previous_offset))
         {

@@ -401,7 +401,7 @@ fn scope_mark_at_offset(
         let source_id = dir_tree.get_source_any(declaration.local_id);
         let span = ctx
             .tree()
-            .source_map
+            .source_index
             .get_side_or_main_or_enclosing(source_id, NodeSpanType::Main);
 
         if span.start <= offset {
