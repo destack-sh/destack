@@ -82,7 +82,7 @@ pub struct Target {
     pub minify: BundleMinifyOptions,
     /// Policy declarations and rules for this target.
     pub policy: Policy,
-    /// Emitted artifact family (js, ts, html, wasm, native).
+    /// Emitted artifact family (js, ts, wasm, native).
     pub emit: EmitFormat,
     /// Runtime execution contract.
     pub runtime: Runtime,
@@ -255,16 +255,7 @@ impl Target {
 
     /// Return the known built-in target names.
     pub fn builtin_target_names() -> &'static [&'static str] {
-        &[
-            "default",
-            "js",
-            "ts",
-            "html",
-            "wasm",
-            "wasm-wasi",
-            "wasi",
-            "native",
-        ]
+        &["default", "js", "ts", "wasm", "wasm-wasi", "wasi", "native"]
     }
 
     /// Create a built-in target configuration for a known target id.
@@ -303,18 +294,6 @@ impl Target {
         target.runtime_options.runtime = Runtime::Js;
         target.platform = Platform::Unknown;
         target.host = Host::Unknown;
-
-        target
-    }
-
-    /// Create a target with HTML document output.
-    pub fn html() -> Self {
-        let mut target = Self::base();
-        target.emit = EmitFormat::Html;
-        target.runtime = Runtime::Js;
-        target.runtime_options.runtime = Runtime::Js;
-        target.platform = Platform::Unknown;
-        target.host = Host::Browser;
 
         target
     }
@@ -387,7 +366,6 @@ impl Target {
             "default" => Some(Self::default()),
             "js" => Some(Self::js()),
             "ts" => Some(Self::ts()),
-            "html" => Some(Self::html()),
             "wasm" => Some(Self::wasm_js()),
             "wasm-wasi" | "wasi" => Some(Self::wasm_wasi()),
             "native" => Some(Self::native()),
@@ -482,21 +460,6 @@ impl Target {
     /// Return whether this target should structurally minify bundled JavaScript syntax.
     pub fn should_minify_bundle_script_syntax(&self) -> bool {
         self.minify.enabled || self.minify.syntax
-    }
-
-    /// Return whether this target should structurally minify bundled CSS output.
-    pub fn should_minify_bundle_css_syntax(&self) -> bool {
-        self.minify.enabled || self.minify.syntax
-    }
-
-    /// Return whether this target should compact bundled CSS output whitespace.
-    pub fn should_minify_bundle_css_whitespace(&self) -> bool {
-        self.minify.enabled || self.minify.whitespace
-    }
-
-    /// Return whether this target should structurally minify bundled HTML output.
-    pub fn should_minify_bundle_html_output(&self) -> bool {
-        self.minify.minifies_output()
     }
 
     /// Return whether this target emits any source map data.
@@ -793,17 +756,25 @@ impl Target {
         root_dir: Option<&Path>,
         module_path: &Path,
     ) -> PathBuf {
-        let relative = module_path.strip_prefix(package_dir).unwrap_or(module_path);
+        let absolute_module_path = if module_path.is_absolute() {
+            module_path.to_path_buf()
+        } else {
+            package_dir.join(module_path)
+        };
+        let relative = absolute_module_path
+            .strip_prefix(package_dir)
+            .unwrap_or(module_path);
 
         // preserve modules root
-        if let Some(relative) = self.strip_preserve_modules_root(package_dir, module_path, relative)
+        if let Some(relative) =
+            self.strip_preserve_modules_root(package_dir, &absolute_module_path, relative)
         {
             return relative.to_path_buf();
         }
 
         // compiler root dir
         if let Some(root_dir) = root_dir {
-            return relative
+            return absolute_module_path
                 .strip_prefix(root_dir)
                 .unwrap_or(relative)
                 .to_path_buf();
