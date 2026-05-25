@@ -13,10 +13,6 @@ pub struct DirParsed {
     pub parents: dir::NodeParentIndex,
     /// The parsed physical files.
     pub files: Vec<DirParsedFile>,
-    /// The module tokens.
-    pub tokens: Vec<dir::TokenSpan>,
-    /// The module side tokens.
-    pub side_tokens: Vec<dir::TokenSpan>,
     /// Stable anchor expression for diagnostics.
     pub anchor_expression: dir::LocalNodeId<dir::Expression>,
 }
@@ -26,8 +22,6 @@ impl DirParsed {
     pub fn new(
         tree: dir::Tree,
         files: Vec<DirParsedFile>,
-        tokens: Vec<dir::TokenSpan>,
-        side_tokens: Vec<dir::TokenSpan>,
         anchor_expression: dir::LocalNodeId<dir::Expression>,
     ) -> Self {
         let parents = dir::NodeParentIndex::from_tree(&tree);
@@ -36,8 +30,6 @@ impl DirParsed {
             tree,
             parents,
             files,
-            tokens,
-            side_tokens,
             anchor_expression,
         }
     }
@@ -51,6 +43,26 @@ impl DirParsed {
     pub fn roots_for_file(&self, file_id: FileId) -> Option<&[dir::LocalNodeId<dir::Expression>]> {
         self.file(file_id).map(|file| file.roots.as_slice())
     }
+
+    /// Iterate full token spans for one physical file.
+    pub fn iter_token_spans_for_file(
+        &self,
+        file_id: FileId,
+    ) -> Option<impl Iterator<Item = dir::TokenSpan> + '_> {
+        let file = self.file(file_id)?;
+
+        Some(file.iter_token_spans())
+    }
+
+    /// Iterate full side token spans for one physical file.
+    pub fn iter_side_token_spans_for_file(
+        &self,
+        file_id: FileId,
+    ) -> Option<impl Iterator<Item = dir::TokenSpan> + '_> {
+        let file = self.file(file_id)?;
+
+        Some(file.iter_side_token_spans())
+    }
 }
 
 /// Parsed roots and side data for one physical file in a canonical module.
@@ -62,12 +74,32 @@ pub struct DirParsedFile {
     pub aliases: Vec<String>,
     /// The top-level expressions parsed from this file.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-    /// Token range inside the module token buffer.
-    pub token_range: std::ops::Range<u32>,
-    /// Side token range inside the module side token buffer.
-    pub side_token_range: std::ops::Range<u32>,
+    /// The source file tokens.
+    pub tokens: Vec<dir::TokenRange>,
+    /// The source file side tokens.
+    pub side_tokens: Vec<dir::TokenRange>,
     /// Stable anchor expression for diagnostics in this file.
     pub anchor_expression: dir::LocalNodeId<dir::Expression>,
+}
+
+impl DirParsedFile {
+    /// Iterate full token spans for this physical file.
+    pub fn iter_token_spans(&self) -> impl Iterator<Item = dir::TokenSpan> + '_ {
+        let file_id = self.file_id;
+
+        self.tokens
+            .iter()
+            .map(move |token| token.with_file(file_id))
+    }
+
+    /// Iterate full side token spans for this physical file.
+    pub fn iter_side_token_spans(&self) -> impl Iterator<Item = dir::TokenSpan> + '_ {
+        let file_id = self.file_id;
+
+        self.side_tokens
+            .iter()
+            .map(move |token| token.with_file(file_id))
+    }
 }
 
 /// Bound DIR base for one source module.

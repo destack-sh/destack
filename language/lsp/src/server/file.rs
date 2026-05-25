@@ -170,13 +170,15 @@ pub(super) fn format_file(
 
     // build format context from committed semantic state
     let side_span = Parser::compute_side_span_from_tree(&parsed.tree);
+    let tokens: Vec<_> = parsed.iter_token_spans_for_file(file_id)?.collect();
+    let side_tokens: Vec<_> = parsed.iter_side_token_spans_for_file(file_id)?.collect();
     let strings = repository.string_pool();
     let context = DestackFormatContext::new(
         format_options,
         file.as_ref(),
         &parsed.tree,
-        &parsed.tokens,
-        &parsed.side_tokens,
+        &tokens,
+        &side_tokens,
         &side_span,
         strings.as_ref(),
         parsed.parents.clone(),

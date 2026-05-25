@@ -220,12 +220,12 @@ fn anchor_dir_parsed(module_id: ModuleId, file: &File) -> DirParsed {
         file_id: file.id,
         aliases: Vec::new(),
         roots: Vec::new(),
-        token_range: 0..0,
-        side_token_range: 0..0,
+        tokens: Vec::new(),
+        side_tokens: Vec::new(),
         anchor_expression,
     };
 
-    DirParsed::new(tree, vec![file], Vec::new(), Vec::new(), anchor_expression)
+    DirParsed::new(tree, vec![file], anchor_expression)
 }
 
 /// Parse one code module into DIR.
@@ -245,25 +245,27 @@ fn parse_code_dir(
     let expressions = parser.parse();
     context.emit_collection(parser.diagnostics());
 
-    let (tokens, side_tokens) = parser.take_tokens();
+    let (file_tokens, file_side_tokens) = parser.take_tokens();
+    let tokens = file_tokens
+        .into_iter()
+        .map(dir::TokenRange::from_token_span)
+        .collect();
+    let side_tokens = file_side_tokens
+        .into_iter()
+        .map(dir::TokenRange::from_token_span)
+        .collect();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
 
     let parsed_file = DirParsedFile {
         file_id: file.id,
         aliases: Vec::new(),
         roots: expressions,
-        token_range: 0..tokens.len() as u32,
-        side_token_range: 0..side_tokens.len() as u32,
-        anchor_expression,
-    };
-
-    DirParsed::new(
-        parser.tree,
-        vec![parsed_file],
         tokens,
         side_tokens,
         anchor_expression,
-    )
+    };
+
+    DirParsed::new(parser.tree, vec![parsed_file], anchor_expression)
 }
 
 /// Insert one synthetic anchor expression at the start of a file.
