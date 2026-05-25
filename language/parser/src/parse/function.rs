@@ -1,7 +1,7 @@
-use crate::parse::DeclarationHeader;
 use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
 use crate::parse::scan::DelimiterDepth;
+use crate::parse::{DeclarationHeader, RecoveryPoint};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
@@ -531,7 +531,8 @@ impl Parser {
             }
 
             // recover before rescanning later statements
-            if self.current_token_is_statement_recovery_boundary(token_type) {
+            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
+            {
                 return None;
             }
 
@@ -798,7 +799,8 @@ impl Parser {
                 return None;
             }
 
-            if self.current_token_is_statement_recovery_boundary(token_type) {
+            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
+            {
                 return None;
             }
 

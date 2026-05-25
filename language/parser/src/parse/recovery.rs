@@ -1,6 +1,7 @@
 use crate::parse::flags::ParserFlags;
+use crate::parse::{TypeMemberContainerKind, is_declaration_keyword};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
-use destack_dir::{Expression, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_dir::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 use destack_source::Span;
 
 /// Delimiter depth while recovering one malformed list item.
@@ -61,7 +62,137 @@ impl RecoveryDelimiterDepth {
     }
 }
 
+/// A grammar point where parsing can resume after damaged syntax.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RecoveryPoint {
+    /// A statement or declaration.
+    Statement,
+    /// A declaration.
+    Declaration,
+    /// An outer declaration after a damaged type member.
+    TypeMemberDeclaration(TypeMemberContainerKind),
+}
+
+impl RecoveryPoint {
+    /// Return whether one keyword can start this recovery point.
+    fn accepts_keyword(self, keyword: Keyword) -> bool {
+        match self {
+            Self::Statement => Self::statement_keyword(keyword),
+            Self::Declaration => keyword == Keyword::Export || is_declaration_keyword(keyword),
+            Self::TypeMemberDeclaration(container_kind) => {
+                keyword == Keyword::Export
+                    || (!container_kind.allows_associated_members() && keyword == Keyword::Type)
+                    || Self::outer_declaration_keyword(keyword)
+            }
+        }
+    }
+
+    /// Return whether one keyword can modify this recovery point.
+    fn accepts_modifier(self, keyword: Keyword) -> bool {
+        matches!(self, Self::TypeMemberDeclaration(_))
+            && matches!(
+                keyword,
+                Keyword::Declare
+                    | Keyword::Abstract
+                    | Keyword::Final
+                    | Keyword::Override
+                    | Keyword::Public
+                    | Keyword::Protected
+                    | Keyword::Private
+                    | Keyword::Async
+            )
+    }
+
+    /// Return whether one keyword starts a recovered statement.
+    fn statement_keyword(keyword: Keyword) -> bool {
+        is_declaration_keyword(keyword)
+            || matches!(
+                keyword,
+                Keyword::If
+                    | Keyword::For
+                    | Keyword::While
+                    | Keyword::Do
+                    | Keyword::Switch
+                    | Keyword::Return
+                    | Keyword::Throw
+                    | Keyword::Try
+                    | Keyword::Break
+                    | Keyword::Continue
+                    | Keyword::Yield
+            )
+    }
+
+    /// Return whether one keyword starts an outer declaration.
+    fn outer_declaration_keyword(keyword: Keyword) -> bool {
+        matches!(
+            keyword,
+            Keyword::Struct
+                | Keyword::Class
+                | Keyword::Enum
+                | Keyword::Function
+                | Keyword::Extension
+                | Keyword::Interface
+                | Keyword::Newtype
+                | Keyword::Const
+                | Keyword::Let
+                | Keyword::Using
+        )
+    }
+}
+
 impl Parser {
+    /// Return whether the current semicolon precedes one recovery point.
+    pub(crate) fn current_semicolon_precedes_recovery_point(
+        &mut self,
+        token_type: TokenType,
+        point: RecoveryPoint,
+    ) -> bool {
+        token_type == TokenType::Semicolon && self.semicolon_precedes_recovery_point(point)
+    }
+
+    /// Return whether the current token starts one recovery point.
+    pub(crate) fn current_token_starts_recovery_point(&mut self, point: RecoveryPoint) -> bool {
+        let Some(keyword) = self.current_keyword() else {
+            return false;
+        };
+        let following_token_type = self.token_type_at_offset(1);
+
+        if !self.current_token_is_on_new_line()
+            || Self::token_continues_current_recovery_item(following_token_type)
+        {
+            return false;
+        }
+
+        if point.accepts_keyword(keyword) {
+            return true;
+        }
+
+        point.accepts_modifier(keyword)
+            && self
+                .keyword_at_offset(1)
+                .is_some_and(|keyword| point.accepts_keyword(keyword))
+    }
+
+    /// Return whether the current semicolon is followed by one recovery point.
+    fn semicolon_precedes_recovery_point(&mut self, point: RecoveryPoint) -> bool {
+        let next = self.next_token();
+        let following_token_type = self.token_type_at_offset(2);
+
+        next.token.is_on_new_line()
+            && !Self::token_continues_current_recovery_item(following_token_type)
+            && self
+                .keyword_at_offset(1)
+                .is_some_and(|keyword| point.accepts_keyword(keyword))
+    }
+
+    /// Return whether one following token keeps the current item ambiguous.
+    fn token_continues_current_recovery_item(token_type: TokenType) -> bool {
+        matches!(
+            token_type,
+            TokenType::Colon | TokenType::Maybe | TokenType::OpenParenthesis
+        )
+    }
+
     /// Insert one missing expression node at the current cursor position.
     pub(crate) fn insert_missing_expression_here(&mut self) -> LocalNodeId<Expression> {
         let anchor_span = self.anchor_span_here();

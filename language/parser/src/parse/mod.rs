@@ -48,4 +48,5 @@ pub use function::FUNCTION_MODIFIERS;
 pub use options::ParserOptions;
 pub use prelude::*;
 pub use property::BINDING_MODIFIERS;
-pub(crate) use property::TypeMemberBodyMode;
+pub(crate) use property::TypeMemberContainerKind;
+pub(crate) use recovery::RecoveryPoint;

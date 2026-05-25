@@ -1,3 +1,4 @@
+use crate::parse::RecoveryPoint;
 use crate::parse::scan::DelimiterDepth;
 use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
@@ -227,7 +228,8 @@ impl Parser {
             let token_type = self.peek_token_type();
 
             // recover before rescanning later statements
-            if self.current_token_is_statement_recovery_boundary(token_type) {
+            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
+            {
                 return false;
             }
 

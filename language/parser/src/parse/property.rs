@@ -10,6 +10,7 @@ use destack_dir::{
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 use super::PendingDecorators;
+use crate::parse::RecoveryPoint;
 use crate::parse::argument::BindingModifiers;
 use crate::parse::flags::ParserFlags;
 use crate::parse::scope::ExpressionScope;
@@ -28,29 +29,37 @@ pub static BINDING_MODIFIERS: [Keyword; 9] = [
     Keyword::Comptime,
 ];
 
-/// Whether a type member list accepts method bodies.
+/// The kind of type member container being parsed.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum TypeMemberBodyMode {
-    /// Accept signatures only.
-    SignatureOnly,
-    /// Accept default method bodies.
-    DefaultBodies,
+pub(crate) enum TypeMemberContainerKind {
+    /// A structural object type literal.
+    TypeLiteral,
+    /// A structural interface declaration.
+    StructuralInterface,
+    /// A nominal interface declaration.
+    NominalInterface,
 }
 
-impl TypeMemberBodyMode {
-    /// Return the member body mode for one interface kind.
+impl TypeMemberContainerKind {
+    /// Return the member container kind for one interface kind.
     #[inline]
     pub(crate) const fn for_interface(kind: TypeKind) -> Self {
         match kind {
-            TypeKind::Nominal => Self::DefaultBodies,
-            TypeKind::Structural => Self::SignatureOnly,
+            TypeKind::Nominal => Self::NominalInterface,
+            TypeKind::Structural => Self::StructuralInterface,
         }
     }
 
     /// Return whether method bodies are accepted.
     #[inline]
     const fn allows_body(self) -> bool {
-        matches!(self, Self::DefaultBodies)
+        matches!(self, Self::NominalInterface)
+    }
+
+    /// Return whether associated type and constant members are accepted.
+    #[inline]
+    pub(crate) const fn allows_associated_members(self) -> bool {
+        matches!(self, Self::StructuralInterface | Self::NominalInterface)
     }
 }
 
@@ -883,7 +892,10 @@ impl Parser {
 
             // stop at declaration recovery boundaries
             if token_type == TokenType::Semicolon {
-                if self.current_token_is_declaration_recovery_boundary(token_type) {
+                if self.current_semicolon_precedes_recovery_point(
+                    token_type,
+                    RecoveryPoint::Declaration,
+                ) {
                     break;
                 }
 
@@ -1575,9 +1587,9 @@ impl Parser {
     /// Try to eat a type member and recover one malformed member when possible.
     pub(crate) fn try_eat_type_member(
         &mut self,
-        body_mode: TypeMemberBodyMode,
+        container_kind: TypeMemberContainerKind,
     ) -> ParserResult<LocalNodeId<TypeMember>> {
-        match self.eat_type_member(body_mode) {
+        match self.eat_type_member(container_kind) {
             Ok(member_id) => Ok(member_id),
             Err(err) => {
                 let err = err.for_node_type(NodeType::TypeMember);
@@ -1592,7 +1604,7 @@ impl Parser {
     /// Eat a type member.
     pub(crate) fn eat_type_member(
         &mut self,
-        body_mode: TypeMemberBodyMode,
+        container_kind: TypeMemberContainerKind,
     ) -> ParserResult<LocalNodeId<TypeMember>> {
         let start = self.span_start();
 
@@ -1602,11 +1614,13 @@ impl Parser {
         }
 
         // associated members
-        if let Some(member_id) = self.try_eat_type_member_associated_type(&start)? {
-            return Ok(member_id);
-        }
-        if let Some(member_id) = self.try_eat_type_member_associated_const(&start)? {
-            return Ok(member_id);
+        if container_kind.allows_associated_members() {
+            if let Some(member_id) = self.try_eat_type_member_associated_type(&start)? {
+                return Ok(member_id);
+            }
+            if let Some(member_id) = self.try_eat_type_member_associated_const(&start)? {
+                return Ok(member_id);
+            }
         }
 
         // static
@@ -1777,7 +1791,7 @@ impl Parser {
                 false,
                 is_abstract,
                 false,
-                body_mode.allows_body() && self.language.is_destack(),
+                container_kind.allows_body() && self.language.is_destack(),
             )?;
 
             let member = match (key, role) {
@@ -1973,11 +1987,12 @@ impl Parser {
     /// Eat type members inside one object type body.
     pub(crate) fn eat_type_members(
         &mut self,
-        body_mode: TypeMemberBodyMode,
+        container_kind: TypeMemberContainerKind,
     ) -> ParserResult<Vec<LocalNodeId<TypeMember>>> {
         let mut members: Vec<LocalNodeId<TypeMember>> = Vec::new();
         let mut pending_member_decorators = PendingDecorators::new();
         let mut previous_member_had_error = false;
+        let recovery_point = RecoveryPoint::TypeMemberDeclaration(container_kind);
 
         while self.has_more_tokens() {
             let token_type = self.peek_token_type();
@@ -2010,7 +2025,7 @@ impl Parser {
             // let a damaged member release the next declaration
             else if token_type == TokenType::Semicolon {
                 if previous_member_had_error
-                    && self.current_token_is_declaration_recovery_boundary(token_type)
+                    && self.current_semicolon_precedes_recovery_point(token_type, recovery_point)
                 {
                     break;
                 }
@@ -2027,9 +2042,15 @@ impl Parser {
 
                 continue;
             }
+            // let a damaged nested body release the next declaration
+            else if previous_member_had_error
+                && self.current_token_starts_recovery_point(recovery_point)
+            {
+                break;
+            }
 
             let error_count = self.errors.len();
-            match self.try_eat_type_member(body_mode) {
+            match self.try_eat_type_member(container_kind) {
                 Ok(member_id) => {
                     previous_member_had_error = self.errors.len() > error_count
                         || matches!(self.tree.get(member_id), TypeMember::Error);

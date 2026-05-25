@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::parse::{DeclarationHeader, TypeMemberBodyMode};
+use crate::parse::{DeclarationHeader, TypeMemberContainerKind};
 use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{
@@ -101,9 +101,9 @@ impl Parser {
 
             // parse interface members in type context
             let member_flags = self.flags.nested().in_type();
-            let member_body_mode = TypeMemberBodyMode::for_interface(kind);
+            let member_container_kind = TypeMemberContainerKind::for_interface(kind);
             let members = self.with_flags(member_flags, |parser| {
-                parser.eat_type_members(member_body_mode)
+                parser.eat_type_members(member_container_kind)
             })?;
             self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
