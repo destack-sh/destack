@@ -8,8 +8,6 @@ use crate::{
     Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression, UnaryOperator,
 };
 
-// NOTE #Performance: reduce Expression size to <=64B
-
 /// A catch branch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Catch {

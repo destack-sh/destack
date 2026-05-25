@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 
+use destack_core::StringId;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -219,6 +220,13 @@ impl Comment {
             self.newlines.bits &= !CommentNewlines::TRAILING;
         }
     }
+}
+
+/// Normalized documentation attached to one DIR node.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Documentation {
+    /// The normalized documentation text.
+    pub text: StringId,
 }
 
 /// Normalize one comment payload from raw source text.
