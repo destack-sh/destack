@@ -553,18 +553,18 @@ pub enum Expression {
         properties: Vec<LocalNodeId<Property>>,
     },
 
-    /// A TreeExpression constructs a tree fragment with arguments (similar to JSX).
-    /// The contents of the tree are normal expressions (no implicit text, but full language features).
+    /// A TreeExpression constructs a tree fragment with arguments and children.
+    /// Tree text becomes positional string children, and expression containers become positional children.
     /// Like other language constructs, trees are customizable via traits and context.
     ///
     /// Examples:
     /// ```
-    /// <Entity>1</Entity>
-    /// <Level level=1>
-    ///     player: <Entity name="Alfred" />
-    ///     <Entity>2</Entity>
-    ///     "some text"
-    ///     ..someChildren.map(child => <Entity name={child.name} />)
+    /// <Entity />
+    /// <Entity name="Alfred" active />
+    /// <Level difficulty={3}>
+    ///     <Entity>{name}</Entity>
+    ///     some text
+    ///     {children.map(child => <Entity name={child.name} />)}
     /// </Level>
     /// ```
     TreeExpression {
@@ -763,12 +763,11 @@ pub enum Expression {
     /// ```
     /// new Foo()
     /// new Foo(1, 2, 3)
-    /// new Foo(Vector2 {x: 1, y: 2}, (true, 3))
+    /// new Foo<Vector2>(point, (true, 3))
     /// new Foo.Baz(2, 3)
     /// ```
     New {
-        left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        ty: LocalNodeId<TypeExpression>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
 
@@ -857,9 +856,6 @@ impl Expression {
                 generic_arguments, ..
             }
             | Expression::Call {
-                generic_arguments, ..
-            }
-            | Expression::New {
                 generic_arguments, ..
             } => Some(generic_arguments),
             _ => None,
