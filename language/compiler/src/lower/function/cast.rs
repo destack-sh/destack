@@ -1257,11 +1257,10 @@ impl FunctionLowerer<'_> {
             | dir::Expression::Satisfies { expression, .. } => {
                 self.concrete_symbol_for_expression(*expression)
             }
-            dir::Expression::New { left, .. } => self
+            dir::Expression::New { .. } => self
                 .constructor_target_symbol_for_expression(expression_id)
                 .ok()
-                .flatten()
-                .or_else(|| self.concrete_symbol_for_expression(*left)),
+                .flatten(),
             dir::Expression::StructExpression { ty, .. } => {
                 let type_id = self.type_id_for_type_expression(*ty)?;
                 self.concrete_symbol_for_type(type_id)

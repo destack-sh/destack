@@ -283,11 +283,14 @@ impl Compiler {
             }
             Expression::Call {
                 left, arguments, ..
-            }
-            | Expression::New {
-                left, arguments, ..
             } => {
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, left)?;
+                for argument_id in arguments {
+                    modified |=
+                        self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;
+                }
+            }
+            Expression::New { arguments, .. } => {
                 for argument_id in arguments {
                     modified |=
                         self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;

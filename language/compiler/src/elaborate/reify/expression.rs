@@ -50,16 +50,14 @@ impl Compiler {
             guards,
         );
 
-        // collect member expressions used as call or new callees
+        // collect member expressions used as call callees
         let mut member_callees: HashSet<u32> = HashSet::new();
         for expression_id in state.tree.iter_node_ids_of_type::<Expression>() {
             if !self.is_active_in_state(&state, expression_id.into_any()) {
                 continue;
             }
 
-            let (Expression::Call { left, .. } | Expression::New { left, .. }) =
-                state.tree.get(expression_id)
-            else {
+            let Expression::Call { left, .. } = state.tree.get(expression_id) else {
                 continue;
             };
 
