@@ -47,6 +47,7 @@ struct User<T> {
     /// @binding.symbol symbol=rename role=item form=function scope=User@4
     /// @binding.symbol symbol=this#1 role=local form=variable scope=rename@0
     /// @binding.scope scope=rename kind=function parent=User@5 owner=rename
+    /// @binding.receiver node=member symbol=this#1
     /// @binding.symbol symbol=name role=local form=variable scope=rename@1
     /// @binding.scope scope=scope5 kind=block parent=rename@2
 
@@ -63,6 +64,7 @@ interface Reader<T> {
     /// @binding.symbol symbol=read role=item form=function scope=Reader@1
     /// @binding.symbol symbol=this#2 role=local form=variable scope=read@0
     /// @binding.scope scope=read kind=function parent=Reader@2 owner=read
+    /// @binding.receiver node=type_member symbol=this#2
     /// @binding.symbol symbol=value role=local form=variable scope=read@1
 
     type Item = T;
@@ -74,7 +76,7 @@ interface Reader<T> {
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
-/// @binding.summary symbols=15 scopes=9 declarations=12 node_scopes=30
+/// @binding.summary symbols=15 scopes=9 declarations=12 receivers=2 node_scopes=30
 "#,
     );
 }
@@ -115,6 +117,7 @@ enum Priority {
     /// @binding.symbol symbol=label role=item form=function scope=Priority@2
     /// @binding.symbol symbol=this role=local form=variable scope=label@0
     /// @binding.scope scope=label kind=function parent=Priority@3 owner=label
+    /// @binding.receiver node=member symbol=this
     /// @binding.scope scope=scope4 kind=block parent=label@1
 
         "priority";

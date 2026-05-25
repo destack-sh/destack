@@ -72,6 +72,7 @@ impl Compiler {
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
     ) {
         match member {
@@ -144,7 +145,7 @@ impl Compiler {
                 ..
             } => {
                 if signature.this_parameter.is_none() && !*is_static {
-                    self.bind_implicit_this_symbol(state);
+                    self.bind_implicit_this_symbol(state, id);
                 }
 
                 // visit method key
@@ -171,14 +172,20 @@ impl Compiler {
     }
 
     /// Bind the implicit member receiver symbol in the current method scope.
-    pub(in crate::bind) fn bind_implicit_this_symbol(&self, state: &mut BindState<'_>) {
+    pub(in crate::bind) fn bind_implicit_this_symbol<T: dir::Node>(
+        &self,
+        state: &mut BindState<'_>,
+        owner: dir::LocalNodeId<T>,
+    ) {
         let key = dir::StaticKey::Name(self.strings().intern("this"));
-        state.insert_symbol(
+        let symbol = state.insert_symbol(
             dir::SymbolRole::Local,
             dir::SymbolForm::Variable,
             Some(key),
             None,
         );
+
+        state.bindings.bind_implicit_receiver(owner, symbol);
     }
 
     /// Bind one object property.

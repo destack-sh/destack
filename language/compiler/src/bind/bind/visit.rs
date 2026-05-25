@@ -144,12 +144,12 @@ impl dir::NodeVisitor for BindState<'_> {
         if let Some(scope_id) = self.compiler.bind_member_symbol(self, id, member) {
             self.bind_node_to_scope(id.into_any(), scope_id);
             self.push_scope(scope_id);
-            self.compiler.bind_member_body(self, tree, member);
+            self.compiler.bind_member_body(self, tree, id, member);
             self.pop_scope();
         }
         // visit unscoped member body
         else {
-            self.compiler.bind_member_body(self, tree, member);
+            self.compiler.bind_member_body(self, tree, id, member);
         }
     }
 
