@@ -1,13 +1,57 @@
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 
-use crate::check::{CheckModuleState, GenericParameter};
+use crate::CompilerResult;
+use crate::check::{
+    CheckComponentState, CheckModuleState, Constraint, GenericInstance, GenericParameter, TypeTerm,
+};
+
+impl CheckComponentState<'_> {
+    /// Commit generic instances from solved type reference constraints.
+    pub(super) fn commit_generic_instance_table(&mut self) -> CompilerResult<()> {
+        let constraints = self.collect_constraints();
+
+        // write type expression applications after their arguments are solved
+        for constraint in constraints {
+            let Constraint::DefineType {
+                result: _,
+                term:
+                    TypeTerm::Reference {
+                        source: Some(source),
+                        symbol,
+                        arguments,
+                    },
+                origin: _,
+            } = constraint
+            else {
+                continue;
+            };
+            if arguments.is_empty() {
+                continue;
+            }
+
+            let environment = self.environment.clone();
+            let instance = GenericInstance { symbol, arguments };
+            let check_module = self.module_mut(source.module_id)?;
+
+            if check_module
+                .commit_generic_instance(environment.as_ref(), source, &instance)
+                .is_none()
+            {
+                continue;
+            }
+        }
+
+        Ok(())
+    }
+}
 
 impl CheckModuleState {
-    /// Commit generic parameters into the checked generic table.
-    pub(super) fn commit_generics(&mut self, environment: &GlobalEnvironment) {
+    /// Commit generic parameters into the checked generic slot table.
+    pub(super) fn commit_generic_slot_table(&mut self, environment: &GlobalEnvironment) {
         let mut generics = self
             .generic_parameters()
+            .filter(|(_, generic)| generic.slot().owner.module_id == self.input.module)
             .map(|(variable, generic)| {
                 (
                     generic.slot().owner,

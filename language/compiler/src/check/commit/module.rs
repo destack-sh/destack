@@ -5,21 +5,22 @@ use destack_dir as dir;
 
 use crate::check::{
     ArgumentTerm, CheckModuleState, ConcreteLayout, ConcreteLayoutField, ConcreteLayoutShape,
-    ConcreteVariantLayout, FormTerm, FunctionTerm, GenericInstance, LayoutOutcome,
-    LayoutResolution, LayoutType, ShapeMemberTerm, Solution, StaticTerm, TupleElementTerm,
-    TypeOperationTerm, TypeTerm, VariableId, VariableOrigin,
+    ConcreteVariantLayout, FormTerm, FunctionParameterTerm, FunctionTerm, GenericInstance,
+    LayoutOutcome, LayoutResolution, LayoutType, ShapeMemberTerm, Solution, StaticTerm,
+    TupleElementTerm, TypeOperationTerm, TypeTerm, VariableId, VariableOutput,
 };
 
 impl CheckModuleState {
     /// Commit this module's solved checker state as checked DIR tables.
     pub(in crate::check) fn commit(mut self, environment: &GlobalEnvironment) -> DirCheckedModule {
-        self.commit_variables(environment);
-        self.commit_layouts(environment);
-        self.commit_relations_and_extensions(environment);
-        self.commit_receiver_resolutions(environment);
-        self.commit_member(environment);
-        self.commit_generics(environment);
-        self.commit_captures(environment);
+        self.commit_type_and_static_tables(environment);
+        self.commit_layout_table(environment);
+        self.commit_relation_and_extension_tables(environment);
+        self.commit_name_resolution_table();
+        self.commit_receiver_resolution_table(environment);
+        self.commit_member_resolution_table(environment);
+        self.commit_generic_slot_table(environment);
+        self.commit_capture_table(environment);
 
         DirCheckedModule {
             types: Arc::new(self.output.types),
@@ -34,8 +35,8 @@ impl CheckModuleState {
         }
     }
 
-    /// Commit solved concrete layouts into checked DIR side tables.
-    fn commit_layouts(&mut self, environment: &GlobalEnvironment) {
+    /// Commit solved concrete layouts into the checked layout table.
+    fn commit_layout_table(&mut self, environment: &GlobalEnvironment) {
         let layouts = self
             .decisions
             .layout
@@ -164,26 +165,37 @@ impl CheckModuleState {
         }
     }
 
-    /// Commit closure captures discovered while walking.
-    fn commit_captures(&mut self, environment: &GlobalEnvironment) {
+    /// Commit closure captures discovered while walking into the checked capture table.
+    fn commit_capture_table(&mut self, environment: &GlobalEnvironment) {
         let captures = std::mem::take(&mut self.work.captures);
 
         // write one managed frame per captured function
         for function in captures {
-            if function.symbols.is_empty() && !function.captures_this {
-                continue;
-            }
             let mut fields = Vec::with_capacity(function.symbols.len());
             let mut bindings = Vec::with_capacity(function.symbols.len());
 
             // commit captured binding field types
             for symbol in function.symbols {
-                let variable = self.symbol_type_variable(symbol);
+                let variable = self.intern_symbol_type_variable(symbol);
                 let Some(ty) = self.commit_variable_type(environment, variable) else {
                     continue;
                 };
 
                 fields.push(dir::CaptureFrameField { symbol, ty });
+            }
+
+            let this = function.receiver.and_then(|receiver| {
+                let ty = self.commit_variable_type(environment, receiver.ty)?;
+
+                Some(dir::CapturedReceiver {
+                    symbol: receiver.symbol,
+                    mode: dir::CaptureMode::Manage,
+                    ty,
+                })
+            });
+
+            if fields.is_empty() && this.is_none() {
+                continue;
             }
 
             let frame = if fields.is_empty() {
@@ -214,7 +226,7 @@ impl CheckModuleState {
             let capture = dir::Capture {
                 frames: frame.into_iter().collect(),
                 captures: bindings,
-                this: None,
+                this,
                 directive: None,
             };
 
@@ -267,24 +279,22 @@ impl CheckModuleState {
             .unwrap_or(dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)))
     }
 
-    /// Commit solved variable values into checked DIR side tables.
-    fn commit_variables(&mut self, environment: &GlobalEnvironment) {
+    /// Commit solved variable values into the checked type and static tables.
+    fn commit_type_and_static_tables(&mut self, environment: &GlobalEnvironment) {
         let entries = self
             .work
             .variables
             .all
             .iter()
             .map(|variable| {
-                (
-                    variable.id,
-                    variable.origin.clone(),
-                    variable.solution.clone(),
-                )
+                let value = self.work.variables.solutions.get(&variable.id).cloned();
+
+                (variable.id, variable.output.clone(), value)
             })
             .collect::<Vec<_>>();
 
         // write solved node and symbol values
-        for (id, origin, value) in entries {
+        for (id, binding, value) in entries {
             match value {
                 Some(Solution::Type(term)) => {
                     let source = self.variable_source_node(id);
@@ -292,21 +302,19 @@ impl CheckModuleState {
                         continue;
                     };
 
-                    match origin {
-                        VariableOrigin::Node(node) => {
+                    match binding {
+                        Some(VariableOutput::Node(node)) => {
                             self.output.types.set_node_type(node, type_id)
                         }
-                        VariableOrigin::Symbol(symbol) if symbol.module_id == self.input.module => {
+                        Some(VariableOutput::Symbol(symbol))
+                            if symbol.module_id == self.input.module
+                                && !self.symbol_is_import(symbol) =>
+                        {
                             self.output.types.set_symbol_type(symbol, type_id);
                         }
-                        VariableOrigin::Generic(generic) => {
-                            if let dir::GenericSlotKey::Symbol(symbol) = generic.slot().key
-                                && symbol.module_id == self.input.module
-                            {
-                                self.output.types.set_symbol_type(symbol, type_id);
-                            }
-                        }
-                        VariableOrigin::Generated { origin: _ } | VariableOrigin::Symbol(_) => {}
+                        Some(VariableOutput::Generic(_))
+                        | Some(VariableOutput::Symbol(_))
+                        | None => {}
                     }
                 }
                 Some(Solution::Static(term)) => {
@@ -314,16 +322,17 @@ impl CheckModuleState {
                         continue;
                     };
 
-                    let symbol = match origin {
-                        VariableOrigin::Symbol(symbol) => Some(symbol),
-                        VariableOrigin::Generic(generic) => match generic.slot().key {
+                    let symbol = match binding {
+                        Some(VariableOutput::Symbol(symbol)) => Some(symbol),
+                        Some(VariableOutput::Generic(generic)) => match generic.slot().key {
                             dir::GenericSlotKey::Symbol(symbol) => Some(symbol),
                             dir::GenericSlotKey::Generated(_) => None,
                         },
-                        VariableOrigin::Generated { origin: _ } | VariableOrigin::Node(_) => None,
+                        Some(VariableOutput::Node(_)) | None => None,
                     };
                     if let Some(symbol) = symbol
                         && symbol.module_id == self.input.module
+                        && !self.symbol_is_import(symbol)
                     {
                         self.output.statics.set_symbol_static(symbol, static_id);
                     }
@@ -351,14 +360,10 @@ impl CheckModuleState {
 
     /// Return the existing committed type for one variable.
     fn committed_variable_type(&self, variable: VariableId) -> Option<dir::LocalTypeId> {
-        match &self.variable(variable).origin {
-            VariableOrigin::Node(node) => self.output.types.get_node_type_id(*node),
-            VariableOrigin::Symbol(symbol) => self.output.types.get_symbol_type_id(*symbol),
-            VariableOrigin::Generic(generic) => match generic.slot().key {
-                dir::GenericSlotKey::Symbol(symbol) => self.output.types.get_symbol_type_id(symbol),
-                dir::GenericSlotKey::Generated(_) => None,
-            },
-            VariableOrigin::Generated { origin: _ } => None,
+        match &self.variable(variable).output {
+            Some(VariableOutput::Node(node)) => self.output.types.get_node_type_id(*node),
+            Some(VariableOutput::Symbol(symbol)) => self.output.types.get_symbol_type_id(*symbol),
+            Some(VariableOutput::Generic(_)) | None => None,
         }
     }
 
@@ -381,9 +386,7 @@ impl CheckModuleState {
     ) -> Option<dir::LocalTypeId> {
         let ty = match term {
             TypeTerm::Literal(atom) => atom.to_type(),
-            TypeTerm::Parameter { symbol } => {
-                dir::Type::Parameter(dir::ParameterType { symbol: *symbol })
-            }
+            TypeTerm::Parameter(parameter) => dir::Type::Parameter((*parameter).into()),
             TypeTerm::This => dir::Type::This,
             TypeTerm::Intrinsic | TypeTerm::ConstAssertion => return None,
             TypeTerm::Variable(variable) => {
@@ -413,7 +416,7 @@ impl CheckModuleState {
 
                 self.commit_array_type(environment, element)?
             }
-            TypeTerm::Member { .. } => return None,
+            TypeTerm::Member(_) | TypeTerm::StaticValue { .. } => return None,
             TypeTerm::FixedArray {
                 element,
                 length,
@@ -533,13 +536,7 @@ impl CheckModuleState {
             }
             StaticTerm::Literal(term) => term.clone(),
             StaticTerm::Expression(expression) => {
-                let expression = self.input.parsed.tree.get(expression.local_id);
-                match expression {
-                    dir::Expression::ScalarLiteral(value) => dir::StaticTerm::ScalarLiteral {
-                        value: value.clone(),
-                    },
-                    _ => return None,
-                }
+                self.commit_static_expression_term(expression.local_id)?
             }
             StaticTerm::Member { .. }
             | StaticTerm::Operation(_)
@@ -550,6 +547,47 @@ impl CheckModuleState {
         };
 
         Some(self.intern_static(term))
+    }
+
+    /// Commit one locally concrete static expression.
+    fn commit_static_expression_term(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::StaticTerm> {
+        let view = self.input.view();
+        let term = match view.get(expression) {
+            dir::Expression::ScalarLiteral(value) => dir::StaticTerm::ScalarLiteral {
+                value: value.clone(),
+            },
+            dir::Expression::ObjectExpression { properties } => {
+                self.commit_static_object_expression(properties)?
+            }
+            _ => return None,
+        };
+
+        Some(term)
+    }
+
+    /// Commit one locally concrete static object expression.
+    fn commit_static_object_expression(
+        &self,
+        properties: &[dir::LocalNodeId<dir::Property>],
+    ) -> Option<dir::StaticTerm> {
+        let view = self.input.view();
+        let mut terms = Vec::with_capacity(properties.len());
+
+        // collect statically known fields
+        for property in properties {
+            let dir::Property::Field { key, value, .. } = view.get(*property) else {
+                return None;
+            };
+            let key = key.static_key(view.tree())?;
+            let value = self.commit_static_expression_term(*value)?;
+
+            terms.push(dir::StaticProperty::Field { key, value });
+        }
+
+        Some(dir::StaticTerm::Object { properties: terms })
     }
 
     /// Commit one memory form term.
@@ -685,7 +723,7 @@ impl CheckModuleState {
             dir::LanguageItem::Function => {
                 let parameters = self.type_argument(&arguments, 0)?;
                 let return_type = self.type_argument(&arguments, 1)?;
-                let parameters = self.function_parameter_types(parameters)?;
+                let parameters = self.function_parameters_from_tuple(parameters)?;
 
                 dir::Type::Function(dir::FunctionType {
                     asynchrony: dir::Asynchrony::Sync,
@@ -782,14 +820,22 @@ impl CheckModuleState {
     }
 
     /// Return runtime parameter types from a function parameter tuple.
-    fn function_parameter_types(
+    fn function_parameters_from_tuple(
         &self,
         parameters: dir::LocalTypeId,
-    ) -> Option<Vec<dir::LocalTypeId>> {
+    ) -> Option<Vec<dir::FunctionParameterType>> {
         match self.get_type(parameters) {
-            dir::Type::Tuple(tuple) => {
-                Some(tuple.elements.iter().map(|element| element.ty).collect())
-            }
+            dir::Type::Tuple(tuple) => Some(
+                tuple
+                    .elements
+                    .iter()
+                    .map(|element| dir::FunctionParameterType {
+                        ty: element.ty,
+                        is_optional: element.is_optional,
+                        is_rest: element.is_rest,
+                    })
+                    .collect(),
+            ),
             dir::Type::Void => Some(Vec::new()),
             _ => None,
         }
@@ -843,6 +889,36 @@ impl CheckModuleState {
         variables
             .iter()
             .map(|variable| self.commit_variable_type(environment, *variable))
+            .collect()
+    }
+
+    /// Commit function parameter type variables.
+    pub(in crate::check) fn commit_function_parameter_type_ids(
+        &mut self,
+        environment: &GlobalEnvironment,
+        parameters: &[FunctionParameterTerm],
+    ) -> Option<Vec<dir::LocalTypeId>> {
+        parameters
+            .iter()
+            .map(|parameter| self.commit_variable_type(environment, parameter.ty))
+            .collect()
+    }
+
+    /// Commit function parameters.
+    pub(in crate::check) fn commit_function_parameters(
+        &mut self,
+        environment: &GlobalEnvironment,
+        parameters: &[FunctionParameterTerm],
+    ) -> Option<Vec<dir::FunctionParameterType>> {
+        parameters
+            .iter()
+            .map(|parameter| {
+                Some(dir::FunctionParameterType {
+                    ty: self.commit_variable_type(environment, parameter.ty)?,
+                    is_optional: parameter.is_optional,
+                    is_rest: parameter.is_rest,
+                })
+            })
             .collect()
     }
 
@@ -992,7 +1068,7 @@ impl CheckModuleState {
             this_parameter: function
                 .this_parameter
                 .and_then(|parameter| self.commit_variable_type(environment, parameter)),
-            parameters: self.commit_type_variables(environment, &function.parameters)?,
+            parameters: self.commit_function_parameters(environment, &function.parameters)?,
             return_type: function
                 .return_type
                 .and_then(|return_type| self.commit_variable_type(environment, return_type)),
