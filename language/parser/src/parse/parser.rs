@@ -1045,26 +1045,11 @@ impl Parser {
         error.to_diagnostic(self.file.as_ref(), &tokens)
     }
 
-    /// Rebuild parser error keys after speculative rollback.
-    #[cold]
-    #[inline(never)]
-    fn rebuild_error_keys(&mut self) {
-        self.error_keys.clear();
-        self.error_keys
-            .extend(self.errors.iter().map(ParserErrorKey::from_error));
-    }
-
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.
     #[inline(always)]
     pub fn checkpoint(&mut self) -> ParserCheckpoint {
         ParserCheckpoint {
-            lexer_checkpoint: self.lexer.checkpoint(),
-            contextual_lex_mode: self.contextual_lex_mode,
-            consumed_tokens_len: self.consumed_tokens.len(),
-            side_tokens_len: self.side_tokens.len(),
-            current_token: self.current_token,
-            previous_token_end: self.previous_token_end,
-            last_consumed_token: self.last_consumed_token,
+            cursor: self.cursor_checkpoint(),
             tree_mark: self.tree.mark(),
             error_count: self.errors.len(),
         }
@@ -1107,19 +1092,18 @@ impl Parser {
 
     /// Restore the parser and tree to one full checkpoint.
     pub fn restore(&mut self, checkpoint: ParserCheckpoint, source_id: u32) {
-        self.lexer.restore(checkpoint.lexer_checkpoint);
-        self.contextual_lex_mode = checkpoint.contextual_lex_mode;
-        self.consumed_tokens
-            .truncate(checkpoint.consumed_tokens_len);
-        self.side_tokens.truncate(checkpoint.side_tokens_len);
-        self.current_token = checkpoint.current_token;
-        self.previous_token_end = checkpoint.previous_token_end;
-        self.last_consumed_token = checkpoint.last_consumed_token;
-        self.next_token_cache = None;
+        self.rewind(checkpoint.cursor);
         debug_assert_eq!(checkpoint.tree_mark.next_global_id(), source_id);
         self.tree.restore_to_mark(checkpoint.tree_mark);
-        self.errors.truncate(checkpoint.error_count);
-        self.rebuild_error_keys();
+        self.restore_errors(checkpoint.error_count);
+    }
+
+    /// Restore parser errors to one checkpoint.
+    fn restore_errors(&mut self, error_count: usize) {
+        for error in self.errors.drain(error_count..) {
+            let key = ParserErrorKey::from_error(&error);
+            self.error_keys.remove(&key);
+        }
     }
 
     /// Run a closure against a speculative parser cursor.
@@ -1589,20 +1573,8 @@ impl Parser {
 /// Full parser checkpoint for speculative parses that allocate nodes.
 #[derive(Debug)]
 pub struct ParserCheckpoint {
-    /// The lexer checkpoint at parser checkpoint time.
-    lexer_checkpoint: LexerCheckpoint,
-    /// The contextual lexing mode at checkpoint time.
-    contextual_lex_mode: ContextualLexMode,
-    /// The consumed token count at checkpoint time.
-    consumed_tokens_len: usize,
-    /// The side token count at checkpoint time.
-    side_tokens_len: usize,
-    /// The parser owned current token at checkpoint time.
-    current_token: TokenSpan,
-    /// The previous semantic token end at checkpoint time.
-    previous_token_end: u32,
-    /// The last consumed visible token at checkpoint time.
-    last_consumed_token: TokenSpan,
+    /// The parser cursor checkpoint at parser checkpoint time.
+    cursor: ParserCursorCheckpoint,
     /// Tree allocation snapshot at checkpoint time.
     tree_mark: TreeMark,
     /// The parser error count at checkpoint time.
