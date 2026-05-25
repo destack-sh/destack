@@ -154,7 +154,6 @@ fn type_cast_like_needs_parentheses(
         | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. }
-        | Expression::New { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. } => *left == parent_child_id,
 
@@ -281,9 +280,9 @@ fn expression_is_call_like_callee(
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(parent_expression_id) {
-        Expression::Call { left, .. }
-        | Expression::New { left, .. }
-        | Expression::Instantiation { left, .. } => *left == parent_child_id,
+        Expression::Call { left, .. } | Expression::Instantiation { left, .. } => {
+            *left == parent_child_id
+        }
         Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_child_id,
         _ => false,
     }
@@ -679,64 +678,6 @@ fn expression_range_needs_parentheses_in_parent(
     )
 }
 
-/// Return whether one expression is the direct callee of a `new` expression.
-fn expression_is_new_callee(
-    parent_expression: &Expression,
-    parent_child_id: LocalNodeId<Expression>,
-) -> bool {
-    matches!(parent_expression, Expression::New { left, .. } if *left == parent_child_id)
-}
-
-/// Return whether one member-chain callee carries a call or optional marker.
-fn member_chain_callee_needs_parentheses(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = node_id;
-
-    loop {
-        match context.tree.get(current_id) {
-            Expression::Call { .. } => return true,
-            Expression::Maybe { .. } => return true,
-
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Must { left, .. } => {
-                current_id = *left;
-            }
-
-            Expression::TaggedTemplateExpression { tag, .. } => {
-                current_id = *tag;
-            }
-
-            _ => return false,
-        }
-    }
-}
-
-/// Return whether one expression needs parentheses as a `new` callee.
-fn expression_new_callee_needs_parentheses(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    parent_expression: &Expression,
-    parent_child_id: LocalNodeId<Expression>,
-) -> bool {
-    if !expression_is_new_callee(parent_expression, parent_child_id) {
-        return false;
-    }
-
-    match context.tree.get(node_id) {
-        Expression::Call { .. } | Expression::Maybe { .. } => true,
-        Expression::Member { .. }
-        | Expression::PrivateMember { .. }
-        | Expression::Index { .. }
-        | Expression::TaggedTemplateExpression { .. }
-        | Expression::Must { .. } => member_chain_callee_needs_parentheses(context, node_id),
-        _ => false,
-    }
-}
-
 /// Return whether one expression has lower precedence than update, member, or call positions.
 fn expression_is_update_or_lower_precedence(
     context: &DestackFormatContext<'_>,
@@ -1013,12 +954,6 @@ pub(crate) fn expression_needs_parentheses_in_parent(
 
     // skipped transparent wrappers are restored when they carry parse meaning
     if transparent_wrapper_needs_parentheses_in_parent(context, node_id) {
-        return true;
-    }
-
-    // `new` callees parenthesize calls and optional or call-derived member chains
-    if expression_new_callee_needs_parentheses(context, node_id, parent_expression, parent_child_id)
-    {
         return true;
     }
 

@@ -224,9 +224,6 @@ pub(crate) fn expression_generic_arguments(
         }
         | Expression::Call {
             generic_arguments, ..
-        }
-        | Expression::New {
-            generic_arguments, ..
         } => Some(generic_arguments.as_slice()),
         _ => None,
     }
@@ -260,11 +257,6 @@ pub(crate) fn expression_has_generic_arguments(
                 || left.is_some_and(|left_id| expression_has_generic_arguments(context, left_id))
         }
         Expression::Call {
-            left,
-            generic_arguments,
-            ..
-        }
-        | Expression::New {
             left,
             generic_arguments,
             ..

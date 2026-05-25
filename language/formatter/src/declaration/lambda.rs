@@ -307,9 +307,7 @@ fn lambda_declaration_is_call_like_callee(
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     match context.tree.get(parent_id) {
-        Expression::Call { left, .. } | Expression::New { left, .. } => {
-            *left == declaration_expression_id
-        }
+        Expression::Call { left, .. } => *left == declaration_expression_id,
         Expression::TaggedTemplateExpression { tag, .. } => *tag == declaration_expression_id,
         _ => false,
     }
