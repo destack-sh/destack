@@ -532,6 +532,31 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(ty, self.module.id, source_id))
     }
 
+    /// Lower one generated generic parameter into a JS path type.
+    fn lower_generated_parameter_type(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        key: dir::GenericSlotKey,
+    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+        let dir::GenericSlotKey::Generated(name) = key else {
+            return Err(CodegenJsError::UnsupportedConstruct {
+                node: source_id.into_global(self.module.id),
+                message: Some("generic parameter slot is not generated".to_string()),
+            });
+        };
+        let path = js::Path {
+            segments: smallvec::smallvec![name],
+        };
+        let ty = js::TypeExpression::Path {
+            path,
+            generic_arguments: Vec::new(),
+        };
+
+        Ok(self
+            .tree
+            .insert_from_source_any(ty, self.module.id, source_id))
+    }
+
     /// Lower one source-backed reference type into a JS path type when exact path syntax exists.
     fn try_lower_reference_type_from_source(
         &mut self,
@@ -644,15 +669,31 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         name: String,
-        ty_id: dir::LocalTypeId,
+        parameter: dir::FunctionParameterType,
     ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
         let name = self.strings.intern(&name);
-        let ty = Some(self.lower_type(ty_id)?);
-        let parameter = js::Parameter::Named {
-            modifiers: None,
-            name,
-            ty,
-            default: None,
+        let ty = Some(self.lower_type(parameter.ty)?);
+        let modifiers = if parameter.is_optional {
+            Some(js::BindingModifier {
+                kind: Some(js::BindingKind::Maybe),
+                ..js::BindingModifier::default()
+            })
+        } else {
+            None
+        };
+        let parameter = if parameter.is_rest {
+            js::Parameter::VariadicNamed {
+                modifiers,
+                name,
+                ty,
+            }
+        } else {
+            js::Parameter::Named {
+                modifiers,
+                name,
+                ty,
+                default: None,
+            }
         };
 
         Ok(self
@@ -693,7 +734,15 @@ impl ModuleLowerer<'_> {
         let this_parameter = function
             .this_parameter
             .map(|this_type_id| {
-                self.lower_semantic_function_parameter(source_id, "this".to_string(), this_type_id)
+                self.lower_semantic_function_parameter(
+                    source_id,
+                    "this".to_string(),
+                    dir::FunctionParameterType {
+                        ty: this_type_id,
+                        is_optional: false,
+                        is_rest: false,
+                    },
+                )
             })
             .transpose()?;
 
@@ -702,12 +751,8 @@ impl ModuleLowerer<'_> {
             .parameters
             .iter()
             .enumerate()
-            .map(|(index, parameter_type_id)| {
-                self.lower_semantic_function_parameter(
-                    source_id,
-                    format!("arg{index}"),
-                    *parameter_type_id,
-                )
+            .map(|(index, parameter)| {
+                self.lower_semantic_function_parameter(source_id, format!("arg{index}"), *parameter)
             })
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
@@ -892,9 +937,10 @@ impl ModuleLowerer<'_> {
                         .insert_from_source_any(ty, self.module.id, source_id)
                 }
             },
-            dir::Type::Parameter(parameter) => {
-                self.lower_reference_type_from_symbol(source_id, parameter.symbol, None)?
-            }
+            dir::Type::Parameter(parameter) => match parameter.symbol() {
+                Some(symbol) => self.lower_reference_type_from_symbol(source_id, symbol, None)?,
+                None => self.lower_generated_parameter_type(source_id, parameter.key)?,
+            },
             dir::Type::This => self.tree.insert_from_source_any(
                 js::TypeExpression::This,
                 self.module.id,
