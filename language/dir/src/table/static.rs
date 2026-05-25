@@ -69,7 +69,7 @@ impl<'a> StaticTable<'a> {
 
         // apply later segment values over earlier ones
         for segment in self.segments.iter() {
-            for (symbol_id, static_id) in &segment.symbol_statics {
+            for (symbol_id, static_id) in &segment.static_by_symbol_id {
                 entries.insert(*symbol_id, *static_id);
             }
         }
@@ -158,7 +158,7 @@ pub struct StaticSegment {
     /// Interned static values.
     pub(crate) statics: Arena<StaticTerm>,
     /// Checked static value keyed by symbol.
-    pub(crate) symbol_statics: IndexMap<GlobalSymbolId, LocalStaticId>,
+    pub(crate) static_by_symbol_id: IndexMap<GlobalSymbolId, LocalStaticId>,
 }
 
 impl StaticSegment {
@@ -168,7 +168,7 @@ impl StaticSegment {
             module_id,
             first_static_id: 0,
             statics: Arena::new(),
-            symbol_statics: IndexMap::new(),
+            static_by_symbol_id: IndexMap::new(),
         }
     }
 
@@ -178,7 +178,7 @@ impl StaticSegment {
             module_id: base.module_id,
             first_static_id: base.static_count(),
             statics: Arena::new(),
-            symbol_statics: IndexMap::new(),
+            static_by_symbol_id: IndexMap::new(),
         }
     }
 
@@ -192,12 +192,12 @@ impl StaticSegment {
 
     /// Set the static value for a symbol.
     pub fn set_symbol_static(&mut self, symbol_id: GlobalSymbolId, static_id: LocalStaticId) {
-        self.symbol_statics.insert(symbol_id, static_id);
+        self.static_by_symbol_id.insert(symbol_id, static_id);
     }
 
     /// Iterate static values keyed by symbol.
     pub fn symbol_statics(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalStaticId)> + '_ {
-        self.symbol_statics
+        self.static_by_symbol_id
             .iter()
             .map(|(symbol_id, static_id)| (*symbol_id, *static_id))
     }
@@ -228,7 +228,7 @@ impl StaticSegment {
 
     /// Get the static value id for a symbol.
     pub fn get_symbol_static_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalStaticId> {
-        self.symbol_statics.get(&symbol_id).copied()
+        self.static_by_symbol_id.get(&symbol_id).copied()
     }
 
     /// Iterate over all static value ids.
@@ -245,7 +245,7 @@ impl StaticSegment {
 
     /// Return true when this segment has no entries.
     pub fn is_empty(&self) -> bool {
-        self.statics.is_empty() && self.symbol_statics.is_empty()
+        self.statics.is_empty() && self.static_by_symbol_id.is_empty()
     }
 
     /// Return whether this segment contains the given static id.
