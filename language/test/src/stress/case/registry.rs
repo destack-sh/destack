@@ -17,16 +17,20 @@ use super::error::error_forms;
 use super::expression::{convoluted_expressions, damaged_expression, nested_try};
 use super::generic::ambiguous_generics;
 use super::interface::large_interface;
+use super::matrix::{
+    damaged_declaration_matrix, damaged_expression_matrix, damaged_tree_matrix,
+    damaged_type_matrix, expression_matrix, type_matrix,
+};
 use super::member::deep_member;
 use super::memory::memory_forms;
 use super::module::module_forms;
 use super::object::{ambiguous_objects, large_object};
 use super::operator::operator_forms;
 use super::pathology::{
-    damaged_arrow_return_heads, damaged_delimiters, damaged_function_type_heads,
-    damaged_generic_heads, damaged_infix_chains, damaged_nested_blocks,
-    damaged_parenthesized_heads, deep_block, deep_parentheses, deep_tree, massive_file,
-    trivia_flood, wide_call,
+    damaged_argument_lists, damaged_arrow_return_heads, damaged_delimiters,
+    damaged_function_type_heads, damaged_generic_heads, damaged_infix_chains,
+    damaged_nested_blocks, damaged_parenthesized_heads, damaged_type_member_bodies, deep_block,
+    deep_parentheses, deep_tree, massive_file, trivia_flood, wide_call,
 };
 use super::pattern::{convoluted_patterns, damaged_type, nested_match};
 use super::range::range_forms;
@@ -34,16 +38,18 @@ use super::sequence::{sequence_pattern_forms, sequence_type_forms};
 use super::signature::large_signature;
 use super::ternary::nested_ternary;
 use super::torture::{
-    long_binary_chain, long_logical_chain, long_nullish_chain, long_postfix_chain,
-    nested_lambda_chain, parenthesized_binary_chain,
+    long_binary_chain, long_conditional_type_chain, long_logical_chain, long_nullish_chain,
+    long_postfix_chain, long_type_operator_chain, nested_lambda_chain, parenthesized_binary_chain,
 };
-use super::tree::{ambiguous_tsx, damaged_tsx, nested_tsx};
+use super::tree::{ambiguous_tsx, damaged_tree_nesting, damaged_tsx, nested_tsx};
 use super::trivia::{damaged_trivia, large_trivia, trivia_wall};
 use super::ty::{convoluted_types, deep_type, large_type};
 use super::using::using_forms;
 use super::weave::{woven_destack_forms, woven_source_forms, woven_tsx_forms};
 
 const DEFAULT_WIDTH: usize = 96;
+const FUZZ_MAX_SCALE: usize = 64;
+const FUZZ_WIDTHS: &[usize] = &[56, DEFAULT_WIDTH, 140, 180];
 const REGULAR_LARGE: usize = 1_024;
 const REGULAR_HUGE: usize = 2_048;
 const REGULAR_MASSIVE: usize = 8_192;
@@ -185,6 +191,8 @@ const CASES: &[StressSpec] = &[
         VALID,
         convoluted_patterns,
     ),
+    StressSpec::new("expression_matrix", SOURCE_MODES, VALID, expression_matrix),
+    StressSpec::new("type_matrix", ALL_MODES, VALID, type_matrix),
     StressSpec::new("sequence_types", DESTACK_MODES, VALID, sequence_type_forms),
     StressSpec::new(
         "sequence_patterns",
@@ -230,6 +238,18 @@ const CASES: &[StressSpec] = &[
         long_nullish_chain,
     ),
     StressSpec::pathological(
+        "long_type_operator_chain",
+        ALL_MODES,
+        VALID,
+        long_type_operator_chain,
+    ),
+    StressSpec::pathological_capped_at_massive(
+        "long_conditional_type_chain",
+        ALL_MODES,
+        VALID,
+        long_conditional_type_chain,
+    ),
+    StressSpec::pathological(
         "long_postfix_chain",
         SOURCE_MODES,
         VALID,
@@ -255,9 +275,37 @@ const CASES: &[StressSpec] = &[
         RECOVERY,
         damaged_expression,
     ),
+    StressSpec::recovery_pathological(
+        "damaged_expression_matrix",
+        SOURCE_MODES,
+        damaged_expression_matrix,
+    ),
     StressSpec::new("damaged_type", ALL_MODES, RECOVERY, damaged_type),
+    StressSpec::recovery_pathological("damaged_type_matrix", ALL_MODES, damaged_type_matrix),
+    StressSpec::recovery_pathological(
+        "damaged_declaration_matrix",
+        ALL_MODES,
+        damaged_declaration_matrix,
+    ),
     StressSpec::new("damaged_tsx", TSX_MODES, RECOVERY, damaged_tsx),
+    StressSpec::recovery_pathological("damaged_tree_matrix", TSX_MODES, damaged_tree_matrix),
+    StressSpec::new(
+        "damaged_tree_nesting",
+        TSX_MODES,
+        RECOVERY,
+        damaged_tree_nesting,
+    ),
     StressSpec::new("damaged_trivia", SOURCE_MODES, RECOVERY, damaged_trivia),
+    StressSpec::recovery_pathological(
+        "damaged_argument_lists",
+        SOURCE_MODES,
+        damaged_argument_lists,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_type_member_bodies",
+        ALL_MODES,
+        damaged_type_member_bodies,
+    ),
     StressSpec::recovery_pathological("damaged_delimiters", SOURCE_MODES, damaged_delimiters),
     StressSpec::recovery_pathological("damaged_nested_blocks", SOURCE_MODES, damaged_nested_blocks),
     StressSpec::recovery_pathological(
@@ -785,17 +833,17 @@ pub fn materialize_parser_cases() -> Result<Vec<StressCase>, String> {
 /// Materialize and return the formatter stress corpus.
 pub fn materialize_formatter_cases() -> Result<Vec<StressCase>, String> {
     let directory = stress_generated_dir("formatter");
-    materialize_cases(&directory, false, true)
+    materialize_cases(&directory, true, true)
 }
 
 /// Generate one deterministic parser fuzz input from arbitrary bytes.
 pub fn generate_parser_fuzz_case(data: &[u8]) -> (String, FileType, StressExpectation) {
-    generate_fuzz_case(data, true, true)
+    generate_fuzz_case(data, true)
 }
 
 /// Generate one deterministic formatter fuzz input from arbitrary bytes.
 pub fn generate_formatter_fuzz_case(data: &[u8]) -> (String, FileType, StressExpectation) {
-    generate_fuzz_case(data, false, false)
+    generate_fuzz_case(data, true)
 }
 
 fn materialize_cases(
@@ -859,7 +907,6 @@ fn stress_generated_dir(kind: &str) -> PathBuf {
 fn generate_fuzz_case(
     data: &[u8],
     include_recovery: bool,
-    include_bounded: bool,
 ) -> (String, FileType, StressExpectation) {
     let seed = data.iter().fold(0_u64, |seed, byte| {
         seed.wrapping_mul(131).wrapping_add(u64::from(*byte))
@@ -871,16 +918,36 @@ fn generate_fuzz_case(
         .collect::<Vec<_>>();
     let spec = specs[seed as usize % specs.len()];
     let mode = spec.modes[(seed as usize / specs.len()) % spec.modes.len()];
-    let variants = spec
-        .variants(mode)
-        .into_iter()
-        .filter(|variant| include_bounded || variant.expectation != StressExpectation::Bounded)
-        .collect::<Vec<_>>();
-    let variant = &variants[(seed as usize / specs.len() / spec.modes.len()) % variants.len()];
+    let scale_seed = seed as usize / specs.len() / spec.modes.len();
+    let scale = 1 + scale_seed % FUZZ_MAX_SCALE;
+    let width = FUZZ_WIDTHS[(scale_seed / FUZZ_MAX_SCALE) % FUZZ_WIDTHS.len()];
+    let source = (spec.generate)(mode, scale, width);
 
-    (
-        variant.source.clone(),
-        mode.file_type(),
-        variant.expectation,
-    )
+    (source, mode.file_type(), spec.expectation)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_parser_fuzz_case_uses_small_stress_cases() {
+        let (source, _file_type, expectation) = generate_parser_fuzz_case(&[0, 16, 6]);
+
+        assert_ne!(expectation, StressExpectation::Bounded);
+        assert!(source.len() < 10_000);
+    }
+
+    #[test]
+    fn test_generate_formatter_fuzz_case_includes_recovery_cases() {
+        let mut saw_recovery = false;
+
+        for seed in 0_u16..1_024 {
+            let data = seed.to_le_bytes();
+            let (_source, _file_type, expectation) = generate_formatter_fuzz_case(&data);
+            saw_recovery |= expectation == StressExpectation::Recovery;
+        }
+
+        assert!(saw_recovery);
+    }
 }

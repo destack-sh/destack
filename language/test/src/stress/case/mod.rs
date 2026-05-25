@@ -11,6 +11,7 @@ mod expression;
 mod generator;
 mod generic;
 mod interface;
+mod matrix;
 mod member;
 mod memory;
 mod module;

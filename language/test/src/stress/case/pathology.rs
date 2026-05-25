@@ -116,6 +116,41 @@ pub(super) fn wide_call(_mode: StressMode, scale: usize, _width: usize) -> Strin
     source
 }
 
+/// Generate damaged argument lists that should recover at later statements.
+pub(super) fn damaged_argument_lists(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 128);
+
+    for index in 0..scale {
+        let _ = writeln!(
+            source,
+            "const brokenArguments{index} = invoke{index}(value{index}, {{ item: ;"
+        );
+        let _ = writeln!(
+            source,
+            "const recoveredArguments{index} = invoke{index}(value{index});"
+        );
+    }
+
+    source.push_str("\nexport const stressRecovered = 1;\n");
+
+    source
+}
+
+/// Generate damaged type member bodies that should recover at a later root.
+pub(super) fn damaged_type_member_bodies(_mode: StressMode, scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 96);
+    source.push_str("export interface DamagedTypeMemberBodies {\n");
+
+    for index in 0..scale {
+        let _ = writeln!(source, "    brokenMember{index}: {{ readonly item: ;");
+        let _ = writeln!(source, "    recoveredMember{index}: string;");
+    }
+
+    source.push_str("}\n\nexport interface stressRecovered {}\n");
+
+    source
+}
+
 /// Generate repeated delimiter damage with a later recovered declaration.
 pub(super) fn damaged_delimiters(_mode: StressMode, scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 64);
