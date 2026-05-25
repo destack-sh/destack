@@ -2,8 +2,8 @@ use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    normalize_profile_keys, ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch,
-    TargetVendor,
+    ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, TargetVendor,
+    normalize_profile_keys,
 };
 
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";

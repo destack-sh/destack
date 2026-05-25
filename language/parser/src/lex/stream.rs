@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_dir::{Comment, Token, TokenSpan, TokenType};
+use destack_dir::{Comment, Token, TokenRange, TokenSpan, TokenType};
 use destack_source::{File, LanguageType, Span};
 
 use super::lexer::{Lexer, ParserTriviaMode};
@@ -189,10 +189,10 @@ impl Lexer {
         (tokens, side_tokens)
     }
 
-    /// Drain side tokens produced so far into one output buffer.
+    /// Drain side tokens produced so far into one compact output buffer.
     #[inline]
-    pub(crate) fn drain_side_tokens_into(&mut self, side_tokens: &mut Vec<TokenSpan>) {
-        side_tokens.append(&mut self.side_tokens);
+    pub(crate) fn drain_side_token_ranges_into(&mut self, side_tokens: &mut Vec<TokenRange>) {
+        side_tokens.extend(self.side_tokens.drain(..).map(TokenRange::from_token_span));
     }
 
     /// Lex the next token from the underlying lexer.

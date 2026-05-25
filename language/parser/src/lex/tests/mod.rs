@@ -102,7 +102,7 @@ fn lex_source_with_tree_literals(
 
     // parse without attaching comments so parser drives tree child tokenization like production code
     let _ = parser.parse_without_attaching_comments();
-    let (semantic_tokens, side_tokens) = parser.take_tokens();
+    let (semantic_tokens, side_tokens) = parser.take_token_spans();
 
     (semantic_tokens, side_tokens, eof_token)
 }
