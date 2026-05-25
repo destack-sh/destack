@@ -1,5 +1,5 @@
 use crate::parse::scope::ExpressionScope;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
 use smallvec::SmallVec;
@@ -16,7 +16,7 @@ impl Parser {
     pub(super) fn eat_parenthesized_value(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         // nested wrapper chain
         if let Some(expression) = self.eat_parenthesized_value_chain(start)? {
             return Ok(expression);
@@ -84,7 +84,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         first: LocalNodeId<Expression>,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let expressions = self.eat_parenthesized_sequence_values(first)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 
@@ -109,7 +109,7 @@ impl Parser {
     fn eat_parenthesized_sequence_values(
         &mut self,
         first: LocalNodeId<Expression>,
-    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
         let mut expressions = vec![first];
         while self.peek_is(TokenType::Comma) {
             self.bump();
@@ -161,7 +161,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         first: LocalNodeId<Expression>,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let elements = self.eat_parenthesized_tuple_elements(first)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
 
@@ -184,7 +184,7 @@ impl Parser {
     fn eat_parenthesized_tuple_elements(
         &mut self,
         first: LocalNodeId<Expression>,
-    ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+    ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         let mut elements = vec![self.insert_node(
             Argument::Positional { value: first },
             self.tree.get_span(first),
@@ -216,7 +216,7 @@ impl Parser {
     fn eat_parenthesized_value_chain(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<(LocalNodeId<Expression>, bool)>> {
+    ) -> ParserResult<Option<(LocalNodeId<Expression>, bool)>> {
         if self.next_token_type() != TokenType::OpenParenthesis {
             return Ok(None);
         }
@@ -245,7 +245,7 @@ impl Parser {
     fn eat_parenthesized_value_chain_at_cursor(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let mut wrappers = SmallVec::<[ParserSpanStart; 4]>::new();
         while self.peek_is(TokenType::OpenParenthesis) {
             wrappers.push(self.span_start());
@@ -287,7 +287,7 @@ impl Parser {
     fn eat_parenthesized_chain_head(
         &mut self,
         wrappers: &mut SmallVec<[ParserSpanStart; 4]>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let Some(wrapper_start) = wrappers.pop() else {
             return self.eat_expression(self.flags.nested().not_in_position());
         };
@@ -327,7 +327,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let flags = self
             .flags
             .nested()

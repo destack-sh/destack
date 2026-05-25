@@ -3,7 +3,7 @@ use crate::parse::scope::ExpressionScope;
 use crate::parse::{
     DeclarationHeader, PendingDecorators, is_declaration_keyword, is_type_relation_keyword,
 };
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{
     Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, ExportKind,
     Expression, Keyword, LocalNodeId, NodeType, TokenLiteral, TokenType, TypeExpression,
@@ -45,7 +45,7 @@ impl Parser {
         &mut self,
         flags: ParserFlags,
         minimum_precedence: u16,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let scope = ExpressionScope::from_flags(flags).at_precedence(Some(minimum_precedence));
 
         self.with_recursive_descent(NodeType::Expression, |parser| {
@@ -64,7 +64,7 @@ impl Parser {
     pub(crate) fn eat_expression(
         &mut self,
         flags: ParserFlags,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let scope = ExpressionScope::from_flags(flags);
 
         self.with_recursive_descent(NodeType::Expression, |parser| {
@@ -80,7 +80,7 @@ impl Parser {
     /// (value + other)
     /// (condition ? yes : no)
     /// ```
-    pub(crate) fn eat_parenthesized_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub(crate) fn eat_parenthesized_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let expression_id = self.eat_expression(self.flags)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
@@ -99,7 +99,7 @@ impl Parser {
     pub(crate) fn eat_plain_identifier_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.peek_token_type() != TokenType::Identifier || self.current_keyword().is_some() {
             return Ok(None);
         }
@@ -141,7 +141,7 @@ impl Parser {
     pub(crate) fn eat_identifier_expression_path(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let (name, name_span) = self.eat_identifier_with_span()?;
         let expression_id =
             self.insert_node(Expression::Identifier { name }, self.get_span_from(start));
@@ -163,7 +163,7 @@ impl Parser {
         start: &ParserSpanStart,
         left_expression_id: LocalNodeId<Expression>,
         left_is_parenthesized: bool,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let scope = ExpressionScope::from_flags(self.flags);
         let (left_expression_id, _) =
             self.eat_postfix(start, left_expression_id, left_is_parenthesized, scope)?;
@@ -185,7 +185,7 @@ impl Parser {
     pub(super) fn eat_expression_body(
         &mut self,
         scope: ExpressionScope,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         let mut decorators = if !self.flags.is_in_decorator() && self.peek_is(TokenType::At) {
             self.eat_decorators_maybe()?
@@ -212,7 +212,7 @@ impl Parser {
     pub(super) fn eat_expression_scope(
         &mut self,
         scope: ExpressionScope,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         self.with_flags(scope.flags, |parser| parser.eat_expression_body(scope))
     }
 
@@ -227,7 +227,7 @@ impl Parser {
     pub(super) fn eat_value_operand(
         &mut self,
         scope: ExpressionScope,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         self.with_flags(scope.flags, |parser| {
             let start = parser.span_start();
 
@@ -402,7 +402,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_member_name_with_span(
         &mut self,
-    ) -> ParseResult<(destack_core::StringId, Span)> {
+    ) -> ParserResult<(destack_core::StringId, Span)> {
         if self.peek_is(TokenType::Literal)
             && matches!(
                 self.current_token().token.literal,

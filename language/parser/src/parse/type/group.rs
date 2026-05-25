@@ -1,5 +1,5 @@
 use crate::parse::scan::DelimiterDepth;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
 
@@ -15,7 +15,7 @@ impl Parser {
     pub(super) fn eat_parenthesized_type(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenParenthesis)?;
 
         // empty tuple
@@ -83,7 +83,7 @@ impl Parser {
     fn eat_parenthesized_tuple_type(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let elements = self.eat_type_tuple_elements_body(TokenType::CloseParenthesis)?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
@@ -108,7 +108,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         first: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let elements = self.eat_type_tuple_tail(start, TokenType::CloseParenthesis, first)?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
@@ -278,7 +278,7 @@ impl Parser {
     pub(super) fn eat_bracket_type(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
         // empty tuple
@@ -358,7 +358,7 @@ impl Parser {
     fn eat_array_tuple_type(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let elements = self.eat_type_tuple_elements_body(TokenType::CloseBracket)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
@@ -380,7 +380,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         element: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.bump();
         let length = self.eat_expression_or_recover_missing(
             self.flags.nested().with_type(false),
@@ -406,7 +406,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         element: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.language.is_destack() {
             return Ok(
                 self.insert_node(TypeExpression::Slice { element }, self.get_span_from(start))
@@ -433,7 +433,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         first: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let elements = self.eat_type_tuple_tail(start, TokenType::CloseBracket, first)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 

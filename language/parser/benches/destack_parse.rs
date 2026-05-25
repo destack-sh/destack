@@ -1,10 +1,10 @@
 use criterion::profiler::Profiler;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
-use destack_source::{glob, File, FileId, FileType, LanguageType, Uri};
-use pprof::flamegraph::Options as FlamegraphOptions;
+use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
+use pprof::flamegraph::Options as FlamegraphOptions;
 use rayon::prelude::*;
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
@@ -79,11 +79,7 @@ fn parser_files_from_env() -> Option<Vec<PathBuf>> {
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .collect();
-    if files.is_empty() {
-        None
-    } else {
-        Some(files)
-    }
+    if files.is_empty() { None } else { Some(files) }
 }
 
 /// Collect parser source files for the workspace benchmark.

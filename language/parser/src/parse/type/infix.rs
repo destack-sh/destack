@@ -1,6 +1,6 @@
 use crate::parse::scope::TypeScope;
 use crate::parse::r#type::operator::{TypeBinaryOperator, TypeInfixOperator};
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     BinaryOperator, Keyword, LocalNodeId, NodeType, OperatorPrecedence, RangeEnd, TokenType,
@@ -21,7 +21,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let type_expression_id = self.eat_type_prefix_or_primary(start)?;
         let type_expression_id = self.eat_type_postfix(start, type_expression_id, scope)?;
 
@@ -41,7 +41,7 @@ impl Parser {
         start: &ParserSpanStart,
         mut left: LocalNodeId<TypeExpression>,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         loop {
             // stop at grammar owned by the caller
             if self.type_infix_belongs_to_outer_scope(scope) {
@@ -197,7 +197,7 @@ impl Parser {
         operator_span: Span,
         right: TypeScope,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // conditional type
         if operator == TypeInfixOperator::Relation(TypeBinaryOperator::Extends) {
             return self.eat_type_conditional_rest(start, left, operator_span);
@@ -212,7 +212,7 @@ impl Parser {
         if operator == TypeInfixOperator::Is
             && !(scope.allows_type_predicate || self.type_expression_is_bare_this(left))
         {
-            return Err(ParseError::unexpected(operator_span));
+            return Err(ParserError::unexpected(operator_span));
         }
 
         // ordinary type infix expression
@@ -240,7 +240,7 @@ impl Parser {
     fn eat_type_infix_right(
         &mut self,
         right: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if Self::is_type_expression_boundary_token(self.peek_token_type()) {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
@@ -262,7 +262,7 @@ impl Parser {
         left: LocalNodeId<TypeExpression>,
         end_kind: RangeEnd,
         right: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let end = self.eat_type_range_end(end_kind, right)?;
 
         Ok(self.insert_node(
@@ -288,7 +288,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<TypeExpression>,
         operator_span: Span,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let extends_type = self.eat_type_extends_operand()?;
 
         // plain extends expression
@@ -323,7 +323,7 @@ impl Parser {
     /// keyof U
     /// { id: string }
     /// ```
-    fn eat_type_extends_operand(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_type_extends_operand(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let flags = self
             .flags
             .not_in_position()
@@ -344,9 +344,9 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<TypeExpression>,
         extends_type: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.language.is_typescript() {
-            return Err(ParseError::expected(
+            return Err(ParserError::expected(
                 self.anchor_span_here(),
                 TokenType::Maybe,
             ));
@@ -369,7 +369,7 @@ impl Parser {
     /// readonly X
     /// X | Y
     /// ```
-    fn eat_type_conditional_then(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_type_conditional_then(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let flags = self
             .flags
             .not_in_position()
@@ -387,7 +387,7 @@ impl Parser {
     /// never
     /// X extends Y ? A : B
     /// ```
-    fn eat_type_conditional_else(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_type_conditional_else(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let flags = self.flags.not_in_position().in_type();
 
         self.eat_type_expression_or_recover_missing(flags, NodeType::TypeExpression)
@@ -404,7 +404,7 @@ impl Parser {
     pub(super) fn eat_type_startless_range(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // operator
         let end_kind = if self.peek_is(TokenType::RangeInclusive) {
             RangeEnd::Inclusive
@@ -440,7 +440,7 @@ impl Parser {
         &mut self,
         end_kind: RangeEnd,
         right: TypeScope,
-    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if self.current_token_is_on_new_line() || self.is_type_expression_boundary() {
             if end_kind == RangeEnd::Inclusive {
                 return Ok(Some(
@@ -468,7 +468,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         token_type: TokenType,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // operator
         let operator_start = self.span_start();
         self.bump();

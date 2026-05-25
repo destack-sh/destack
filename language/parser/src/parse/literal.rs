@@ -6,7 +6,7 @@ use crate::parse::TypeMemberBodyMode;
 use crate::parse::mode::ContextualLexMode;
 use crate::parse::prelude::*;
 use crate::parse::scope::ExpressionScope;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Argument, Expression, GenericArgument, Keyword, LocalNodeId, NodeType, NumberBase, Path,
@@ -164,11 +164,11 @@ impl Parser {
 
     /// Peek a scalar literal token.
     #[inline]
-    pub fn peek_scalar_literal(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_scalar_literal(&mut self) -> ParserResult<&TokenSpan> {
         if self.peek_is(TokenType::Literal) {
             Ok(self.peek()?)
         } else {
-            Err(ParseError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 
@@ -189,10 +189,10 @@ impl Parser {
     /// /abc/
     /// /abc/g
     /// ```
-    pub fn eat_scalar_literal(&mut self) -> ParseResult<ScalarLiteral> {
+    pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
         let literal_span = *self.eat()?;
         let Some(body) = literal_span.token.literal else {
-            return Err(ParseError::unexpected(literal_span.span));
+            return Err(ParserError::unexpected(literal_span.span));
         };
         let has_adjacent_identifier_suffix =
             self.numeric_literal_has_adjacent_identifier_suffix(literal_span);
@@ -209,7 +209,7 @@ impl Parser {
                 is_bigint,
             } => {
                 if is_empty {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -220,7 +220,7 @@ impl Parser {
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.int_literal_uses_legacy_leading_zero(literal_str, base, is_bigint)
                 {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -229,7 +229,7 @@ impl Parser {
 
                 // reject legacy octal literals without an explicit 0o/0O prefix
                 if self.int_literal_is_legacy_octal(literal_str, base, is_bigint) {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -240,7 +240,7 @@ impl Parser {
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.int_literal_has_invalid_digits(literal_str, base, is_bigint)
                 {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -249,7 +249,7 @@ impl Parser {
 
                 // typed and untyped source forms require a separator before identifier starts
                 if has_adjacent_identifier_suffix {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -301,7 +301,7 @@ impl Parser {
                 is_empty_exponent,
             } => {
                 if is_empty_exponent {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -312,7 +312,7 @@ impl Parser {
                 if (self.language.is_javascript() || self.language.is_typescript())
                     && self.float_literal_uses_legacy_leading_zero(literal_str)
                 {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -321,7 +321,7 @@ impl Parser {
 
                 // typed and untyped source forms require a separator after numeric literals before identifier starts
                 if has_adjacent_identifier_suffix {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -338,7 +338,7 @@ impl Parser {
                     .parse::<f64>()
                     .map(ScalarLiteral::Float)
                     .map_err(|_| {
-                        ParseError::expected_for(
+                        ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -352,7 +352,7 @@ impl Parser {
                 is_html_entity,
             } => {
                 if !is_terminated || !is_html_entity {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -362,7 +362,7 @@ impl Parser {
                 decode_html_entity(literal_str)
                     .map(ScalarLiteral::Character)
                     .ok_or_else(|| {
-                        ParseError::expected_for(
+                        ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -376,7 +376,7 @@ impl Parser {
                 has_invalid_escape,
             } => {
                 if !is_terminated || has_invalid_escape {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -387,7 +387,7 @@ impl Parser {
                     return Self::decode_character_literal(literal_str)
                         .map(ScalarLiteral::Character)
                         .ok_or_else(|| {
-                            ParseError::expected_for(
+                            ParserError::expected_for(
                                 literal_span.span,
                                 TokenType::Literal,
                                 NodeType::Expression,
@@ -417,7 +417,7 @@ impl Parser {
             TokenLiteral::RegexString { has_flags } => {
                 // regex literals require a closing slash
                 if !literal_str.starts_with('/') {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -427,7 +427,7 @@ impl Parser {
                 // regex without flags
                 if !has_flags {
                     if !literal_str.ends_with('/') || literal_str.len() < 2 {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -436,7 +436,7 @@ impl Parser {
 
                     let content = &literal_str[1..literal_str.len() - 1];
                     if self.contains_regex_line_terminator(content) {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -451,14 +451,14 @@ impl Parser {
                 // regex with flags
                 else {
                     let Some(last_slash_index) = literal_str.rfind('/') else {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
                         ));
                     };
                     if last_slash_index == 0 {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -468,21 +468,21 @@ impl Parser {
                     let content = &literal_str[1..last_slash_index];
                     let flags = &literal_str[last_slash_index + 1..];
                     if flags.is_empty() || self.contains_regex_line_terminator(content) {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
                         ));
                     }
                     if !self.regex_flags_are_valid(flags) {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
                         ));
                     }
                     if !self.regex_unicode_escapes_are_valid(content, flags) {
-                        return Err(ParseError::expected_for(
+                        return Err(ParserError::expected_for(
                             literal_span.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -506,9 +506,9 @@ impl Parser {
     }
 
     /// Re-lex and eat the current regex literal.
-    pub(crate) fn eat_regex_literal(&mut self) -> ParseResult<ScalarLiteral> {
+    pub(crate) fn eat_regex_literal(&mut self) -> ParserResult<ScalarLiteral> {
         if !self.re_lex_regex() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.eat_scalar_literal()
@@ -518,10 +518,10 @@ impl Parser {
     pub(crate) fn eat_tree_child_scalar_expression(
         &mut self,
         follow_mode: ContextualLexMode,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let token = *self.peek()?;
         let Some(body) = token.token.literal else {
-            return Err(ParseError::unexpected(token.span));
+            return Err(ParserError::unexpected(token.span));
         };
         let literal_str = self.file.span_str(token.span);
         let scalar_literal = match body {
@@ -530,7 +530,7 @@ impl Parser {
                 is_html_entity,
             } => {
                 if !is_terminated || !is_html_entity {
-                    return Err(ParseError::expected_for(
+                    return Err(ParserError::expected_for(
                         token.span,
                         TokenType::Literal,
                         NodeType::Expression,
@@ -540,7 +540,7 @@ impl Parser {
                 decode_html_entity(literal_str)
                     .map(ScalarLiteral::Character)
                     .ok_or_else(|| {
-                        ParseError::expected_for(
+                        ParserError::expected_for(
                             token.span,
                             TokenType::Literal,
                             NodeType::Expression,
@@ -551,7 +551,7 @@ impl Parser {
                 let string_id = self.strings.intern(literal_str);
                 ScalarLiteral::String(string_id)
             }
-            _ => return Err(ParseError::unexpected(token.span)),
+            _ => return Err(ParserError::unexpected(token.span)),
         };
 
         // continue in the owning tree scope
@@ -725,11 +725,11 @@ impl Parser {
 
     /// Peek a template literal.
     #[inline]
-    pub fn peek_template_literal(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_template_literal(&mut self) -> ParserResult<&TokenSpan> {
         if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
             Ok(self.peek()?)
         } else {
-            Err(ParseError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 
@@ -743,12 +743,12 @@ impl Parser {
     /// `${stmt}`
     /// `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
-    pub fn eat_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
+    pub fn eat_template_literal(&mut self) -> ParserResult<TemplateLiteral> {
         self.eat_template_literal_with_flags(false)
     }
 
     /// Eat a tagged template literal.
-    pub fn eat_tagged_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
+    pub fn eat_tagged_template_literal(&mut self) -> ParserResult<TemplateLiteral> {
         self.eat_template_literal_with_flags(true)
     }
 
@@ -756,7 +756,7 @@ impl Parser {
     fn eat_template_literal_with_flags(
         &mut self,
         allow_legacy_octal_escapes: bool,
-    ) -> ParseResult<TemplateLiteral> {
+    ) -> ParserResult<TemplateLiteral> {
         let (strings, arguments) = self
             .eat_template_literal_body(allow_legacy_octal_escapes, |parser| {
                 parser.eat_template_literal_argument()
@@ -778,7 +778,7 @@ impl Parser {
     /// ```
     pub fn eat_type_template_literal_expression(
         &mut self,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.span_start();
         let (strings, spans) = self.eat_template_literal_body(false, |parser| {
             // reset outer precedence so interpolation unions parse fully
@@ -811,8 +811,8 @@ impl Parser {
     fn eat_template_literal_body<T>(
         &mut self,
         allow_legacy_octal_escapes: bool,
-        mut parse_span: impl FnMut(&mut Parser) -> ParseResult<T>,
-    ) -> ParseResult<(Vec<StringId>, Vec<T>)> {
+        mut parse_span: impl FnMut(&mut Parser) -> ParserResult<T>,
+    ) -> ParserResult<(Vec<StringId>, Vec<T>)> {
         let next = *self.eat()?;
         let next_str = self.file.span_str(next.span);
 
@@ -867,7 +867,7 @@ impl Parser {
                     if !self.peek_is(TokenType::TemplateStringMiddle)
                         && !self.peek_is(TokenType::TemplateStringEnd)
                     {
-                        return Err(ParseError::unexpected(self.peek()?.span));
+                        return Err(ParserError::unexpected(self.peek()?.span));
                     }
                     spans.push(span);
                 }
@@ -889,7 +889,7 @@ impl Parser {
             return Ok((strings, spans));
         }
 
-        Err(ParseError::unexpected(next.span))
+        Err(ParserError::unexpected(next.span))
     }
 
     /// Return the body of one lexer-shaped template chunk.
@@ -948,13 +948,13 @@ impl Parser {
         span: Span,
         string: &str,
         allow_legacy_octal_escapes: bool,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         if allow_legacy_octal_escapes {
             return Ok(());
         }
 
         if Self::template_chunk_has_legacy_octal_escape(string) {
-            return Err(ParseError::unexpected(span));
+            return Err(ParserError::unexpected(span));
         }
 
         Ok(())
@@ -963,7 +963,7 @@ impl Parser {
     /// Eat a template literal interpolation argument.
     ///
     /// Template literal interpolations parse as full expressions (no named args).
-    pub fn eat_template_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+    pub fn eat_template_literal_argument(&mut self) -> ParserResult<LocalNodeId<Argument>> {
         let start = self.span_start();
 
         let value = self.eat_template_interpolation_expression()?;
@@ -982,7 +982,7 @@ impl Parser {
     /// first, second
     /// condition ? yes : no
     /// ```
-    fn eat_template_interpolation_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_template_interpolation_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let flags = self.flags.not_in_position().not_in_tree_literal();
         let scope = ExpressionScope::from_flags(flags);
         let start = self.span_start();
@@ -1007,7 +1007,7 @@ impl Parser {
     pub fn eat_bracket_literal_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
         if self.peek_is(TokenType::CloseBracket) {
@@ -1074,7 +1074,7 @@ impl Parser {
     }
 
     /// Eat an array literal (including the surrounding brackets).
-    pub fn eat_array_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+    pub fn eat_array_literal(&mut self) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::OpenBracket)?;
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
@@ -1097,7 +1097,7 @@ impl Parser {
         &mut self,
         first_element: Option<LocalNodeId<Argument>>,
         close_token: TokenType,
-    ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+    ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
         let mut elements = Vec::new();
         if let Some(first) = first_element {
             elements.push(first);
@@ -1153,7 +1153,7 @@ impl Parser {
     /// { }
     /// { a: 1, b }
     /// { a(x): void }
-    pub fn eat_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
+    pub fn eat_object_literal(&mut self) -> ParserResult<Vec<LocalNodeId<Property>>> {
         self.eat_token(TokenType::OpenBrace)?;
         let properties = self.eat_object_properties()?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Expression)?;
@@ -1162,7 +1162,7 @@ impl Parser {
     }
 
     /// Eat one object type literal (including the surrounding braces).
-    pub fn eat_type_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<TypeMember>>> {
+    pub fn eat_type_object_literal(&mut self) -> ParserResult<Vec<LocalNodeId<TypeMember>>> {
         self.eat_token(TokenType::OpenBrace)?;
 
         let property_ambient_context = self.flags.with_variant(false).with_type(true);
@@ -1336,11 +1336,11 @@ impl Parser {
 
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
-    pub fn peek_tree_literal(&mut self) -> ParseResult<()> {
+    pub fn peek_tree_literal(&mut self) -> ParserResult<()> {
         let mark = self.cursor_checkpoint();
         let result = (|| {
             if !self.peek_is(TokenType::LessThan) {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
             let unexpected_span = self.peek()?.span;
 
@@ -1349,11 +1349,11 @@ impl Parser {
 
             let next_token_type = self.peek_token_type();
             if next_token_type == TokenType::Divide {
-                return Err(ParseError::unexpected(unexpected_span));
+                return Err(ParserError::unexpected(unexpected_span));
             }
             let starts_tag_close = self.peek_starts_tree_tag_close();
             if !starts_tag_close && next_token_type != TokenType::Identifier {
-                return Err(ParseError::unexpected(unexpected_span));
+                return Err(ParserError::unexpected(unexpected_span));
             }
 
             // exclude generic arrow function disambiguation: <T,>(...)
@@ -1361,7 +1361,7 @@ impl Parser {
                 self.eat_tree_literal_identifier()?;
 
                 if self.peek_is(TokenType::Comma) {
-                    return Err(ParseError::unexpected(unexpected_span));
+                    return Err(ParserError::unexpected(unexpected_span));
                 }
             }
 
@@ -1375,7 +1375,7 @@ impl Parser {
 
     /// Skip whitespace-only tree string tokens.
     /// Whitespace-only text between sibling tree elements is ignored.
-    pub(crate) fn skip_tree_whitespace(&mut self) -> ParseResult<bool> {
+    pub(crate) fn skip_tree_whitespace(&mut self) -> ParserResult<bool> {
         self.skip_tree_whitespace_in_child_mode(ContextualLexMode::Normal)
     }
 
@@ -1383,7 +1383,7 @@ impl Parser {
     pub(crate) fn skip_tree_whitespace_in_child_mode(
         &mut self,
         follow_mode: ContextualLexMode,
-    ) -> ParseResult<bool> {
+    ) -> ParserResult<bool> {
         let mut skipped = false;
         loop {
             let token = *self.peek()?;
@@ -1434,7 +1434,7 @@ impl Parser {
     ///     ..someChildren.map(child => <Entity name={child.name} />)
     /// </Level>
     /// ```
-    pub fn eat_tree_literal(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_tree_literal(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_tree_literal_with_follow(ContextualLexMode::Normal)
     }
 
@@ -1442,7 +1442,7 @@ impl Parser {
     pub(crate) fn eat_tree_literal_with_follow(
         &mut self,
         follow_mode: ContextualLexMode,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let first = self.eat_tree_literal_open(follow_mode)?;
         let mut stack = match first {
             TreeLiteralOpen::Complete(expression_id) => return Ok(expression_id),
@@ -1453,13 +1453,13 @@ impl Parser {
             self.skip_tree_whitespace_in_child_mode(ContextualLexMode::TreeChild)?;
 
             let Some(current) = stack.last() else {
-                return Err(ParseError::unexpected(self.anchor_span_here()));
+                return Err(ParserError::unexpected(self.anchor_span_here()));
             };
             let closes_current = self
                 .try_eat_tree_literal_closing(current.path.as_ref(), current.close_follow_mode)?;
             if closes_current {
                 let Some(tree_literal) = stack.pop() else {
-                    return Err(ParseError::unexpected(self.anchor_span_here()));
+                    return Err(ParserError::unexpected(self.anchor_span_here()));
                 };
                 let expression_id = self.insert_tree_literal_expression(tree_literal, true)?;
 
@@ -1477,7 +1477,7 @@ impl Parser {
                     TreeLiteralOpen::Complete(expression_id) => {
                         let element = self.insert_tree_literal_element(expression_id);
                         let Some(parent) = stack.last_mut() else {
-                            return Err(ParseError::unexpected(self.anchor_span_here()));
+                            return Err(ParserError::unexpected(self.anchor_span_here()));
                         };
                         parent.elements.push(element);
                     }
@@ -1499,7 +1499,7 @@ impl Parser {
 
             let element = element?;
             let Some(parent) = stack.last_mut() else {
-                return Err(ParseError::unexpected(self.anchor_span_here()));
+                return Err(ParserError::unexpected(self.anchor_span_here()));
             };
             parent.elements.push(element);
         }
@@ -1509,7 +1509,7 @@ impl Parser {
     fn eat_tree_literal_open(
         &mut self,
         follow_mode: ContextualLexMode,
-    ) -> ParseResult<TreeLiteralOpen> {
+    ) -> ParserResult<TreeLiteralOpen> {
         let start = self.span_start();
         self.eat_tree_opening_angle()?;
 
@@ -1521,7 +1521,7 @@ impl Parser {
 
             // jsx namespace names cannot be followed by member access
             if self.tree_literal_path_has_namespace_member(&path) {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             path_segment_spans = Some(segment_spans);
@@ -1588,7 +1588,7 @@ impl Parser {
     /// Eat tree literal header arguments.
     fn eat_tree_literal_header_arguments(
         &mut self,
-    ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
+    ) -> ParserResult<Option<Vec<LocalNodeId<Argument>>>> {
         self.skip_tree_whitespace()?;
         if self.peek_is(TokenType::Divide) || self.peek_starts_tree_tag_close() {
             return Ok(None);
@@ -1623,7 +1623,7 @@ impl Parser {
         &mut self,
         path: Option<&Path>,
         follow_mode: ContextualLexMode,
-    ) -> ParseResult<bool> {
+    ) -> ParserResult<bool> {
         if !self.peek_is(TokenType::LessThan) {
             return Ok(false);
         }
@@ -1643,22 +1643,22 @@ impl Parser {
         }
 
         if path.is_some() && self.peek_starts_tree_tag_close() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         let Some(path) = path else {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         };
 
         let closing_path = self.eat_tree_literal_path()?;
         if self.tree_literal_path_has_namespace_member(&closing_path) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.skip_tree_whitespace()?;
         self.eat_tree_tag_close(follow_mode)?;
         if closing_path != *path {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         Ok(true)
@@ -1669,7 +1669,7 @@ impl Parser {
         &mut self,
         tree_literal: OpenTreeLiteral,
         has_children: bool,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let OpenTreeLiteral {
             start,
             path,
@@ -1683,13 +1683,13 @@ impl Parser {
 
         let left = if let Some(path) = path {
             let Some(segment_spans) = path_segment_spans.as_deref() else {
-                return Err(ParseError::unexpected(opening_span));
+                return Err(ParserError::unexpected(opening_span));
             };
             let Some(first_segment_span) = segment_spans.first().copied() else {
-                return Err(ParseError::unexpected(opening_span));
+                return Err(ParserError::unexpected(opening_span));
             };
             let Some(last_segment_span) = segment_spans.last().copied() else {
-                return Err(ParseError::unexpected(opening_span));
+                return Err(ParserError::unexpected(opening_span));
             };
             let path_span = Span::new(
                 first_segment_span.file,

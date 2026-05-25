@@ -1,6 +1,6 @@
 use crate::parse::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -34,7 +34,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         // keyword
         self.eat_keyword(Keyword::Extension)?;
 

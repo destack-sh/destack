@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{FloatType, IntegerType, Keyword, TokenType, TypeLiteral, VarianceBound};
 
@@ -59,7 +59,7 @@ impl Parser {
     /// super Base
     /// ```
     #[inline]
-    pub fn eat_variance_bound_if_present(&mut self) -> ParseResult<Option<VarianceBound>> {
+    pub fn eat_variance_bound_if_present(&mut self) -> ParserResult<Option<VarianceBound>> {
         let bound = if self.is_keyword(Keyword::Implements) {
             Some(VarianceBound::Implements)
         } else if self.is_keyword(Keyword::Extends) {
@@ -96,11 +96,11 @@ impl Parser {
     }
 
     /// Peek one non composite type literal.
-    pub fn peek_type_literal(&mut self) -> ParseResult<TypeLiteral> {
+    pub fn peek_type_literal(&mut self) -> ParserResult<TypeLiteral> {
         // require identifier text
         let next = *self.peek()?;
         if next.token.ty != TokenType::Identifier {
-            return Err(ParseError::unexpected(next.span));
+            return Err(ParserError::unexpected(next.span));
         }
 
         // resolve literals available in all grammar spaces
@@ -111,7 +111,7 @@ impl Parser {
 
         // require type space for contextual literals
         if !self.flags.is_in_type() && !self.flags.is_in_static() {
-            return Err(ParseError::unexpected(next.span));
+            return Err(ParserError::unexpected(next.span));
         }
 
         // resolve one token contextual literals
@@ -125,7 +125,7 @@ impl Parser {
                 return Ok(TypeLiteral::UniqueSymbol);
             }
 
-            return Err(ParseError::unexpected(next.span));
+            return Err(ParserError::unexpected(next.span));
         }
 
         // resolve numeric literals with width suffixes
@@ -150,7 +150,7 @@ impl Parser {
             }
             "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
             "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
-            _ => Err(ParseError::unexpected(next.span)),
+            _ => Err(ParserError::unexpected(next.span)),
         }
     }
 
@@ -162,7 +162,7 @@ impl Parser {
     /// uint32
     /// unique symbol
     /// ```
-    pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParseResult<TypeLiteral> {
+    pub fn eat_type_literal(&mut self, literal: Option<TypeLiteral>) -> ParserResult<TypeLiteral> {
         // resolve the literal kind first
         let literal = match literal {
             Some(literal) => literal,

@@ -2,7 +2,7 @@ use crate::parse::DeclarationHeader;
 use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
 use crate::parse::scan::DelimiterDepth;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportKind, Expression,
@@ -182,7 +182,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         let can_parse_arrow_value = !self.flags.is_in_type()
             && !self.flags.is_in_match_case()
             && header == DeclarationHeader::default();
@@ -214,7 +214,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let function = self.eat_function_syntax(start, header)?;
 
         if function.signature.form == FunctionForm::Lambda && function.body.is_none() {
@@ -236,7 +236,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<ParsedFunction> {
+    ) -> ParserResult<ParsedFunction> {
         let head = self.eat_function_head(header)?;
         self.require_function_name(&head)?;
 
@@ -406,7 +406,7 @@ impl Parser {
     fn eat_arrow_body(
         &mut self,
         body_start: &ParserSpanStart,
-    ) -> ParseResult<(LocalNodeId<Expression>, Span)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, Span)> {
         if self.is_block_start() {
             let mut flags = self
                 .flags
@@ -644,7 +644,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: &DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
         let Some((head_shape, follow_token_type)) = self.scan_parenthesized_arrow_head() else {
             return Ok(None);
         };
@@ -737,7 +737,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: &DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
         // require an arrow or return type marker after the parenthesized head
         let follow_token_type =
             if let Some((_, follow_token_type)) = self.scan_parenthesized_arrow_head() {
@@ -831,7 +831,7 @@ impl Parser {
         header: DeclarationHeader,
         parameters: Vec<LocalNodeId<Parameter>>,
         parameter_span: Option<Span>,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         let (return_type, return_type_span) = self.eat_arrow_return_type()?;
 
         self.eat_arrow()?;
@@ -863,7 +863,7 @@ impl Parser {
     /// ```
     fn eat_arrow_return_type(
         &mut self,
-    ) -> ParseResult<(Option<LocalNodeId<TypeExpression>>, Option<Span>)> {
+    ) -> ParserResult<(Option<LocalNodeId<TypeExpression>>, Option<Span>)> {
         if !self.has_lambda_return_type_marker() {
             return Ok((None, None));
         }
@@ -908,7 +908,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: &DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Declaration>>> {
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
         // parse the single named parameter
         let parameter_name = self.eat_identifier()?;
         let parameter_span = self.get_span_from(start);
@@ -935,7 +935,7 @@ impl Parser {
     fn eat_function_head(
         &mut self,
         mut header: DeclarationHeader,
-    ) -> ParseResult<ParsedFunctionHead> {
+    ) -> ParserResult<ParsedFunctionHead> {
         if self.is_keyword(Keyword::Abstract) && !header.is_abstract {
             self.bump();
             header.is_abstract = true;
@@ -1005,7 +1005,7 @@ impl Parser {
     }
 
     /// Eat one function form marker.
-    fn eat_function_form(&mut self, is_generator: bool) -> ParseResult<(FunctionForm, bool)> {
+    fn eat_function_form(&mut self, is_generator: bool) -> ParserResult<(FunctionForm, bool)> {
         if self.is_keyword(Keyword::Function) {
             self.bump();
             let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
@@ -1020,7 +1020,7 @@ impl Parser {
     fn eat_function_name(
         &mut self,
         form: FunctionForm,
-    ) -> ParseResult<(Option<Name>, Option<Span>)> {
+    ) -> ParserResult<(Option<Name>, Option<Span>)> {
         if form != FunctionForm::Function {
             return Ok((None, None));
         }
@@ -1035,7 +1035,7 @@ impl Parser {
     /// Eat function generic parameters and their container span.
     fn eat_function_generics(
         &mut self,
-    ) -> ParseResult<(Option<Vec<LocalNodeId<GenericParameter>>>, Option<Span>)> {
+    ) -> ParserResult<(Option<Vec<LocalNodeId<GenericParameter>>>, Option<Span>)> {
         let start = self.span_start();
         let generic_parameters = self
             .eat_generic_parameters_maybe(false)
@@ -1048,13 +1048,13 @@ impl Parser {
     }
 
     /// Require statement function declarations to have names.
-    fn require_function_name(&mut self, head: &ParsedFunctionHead) -> ParseResult<()> {
+    fn require_function_name(&mut self, head: &ParsedFunctionHead) -> ParserResult<()> {
         if head.form == FunctionForm::Function
             && self.flags.is_in_statement_position()
             && head.name.is_none()
             && head.header.export != Some(ExportKind::Default)
         {
-            Err(ParseError::expected(
+            Err(ParserError::expected(
                 self.peek()?.span,
                 TokenType::Identifier,
             ))
@@ -1068,7 +1068,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         head: &ParsedFunctionHead,
-    ) -> ParseResult<ParsedFunctionParameters> {
+    ) -> ParserResult<ParsedFunctionParameters> {
         let has_parenthesized_parameters = head.form == FunctionForm::Function
             || self.flags.is_in_type()
             || self.peek_is(TokenType::OpenParenthesis)
@@ -1084,7 +1084,7 @@ impl Parser {
     fn eat_parenthesized_function_parameters(
         &mut self,
         head: &ParsedFunctionHead,
-    ) -> ParseResult<ParsedFunctionParameters> {
+    ) -> ParserResult<ParsedFunctionParameters> {
         let start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -1114,9 +1114,9 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         head: &ParsedFunctionHead,
-    ) -> ParseResult<ParsedFunctionParameters> {
+    ) -> ParserResult<ParsedFunctionParameters> {
         if head.is_generator && self.is_keyword(Keyword::Yield) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         let name = self.eat_identifier()?;
@@ -1141,7 +1141,7 @@ impl Parser {
     fn eat_function_return(
         &mut self,
         head: &ParsedFunctionHead,
-    ) -> ParseResult<ParsedFunctionReturn> {
+    ) -> ParserResult<ParsedFunctionReturn> {
         if head.form == FunctionForm::Lambda && self.has_lambda_return_type_marker() {
             self.eat_lambda_return_type()
         } else if head.form == FunctionForm::Function || self.flags.is_in_type() {
@@ -1156,7 +1156,7 @@ impl Parser {
     }
 
     /// Eat a lambda return type.
-    fn eat_lambda_return_type(&mut self) -> ParseResult<ParsedFunctionReturn> {
+    fn eat_lambda_return_type(&mut self) -> ParserResult<ParsedFunctionReturn> {
         let start = self.span_start();
         self.bump();
 
@@ -1188,7 +1188,7 @@ impl Parser {
     }
 
     /// Eat a function return type.
-    fn eat_regular_return_type(&mut self) -> ParseResult<ParsedFunctionReturn> {
+    fn eat_regular_return_type(&mut self) -> ParserResult<ParsedFunctionReturn> {
         let (return_type, return_type_span) = if self.has_regular_return_type_marker() {
             let start = self.span_start();
             self.bump();
@@ -1236,7 +1236,7 @@ impl Parser {
     }
 
     /// Eat a function body when the source form owns one.
-    fn eat_function_body(&mut self, head: &ParsedFunctionHead) -> ParseResult<ParsedFunctionBody> {
+    fn eat_function_body(&mut self, head: &ParsedFunctionHead) -> ParserResult<ParsedFunctionBody> {
         if head.form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
             let start = self.span_start();
             let flags = self.function_block_body_flags(head);
@@ -1263,7 +1263,7 @@ impl Parser {
     }
 
     /// Eat a lambda body.
-    fn eat_lambda_body(&mut self, head: &ParsedFunctionHead) -> ParseResult<ParsedFunctionBody> {
+    fn eat_lambda_body(&mut self, head: &ParsedFunctionHead) -> ParserResult<ParsedFunctionBody> {
         self.eat_arrow()?;
         let start = self.span_start();
         let body = if self.is_block_start() {

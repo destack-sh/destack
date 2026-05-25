@@ -2,7 +2,7 @@
 
 use crate::parse::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
@@ -44,7 +44,7 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
         allow_anonymous_class: bool,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         // keyword
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
@@ -94,7 +94,7 @@ impl Parser {
             None
         };
         if let Some(span) = unexpected_extends_span {
-            self.error(&ParseError::unexpected_for(span, NodeType::Declaration));
+            self.error(&ParserError::unexpected_for(span, NodeType::Declaration));
         }
 
         // optional implements types
@@ -147,7 +147,7 @@ impl Parser {
             })
         } else {
             let Some(name) = name else {
-                return Err(ParseError::unexpected(self.get_span_from(start)));
+                return Err(ParserError::unexpected(self.get_span_from(start)));
             };
 
             Declaration::Struct(StructDeclaration {

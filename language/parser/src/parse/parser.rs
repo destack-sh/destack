@@ -6,15 +6,15 @@ use destack_dir::{
     TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
 };
 use destack_source::{
-    DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType, ModuleId, MultiSpan,
-    NodeSearchMode, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, PackageId, Span,
+    Diagnostic, DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType, ModuleId,
+    MultiSpan, NodeSearchMode, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, PackageId, Span,
 };
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::mem;
 use std::sync::Arc;
 
-use crate::{ParseError, ParseResult};
+use crate::{ParserError, ParserResult};
 
 use super::state::ParserState;
 
@@ -32,7 +32,7 @@ const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
 
 /// Stable parser error identity used for diagnostic deduplication.
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
-struct ParseErrorKey {
+struct ParserErrorKey {
     /// The leaf error span.
     span: Span,
     /// The leaf parser node type.
@@ -41,9 +41,9 @@ struct ParseErrorKey {
     expected: Option<TokenType>,
 }
 
-impl ParseErrorKey {
+impl ParserErrorKey {
     /// Create one deduplication key from one parser error.
-    fn from_error(error: &ParseError) -> Self {
+    fn from_error(error: &ParserError) -> Self {
         let (span, node_type, expected) = error.leaf_content();
 
         Self {
@@ -114,9 +114,9 @@ pub struct Parser {
     /// The language type for parsing behavior.
     pub language: LanguageType,
     /// The errors encountered so far (for deduplication).
-    pub errors: Vec<ParseError>,
+    pub errors: Vec<ParserError>,
     /// The parser error keys encountered so far.
-    error_keys: HashSet<ParseErrorKey>,
+    error_keys: HashSet<ParserErrorKey>,
     /// Semantic parser bookkeeping.
     pub(crate) state: ParserState,
 }
@@ -183,10 +183,10 @@ impl Parser {
     pub(crate) fn with_recursive_descent<T>(
         &mut self,
         owner: NodeType,
-        parse: impl FnOnce(&mut Self) -> ParseResult<T>,
-    ) -> ParseResult<T> {
+        parse: impl FnOnce(&mut Self) -> ParserResult<T>,
+    ) -> ParserResult<T> {
         if self.recursive_descent_depth >= MAX_RECURSIVE_DESCENT_DEPTH {
-            return Err(ParseError::unexpected_for(self.peek()?.span, owner));
+            return Err(ParserError::unexpected_for(self.peek()?.span, owner));
         }
 
         self.recursive_descent_depth += 1;
@@ -456,9 +456,12 @@ impl Parser {
 
     /// Eat a tree opening `<`.
     #[inline]
-    pub(crate) fn eat_tree_opening_angle(&mut self) -> ParseResult<()> {
+    pub(crate) fn eat_tree_opening_angle(&mut self) -> ParserResult<()> {
         if !self.peek_is(TokenType::LessThan) {
-            return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
+            return Err(ParserError::expected(
+                self.peek()?.span,
+                TokenType::LessThan,
+            ));
         }
 
         self.bump_tree_opening_angle();
@@ -656,9 +659,9 @@ impl Parser {
 
     /// Eat one typed angle-close token.
     #[inline]
-    pub(crate) fn eat_type_angle_close(&mut self) -> ParseResult<()> {
+    pub(crate) fn eat_type_angle_close(&mut self) -> ParserResult<()> {
         if !self.re_lex_r_angle() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.bump();
@@ -667,9 +670,9 @@ impl Parser {
 
     /// Eat one expression-position typed angle-close token.
     #[inline]
-    pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParseResult<()> {
+    pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParserResult<()> {
         if !Self::starts_expression_type_angle_close(self.peek_token_type()) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.eat_type_angle_close()
@@ -993,8 +996,8 @@ impl Parser {
     /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
     #[cold]
     #[inline(never)]
-    pub(crate) fn error(&mut self, e: &ParseError) {
-        let key = ParseErrorKey::from_error(e);
+    pub(crate) fn error(&mut self, e: &ParserError) {
+        let key = ParserErrorKey::from_error(e);
         if self.error_keys.insert(key) {
             self.errors.push(e.clone());
         }
@@ -1005,10 +1008,15 @@ impl Parser {
         let diagnostics = self
             .errors
             .iter()
-            .map(|error| error.to_diagnostic(self.file.as_ref(), self.tokens()))
+            .map(|error| self.diagnostic(error))
             .collect();
 
         DiagnosticCollection::from_diagnostics(diagnostics)
+    }
+
+    /// Build one source diagnostic from one parser error.
+    pub fn diagnostic(&self, error: &ParserError) -> Diagnostic {
+        error.to_diagnostic(self.file.as_ref(), self.tokens())
     }
 
     /// Rebuild parser error keys after speculative rollback.
@@ -1017,7 +1025,7 @@ impl Parser {
     fn rebuild_error_keys(&mut self) {
         self.error_keys.clear();
         self.error_keys
-            .extend(self.errors.iter().map(ParseErrorKey::from_error));
+            .extend(self.errors.iter().map(ParserErrorKey::from_error));
     }
 
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.
@@ -1276,7 +1284,7 @@ impl Parser {
 
     /// Peek the next Token or error.
     #[inline]
-    pub fn peek(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek(&mut self) -> ParserResult<&TokenSpan> {
         Ok(&self.current_token)
     }
 
@@ -1305,7 +1313,7 @@ impl Parser {
 
     /// Eat the next Token or error.
     #[inline]
-    pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat(&mut self) -> ParserResult<&TokenSpan> {
         let consumed = self.current_token;
         self.last_consumed_token = consumed;
         self.previous_token_end = consumed.span.end;
@@ -1349,7 +1357,7 @@ impl Parser {
 
     /// Peek the next token.
     #[inline]
-    pub fn peek_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn peek_token(&mut self, token_type: TokenType) -> ParserResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_token requires semantic token type"
@@ -1358,24 +1366,24 @@ impl Parser {
         if next.token.ty == token_type {
             Ok(next)
         } else {
-            Err(ParseError::unexpected(next.span))
+            Err(ParserError::unexpected(next.span))
         }
     }
 
     /// Peek the next token in a list of token types.
     #[inline]
-    pub fn peek_token_in(&mut self, token_types: &[TokenType]) -> ParseResult<&TokenSpan> {
+    pub fn peek_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
         let next = self.peek()?;
         if token_types.contains(&next.token.ty) {
             Ok(next)
         } else {
-            Err(ParseError::unexpected(next.span))
+            Err(ParserError::unexpected(next.span))
         }
     }
 
     /// Eat a token.
     #[inline]
-    pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn eat_token(&mut self, token_type: TokenType) -> ParserResult<&TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "eat_token requires semantic token type"
@@ -1384,12 +1392,12 @@ impl Parser {
         if current.token.ty == token_type {
             Ok(current)
         } else {
-            Err(ParseError::unexpected(current.span))
+            Err(ParserError::unexpected(current.span))
         }
     }
 
     /// Eat a token maybe.
-    pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParseResult<bool> {
+    pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParserResult<bool> {
         if self.peek_is(token_type) {
             self.bump();
             Ok(true)
@@ -1400,9 +1408,12 @@ impl Parser {
 
     /// Eat one tree tag close token and advance in the requested mode.
     #[inline]
-    pub(crate) fn eat_tree_tag_close(&mut self, follow_mode: ContextualLexMode) -> ParseResult<()> {
+    pub(crate) fn eat_tree_tag_close(
+        &mut self,
+        follow_mode: ContextualLexMode,
+    ) -> ParserResult<()> {
         if !self.re_lex_r_angle() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.bump_with_contextual_lex_mode(follow_mode);
@@ -1412,12 +1423,12 @@ impl Parser {
 
     /// Eat a token in a list of tokens.
     #[inline]
-    pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParseResult<TokenType> {
+    pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenType> {
         let current = self.eat()?;
         if token_types.contains(&current.token.ty) {
             Ok(current.token.ty)
         } else {
-            Err(ParseError::unexpected(current.span))
+            Err(ParserError::unexpected(current.span))
         }
     }
 
@@ -1426,7 +1437,7 @@ impl Parser {
     pub fn eat_token_in_maybe(
         &mut self,
         token_types: &[TokenType],
-    ) -> ParseResult<Option<TokenType>> {
+    ) -> ParserResult<Option<TokenType>> {
         let token = *self.peek()?;
         if token_types.contains(&token.token.ty) {
             self.bump();

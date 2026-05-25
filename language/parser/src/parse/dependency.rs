@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 
 use destack_core::StringId;
 use destack_dir::{
@@ -31,7 +31,7 @@ impl Parser {
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true }
     /// ```
-    pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_import(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -128,7 +128,7 @@ impl Parser {
     /// export { bar as bar, baz }
     /// export default foo
     /// ```
-    pub fn eat_export(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_export(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         self.eat_keyword(Keyword::Export)?;
@@ -139,7 +139,7 @@ impl Parser {
 
             // reject export default enum declarations
             if self.is_keyword(Keyword::Enum) {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             let value =
@@ -216,7 +216,7 @@ impl Parser {
 
         // require a binding after export and optional type modifier
         if self.peek_dependency_binding().is_err() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         // binding
@@ -256,7 +256,7 @@ impl Parser {
                         .tree
                         .get_main_span(*item_id)
                         .unwrap_or(self.tree.get_span(*item_id));
-                    return Err(ParseError::unexpected(span));
+                    return Err(ParserError::unexpected(span));
                 }
             }
         }
@@ -292,7 +292,7 @@ impl Parser {
     fn decode_import_attribute_value(
         &mut self,
         expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<ImportAttributeValue> {
+    ) -> ParserResult<ImportAttributeValue> {
         let expression = self.tree.get(expression_id).clone();
 
         Ok(match expression {
@@ -302,7 +302,7 @@ impl Parser {
 
                 for element_id in elements {
                     let Argument::Positional { value } = self.tree.get(element_id) else {
-                        return Err(ParseError::unexpected(self.tree.get_span(element_id)));
+                        return Err(ParserError::unexpected(self.tree.get_span(element_id)));
                     };
 
                     values.push(self.decode_import_attribute_value(*value)?);
@@ -315,11 +315,11 @@ impl Parser {
 
                 for property_id in properties {
                     let Property::Field { key, value, .. } = self.tree.get(property_id) else {
-                        return Err(ParseError::unexpected(self.tree.get_span(property_id)));
+                        return Err(ParserError::unexpected(self.tree.get_span(property_id)));
                     };
 
                     let Key::Name(key) = *key else {
-                        return Err(ParseError::unexpected(self.tree.get_span(property_id)));
+                        return Err(ParserError::unexpected(self.tree.get_span(property_id)));
                     };
                     let value = self.decode_import_attribute_value(*value)?;
 
@@ -328,7 +328,7 @@ impl Parser {
 
                 ImportAttributeValue::Object(attributes)
             }
-            _ => return Err(ParseError::unexpected(self.tree.get_span(expression_id))),
+            _ => return Err(ParserError::unexpected(self.tree.get_span(expression_id))),
         })
     }
 
@@ -336,11 +336,11 @@ impl Parser {
     fn decode_import_attribute(
         &mut self,
         argument_id: LocalNodeId<Argument>,
-    ) -> ParseResult<ImportAttribute> {
+    ) -> ParserResult<ImportAttribute> {
         let argument = self.tree.get(argument_id).clone();
 
         let Argument::Named { name, value } = argument else {
-            return Err(ParseError::unexpected(self.tree.get_span(argument_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(argument_id)));
         };
 
         let value = self.decode_import_attribute_value(value)?;
@@ -353,7 +353,7 @@ impl Parser {
         &mut self,
         node_id: LocalNodeId<Expression>,
         parsed_attributes: &ParsedImportAttributeClause,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         self.tree.set_side_span(
             node_id,
             NodeSpanType::Region(NodeSpanRegion::Clause),
@@ -362,7 +362,7 @@ impl Parser {
 
         for (index, attribute_span) in parsed_attributes.attribute_spans.iter().enumerate() {
             let Ok(segment) = u16::try_from(index) else {
-                return Err(ParseError::unexpected(*attribute_span));
+                return Err(ParserError::unexpected(*attribute_span));
             };
             self.tree.set_side_span(
                 node_id,
@@ -377,7 +377,7 @@ impl Parser {
     /// Eat dependency arguments for import/export attributes.
     fn eat_dependency_arguments_maybe(
         &mut self,
-    ) -> ParseResult<Option<ParsedImportAttributeClause>> {
+    ) -> ParserResult<Option<ParsedImportAttributeClause>> {
         // attribute clause head
         if !self.is_keyword(Keyword::With) {
             return Ok(None);
@@ -419,11 +419,11 @@ impl Parser {
     }
 
     /// Peek a dependency binding.
-    pub(crate) fn peek_dependency_binding(&mut self) -> ParseResult<()> {
+    pub(crate) fn peek_dependency_binding(&mut self) -> ParserResult<()> {
         if self.peek_dependency_binding_is() {
             Ok(())
         } else {
-            Err(ParseError::unexpected(self.peek()?.span))
+            Err(ParserError::unexpected(self.peek()?.span))
         }
     }
 
@@ -458,7 +458,7 @@ impl Parser {
     /// "foo"
     /// "foo/bar:something"
     /// ```
-    fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, Span)> {
+    fn eat_dependency_target_with_span(&mut self) -> ParserResult<(StringId, Span)> {
         let token = *self.peek_token(TokenType::Literal)?;
 
         // module targets accept regular string literals, including unterminated ones for recovery
@@ -470,7 +470,7 @@ impl Parser {
             })
         );
         if !is_valid_target {
-            return Err(ParseError::expected(token.span, TokenType::Literal));
+            return Err(ParserError::expected(token.span, TokenType::Literal));
         }
 
         let content = self.get_string_literal_str(token).to_owned();
@@ -493,7 +493,7 @@ impl Parser {
         &mut self,
         allow_type_modifier: bool,
         allow_literal_alias: bool,
-    ) -> ParseResult<Vec<LocalNodeId<DependencyItem>>> {
+    ) -> ParserResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
         // `Default,` or `foo from`
@@ -513,7 +513,7 @@ impl Parser {
 
                 // require a supported binding continuation
                 if !self.peek_is(TokenType::OpenBrace) && !self.peek_is(TokenType::Multiply) {
-                    return Err(ParseError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?.span));
                 }
             }
             let item = DependencyItem::Binding {
@@ -595,7 +595,7 @@ impl Parser {
                     break;
                 }
 
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             self.eat_close_token_or_recover_missing_with(
@@ -621,14 +621,14 @@ impl Parser {
         &mut self,
         allow_type_modifier: bool,
         allow_literal_alias: bool,
-    ) -> ParseResult<LocalNodeId<DependencyItem>> {
+    ) -> ParserResult<LocalNodeId<DependencyItem>> {
         let start = self.span_start();
 
         // source form
         let form = if self.should_parse_dependency_type_modifier() {
             if !allow_type_modifier {
                 let span = self.peek()?.span;
-                return Err(ParseError::unexpected(span));
+                return Err(ParserError::unexpected(span));
             }
             self.bump(); // eat type
             Some(DependencyForm::Type)
@@ -736,7 +736,7 @@ impl Parser {
     }
 
     /// Eat a dependency item name (identifier or string literal) and its span.
-    fn eat_dependency_item_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
+    fn eat_dependency_item_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
         if self.peek_is(TokenType::Identifier) {
             let (name, span) = self.eat_identifier_with_span()?;
             return Ok((Name::Identifier(name), span));
@@ -747,7 +747,7 @@ impl Parser {
             return Ok((Name::String(name), span));
         }
 
-        Err(ParseError::expected(
+        Err(ParserError::expected(
             self.peek()?.span,
             TokenType::Identifier,
         ))
@@ -757,7 +757,7 @@ impl Parser {
     fn eat_dependency_item_alias_with_span(
         &mut self,
         allow_literal_alias: bool,
-    ) -> ParseResult<(StringId, Span)> {
+    ) -> ParserResult<(StringId, Span)> {
         // identifier aliases are always valid
         if self.peek_is(TokenType::Identifier) {
             return self.eat_identifier_with_span();
@@ -783,7 +783,7 @@ impl Parser {
         }
 
         // all other forms are invalid aliases
-        Err(ParseError::expected(
+        Err(ParserError::expected(
             self.peek()?.span,
             TokenType::Identifier,
         ))

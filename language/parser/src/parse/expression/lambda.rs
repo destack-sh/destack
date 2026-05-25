@@ -1,6 +1,6 @@
 use crate::parse::DeclarationHeader;
 use crate::parse::scan::DelimiterDepth;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{Expression, Keyword, LocalNodeId, TokenType};
 
 /// The commitment level of a possible lambda head.
@@ -26,7 +26,7 @@ impl Parser {
     pub(in crate::parse::expression) fn eat_lambda_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         let head = self.current_lambda_head();
         if head == LambdaHead::None {
             return Ok(None);
@@ -89,13 +89,13 @@ impl Parser {
     /// Return a parse error from a definite lambda head.
     fn definite_lambda_error(
         &mut self,
-        error: ParseError,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        error: ParserError,
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.peek_is(TokenType::CloseParenthesis) {
-            let error = ParseError::unexpected(self.peek()?.span);
+            let error = ParserError::unexpected(self.peek()?.span);
             self.error(&error);
 
-            return Err(ParseError::from_source(error.span, error));
+            return Err(ParserError::from_source(error.span, error));
         }
 
         Err(error)

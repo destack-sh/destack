@@ -1,5 +1,5 @@
 use crate::parse::flags::ParserFlags;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{Expression, IfCondition, IfForm, Keyword, LocalNodeId, NodeType, TokenType};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -40,7 +40,7 @@ impl Parser {
     ///     print("negative")
     /// }
     /// ```
-    pub fn eat_if(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_if(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let head = self.eat_if_head()?;
 
         self.eat_if_after_head(head)
@@ -60,7 +60,7 @@ impl Parser {
     /// Eat an optional else expression for an if expression.
     pub(crate) fn eat_if_else_expression_maybe(
         &mut self,
-    ) -> ParseResult<Option<(LocalNodeId<Expression>, Span)>> {
+    ) -> ParserResult<Option<(LocalNodeId<Expression>, Span)>> {
         // save state so missing else can rewind cleanly
         let else_mark = self.checkpoint();
         let else_tree_mark = self.tree.next_id();
@@ -89,7 +89,7 @@ impl Parser {
     }
 
     /// Eat one if head.
-    pub(crate) fn eat_if_head(&mut self) -> ParseResult<IfHead> {
+    pub(crate) fn eat_if_head(&mut self) -> ParserResult<IfHead> {
         let start = self.span_start();
 
         // NOTE: ternary if is parsed in expression loop, not in eat_if
@@ -118,7 +118,7 @@ impl Parser {
     }
 
     /// Eat one if condition.
-    fn eat_if_condition(&mut self) -> ParseResult<IfCondition> {
+    fn eat_if_condition(&mut self) -> ParserResult<IfCondition> {
         if matches!(self.peek_any_keyword().ok(), Some(Keyword::Let)) {
             let (kind, mutability) = self.eat_let_kind()?;
             let declarator = self.eat_declarator(true, true)?;
@@ -174,7 +174,7 @@ impl Parser {
         &mut self,
         head: IfHead,
         then_expression: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         // semicolon statement forms allow a trailing then semicolon
         if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump();

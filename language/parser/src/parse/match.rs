@@ -1,7 +1,7 @@
 use crate::parse::PendingDecorators;
 use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 
 use destack_dir::{
     Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, MatchCase, MatchForm,
@@ -24,7 +24,7 @@ impl Parser {
     ///     _ = ohNoes()
     /// }
     /// ```
-    pub fn eat_match(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_match(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         // keyword
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
         let form = if keyword == Keyword::Switch {
@@ -38,7 +38,7 @@ impl Parser {
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, form: MatchForm) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_match_body(&mut self, form: MatchForm) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // value
@@ -101,7 +101,7 @@ impl Parser {
     fn eat_match_guard(
         &mut self,
         guard_clause_span: &mut Option<Span>,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !self.is_keyword(Keyword::If) {
             return Ok(None);
         }
@@ -128,7 +128,7 @@ impl Parser {
     pub(crate) fn eat_match_cases(
         &mut self,
         form: MatchForm,
-    ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
+    ) -> ParserResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
         let mut has_default_case = false;
         while self.has_more_tokens() {
@@ -150,7 +150,7 @@ impl Parser {
                     && has_default_case
                     && self.is_keyword(Keyword::Default)
                 {
-                    return Err(ParseError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?.span));
                 }
 
                 let case = self
@@ -184,7 +184,7 @@ impl Parser {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self, form: MatchForm) -> ParseResult<LocalNodeId<MatchCase>> {
+    fn eat_match_case(&mut self, form: MatchForm) -> ParserResult<LocalNodeId<MatchCase>> {
         // decorators before match arms
         let mut pending_case_decorators = if self.peek_is(TokenType::At) {
             self.eat_decorators_maybe()?

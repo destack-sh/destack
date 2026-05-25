@@ -1,6 +1,6 @@
 use crate::parse::DeclarationHeader;
 use crate::parse::scope::ExpressionScope;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     BinaryOperator, BlockContext, Expression, Keyword, LocalNodeId, Path, ScalarLiteral, TokenType,
     TypeExpression, UnaryOperator,
@@ -19,7 +19,7 @@ impl Parser {
     pub(in crate::parse::expression) fn eat_value_prefix_or_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let token_type = self.peek_token_type();
 
         // identifier and keyword families own the only hot ambiguous primary heads
@@ -61,7 +61,7 @@ impl Parser {
     fn eat_identifier_value_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if let Some(keyword) = self.current_keyword() {
             return self.eat_keyword_value_family_primary(start, keyword);
         }
@@ -100,7 +100,7 @@ impl Parser {
     fn eat_identifier_tagged_object_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !self.language.is_destack() || self.next_token_type() != TokenType::OpenBrace {
             return Ok(None);
         }
@@ -149,7 +149,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if !self.language.is_destack() && keyword == Keyword::Shared {
             return self.eat_identifier_primary(start);
         }
@@ -190,7 +190,7 @@ impl Parser {
     fn eat_module_or_global_identifier_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.is_module_identifier() && self.next_token_type() == TokenType::OpenBrace {
             let declaration = self.eat_module(start)?;
             let expression_id = self.insert_node(
@@ -235,7 +235,7 @@ impl Parser {
     fn eat_token_value_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let token_type = self.peek_token_type();
         match token_type {
             TokenType::OpenParenthesis => {
@@ -308,7 +308,7 @@ impl Parser {
             }
             TokenType::Hash if self.token_type_at_offset(1) == TokenType::Identifier => {
                 if self.language.is_destack() {
-                    return Err(ParseError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?.span));
                 }
 
                 self.bump();
@@ -320,7 +320,7 @@ impl Parser {
                 self.tree.set_main_span(id, name_span);
                 Ok((id, false))
             }
-            _ => Err(ParseError::unexpected(self.peek()?.span)),
+            _ => Err(ParserError::unexpected(self.peek()?.span)),
         }
     }
 
@@ -336,7 +336,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         operator: BinaryOperator,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let mut left: Option<LocalNodeId<Expression>> = None;
         let minimum_precedence = operator.precedence();
 
@@ -361,7 +361,7 @@ impl Parser {
             });
         }
 
-        left.ok_or_else(|| ParseError::unexpected(self.anchor_span_here()))
+        left.ok_or_else(|| ParserError::unexpected(self.anchor_span_here()))
     }
 
     /// Parse one value prefix operator.
@@ -376,7 +376,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         operator: UnaryOperator,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let operator_start = self.span_start();
         self.bump();
         let operator_span = self.get_span_from(&operator_start);
@@ -404,7 +404,7 @@ impl Parser {
     fn eat_identifier_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if self.current_keyword() == Some(Keyword::This) {
             self.bump();
             return Ok(self.insert_node(Expression::This, self.get_span_from(start)));
@@ -433,7 +433,7 @@ impl Parser {
     fn eat_label_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if !self.can_parse_label_expression() {
             return self.eat_identifier_primary(start);
         }
@@ -495,7 +495,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         self.eat_keyword_expression_with_header(start, keyword, DeclarationHeader::default())
     }
 
@@ -512,7 +512,7 @@ impl Parser {
         start: &ParserSpanStart,
         keyword: Keyword,
         header: DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         // preserve decorator member paths
         let is_decorator_identifier = self.flags.is_in_decorator()
             && !matches!(
@@ -565,7 +565,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         match keyword {
             Keyword::If => self.eat_if().map(Some),
             Keyword::While => self.eat_while().map(Some),
@@ -611,7 +611,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         match keyword {
             Keyword::Debugger => {
                 self.bump();
@@ -652,7 +652,7 @@ impl Parser {
         start: &ParserSpanStart,
         keyword: Keyword,
         header: DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !matches!(
             keyword,
             Keyword::Type | Keyword::Newtype | Keyword::Readonly
@@ -707,7 +707,7 @@ impl Parser {
     fn eat_import_meta_or_source(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let import_span = self.peek_keyword(Keyword::Import)?.span;
         self.eat_keyword(Keyword::Import)?;
         self.eat_token(TokenType::Dot)?;
@@ -732,7 +732,7 @@ impl Parser {
             return Ok(id);
         }
 
-        Err(ParseError::unexpected(self.peek()?.span))
+        Err(ParserError::unexpected(self.peek()?.span))
     }
 
     /// Parse `new.target`.
@@ -743,7 +743,7 @@ impl Parser {
     /// new.target.name
     /// new.target?.name
     /// ```
-    fn eat_new_target(&mut self, start: &ParserSpanStart) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_new_target(&mut self, start: &ParserSpanStart) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_keyword(Keyword::New)?;
         self.eat_token(TokenType::Dot)?;
         self.eat_identifier_str("target")?;
@@ -762,7 +762,7 @@ impl Parser {
     fn eat_value_brace_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if self.flags.is_in_before_block() && !self.flags.is_in_for_each()
             || self.flags.is_in_statement_position()
                 && !self.can_parse_object_literal_in_statement_position()

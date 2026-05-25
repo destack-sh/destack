@@ -1,7 +1,7 @@
 use crate::parse::DeclarationHeader;
 use crate::parse::scope::TypeScope;
 use crate::parse::r#type::operator::TypeUnaryOperator;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     BinaryOperator, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, TokenType,
     TypeExpression, UnaryOperator,
@@ -20,7 +20,7 @@ impl Parser {
     pub(super) fn eat_type_prefix_or_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         match self.peek_token_type() {
             TokenType::Identifier => self.eat_identifier_type_primary(start),
             TokenType::Not => self.eat_type_prefix(start, TypeUnaryOperator::Not),
@@ -61,7 +61,7 @@ impl Parser {
                 self.eat_type_reference_operator(start, token_type)
             }
             TokenType::Multiply => self.eat_type_pointer_prefix(start),
-            _ => Err(ParseError::unexpected(self.peek()?.span)),
+            _ => Err(ParserError::unexpected(self.peek()?.span)),
         }
     }
 
@@ -76,7 +76,7 @@ impl Parser {
     fn eat_identifier_type_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.can_start_construct_type_expression() {
             return self.eat_function_type_expression(start, DeclarationHeader::default());
         }
@@ -105,12 +105,12 @@ impl Parser {
     fn eat_type_signed_scalar_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let Some(operator) = self.peek_unary_prefix_operator_maybe() else {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         };
         if !matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.bump();
@@ -143,7 +143,7 @@ impl Parser {
     fn eat_type_object_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.can_start_type_mapped_expression() {
             return self.eat_type_mapped_expression();
         }
@@ -168,7 +168,7 @@ impl Parser {
     fn eat_type_pointer_prefix(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let operator_start = self.span_start();
         self.bump();
         let operator_span = self.get_span_from(&operator_start);
@@ -200,7 +200,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         operator: BinaryOperator,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut elements = Vec::new();
         let minimum_precedence = operator.precedence();
         let operator_span = start.token_span();
@@ -262,7 +262,7 @@ impl Parser {
     fn eat_type_leading_binary_element(
         &mut self,
         minimum_precedence: u16,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.bump();
         let flags = self
             .flags
@@ -290,7 +290,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         operator: TypeUnaryOperator,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let operator_start = self.span_start();
         self.bump();
         let operator_span = self.get_span_from(&operator_start);
@@ -321,7 +321,7 @@ impl Parser {
     fn eat_type_prefix_operand(
         &mut self,
         minimum_precedence: u16,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let flags = self.type_nested_flags();
         let scope = TypeScope::from_flags(flags).at_precedence(Some(minimum_precedence));
 

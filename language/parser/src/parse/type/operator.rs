@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{
     BinaryOperator, Keyword, LocalNodeId, OperatorPrecedence, TokenType, TypeExpression,
     TypePredicateSubject,
@@ -95,7 +95,7 @@ impl Parser {
         operator: TypeInfixOperator,
         operator_span: Span,
         right: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let expression = match operator {
             TypeInfixOperator::Binary(BinaryOperator::ElementwiseOr) => {
                 if self.extend_type_binary_expression(source_span, left, right, true) {
@@ -123,7 +123,7 @@ impl Parser {
             }
             TypeInfixOperator::Is => {
                 let Some(subject) = self.type_predicate_subject_from_type_expression(left) else {
-                    return Err(ParseError::unexpected(self.tree.get_span(left)));
+                    return Err(ParserError::unexpected(self.tree.get_span(left)));
                 };
                 self.set_node_leading_span(right, operator_span.end);
                 let id = self.insert_node(
@@ -147,7 +147,7 @@ impl Parser {
                 );
                 return Ok(id);
             }
-            _ => return Err(ParseError::unexpected(self.tree.get_span(right))),
+            _ => return Err(ParserError::unexpected(self.tree.get_span(right))),
         };
 
         let id = self.insert_node(expression, source_span);

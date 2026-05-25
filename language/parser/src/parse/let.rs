@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
@@ -28,7 +28,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let (kind, mutability) = self.eat_let_kind()?;
         self.eat_let_after_keyword(start, header, kind, mutability)
     }
@@ -46,7 +46,7 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
         asynchrony: Asynchrony,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         // optional await
         if asynchrony == Asynchrony::Async {
             self.eat_keyword(Keyword::Await)?;
@@ -154,25 +154,25 @@ impl Parser {
         header: DeclarationHeader,
         kind: LetKind,
         mutability: Mutability,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let first_declarator = self.eat_declarator(false, true)?;
 
         // let else
         if self.is_keyword(Keyword::Else) {
             if header.export.is_some() || header.is_ambient {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             let declarator = self.tree.get(first_declarator);
             if declarator.value.is_none() {
-                return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
+                return Err(ParserError::expected(self.peek()?.span, TokenType::Assign));
             }
 
             let else_span = self.eat_keyword(Keyword::Else)?.span;
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             let else_branch = {
@@ -214,7 +214,7 @@ impl Parser {
             }
 
             if !self.declarator_has_statement_boundary() {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             break;
@@ -236,13 +236,13 @@ impl Parser {
     }
 
     /// Eat a let or const keyword and return the kind and mutability.
-    pub fn eat_let_kind(&mut self) -> ParseResult<(LetKind, Mutability)> {
+    pub fn eat_let_kind(&mut self) -> ParserResult<(LetKind, Mutability)> {
         let keyword = self.peek_any_keyword()?;
         if let Some((kind, mutability)) = Self::let_kind_and_mutability_for_keyword(keyword) {
             self.bump();
             Ok((kind, mutability))
         } else {
-            Err(ParseError::expected(
+            Err(ParserError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
                 TokenType::Identifier,
             ))
@@ -255,9 +255,9 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
         keyword: Keyword,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if Self::let_kind_and_mutability_for_keyword(keyword).is_none() {
-            return Err(ParseError::expected(
+            return Err(ParserError::expected(
                 self.peek_token(TokenType::Identifier)?.span,
                 TokenType::Identifier,
             ));
@@ -267,7 +267,7 @@ impl Parser {
     }
 
     /// Eat a reference mutability modifier, defaulting to mutable.
-    pub fn eat_reference_mutability_maybe(&mut self) -> ParseResult<Option<Mutability>> {
+    pub fn eat_reference_mutability_maybe(&mut self) -> ParserResult<Option<Mutability>> {
         let Ok(keyword) = self.peek_any_keyword() else {
             return Ok(Some(Mutability::Mutable));
         };
@@ -302,7 +302,7 @@ impl Parser {
         &mut self,
         require_value: bool,
         allow_match_pattern: bool,
-    ) -> ParseResult<LocalNodeId<Declarator>> {
+    ) -> ParserResult<LocalNodeId<Declarator>> {
         let start = self.span_start();
         let pattern_flags = self
             .flags
@@ -379,7 +379,7 @@ impl Parser {
             && !self.language.is_destack()
             && !self.declarator_pattern_is_valid_binding(pattern_id)
         {
-            return Err(ParseError::unexpected(self.tree.get_span(pattern_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(pattern_id)));
         }
 
         // type
@@ -407,7 +407,7 @@ impl Parser {
 
                 (Some(value), Some(operator_span))
             } else if require_value {
-                return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
+                return Err(ParserError::expected(self.peek()?.span, TokenType::Assign));
             } else {
                 (None, None)
             };

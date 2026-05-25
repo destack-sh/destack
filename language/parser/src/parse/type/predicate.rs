@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{
     Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, TypePredicateSubject,
@@ -22,7 +22,7 @@ impl Parser {
     /// asserts value is string
     /// asserts this is ReadyState
     /// ```
-    pub fn eat_type_predicate_asserts(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    pub fn eat_type_predicate_asserts(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Asserts)?;
 
@@ -59,7 +59,7 @@ impl Parser {
     /// this
     /// subject
     /// ```
-    fn eat_type_predicate_subject(&mut self) -> ParseResult<(TypePredicateSubject, Span)> {
+    fn eat_type_predicate_subject(&mut self) -> ParserResult<(TypePredicateSubject, Span)> {
         if self.is_keyword(Keyword::This) {
             let token = *self.peek()?;
             self.bump();
@@ -82,7 +82,7 @@ impl Parser {
     fn eat_type_predicate_target(
         &mut self,
         subject_is_on_new_line: bool,
-    ) -> ParseResult<TypePredicateTarget> {
+    ) -> ParserResult<TypePredicateTarget> {
         if subject_is_on_new_line && self.is_keyword(Keyword::Is) {
             self.report_misplaced_type_predicate_target()?;
             return Ok(TypePredicateTarget {
@@ -108,18 +108,18 @@ impl Parser {
     }
 
     /// Report a misplaced predicate target after a newline.
-    fn report_misplaced_type_predicate_target(&mut self) -> ParseResult<()> {
+    fn report_misplaced_type_predicate_target(&mut self) -> ParserResult<()> {
         let is_span = self.eat_keyword(Keyword::Is)?.span;
-        self.error(&ParseError::unexpected(is_span));
+        self.error(&ParserError::unexpected(is_span));
 
         if !Self::is_type_expression_boundary_token(self.peek_token_type()) {
             let target = self.eat_type_expression()?;
-            self.error(&ParseError::unexpected(self.tree.get_span(target)));
+            self.error(&ParserError::unexpected(self.tree.get_span(target)));
         }
 
         if self.peek_is(TokenType::OpenBrace) {
             let brace_span = self.peek()?.span;
-            self.error(&ParseError::unexpected(brace_span));
+            self.error(&ParserError::unexpected(brace_span));
         }
 
         Ok(())
@@ -136,7 +136,7 @@ impl Parser {
     fn eat_type_predicate_target_type(
         &mut self,
         operator_span: Span,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let target_flags = self.type_nested_flags();
 
         let target =

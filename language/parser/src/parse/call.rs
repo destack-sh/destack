@@ -3,7 +3,7 @@ use destack_dir::{
 };
 use destack_source::Span;
 
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 
 impl Parser {
     /// Eat one value-space explicit index postfix.
@@ -19,7 +19,7 @@ impl Parser {
         &mut self,
         receiver_id: LocalNodeId<Expression>,
         position: PostfixPosition,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         let receiver_span = self.tree.get_span(receiver_id);
 
@@ -75,7 +75,7 @@ impl Parser {
     /// new Foo(1, 2)
     /// new Foo<T>()
     /// ```
-    pub fn eat_new(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_new(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -136,7 +136,7 @@ impl Parser {
         receiver_id: LocalNodeId<Expression>,
         generic_arguments: Option<Vec<LocalNodeId<GenericArgument>>>,
         position: PostfixPosition,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         let receiver_span = self.tree.get_span(receiver_id);
 

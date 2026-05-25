@@ -1,5 +1,5 @@
 use crate::parse::DeclarationHeader;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_core::StringId;
 use destack_dir::{
     EnumKind, Expression, InferForm, Keyword, LocalNodeId, NodeType, Path, TokenType,
@@ -20,7 +20,7 @@ impl Parser {
     pub(super) fn eat_type_reference_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // infer hole
         if self.current_token_starts_infer_hole() {
             return Ok(self.eat_type_infer_hole(start));
@@ -85,7 +85,7 @@ impl Parser {
     fn eat_type_identifier_keyword(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if self.current_keyword() == Some(Keyword::This) {
             self.bump();
             return Ok(Some(
@@ -128,7 +128,7 @@ impl Parser {
     fn eat_type_predicate_reference(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let (path, segment_spans) = self.eat_path_with_segment_spans()?;
         let id = self.insert_node(
             TypeExpression::Reference {
@@ -153,7 +153,7 @@ impl Parser {
     fn eat_type_literal_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         let Some(literal) = self.peek_type_literal().ok() else {
             return Ok(None);
         };
@@ -178,7 +178,7 @@ impl Parser {
     fn eat_type_path_reference(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let (first, first_span) = self.eat_identifier_with_span()?;
 
         if !self.path_continues_to_identifier(false) {
@@ -228,7 +228,7 @@ impl Parser {
         start: &ParserSpanStart,
         segment: StringId,
         segment_span: Span,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
         segments.push(segment);
 
@@ -271,7 +271,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
-    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         let header = DeclarationHeader::default();
         let type_expression = match keyword {
             Keyword::Newtype if self.next_keyword() == Some(Keyword::Interface) => {
@@ -360,7 +360,7 @@ impl Parser {
     fn eat_typeof_query(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_keyword(Keyword::Typeof)?;
         let value = self.eat_typeof_query_value()?;
 
@@ -378,7 +378,7 @@ impl Parser {
     /// namespace.value
     /// call().result
     /// ```
-    fn eat_typeof_query_value(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_typeof_query_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         if self.current_keyword() == Some(Keyword::Infer) {
             let type_expression = self.eat_type_expression()?;
 
@@ -406,7 +406,7 @@ impl Parser {
     /// namespace.value
     /// namespace.value.member
     /// ```
-    fn eat_typeof_reference_value(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_typeof_reference_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         let mut value = self.eat_identifier_expression_path(&start)?;
 
@@ -470,7 +470,7 @@ impl Parser {
     /// default
     /// 0
     /// ```
-    fn eat_typeof_member_name(&mut self) -> ParseResult<Option<destack_core::StringId>> {
+    fn eat_typeof_member_name(&mut self) -> ParserResult<Option<destack_core::StringId>> {
         if self.peek_is(TokenType::Identifier) || self.peek_is(TokenType::Literal) {
             return self.eat_member_name_with_span().map(|(name, _)| Some(name));
         }
@@ -483,7 +483,7 @@ impl Parser {
         &mut self,
         type_expression_id: LocalNodeId<TypeExpression>,
         segment_spans: &[Span],
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         if let Some(last) = segment_spans.last().copied() {
             self.tree.set_main_span(type_expression_id, last);
         }
@@ -497,7 +497,7 @@ impl Parser {
 
         for (index, span) in segment_spans.iter().copied().enumerate() {
             let Ok(index) = u16::try_from(index) else {
-                return Err(ParseError::unexpected(span));
+                return Err(ParserError::unexpected(span));
             };
             self.tree.set_side_span(
                 type_expression_id,

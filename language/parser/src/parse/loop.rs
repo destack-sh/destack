@@ -4,7 +4,7 @@ use destack_dir::{
 };
 
 use crate::parse::flags::ParserFlags;
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 
 impl Parser {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -18,7 +18,7 @@ impl Parser {
     ///     }
     /// }
     /// ```
-    pub fn eat_loop(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_loop(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -54,7 +54,7 @@ impl Parser {
     ///     y = 2
     /// }
     /// ```
-    pub fn eat_for(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_for(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -155,7 +155,7 @@ impl Parser {
                 && operator == ForEachOperator::In
                 && matches!(binding, ForEachBinding::Using { .. })
             {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             // iterator
@@ -191,7 +191,7 @@ impl Parser {
     }
 
     /// Eat a for each binding (pattern or using).
-    pub(crate) fn eat_for_each_binding(&mut self) -> ParseResult<ForEachBinding> {
+    pub(crate) fn eat_for_each_binding(&mut self) -> ParserResult<ForEachBinding> {
         let using_asynchrony = self.for_each_using_binding_asynchrony();
 
         if let Some(using_asynchrony) = using_asynchrony {
@@ -314,7 +314,7 @@ impl Parser {
     ///
     /// do console.log("test"); while (true)
     /// ```
-    pub fn eat_while(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_while(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // do-while loop

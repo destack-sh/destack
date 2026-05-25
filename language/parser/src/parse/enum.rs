@@ -2,7 +2,7 @@ use super::PendingDecorators;
 use crate::parse::DeclarationHeader;
 use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Declaration, EnumDeclaration, EnumField, EnumKind, Keyword, LocalNodeId, Member, Name,
@@ -46,13 +46,13 @@ impl Parser {
         start: &ParserSpanStart,
         kind: EnumKind,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         // keyword
         let enum_span = self.eat_keyword(Keyword::Enum)?.span;
 
         // require declaration heads on one line
         if self.current_token_is_on_new_line() && self.peek_is(TokenType::Identifier) {
-            let error = ParseError::unexpected(enum_span);
+            let error = ParserError::unexpected(enum_span);
             self.error(&error);
             return Err(error);
         }
@@ -139,7 +139,7 @@ impl Parser {
     #[allow(clippy::type_complexity)]
     fn eat_enum_body(
         &mut self,
-    ) -> ParseResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Member>>)> {
+    ) -> ParserResult<(Vec<LocalNodeId<EnumField>>, Vec<LocalNodeId<Member>>)> {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
@@ -151,7 +151,7 @@ impl Parser {
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 if !pending_decorators.is_empty() {
-                    let error = ParseError::unexpected(self.peek()?.span);
+                    let error = ParserError::unexpected(self.peek()?.span);
                     self.error(&error);
                     pending_decorators.clear();
                 }
@@ -207,7 +207,7 @@ impl Parser {
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
-    fn eat_enum_field(&mut self) -> ParseResult<LocalNodeId<EnumField>> {
+    fn eat_enum_field(&mut self) -> ParserResult<LocalNodeId<EnumField>> {
         let start = self.span_start();
         let (name, name_span) = self
             .eat_enum_field_name_with_span()
@@ -235,7 +235,7 @@ impl Parser {
     }
 
     /// Eat an enum field name, including computed string/number names.
-    fn eat_enum_field_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
+    fn eat_enum_field_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
         if self.peek_is(TokenType::OpenBracket) {
             let start = self.span_start();
             self.bump(); // eat open bracket
@@ -261,11 +261,11 @@ impl Parser {
                 match template {
                     TemplateLiteral::String { string } => Name::String(string),
                     TemplateLiteral::InterpolatedString { .. } => {
-                        return Err(ParseError::unexpected(self.peek()?.span));
+                        return Err(ParserError::unexpected(self.peek()?.span));
                     }
                 }
             } else {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             };
 
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;

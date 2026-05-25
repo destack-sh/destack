@@ -1,5 +1,5 @@
 use crate::parse::{DeclarationHeader, PendingDecorators, is_declaration_keyword};
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, EnumKind,
     ExportKind, Expression, Keyword, LocalNodeId, TokenType, TypeKind,
@@ -40,7 +40,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         let is_declaration_prefix = matches!(
             keyword,
             Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Final
@@ -65,7 +65,7 @@ impl Parser {
         start: &ParserSpanStart,
         keyword: Keyword,
         header: DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         // functions
         if keyword == Keyword::Function
             && matches!(
@@ -98,7 +98,7 @@ impl Parser {
                 self.token_type_at_offset(1),
                 TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
             ) {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             let declaration = self.eat_enum(start, EnumKind::Enum, header)?;
@@ -190,7 +190,7 @@ impl Parser {
     fn eat_declaration_prefixed_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         let checkpoint = self.checkpoint();
         let mark = self.tree.next_id();
         let mut header = DeclarationHeader::default();
@@ -233,7 +233,7 @@ impl Parser {
 
         // invalid default enum
         if keyword == Keyword::Enum && header.export == Some(ExportKind::Default) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         // ambient enum split by newline
@@ -274,7 +274,7 @@ impl Parser {
     /// export type
     /// export
     /// ```
-    fn eat_export_prefix(&mut self, header: &mut DeclarationHeader) -> ParseResult<ExportPrefix> {
+    fn eat_export_prefix(&mut self, header: &mut DeclarationHeader) -> ParserResult<ExportPrefix> {
         if self.current_keyword() != Some(Keyword::Export) {
             return Ok(ExportPrefix::Declaration);
         }
@@ -344,7 +344,7 @@ impl Parser {
     fn eat_declaration_prefix_modifiers(
         &mut self,
         header: &mut DeclarationHeader,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         while let Some(keyword) = self.current_keyword() {
             if !self.eat_declaration_prefix_modifier(header, keyword)? {
                 break;
@@ -366,7 +366,7 @@ impl Parser {
         &mut self,
         header: &mut DeclarationHeader,
         keyword: Keyword,
-    ) -> ParseResult<bool> {
+    ) -> ParserResult<bool> {
         match keyword {
             Keyword::Declare => {
                 let span = self.eat_keyword(Keyword::Declare)?.span;
@@ -409,7 +409,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !self.is_global_identifier() || self.next_token_type() != TokenType::OpenBrace {
             return Ok(None);
         }
