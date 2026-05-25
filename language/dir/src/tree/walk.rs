@@ -1227,18 +1227,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::New {
-            left,
-            generic_arguments,
-            arguments,
-        } => {
-            let left_expression = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_expression);
-
-            for argument_id in generic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_generic_argument(tree, *argument_id, argument);
-            }
+        Expression::New { ty, arguments } => {
+            let ty_expression = tree.get(*ty);
+            visitor.visit_type_expression(tree, *ty, ty_expression);
             for argument_id in arguments {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
