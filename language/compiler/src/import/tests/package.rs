@@ -416,6 +416,82 @@ import { Button } from "@acme/ui/button";
 }
 
 #[test]
+fn test_import_resolves_dependency_enabled_by_any_condition() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "workspace": {
+        "packages": ["packages/*", "packages/@*/*"]
+    }
+}
+"#,
+        )
+        .data(
+            "packages/app/destack.json",
+            r#"
+{
+    "name": "app",
+    "conditionalDependencies": [
+        {
+            "when": {
+                "any": ["role:client", "mode:preview"]
+            },
+            "dependencies": {
+                "@acme/ui": {
+                    "source": "workspace"
+                }
+            }
+        }
+    ],
+    "compiler": {
+        "modes": ["preview"]
+    }
+}
+"#,
+        )
+        .data(
+            "packages/@acme/ui/destack.json",
+            r#"
+{
+    "name": "@acme/ui",
+    "exports": {
+        "./button": {
+            "kind": "module",
+            "path": "button.ds"
+        }
+    }
+}
+"#,
+        )
+        .module(
+            "packages/app/main.ds",
+            r#"
+import { Button } from "@acme/ui/button";
+"#,
+        )
+        .module(
+            "packages/@acme/ui/button.ds",
+            r#"
+export type Button = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported(
+        "packages/app/main.ds",
+        DirRows::modules().with_summaries(),
+        r#"
+import { Button } from "@acme/ui/button";
+/// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
+
+/// @module.summary edges=1
+"#,
+    );
+}
+
+#[test]
 fn test_import_resolves_export_enabled_by_condition() {
     let compiler = TestSession::new()
         .data(
@@ -486,6 +562,75 @@ import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+"#,
+    );
+}
+
+#[test]
+fn test_import_reports_export_disabled_by_not_condition() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "workspace": {
+        "packages": ["packages/*", "packages/@*/*"]
+    }
+}
+"#,
+        )
+        .data(
+            "packages/app/destack.json",
+            r#"
+{
+    "name": "app",
+    "dependencies": {
+        "@acme/ui": {
+            "source": "workspace"
+        }
+    },
+    "compiler": {
+        "modes": ["preview"]
+    }
+}
+"#,
+        )
+        .data(
+            "packages/@acme/ui/destack.json",
+            r#"
+{
+    "name": "@acme/ui",
+    "exports": {
+        "./button": {
+            "kind": "module",
+            "path": "button.ds",
+            "when": {
+                "not": "mode:preview"
+            }
+        }
+    }
+}
+"#,
+        )
+        .module(
+            "packages/app/main.ds",
+            r#"
+import { Button } from "@acme/ui/button";
+"#,
+        )
+        .module(
+            "packages/@acme/ui/button.ds",
+            r#"
+export type Button = string;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported_diagnostics(
+        "packages/app/main.ds",
+        r#"
+/// @diagnostic.error code=EI209 message="package '@acme/ui' has no active export './button'"
+/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
 }
