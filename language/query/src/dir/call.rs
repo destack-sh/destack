@@ -93,7 +93,8 @@ pub(crate) fn build_call_candidates_for_module(ctx: &ModuleQueryContext<'_>) -> 
 
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         let left_expression = match expression {
-            Expression::Call { left, .. } | Expression::New { left, .. } => *left,
+            Expression::Call { left, .. } => Some(*left),
+            Expression::New { .. } => None,
             _ => continue,
         };
 
@@ -117,11 +118,13 @@ pub(crate) fn build_call_candidates_for_module(ctx: &ModuleQueryContext<'_>) -> 
 fn call_target_symbols(
     dir: DirQueryContext<'_>,
     expression_id: LocalNodeId<Expression>,
-    left_expression_id: LocalNodeId<Expression>,
+    left_expression_id: Option<LocalNodeId<Expression>>,
 ) -> Vec<GlobalSymbolId> {
     let mut targets = Vec::new();
 
-    if let Some(target_symbol) = expression_symbol_target(dir, left_expression_id) {
+    if let Some(target_symbol) = left_expression_id
+        .and_then(|left_expression_id| expression_symbol_target(dir, left_expression_id))
+    {
         targets.push(target_symbol);
         targets.push(dir.canonical_symbol(target_symbol));
     }

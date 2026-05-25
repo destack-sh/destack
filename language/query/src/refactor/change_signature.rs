@@ -89,16 +89,8 @@ pub fn change_signature(
         let dir_tree = module_ctx.dir().view();
 
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-            let left_expression = match expr {
-                dir::Expression::Call { left, .. } => Some(*left),
-                dir::Expression::New { left, .. } => Some(*left),
-                _ => None,
-            };
-            let Some(left_expression) = left_expression else {
-                continue;
-            };
-
-            let Some(target_symbol) = call_target_symbol(&module_ctx, dir_tree, left_expression)
+            let Some(target_symbol) =
+                call_expression_target_symbol(&module_ctx, dir_tree, expr_id, expr)
             else {
                 continue;
             };
@@ -198,6 +190,39 @@ fn constructor_owner_symbol(
     };
 
     Some(ctx.canonical_symbol(dir::GlobalSymbolId::new(ctx.module_id(), owner_symbol)))
+}
+
+/// Return the symbol targeted by one call-like expression.
+fn call_expression_target_symbol(
+    ctx: &ModuleQueryContext<'_>,
+    dir_tree: dir::View<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    expression: &dir::Expression,
+) -> Option<dir::GlobalSymbolId> {
+    // resolve ordinary call targets from their value callee
+    if let dir::Expression::Call { left, .. } = expression {
+        return call_target_symbol(ctx, dir_tree, *left);
+    }
+
+    // resolve constructor calls from checked call resolution
+    if matches!(expression, dir::Expression::New { .. }) {
+        let node_id = dir::GlobalNodeIdAny {
+            module_id: ctx.module_id(),
+            local_id: expression_id.into(),
+        };
+        let resolution = ctx.dir().resolutions().call_resolution(node_id)?;
+        return match &resolution.target {
+            dir::CallTarget::Construct(candidate) | dir::CallTarget::Symbol(candidate) => {
+                Some(candidate.symbol)
+            }
+            dir::CallTarget::Select(candidates) => {
+                candidates.first().map(|candidate| candidate.symbol)
+            }
+            dir::CallTarget::Builtin(_) | dir::CallTarget::Value => None,
+        };
+    }
+
+    None
 }
 
 /// Return the symbol targeted by a call target expression.
