@@ -62,7 +62,10 @@ fn cursor_is_on_statement_main_span(
     span: Span,
     offset: u32,
 ) -> bool {
-    let main_span = parsed_tree.source_map.get_main(expr_id.id).unwrap_or(span);
+    let main_span = parsed_tree
+        .source_index
+        .get_main(expr_id.id)
+        .unwrap_or(span);
     span_owns_cursor(main_span, offset)
 }
 
@@ -90,7 +93,7 @@ pub(crate) fn block_statement_position(
     let mut last_expression_before_cursor = None;
 
     for expr_id in block.iter_expressions() {
-        let span = parsed_tree.source_map.get(expr_id.id);
+        let span = parsed_tree.source_index.get(expr_id.id);
 
         // statement heads only count when the cursor is on the owning statement span
         if span_owns_cursor(span, offset) {

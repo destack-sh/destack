@@ -134,7 +134,9 @@ pub(crate) fn sorted_enclosing_spans(
     end: u32,
 ) -> Vec<EnclosingSpan> {
     // collect enclosing spans from the source index
-    let mut enclosing = ctx.source_index().get_enclosing_spans(start, end);
+    let mut enclosing = ctx
+        .source_index()
+        .get_enclosing_spans(ctx.file_id(), start, end);
 
     // sort by span length so innermost spans come first
     enclosing.sort_by_key(|span| span.length);
@@ -152,7 +154,9 @@ pub(crate) fn enclosing_spans_at_offsets(
 
     // gather the enclosing spans for each probe offset
     for offset in offsets {
-        let spans = ctx.source_index().get_enclosing_spans(offset, offset);
+        let spans = ctx
+            .source_index()
+            .get_enclosing_spans(ctx.file_id(), offset, offset);
         for span in spans {
             if seen.insert(span.idx) {
                 enclosing.push(span);

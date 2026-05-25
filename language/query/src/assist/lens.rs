@@ -316,10 +316,12 @@ fn has_decorator_named(ctx: DirQueryContext<'_>, node_id: u32, name: &str) -> bo
     }
 
     // use enclosing nodes for annotations attached higher up
-    let span = ctx.source_map().get_main_or_enclosing(node_id);
-    let mut enclosing = ctx
-        .source_map()
-        .get_enclosing_spans(span.start, span.end.saturating_sub(1));
+    let span = ctx.source_index().get_main_or_enclosing(node_id);
+    let mut enclosing = ctx.source_index().get_enclosing_spans(
+        ctx.file_id(),
+        span.start,
+        span.end.saturating_sub(1),
+    );
     enclosing.sort_by_key(|entry| entry.length);
 
     for entry in enclosing {

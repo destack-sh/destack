@@ -230,7 +230,10 @@ fn find_symbol_at_offset_impl(ctx: &ModuleQueryContext<'_>, offset: u32) -> Opti
     let dir = ctx.dir();
 
     // find source nodes at the offset
-    let enclosing = dir.tree().source_index.get_enclosing_spans(offset, offset);
+    let enclosing = dir
+        .tree()
+        .source_index
+        .get_enclosing_spans(dir.file_id(), offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -673,11 +676,11 @@ fn declaration_modifier_symbol_at_offset(
 
     let dir_tree = ctx.dir().view();
 
-    let mut enclosing = ctx
-        .dir()
-        .tree()
-        .source_index
-        .get_enclosing_spans(offset, offset);
+    let mut enclosing =
+        ctx.dir()
+            .tree()
+            .source_index
+            .get_enclosing_spans(ctx.file_id(), offset, offset);
     enclosing.sort_by_key(|span| span.length);
 
     for enclosing_span in enclosing {
