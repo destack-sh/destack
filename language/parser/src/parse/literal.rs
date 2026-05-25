@@ -2,10 +2,10 @@ use std::borrow::Cow;
 use std::str::Chars;
 
 use crate::lex::decode_html_entity;
-use crate::parse::TypeMemberBodyMode;
 use crate::parse::mode::ContextualLexMode;
 use crate::parse::prelude::*;
 use crate::parse::scope::ExpressionScope;
+use crate::parse::{RecoveryPoint, TypeMemberContainerKind};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
@@ -1168,10 +1168,10 @@ impl Parser {
         let property_ambient_context = self.flags.with_variant(false).with_type(true);
         let flags = self.flags.with_ambient_context(property_ambient_context);
         let properties = if self.flags == flags {
-            self.eat_type_members(TypeMemberBodyMode::SignatureOnly)
+            self.eat_type_members(TypeMemberContainerKind::TypeLiteral)
         } else {
             let old_flags = self.swap_flags(flags);
-            let properties = self.eat_type_members(TypeMemberBodyMode::SignatureOnly);
+            let properties = self.eat_type_members(TypeMemberContainerKind::TypeLiteral);
             self.restore_flags(old_flags);
 
             properties
@@ -1237,7 +1237,8 @@ impl Parser {
                 return None;
             }
 
-            if self.current_token_is_statement_recovery_boundary(token_type) {
+            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
+            {
                 return None;
             }
 
@@ -1314,7 +1315,10 @@ impl Parser {
             match token_type {
                 TokenType::End => return false,
                 TokenType::Semicolon
-                    if self.current_token_is_statement_recovery_boundary(token_type) =>
+                    if self.current_semicolon_precedes_recovery_point(
+                        token_type,
+                        RecoveryPoint::Statement,
+                    ) =>
                 {
                     return false;
                 }

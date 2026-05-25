@@ -7,7 +7,7 @@ use destack_dir::{
 };
 use destack_source::LanguageType;
 
-use crate::parse::TypeMemberBodyMode;
+use crate::parse::TypeMemberContainerKind;
 use crate::tests::TestParser;
 use crate::{
     assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
@@ -694,7 +694,7 @@ comptime: number"#,
     );
     let mut parser = test.prepare();
     let members = parser
-        .eat_type_members(TypeMemberBodyMode::SignatureOnly)
+        .eat_type_members(TypeMemberContainerKind::TypeLiteral)
         .unwrap();
 
     assert_eq!(members.len(), 2);
@@ -708,6 +708,41 @@ comptime: number"#,
     });
 
     test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_type_members_recover_before_associated_and_readonly_members() {
+    let mut test = TestParser::new(
+        r#"interface Boundary {
+broken: ;
+type Item = string
+readonly value: string
+}"#,
+    );
+    let mut parser = test.prepare();
+    let roots = parser.parse();
+
+    assert_eq!(parser.errors.len(), 1);
+
+    assert_node!(parser.tree, roots[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
+            assert_eq!(members.len(), 3);
+
+            assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+                assert_string!(parser, *name, "broken");
+                assert_node!(parser.tree, *value, TypeExpression::Missing);
+            });
+            assert_node!(parser.tree, members[1], TypeMember::AssociatedType { name, value: Some(value), .. } => {
+                assert_string!(parser, *name, "Item");
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+            });
+            assert_node!(parser.tree, members[2], TypeMember::Field { is_readonly, key: Key::Name(Name::Identifier(name)), declared_type: Some(value), .. } => {
+                assert!(*is_readonly);
+                assert_string!(parser, *name, "value");
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::String });
+            });
+        });
+    });
 }
 
 #[test]

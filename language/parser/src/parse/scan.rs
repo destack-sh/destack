@@ -1,6 +1,6 @@
 use crate::Parser;
-use crate::parse::is_declaration_keyword;
-use destack_dir::{Keyword, TokenType};
+use crate::parse::RecoveryPoint;
+use destack_dir::TokenType;
 
 /// Nesting depth for syntax that scans across balanced delimiters.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -169,7 +169,8 @@ impl Parser {
             let token_type = self.peek_token_type();
             let close_width = Self::angle_close_width(token_type);
 
-            if self.current_token_is_statement_recovery_boundary(token_type) {
+            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
+            {
                 return None;
             }
 
@@ -239,7 +240,10 @@ impl Parser {
             if stops_at_semicolon
                 && token_type == TokenType::Semicolon
                 && (delimiter_depth.is_directly_inside(open)
-                    || self.current_token_is_statement_recovery_boundary(token_type))
+                    || self.current_semicolon_precedes_recovery_point(
+                        token_type,
+                        RecoveryPoint::Statement,
+                    ))
             {
                 return None;
             }
@@ -273,66 +277,5 @@ impl Parser {
             TokenType::UnsignedShiftRight => 3,
             _ => 0,
         }
-    }
-
-    /// Return whether the current token starts a statement recovery boundary.
-    pub(crate) fn current_token_is_statement_recovery_boundary(
-        &mut self,
-        token_type: TokenType,
-    ) -> bool {
-        token_type == TokenType::Semicolon && self.semicolon_is_before_recovered_statement()
-    }
-
-    /// Return whether the current token starts a declaration recovery boundary.
-    pub(crate) fn current_token_is_declaration_recovery_boundary(
-        &mut self,
-        token_type: TokenType,
-    ) -> bool {
-        token_type == TokenType::Semicolon
-            && self.semicolon_is_before_keyword(Self::keyword_starts_recovered_declaration)
-    }
-
-    /// Return whether a semicolon is followed by a likely recovered statement.
-    fn semicolon_is_before_recovered_statement(&mut self) -> bool {
-        self.semicolon_is_before_keyword(Self::keyword_starts_recovered_statement)
-    }
-
-    /// Return whether a semicolon is followed by one target keyword.
-    fn semicolon_is_before_keyword(
-        &mut self,
-        keyword_matches: impl FnOnce(Keyword) -> bool,
-    ) -> bool {
-        let next = self.next_token();
-        let following_token_type = self.token_type_at_offset(2);
-
-        next.token.is_on_new_line()
-            && following_token_type != TokenType::Colon
-            && following_token_type != TokenType::Maybe
-            && following_token_type != TokenType::OpenParenthesis
-            && self.keyword_at_offset(1).is_some_and(keyword_matches)
-    }
-
-    /// Return whether one keyword starts a recovered declaration after damaged syntax.
-    fn keyword_starts_recovered_declaration(keyword: Keyword) -> bool {
-        keyword == Keyword::Export || is_declaration_keyword(keyword)
-    }
-
-    /// Return whether one keyword starts a recovered statement after damaged syntax.
-    fn keyword_starts_recovered_statement(keyword: Keyword) -> bool {
-        is_declaration_keyword(keyword)
-            || matches!(
-                keyword,
-                Keyword::If
-                    | Keyword::For
-                    | Keyword::While
-                    | Keyword::Do
-                    | Keyword::Switch
-                    | Keyword::Return
-                    | Keyword::Throw
-                    | Keyword::Try
-                    | Keyword::Break
-                    | Keyword::Continue
-                    | Keyword::Yield
-            )
     }
 }
