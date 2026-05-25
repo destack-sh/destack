@@ -1,6 +1,8 @@
 import { todo } from "destack:error";
 import { Iterable } from "destack:iter";
 
+import { queueMicrotask } from "./continuation.ds";
+
 /// Function that resolves a promise.
 export type PromiseResolve<T> = (value: T | Promise<T>) => void;
 
@@ -11,6 +13,7 @@ export type PromiseReject = (reason?: unknown) => void;
 export type PromiseExecutor<T> = (resolve: PromiseResolve<T>, reject: PromiseReject) => void;
 
 /// Promise with its resolving functions.
+@languageItem("async.PromiseResolvers")
 export struct PromiseResolvers<T> {
     /// The created promise.
     promise: Promise<T>;
@@ -90,7 +93,20 @@ export class Promise<T> {
 
     /// Create a promise from an executor.
     constructor(executor: PromiseExecutor<T>) {
-        todo("Promise.constructor");
+        this.state = { kind: "pending", reactions: [] };
+
+        let resolve: PromiseResolve<T> = (value) => {
+            this.resolve(value);
+        };
+        let reject: PromiseReject = (reason) => {
+            this.reject(reason);
+        };
+
+        try {
+            executor(resolve, reject);
+        } catch (error) {
+            this.reject(error);
+        }
     }
 
     /// Continue when the promise fulfills.
@@ -98,27 +114,65 @@ export class Promise<T> {
         onFulfilled: (value: T) => U | Promise<U>,
         onRejected?: (error: unknown) => F | Promise<F>,
     ): Promise<U | F> {
-        todo("Promise.then")
+        new Promise<U | F>((resolve, reject) => {
+            this.react({
+                onFulfilled: (value) => {
+                    try {
+                        Promise.resolve(onFulfilled(value)).then(resolve, reject);
+                    } catch (error) {
+                        reject(error);
+                    }
+                },
+                onRejected: (error) => {
+                    if (onRejected == undefined) {
+                        reject(error);
+                    } else {
+                        try {
+                            Promise.resolve(onRejected(error)).then(resolve, reject);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }
+                },
+            });
+        })
     }
 
     /// Continue when the promise rejects.
     catch<U>(onRejected: (error: unknown) => U | Promise<U>): Promise<T | U> {
-        todo("Promise.catch")
+        this.then((value) => value, onRejected)
     }
 
     /// Continue when the promise settles.
     finally(onFinally: () => void | Promise<void>): Promise<T> {
-        todo("Promise.finally")
+        this.then(
+            (value) => {
+                Promise.resolve(onFinally()).then(() => value)
+            },
+            (error) => {
+                Promise.resolve(onFinally()).then(() => {
+                    throw error;
+                })
+            },
+        )
     }
 
     /// Create a fulfilled promise.
     static resolve<T>(value: T | Promise<T>): Promise<T> {
-        todo("Promise.resolve")
+        if (value instanceof Promise) {
+            value as Promise<T>
+        } else {
+            new Promise<T>((resolve, _reject) => {
+                resolve(value as T);
+            })
+        }
     }
 
     /// Create a rejected promise.
     static reject<T = never>(reason?: unknown): Promise<T> {
-        todo("Promise.reject")
+        new Promise<T>((_resolve, reject) => {
+            reject(reason);
+        })
     }
 
     /// Wait for all promises.
@@ -143,6 +197,78 @@ export class Promise<T> {
 
     /// Create a promise with exposed resolving functions.
     static withResolvers<T>(): PromiseResolvers<T> {
-        todo("Promise.withResolvers")
+        let resolve: PromiseResolve<T> | undefined = undefined;
+        let reject: PromiseReject | undefined = undefined;
+        let promise = new Promise<T>((innerResolve, innerReject) => {
+            resolve = innerResolve;
+            reject = innerReject;
+        });
+
+        PromiseResolvers {
+            promise,
+            resolve: resolve as PromiseResolve<T>,
+            reject: reject as PromiseReject,
+        }
+    }
+
+    /// Resolve this promise with a value or another promise.
+    private resolve(value: T | Promise<T>): void {
+        if (value instanceof Promise) {
+            value.then(
+                (value) => {
+                    this.fulfill(value);
+                },
+                (error) => {
+                    this.reject(error);
+                },
+            );
+        } else {
+            this.fulfill(value as T);
+        }
+    }
+
+    /// Fulfill this promise with a final value.
+    private fulfill(value: T): void {
+        if (this.state.kind == "pending") {
+            let reactions = this.state.reactions;
+            this.state = { kind: "fulfilled", value };
+            this.queueReactions(reactions);
+        }
+    }
+
+    /// Reject this promise with a final reason.
+    private reject(reason?: unknown): void {
+        if (this.state.kind == "pending") {
+            let reactions = this.state.reactions;
+            this.state = { kind: "rejected", reason };
+            this.queueReactions(reactions);
+        }
+    }
+
+    /// Add or schedule one reaction.
+    private react(reaction: PromiseReaction<T>): void {
+        if (this.state.kind == "pending") {
+            this.state.reactions.push(reaction);
+        } else {
+            this.queueReaction(reaction);
+        }
+    }
+
+    /// Schedule reactions after settlement.
+    private queueReactions(reactions: PromiseReaction<T>[]): void {
+        for (let index: number = 0; index < reactions.length; index += 1) {
+            this.queueReaction(reactions[index]);
+        }
+    }
+
+    /// Schedule one reaction after settlement.
+    private queueReaction(reaction: PromiseReaction<T>): void {
+        queueMicrotask(() => {
+            if (this.state.kind == "fulfilled") {
+                reaction.onFulfilled(this.state.value);
+            } else if (this.state.kind == "rejected") {
+                reaction.onRejected(this.state.reason);
+            }
+        });
     }
 }

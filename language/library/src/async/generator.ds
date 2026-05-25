@@ -6,9 +6,11 @@ import { ContinuationHandle } from "./continuation.ds";
 import { Promise } from "./promise.ds";
 
 /// State of a generator object.
+@languageItem("async.GeneratorState")
 export type GeneratorState = "suspended" | "running" | "completed";
 
 /// Worker-local generator object.
+@languageItem("async.Generator")
 export class Generator<TYield = unknown, TReturn = unknown, TNext = unknown>
     implements IterableIterator<TYield, TReturn, TNext>, Drop
 {
@@ -75,6 +77,7 @@ export interface AsyncIterableIterator<T, TReturn = unknown, TNext = unknown> ex
 }
 
 /// Worker-local async generator object.
+@languageItem("async.AsyncGenerator")
 export class AsyncGenerator<TYield = unknown, TReturn = unknown, TNext = unknown>
     implements AsyncIterableIterator<TYield, TReturn, TNext>, Drop
 {

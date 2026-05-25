@@ -160,14 +160,50 @@ define_language_items! {
             /// Async iterable interface.
             AsyncIterable => (Interface, "async/generator", "AsyncIterable"),
 
+            /// Async generator class.
+            AsyncGenerator => (Class, "async/generator", "AsyncGenerator"),
+
             /// Async iterator interface.
             AsyncIterator => (Interface, "async/generator", "AsyncIterator"),
+
+            /// Generator class.
+            Generator => (Class, "async/generator", "Generator"),
+
+            /// Generator state type.
+            GeneratorState => (Type, "async/generator", "GeneratorState"),
+        }
+
+        /// `destack:async/continuation`.
+        continuation {
+            /// Continuation handle type.
+            ContinuationHandle => (Newtype, "async/continuation", "ContinuationHandle"),
+
+            /// Continuation result type.
+            ContinuationResult => (Type, "async/continuation", "ContinuationResult"),
+
+            /// Continuation return struct.
+            ContinuationReturn => (Struct, "async/continuation", "ContinuationReturn"),
+
+            /// Continuation throw struct.
+            ContinuationThrow => (Struct, "async/continuation", "ContinuationThrow"),
+
+            /// Continuation yield struct.
+            ContinuationYield => (Struct, "async/continuation", "ContinuationYield"),
+
+            /// Queue one microtask.
+            QueueMicrotask => (Function, "async/continuation", "queueMicrotask"),
+
+            /// Suspend the current continuation.
+            SuspendContinuation => (Function, "async/continuation", "suspendContinuation"),
         }
 
         /// `destack:async/promise`.
         promise {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
+
+            /// Promise resolver pair.
+            PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
         }
     }
 
