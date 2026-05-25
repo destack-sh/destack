@@ -35,7 +35,6 @@ impl ExpressionLeftSide {
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. }
             | Expression::Call { left, .. }
-            | Expression::New { left, .. }
             | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. }

@@ -43,8 +43,7 @@ fn expression_is_await_callee_or_object_context(
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             *left == node_id
         }
-        Expression::Index { left, .. } => *left == node_id,
-        Expression::Call { left, .. } | Expression::New { left, .. } => *left == node_id,
+        Expression::Index { left, .. } | Expression::Call { left, .. } => *left == node_id,
         _ => false,
     }
 }
@@ -367,12 +366,8 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // new
-        Expression::New {
-            left,
-            generic_arguments,
-            arguments,
-        } => {
-            format_new_expression(f, node_id, *left, generic_arguments, arguments)?;
+        Expression::New { ty, arguments } => {
+            format_new_expression(f, node_id, *ty, arguments)?;
         }
 
         // maybe

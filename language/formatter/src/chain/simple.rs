@@ -2,7 +2,7 @@ use super::transparent_inner_expression;
 use crate::DestackFormatContext;
 use destack_dir::{
     Argument, Expression, GenericArgument, Key, LocalNodeId, Property, ScalarLiteral,
-    TemplateLiteral, UnaryOperator,
+    TemplateLiteral, TypeExpression, UnaryOperator,
 };
 
 const MAX_SIMPLE_ARGUMENT_DEPTH: u8 = 2;
@@ -162,15 +162,27 @@ fn expression_is_simple(
             generic_arguments,
             arguments,
             ..
-        }
-        | Expression::New {
-            left,
-            generic_arguments,
-            arguments,
         } => call_like_is_simple(context, *left, generic_arguments, arguments, depth),
+        Expression::New { ty, arguments } => {
+            new_expression_is_simple(context, *ty, arguments, depth)
+        }
         // anything else is too complex
         _ => false,
     }
+}
+
+/// Return whether one new expression is simple at one recursion depth.
+fn new_expression_is_simple(
+    context: &DestackFormatContext<'_>,
+    ty: LocalNodeId<TypeExpression>,
+    arguments: &[LocalNodeId<Argument>],
+    depth: u8,
+) -> bool {
+    type_expression_is_simple(context, ty, depth)
+        && arguments.len() + usize::from(depth) <= 2
+        && arguments.iter().copied().all(|argument_id| {
+            SimpleArgument::new(argument_id).is_simple_with_depth(context, depth + 1)
+        })
 }
 
 /// Return whether one call-like expression is simple at one recursion depth.
@@ -190,6 +202,44 @@ fn call_like_is_simple(
         && arguments.iter().copied().all(|argument_id| {
             SimpleArgument::new(argument_id).is_simple_with_depth(context, depth + 1)
         })
+}
+
+/// Return whether one type expression is simple at one recursion depth.
+fn type_expression_is_simple(
+    context: &DestackFormatContext<'_>,
+    type_id: LocalNodeId<TypeExpression>,
+    depth: u8,
+) -> bool {
+    match context.tree.get(type_id) {
+        TypeExpression::Reference {
+            generic_arguments, ..
+        }
+        | TypeExpression::Member {
+            generic_arguments, ..
+        } => generic_arguments
+            .iter()
+            .copied()
+            .all(|argument_id| type_generic_argument_is_simple(context, argument_id, depth + 1)),
+        TypeExpression::Infer { .. } | TypeExpression::This => true,
+        _ => false,
+    }
+}
+
+/// Return whether one type generic argument is simple at one recursion depth.
+fn type_generic_argument_is_simple(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<GenericArgument>,
+    depth: u8,
+) -> bool {
+    match context.tree.get(argument_id) {
+        GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+            type_expression_is_simple(context, *value, depth)
+        }
+        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+            SimpleArgument::from(*value).is_simple_with_depth(context, depth)
+        }
+        GenericArgument::Error => false,
+    }
 }
 
 /// Return whether one template literal is simple at one recursion depth.

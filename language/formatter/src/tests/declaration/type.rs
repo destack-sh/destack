@@ -183,22 +183,6 @@ export class longlonglonglonglonglonglonglonglonglonglongclassname
 export interface longlonglonglonglonglonglonglonglonglonglongclassname
   extends someobjectsomepropertysomeotherproperty.SomeClass {}
 
-let longRunningProvider = new (class
-  implements languages.SignatureHelpProvider
-{});
-
-let longRunningProvider2 = new (class
-  extends languages.SignatureHelpProvider
-{});
-
-let longRunningProvider3 = new (class
-  extends languages.SignatureHelpProvider<Hello>
-{});
-
-let longRunningProvider4 = new (class
-  implements languages.SignatureHelpProvider<Hello>
-{});
-
 letlonglongRunningProvider = class
   implements languages.SignatureHelpProvider
 {};
@@ -259,18 +243,6 @@ export class longlonglonglonglonglonglonglonglonglonglongclassname
 export interface longlonglonglonglonglonglonglonglonglonglongclassname
   extends someobjectsomepropertysomeotherproperty.SomeClass {}
 
-let longRunningProvider = new (class
-  implements languages.SignatureHelpProvider {})();
-
-let longRunningProvider2 = new (class
-  extends languages.SignatureHelpProvider {})();
-
-let longRunningProvider3 =
-  new (class extends languages.SignatureHelpProvider<Hello> {})();
-
-let longRunningProvider4 =
-  new (class implements languages.SignatureHelpProvider<Hello> {})();
-
 letlonglongRunningProvider = class
   implements languages.SignatureHelpProvider {};
 
@@ -326,14 +298,6 @@ export class longlonglonglonglonglonglonglonglonglonglongclassname
 
 export interface longlonglonglonglonglonglonglonglonglonglongclassname
   extends someobjectsomepropertysomeotherproperty.SomeClass {}
-
-let longRunningProvider = new (class implements languages.SignatureHelpProvider {})();
-
-let longRunningProvider2 = new (class extends languages.SignatureHelpProvider {})();
-
-let longRunningProvider3 = new (class extends languages.SignatureHelpProvider<Hello> {})();
-
-let longRunningProvider4 = new (class implements languages.SignatureHelpProvider<Hello> {})();
 
 letlonglongRunningProvider = class implements languages.SignatureHelpProvider {};
 

@@ -846,9 +846,7 @@ fn declarator_value_has_generic_class_heritage(
             matches!(context.tree.get(*declaration_id), Declaration::Class(_))
                 && declaration_has_generic_heritage(context, *declaration_id)
         }
-        Expression::Call { left, .. }
-        | Expression::New { left, .. }
-        | Expression::Instantiation { left, .. } => {
+        Expression::Call { left, .. } | Expression::Instantiation { left, .. } => {
             declarator_value_has_generic_class_heritage(context, *left)
         }
         _ => false,

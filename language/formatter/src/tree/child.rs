@@ -84,9 +84,6 @@ pub(crate) fn tree_expression_contains_callback_break(
     match context.tree.get(expression_id) {
         Expression::Call {
             left, arguments, ..
-        }
-        | Expression::New {
-            left, arguments, ..
         } => {
             if arguments.iter().copied().any(|argument_id| {
                 argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
@@ -99,6 +96,12 @@ pub(crate) fn tree_expression_contains_callback_break(
 
             tree_expression_contains_callback_break(context, *left)
         }
+        Expression::New { arguments, .. } => arguments.iter().copied().any(|argument_id| {
+            argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+                matches!(context.tree.get(value_id), Expression::Declaration(declaration_id)
+                    if tree_callback_body_requires_break(context, *declaration_id))
+            })
+        }),
         Expression::Member { left, .. }
         | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }

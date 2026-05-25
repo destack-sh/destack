@@ -6,7 +6,7 @@ use crate::expression::{
 };
 use crate::file::node_has_ignore_directive;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition};
+use destack_dir::{Argument, Expression, LocalNodeId, NodeType, PostfixPosition, TypeExpression};
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -147,8 +147,7 @@ pub(crate) fn format_instantiation_expression<'ast>(
 pub(crate) fn format_new_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
+    ty: LocalNodeId<TypeExpression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     write!(f, [token("new"), space()])?;
@@ -157,11 +156,7 @@ pub(crate) fn format_new_expression<'ast>(
         .first()
         .map(|argument_id| f.context().span(*argument_id).start)
         .unwrap_or_else(|| f.context().following_span_start());
-    with_following_span_start(f, callee_following_span_start, |f| write!(f, [left]))?;
-
-    if !generic_arguments.is_empty() {
-        format_generic_argument_list(f, generic_arguments)?;
-    }
+    with_following_span_start(f, callee_following_span_start, |f| write!(f, [ty]))?;
 
     format_call_arguments(f, node_id, arguments)?;
 

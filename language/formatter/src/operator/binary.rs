@@ -697,7 +697,6 @@ fn binary_expression_is_inside_parenthesis_context(
         | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. }
-        | Expression::New { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => *left == expression_id,

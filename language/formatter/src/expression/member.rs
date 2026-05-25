@@ -230,9 +230,6 @@ fn static_member_layout(
     match first_non_memberish_parent(context, node_id)
         .map(|parent_id| (parent_id, context.tree.get(parent_id)))
     {
-        Some((_, Expression::New { left, .. })) if left.id == node_id.id => {
-            StaticMemberLayout::NoBreak
-        }
         Some((_, Expression::Assign { left, .. })) => {
             if assign_pattern_target_expression(context, *left).is_some_and(|left_expression_id| {
                 matches!(
