@@ -140,8 +140,13 @@ impl Compiler {
                 key,
                 signature,
                 body,
+                is_static,
                 ..
             } => {
+                if signature.this_parameter.is_none() && !*is_static {
+                    self.bind_implicit_this_symbol(state);
+                }
+
                 // visit method key
                 if let Some(key) = key {
                     dir::walk_key(state, tree, key);
@@ -163,6 +168,17 @@ impl Compiler {
             }
             dir::Member::Error => {}
         }
+    }
+
+    /// Bind the implicit member receiver symbol in the current method scope.
+    pub(in crate::bind) fn bind_implicit_this_symbol(&self, state: &mut BindState<'_>) {
+        let key = dir::StaticKey::Name(self.strings().intern("this"));
+        state.insert_symbol(
+            dir::SymbolRole::Local,
+            dir::SymbolForm::Variable,
+            Some(key),
+            None,
+        );
     }
 
     /// Bind one object property.
