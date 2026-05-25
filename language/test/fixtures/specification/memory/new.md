@@ -16,6 +16,38 @@ let box: Widget = new Widget();
 box satisfies Widget;
 ```
 
+### generic constructor
+
+`new` uses type syntax for the class name.
+
+```ds
+class Widget<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+let box = new Widget<int32>(1);
+
+box satisfies Widget<int32>;
+```
+
+### inferred constructor
+
+`_` may stand in for the class when the surrounding type supplies it.
+
+```ds
+class Widget {
+    value: int32 = 0;
+}
+
+let box: Widget = new _(6);
+
+box satisfies Widget;
+```
+
 ### new follows owned destinations
 
 Owned destinations receive owned values.

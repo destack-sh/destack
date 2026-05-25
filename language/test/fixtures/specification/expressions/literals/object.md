@@ -51,6 +51,22 @@ const x = { a: 1, b: "two" } as const;
 x satisfies { readonly a: 1; readonly b: "two" };
 ```
 
+## struct literals
+
+### inferred struct literal type
+
+Struct literals may use `_` when the contextual type determines the nominal struct.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+let point: Point = _ { x: 1 };
+
+point satisfies Point;
+```
+
 ## object spreads
 
 ### object spread adds fields

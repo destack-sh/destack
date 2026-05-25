@@ -42,6 +42,18 @@ Empty {  }
 Empty {};
 ```
 
+### inferred struct literal
+
+Inferred struct literals use `_` as the type marker.
+
+```ds
+_ { x : 1 }
+```
+
+```ds expected
+_ { x: 1 };
+```
+
 ### single field struct
 
 Single fields have spacing normalized.
