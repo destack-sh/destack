@@ -45,11 +45,12 @@ Destack does not support JS/TS syntax that conflicts with either Destack-specifi
 | --- | --- | --- | --- |
 | **Var declarations** | `var x` | not supported | legacy `var` scoping is unnecessary with `const` and `let` |
 | **Ambiguous generic arrow** | `<T>() => value` | not supported | ambiguous with TSX tree syntax, use `<T,>() => value` |
-| **Sequence expressions** | `(a, b, c)` | not supported | `.ds` claims parenthesized comma lists for explicit tuples |
+| **Sequence expressions** | `(a, b, c)` | not supported | `.ds` uses parenthesized comma lists for explicit tuples |
 | **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` | `.ds` uses double-quoted strings and single-quoted scalar characters |
 | **Type angle assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
-| **Private fields** | `#field` | not supported | `#field` syntax is redundant with proper `private` in `.ds` |
+| **Private fields** | `#field` | not supported | `#field` syntax is redundant with real `private` in `.ds` |
 | **Non-null assertions** | `value!` | supported as Try / must unwrapping, not as erased TypeScript non-null assertion | non-null opening is an explicit runtime operation |
+| **Dynamic constructors** | `new (factory())()` | not supported | construct values with type syntax, e.g. `new Widget<T>()` |
 | **XML namespace resolution** | `<svg:path />` | no `xmlns` binding semantics | namespaced tree tags are intrinsic string tag names like `"svg:path"` |
 
 ### Types
@@ -488,6 +489,13 @@ let x: Point = Point { x, y };  // OK
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
+Structs also support the `_` placeholder for type inference:
+
+```ds
+let x: Point = _ { x, y };  // OK
+```
+
+
 ### Classes
 
 Classes follow the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
@@ -509,6 +517,13 @@ class Counter {
 }
 
 const counter: Counter = new Counter(1);
+counter.increment() satisfies int32;
+```
+
+Like structs, classes support the `_` placeholder for type inference:
+
+```ds
+const counter: Counter = new _(1);
 counter.increment() satisfies int32;
 ```
 
