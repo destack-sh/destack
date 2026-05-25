@@ -99,6 +99,28 @@ pub enum ImportError {
         package: String,
     },
 
+    /// Static import guard is missing a condition.
+    #[diagnostic(code = "EI212", message = "`@if` import guard requires a condition")]
+    StaticIfRequiresCondition { anchor: DiagnosticAnchor },
+
+    /// Static import guard has more than one condition argument.
+    #[diagnostic(
+        code = "EI213",
+        message = "`@if` import guard requires exactly one condition"
+    )]
+    StaticIfRequiresOneArgument { anchor: DiagnosticAnchor },
+
+    /// Static import guard did not evaluate to a boolean.
+    #[diagnostic(
+        code = "EI214",
+        message = "`@if` import guard condition must be boolean"
+    )]
+    StaticIfRequiresBoolean { anchor: DiagnosticAnchor },
+
+    /// Static import guard uses a condition that cannot be evaluated here.
+    #[diagnostic(code = "EI215", message = "`@if` import guard condition is not static")]
+    StaticIfNotStatic { anchor: DiagnosticAnchor },
+
     /// Internal import failure.
     #[diagnostic(code = "EI900", message = "internal error: {message}")]
     Internal {
