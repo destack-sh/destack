@@ -74,9 +74,9 @@ fn run_formatter_stress(test: &StressCase) -> CaseResult {
     let narrow_options = FormatterOptions::default().with_line_width(60);
     let start = std::time::Instant::now();
 
-    // bounded fixtures may expand heavily, but must not crash
-    if test.expectation == StressExpectation::Bounded {
-        check_format_bounded(test, &source, default_options, start);
+    // damaged and bounded fixtures may fail, but must not crash
+    if test.expectation != StressExpectation::Valid {
+        check_format_fallible(test, &source, default_options, start);
 
         return CaseResult::Passed;
     }
@@ -104,8 +104,8 @@ fn run_formatter_stress(test: &StressCase) -> CaseResult {
     CaseResult::Passed
 }
 
-/// Check one bounded formatter case for graceful success or failure.
-fn check_format_bounded(
+/// Check one fallible formatter case for graceful success or failure.
+fn check_format_fallible(
     test: &StressCase,
     source: &str,
     options: FormatterOptions,
@@ -119,13 +119,13 @@ fn check_format_bounded(
         Ok(formatted) => {
             let formatted_size = formatted.len();
             eprintln!(
-                "bounded ok: {source_size} bytes, {line_count} lines -> {formatted_size} bytes in {:?}",
+                "fallible ok: {source_size} bytes, {line_count} lines -> {formatted_size} bytes in {:?}",
                 start.elapsed()
             );
         }
         Err(error) => {
             eprintln!(
-                "bounded error: {source_size} bytes, {line_count} lines in {:?}: {}",
+                "fallible error: {source_size} bytes, {line_count} lines in {:?}: {}",
                 start.elapsed(),
                 error.message
             );
