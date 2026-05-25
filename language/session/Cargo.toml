@@ -16,9 +16,7 @@ doctest = false
 destack_artifact = { workspace = true }
 destack_core = { workspace = true }
 destack_compiler = { path = "../compiler", default-features = false }
-destack_css = { workspace = true }
 destack_dir = { workspace = true }
-destack_html = { workspace = true }
 destack_linter = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
