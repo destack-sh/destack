@@ -270,7 +270,7 @@ pub(crate) fn array_has_only_outer_comments(
             .iter()
             .chain(context.side_tokens.iter())
             .any(|token| {
-                if !array_span.intersects(token.span) || !is_comment_token_type(token.token.ty) {
+                if !array_span.intersects(token.span) || !is_comment_token_type(token.token.ty()) {
                     return false;
                 }
 

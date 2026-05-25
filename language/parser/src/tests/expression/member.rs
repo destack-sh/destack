@@ -288,12 +288,12 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
         })
         .copied()
         .expect("line comment should have one following token");
-    assert_eq!(token_before.token.ty, TokenType::Identifier);
-    assert_eq!(token_after.token.ty, TokenType::Dot);
+    assert_eq!(token_before.token.ty(), TokenType::Identifier);
+    assert_eq!(token_after.token.ty(), TokenType::Dot);
 }
 
 /// Keep full-function line comments before member dots attached to the dot boundary.
@@ -323,12 +323,12 @@ fn test_parse_function_member_comment_boundary_before_dot() {
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
         })
         .copied()
         .expect("line comment should have one following token");
-    assert_eq!(token_before.token.ty, TokenType::Identifier);
-    assert_eq!(token_after.token.ty, TokenType::Dot);
+    assert_eq!(token_before.token.ty(), TokenType::Identifier);
+    assert_eq!(token_after.token.ty(), TokenType::Dot);
 }
 
 /// Attach block comments before member continuations to the dot boundary.
@@ -352,11 +352,11 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
         })
         .copied()
         .expect("member hop comment should attach to one boundary token");
-    assert_eq!(token_after.token.ty, TokenType::Dot);
+    assert_eq!(token_after.token.ty(), TokenType::Dot);
 }
 
 #[test]

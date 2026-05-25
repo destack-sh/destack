@@ -43,7 +43,7 @@ impl Parser {
     #[inline]
     pub fn peek_next_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
         let token = self.next_token();
-        if token.token.ty != TokenType::Identifier || self.keyword_at_offset(1) != Some(keyword) {
+        if token.token.ty() != TokenType::Identifier || self.keyword_at_offset(1) != Some(keyword) {
             return Err(ParserError::expected(token.span, TokenType::Identifier));
         }
 
@@ -54,7 +54,7 @@ impl Parser {
     #[inline]
     pub fn peek_next_any_keyword(&mut self) -> ParserResult<Keyword> {
         let token = self.next_token();
-        if token.token.ty != TokenType::Identifier {
+        if token.token.ty() != TokenType::Identifier {
             return Err(ParserError::expected(token.span, TokenType::Identifier));
         }
 
@@ -66,7 +66,7 @@ impl Parser {
     #[inline]
     pub fn peek_next_next_keyword(&mut self, keyword: Keyword) -> ParserResult<TokenSpan> {
         let token = self.token_at_offset(2);
-        if token.token.ty != TokenType::Identifier || self.keyword_at_offset(2) != Some(keyword) {
+        if token.token.ty() != TokenType::Identifier || self.keyword_at_offset(2) != Some(keyword) {
             return Err(ParserError::expected(token.span, TokenType::Identifier));
         }
 

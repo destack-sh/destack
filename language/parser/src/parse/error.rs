@@ -175,7 +175,7 @@ impl ParserError {
             .binary_search_by_key(&span.start, |token| token.span.start)
             .ok()
             .and_then(|index| tokens.get(index))
-            .map(|token| token.token.ty)
+            .map(|token| token.token.ty())
             .unwrap_or(TokenType::End);
         let in_node_str = match node_type {
             Some(node_type) => format!(" in {node_type:?}"),

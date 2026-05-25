@@ -319,7 +319,7 @@ fn fixed_array_source_separator(
     let length_start = context.expression_token_start(length);
     let separator = context.next_non_trivia_token_after_span(value_span)?;
 
-    if separator.token.ty != TokenType::Semicolon || separator.span.end > length_start {
+    if separator.token.ty() != TokenType::Semicolon || separator.span.end > length_start {
         return None;
     }
 

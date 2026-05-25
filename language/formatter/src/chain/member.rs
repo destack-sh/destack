@@ -436,7 +436,7 @@ pub(crate) fn member_is_private_hash(
         return false;
     };
 
-    prev_token.token.ty == TokenType::Hash
+    prev_token.token.ty() == TokenType::Hash
 }
 
 /// Decide whether postfix annotations on a path belong after the last segment.

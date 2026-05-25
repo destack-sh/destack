@@ -1976,7 +1976,7 @@ fn write_type_callable_arrow_return<'ast>(
             && let Some(arrow_token) = f
                 .context()
                 .previous_non_trivia_token_before_span(f.context().span(return_type))
-            && arrow_token.token.ty == TokenType::ArrowWide
+            && arrow_token.token.ty() == TokenType::ArrowWide
         {
             write_generated_boundary_comments(f, parameters_span.end, arrow_token.span.start)?;
         }
@@ -2114,7 +2114,7 @@ fn write_type_signature<'ast>(
             let optional_token = f
                 .context()
                 .first_non_trivia_token_between(key_end, parameter_start)
-                .filter(|token| token.token.ty == TokenType::Maybe);
+                .filter(|token| token.token.ty() == TokenType::Maybe);
 
             if let Some(optional_token) = optional_token {
                 write_generated_boundary_comments(f, key_end, optional_token.span.start)?;

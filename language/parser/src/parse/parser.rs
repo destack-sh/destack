@@ -131,13 +131,13 @@ impl Parser {
     /// Return true when the current token starts after a line break.
     #[inline]
     pub(crate) fn current_token_is_on_new_line(&self) -> bool {
-        self.current_token.token.is_on_new_line
+        self.current_token.token.is_on_new_line()
     }
 
     /// Return true when source trivia before the offset token contains a line break.
     #[inline]
     pub(crate) fn token_at_offset_has_leading_line_break(&mut self, offset: usize) -> bool {
-        self.token_at_offset(offset).token.is_on_new_line
+        self.token_at_offset(offset).token.is_on_new_line()
     }
 
     /// Return true when comments appear between the previous token and current token.
@@ -315,9 +315,8 @@ impl Parser {
     fn estimate_tree_capacity(estimated_tokens: usize) -> TreeCapacity {
         TreeCapacity {
             nodes: estimated_tokens,
-            expressions: estimated_tokens,
-            type_expressions: estimated_tokens,
             comments: estimated_tokens / 16,
+            ..TreeCapacity::default()
         }
     }
 
@@ -506,7 +505,7 @@ impl Parser {
     /// Re-lex the current token as a generic `<`.
     #[inline]
     pub(crate) fn re_lex_generic_l_angle(&mut self) -> bool {
-        let token_type = self.current_token.token.ty;
+        let token_type = self.current_token.token.ty();
         if token_type == TokenType::LessThan {
             return true;
         }
@@ -526,7 +525,7 @@ impl Parser {
     /// Re-lex the current token as one `>`.
     #[inline]
     pub(crate) fn re_lex_r_angle(&mut self) -> bool {
-        let token_type = self.current_token.token.ty;
+        let token_type = self.current_token.token.ty();
         if token_type == TokenType::GreaterThan {
             return true;
         }
@@ -550,10 +549,10 @@ impl Parser {
     /// Re-lex the current `/` or `/=` token as a regex literal
     #[inline]
     pub(crate) fn re_lex_regex(&mut self) -> bool {
-        let token_type = self.current_token.token.ty;
+        let token_type = self.current_token.token.ty();
         if token_type == TokenType::Literal
             && matches!(
-                self.current_token.token.literal,
+                self.current_token.token.literal(),
                 Some(TokenLiteral::RegexString { .. })
             )
         {
@@ -573,11 +572,11 @@ impl Parser {
     fn split_current_token_prefix(&mut self, token_type: TokenType, prefix_len: u32) -> TokenSpan {
         self.next_token_cache = None;
         let current = self.current_token;
-        debug_assert!(prefix_len > 0 && prefix_len <= current.token.len);
+        debug_assert!(prefix_len > 0 && prefix_len <= current.token.len());
 
         let prefix = TokenSpan {
             token: Token::new(token_type, prefix_len, None)
-                .with_on_new_line(current.token.is_on_new_line),
+                .with_on_new_line(current.token.is_on_new_line()),
             span: Span::new(
                 current.span.file,
                 current.span.start,
@@ -585,7 +584,7 @@ impl Parser {
             ),
         };
 
-        if current.token.len > prefix_len {
+        if current.token.len() > prefix_len {
             let rest_start = current.span.start + prefix_len;
             self.lexer.set_position(rest_start as usize);
         }
@@ -652,7 +651,7 @@ impl Parser {
                 end - current.span.start,
                 Some(TokenLiteral::RegexString { has_flags }),
             )
-            .with_on_new_line(current.token.is_on_new_line),
+            .with_on_new_line(current.token.is_on_new_line()),
             span: Span::new(current.span.file, current.span.start, end),
         }
     }
@@ -724,8 +723,10 @@ impl Parser {
         let mut tokens = mem::take(&mut self.consumed_tokens);
         tokens.push(self.current_token);
 
-        if self.current_token.token.ty == TokenType::End {
+        if self.current_token.token.ty() == TokenType::End {
             self.drain_lexer_side_tokens();
+            tokens.shrink_to_fit();
+            self.side_tokens.shrink_to_fit();
 
             return (tokens, mem::take(&mut self.side_tokens));
         }
@@ -733,7 +734,7 @@ impl Parser {
         self.contextual_lex_mode = ContextualLexMode::Normal;
         loop {
             let token = self.lexer.next_semantic_token();
-            let is_end = token.token.ty == TokenType::End;
+            let is_end = token.token.ty() == TokenType::End;
             tokens.push(token);
 
             if is_end {
@@ -741,6 +742,8 @@ impl Parser {
             }
         }
         self.drain_lexer_side_tokens();
+        tokens.shrink_to_fit();
+        self.side_tokens.shrink_to_fit();
 
         (tokens, mem::take(&mut self.side_tokens))
     }
@@ -802,23 +805,23 @@ impl Parser {
     #[inline(always)]
     pub(crate) fn token_type_at_offset(&mut self, offset: usize) -> TokenType {
         if offset == 0 {
-            return self.current_token.token.ty;
+            return self.current_token.token.ty();
         }
 
         if offset == 1
             && let Some(token) = self.cached_next_token()
         {
-            return token.token.ty;
+            return token.token.ty();
         }
 
-        self.token_at_offset(offset).token.ty
+        self.token_at_offset(offset).token.ty()
     }
 
     /// Return one visible token as a keyword without moving the parser cursor.
     #[inline(always)]
     pub(crate) fn keyword_at_offset(&mut self, offset: usize) -> Option<Keyword> {
         if offset == 0 {
-            if self.current_token.token.ty != TokenType::Identifier {
+            if self.current_token.token.ty() != TokenType::Identifier {
                 return None;
             }
 
@@ -828,7 +831,7 @@ impl Parser {
         if offset == 1
             && let Some(token) = self.cached_next_token()
         {
-            if token.token.ty != TokenType::Identifier {
+            if token.token.ty() != TokenType::Identifier {
                 return None;
             }
 
@@ -836,7 +839,7 @@ impl Parser {
         }
 
         let token = self.token_at_offset(offset);
-        if token.token.ty != TokenType::Identifier {
+        if token.token.ty() != TokenType::Identifier {
             return None;
         }
 
@@ -954,7 +957,7 @@ impl Parser {
         if self
             .consumed_tokens
             .iter()
-            .any(|token| token.token.ty != TokenType::End)
+            .any(|token| token.token.ty() != TokenType::End)
         {
             return;
         }
@@ -1237,7 +1240,7 @@ impl Parser {
     /// Return the current token as a keyword.
     #[inline]
     pub(crate) fn current_keyword(&self) -> Option<Keyword> {
-        if self.current_token.token.ty != TokenType::Identifier {
+        if self.current_token.token.ty() != TokenType::Identifier {
             return None;
         }
 
@@ -1247,7 +1250,8 @@ impl Parser {
     /// Return true when the current identifier has the expected source text.
     #[inline]
     pub(crate) fn current_identifier_str_is(&self, expected: &str) -> bool {
-        self.current_token.token.ty == TokenType::Identifier && self.current_token_str() == expected
+        self.current_token.token.ty() == TokenType::Identifier
+            && self.current_token_str() == expected
     }
 
     /// Return true when the current identifier is `global`.
@@ -1272,7 +1276,7 @@ impl Parser {
     #[inline]
     pub fn prev_token_type(&self) -> TokenType {
         self.prev()
-            .map(|token| token.token.ty)
+            .map(|token| token.token.ty())
             .unwrap_or(TokenType::End)
     }
 
@@ -1291,7 +1295,7 @@ impl Parser {
     /// Peek the next token type, defaulting to End at EOF.
     #[inline]
     pub fn peek_token_type(&mut self) -> TokenType {
-        self.current_token.token.ty
+        self.current_token.token.ty()
     }
 
     /// Return true when the next token matches the given type.
@@ -1337,9 +1341,9 @@ impl Parser {
     /// Drop trivia tokens that are now part of a virtual tree child token.
     fn drop_side_tokens_covered_by_current(&mut self) {
         let token = self.current_token;
-        let is_tree_text = token.token.ty == TokenType::Literal
+        let is_tree_text = token.token.ty() == TokenType::Literal
             && matches!(
-                token.token.literal,
+                token.token.literal(),
                 Some(TokenLiteral::TreeString)
                     | Some(TokenLiteral::Character {
                         is_html_entity: true,
@@ -1363,7 +1367,7 @@ impl Parser {
             "peek_token requires semantic token type"
         );
         let next = self.peek()?;
-        if next.token.ty == token_type {
+        if next.token.ty() == token_type {
             Ok(next)
         } else {
             Err(ParserError::unexpected(next.span))
@@ -1374,7 +1378,7 @@ impl Parser {
     #[inline]
     pub fn peek_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<&TokenSpan> {
         let next = self.peek()?;
-        if token_types.contains(&next.token.ty) {
+        if token_types.contains(&next.token.ty()) {
             Ok(next)
         } else {
             Err(ParserError::unexpected(next.span))
@@ -1389,7 +1393,7 @@ impl Parser {
             "eat_token requires semantic token type"
         );
         let current = self.eat()?;
-        if current.token.ty == token_type {
+        if current.token.ty() == token_type {
             Ok(current)
         } else {
             Err(ParserError::unexpected(current.span))
@@ -1425,8 +1429,8 @@ impl Parser {
     #[inline]
     pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenType> {
         let current = self.eat()?;
-        if token_types.contains(&current.token.ty) {
-            Ok(current.token.ty)
+        if token_types.contains(&current.token.ty()) {
+            Ok(current.token.ty())
         } else {
             Err(ParserError::unexpected(current.span))
         }
@@ -1439,9 +1443,9 @@ impl Parser {
         token_types: &[TokenType],
     ) -> ParserResult<Option<TokenType>> {
         let token = *self.peek()?;
-        if token_types.contains(&token.token.ty) {
+        if token_types.contains(&token.token.ty()) {
             self.bump();
-            Ok(Some(token.token.ty))
+            Ok(Some(token.token.ty()))
         } else {
             Ok(None)
         }
@@ -1500,7 +1504,7 @@ impl Parser {
     ) -> Option<EnclosingSpan> {
         let mut best = None;
         self.tree
-            .source_map
+            .source_index
             .visit_enclosing_spans(start, end_inclusive, |candidate| {
                 if !filter(&candidate) {
                     return;

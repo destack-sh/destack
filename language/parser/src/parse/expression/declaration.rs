@@ -108,7 +108,7 @@ impl Parser {
         // const enum declarations
         else if keyword == Keyword::Const
             && self.next_keyword() == Some(Keyword::Enum)
-            && !self.next_token().token.is_on_new_line
+            && !self.next_token().token.is_on_new_line()
         {
             self.eat_keyword(Keyword::Const)?;
             let declaration = self.eat_enum(start, EnumKind::Const, header)?;
@@ -157,7 +157,7 @@ impl Parser {
         // async function declarations
         else if keyword == Keyword::Async
             && self.next_keyword() == Some(Keyword::Function)
-            && !self.next_token().token.is_on_new_line
+            && !self.next_token().token.is_on_new_line()
         {
             let declaration = self.eat_function(start, header)?;
 
@@ -167,7 +167,7 @@ impl Parser {
         else if keyword == Keyword::Comptime
             && self.language.is_destack()
             && self.next_keyword() == Some(Keyword::Function)
-            && !self.next_token().token.is_on_new_line
+            && !self.next_token().token.is_on_new_line()
         {
             let declaration = self.eat_function(start, header)?;
 
@@ -239,7 +239,7 @@ impl Parser {
         // ambient enum split by newline
         if keyword == Keyword::Enum
             && header.declare_span.is_some()
-            && self.token_at_offset(1).token.is_on_new_line
+            && self.token_at_offset(1).token.is_on_new_line()
         {
             self.restore(checkpoint, mark);
             return Ok(None);

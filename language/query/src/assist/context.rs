@@ -296,10 +296,10 @@ fn detect_partial_identifier(
 ) -> Option<CursorToken> {
     // find the token under the cursor or immediately before it
     let token = match token_span_at_cursor_offset(ctx, offset) {
-        Some(token) if token.token.ty == dir::TokenType::Identifier => token,
+        Some(token) if token.token.ty() == dir::TokenType::Identifier => token,
         _ => {
             let token = previous_significant_token(ctx, offset)?;
-            if token.token.ty != dir::TokenType::Identifier {
+            if token.token.ty() != dir::TokenType::Identifier {
                 return None;
             }
 
@@ -354,7 +354,7 @@ fn detect_statement_position(
     // recover token based statement boundaries
     if let Some(token) = previous_significant_token(ctx, offset)
         && matches!(
-            token.token.ty,
+            token.token.ty(),
             dir::TokenType::Semicolon | dir::TokenType::OpenBrace | dir::TokenType::CloseBrace
         )
     {
@@ -443,14 +443,14 @@ fn token_suggests_type_position(ctx: DirQueryContext<'_>, source: &str, offset: 
 
     // delimiters often introduce one following type position
     if matches!(
-        token.token.ty,
+        token.token.ty(),
         dir::TokenType::Colon | dir::TokenType::Comma | dir::TokenType::LessThan
     ) {
         return true;
     }
 
     // type relation keywords also introduce one following type position
-    token.token.ty == dir::TokenType::Identifier
+    token.token.ty() == dir::TokenType::Identifier
         && matches!(
             token_text(source, token.span),
             Some("extends") | Some("implements") | Some("is") | Some("as")
@@ -479,7 +479,7 @@ fn is_type_declaration_value_position(
             continue;
         };
 
-        let span = ctx.tree().source_map.get(declaration.value.id);
+        let span = ctx.tree().source_index.get(declaration.value.id);
         if span.contains(offset) || span.contains(previous_offset) {
             return true;
         }

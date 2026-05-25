@@ -55,13 +55,13 @@ impl Lexer {
                 span: Span {
                     file: self.file_id(),
                     start,
-                    end: start + token.len,
+                    end: start + token.len(),
                 },
             };
 
-            if is_semantic(token.ty) {
+            if is_semantic(token.ty()) {
                 let token_span = self.prepare_semantic_token(token_span);
-                if token.ty == TokenType::End {
+                if token.ty() == TokenType::End {
                     self.is_finished = true;
                     self.eof_token = Some(token_span);
                 }
@@ -178,8 +178,10 @@ impl Lexer {
         self.lex_to_end();
 
         // drain token buffers
-        let tokens = std::mem::take(&mut self.tokens);
-        let side_tokens = std::mem::take(&mut self.side_tokens);
+        let mut tokens = std::mem::take(&mut self.tokens);
+        let mut side_tokens = std::mem::take(&mut self.side_tokens);
+        tokens.shrink_to_fit();
+        side_tokens.shrink_to_fit();
 
         // reset token stream flags for any follow-up access
         self.pending_line_terminator_before_next = false;
@@ -213,18 +215,18 @@ impl Lexer {
             span: Span {
                 file: self.file_id(),
                 start,
-                end: start + token.len,
+                end: start + token.len(),
             },
         };
 
-        if is_semantic(token.ty) {
+        if is_semantic(token.ty()) {
             self.push_semantic_token(token_span);
         } else {
             let has_line_terminator = self.side_token_had_line_terminator();
             self.push_side_token(token_span, has_line_terminator);
         }
 
-        if token.ty == TokenType::End {
+        if token.ty() == TokenType::End {
             self.is_finished = true;
             self.eof_token = Some(token_span);
         }
@@ -234,7 +236,7 @@ impl Lexer {
     #[inline]
     pub(super) fn push_side_token(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
         if self.trivia_mode.keeps_comments() {
-            match token_span.token.ty {
+            match token_span.token.ty() {
                 TokenType::LineComment | TokenType::DocLineComment => {
                     self.push_line_comment(token_span, has_line_terminator);
                 }
@@ -251,7 +253,7 @@ impl Lexer {
         if self.trivia_mode.keeps_side_tokens() {
             self.side_tokens.push(token_span);
         }
-        if has_line_terminator || token_span.token.ty == TokenType::Newline {
+        if has_line_terminator || token_span.token.ty() == TokenType::Newline {
             self.pending_line_terminator_before_next = true;
         }
     }
@@ -279,7 +281,7 @@ impl Lexer {
     /// Push one retained line comment.
     fn push_line_comment(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
         let raw_comment = self.get_span_str(token_span.span);
-        let retention = retained_comment(self.trivia_mode, token_span.token.ty, raw_comment);
+        let retention = retained_comment(self.trivia_mode, token_span.token.ty(), raw_comment);
 
         match retention {
             CommentRetention::Keep { content, .. } => {
@@ -294,7 +296,7 @@ impl Lexer {
     /// Push one retained block comment.
     fn push_block_comment(&mut self, token_span: TokenSpan, has_line_terminator: bool) {
         let raw_comment = self.get_span_str(token_span.span);
-        let retention = retained_comment(self.trivia_mode, token_span.token.ty, raw_comment);
+        let retention = retained_comment(self.trivia_mode, token_span.token.ty(), raw_comment);
 
         match retention {
             CommentRetention::Keep { kind, content } => {

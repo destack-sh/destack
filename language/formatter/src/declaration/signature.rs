@@ -543,7 +543,7 @@ fn single_parameter_has_paren_comments(
 
     let has_open_paren_comments = context
         .previous_non_trivia_token_before_span(parameter_span)
-        .filter(|token| token.token.ty == TokenType::OpenParenthesis)
+        .filter(|token| token.token.ty() == TokenType::OpenParenthesis)
         .is_some_and(|token| {
             context
                 .comments()
@@ -555,7 +555,7 @@ fn single_parameter_has_paren_comments(
 
     context
         .next_non_trivia_token_after_span(parameter_span)
-        .filter(|token| token.token.ty == TokenType::CloseParenthesis)
+        .filter(|token| token.token.ty() == TokenType::CloseParenthesis)
         .is_some_and(|token| {
             context
                 .comments()

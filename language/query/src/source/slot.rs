@@ -214,7 +214,7 @@ fn open_expression_slot_owner(
         // unwrap statement wrappers to the actual expression owner
         let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.idx);
         let (expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
-        let expr_span = ctx.source_map().get(expr_id.id);
+        let expr_span = ctx.source_index().get(expr_id.id);
 
         // return without a value still owns a value slot after the keyword
         if let dir::Expression::Return { value: None } = expr
@@ -273,7 +273,7 @@ fn cursor_is_after_expression_keyword(
     };
 
     // require the keyword token inside the owning expression span
-    if token.token.ty != dir::TokenType::Identifier {
+    if token.token.ty() != dir::TokenType::Identifier {
         return false;
     }
 
@@ -532,7 +532,7 @@ fn initializer_declarator_at_cursor(
             }
 
             let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
-            let declarator_span = ctx.source_map().get(declarator_id.id);
+            let declarator_span = ctx.source_index().get(declarator_id.id);
             let declarator = parsed_tree.get(declarator_id);
             let Some(value_id) = declarator.value else {
                 continue;
@@ -545,7 +545,7 @@ fn initializer_declarator_at_cursor(
                 return Some(declarator_id);
             }
 
-            let value_span = ctx.source_map().get(value_id.id);
+            let value_span = ctx.source_index().get(value_id.id);
             if !span_owns_cursor(value_span, offset) {
                 continue;
             }
@@ -568,7 +568,7 @@ fn cursor_is_after_initializer_assign(
     };
 
     // the initializer gap starts after the owning `=`
-    if token.token.ty != dir::TokenType::Assign {
+    if token.token.ty() != dir::TokenType::Assign {
         return false;
     }
 

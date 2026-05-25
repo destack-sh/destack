@@ -1,60 +1,156 @@
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use destack_unicode::UNICODE_VERSION;
 
-/// A parsed token.
-/// It doesn't contain information about data that has been parsed,
-/// only the type of the token and its size.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+const TOKEN_TYPE_BITS: u32 = 0x0000_00ff;
+const TOKEN_LINE_BIT: u32 = 0x0000_0100;
+const TOKEN_LITERAL_SHIFT: u32 = 16;
+const LITERAL_KIND_BITS: u16 = 0x000f;
+const LITERAL_FLAG_A: u16 = 0x0010;
+const LITERAL_FLAG_B: u16 = 0x0020;
+const LITERAL_BASE_SHIFT: u16 = 6;
+
+/// A source Token.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
-    /// The token tag.
-    pub ty: TokenType,
     /// The length of the token in bytes.
-    pub len: u32,
+    len: u32,
+    /// Packed token type, line boundary flag, and literal metadata.
+    bits: u32,
+}
+
+/// Serializable token record.
+#[derive(Deserialize)]
+struct TokenRecord {
+    /// The token tag.
+    ty: TokenType,
+    /// The length of the token in bytes.
+    len: u32,
     /// The literal body of the token.
-    pub literal: Option<TokenLiteral>,
+    literal: Option<TokenLiteral>,
     /// Whether the token is preceded by a line terminator.
-    pub is_on_new_line: bool,
+    is_on_new_line: bool,
+}
+
+impl std::fmt::Debug for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Token")
+            .field("ty", &self.ty())
+            .field("len", &self.len())
+            .field("literal", &self.literal())
+            .field("is_on_new_line", &self.is_on_new_line())
+            .finish()
+    }
 }
 
 impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Token {:?}, {}>", self.ty, self.len)
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Token {:?}, {}>", self.ty(), self.len())
+    }
+}
+
+impl Serialize for Token {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut token = serializer.serialize_struct("Token", 4)?;
+        token.serialize_field("ty", &self.ty())?;
+        token.serialize_field("len", &self.len())?;
+        token.serialize_field("literal", &self.literal())?;
+        token.serialize_field("is_on_new_line", &self.is_on_new_line())?;
+        token.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Token {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let record = TokenRecord::deserialize(deserializer)?;
+
+        Ok(Token::new(record.ty, record.len, record.literal)
+            .with_on_new_line(record.is_on_new_line))
     }
 }
 
 impl Token {
     /// Create a token.
     pub const fn new(ty: TokenType, len: u32, literal: Option<TokenLiteral>) -> Token {
-        Token {
-            ty,
-            len,
-            literal,
-            is_on_new_line: false,
-        }
+        let literal = match literal {
+            Some(literal) => literal.bits(),
+            None => 0,
+        } as u32;
+        let token_type = ty as u32;
+        let bits = token_type | (literal << TOKEN_LITERAL_SHIFT);
+
+        Token { len, bits }
     }
 
     /// Create an end token.
     pub const fn end() -> Token {
-        Token {
-            ty: TokenType::End,
-            len: 0,
-            literal: None,
-            is_on_new_line: false,
+        Token::new(TokenType::End, 0, None)
+    }
+
+    /// Return the token tag.
+    #[inline]
+    pub fn ty(self) -> TokenType {
+        let code = (self.bits & TOKEN_TYPE_BITS) as u8;
+
+        match TokenType::try_from(code) {
+            Ok(ty) => ty,
+            Err(_) => TokenType::Unknown,
         }
+    }
+
+    /// Return the length of the token in bytes.
+    #[inline]
+    pub const fn len(self) -> u32 {
+        self.len
+    }
+
+    /// Return whether the token is empty.
+    #[inline]
+    pub const fn is_empty(self) -> bool {
+        self.len == 0
+    }
+
+    /// Return the literal body of the token.
+    #[inline]
+    pub const fn literal(self) -> Option<TokenLiteral> {
+        let code = (self.bits >> TOKEN_LITERAL_SHIFT) as u16;
+
+        TokenLiteral::from_bits(code)
+    }
+
+    /// Return whether the token is preceded by a line terminator.
+    #[inline]
+    pub const fn is_on_new_line(self) -> bool {
+        self.bits & TOKEN_LINE_BIT != 0
     }
 
     /// Return this token with line boundary information attached.
     #[must_use]
     pub const fn with_on_new_line(mut self, is_on_new_line: bool) -> Token {
-        self.is_on_new_line = is_on_new_line;
+        if is_on_new_line {
+            self.bits |= TOKEN_LINE_BIT;
+        } else {
+            self.bits &= !TOKEN_LINE_BIT;
+        }
         self
     }
 }
 
+/// An invalid packed token type code.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TokenTypeCodeError;
+
 /// Enum representing common lexeme types.
+#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TokenType {
     /// --------------------------------------------------
@@ -296,6 +392,101 @@ pub enum TokenType {
     CoalesceAssign,
 }
 
+impl TryFrom<u8> for TokenType {
+    type Error = TokenTypeCodeError;
+
+    /// Convert a packed token type code into a token type.
+    fn try_from(code: u8) -> Result<Self, Self::Error> {
+        match code {
+            0 => Ok(TokenType::Newline),
+            1 => Ok(TokenType::Whitespace),
+            2 => Ok(TokenType::Unknown),
+            3 => Ok(TokenType::End),
+            4 => Ok(TokenType::LineComment),
+            5 => Ok(TokenType::BlockComment),
+            6 => Ok(TokenType::DocLineComment),
+            7 => Ok(TokenType::DocBlockComment),
+            8 => Ok(TokenType::Identifier),
+            9 => Ok(TokenType::InvalidIdentifier),
+            10 => Ok(TokenType::UnknownLiteralPrefix),
+            11 => Ok(TokenType::Literal),
+            12 => Ok(TokenType::TemplateStringStart),
+            13 => Ok(TokenType::TemplateStringMiddle),
+            14 => Ok(TokenType::TemplateStringEnd),
+            15 => Ok(TokenType::TemplateString),
+            16 => Ok(TokenType::Colon),
+            17 => Ok(TokenType::Semicolon),
+            18 => Ok(TokenType::Comma),
+            19 => Ok(TokenType::Dot),
+            20 => Ok(TokenType::Range),
+            21 => Ok(TokenType::RangeInclusive),
+            22 => Ok(TokenType::Spread),
+            23 => Ok(TokenType::Arrow),
+            24 => Ok(TokenType::ArrowWide),
+            25 => Ok(TokenType::At),
+            26 => Ok(TokenType::Hash),
+            27 => Ok(TokenType::ElementwiseNot),
+            28 => Ok(TokenType::Maybe),
+            29 => Ok(TokenType::Coalesce),
+            30 => Ok(TokenType::Not),
+            31 => Ok(TokenType::OpenParenthesis),
+            32 => Ok(TokenType::CloseParenthesis),
+            33 => Ok(TokenType::OpenBrace),
+            34 => Ok(TokenType::CloseBrace),
+            35 => Ok(TokenType::OpenBracket),
+            36 => Ok(TokenType::CloseBracket),
+            37 => Ok(TokenType::Multiply),
+            38 => Ok(TokenType::Exponent),
+            39 => Ok(TokenType::Divide),
+            40 => Ok(TokenType::Remainder),
+            41 => Ok(TokenType::Add),
+            42 => Ok(TokenType::Subtract),
+            43 => Ok(TokenType::Increment),
+            44 => Ok(TokenType::Decrement),
+            45 => Ok(TokenType::ShiftLeft),
+            46 => Ok(TokenType::ShiftRight),
+            47 => Ok(TokenType::UnsignedShiftRight),
+            48 => Ok(TokenType::ElementwiseAnd),
+            49 => Ok(TokenType::ElementwiseXor),
+            50 => Ok(TokenType::ElementwiseOr),
+            51 => Ok(TokenType::Equal),
+            52 => Ok(TokenType::EqualWide),
+            53 => Ok(TokenType::NotEqual),
+            54 => Ok(TokenType::NotEqualWide),
+            55 => Ok(TokenType::LessThan),
+            56 => Ok(TokenType::LessThanOrEqual),
+            57 => Ok(TokenType::GreaterThan),
+            58 => Ok(TokenType::GreaterThanOrEqual),
+            59 => Ok(TokenType::LogicalAnd),
+            60 => Ok(TokenType::LogicalOr),
+            61 => Ok(TokenType::Assign),
+            62 => Ok(TokenType::MultiplyAssign),
+            63 => Ok(TokenType::ExponentAssign),
+            64 => Ok(TokenType::DivideAssign),
+            65 => Ok(TokenType::RemainderAssign),
+            66 => Ok(TokenType::AddAssign),
+            67 => Ok(TokenType::SubtractAssign),
+            68 => Ok(TokenType::ShiftLeftAssign),
+            69 => Ok(TokenType::ShiftRightAssign),
+            70 => Ok(TokenType::UnsignedShiftRightAssign),
+            71 => Ok(TokenType::ElementwiseAndAssign),
+            72 => Ok(TokenType::ElementwiseXorAssign),
+            73 => Ok(TokenType::ElementwiseOrAssign),
+            74 => Ok(TokenType::LogicalAndAssign),
+            75 => Ok(TokenType::LogicalOrAssign),
+            76 => Ok(TokenType::CoalesceAssign),
+            _ => Err(TokenTypeCodeError),
+        }
+    }
+}
+
+impl From<TokenType> for u8 {
+    /// Convert a token type into its packed token type code.
+    fn from(token_type: TokenType) -> Self {
+        token_type as u8
+    }
+}
+
 impl Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -459,6 +650,79 @@ pub enum TokenLiteral {
     TreeString,
 }
 
+impl TokenLiteral {
+    /// Return this token literal as compact token metadata.
+    const fn bits(self) -> u16 {
+        match self {
+            TokenLiteral::Boolean { value } => 1 | flag_bit(value, LITERAL_FLAG_A),
+            TokenLiteral::Int {
+                base,
+                is_empty,
+                is_bigint,
+            } => {
+                2 | (base.bits() << LITERAL_BASE_SHIFT)
+                    | flag_bit(is_empty, LITERAL_FLAG_A)
+                    | flag_bit(is_bigint, LITERAL_FLAG_B)
+            }
+            TokenLiteral::Float {
+                base,
+                is_empty_exponent,
+            } => {
+                3 | (base.bits() << LITERAL_BASE_SHIFT)
+                    | flag_bit(is_empty_exponent, LITERAL_FLAG_A)
+            }
+            TokenLiteral::Character {
+                is_terminated,
+                is_html_entity,
+            } => {
+                4 | flag_bit(is_terminated, LITERAL_FLAG_A)
+                    | flag_bit(is_html_entity, LITERAL_FLAG_B)
+            }
+            TokenLiteral::String {
+                is_terminated,
+                has_invalid_escape,
+            } => {
+                5 | flag_bit(is_terminated, LITERAL_FLAG_A)
+                    | flag_bit(has_invalid_escape, LITERAL_FLAG_B)
+            }
+            TokenLiteral::RegexString { has_flags } => 6 | flag_bit(has_flags, LITERAL_FLAG_A),
+            TokenLiteral::TreeString => 7,
+        }
+    }
+
+    /// Return the token literal represented by compact token metadata.
+    const fn from_bits(bits: u16) -> Option<Self> {
+        match bits & LITERAL_KIND_BITS {
+            0 => None,
+            1 => Some(TokenLiteral::Boolean {
+                value: bits & LITERAL_FLAG_A != 0,
+            }),
+            2 => Some(TokenLiteral::Int {
+                base: NumberBase::from_bits((bits >> LITERAL_BASE_SHIFT) & 0x0003),
+                is_empty: bits & LITERAL_FLAG_A != 0,
+                is_bigint: bits & LITERAL_FLAG_B != 0,
+            }),
+            3 => Some(TokenLiteral::Float {
+                base: NumberBase::from_bits((bits >> LITERAL_BASE_SHIFT) & 0x0003),
+                is_empty_exponent: bits & LITERAL_FLAG_A != 0,
+            }),
+            4 => Some(TokenLiteral::Character {
+                is_terminated: bits & LITERAL_FLAG_A != 0,
+                is_html_entity: bits & LITERAL_FLAG_B != 0,
+            }),
+            5 => Some(TokenLiteral::String {
+                is_terminated: bits & LITERAL_FLAG_A != 0,
+                has_invalid_escape: bits & LITERAL_FLAG_B != 0,
+            }),
+            6 => Some(TokenLiteral::RegexString {
+                has_flags: bits & LITERAL_FLAG_A != 0,
+            }),
+            7 => Some(TokenLiteral::TreeString),
+            _ => None,
+        }
+    }
+}
+
 /// Numeric literal base (according to its prefix).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum NumberBase {
@@ -470,4 +734,95 @@ pub enum NumberBase {
     Decimal = 10,
     /// Number starting with `0x`.
     Hexadecimal = 16,
+}
+
+impl NumberBase {
+    /// Return this number base as compact token metadata.
+    const fn bits(self) -> u16 {
+        match self {
+            NumberBase::Binary => 0,
+            NumberBase::Octal => 1,
+            NumberBase::Decimal => 2,
+            NumberBase::Hexadecimal => 3,
+        }
+    }
+
+    /// Return the number base represented by compact token metadata.
+    const fn from_bits(bits: u16) -> NumberBase {
+        match bits {
+            0 => NumberBase::Binary,
+            1 => NumberBase::Octal,
+            2 => NumberBase::Decimal,
+            _ => NumberBase::Hexadecimal,
+        }
+    }
+}
+
+/// Return a bit when a compact token flag is set.
+const fn flag_bit(is_set: bool, bit: u16) -> u16 {
+    if is_set { bit } else { 0 }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::mem::size_of;
+
+    use super::*;
+
+    #[test]
+    fn test_pack_token_in_eight_bytes() {
+        assert_eq!(size_of::<Token>(), 8);
+    }
+
+    #[test]
+    fn test_roundtrip_token_literals() {
+        let literals = [
+            None,
+            Some(TokenLiteral::Boolean { value: false }),
+            Some(TokenLiteral::Boolean { value: true }),
+            Some(TokenLiteral::Int {
+                base: NumberBase::Binary,
+                is_empty: false,
+                is_bigint: false,
+            }),
+            Some(TokenLiteral::Int {
+                base: NumberBase::Octal,
+                is_empty: true,
+                is_bigint: false,
+            }),
+            Some(TokenLiteral::Int {
+                base: NumberBase::Decimal,
+                is_empty: false,
+                is_bigint: true,
+            }),
+            Some(TokenLiteral::Int {
+                base: NumberBase::Hexadecimal,
+                is_empty: true,
+                is_bigint: true,
+            }),
+            Some(TokenLiteral::Float {
+                base: NumberBase::Decimal,
+                is_empty_exponent: true,
+            }),
+            Some(TokenLiteral::Character {
+                is_terminated: true,
+                is_html_entity: false,
+            }),
+            Some(TokenLiteral::String {
+                is_terminated: true,
+                has_invalid_escape: true,
+            }),
+            Some(TokenLiteral::RegexString { has_flags: true }),
+            Some(TokenLiteral::TreeString),
+        ];
+
+        for literal in literals {
+            let token = Token::new(TokenType::Literal, 7, literal).with_on_new_line(true);
+
+            assert_eq!(token.ty(), TokenType::Literal);
+            assert_eq!(token.len(), 7);
+            assert_eq!(token.literal(), literal);
+            assert!(token.is_on_new_line());
+        }
+    }
 }

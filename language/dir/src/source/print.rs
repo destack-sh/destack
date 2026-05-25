@@ -4,8 +4,8 @@ impl Token {
     /// Renders this token back to its string representation.
     #[inline]
     pub fn render(&self, source: &str, offset: usize) -> String {
-        let len = self.len as usize;
-        match self.ty {
+        let len = self.len() as usize;
+        match self.ty() {
             // --------------------------------------------------
             // Structural
             // --------------------------------------------------
@@ -156,7 +156,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
     let mut out = String::new();
     let mut offset: usize = 0;
     for tok in tokens {
-        let len = tok.len as usize;
+        let len = tok.len() as usize;
         out.push_str(&tok.render(source, offset));
         offset += len;
     }

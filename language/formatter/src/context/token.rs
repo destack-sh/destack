@@ -31,7 +31,7 @@ fn next_non_whitespace_token(
     mut cursor: usize,
 ) -> Option<(usize, TokenSpan)> {
     while let Some(token) = tokens.get(cursor).copied() {
-        if token_type_is_whitespace(token.token.ty) {
+        if token_type_is_whitespace(token.token.ty()) {
             cursor += 1;
             continue;
         }
@@ -48,7 +48,7 @@ fn extend_span_to_line_end(tokens: &[TokenSpan], span: Span) -> Span {
     let token_index = tokens.partition_point(|token| token.span.start < span.end);
 
     for token in tokens[token_index..].iter().copied() {
-        match token.token.ty {
+        match token.token.ty() {
             TokenType::Whitespace => {
                 end = token.span.end;
             }
@@ -75,14 +75,14 @@ fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Sp
         return span;
     };
 
-    if candidate.token.ty != TokenType::Semicolon {
+    if candidate.token.ty() != TokenType::Semicolon {
         return span;
     }
 
     let mut lookahead_cursor = candidate_cursor + 1;
 
     while let Some(token) = tokens.get(lookahead_cursor).copied() {
-        match token.token.ty {
+        match token.token.ty() {
             TokenType::Whitespace => {}
             TokenType::Newline | TokenType::End => {
                 return Span::new(span.file, span.start, candidate.span.end);
@@ -156,7 +156,7 @@ impl<'a> DestackFormatContext<'a> {
 
             token_index += 1;
 
-            if token_type_is_trivia(token.token.ty) {
+            if token_type_is_trivia(token.token.ty()) {
                 continue;
             }
 
@@ -187,7 +187,7 @@ impl<'a> DestackFormatContext<'a> {
                 return None;
             }
 
-            if token.token.ty == token_type {
+            if token.token.ty() == token_type {
                 seen += 1;
 
                 if seen == nth {
@@ -219,7 +219,7 @@ impl<'a> DestackFormatContext<'a> {
 
             token_index += 1;
 
-            if token_type_is_trivia(token.token.ty) {
+            if token_type_is_trivia(token.token.ty()) {
                 continue;
             }
 
@@ -240,7 +240,7 @@ impl<'a> DestackFormatContext<'a> {
             return None;
         }
 
-        Some(comment_token.token.ty)
+        Some(comment_token.token.ty())
     }
 
     /// Return comment tokens that intersect one span.
@@ -261,7 +261,7 @@ impl<'a> DestackFormatContext<'a> {
             index -= 1;
 
             let token = tokens[index];
-            if token_type_is_whitespace(token.token.ty) {
+            if token_type_is_whitespace(token.token.ty()) {
                 continue;
             }
 
@@ -280,7 +280,7 @@ impl<'a> DestackFormatContext<'a> {
             index -= 1;
 
             let token = tokens[index];
-            if token_type_is_trivia(token.token.ty) {
+            if token_type_is_trivia(token.token.ty()) {
                 continue;
             }
 
@@ -296,7 +296,7 @@ impl<'a> DestackFormatContext<'a> {
         let mut index = tokens.partition_point(|token| token.span.start < span.end);
 
         while let Some(token) = tokens.get(index).copied() {
-            if token_type_is_whitespace(token.token.ty) {
+            if token_type_is_whitespace(token.token.ty()) {
                 index += 1;
                 continue;
             }
@@ -313,7 +313,7 @@ impl<'a> DestackFormatContext<'a> {
         let mut index = tokens.partition_point(|token| token.span.start < span.end);
 
         while let Some(token) = tokens.get(index).copied() {
-            if token_type_is_trivia(token.token.ty) {
+            if token_type_is_trivia(token.token.ty()) {
                 index += 1;
                 continue;
             }
@@ -358,7 +358,7 @@ impl<'a> DestackFormatContext<'a> {
 
             index += 1;
 
-            if token_type_is_trivia(token.token.ty) {
+            if token_type_is_trivia(token.token.ty()) {
                 continue;
             }
 
@@ -386,7 +386,7 @@ impl<'a> DestackFormatContext<'a> {
                 break;
             }
 
-            if token_type_is_trivia(token.token.ty) {
+            if token_type_is_trivia(token.token.ty()) {
                 continue;
             }
 
@@ -401,7 +401,7 @@ impl<'a> DestackFormatContext<'a> {
     pub fn literal_lexeme_in_span(&self, span: Span) -> Option<&'a str> {
         let token = self.first_non_trivia_token_in_span(span)?;
 
-        if token.token.ty != TokenType::Literal {
+        if token.token.ty() != TokenType::Literal {
             return None;
         }
 
@@ -411,7 +411,7 @@ impl<'a> DestackFormatContext<'a> {
     /// Parse one identifier token as a language keyword.
     #[inline]
     pub fn token_keyword(&self, token: TokenSpan) -> Option<Keyword> {
-        if token.token.ty != TokenType::Identifier {
+        if token.token.ty() != TokenType::Identifier {
             return None;
         }
 
@@ -491,7 +491,7 @@ impl<'a> DestackFormatContext<'a> {
             }
 
             if matches!(
-                token.token.ty,
+                token.token.ty(),
                 TokenType::LineComment | TokenType::DocLineComment
             ) || self.has_newline(token.span)
             {
@@ -508,7 +508,7 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn comment_is_line(&self, token: TokenSpan) -> bool {
         matches!(
-            token.token.ty,
+            token.token.ty(),
             TokenType::LineComment | TokenType::DocLineComment
         )
     }

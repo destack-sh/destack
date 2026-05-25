@@ -45,7 +45,7 @@ impl<'a> DestackFormatContext<'a> {
         annotation_id: LocalNodeId<Decorator>,
     ) -> Option<TokenType> {
         self.next_non_whitespace_token_after_span(self.annotation_span(annotation_id))
-            .map(|token| token.token.ty)
+            .map(|token| token.token.ty())
     }
 
     /// Return annotation ids for a node.

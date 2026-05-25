@@ -83,10 +83,10 @@ fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<Tok
         .iter()
         .rev()
         .find(|token| {
-            token.span.end <= comment.span.start && !matches!(token.token.ty, TokenType::End)
+            token.span.end <= comment.span.start && !matches!(token.token.ty(), TokenType::End)
         })
         .copied()
-        .map(|token| token.token.ty)
+        .map(|token| token.token.ty())
 }
 
 /// Return the nearest non-trivia token after one comment boundary.
@@ -95,10 +95,10 @@ fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenTy
         .tokens()
         .iter()
         .find(|token| {
-            token.span.start >= comment.span.end && !matches!(token.token.ty, TokenType::End)
+            token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
         })
         .copied()
-        .map(|token| token.token.ty)
+        .map(|token| token.token.ty())
 }
 
 /// Assert the non-trivia token kinds on both sides of one comment boundary.

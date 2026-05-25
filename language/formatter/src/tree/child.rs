@@ -237,7 +237,7 @@ fn expression_has_prefix_star_comment(
         .iter()
         .any(|token| {
             matches!(
-                token.token.ty,
+                token.token.ty(),
                 TokenType::BlockComment | TokenType::DocBlockComment
             )
         })

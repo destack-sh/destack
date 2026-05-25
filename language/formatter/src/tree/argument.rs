@@ -54,10 +54,10 @@ pub(crate) fn tree_argument_is_wrapped_in_braces(
     let argument_span = context.span(argument_id);
     let starts_with_open_brace = context
         .first_non_trivia_token_in_span(argument_span)
-        .is_some_and(|token| token.token.ty == TokenType::OpenBrace);
+        .is_some_and(|token| token.token.ty() == TokenType::OpenBrace);
     let ends_with_close_brace = context
         .last_non_trivia_token_in_span(argument_span)
-        .is_some_and(|token| token.token.ty == TokenType::CloseBrace);
+        .is_some_and(|token| token.token.ty() == TokenType::CloseBrace);
 
     starts_with_open_brace && ends_with_close_brace
 }
@@ -201,11 +201,11 @@ pub(crate) fn write_tree_expression_argument<'ast>(
             let tokens = f.context().non_trivia_tokens_in_span(argument_span);
             let (is_equals_braced, is_equals_unbraced) = tokens
                 .iter()
-                .position(|token| token.token.ty == TokenType::Assign)
+                .position(|token| token.token.ty() == TokenType::Assign)
                 .map(|assign_index| {
                     if tokens
                         .get(assign_index + 1)
-                        .is_some_and(|token| token.token.ty == TokenType::OpenBrace)
+                        .is_some_and(|token| token.token.ty() == TokenType::OpenBrace)
                     {
                         (true, false)
                     } else {

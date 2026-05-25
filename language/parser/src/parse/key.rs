@@ -238,14 +238,14 @@ impl Parser {
             let token_part = self.get_token_str(token);
 
             // disallow escaped identifiers in tree literals
-            if token.token.ty == TokenType::Identifier && token_part.contains('\\') {
+            if token.token.ty() == TokenType::Identifier && token_part.contains('\\') {
                 return Err(ParserError::unexpected(token.span));
             }
             last_span = token.span;
 
             if is_kebab {
                 // keep numeric kebab segments as is, uppercase identifier segments
-                if token.token.ty == TokenType::Literal {
+                if token.token.ty() == TokenType::Literal {
                     identifier.push_str(token_part);
                 } else {
                     let mut chars = token_part.chars();
@@ -269,7 +269,7 @@ impl Parser {
     #[inline]
     pub fn peek_string_literal(&mut self) -> ParserResult<&TokenSpan> {
         let token = *self.peek_token(TokenType::Literal)?;
-        match token.token.literal {
+        match token.token.literal() {
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -286,7 +286,7 @@ impl Parser {
         }
 
         matches!(
-            self.current_token().token.literal,
+            self.current_token().token.literal(),
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -315,11 +315,11 @@ impl Parser {
     #[inline]
     pub fn peek_next_string_literal(&mut self) -> ParserResult<TokenSpan> {
         let token = self.next_token();
-        if token.token.ty != TokenType::Literal {
+        if token.token.ty() != TokenType::Literal {
             return Err(ParserError::expected(token.span, TokenType::Literal));
         }
 
-        match token.token.literal {
+        match token.token.literal() {
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -332,12 +332,12 @@ impl Parser {
     #[inline]
     pub fn peek_next_string_literal_is(&mut self) -> bool {
         let token = self.next_token();
-        if token.token.ty != TokenType::Literal {
+        if token.token.ty() != TokenType::Literal {
             return false;
         }
 
         matches!(
-            token.token.literal,
+            token.token.literal(),
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -349,8 +349,8 @@ impl Parser {
     #[inline]
     pub fn peek_numeric_literal(&mut self) -> ParserResult<&TokenSpan> {
         let token = self.peek()?;
-        if token.token.ty == TokenType::Literal {
-            match token.token.literal {
+        if token.token.ty() == TokenType::Literal {
+            match token.token.literal() {
                 Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. }) => Ok(token),
                 _ => Err(ParserError::expected(token.span, TokenType::Literal)),
             }
@@ -367,7 +367,7 @@ impl Parser {
         }
 
         matches!(
-            self.current_token().token.literal,
+            self.current_token().token.literal(),
             Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. })
         )
     }
@@ -428,7 +428,7 @@ impl Parser {
         }
 
         matches!(
-            self.current_token().token.literal,
+            self.current_token().token.literal(),
             Some(TokenLiteral::Boolean { .. })
         )
     }
@@ -467,7 +467,7 @@ impl Parser {
         let hash_span = self.current_token().span;
         let token = self.next_token();
 
-        token.token.ty == TokenType::Identifier && hash_span.end == token.span.start
+        token.token.ty() == TokenType::Identifier && hash_span.end == token.span.start
     }
 
     /// Eat a name or a dynamic key, returning both the key and its span.

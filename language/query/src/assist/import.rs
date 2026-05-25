@@ -35,8 +35,8 @@ pub(super) fn detect_import_context(
         }
 
         // detect path completions inside the import string
-        let import_span = ctx.tree().source_map.get(expr_id.id);
-        let main_span = ctx.tree().source_map.get_main(expr_id.id);
+        let import_span = ctx.tree().source_index.get(expr_id.id);
+        let main_span = ctx.tree().source_index.get_main(expr_id.id);
         if let Some(span) = main_span
             && span.contains(offset)
         {
@@ -85,11 +85,14 @@ fn import_path_span_from_tokens(
     }
 
     // require a string literal token
-    if token.token.ty != dir::TokenType::Literal {
+    if token.token.ty() != dir::TokenType::Literal {
         return None;
     }
 
-    if !matches!(token.token.literal, Some(dir::TokenLiteral::String { .. })) {
+    if !matches!(
+        token.token.literal(),
+        Some(dir::TokenLiteral::String { .. })
+    ) {
         return None;
     }
 
@@ -149,7 +152,7 @@ fn import_clause_context(
 
     for item_id in items {
         let item = ctx.tree().get(*item_id);
-        let span = ctx.tree().source_map.get(item_id.id);
+        let span = ctx.tree().source_index.get(item_id.id);
 
         let (item_space, item_name, item_alias) = match item {
             dir::DependencyItem::Binding {
@@ -182,7 +185,7 @@ fn import_clause_context(
             let token_in_clause =
                 token.span.start >= open_brace.start && token.span.end <= end_boundary.end;
             token_in_clause
-                && token.token.ty == dir::TokenType::Identifier
+                && token.token.ty() == dir::TokenType::Identifier
                 && token_text(source, token.span) == Some("type")
         } else {
             false

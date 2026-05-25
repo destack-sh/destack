@@ -24,7 +24,7 @@ fn token_stream_has_non_whitespace_content(tokens: &[TokenSpan], span: Span) -> 
             break;
         }
 
-        if token_has_non_whitespace_content(token.token.ty) {
+        if token_has_non_whitespace_content(token.token.ty()) {
             return true;
         }
 
@@ -45,10 +45,10 @@ impl<'a> DestackFormatContext<'a> {
         self.tree.get_span(node_id)
     }
 
-    /// Get a span from the source map by raw node id.
+    /// Get a span from the source index by raw node id.
     #[inline]
     pub fn span_by_id(&self, node_id: u32) -> Span {
-        self.tree.source_map.get(node_id)
+        self.tree.source_index.get(node_id)
     }
 
     /// Get a node from the tree.
@@ -238,7 +238,7 @@ impl<'a> DestackFormatContext<'a> {
                 return true;
             };
 
-            if previous_token.token.ty == TokenType::Newline {
+            if previous_token.token.ty() == TokenType::Newline {
                 return true;
             }
 

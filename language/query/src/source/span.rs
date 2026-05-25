@@ -13,8 +13,8 @@ pub(crate) fn get_node_tree_span(
     // get the source node id from the DIR node
     let source_node_id = dir.get_source_any(dir_node_id);
 
-    // get the span from source map
-    ctx.source_map().get(source_node_id)
+    // get the span from source index
+    ctx.source_index().get(source_node_id)
 }
 
 /// Get the main span of a DIR node using one DIR tree.
@@ -27,7 +27,7 @@ pub(crate) fn get_node_tree_main_span(
     let source_node_id = dir.get_source_any(dir_node_id);
 
     // try to get the main span first (e.g., identifier span for declarations)
-    ctx.source_map().get_main_or_enclosing(source_node_id)
+    ctx.source_index().get_main_or_enclosing(source_node_id)
 }
 
 /// Resolve the span for a DIR node within a query context.
@@ -38,12 +38,12 @@ pub(crate) fn span_for_dir_node(
 ) -> Span {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let source_span = ctx.source_map().get(source_id);
+    let source_span = ctx.source_index().get(source_id);
 
     Span::new(ctx.file_id(), source_span.start, source_span.end)
 }
 
-/// Resolve the span for a DIR node when its source id is present in the source map.
+/// Resolve the span for a DIR node when its source id is present in the source index.
 pub(crate) fn try_span_for_dir_node(
     ctx: DirQueryContext<'_>,
     dir: dir::View<'_>,
@@ -51,7 +51,7 @@ pub(crate) fn try_span_for_dir_node(
 ) -> Option<Span> {
     // resolve the source span when the source id is still valid
     let source_id = dir.get_source_any(node_id);
-    let source_span = ctx.source_map().try_get(source_id)?;
+    let source_span = ctx.source_index().try_get(source_id)?;
 
     Some(Span::new(ctx.file_id(), source_span.start, source_span.end))
 }
@@ -64,7 +64,7 @@ pub(crate) fn main_span_for_dir_node(
 ) -> Option<Span> {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let source_span = ctx.source_map().get_main(source_id)?;
+    let source_span = ctx.source_index().get_main(source_id)?;
 
     Some(Span::new(ctx.file_id(), source_span.start, source_span.end))
 }
@@ -77,7 +77,7 @@ pub(crate) fn main_or_enclosing_span_for_dir_node(
 ) -> Span {
     // resolve the source span for the node
     let source_id = dir.get_source_any(node_id);
-    let source_span = ctx.source_map().get_main_or_enclosing(source_id);
+    let source_span = ctx.source_index().get_main_or_enclosing(source_id);
 
     Span::new(ctx.file_id(), source_span.start, source_span.end)
 }
@@ -133,8 +133,8 @@ pub(crate) fn sorted_enclosing_spans(
     start: u32,
     end: u32,
 ) -> Vec<EnclosingSpan> {
-    // collect enclosing spans from the source map
-    let mut enclosing = ctx.source_map().get_enclosing_spans(start, end);
+    // collect enclosing spans from the source index
+    let mut enclosing = ctx.source_index().get_enclosing_spans(start, end);
 
     // sort by span length so innermost spans come first
     enclosing.sort_by_key(|span| span.length);
@@ -152,7 +152,7 @@ pub(crate) fn enclosing_spans_at_offsets(
 
     // gather the enclosing spans for each probe offset
     for offset in offsets {
-        let spans = ctx.source_map().get_enclosing_spans(offset, offset);
+        let spans = ctx.source_index().get_enclosing_spans(offset, offset);
         for span in spans {
             if seen.insert(span.idx) {
                 enclosing.push(span);
@@ -192,10 +192,13 @@ pub(crate) fn string_literal_span_in_enclosing(
         if token.span.start < enclosing.start || token.span.end > enclosing.end {
             continue;
         }
-        if token.token.ty != dir::TokenType::Literal {
+        if token.token.ty() != dir::TokenType::Literal {
             continue;
         }
-        if !matches!(token.token.literal, Some(dir::TokenLiteral::String { .. })) {
+        if !matches!(
+            token.token.literal(),
+            Some(dir::TokenLiteral::String { .. })
+        ) {
             continue;
         }
 

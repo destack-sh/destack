@@ -132,9 +132,9 @@ impl Parser {
         }
 
         let next_token = self.next_token();
-        let can_start_async_method = !next_token.token.is_on_new_line
+        let can_start_async_method = !next_token.token.is_on_new_line()
             && matches!(
-                next_token.token.ty,
+                next_token.token.ty(),
                 TokenType::Identifier
                     | TokenType::Literal
                     | TokenType::Hash
@@ -961,7 +961,7 @@ impl Parser {
         match token_type {
             TokenType::Identifier => true,
             TokenType::Literal => matches!(
-                self.current_token().token.literal,
+                self.current_token().token.literal(),
                 Some(
                     TokenLiteral::String {
                         is_terminated: true,
@@ -1631,9 +1631,9 @@ impl Parser {
         // abstract
         let next_token = self.next_token();
         let abstract_is_modifier = self.is_keyword(Keyword::Abstract)
-            && !next_token.token.is_on_new_line
+            && !next_token.token.is_on_new_line()
             && matches!(
-                next_token.token.ty,
+                next_token.token.ty(),
                 TokenType::Identifier
                     | TokenType::Literal
                     | TokenType::Hash

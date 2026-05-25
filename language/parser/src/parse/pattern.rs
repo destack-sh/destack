@@ -814,8 +814,8 @@ impl Parser {
     // check whether next token is a boolean literal key in object patterns
     fn peek_boolean_pattern_name_head(&mut self) -> bool {
         self.peek().is_ok_and(|token| {
-            token.token.ty == TokenType::Literal
-                && matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
+            token.token.ty() == TokenType::Literal
+                && matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
         })
     }
 
@@ -858,8 +858,8 @@ impl Parser {
     // eat a boolean pattern field name as Name::Identifier
     fn eat_boolean_pattern_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
         let token = *self.peek()?;
-        if token.token.ty != TokenType::Literal
-            || !matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
+        if token.token.ty() != TokenType::Literal
+            || !matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
         {
             return Err(ParserError::unexpected(token.span));
         }

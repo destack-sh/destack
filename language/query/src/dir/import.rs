@@ -334,7 +334,7 @@ pub(crate) fn import_clause_bounds(
             break;
         }
 
-        match token.token.ty {
+        match token.token.ty() {
             TokenType::OpenBrace => {
                 open_brace = Some(token.span);
                 close_brace = None;
@@ -419,7 +419,7 @@ fn collect_existing_imports_from_source(source: DirQueryContext<'_>) -> Vec<Exis
         {
             // resolve import path, span, and form
             let path = source.strings().get(*target).to_string();
-            let span = source.tree().source_map.get(node_id.id);
+            let span = source.tree().source_index.get(node_id.id);
             let is_type_only = *form == DependencyForm::Type;
             let items = items.as_deref().unwrap_or(&[]);
 
@@ -443,7 +443,7 @@ fn collect_existing_imports_from_source(source: DirQueryContext<'_>) -> Vec<Exis
                 .collect();
 
             // find closing brace position by scanning tokens
-            let target_span = source.tree().source_map.get_main(node_id.id);
+            let target_span = source.tree().source_index.get_main(node_id.id);
             let closing_brace_pos = if is_namespace {
                 None
             } else {

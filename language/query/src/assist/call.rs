@@ -64,7 +64,7 @@ pub(super) fn detect_call_argument_context(
     // recover separator ownership inside a call
     if let Some(separator) = previous_significant_token(ctx, offset)
         && matches!(
-            separator.token.ty,
+            separator.token.ty(),
             dir::TokenType::OpenParenthesis | dir::TokenType::Comma
         )
         && let Some(context) =
@@ -100,7 +100,7 @@ fn new_expression_context_for_span(
     }
 
     // only the constructor side should classify as one `new` completion position
-    let left_span = parsed_tree.source_map.get(left.id);
+    let left_span = parsed_tree.source_index.get(left.id);
     if !span_owns_cursor(left_span, offset) {
         return None;
     }
@@ -131,7 +131,7 @@ fn call_argument_context_for_span(
 ) -> Option<CompletionContext> {
     let (expr_id, call) = dir_call_expression_for_enclosing_span(dir_tree, enc)?;
     let left_span = left_expression_span(ctx, dir_tree, call.left);
-    let call_span = ctx.tree().source_map.get(enc.idx);
+    let call_span = ctx.tree().source_index.get(enc.idx);
 
     // only the argument list belongs to this path
     if !cursor_in_argument_list(ctx, dir_tree, call.arguments, left_span, call_span, offset) {
@@ -195,7 +195,7 @@ fn call_argument_context_after_separator(
             _ => continue,
         };
 
-        let left_span = ctx.tree().source_map.get(left.id);
+        let left_span = ctx.tree().source_index.get(left.id);
         if separator_position <= left_span.end {
             continue;
         }
@@ -294,7 +294,7 @@ fn dir_node_span(
     node_id: dir::LocalNodeIdAny,
 ) -> Span {
     let source_id = dir_tree.get_source_any(node_id);
-    ctx.tree().source_map.get(source_id)
+    ctx.tree().source_index.get(source_id)
 }
 
 /// Resolve the source span for one call target expression.

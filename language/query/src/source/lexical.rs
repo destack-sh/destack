@@ -32,7 +32,7 @@ pub(crate) fn previous_significant_token(
         }
 
         // skip trivia when classifying cursor intent
-        if is_trivia_token(token.token.ty) {
+        if is_trivia_token(token.token.ty()) {
             continue;
         }
 
@@ -63,7 +63,7 @@ pub(crate) fn next_significant_token(
         }
 
         // skip trivia when classifying cursor intent
-        if is_trivia_token(token.token.ty) {
+        if is_trivia_token(token.token.ty()) {
             continue;
         }
 
@@ -91,7 +91,7 @@ pub(crate) fn token_span_at_cursor_offset(
         }
 
         // skip trivia when extracting the completion prefix token
-        if is_trivia_token(token.token.ty) {
+        if is_trivia_token(token.token.ty()) {
             continue;
         }
 
@@ -132,18 +132,18 @@ pub(crate) fn member_access_dot_before_offset(
     let previous = previous_significant_token(ctx, offset)?;
 
     // `value.$0`
-    if previous.token.ty == dir::TokenType::Dot {
+    if previous.token.ty() == dir::TokenType::Dot {
         return Some(previous);
     }
 
     // only identifiers can continue one already-started member name
-    if previous.token.ty != dir::TokenType::Identifier {
+    if previous.token.ty() != dir::TokenType::Identifier {
         return None;
     }
 
     // `value.na$0`
     let dot = previous_significant_token(ctx, previous.span.start)?;
-    if dot.token.ty != dir::TokenType::Dot {
+    if dot.token.ty() != dir::TokenType::Dot {
         return None;
     }
 
@@ -159,7 +159,7 @@ pub(crate) fn receiver_token_before_member_access_dot(
     let mut receiver_token = previous_significant_token(ctx, dot.span.start)?;
 
     // optional chaining inserts `?` before `.`
-    if receiver_token.token.ty == dir::TokenType::Maybe {
+    if receiver_token.token.ty() == dir::TokenType::Maybe {
         receiver_token = previous_significant_token(ctx, receiver_token.span.start)?;
     }
 
@@ -190,7 +190,7 @@ pub(crate) fn tokens_between_offsets_include_statement_boundary(
 
         // statement separators end keyword-owned expression slots
         if matches!(
-            token.token.ty,
+            token.token.ty(),
             dir::TokenType::Newline | dir::TokenType::Semicolon
         ) {
             return true;

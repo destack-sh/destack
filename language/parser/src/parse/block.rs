@@ -279,7 +279,7 @@ impl Parser {
         }
 
         let token = match self.peek() {
-            Ok(token) if Self::is_close_delimiter_token(token.token.ty) => *token,
+            Ok(token) if Self::is_close_delimiter_token(token.token.ty()) => *token,
             _ => return Ok(false),
         };
 
@@ -955,9 +955,9 @@ impl Parser {
     /// Return true when one token ends a bare label form.
     #[inline]
     fn token_ends_label_statement(&self, token: TokenSpan) -> bool {
-        token.token.is_on_new_line
+        token.token.is_on_new_line()
             || matches!(
-                token.token.ty,
+                token.token.ty(),
                 TokenType::Semicolon | TokenType::CloseBrace | TokenType::End
             )
     }
@@ -996,8 +996,8 @@ impl Parser {
 
             // labeled value: break label: value
             if self.language.is_destack()
-                && !next_token.token.is_on_new_line
-                && next_token.token.ty == TokenType::Colon
+                && !next_token.token.is_on_new_line()
+                && next_token.token.ty() == TokenType::Colon
             {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.bump(); // eat colon

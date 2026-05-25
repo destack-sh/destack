@@ -463,7 +463,7 @@ impl Parser {
 
         // module targets accept regular string literals, including unterminated ones for recovery
         let is_valid_target = matches!(
-            token.token.literal,
+            token.token.literal(),
             Some(TokenLiteral::String {
                 has_invalid_escape: false,
                 ..
@@ -771,8 +771,8 @@ impl Parser {
         // export specifiers also allow keyword like literal aliases: true, false
         if allow_literal_alias
             && self.peek().is_ok_and(|token| {
-                token.token.ty == TokenType::Literal
-                    && matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
+                token.token.ty() == TokenType::Literal
+                    && matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
             })
         {
             let span = self.peek()?.span;

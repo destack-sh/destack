@@ -60,7 +60,7 @@ impl Parser {
     #[inline]
     pub fn eat_arrow(&mut self) -> ParserResult<&TokenSpan> {
         let token = self.eat()?;
-        if token.token.ty == TokenType::ArrowWide {
+        if token.token.ty() == TokenType::ArrowWide {
             Ok(token)
         } else {
             Err(ParserError::expected(token.span, TokenType::ArrowWide))

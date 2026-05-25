@@ -103,7 +103,7 @@ pub fn folding_ranges(ctx: &ModuleQueryContext<'_>) -> Vec<FoldingRange> {
         }
 
         let source_node_id = dir_tree.get_source(declaration_id);
-        let span = ctx.dir().tree().source_map.get(source_node_id);
+        let span = ctx.dir().tree().source_index.get(source_node_id);
         let Some((start_line, _)) = source_file.get_position(span.start) else {
             continue;
         };
@@ -142,7 +142,7 @@ fn add_comment_folding_ranges(
             continue;
         }
 
-        match token.token.ty {
+        match token.token.ty() {
             TokenType::LineComment | TokenType::DocLineComment => {
                 let Some((start_line, _)) = source_file.get_position(span.start) else {
                     continue;

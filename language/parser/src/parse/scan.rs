@@ -305,7 +305,7 @@ impl Parser {
         let next = self.next_token();
         let following_token_type = self.token_type_at_offset(2);
 
-        next.token.is_on_new_line
+        next.token.is_on_new_line()
             && following_token_type != TokenType::Colon
             && following_token_type != TokenType::Maybe
             && following_token_type != TokenType::OpenParenthesis

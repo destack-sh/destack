@@ -7,7 +7,7 @@ fn test_lex_tree_after_type_alias_before_tree() {
     let (semantic_tokens, _, _) = lex_source_with_tree_literals(src, LanguageType::TypeScriptXml);
     let tokens: Vec<_> = semantic_tokens
         .iter()
-        .map(|token| (token.token.ty, token.token.literal))
+        .map(|token| (token.token.ty(), token.token.literal()))
         .collect();
     let expected = [
         (TokenType::LessThan, None),
@@ -121,6 +121,24 @@ fn test_lex_tree_self_closing() {
         Token::new(TokenType::Identifier, 1, None),  // A
         Token::new(TokenType::Divide, 1, None),      // /
         Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+/// Tree tags should keep unicode identifier spans on UTF-8 boundaries.
+#[test]
+fn test_lex_tree_unicode_tag_identifier() {
+    assert_tree_tokenize_eq_roundtrip!(
+        "<µtag µ_>µ_</µtag>",
+        Token::new(TokenType::LessThan, 1, None),
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::GreaterThan, 1, None),
+        Token::new(TokenType::Literal, 3, Some(TokenLiteral::TreeString)),
+        Token::new(TokenType::LessThan, 1, None),
+        Token::new(TokenType::Divide, 1, None),
+        Token::new(TokenType::Identifier, 5, None),
+        Token::new(TokenType::GreaterThan, 1, None),
     );
 }
 
@@ -419,13 +437,13 @@ fn test_lex_tree_deeply_nested() {
 
     let opens: Vec<_> = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::LessThan)
+        .filter(|t| t.token.ty() == TokenType::LessThan)
         .collect();
     assert_eq!(opens.len(), 7, "should have 7 < tokens");
 
     let divides: Vec<_> = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::Divide)
+        .filter(|t| t.token.ty() == TokenType::Divide)
         .collect();
     assert_eq!(
         divides.len(),
@@ -436,13 +454,13 @@ fn test_lex_tree_deeply_nested() {
     // verify expression container tokens exist
     let open_braces: Vec<_> = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::OpenBrace)
+        .filter(|t| t.token.ty() == TokenType::OpenBrace)
         .collect();
     assert_eq!(open_braces.len(), 1, "should have 1 open brace token");
 
     let close_braces: Vec<_> = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::CloseBrace)
+        .filter(|t| t.token.ty() == TokenType::CloseBrace)
         .collect();
     assert_eq!(close_braces.len(), 1, "should have 1 close brace token");
 }
@@ -514,7 +532,7 @@ fn test_lex_tree_self_closing_after_nested_attribute_object_expression() {
     let (tokens, _, _) = lex_source_with_tree_literals(input, LanguageType::TypeScriptXml);
     let semantic_types: Vec<TokenType> = tokens
         .iter()
-        .map(|token| token.token.ty)
+        .map(|token| token.token.ty())
         .filter(|token_type| *token_type != TokenType::Newline)
         .collect();
 
@@ -539,11 +557,11 @@ fn test_lex_tree_in_nested_callbacks() {
 
     let open_parens = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::OpenParenthesis)
+        .filter(|t| t.token.ty() == TokenType::OpenParenthesis)
         .count();
     let close_parens = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::CloseParenthesis)
+        .filter(|t| t.token.ty() == TokenType::CloseParenthesis)
         .count();
 
     assert_eq!(open_parens, close_parens, "parentheses should be balanced");
@@ -571,7 +589,7 @@ fn test_lex_tree_nested_multiline_with_text() {
 
     // verify "Tool: " is lexed as TreeString
     let has_tool_tree_string = tokens.iter().any(|t| {
-        t.token.literal == Some(TokenLiteral::TreeString)
+        t.token.literal() == Some(TokenLiteral::TreeString)
             && input[t.span.start as usize..t.span.end as usize].contains("Tool:")
     });
     assert!(has_tool_tree_string, "expected 'Tool: ' to be a TreeString");
@@ -579,11 +597,11 @@ fn test_lex_tree_nested_multiline_with_text() {
     // verify parentheses are balanced
     let open_parens = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::OpenParenthesis)
+        .filter(|t| t.token.ty() == TokenType::OpenParenthesis)
         .count();
     let close_parens = tokens
         .iter()
-        .filter(|t| t.token.ty == TokenType::CloseParenthesis)
+        .filter(|t| t.token.ty() == TokenType::CloseParenthesis)
         .count();
     assert_eq!(open_parens, close_parens, "parentheses should be balanced");
 }
@@ -623,8 +641,8 @@ fn test_lex_tree_text_after_map_callback_blocks() {
         .iter()
         .find(|token| &input[token.span.start as usize..token.span.end as usize] == "Asc")
         .expect("expected Asc token");
-    assert_eq!(asc_token.token.ty, TokenType::Literal);
-    assert_eq!(asc_token.token.literal, Some(TokenLiteral::TreeString));
+    assert_eq!(asc_token.token.ty(), TokenType::Literal);
+    assert_eq!(asc_token.token.literal(), Some(TokenLiteral::TreeString));
 }
 
 /// Tree comment containers should lex their block comments inside expression mode.
@@ -662,7 +680,7 @@ fn test_lex_tree_sibling_after_expr_container() {
     let token_at_form = tokens.iter().find(|t| t.span.start as usize == form_start);
 
     assert_eq!(
-        token_at_form.map(|t| t.token.ty),
+        token_at_form.map(|t| t.token.ty()),
         Some(TokenType::LessThan),
         "< before form should be tree opening"
     );
@@ -680,7 +698,7 @@ fn test_lex_tree_sibling_after_expr_container_tabs() {
     let token_at_form = tokens.iter().find(|t| t.span.start as usize == form_start);
 
     assert_eq!(
-        token_at_form.map(|t| t.token.ty),
+        token_at_form.map(|t| t.token.ty()),
         Some(TokenType::LessThan),
         "< before form should be tree opening"
     );
@@ -698,7 +716,7 @@ fn test_lex_tree_multiline_form_after_expression_container() {
     let token_at_form = tokens.iter().find(|t| t.span.start as usize == form_start);
 
     assert_eq!(
-        token_at_form.map(|t| t.token.ty),
+        token_at_form.map(|t| t.token.ty()),
         Some(TokenType::LessThan),
         "< in <form should be tree opening"
     );
@@ -736,7 +754,7 @@ fn test_lex_tree_after_nested_spread_attributes() {
     let e_start = input.find("<E").unwrap();
     let token_at_e = tokens.iter().find(|t| t.span.start as usize == e_start);
     assert_eq!(
-        token_at_e.map(|t| t.token.ty),
+        token_at_e.map(|t| t.token.ty()),
         Some(TokenType::LessThan),
         "< before E should be tree opening"
     );
@@ -755,7 +773,7 @@ fn test_lex_tree_after_ternary_question() {
         .iter()
         .find(|t| t.span.start as usize == fragment_start);
     assert_eq!(
-        token_at_fragment.map(|t| t.token.ty),
+        token_at_fragment.map(|t| t.token.ty()),
         Some(TokenType::LessThan),
         "<> should be recognized as tree opening"
     );
@@ -773,8 +791,8 @@ fn test_lex_tree_fragment_text_after_logical_and() {
         .find(|token| &input[token.span.start as usize..token.span.end as usize] == "x")
         .expect("expected text token inside fragment");
 
-    assert_eq!(text_token.token.ty, TokenType::Literal);
-    assert_eq!(text_token.token.literal, Some(TokenLiteral::TreeString));
+    assert_eq!(text_token.token.ty(), TokenType::Literal);
+    assert_eq!(text_token.token.literal(), Some(TokenLiteral::TreeString));
 }
 
 /// Tree literals inside attribute expressions should support nested tree tokenization.
@@ -788,7 +806,7 @@ fn test_lex_tree_nested_in_attribute_expression() {
     let close_brace_after_icon = tokens
         .iter()
         .find(|t| t.span.start == 50)
-        .map(|t| t.token.ty);
+        .map(|t| t.token.ty());
     assert_eq!(
         close_brace_after_icon,
         Some(TokenType::CloseBrace),

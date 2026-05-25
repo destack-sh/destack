@@ -20,7 +20,7 @@ pub(crate) fn token_at_offset(ctx: &ModuleQueryContext<'_>, offset: u32) -> Opti
 
     // ensure the token is an identifier
     let token = token_span_at_offset(ctx.dir(), offset)?;
-    if token.token.ty != TokenType::Identifier {
+    if token.token.ty() != TokenType::Identifier {
         return None;
     }
 
@@ -64,7 +64,7 @@ pub(crate) fn token_span_at_offset(
             continue;
         }
 
-        if is_trivia_token(token.token.ty) {
+        if is_trivia_token(token.token.ty()) {
             continue;
         }
 

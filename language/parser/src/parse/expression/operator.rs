@@ -121,7 +121,7 @@ impl Parser {
         offset: usize,
     ) -> Option<ExpressionInfixOperator> {
         let token = self.token_at_offset(offset);
-        let token_type = token.token.ty;
+        let token_type = token.token.ty();
 
         Self::infix_operator_from_token(self.language.is_destack(), token_type, || {
             self.keyword_at_offset(offset)

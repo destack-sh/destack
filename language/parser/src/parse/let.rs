@@ -88,7 +88,7 @@ impl Parser {
         if asynchrony == Asynchrony::Async {
             return self.is_keyword(Keyword::Await)
                 && self.keyword_at_offset(1) == Some(Keyword::Using)
-                && !self.token_at_offset(1).token.is_on_new_line;
+                && !self.token_at_offset(1).token.is_on_new_line();
         }
 
         self.is_keyword(Keyword::Using)
@@ -115,7 +115,7 @@ impl Parser {
         let offset = self.using_binding_head_offset(asynchrony)?;
         let token = self.token_at_offset(offset);
 
-        (!token.token.is_on_new_line).then_some(token.token.ty)
+        (!token.token.is_on_new_line()).then_some(token.token.ty())
     }
 
     /// Return true when a token can start a `using` binding pattern.

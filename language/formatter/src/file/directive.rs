@@ -169,7 +169,7 @@ fn trailing_ignore_gap_is_allowed(ctx: &DestackFormatContext<'_>, span: Span) ->
         .filter(|token| token.span.intersects(span))
         .all(|token| {
             matches!(
-                token.token.ty,
+                token.token.ty(),
                 TokenType::Whitespace | TokenType::Semicolon | TokenType::Comma
             )
         })
@@ -378,7 +378,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
     }
 
     for token in ctx.all_tokens().iter().copied() {
-        match token.token.ty {
+        match token.token.ty() {
             TokenType::Whitespace | TokenType::Newline => {
                 continue;
             }
