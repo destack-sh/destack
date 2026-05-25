@@ -944,6 +944,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one module path as a compact qualifier.
     fn module_label(&self, module_id: ModuleId) -> String {
         let module = self.module_path(module_id);
+        let module = module.strip_prefix("destack://").unwrap_or(&module);
         let module = module.strip_suffix(".ds").unwrap_or(&module);
         let module = module.trim_start_matches("./");
         let module = module.trim_start_matches(['/', '\\']);

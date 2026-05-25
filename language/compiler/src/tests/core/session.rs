@@ -414,7 +414,7 @@ impl TestSession {
         for builtin in repository.builtin_package().files() {
             let module_id = builtin.module_id(package);
 
-            paths.insert(module_id, builtin.path.to_string());
+            paths.insert(module_id, builtin.uri.to_string());
         }
 
         paths
