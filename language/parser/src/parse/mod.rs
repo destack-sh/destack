@@ -28,7 +28,7 @@ mod path;
 mod pattern;
 mod prelude;
 mod property;
-mod recover;
+mod recovery;
 mod regex;
 mod scan;
 mod scope;
