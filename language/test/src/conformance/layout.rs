@@ -8,8 +8,8 @@ use super::{ConformanceCatalog, build_conformance_catalog_rows, render_conforman
 /// The runnable tests directory name inside one suite root.
 pub const TESTS_DIRECTORY_NAME: &str = "tests";
 
-/// The generated catalog report targets.
-pub const CATALOG_REPORT_TARGETS: [&str; 2] = ["TESTING.md", "language/test/README.md"];
+/// The generated catalog report target.
+pub const CATALOG_REPORT_TARGET: &str = "language/test/README.md";
 
 /// Return the conformance fixtures root.
 pub fn fixtures_dir() -> PathBuf {
@@ -43,27 +43,26 @@ pub fn suite_case(domain: &str, suite: &str) -> Case {
     Case::directory(suite, path, category)
 }
 
-/// Update all generated catalog report targets from the current suite metadata.
-pub fn update_catalog_report_targets() -> Result<Vec<PathBuf>, String> {
+/// Update the generated catalog report target from the current suite metadata.
+pub fn update_catalog_report_target() -> Result<Vec<PathBuf>, String> {
     // build the rendered catalog table once
     let catalog = ConformanceCatalog::load(&fixtures_dir())?;
     let rows = build_conformance_catalog_rows(&catalog);
     let table = render_conformance_catalog_table(&rows);
-    let mut updated_files = Vec::new();
 
-    // update each generated markdown target
-    for target in CATALOG_REPORT_TARGETS {
-        let target_path = repo_root_dir().join(target);
-        if update_catalog_report_target(&target_path, &table)? {
-            updated_files.push(target_path);
-        }
-    }
+    // update the language testing document
+    let target_path = repo_root_dir().join(CATALOG_REPORT_TARGET);
+    let updated_files = if update_catalog_report_file(&target_path, &table)? {
+        vec![target_path]
+    } else {
+        Vec::new()
+    };
 
     Ok(updated_files)
 }
 
 /// Update one generated catalog section in one markdown target.
-fn update_catalog_report_target(path: &Path, table: &str) -> Result<bool, String> {
+fn update_catalog_report_file(path: &Path, table: &str) -> Result<bool, String> {
     // read the current document
     let document = fs::read_to_string(path)
         .map_err(|error| format!("failed to read {}: {error}", path.display()))?;

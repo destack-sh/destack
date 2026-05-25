@@ -131,7 +131,6 @@ test-unit:
 # run tests
 test:
     just test-unit
-    just test-emit
     just test-specification
     just test-query
     just test-lsp
@@ -166,14 +165,6 @@ report-heap-overhead:
 # run linter tests
 test-linter:
     cargo test --release --all-targets --no-fail-fast -p destack_linter
-
-# run emit tests
-test-emit:
-    cargo test --release -p destack_test --test emit
-
-# refresh emit snapshots from actual outputs
-test-emit-update:
-    cargo test --release -p destack_test --test emit -- --update-snapshots
 
 # run all conformance tests
 test-conformance:

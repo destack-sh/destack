@@ -1,9 +1,0 @@
-/** The authored title for the asset rewrite shell. */
-export const pageTitle = "Workspace Asset Surface";
-
-/** The highlight labels rendered by the asset rewrite shell. */
-export const pageHighlights = [
-    "Linked Stylesheets",
-    "Responsive Sources",
-    "SVG Sprite References",
-];

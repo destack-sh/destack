@@ -1,8 +1,0 @@
-*{box-sizing:border-box}
-body{font-family:"Iosevka", monospace}
-.hero-summary{margin:0}
-
-.container{display:grid;gap:18px}
-
-.container{max-width:800px;margin:0 auto;padding:20px}
-.title{color:navy}

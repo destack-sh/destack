@@ -1,8 +1,0 @@
-@import "./theme.css";
-@import "./layout.css";
-@import "./surfaces/cards.css";
-
-.dashboard-shell {
-    display: grid;
-    gap: 12px;
-}

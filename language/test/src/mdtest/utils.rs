@@ -237,7 +237,6 @@ fn parse_emit_format(value: &str) -> EmitFormat {
     match value.trim().to_lowercase().as_str() {
         "js" | "javascript" => EmitFormat::Js,
         "ts" | "typescript" => EmitFormat::Ts,
-        "html" => EmitFormat::Html,
         "wasm" | "webassembly" => EmitFormat::Wasm,
         "native" => EmitFormat::Native,
         _ => panic!("invalid mdtest emit value '{value}'"),

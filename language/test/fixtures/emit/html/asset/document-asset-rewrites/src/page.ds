@@ -1,9 +1,0 @@
-import { pageHighlights, pageTitle } from "./page-summary.ds";
-
-/** Return the joined page heading for the asset shell. */
-export function getPageHeading(): string {
-    return `${pageTitle}: ${pageHighlights[0]}`;
-}
-
-/** The authored heading for the asset shell. */
-export const pageHeading = getPageHeading();

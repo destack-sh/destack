@@ -1,1 +1,0 @@
-console.log("external-1");console.log("external-1:banner");console.log("external-2");console.log("external-2:banner");var value="external-3";var value2="external-4";var suffix="suffix";console.log("external-5");function describe(a,b,suffix2){return`${a}:${b}:${suffix2}`}capture(value);capture(value2);capture(describe(value,value2,suffix));

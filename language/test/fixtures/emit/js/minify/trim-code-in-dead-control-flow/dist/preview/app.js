@@ -1,1 +1,0 @@
-function test1(){return"foo"}function test2(){return foo=!0;try{var foo}catch{}}function test3(){return foo=!0;try{}catch{var foo}}async function test4(){return{status:"disabled_for_development"}}console.log(test1());console.log(test2());console.log(test3());test4().then(result=>console.log(result.status));

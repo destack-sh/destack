@@ -1,5 +1,0 @@
-@supports (border-image-source: url("sprite.svg")) {
-  .supports-border-image {
-    border-image-source: url("sprite.svg");
-  }
-}
