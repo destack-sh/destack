@@ -1,12 +1,12 @@
 # Release
 
-Destack releases are tag driven.
-The canonical release tag format is `vX.Y.Z`.
-The monorepo version in [VERSION.txt](VERSION.txt) is the only coordinated release version.
+Destack releases are (Git) tag driven:
+ - The canonical release tag format is `vX.Y.Z`.
+ - The monorepo version for all components is in [VERSION.txt](VERSION.txt).
 
 ## Commands
 
-Use the repository root `just` recipes as the release operator surface.
+Use the repository root's `just` recipes.
 
 | Command | Purpose |
 |---------|---------|
@@ -18,12 +18,10 @@ Use the repository root `just` recipes as the release operator surface.
 | `just publish-release` | Publish live from staged release artifacts |
 | `just publish-release-local` | Publish live with locally staged CLI binaries |
 
-## Standard Flow
-
-This is the normal release path.
+Run the standard flow.
 
 1. Run `just quick`.
-2. Run `just full` if you want deep local validation before tagging.
+2. Run `just full`.
 3. Run `just release`, `just release minor`, or `just release major`.
 4. Review the release commit and tag.
 5. Run `just release-push`.
@@ -43,33 +41,10 @@ just publish --dry-run
 
 Use `just publish --dry-run` for a broad packaging and registry preflight without performing a live publish.
 
-## Nightly
-
-Nightly is the rolling canary release for `main`.
-It runs release-blocking verification, packages CLI artifacts, signs release metadata and installers, and updates the rolling `nightly` GitHub prerelease.
-Nightly artifacts are for debugging and validation, not stable adoption.
-
-## Release Notes
-
-The release workflow uses GitHub generated release notes for the tag.
-Edit the GitHub release manually only when generated notes miss a user-visible change, migration note, or operator warning.
-
-Do not use package local changelogs as a second monorepo release source of truth.
-Keep package local changelogs only where a registry requires one.
-
-## Integrity
-
-Release artifacts include `manifest.json`, `SHA256SUMS`, `install.sh`, and `install.ps1`.
-CI produces detached armored signatures with the dedicated `RELEASE_GPG_*` key.
-The public verification key is [release-signing-public.asc](app/cli/install/release-signing-public.asc).
-
 ## Credentials
 
-Publishing commands load credentials from `.env.local` via `just` when run locally.
-GitHub Actions uses the `release` environment for the CI path.
-
-Required release credentials are:
-
+The publishing commands load credentials from `.env.local` via `just` when run locally, and GitHub Actions uses the `release` environment for the CI path.
+The required release credentials are:
 - `CARGO_TOKEN`
 - `RELEASE_GPG_PRIVATE_KEY`
 - `RELEASE_GPG_PASSPHRASE`
@@ -80,14 +55,4 @@ Required release credentials are:
 - `ZED_REGISTRY_PUSH_TO`
 
 For local live publishing outside CI, token-based variables such as `NPM_TOKEN`, `CARGO_TOKEN`, `PYPI_TOKEN`, and `VSCE_PAT` also work.
-The CI release path uses trusted publishing or OIDC where the registry supports it.
-
-## Recovery
-
-If `just release <kind>` has already created a release commit and tag locally, inspect the state before doing anything else.
-If the tag is correct, use `just release-push`.
-
-If CI packaging or publish fails after the tag is pushed, fix the underlying problem and rerun the failed workflow or publish step.
-Do not create a second tag for the same intended version.
-
-If a registry publish partially succeeds, treat the pushed version as burned unless the registry explicitly supports full rollback for that package.
+(The CI release path uses trusted publishing or OIDC where the registry supports it.)
