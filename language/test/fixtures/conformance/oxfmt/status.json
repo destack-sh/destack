@@ -43,6 +43,26 @@
     },
     {
       "patterns": [
+        "js/ignore/expression-statement.js"
+      ],
+      "status": "excluded",
+      "reason": "source-restriction",
+      "note": "mixed ignore fixture contains top-level return statements"
+    },
+    {
+      "patterns": [
+        "js/computed-members/parenthesis.js",
+        "js/new-expression/parenthesis.js",
+        "ts/class/issue-16259.ts",
+        "ts/new-expression/issue-16203.ts",
+        "ts/new-expression/issue-16346.ts"
+      ],
+      "status": "excluded",
+      "reason": "runtime-constructor-expression",
+      "note": "Destack constructs values with type syntax, e.g. `new Widget<T>()`"
+    },
+    {
+      "patterns": [
         "js/comments/assignments.js",
         "ts/comments/assignments.ts"
       ],

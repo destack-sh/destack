@@ -60,6 +60,30 @@ const value = new Box<Thing>(item)
 const value = new Box<Thing>(item);
 ```
 
+### new with inferred type
+
+The inferred constructor marker formats like a type name.
+
+```ds
+const value = new _ ( item )
+```
+
+```ds expected
+const value = new _(item);
+```
+
+### new with inferred type argument
+
+Generic constructor arguments may contain inferred type holes.
+
+```ds
+const value = new Box < _ > ( item )
+```
+
+```ds expected
+const value = new Box<_>(item);
+```
+
 ## JSX Arguments
 
 ### new with jsx argument removes extra parentheses
@@ -79,23 +103,11 @@ return new ImageResponse(
 return new ImageResponse(<div></div>);
 ```
 
-## Computed Members
+## Members
 
-### new with computed member keeps grouping
+### new with member expression
 
-Computed member expressions keep parentheses for `new`.
-
-```ts:main.ts
-new (get(win))[ty](xxx)
-```
-
-```ts expected
-new (get(win)[ty])(xxx);
-```
-
-### new with member expression drops redundant grouping
-
-Simple member expressions drop unnecessary parentheses for `new`.
+Member constructor names format without grouping.
 
 ```ts:main.ts
 new (Foo.bar)(value)
@@ -115,42 +127,6 @@ new Foo().bar()
 
 ```ts expected
 new Foo().bar();
-```
-
-### new with nested computed members keeps grouping
-
-Computed member chains keep their parentheses for `new`.
-
-```ts:main.ts
-new (get(win))[ty][ty](xxx)
-```
-
-```ts expected
-new (get(win)[ty][ty])(xxx);
-```
-
-### new with optional chain computed member keeps grouping
-
-Optional chain computed access keeps its parentheses for `new`.
-
-```ts:main.ts
-new (A?.[ty])(xxx)
-```
-
-```ts expected
-new (A?.[ty])(xxx);
-```
-
-### new with optional chain member computed keeps grouping
-
-Optional chain member access stays parenthesized for `new`.
-
-```ts:main.ts
-new (A?.B[ty])(xxx)
-```
-
-```ts expected
-new (A?.B[ty])(xxx);
 ```
 
 ### new with quoted member normalizes quotes
