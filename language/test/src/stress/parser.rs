@@ -17,6 +17,31 @@ const RECOVERY_SENTINEL: &str = "stressRecovered";
 const WORKER_TIMEOUT: Duration = Duration::from_secs(30);
 const HARNESS_TIMEOUT: Duration = Duration::from_secs(35);
 
+/// Parser accounting for one stress case.
+#[derive(Debug, Clone, Copy)]
+struct ParserStressAccounting {
+    /// The semantic token count.
+    tokens: usize,
+    /// The retained side token count.
+    side_tokens: usize,
+    /// The parsed DIR node count.
+    nodes: usize,
+    /// The retained comment count.
+    comments: usize,
+    /// The parser diagnostic count.
+    errors: usize,
+}
+
+impl ParserStressAccounting {
+    /// Format parser accounting for terminal output.
+    fn format(self) -> String {
+        format!(
+            ", {} tokens, {} side tokens, {} nodes, {} comments, {} errors",
+            self.tokens, self.side_tokens, self.nodes, self.comments, self.errors
+        )
+    }
+}
+
 /// Stress test suite for the parser.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ParserStressSuite;
@@ -106,8 +131,9 @@ fn run_parser_stress(test: &StressCase) -> CaseResult {
 
     // bounded cases only assert process safety
     if test.expectation == StressExpectation::Bounded {
+        let accounting = parser_accounting(&mut parser);
         let metric = StressMetric::new(file_size, line_count, elapsed);
-        eprintln!("{}", metric.format("bounded"));
+        eprintln!("{}{}", metric.format("bounded"), accounting.format());
 
         return CaseResult::Passed;
     }
@@ -142,10 +168,23 @@ fn run_parser_stress(test: &StressCase) -> CaseResult {
         }
     }
 
+    let accounting = parser_accounting(&mut parser);
     let metric = StressMetric::new(file_size, line_count, elapsed);
-    eprintln!("{}", metric.format("parsed"));
+    eprintln!("{}{}", metric.format("parsed"), accounting.format());
 
     CaseResult::Passed
+}
+
+fn parser_accounting(parser: &mut Parser) -> ParserStressAccounting {
+    let (tokens, side_tokens) = parser.take_tokens();
+
+    ParserStressAccounting {
+        tokens: tokens.len(),
+        side_tokens: side_tokens.len(),
+        nodes: parser.tree.node_count(),
+        comments: parser.tree.comments().len(),
+        errors: parser.errors.len(),
+    }
 }
 
 fn contains_recovery_sentinel(
