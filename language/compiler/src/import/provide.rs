@@ -69,13 +69,15 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
+        let profile_id = profile;
+        let profile_state = self.profile(context.revision(), profile_id)?;
         let artifacts = self.artifact_reader(context);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .dir_bound(module, profile_id)
             .map_err(CompilerError::from)?;
         let dependency_index = artifacts
-            .dependency_index(profile)
+            .dependency_index(profile_id)
             .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
 
@@ -85,6 +87,8 @@ impl Compiler {
             context.revision(),
             module.as_ref(),
             dependency_index.as_ref(),
+            &profile_state.key,
+            profile_state.conditions(),
             self.strings(),
             view,
         );

@@ -4,6 +4,7 @@ mod import;
 mod language;
 mod provide;
 mod state;
+mod r#static;
 mod warning;
 
 pub use error::*;

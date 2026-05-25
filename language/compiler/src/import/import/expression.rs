@@ -22,30 +22,47 @@ impl Compiler {
 
             // collect direct import edge
             dir::Expression::Import {
-                target, attributes, ..
+                target,
+                items,
+                attributes,
+                ..
             } => {
-                self.collect_module(
-                    state,
-                    expression_id,
-                    *target,
-                    attributes.as_ref(),
-                    dir::ModuleRelation::Import,
-                )?;
+                let statement_allows = state.static_allows(expression_id.into_any())?;
+                let items_allow = match items {
+                    Some(items) => state.static_allows_any_item(items)?,
+                    None => true,
+                };
+
+                if statement_allows && items_allow {
+                    self.collect_module(
+                        state,
+                        expression_id,
+                        *target,
+                        attributes.as_ref(),
+                        dir::ModuleRelation::Import,
+                    )?;
+                }
             }
 
             // collect re-export edge
             dir::Expression::Export {
                 target: Some(target),
+                items,
                 attributes,
                 ..
             } => {
-                self.collect_module(
-                    state,
-                    expression_id,
-                    *target,
-                    attributes.as_ref(),
-                    dir::ModuleRelation::ReExport,
-                )?;
+                let statement_allows = state.static_allows(expression_id.into_any())?;
+                let items_allow = state.static_allows_any_item(items)?;
+
+                if statement_allows && items_allow {
+                    self.collect_module(
+                        state,
+                        expression_id,
+                        *target,
+                        attributes.as_ref(),
+                        dir::ModuleRelation::ReExport,
+                    )?;
+                }
             }
 
             // ignore expressions without module declarations

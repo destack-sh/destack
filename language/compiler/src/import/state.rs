@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DependencyIndex, DiagnosticAnchor, DirImported};
+use destack_artifact::{ConditionSet, DependencyIndex, DiagnosticAnchor, DirImported, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::Loader;
@@ -16,6 +16,10 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) module: &'a Module,
     /// The active package dependency index.
     pub(in crate::import) index: &'a DependencyIndex,
+    /// The active profile key.
+    pub(in crate::import) profile: &'a ProfileKey,
+    /// The active profile conditions.
+    pub(in crate::import) conditions: &'a ConditionSet,
     /// The shared string pool.
     pub(in crate::import) strings: &'a StringPool,
     /// The DIR view being imported.
@@ -32,6 +36,8 @@ impl<'a> ImportState<'a> {
         revision: Revision,
         module: &'a Module,
         index: &'a DependencyIndex,
+        profile: &'a ProfileKey,
+        conditions: &'a ConditionSet,
         strings: &'a StringPool,
         view: dir::View<'a>,
     ) -> Self {
@@ -39,6 +45,8 @@ impl<'a> ImportState<'a> {
             revision,
             module,
             index,
+            profile,
+            conditions,
             strings,
             view,
             modules: dir::ModuleSegment::new(module.id),
