@@ -171,6 +171,24 @@ fn test_parse_if_ternary_nested_tree_branches_keep_token_spans() {
     });
 }
 
+/// Parse a long right-associative ternary ladder.
+#[test]
+fn test_parse_long_ternary_ladder() {
+    let mut source = String::from("flag0");
+
+    for index in 0..2_100 {
+        source.push_str(&format!(" ? value{index} : flag{}", index + 1));
+    }
+
+    let mut test = TestParser::new(&source);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::If { .. });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse `x ? () : ()`.
 #[test]
 fn test_parse_if_ternary_with_parenthesis() {

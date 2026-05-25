@@ -31,6 +31,29 @@ enum ValueInfixOperator {
     },
 }
 
+/// One pending ternary expression node.
+struct PendingConditionalExpression {
+    /// The conditional source start.
+    start: ParserSpanStart,
+    /// The condition expression.
+    condition: LocalNodeId<Expression>,
+    /// The expression selected when the condition holds.
+    then_expression: LocalNodeId<Expression>,
+}
+
+/// A parsed false branch of a ternary expression.
+enum ConditionalElseExpression {
+    /// A complete false branch expression.
+    Expression(LocalNodeId<Expression>),
+    /// A nested ternary condition.
+    Conditional {
+        /// The nested conditional source start.
+        start: ParserSpanStart,
+        /// The nested condition expression.
+        condition: LocalNodeId<Expression>,
+    },
+}
+
 impl ValueInfixOperator {
     /// Return this operator precedence.
     fn precedence(&self) -> u16 {
@@ -573,11 +596,40 @@ impl Parser {
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let left = if self.current_token_starts_conditional(scope) {
-            self.eat_conditional_expression(start, left)?
-        } else {
-            left
-        };
+        let mut pending = Vec::new();
+        let mut start = *start;
+        let mut left = left;
+        let mut condition_scope = scope;
+
+        while self.current_token_starts_conditional(condition_scope) {
+            // parse conditional branches
+            self.bump();
+            let then_expression = self.eat_conditional_then()?;
+            self.eat_colon()?;
+
+            // queue outer conditional until the final false branch is known
+            pending.push(PendingConditionalExpression {
+                start,
+                condition: left,
+                then_expression,
+            });
+
+            // continue through nested false branch conditionals
+            match self.eat_conditional_else()? {
+                ConditionalElseExpression::Expression(else_expression) => {
+                    left = self.finish_pending_conditional_expressions(pending, else_expression);
+                    break;
+                }
+                ConditionalElseExpression::Conditional {
+                    start: else_start,
+                    condition,
+                } => {
+                    start = else_start;
+                    left = condition;
+                    condition_scope = self.conditional_else_scope();
+                }
+            }
+        }
 
         // tree literal boundary
         if !scope.is_statement_position
@@ -596,35 +648,6 @@ impl Parser {
             .minimum_precedence
             .is_none_or(|precedence| precedence < CONDITIONAL_PRECEDENCE)
             && self.peek_is(TokenType::Maybe)
-    }
-
-    /// Eat one conditional expression after its condition.
-    ///
-    /// Examples:
-    /// ```ds
-    /// ? then : else
-    /// ? then() : else()
-    /// ? yes : other ? nested : fallback
-    /// ```
-    fn eat_conditional_expression(
-        &mut self,
-        start: &ParserSpanStart,
-        condition: LocalNodeId<Expression>,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        self.bump();
-        let then_expression = self.eat_conditional_then()?;
-        self.eat_colon()?;
-        let else_expression = self.eat_conditional_right()?;
-        let else_span = self.tree.get_source_extent(else_expression);
-        let span = Span::new(self.file_id, start.token_start(), else_span.end);
-        let expression = Expression::If {
-            form: IfForm::Ternary,
-            condition: IfCondition::Expression { condition },
-            then_expression,
-            else_expression: Some(else_expression),
-        };
-
-        Ok(self.insert_node(expression, span))
     }
 
     /// Eat the true branch of a conditional expression.
@@ -652,8 +675,62 @@ impl Parser {
     /// call()
     /// (a ? b : c)
     /// ```
-    fn eat_conditional_right(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())
+    fn eat_conditional_else(&mut self) -> ParserResult<ConditionalElseExpression> {
+        // recover empty branch
+        if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
+            let expression = self.recover_missing_expression_here(NodeType::Expression);
+
+            return Ok(ConditionalElseExpression::Expression(expression));
+        }
+
+        let scope = self.conditional_else_scope();
+
+        self.with_flags(scope.flags, |parser| {
+            // parse up to a possible nested conditional
+            let start = parser.span_start();
+            let condition = parser.eat_binary(&start, scope)?;
+
+            // continue through the nested conditional
+            if parser.current_token_starts_conditional(scope) {
+                return Ok(ConditionalElseExpression::Conditional { start, condition });
+            }
+
+            // finish ordinary false branch expression
+            let expression = parser.eat_assignment_rest(&start, condition, scope)?;
+            let expression = parser.eat_sequence_rest(&start, expression, scope)?;
+
+            Ok(ConditionalElseExpression::Expression(expression))
+        })
+    }
+
+    /// Return the scope for a ternary false branch.
+    fn conditional_else_scope(&self) -> ExpressionScope {
+        ExpressionScope::from_flags(self.flags.not_in_position().not_in_sequence_expression())
+    }
+
+    /// Finish pending right-associative ternary expression nodes.
+    fn finish_pending_conditional_expressions(
+        &mut self,
+        pending: Vec<PendingConditionalExpression>,
+        mut else_expression: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        for frame in pending.into_iter().rev() {
+            // fold one pending ternary expression
+            let else_span = self.tree.get_source_extent(else_expression);
+            let span = Span::new(self.file_id, frame.start.token_start(), else_span.end);
+            let expression = Expression::If {
+                form: IfForm::Ternary,
+                condition: IfCondition::Expression {
+                    condition: frame.condition,
+                },
+                then_expression: frame.then_expression,
+                else_expression: Some(else_expression),
+            };
+
+            else_expression = self.insert_node(expression, span);
+        }
+
+        else_expression
     }
 
     /// Eat a sequence expression after one parsed expression.

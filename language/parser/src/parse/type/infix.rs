@@ -8,6 +8,35 @@ use destack_dir::{
 };
 use destack_source::Span;
 
+/// One pending conditional type node.
+struct PendingTypeConditional {
+    /// The conditional source start.
+    start: ParserSpanStart,
+    /// The checked type.
+    left: LocalNodeId<TypeExpression>,
+    /// The required type.
+    extends_type: LocalNodeId<TypeExpression>,
+    /// The type selected when the condition holds.
+    then_type: LocalNodeId<TypeExpression>,
+    /// The `extends` operator span.
+    operator_span: Span,
+}
+
+/// A parsed false branch of a conditional type.
+enum TypeConditionalElse {
+    /// A complete false branch expression.
+    Expression(LocalNodeId<TypeExpression>),
+    /// A nested conditional type head.
+    Conditional {
+        /// The nested conditional source start.
+        start: ParserSpanStart,
+        /// The nested checked type.
+        left: LocalNodeId<TypeExpression>,
+        /// The nested `extends` operator span.
+        operator_span: Span,
+    },
+}
+
 impl Parser {
     /// Eat type infix operators.
     ///
@@ -289,30 +318,52 @@ impl Parser {
         left: LocalNodeId<TypeExpression>,
         operator_span: Span,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let extends_type = self.eat_type_extends_operand()?;
+        let mut pending = Vec::new();
+        let mut start = *start;
+        let mut left = left;
+        let mut operator_span = operator_span;
 
-        // plain extends expression
-        if !self.peek_is(TokenType::Maybe) {
-            return self.finish_type_extends_expression(start, left, extends_type);
-        }
+        loop {
+            // parse relation target
+            let extends_type = self.eat_type_extends_operand()?;
 
-        self.bump();
-        let then_type = self.eat_type_conditional_then()?;
-        self.eat_colon()?;
-        let else_type = self.eat_type_conditional_else()?;
+            // finish a plain extends expression
+            if !self.peek_is(TokenType::Maybe) {
+                let else_type = self.finish_type_extends_expression(&start, left, extends_type)?;
 
-        let type_id = self.insert_node(
-            TypeExpression::Conditional {
+                return Ok(self.finish_pending_type_conditionals(pending, else_type));
+            }
+
+            // parse conditional branches
+            self.bump();
+            let then_type = self.eat_type_conditional_then()?;
+            self.eat_colon()?;
+
+            // queue outer conditional until the final false branch is known
+            pending.push(PendingTypeConditional {
+                start,
                 left,
                 extends_type,
                 then_type,
-                else_type,
-            },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(type_id, operator_span);
+                operator_span,
+            });
 
-        Ok(type_id)
+            // continue through nested false branch conditionals
+            match self.eat_type_conditional_else()? {
+                TypeConditionalElse::Expression(else_type) => {
+                    return Ok(self.finish_pending_type_conditionals(pending, else_type));
+                }
+                TypeConditionalElse::Conditional {
+                    start: else_start,
+                    left: else_left,
+                    operator_span: else_operator_span,
+                } => {
+                    start = else_start;
+                    left = else_left;
+                    operator_span = else_operator_span;
+                }
+            }
+        }
     }
 
     /// Eat the right operand of an `extends` type relation.
@@ -387,10 +438,69 @@ impl Parser {
     /// never
     /// X extends Y ? A : B
     /// ```
-    fn eat_type_conditional_else(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let flags = self.flags.not_in_position().in_type();
+    fn eat_type_conditional_else(&mut self) -> ParserResult<TypeConditionalElse> {
+        // recover empty branch
+        if self.is_type_expression_boundary() {
+            let else_type = self.recover_missing_type_expression_here(NodeType::TypeExpression);
 
-        self.eat_type_expression_or_recover_missing(flags, NodeType::TypeExpression)
+            return Ok(TypeConditionalElse::Expression(else_type));
+        }
+
+        // parse up to a possible nested conditional
+        let flags = self.flags.not_in_position().in_type();
+        let scope = TypeScope::from_flags(flags);
+        let head_scope = scope.at_precedence(Some(OperatorPrecedence::Comparison as u16));
+        let start = self.span_start();
+        let left = self.with_flags(head_scope.flags, |parser| {
+            parser.eat_type_expression_body(head_scope)
+        })?;
+        let operator = TypeInfixOperator::Relation(TypeBinaryOperator::Extends);
+
+        // finish when the outer grammar owns the operator
+        if self.type_infix_belongs_to_outer_scope(scope) || self.type_infix_stops(operator, scope) {
+            let else_type = self.eat_type_infix_rest(&start, left, scope)?;
+
+            return Ok(TypeConditionalElse::Expression(else_type));
+        }
+
+        // finish when no nested conditional follows
+        if self.peek_type_infix_operator_maybe() != Some(operator) {
+            let else_type = self.eat_type_infix_rest(&start, left, scope)?;
+
+            return Ok(TypeConditionalElse::Expression(else_type));
+        }
+
+        // continue through the nested conditional
+        let operator_span = self.eat_type_infix_operator_span();
+
+        Ok(TypeConditionalElse::Conditional {
+            start,
+            left,
+            operator_span,
+        })
+    }
+
+    /// Finish pending right-associative conditional type nodes.
+    fn finish_pending_type_conditionals(
+        &mut self,
+        pending: Vec<PendingTypeConditional>,
+        mut else_type: LocalNodeId<TypeExpression>,
+    ) -> LocalNodeId<TypeExpression> {
+        for frame in pending.into_iter().rev() {
+            let type_id = self.insert_node(
+                TypeExpression::Conditional {
+                    left: frame.left,
+                    extends_type: frame.extends_type,
+                    then_type: frame.then_type,
+                    else_type,
+                },
+                self.get_span_from(&frame.start),
+            );
+            self.tree.set_main_span(type_id, frame.operator_span);
+            else_type = type_id;
+        }
+
+        else_type
     }
 
     /// Parse a startless type range.

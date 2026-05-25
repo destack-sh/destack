@@ -459,6 +459,30 @@ C extends D ? E : F
     });
 }
 
+/// Parse a long right-associative conditional type ladder.
+#[test]
+fn test_parse_long_type_conditional_ladder() {
+    let mut source = String::from("type T = ");
+
+    for index in 0..2_100 {
+        source.push_str(&format!("T extends Case{index} ? Result{index} : "));
+    }
+
+    source.push_str("never");
+
+    let mut test = TestParser::new(&source);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Conditional { .. });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse extends with readonly array types.
 #[test]
 fn test_parse_type_extends_readonly_array() {
