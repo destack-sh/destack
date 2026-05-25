@@ -69,29 +69,24 @@ const value = 1;
 function demo(@if(true) value: number): void {}
 ```
 
-- contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements
+- contains: invalid static if: static if is not allowed on function parameters
 
-### @if rejects type literal properties
+### @if rejects generic parameters
 
-`@if` is not allowed on type literal properties.
-
-```ds
-type Box = {
-    @if(true)
-    value: number;
-};
-```
-
-- contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements
-
-### @if rejects call arguments
-
-`@if` is not allowed on call arguments.
+`@if` is not allowed on generic parameters.
 
 ```ds
-function call(value: number): void {}
-
-call(@if(true) 1);
+function demo<@if(true) T>(value: T): void {}
 ```
 
-- contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements
+- contains: invalid static if: static if is not allowed on generic parameters
+
+### @if rejects required expression operands
+
+`@if` cannot remove a required expression operand.
+
+```ds
+const value = 1 + @if(true) 2;
+```
+
+- contains: invalid static if: static if cannot remove a required expression operand
