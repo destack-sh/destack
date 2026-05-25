@@ -48,9 +48,9 @@ try {
 }
 ```
 
-### catch annotations reject concrete types
+### catch annotations can state the propagated failure type
 
-Concrete catch annotations are not filters.
+Catch annotations are ordinary binding annotations.
 
 ```ds
 declare function fail(): Result<void, string>;
@@ -62,4 +62,19 @@ try {
 }
 ```
 
-- contains: catch type annotations must be unknown
+### catch annotations reject incompatible failures
+
+Catch annotations are not filters.
+The propagated failure must be assignable to the annotation.
+
+```ds
+declare function fail(): Result<void, int32>;
+
+try {
+    fail()?;
+} catch (e: string) {
+    e = "fix";
+}
+```
+
+- contains: not assignable
