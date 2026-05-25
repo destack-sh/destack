@@ -8,10 +8,12 @@ use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
-use destack_source::{DiagnosticSeverity, File, FileType, LanguageType};
+use destack_source::{File, FileType, LanguageType};
 use destack_workspace::FormatterOptions;
 
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
+
+const MAX_PARSE_ERROR_MESSAGES: usize = 8;
 
 /// One formatter failure over one whole source file.
 #[derive(Debug, Clone)]
@@ -126,15 +128,15 @@ fn format_parser_file_source(
     let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
-    let parser_file = File::from_text(
+    // parse with side tokens for formatting
+    let parser_file = Arc::new(File::from_text(
         file.id,
         file.name.clone(),
         file.uri.clone(),
         file.path.clone(),
         file.ty,
         source.to_owned(),
-    );
-    let parser_file = Arc::new(parser_file);
+    ));
     let mut parser = Parser::lex_file_with_options(
         parser_file.clone(),
         language_type,
@@ -146,22 +148,10 @@ fn format_parser_file_source(
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
+    fail_on_parse_errors(&parser)?;
 
     // finalize retained comments before formatting
     parser.attach_comments();
-
-    // fail loudly on parse errors
-    let diagnostics = parser.diagnostics();
-    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-        let message = diagnostics
-            .to_vec()
-            .into_iter()
-            .map(|diagnostic| diagnostic.message.clone())
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        return Err(FormatFileError { message });
-    }
 
     // build the formatter context
     let (tokens, side_tokens) = parser.take_tokens();
@@ -181,6 +171,29 @@ fn format_parser_file_source(
     );
 
     render_program_roots(&context, &expressions)
+}
+
+/// Return an error if the parser produced parse errors.
+fn fail_on_parse_errors(parser: &Parser) -> Result<(), FormatFileError> {
+    let errors = &parser.errors;
+    if !errors.is_empty() {
+        let error_count = errors.len();
+        let mut messages = errors
+            .iter()
+            .take(MAX_PARSE_ERROR_MESSAGES)
+            .map(|error| parser.diagnostic(error).message)
+            .collect::<Vec<_>>();
+
+        if error_count > MAX_PARSE_ERROR_MESSAGES {
+            messages.push(format!("... {error_count} total parse errors"));
+        }
+
+        let message = messages.join("\n");
+
+        return Err(FormatFileError { message });
+    }
+
+    Ok(())
 }
 
 /// Render one parsed root list through the main formatter.
