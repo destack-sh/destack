@@ -308,6 +308,13 @@ impl<'a> DirSnapshotBuilder<'a> {
         let symbol = self.symbol(symbol_id.local_id);
         if let Some(node_id) = symbol.declaration {
             self.anchor_node(node_id)
+        } else if let Some(owner) = self
+            .binding_table()
+            .get_scope_by_id(symbol.scope.id)
+            .owner
+            .filter(|owner| *owner != symbol_id.local_id)
+        {
+            self.anchor_symbol(owner.into_global(symbol_id.module_id))
         } else {
             SnapshotAnchor::End
         }

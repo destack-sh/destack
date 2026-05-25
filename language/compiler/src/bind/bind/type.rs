@@ -343,8 +343,13 @@ impl Compiler {
                 key,
                 signature,
                 body,
+                is_static,
                 ..
             } => {
+                if signature.this_parameter.is_none() && !*is_static {
+                    self.bind_implicit_this_symbol(state);
+                }
+
                 // visit method key
                 dir::walk_key(state, tree, key);
 
