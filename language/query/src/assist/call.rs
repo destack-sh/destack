@@ -90,18 +90,18 @@ fn new_expression_context_for_span(
     let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
     let parsed_tree = ctx.tree();
     let (_expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
-    let dir::Expression::New { left, .. } = expr else {
+    let dir::Expression::New { ty, .. } = expr else {
         return None;
     };
 
     // only explicit constructor text belongs to this path
-    if matches!(parsed_tree.get(*left), dir::Expression::Missing) {
+    if matches!(parsed_tree.get(*ty), dir::TypeExpression::Missing) {
         return None;
     }
 
     // only the constructor side should classify as one `new` completion position
-    let left_span = parsed_tree.source_index.get(left.id);
-    if !span_owns_cursor(left_span, offset) {
+    let type_span = parsed_tree.source_index.get(ty.id);
+    if !span_owns_cursor(type_span, offset) {
         return None;
     }
 
@@ -190,13 +190,13 @@ fn call_argument_context_after_separator(
         let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
         let expr = ctx.tree().get(expr_id);
 
-        let left = match expr {
-            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => left,
+        let head_end = match expr {
+            dir::Expression::Call { left, .. } => ctx.tree().source_index.get(left.id).end,
+            dir::Expression::New { ty, .. } => ctx.tree().source_index.get(ty.id).end,
             _ => continue,
         };
 
-        let left_span = ctx.tree().source_index.get(left.id);
-        if separator_position <= left_span.end {
+        if separator_position <= head_end {
             continue;
         }
 
@@ -234,9 +234,6 @@ fn dir_call_expression_for_enclosing_span<'a>(
 fn dir_call_expression(expr: &dir::Expression) -> Option<DirCallExpression<'_>> {
     match expr {
         dir::Expression::Call {
-            left, arguments, ..
-        }
-        | dir::Expression::New {
             left, arguments, ..
         } => Some(DirCallExpression {
             left: *left,

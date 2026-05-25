@@ -231,8 +231,8 @@ fn open_expression_slot_owner(
         }
 
         // bare `new` still owns one constructor slot after the keyword
-        if let dir::Expression::New { left, .. } = expr
-            && matches!(parsed_tree.get(*left), dir::Expression::Missing)
+        if let dir::Expression::New { ty, .. } = expr
+            && matches!(parsed_tree.get(*ty), dir::TypeExpression::Missing)
             && cursor_is_after_expression_keyword(ctx, source, offset, expr_span, "new")
         {
             return Some(ExpressionSlotOwner::Constructor);
@@ -475,13 +475,6 @@ fn expression_slot_position_in_expression(
         | dir::Expression::Call { left, .. } => {
             if *left == expr_id {
                 return Some(ExpressionSlotPosition::Value);
-            }
-
-            None
-        }
-        dir::Expression::New { left, .. } => {
-            if *left == expr_id {
-                return Some(ExpressionSlotPosition::Constructor);
             }
 
             None

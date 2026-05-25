@@ -323,7 +323,7 @@ fn overload_definition_span_for_call_site(
 
     let dir_tree = ctx.dir().view();
 
-    // require a call/new parent where this expression is the callee
+    // require a call parent where this expression is the callee
     let parent = dir_tree.get_parent_for(expression_id)?;
     if parent.ty != NodeType::Expression {
         return None;
@@ -332,7 +332,7 @@ fn overload_definition_span_for_call_site(
     let parent_expression = dir_tree.get::<Expression>(parent_expression_id);
     let is_callee = matches!(
         parent_expression,
-        Expression::Call { left, .. } | Expression::New { left, .. } if *left == expression_id
+        Expression::Call { left, .. } if *left == expression_id
     );
     if !is_callee {
         return None;
