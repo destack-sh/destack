@@ -54,7 +54,7 @@ fn member_access_context_from_member_name(
 
     // scan enclosing spans for one member expression at the cursor
     for enc in &enclosing {
-        let main_span = ctx.tree().source_index.get_main(enc.idx);
+        let main_span = ctx.tree().source_index.get_main(enc.source_id);
         let is_in_member_name = main_span
             .map(|span| span.contains(cursor_position))
             .unwrap_or(true);
@@ -62,7 +62,7 @@ fn member_access_context_from_member_name(
             continue;
         }
 
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
             continue;
         };
         if dir_node_id.ty != dir::NodeType::Expression {
@@ -126,7 +126,7 @@ fn member_access_context_at_offset(
 
     // scan for the nearest enclosing expression
     for enc in &enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
             continue;
         };
         if dir_node_id.ty != dir::NodeType::Expression {

@@ -73,10 +73,10 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
         // check innermost nodes first
         enclosing.sort_by_key(|entry| entry.length);
         for entry in enclosing {
-            if entry.idx == node_id {
+            if entry.source_id == node_id {
                 continue;
             }
-            doc_strings = doc_strings_for_node(ctx, source, entry.idx);
+            doc_strings = doc_strings_for_node(ctx, source, entry.source_id);
             if !doc_strings.is_empty() {
                 break;
             }

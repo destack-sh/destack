@@ -207,12 +207,12 @@ fn open_expression_slot_owner(
 
     // walk enclosing expressions from inner to outer
     for enclosing in enclosing_spans_at_cursor(ctx, offset) {
-        if parsed_tree.get_node_type(enclosing.idx) != dir::NodeType::Expression {
+        if parsed_tree.get_node_type(enclosing.source_id) != dir::NodeType::Expression {
             continue;
         }
 
         // unwrap statement wrappers to the actual expression owner
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.idx);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.source_id);
         let (expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
         let expr_span = ctx.source_index().get(expr_id.id);
 
@@ -524,8 +524,8 @@ fn initializer_declarator_at_cursor(
 
     // walk enclosing nodes and their declarator parents
     for enclosing in enclosing_spans_at_cursor(ctx, offset) {
-        for parent_id in
-            std::iter::once(enclosing.idx).chain(parents.walk_parents_by_id(enclosing.idx))
+        for parent_id in std::iter::once(enclosing.source_id)
+            .chain(parents.walk_parents_by_id(enclosing.source_id))
         {
             if parsed_tree.get_node_type(parent_id) != dir::NodeType::Declarator {
                 continue;

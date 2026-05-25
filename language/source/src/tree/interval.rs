@@ -29,8 +29,7 @@ impl IntervalTree {
 
         let n = intervals.len();
 
-        // sort by (start ASC, end DESC): parents come before children at same start
-        // check if already sorted by (start ASC, end DESC): common case from parsing
+        // check whether parse order already has parents before children
         let needs_sort = intervals.windows(2).any(|window| {
             let (left_start, left_end, _) = window[0];
             let (right_start, right_end, _) = window[1];
@@ -41,29 +40,11 @@ impl IntervalTree {
                 .sort_unstable_by(|left, right| left.0.cmp(&right.0).then(right.1.cmp(&left.1)));
         }
 
-        // build entries with parent pointers using a stack
-        // the stack contains indices of potential parents (intervals that have not ended yet)
+        // build entries with parent pointers
         let mut entries: Vec<IntervalEntry> = Vec::with_capacity(n);
         let mut stack: Vec<usize> = Vec::with_capacity(32);
         for (start, end, node_id) in intervals {
-            while let Some(&top_index) = stack.last() {
-                if entries[top_index].end <= start {
-                    stack.pop();
-                } else {
-                    break;
-                }
-            }
-
-            let parent = stack.last().map(|&index| index as u32).unwrap_or(u32::MAX);
-
-            let index = entries.len();
-            entries.push(IntervalEntry {
-                start,
-                end,
-                node_id,
-                parent,
-            });
-            stack.push(index);
+            push_interval_entry(&mut entries, &mut stack, node_id, start, end);
         }
 
         Self { entries }
@@ -72,59 +53,50 @@ impl IntervalTree {
     /// Build a nested interval tree from node spans.
     /// Node ids correspond to span indices.
     pub fn build_from_spans(spans: &[Span]) -> Self {
-        if spans.is_empty() {
+        Self::build_from_ranges(spans.len(), |index| {
+            let span = spans[index];
+
+            (span.start, span.end)
+        })
+    }
+
+    /// Build a nested interval tree from node span ranges.
+    /// Node ids correspond to span indices.
+    pub fn build_from_ranges(len: usize, mut range_at: impl FnMut(usize) -> (u32, u32)) -> Self {
+        if len == 0 {
             return Self {
                 entries: Vec::new(),
             };
         }
 
-        // check if spans are already sorted by (start ASC, end DESC): common parse order
-        let needs_sort = spans.windows(2).any(|window| {
-            let left = window[0];
-            let right = window[1];
-            left.start > right.start || (left.start == right.start && left.end < right.end)
+        // check whether parse order already has parents before children
+        let needs_sort = (1..len).any(|index| {
+            let (left_start, left_end) = range_at(index - 1);
+            let (right_start, right_end) = range_at(index);
+
+            left_start > right_start || (left_start == right_start && left_end < right_end)
         });
 
-        let mut entries: Vec<IntervalEntry> = Vec::with_capacity(spans.len());
+        let mut entries: Vec<IntervalEntry> = Vec::with_capacity(len);
         let mut stack: Vec<usize> = Vec::with_capacity(32);
 
-        // emit one interval entry and wire its parent using the active stack
-        let emit_interval =
-            |entries: &mut Vec<IntervalEntry>, stack: &mut Vec<usize>, node_id: u32, span: Span| {
-                while let Some(&top_index) = stack.last() {
-                    if entries[top_index].end <= span.start {
-                        stack.pop();
-                    } else {
-                        break;
-                    }
-                }
-
-                let parent = stack.last().map(|&index| index as u32).unwrap_or(u32::MAX);
-                let index = entries.len();
-                entries.push(IntervalEntry {
-                    start: span.start,
-                    end: span.end,
-                    node_id,
-                    parent,
-                });
-                stack.push(index);
-            };
-
         if needs_sort {
-            let mut node_order: Vec<u32> = (0..spans.len() as u32).collect();
+            let mut node_order: Vec<u32> = (0..len as u32).collect();
             node_order.sort_unstable_by(|&left_id, &right_id| {
-                let left = spans[left_id as usize];
-                let right = spans[right_id as usize];
-                left.start.cmp(&right.start).then(right.end.cmp(&left.end))
+                let (left_start, left_end) = range_at(left_id as usize);
+                let (right_start, right_end) = range_at(right_id as usize);
+
+                left_start.cmp(&right_start).then(right_end.cmp(&left_end))
             });
 
             for node_id in node_order {
-                let span = spans[node_id as usize];
-                emit_interval(&mut entries, &mut stack, node_id, span);
+                let (start, end) = range_at(node_id as usize);
+                push_interval_entry(&mut entries, &mut stack, node_id, start, end);
             }
         } else {
-            for (index, span) in spans.iter().copied().enumerate() {
-                emit_interval(&mut entries, &mut stack, index as u32, span);
+            for index in 0..len {
+                let (start, end) = range_at(index);
+                push_interval_entry(&mut entries, &mut stack, index as u32, start, end);
             }
         }
 
@@ -139,24 +111,23 @@ impl IntervalTree {
             return Vec::new();
         }
 
-        // binary search to find the rightmost interval where interval.start <= start
+        // find the last interval that starts before this range
         let search_idx = self.entries.partition_point(|e| e.start <= start);
 
         if search_idx == 0 {
             return Vec::new();
         }
 
-        // start from the interval just before partition_point
+        // start from the nearest candidate
         let mut idx = search_idx - 1;
         let mut results = Vec::new();
 
-        // find the smallest containing interval using parent pointers
+        // find the smallest containing interval
         loop {
             let entry = &self.entries[idx];
 
             if entry.end > end_inclusive {
-                // this interval contains the query - found the smallest one
-                // now walk up parent chain to collect all containing intervals
+                // collect this interval and its parents
                 let mut collect_idx = idx;
                 loop {
                     let e = &self.entries[collect_idx];
@@ -169,9 +140,8 @@ impl IntervalTree {
                 break;
             }
 
-            // this interval doesn't contain the query, try its parent
+            // try the parent when this interval does not contain the query
             if entry.parent == u32::MAX {
-                // no parent, no containing interval found
                 break;
             }
             idx = entry.parent as usize;
@@ -191,21 +161,21 @@ impl IntervalTree {
             return;
         }
 
-        // binary search to find the rightmost interval where interval.start <= start
+        // find the last interval that starts before this range
         let search_idx = self.entries.partition_point(|entry| entry.start <= start);
         if search_idx == 0 {
             return;
         }
 
-        // start from the interval just before partition_point
+        // start from the nearest candidate
         let mut idx = search_idx - 1;
 
-        // find the smallest containing interval using parent pointers
+        // find the smallest containing interval
         loop {
             let entry = &self.entries[idx];
 
             if entry.end > end_inclusive {
-                // this interval contains the query, walk up parent chain
+                // visit this interval and its parents
                 let mut collect_idx = idx;
                 loop {
                     let current = &self.entries[collect_idx];
@@ -223,7 +193,7 @@ impl IntervalTree {
                 break;
             }
 
-            // this interval doesn't contain the query, try its parent
+            // try the parent when this interval does not contain the query
             if entry.parent == u32::MAX {
                 break;
             }
@@ -242,6 +212,35 @@ impl IntervalTree {
     pub fn len(&self) -> usize {
         self.entries.len()
     }
+}
+
+/// Push one interval entry and wire its parent from the active stack.
+fn push_interval_entry(
+    entries: &mut Vec<IntervalEntry>,
+    stack: &mut Vec<usize>,
+    node_id: u32,
+    start: u32,
+    end: u32,
+) {
+    // drop parents that ended before this interval
+    while let Some(&top_index) = stack.last() {
+        if entries[top_index].end <= start {
+            stack.pop();
+        } else {
+            break;
+        }
+    }
+
+    // append the interval under the current parent
+    let parent = stack.last().map(|&index| index as u32).unwrap_or(u32::MAX);
+    let index = entries.len();
+    entries.push(IntervalEntry {
+        start,
+        end,
+        node_id,
+        parent,
+    });
+    stack.push(index);
 }
 
 #[cfg(test)]

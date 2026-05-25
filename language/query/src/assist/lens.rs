@@ -325,10 +325,10 @@ fn has_decorator_named(ctx: DirQueryContext<'_>, node_id: u32, name: &str) -> bo
     enclosing.sort_by_key(|entry| entry.length);
 
     for entry in enclosing {
-        if entry.idx == node_id {
+        if entry.source_id == node_id {
             continue;
         }
-        if decorator_on_node(ctx, entry.idx, name) {
+        if decorator_on_node(ctx, entry.source_id, name) {
             return true;
         }
     }

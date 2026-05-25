@@ -76,12 +76,12 @@ pub(crate) fn block_statement_position(
     offset: u32,
 ) -> Option<BlockStatementPosition> {
     // only block spans can expose statement positions
-    if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Block {
+    if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Block {
         return None;
     }
 
     let parsed_tree = ctx.tree();
-    let block_id = dir::LocalNodeId::<dir::Block>::new(enc.idx);
+    let block_id = dir::LocalNodeId::<dir::Block>::new(enc.source_id);
     let block = parsed_tree.get(block_id);
 
     // empty blocks always expose one statement gap

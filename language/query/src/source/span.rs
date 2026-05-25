@@ -158,7 +158,7 @@ pub(crate) fn enclosing_spans_at_offsets(
             .source_index()
             .get_enclosing_spans(ctx.file_id(), offset, offset);
         for span in spans {
-            if seen.insert(span.idx) {
+            if seen.insert(span.source_id) {
                 enclosing.push(span);
             }
         }

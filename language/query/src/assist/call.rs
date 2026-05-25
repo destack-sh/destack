@@ -83,11 +83,11 @@ fn new_expression_context_for_span(
     offset: u32,
 ) -> Option<CompletionContext> {
     // only expression spans can own one `new` constructor region
-    if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+    if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
         return None;
     }
 
-    let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+    let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
     let parsed_tree = ctx.tree();
     let (_expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
     let dir::Expression::New { left, .. } = expr else {
@@ -131,7 +131,7 @@ fn call_argument_context_for_span(
 ) -> Option<CompletionContext> {
     let (expr_id, call) = dir_call_expression_for_enclosing_span(dir_tree, enc)?;
     let left_span = left_expression_span(ctx, dir_tree, call.left);
-    let call_span = ctx.tree().source_index.get(enc.idx);
+    let call_span = ctx.tree().source_index.get(enc.source_id);
 
     // only the argument list belongs to this path
     if !cursor_in_argument_list(ctx, dir_tree, call.arguments, left_span, call_span, offset) {
@@ -183,11 +183,11 @@ fn call_argument_context_after_separator(
 
     // recover source call shapes that are still being edited
     for enc in &enclosing {
-        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
             continue;
         }
 
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
         let expr = ctx.tree().get(expr_id);
 
         let left = match expr {
@@ -216,7 +216,7 @@ fn dir_call_expression_for_enclosing_span<'a>(
     dir_tree: dir::View<'a>,
     enc: &EnclosingSpan,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, DirCallExpression<'a>)> {
-    let dir_node_id = dir_tree.get_node_id_by_source_id(enc.idx)?;
+    let dir_node_id = dir_tree.get_node_id_by_source_id(enc.source_id)?;
     if dir_node_id.ty != dir::NodeType::Expression {
         return None;
     }

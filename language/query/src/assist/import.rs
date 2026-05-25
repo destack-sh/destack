@@ -23,11 +23,11 @@ pub(super) fn detect_import_context(
 
     // scan enclosing expressions for import nodes under the cursor
     for enc in &enclosing {
-        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
             continue;
         }
 
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
         let expr = ctx.tree().get(expr_id);
 
         if !matches!(expr, dir::Expression::Import { .. }) {

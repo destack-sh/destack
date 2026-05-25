@@ -47,11 +47,11 @@ pub(crate) fn object_literal_cursor_context(
 
     // look for an object expression under the cursor
     for enc in &enclosing {
-        if parsed_tree.get_node_type(enc.idx) != dir::NodeType::Expression {
+        if parsed_tree.get_node_type(enc.source_id) != dir::NodeType::Expression {
             continue;
         }
 
-        let parsed_expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let parsed_expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
         let parsed_expr = parsed_tree.get(parsed_expr_id);
 
         let dir::Expression::ObjectExpression { properties, .. } = parsed_expr else {
@@ -60,7 +60,7 @@ pub(crate) fn object_literal_cursor_context(
 
         let is_key_position = is_object_literal_key_position(parsed_tree, properties, offset);
 
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.idx) else {
+        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
             continue;
         };
         if dir_node_id.ty != dir::NodeType::Expression {
@@ -109,11 +109,11 @@ pub(crate) fn is_inside_object_literal_expression(ctx: DirQueryContext<'_>, offs
 
     // scan enclosing expressions for object literal nodes
     for enc in &enclosing {
-        if ctx.tree().get_node_type(enc.idx) != dir::NodeType::Expression {
+        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
             continue;
         }
 
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.idx);
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
         let expr = ctx.tree().get(expr_id);
 
         if matches!(expr, dir::Expression::ObjectExpression { .. }) {
