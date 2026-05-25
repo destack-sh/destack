@@ -56,7 +56,7 @@ pub fn format_type(
         dir::Type::Primitive(primitive) => format_primitive_type(primitive),
         dir::Type::Literal(literal) => format_scalar_literal(literal, strings),
         dir::Type::Operation(operation) => format_type_operation(operation, types, ctx),
-        dir::Type::Parameter(parameter) => format_symbol_name(parameter.symbol, ctx),
+        dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::Type::This => "this".to_string(),
         dir::Type::Named(reference) => {
             format_type_reference(reference.symbol, &reference.arguments, types, ctx)
@@ -170,7 +170,7 @@ pub fn format_type(
                 function
                     .parameters
                     .iter()
-                    .map(|p| format_local_type(*p, types, ctx)),
+                    .map(|parameter| format_function_parameter(parameter, types, ctx)),
             );
             let ret = if let Some(ret_ty) = function.return_type {
                 format!(": {}", format_local_type(ret_ty, types, ctx))
@@ -413,6 +413,23 @@ pub fn format_type_reference(
             .map(|argument| format_static_argument(argument, types, ctx))
             .collect();
         format!("{name}<{}>", argument_strs.join(", "))
+    }
+}
+
+/// Format one generic parameter reference.
+pub fn format_parameter_type(
+    parameter: &dir::ParameterType,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    match parameter.key {
+        dir::GenericSlotKey::Symbol(symbol) => format_symbol_name(symbol, ctx),
+        dir::GenericSlotKey::Generated(name) => {
+            let Some(ctx) = ctx.module_context(parameter.owner.module_id) else {
+                return "<unknown>".to_string();
+            };
+
+            ctx.dir().strings().get(name).to_string()
+        }
     }
 }
 
@@ -807,6 +824,23 @@ fn format_type_tuple_element(
     if element.is_optional {
         result.push('?');
     }
+    result
+}
+
+fn format_function_parameter(
+    parameter: &dir::FunctionParameterType,
+    types: &dir::TypeTable<'_>,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    let mut result = String::new();
+    if parameter.is_rest {
+        result.push_str("...");
+    }
+    result.push_str(&format_local_type(parameter.ty, types, ctx));
+    if parameter.is_optional {
+        result.push('?');
+    }
+
     result
 }
 

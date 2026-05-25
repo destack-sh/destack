@@ -85,7 +85,7 @@ pub enum GenericSlotOrigin {
 }
 
 /// User-visible key of one generic slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GenericSlotKey {
     /// Explicit source symbol.
     Symbol(GlobalSymbolId),
@@ -212,6 +212,16 @@ impl GenericSlot {
             | Self::VariadicType { index, .. }
             | Self::Static { index, .. }
             | Self::VariadicStatic { index, .. } => *index,
+        }
+    }
+
+    /// Return the slot origin.
+    pub fn origin(&self) -> GenericSlotOrigin {
+        match self {
+            Self::Type { origin, .. }
+            | Self::VariadicType { origin, .. }
+            | Self::Static { origin, .. }
+            | Self::VariadicStatic { origin, .. } => *origin,
         }
     }
 }
