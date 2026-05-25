@@ -64,6 +64,7 @@ Destack requires sound and predictable types and understands only TypeScript-sha
 | **Thenables** | `await customThenable` | not supported | `await` works on the well known `Promise<T>` only |
 | **`any`** | `let x: any` | rejected in `.ds` | use `unknown`, which must be explicitly cast before use |
 | **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be initialized before use |
+| **Declaration parameter inference** | `function f(x = 1) {}` | not supported | public declaration surfaces need explicit parameter types |
 | **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value and type arguments share generic forms |
 | **Circular inference** | mutually inferred module exports | not supported across modules | downstream uses do not refine upstream declarations |
 | **Enum coercion** | `Level.A` as `number` | no implicit coercion | enum fields are nominal constants and need explicit conversion |
@@ -257,104 +258,7 @@ newtype interface Add<T = this> {
 
 Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
 Newtype interfaces are used for explicit behavioral traits like operator interfaces (e.g., `Add`, `Compare`), and for capability traits (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
-
-### Erasure
-
-Structural and nominal `interface`s / `type`s are represented as transparent value constraints: any bare `T` of an `interface` or `type` becomes an implicit generic parameter in its declaration that is then substituted ("monomorphized") on application (similar to Rust's `impl T`).
-That means the following interface-like declarations have same structure:
-
-```ds
-newtype interface Writer {
-    write(bytes: [uint8]): Result<uint, Error>;
-}
-
-interface Writer {
-    write(bytes: [uint8]): Result<uint, Error>;
-}
-
-type Writer = {
-    write(bytes: [uint8]): Result<uint, Error>;
-}
-```
-
-Transparent constraints like `type` and `interface` give the compiler a lot of optimization freedom in specialising methods and types.
-For example, the following function declarations are representationally equivalent but specialise for concrete `Writer` implementations:
-
-```ds
-// use Writer as a regular parameter type, no explicit generics
-function write(writer: Writer, bytes: [uint8]): Result<uint, Error> {
-    writer.write(bytes)
-}
-
-// behaves exactly as if write had been written
-function write<T: Writer>(writer: T, bytes: [uint8]): Result<uint, Error> {
-    writer.write(bytes)
-}
-```
-
-Nominal declarations like `newtype` aliases, however, define a new nominal value type whose representation is selected from its backing type expression.
-Specifically, this means `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `type Shape = Rectangle | Circle` remains a transparent union constraint until some value or storage boundary asks for representation.
-
-### Any
-
-Interfaces being implicit static parameters is generally great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
-However, sometimes explicit _runtime_ indirection is desired, and Destack also provides an intrinsic `Any<T>` wrapper as the explicit erased runtime value satisfying some `T`:
-
-```ds
-// just like the function, this Logger is implicitly generic over Writer
-struct Logger {
-    writer: Writer;
-}
-
-// the Logger above is the same as Logger<T: Writer>
-struct Logger<T: Writer> {
-    writer: T;
-}
-
-// for fixed layout, use Any<Writer>
-struct LoggerFor {
-    writer: Any<Writer>;
-}
-```
-
-In general, contract and transparent shapes give the checker room to specialize ordinary TypeScript-looking code, while value declarations, runtime joins, and `Any<T>` are the points where the program asks for a stable representation.
-
-### Representation
-
-Representation is the concrete storage and ABI shape selected for a representable type under the active target, the default representation being `@repr("destack")`.
-The exact layout of a type can be configured via decorators that constrain its representation as needed, the conventions being very similar to Rust's:
-
-| Decorator | Meaning |
-| --- | --- |
-| `@repr("destack")` | Use the native Destack representation. |
-| `@repr("C")` | Use the active target's C ABI layout. |
-| `@repr("transparent")` | Give a single-field declaration the same ABI representation as its field. |
-| `@repr(T)` | Use primitive scalar `T` as an enum backing representation. |
-| `@align(N)` | Raise the minimum aggregate alignment to `N`. |
-| `@packed` / `@packed(N)` | Lower the maximum field alignment, with `@packed` equivalent to `@packed(1)`. |
-
-```ds
-@align(64)
-struct CacheLine {
-    value: uint64;
-}
-
-@repr("C")
-@packed
-struct WireHeader {
-    tag: uint8;
-    size: uint32;
-}
-```
-
-Destack also supports querying parameters of the effective representation during compilation - available as a static term during inference - for conditional branching and storage:
-
-| Intrinsic | Result |
-| --- | --- |
-| `sizeOf<T>()` | The byte size of `T`. |
-| `alignOf<T>()` | The required alignment of `T`. |
-| `strideOf<T>()` | The spacing between adjacent array elements of `T`. |
-| `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T`. |
+A `newtype interface` is nominal as a constraint, but it is still not a concrete value representation.
 
 ### Extensions
 
@@ -649,7 +553,8 @@ It does not freeze the runtime value.
 ### Generics
 
 Destack supports classic TypeScript-shaped generics: inference, constraints, defaults, conditional types, mapped types, indexed access types, and the rest of the usual machinery.
-The main addition is that generic parameters can also be _values_ that are then substituted into expressions _and_ are also available during inference.
+Unlike in TypeScript, however, Destack's parameters can also represent _values_ that are then substituted into expressions _and_ both values and types are available during inference.
+
 To distinguish static value parameters from static type parameters (and literal value types), we use the `comptime` modifier on the generic parameter declaration (akin to Rust's `const` modifier, alas this was already taken in TypeScript):
 
 ```ds
@@ -849,7 +754,7 @@ function merge<T: int, U>(): T where (
 
 TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
 Destack supports type reflection both at runtime and at compile time with `Type<T>` as a normalized view.
-Any type expression can be turned into its reflected type with (implicit or explicit) casting to its `Type` representation:
+Dynamic type expression can be turned into its reflected type with (implicit or explicit) casting to its `Type` representation:
 
 ```ds
 struct User {
@@ -877,6 +782,138 @@ const userSize = comptime sizeOf<User>();
 const requestLayout = comptime layoutOf<Request<Body>>();
 type InlineBytes<T> = [uint8; sizeOf<T>()];
 ```
+
+### Concreteness
+
+In general, userland shouldn't _have_ to care about type layouts for everyday use cases unless there is a specific reason to care.
+The idea as always is that users should opt-in to additional control and complexity as needed, and everything else should behave "as expected" in TypeScript.
+That said, there is a core distinction in types that Destack reifies differently than other languages (including TypeScript and Rust):
+ - **Concrete types**: nominal types with a specific representation (e.g., `class`, `struct`, `newtype`, primitives)
+ - **Transparent constraints**: type constraints without a specific known representation (e.g., `type`, `interface`, `newtype interface`)
+
+The presence of existential types and monomorphisation in some form is of course not special in itself, but Destack applies it much more aggressively than is typically done.
+Essentially, Destack's `interface T` behaves like Rust explicit `impl T` (or Swift's `some T`) by default, and the `dyn T` variant is the explicit less-used alternative. 
+
+| Form | Example | Meaning |
+| --- | --- | --- |
+| Primitive or nominal value type | `int32`, `Point`, `UserId` | Concrete type with a stable representation. |
+| Class type | `User` | Concrete managed identity representation. |
+| Nominal declaration | `struct Point { x: int32 }`, `enum Mode { Read }` | Concrete nominal type. |
+| Newtype alias | `newtype Shape = Rectangle \| Circle` | Concrete nominal type with representation selected from its backing type expression. |
+| Structural interface | `interface Writer { write(bytes: [uint8]): uint }` | Transparent structural constraint. |
+| Nominal interface | `newtype interface Add { add(other: this): this }` | Transparent nominal constraint. |
+| Structural type literal | `{ x: int32; y: int32 }` | Transparent structural constraint in type position. |
+| Transparent alias | `type Writer = { write(bytes: [uint8]): uint }` | Transparent constraint alias. |
+| Union or intersection alias | `type Shape = Rectangle \| Circle` | Transparent constraint until a value boundary chooses representation. |
+| Erased wrapper | `Dynamic<Writer>` | Concrete runtime wrapper satisfying a transparent constraint. |
+
+Destack supports complex type algebra and associations, and Destack wants to be a high performance systems language, and TypeScript-idiomatic code heavily often heavily uses structural-ish types, so we found that _automatically monomorphizing_ all transparent constraints (like `type Point = { x: number, y: number }`) was the only serious tradeoff.
+This design decision means the following interface-like declarations behave equivalently:
+
+```ds
+newtype interface Writer {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+
+interface Writer {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+
+type Writer = {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+```
+
+The same rule applies to aggregate types, that is, storing a transparent constraint keeps the container generic; using `Dynamic<T>` asks for a fixed erased representation:
+
+```ds
+struct Logger {
+    writer: Writer;
+}
+
+// behaves as if written with an induced generic parameter
+struct Logger<T: Writer> {
+    writer: T;
+}
+
+struct ErasedLogger {
+    writer: Dynamic<Writer>;
+}
+```
+
+Structural type expressions are constraints, but structural value expressions still synthesize concrete anonymous shapes when they are used as values
+Here the annotation is transparent, and the object expression supplies the concrete value shape checked against it:
+
+```ds
+const point: { x: int32; y: int32 } = { x: 1, y: 2 };
+```
+
+It should be noted that `newtype` is always treated as a concrete type, wheras `newtype` on an `interface` is merely a nominality modifier.
+So, `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `type Shape = Rectangle | Circle` remains a transparent union constraint until a value or storage boundary chooses a representation.
+
+### Dynamic
+
+Transparent constraints becoming hidden generic parameters is generally great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
+However, sometimes explicit _runtime_ indirection is desired, and Destack also provides an intrinsic `Dynamic<T>` wrapper as the explicit erased runtime value satisfying some `T`:
+
+```ds
+// just like the function, this Logger is implicitly generic over Writer
+struct Logger {
+    writer: Writer;
+}
+
+// the Logger above is the same as Logger<T: Writer>
+struct Logger<T: Writer> {
+    writer: T;
+}
+
+// for fixed layout, erase the constraint
+struct LoggerFor {
+    writer: Dynamic<Writer>;
+}
+```
+
+In general, transparent constraints give the checker room to specialize ordinary TypeScript-looking code, while value declarations, runtime joins, and `Dynamic<T>` are the points where the program asks for a stable representation.
+Associated members of an erased value must be fixed by the erased constraint itself; otherwise the value must remain generic.
+
+### Representation
+
+Representation is the concrete storage and ABI shape selected for a representable type under the active target, the default representation being `@repr("destack")`.
+Only concrete types have layout; transparent constraints must either be instantiated through a generic parameter or erased behind `Dynamic<T>` before a concrete representation is required.
+The exact layout of a type can be configured via decorators that constrain its representation as needed, the conventions being very similar to Rust's:
+
+| Decorator | Meaning |
+| --- | --- |
+| `@repr("destack")` | Use the native Destack representation. |
+| `@repr("C")` | Use the active target's C ABI layout. |
+| `@repr("transparent")` | Give a single-field declaration the same ABI representation as its field. |
+| `@repr(T)` | Use primitive scalar `T` as an enum backing representation. |
+| `@align(N)` | Raise the minimum aggregate alignment to `N`. |
+| `@packed` / `@packed(N)` | Lower the maximum field alignment, with `@packed` equivalent to `@packed(1)`. |
+
+```ds
+@align(64)
+struct CacheLine {
+    value: uint64;
+}
+
+@repr("C")
+@packed
+struct WireHeader {
+    tag: uint8;
+    size: uint32;
+}
+```
+
+Destack also supports querying parameters of the effective representation during compilation - available as a static term during inference - for conditional branching and storage:
+
+| Layout Query | Result |
+| --- | --- |
+| `sizeOf<T>()` | The byte size of `T` as `usize`. |
+| `alignOf<T>()` | The required alignment of `T` as `usize`. |
+| `strideOf<T>()` | The spacing between adjacent array elements of `T` as `usize`. |
+| `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T` as a `Layout` value. |
+
 
 ## Expressions
 
@@ -1313,9 +1350,9 @@ padded satisfies Vector2;
 
 #### Interfaces
 
-As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: bare structural interface types as transparent constraints, so `point: PointLike` behaves like an implicit `T: PointLike` parameter and is specialized for the concrete argument type.
+As discussed in Types, structural interfaces keep normal TypeScript shape checking and mostly work exactly as expected: bare structural interface annotations are transparent constraints, so `point: PointLike` behaves like an implicit `T: PointLike` parameter and is specialized for the concrete argument type.
 Because structural interfaces are satisfied by shape, writing `implements` on one is only an explicit declaration-site check.
-Erased interface values are spelled explicitly with `Any<T>`.
+Erased interface values are spelled explicitly with `Dynamic<T>`.
 
 ```ds
 interface PointLike {
@@ -1403,7 +1440,7 @@ Like in Rust, types that want to be handled as general errors explicitly impleme
 newtype interface Error {
     display(): string;
 
-    source(): Any<Error> | undefined {
+    source(): Dynamic<Error> | undefined {
         undefined
     }
 }
@@ -1738,34 +1775,43 @@ Explicit `@derive(...)` is stricter: if a provider is written directly on a decl
 
 #### Static If
 
-Destack also supports a special `@if` decorator that gates the inclusion of certain nodes based on a static term.
+Destack also supports a special intrinsic `@if` decorator that gates the inclusion of certain nodes based on a static term.
 When the condition is false, the annotated item is (in effect) removed from the instantiated shape.
 
 ```ds
-interface FileSystem {
+interface FileSystem<Mode: "fast" | "slow" = "fast"> {
     open(path: string): Result<File, IOError>;
 
     @if(import.meta.platform != "windows")
     chmod(path: string, mode: uint16): Result<void, IOError>;
 
-    @if(import.meta.platform == "windows")
+    @if(import.meta.platform == "windows" && Mode == "fast")
     setAttributes(path: string, attrs: WindowsFileAttributes): Result<void, IOError>;
 }
 ```
 
-`@if` works on module declarations, class and struct members, interface members, enum fields, and even statements:
+Static ifs may annotate any meaningfully _removable_ source contribution - if removing the annotated node would leave the parent with a coherent shape, the guard may apply, otherwise the guard is rejected:
 
-```ds
-struct Buffer<T, comptime Mode: "inline" | "external"> {
-    @if(Mode == "inline")
-    index: InlineIndex;
+| Node | Example | Context | Allowed | Note |
+|------|---------|---------|---------|------|
+| Import declaration | `@if(...) import { x } from "./m.ds"` | profile, module metadata, literals | Yes | Includes or omits the module edge and its imported bindings. |
+| Re-export declaration | `@if(...) export { x } from "./m.ds"` | profile, module metadata, literals | Yes | Includes or omits the re-export edge and its bindings. |
+| Top-level declaration | `@if(...) function f() {}`, `@if(...) struct S {}` | profile, module metadata, literals | Yes | Includes or omits the module-level contribution before exports and import targets are resolved. |
+| Module declaration entry | `@if(...) const role = "server"` inside `module { ... }` | profile, module metadata, literals | Yes | Includes or omits a single module metadata binding. |
+| Struct field | `@if(Mode == "inline") index: InlineIndex` | containing declaration generics and static members | Yes | Includes or omits the field for a concrete instantiation. |
+| Class member | `@if(...) method() {}` | containing declaration generics and static members | Yes | Includes or omits the member for a concrete instantiation. |
+| Interface member | `@if(import.meta.platform != "windows") chmod(...)` | containing declaration generics and static members | Yes | Includes or omits the member from the interface contract. |
+| Extension member | `@if(...) extra() {}` inside `extension ... { ... }` | containing declaration generics and static members | Yes | Includes or omits the extension contribution. |
+| Enum variant | `@if(...) Variant` | containing enum generics and static members | Yes | Includes or omits the variant for a concrete instantiation. |
+| Statement in block body | `@if(...) doThing();` | enclosing static and generic context | Yes | Includes or omits the statement, including any bindings it introduces. |
+| Match case | `@if(...) Pattern => arm` | enclosing static and generic context | Yes | Includes or omits the case from matching. |
+| Call argument | `f(a, @if(...) b, c)` | enclosing static and generic context | Yes | Included only if the remaining argument list is still valid. |
+| Tree argument | `<Foo a={1} @if(...) b={2} />` | enclosing static and generic context | Yes | Included only if the remaining attribute list is still valid. |
+| Generic argument | `Map<K, @if(...) V>` | enclosing static and generic context | Yes | Included only if the remaining generic argument list is still valid. |
+| Tuple element | `(x, @if(...) y, z)` | enclosing static and generic context | Yes | Included only if the remaining tuple is still valid. |
+| Object field | `{ a: 1, @if(...) b: 2 }` | enclosing static and generic context | Yes | Included only if the remaining object literal is still valid. |
+| Type literal field | `{ a: int32; @if(...) b: int32 }` | enclosing static and generic context | Yes | Included only if the remaining type literal is still valid. |
 
-    @if(Mode == "external")
-    index: ExternalIndex;
-
-    data: T[];
-}
-```
 
 ### Module
 
@@ -2048,7 +2094,7 @@ Destack supports explicit, optional type modifiers for controlling memory _place
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
-Importantly, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
+Once transparent constraints have been instantiated or erased, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 
 ### Space
 
