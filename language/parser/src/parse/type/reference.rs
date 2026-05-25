@@ -185,7 +185,7 @@ impl Parser {
             return self.eat_single_segment_type_path_reference(start, first, first_span);
         }
 
-        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
         segments.push(first);
         segment_spans.push(first_span);
@@ -229,7 +229,7 @@ impl Parser {
         segment: StringId,
         segment_span: Span,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+        let mut segments: SmallVec<[StringId; 1]> = SmallVec::new();
         segments.push(segment);
 
         let generic_arguments = if self.type_generic_arguments_start_here() {
