@@ -1,6 +1,8 @@
 use super::html::HTML_NAMED_ENTITIES;
 use super::lexer::Lexer;
-use destack_dir::{Token, TokenLiteral, TokenSpan, TokenType};
+use destack_dir::{
+    Token, TokenLiteral, TokenSpan, TokenType, is_identifier_continue, is_identifier_start,
+};
 use destack_source::{File, Span};
 use memchr::memchr;
 
@@ -92,7 +94,8 @@ impl Lexer {
 
     /// Return one contextual tree tag token from source.
     pub(crate) fn tree_tag_token(file: &File, start: u32, is_on_new_line: bool) -> TokenSpan {
-        let bytes = file.text().as_bytes();
+        let source = file.text();
+        let bytes = source.as_bytes();
         let offset = start as usize;
         let Some(byte) = bytes.get(offset).copied() else {
             return TokenSpan {
@@ -149,7 +152,7 @@ impl Lexer {
                 )
             }
             byte if Self::byte_starts_tree_tag_identifier(byte) => {
-                let end = Self::tree_tag_identifier_end(bytes, offset);
+                let end = Self::tree_tag_identifier_end(source, offset);
                 Self::source_token(
                     file,
                     TokenType::Identifier,
@@ -159,7 +162,29 @@ impl Lexer {
                     None,
                 )
             }
-            _ => Self::source_token(file, TokenType::Unknown, offset, 1, is_on_new_line, None),
+            _ => {
+                let character = source[offset..].chars().next().unwrap_or('\0');
+                if is_identifier_start(character) {
+                    let end = Self::tree_tag_identifier_end(source, offset);
+                    Self::source_token(
+                        file,
+                        TokenType::Identifier,
+                        offset,
+                        end - offset,
+                        is_on_new_line,
+                        None,
+                    )
+                } else {
+                    Self::source_token(
+                        file,
+                        TokenType::Unknown,
+                        offset,
+                        character.len_utf8(),
+                        is_on_new_line,
+                        None,
+                    )
+                }
+            }
         }
     }
 
@@ -252,13 +277,14 @@ impl Lexer {
     }
 
     /// Return the end offset of a tree tag identifier.
-    fn tree_tag_identifier_end(bytes: &[u8], start: usize) -> usize {
-        let mut end = start + 1;
+    fn tree_tag_identifier_end(source: &str, start: usize) -> usize {
+        let mut end = start;
+        for character in source[start..].chars() {
+            if !is_identifier_continue(character) {
+                break;
+            }
 
-        while end < bytes.len()
-            && (bytes[end].is_ascii_alphanumeric() || matches!(bytes[end], b'_' | b'$'))
-        {
-            end += 1;
+            end += character.len_utf8();
         }
 
         end
