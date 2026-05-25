@@ -15,17 +15,20 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
+        let profile_id = profile;
+        let profile_state = self.profile(context.revision(), profile_id)?;
         let artifacts = self.artifact_reader(context);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
-            .dir_bound(module, profile)
+            .dir_bound(module, profile_id)
             .map_err(CompilerError::from)?;
         let imported = artifacts
-            .dir_imported(module, profile)
+            .dir_imported(module, profile_id)
             .map_err(CompilerError::from)?;
         let expanded = artifacts
-            .dir_expanded(module, profile)
+            .dir_expanded(module, profile_id)
             .map_err(CompilerError::from)?;
+        let module = self.module(context.revision(), module)?;
 
         // build expanded export inputs
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
@@ -33,6 +36,9 @@ impl Compiler {
         let modules = expanded.module_table(&imported);
         let mut state = ExportState::new(
             view,
+            module.as_ref(),
+            &profile_state.key,
+            profile_state.conditions(),
             bound.namespace_scope,
             bindings,
             modules,

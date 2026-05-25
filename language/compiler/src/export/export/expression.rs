@@ -13,9 +13,17 @@ impl Compiler {
         expression: &dir::Expression,
         is_global: bool,
     ) -> ExportResult<()> {
+        if !state.static_allows(expression_id.into_any())? {
+            return Ok(());
+        }
+
         match expression {
             // collect exports inside a global block
             dir::Expression::Declaration(declaration_id) => {
+                if !state.static_allows(declaration_id.into_any())? {
+                    return Ok(());
+                }
+
                 let declaration = state.view.get(*declaration_id);
                 let dir::Declaration::Global(declaration) = declaration else {
                     return Ok(());
@@ -34,14 +42,22 @@ impl Compiler {
                 target: Some(_),
                 items,
                 ..
-            } if is_global => self.collect_global_reexports(state, expression_id, items),
+            } if is_global => {
+                let items = state.static_allowed_items(items)?;
+
+                self.collect_global_reexports(state, expression_id, &items)
+            }
 
             // collect exports from another module
             dir::Expression::Export {
                 target: Some(_),
                 items,
                 ..
-            } => self.collect_reexports(state, expression_id, items),
+            } => {
+                let items = state.static_allowed_items(items)?;
+
+                self.collect_reexports(state, expression_id, &items)
+            }
 
             // reject local export clauses inside global blocks
             dir::Expression::Export {
@@ -49,7 +65,9 @@ impl Compiler {
                 items,
                 ..
             } if is_global => {
-                for item_id in items {
+                let items = state.static_allowed_items(items)?;
+
+                for item_id in &items {
                     state.report_diagnostic(ExportError::UnsupportedGlobalExport {
                         anchor: state.anchor_node(item_id.id)?,
                     });
@@ -63,7 +81,11 @@ impl Compiler {
                 target: None,
                 items,
                 ..
-            } => self.collect_clause_exports(state, items),
+            } => {
+                let items = state.static_allowed_items(items)?;
+
+                self.collect_clause_exports(state, &items)
+            }
 
             // ignore non-export expressions
             _ => Ok(()),
@@ -200,6 +222,10 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
         items: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> ExportResult<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+
         let target = state.reexport_target(expression_id)?;
         for item_id in items {
             let item = state.view.get(*item_id);
@@ -279,6 +305,10 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
         items: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> ExportResult<()> {
+        if items.is_empty() {
+            return Ok(());
+        }
+
         let target = state.reexport_target(expression_id)?;
         for item_id in items {
             let item = state.view.get(*item_id);

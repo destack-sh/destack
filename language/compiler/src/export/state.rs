@@ -1,7 +1,9 @@
-use destack_artifact::{DiagnosticAnchor, DirExported};
+use destack_artifact::{ConditionSet, DiagnosticAnchor, DirExported, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use destack_workspace::Module;
+use indexmap::IndexSet;
 
 use crate::{ExportError, ExportResult};
 
@@ -9,6 +11,12 @@ use crate::{ExportError, ExportResult};
 pub(crate) struct ExportState<'a> {
     /// The expanded DIR view.
     pub(in crate::export) view: dir::View<'a>,
+    /// The current module.
+    pub(in crate::export) module: &'a Module,
+    /// The active profile key.
+    pub(in crate::export) profile: &'a ProfileKey,
+    /// The active profile conditions.
+    pub(in crate::export) conditions: &'a ConditionSet,
     /// The expanded binding table.
     pub(in crate::export) bindings: dir::BindingTable<'static>,
     /// The expanded module table.
@@ -21,6 +29,8 @@ pub(crate) struct ExportState<'a> {
     pub(in crate::export) exports: dir::ExportTable,
     /// The global table being built.
     pub(in crate::export) globals: dir::GlobalTable,
+    /// Declarations hidden by static guards.
+    pub(in crate::export) static_hidden_declarations: IndexSet<dir::LocalNodeIdAny>,
     /// The recoverable diagnostics produced while exporting.
     pub(in crate::export) diagnostics: Vec<ExportError>,
 }
@@ -29,6 +39,9 @@ impl<'a> ExportState<'a> {
     /// Create export state for one module.
     pub(crate) fn new(
         view: dir::View<'a>,
+        module: &'a Module,
+        profile: &'a ProfileKey,
+        conditions: &'a ConditionSet,
         namespace_scope: dir::LocalScopeId,
         bindings: dir::BindingTable<'static>,
         modules: dir::ModuleTable<'static>,
@@ -36,12 +49,16 @@ impl<'a> ExportState<'a> {
     ) -> Self {
         Self {
             view,
+            module,
+            profile,
+            conditions,
             bindings,
             modules,
             namespace_scope,
             strings,
             exports: dir::ExportTable::new(view.tree().module_id),
             globals: dir::GlobalTable::new(view.tree().module_id),
+            static_hidden_declarations: IndexSet::new(),
             diagnostics: Vec::new(),
         }
     }
