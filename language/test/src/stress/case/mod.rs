@@ -20,6 +20,7 @@ mod operator;
 mod pathology;
 mod pattern;
 mod range;
+mod recovery;
 mod registry;
 mod sequence;
 mod signature;

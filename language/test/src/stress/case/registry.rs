@@ -34,6 +34,16 @@ use super::pathology::{
 };
 use super::pattern::{convoluted_patterns, damaged_type, nested_match};
 use super::range::range_forms;
+use super::recovery::{
+    damaged_delimiter_storms, damaged_dependency_attribute_boundaries,
+    damaged_dependency_boundaries, damaged_dependency_item_boundaries,
+    damaged_dependency_namespace_boundaries, damaged_dependency_target_boundaries,
+    damaged_documentation_boundaries, damaged_export_target_boundaries,
+    damaged_export_target_only_boundaries, damaged_import_target_boundaries,
+    damaged_member_boundaries, damaged_pattern_boundaries, damaged_statement_boundaries,
+    damaged_statement_call_boundaries, damaged_statement_object_boundaries,
+    damaged_statement_slot_boundaries, damaged_template_boundaries,
+};
 use super::sequence::{sequence_pattern_forms, sequence_type_forms};
 use super::signature::large_signature;
 use super::ternary::nested_ternary;
@@ -344,6 +354,91 @@ const CASES: &[StressSpec] = &[
         damaged_function_type_heads,
     ),
     StressSpec::recovery_pathological("damaged_infix_chains", SOURCE_MODES, damaged_infix_chains),
+    StressSpec::recovery_pathological(
+        "damaged_dependency_boundaries",
+        ALL_MODES,
+        damaged_dependency_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_dependency_item_boundaries",
+        ALL_MODES,
+        damaged_dependency_item_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_dependency_target_boundaries",
+        ALL_MODES,
+        damaged_dependency_target_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_import_target_boundaries",
+        ALL_MODES,
+        damaged_import_target_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_export_target_boundaries",
+        ALL_MODES,
+        damaged_export_target_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_export_target_only_boundaries",
+        ALL_MODES,
+        damaged_export_target_only_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_dependency_attribute_boundaries",
+        ALL_MODES,
+        damaged_dependency_attribute_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_dependency_namespace_boundaries",
+        ALL_MODES,
+        damaged_dependency_namespace_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_pattern_boundaries",
+        SOURCE_MODES,
+        damaged_pattern_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_member_boundaries",
+        ALL_MODES,
+        damaged_member_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_template_boundaries",
+        SOURCE_MODES,
+        damaged_template_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_statement_boundaries",
+        SOURCE_MODES,
+        damaged_statement_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_statement_slot_boundaries",
+        SOURCE_MODES,
+        damaged_statement_slot_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_statement_call_boundaries",
+        SOURCE_MODES,
+        damaged_statement_call_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_statement_object_boundaries",
+        SOURCE_MODES,
+        damaged_statement_object_boundaries,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_delimiter_storms",
+        SOURCE_MODES,
+        damaged_delimiter_storms,
+    ),
+    StressSpec::recovery_pathological(
+        "damaged_documentation_boundaries",
+        ALL_MODES,
+        damaged_documentation_boundaries,
+    ),
 ];
 
 /// One generated stress fixture.
