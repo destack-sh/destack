@@ -1,6 +1,7 @@
 import { Drop } from "destack:memory";
 
 /// Worker-local handle to a suspended execution frame.
+@languageItem("async.ContinuationHandle")
 export newtype ContinuationHandle = uint64;
 
 extension of ContinuationHandle implements Drop {
@@ -18,6 +19,7 @@ extension of ContinuationHandle implements Drop {
 }
 
 /// Suspended continuation produced by `yield`.
+@languageItem("async.ContinuationYield")
 export struct ContinuationYield<T> {
     kind: "yield" = "yield";
     value: T;
@@ -25,18 +27,21 @@ export struct ContinuationYield<T> {
 }
 
 /// Completed continuation.
+@languageItem("async.ContinuationReturn")
 export struct ContinuationReturn<T> {
     kind: "return" = "return";
     value: T;
 }
 
 /// Failed continuation.
+@languageItem("async.ContinuationThrow")
 export struct ContinuationThrow {
     kind: "throw" = "throw";
     error: unknown;
 }
 
 /// Result of resuming a continuation.
+@languageItem("async.ContinuationResult")
 @derive(Tagged)
 export type ContinuationResult<TYield, TReturn> =
     | ContinuationYield<TYield>
@@ -44,9 +49,11 @@ export type ContinuationResult<TYield, TReturn> =
     | ContinuationThrow;
 
 /// Suspend the current continuation and register its handle.
+@languageItem("async.suspendContinuation")
 @intrinsic("async.continuation.suspend")
 export declare function suspendContinuation<T>(register: (handle: ContinuationHandle) => void): T;
 
 /// Queue one Worker-local microtask.
+@languageItem("async.queueMicrotask")
 @intrinsic("async.microtask.queue")
 export declare function queueMicrotask(task: () => void): void;
