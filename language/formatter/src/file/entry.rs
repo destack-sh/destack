@@ -3,12 +3,10 @@ use std::fmt::{self, Display};
 use std::sync::Arc;
 
 use destack_core::StringPool;
-use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
-use destack_html::{HtmlFormatOptions, format_document, parse_html};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
-use destack_source::{File, FileType, LanguageType};
+use destack_source::{File, LanguageType};
 use destack_workspace::FormatterOptions;
 
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
@@ -59,67 +57,9 @@ pub fn format_file_tree(
 
     render_program_roots(&context, roots)
 }
+
 /// Format one full source file from authored text.
 pub fn format_file_source(
-    file: &File,
-    source: &str,
-    options: FormatterOptions,
-) -> Result<String, FormatFileError> {
-    match file.ty {
-        FileType::Css => format_css_file_source(file, source, options),
-        FileType::Html => format_html_file_source(file, source, options),
-        _ => format_parser_file_source(file, source, options),
-    }
-}
-
-/// Format one CSS source file.
-fn format_css_file_source(
-    file: &File,
-    source: &str,
-    options: FormatterOptions,
-) -> Result<String, FormatFileError> {
-    // parse and format
-    let (tree, stylesheet) = parse_css(file, source).map_err(|error| FormatFileError {
-        message: error.message,
-    })?;
-    let options = css_format_options(options);
-    let mut formatted =
-        format_stylesheet(&tree, stylesheet, options).map_err(|error| FormatFileError {
-            message: error.to_string(),
-        })?;
-
-    // keep text outputs newline terminated
-    if !formatted.is_empty() && !formatted.ends_with('\n') {
-        formatted.push('\n');
-    }
-
-    Ok(formatted)
-}
-
-/// Format one HTML source file.
-fn format_html_file_source(
-    file: &File,
-    source: &str,
-    options: FormatterOptions,
-) -> Result<String, FormatFileError> {
-    // parse and format
-    let (tree, document) = parse_html(file, source);
-    let options = html_format_options(options);
-    let mut formatted =
-        format_document(&tree, document, options).map_err(|error| FormatFileError {
-            message: error.to_string(),
-        })?;
-
-    // keep text outputs newline terminated
-    if !formatted.is_empty() && !formatted.ends_with('\n') {
-        formatted.push('\n');
-    }
-
-    Ok(formatted)
-}
-
-/// Format one parser-driven source file.
-fn format_parser_file_source(
     file: &File,
     source: &str,
     options: FormatterOptions,
@@ -221,85 +161,15 @@ fn render_program_roots<'a>(
     Ok(result)
 }
 
-/// Convert workspace options into CSS format options.
-fn css_format_options(options: FormatterOptions) -> CssFormatOptions {
-    CssFormatOptions::pretty()
-        .with_line_ending(options.line_ending)
-        .with_indent_style(options.indent_style)
-        .with_indent_width(options.indent_width)
-        .with_line_width(options.line_width.min(u8::MAX as u16) as u8)
-}
-
-/// Convert workspace options into HTML format options.
-fn html_format_options(options: FormatterOptions) -> HtmlFormatOptions {
-    HtmlFormatOptions::pretty()
-        .with_line_ending(options.line_ending)
-        .with_indent_style(options.indent_style)
-        .with_indent_width(options.indent_width)
-        .with_line_width(options.line_width.min(u8::MAX as u16) as u8)
-}
-
 #[cfg(test)]
 mod tests {
     use super::format_file_source;
     use destack_source::{File, FileId, FileType, Uri};
     use destack_workspace::FormatterOptions;
 
-    /// Format one CSS file through the shared formatter entrypoint.
+    /// Source formatting should use the provided source text.
     #[test]
-    fn test_format_css_file_source() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            "@media screen{.button{color:red;background:blue}}".to_string(),
-        );
-
-        let formatted =
-            format_file_source(&file, file.text(), FormatterOptions::default()).unwrap();
-
-        assert_eq!(
-            formatted,
-            r#"@media screen {
-    .button {
-        color: red;
-        background: blue;
-    }
-}
-"#
-        );
-    }
-
-    /// Format one HTML file through the shared formatter entrypoint.
-    #[test]
-    fn test_format_html_file_source() {
-        let file = File::from_text(
-            FileId::new(1),
-            "index.html".to_string(),
-            Uri::from_string("test:///index.html"),
-            None,
-            FileType::Html,
-            "<div><span>hello</span><p>world</p></div>".to_string(),
-        );
-
-        let formatted =
-            format_file_source(&file, file.text(), FormatterOptions::default()).unwrap();
-
-        assert_eq!(
-            formatted,
-            r#"<div>
-    <span>hello</span>
-    <p>world</p>
-</div>
-"#
-        );
-    }
-
-    /// Parser-backed formatting should use the provided source text.
-    #[test]
-    fn test_format_parser_file_source_uses_provided_source() {
+    fn test_format_file_source_uses_provided_source() {
         let file = File::from_text(
             FileId::new(1),
             "main.ts".to_string(),
@@ -319,9 +189,9 @@ mod tests {
         );
     }
 
-    /// Parser-backed formatting should preserve trailing file comments.
+    /// Source formatting should preserve trailing file comments.
     #[test]
-    fn test_format_parser_file_source_preserves_eof_comments() {
+    fn test_format_file_source_preserves_eof_comments() {
         let file = File::from_text(
             FileId::new(1),
             "main.ts".to_string(),
