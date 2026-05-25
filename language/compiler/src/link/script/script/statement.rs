@@ -113,16 +113,6 @@ impl ScriptLinker<'_> {
         let dependency_target = self
             .compiler
             .script_dependency_target(&specifier, Some(target_module));
-        // plain stylesheet imports are side effect only
-        if is_import && self.is_plain_stylesheet_module(target_module)? && !item_set.is_empty() {
-            return Err(self.invalid_output_statement(
-                module_id,
-                format!(
-                    "plain stylesheet imports are side effect only in '{}': use a bare import or an explicit file loader for a URL value",
-                    self.target_name()
-                ),
-            ));
-        }
 
         // keep external targets untouched
         if !self.compiler.should_bundle_script_dependency(
@@ -133,11 +123,6 @@ impl ScriptLinker<'_> {
             &dependency_target,
         )? {
             return Ok(vec![statement_id.into_any()]);
-        }
-
-        // bundled plain stylesheet imports are carried by the stylesheet lane, not js output
-        if is_import && self.is_plain_stylesheet_module(target_module)? {
-            return Ok(Vec::new());
         }
 
         // collapse bundled same-output targets to local bindings
@@ -204,17 +189,6 @@ impl ScriptLinker<'_> {
         // erase same-output type-only imports
         if is_type_dependency {
             return Ok(Vec::new());
-        }
-
-        // plain stylesheet imports are side effect only
-        if self.is_plain_stylesheet_module(target_module)? && !item_set.is_empty() {
-            return Err(self.invalid_output_statement(
-                module_id,
-                format!(
-                    "plain stylesheet imports are side effect only in '{}': use a bare import or an explicit file loader for a URL value",
-                    self.target_name()
-                ),
-            ));
         }
 
         // resource wrapper imports become local value bindings

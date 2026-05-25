@@ -1,16 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{Data, DirExported, ModuleOutput};
-use destack_dir as dir;
-use destack_source::{
-    File, FileId, FileType, ModuleId, PackageId, ProfileId, Span, StringId, TargetId,
-};
+use destack_artifact::{Data, ModuleOutput};
+use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 use destack_workspace::{Module, ProviderContext, Revision, Target};
 
 use crate::{Compiler, CompilerError, LinkError, LinkResult};
-
-use super::{ModuleEdge, ModuleRelation};
 
 /// One script target linker.
 pub(crate) struct ScriptLinker<'a> {
@@ -125,39 +120,6 @@ impl<'a> ScriptLinker<'a> {
         Ok(())
     }
 
-    /// Return the resolved module edges for one linked module.
-    pub(crate) fn module_edges_for_module(
-        &self,
-        module_id: ModuleId,
-    ) -> LinkResult<Vec<ModuleEdge>> {
-        let profile_id = self.profile_id_for_module(module_id)?;
-        let artifacts = self.compiler.artifact_reader(self.context);
-        let imported = artifacts
-            .dir_imported(module_id, profile_id)
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("module imports are not ready: {error:?}"),
-            })?;
-        let expanded = artifacts
-            .dir_expanded(module_id, profile_id)
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("module expansion is not ready: {error:?}"),
-            })?;
-        let exported = artifacts
-            .dir_exported(module_id, profile_id)
-            .map_err(|error| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("module exports are not ready: {error:?}"),
-            })?;
-        let modules = expanded.module_table(&imported);
-
-        Ok(module_import_edges(&modules, exported.as_ref()))
-    }
-
     /// Return the parsed data payload for one linked module.
     pub(crate) fn data(&self, module_id: ModuleId) -> LinkResult<Arc<Data>> {
         self.compiler
@@ -178,85 +140,4 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn link_error(&self, error: CompilerError) -> LinkError {
         Compiler::link_error(self.package_id, error)
     }
-
-    /// Return one module edge with a matching relation, source site, and specifier.
-    pub(crate) fn module_edge_for_site_specifier(
-        &self,
-        edges: &[ModuleEdge],
-        relation: ModuleRelation,
-        reference_site: u32,
-        specifier: StringId,
-    ) -> Option<ModuleEdge> {
-        edges.iter().copied().find(|edge| {
-            edge.relation == relation
-                && edge.site == Some(reference_site)
-                && edge.specifier == Some(specifier)
-        })
-    }
-
-    /// Return whether one module is one plain stylesheet module.
-    pub(crate) fn is_plain_stylesheet_module(&self, module_id: ModuleId) -> LinkResult<bool> {
-        let module = self.module(module_id)?;
-        let file = self.file(module.file_id)?;
-
-        Ok(file.ty == FileType::Css && !module.loader.is_file())
-    }
-}
-
-/// Collect resolved module edges from one module DIR surface.
-fn module_import_edges(modules: &dir::ModuleTable<'_>, exported: &DirExported) -> Vec<ModuleEdge> {
-    let mut edges = Vec::new();
-
-    // import resolutions
-    for module in modules.iter() {
-        push_module_edge(
-            &mut edges,
-            module.target,
-            module_relation(module.relation),
-            Some(module.specifier),
-            module.loader,
-        );
-    }
-
-    // re-export edges
-    for export in exported.exports.star_exports() {
-        push_module_edge(
-            &mut edges,
-            export.target,
-            ModuleRelation::ReExport,
-            None,
-            None,
-        );
-    }
-
-    edges.sort_unstable();
-    edges.dedup();
-
-    edges
-}
-
-/// Return the script-linker relation for one DIR module relation.
-fn module_relation(relation: dir::ModuleRelation) -> ModuleRelation {
-    match relation {
-        dir::ModuleRelation::Import => ModuleRelation::Import,
-        dir::ModuleRelation::ReExport => ModuleRelation::ReExport,
-    }
-}
-
-/// Push one concrete module edge when the target is a module.
-fn push_module_edge(
-    edges: &mut Vec<ModuleEdge>,
-    target: Option<ModuleId>,
-    relation: ModuleRelation,
-    specifier: Option<StringId>,
-    loader: Option<destack_source::Loader>,
-) {
-    let Some(module_id) = target else {
-        return;
-    };
-
-    let edge = ModuleEdge::new(module_id, relation)
-        .with_specifier(specifier)
-        .with_loader(loader);
-    edges.push(edge);
 }

@@ -3,7 +3,6 @@ use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 use crate::{LinkError, LinkResult};
-use destack_artifact::EmitFormat;
 use destack_core::{StableHasher, stable_hash_bytes};
 use destack_source::{FileContent, FileType, ModuleId};
 use destack_workspace::{BundleFormat, BundleMode, Module, Target};
@@ -85,16 +84,6 @@ impl OutputLayout {
         hash: Option<&str>,
     ) -> OutputLocation {
         let output_name = Self::render_entry_file_name(output_layout, target, name, hash);
-
-        // HTML targets emit one runtime document plus one JS entry beside it
-        if target.emit == EmitFormat::Html {
-            return OutputLocation::new(
-                output_layout
-                    .document_location()
-                    .path()
-                    .with_file_name(output_name),
-            );
-        }
 
         // explicit out_file wins for single-file entry outputs
         if target.out_file.is_some() {

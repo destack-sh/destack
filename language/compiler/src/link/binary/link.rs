@@ -201,12 +201,7 @@ impl<'a> BinaryLinker<'a> {
         // stable manifest order
         files.sort_by(|left, right| left.path.cmp(&right.path));
 
-        BuildManifest {
-            index: self
-                .compiler
-                .build_manifest_index_path(&output_layout, self.target, output),
-            files,
-        }
+        BuildManifest { index: None, files }
     }
 
     /// Return the grouped output name for one emitted binary file.

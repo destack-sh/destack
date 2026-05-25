@@ -87,12 +87,7 @@ impl<'a> ScriptLinker<'a> {
         module_ids: &[ModuleId],
     ) -> LinkResult<ModuleSet> {
         let entry_modules = entry_modules.to_vec();
-        let mut included_modules = Vec::new();
-        for module_id in module_ids {
-            if !self.is_plain_stylesheet_module(*module_id)? {
-                included_modules.push(*module_id);
-            }
-        }
+        let included_modules = module_ids.to_vec();
         let modules = order_script_modules(self, &included_modules)?;
         let mut module_set = ModuleSet {
             entry_modules,
@@ -290,8 +285,8 @@ impl<'a> ScriptLinker<'a> {
 
     /// Build the output plan for this target.
     pub(in super::super) fn plan(&self, root_modules: &[ModuleId]) -> CompilerResult<Plan> {
-        let (document_module_ids, script_root_modules, stylesheet_root_modules, asset_root_modules) =
-            self.collect_root_modules(root_modules)?;
+        let script_root_modules = root_modules.to_vec();
+        let asset_root_modules = Vec::new();
 
         let script_module_id_set = if script_root_modules.is_empty() {
             Vec::new()
@@ -310,20 +305,8 @@ impl<'a> ScriptLinker<'a> {
             self.build_script_output_graph(&module_set)
                 .map_err(CompilerError::from)?
         };
-        let stylesheet_module_id_set =
-            self.collect_stylesheet_modules(&stylesheet_root_modules, &script_module_id_set)?;
-        let stylesheet_output_locations = if stylesheet_module_id_set.is_empty() {
-            Default::default()
-        } else {
-            self.require_stylesheet_artifacts(&stylesheet_module_id_set)?;
-            self.plan_css_stylesheet_outputs(&stylesheet_module_id_set)
-                .map_err(CompilerError::from)?
-        };
-        let asset_module_id_set = self.collect_asset_modules(
-            &asset_root_modules,
-            &stylesheet_module_id_set,
-            &script_module_id_set,
-        )?;
+        let asset_module_id_set =
+            self.collect_asset_modules(&asset_root_modules, &script_module_id_set)?;
         let output_layout = self
             .build_output_layout(&output_graph)
             .map_err(CompilerError::from)?;
@@ -332,12 +315,9 @@ impl<'a> ScriptLinker<'a> {
             .map_err(CompilerError::from)?;
 
         Ok(Plan::new(
-            document_module_ids,
             module_set,
             output_graph,
             output_layout,
-            stylesheet_module_id_set,
-            stylesheet_output_locations,
             asset_reference_map,
         ))
     }

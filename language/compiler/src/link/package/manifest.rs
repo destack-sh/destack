@@ -1,9 +1,6 @@
 use crate::Compiler;
-use destack_artifact::{
-    BuildManifestFileType, BuildManifestLoader, OutputFile, PackageOutput, TargetOutputName,
-};
+use destack_artifact::{BuildManifestFileType, BuildManifestLoader, OutputFile};
 use destack_source::FileType;
-use destack_workspace::Target;
 
 use super::layout::{OutputLocation, TargetLocation};
 
@@ -33,7 +30,6 @@ impl Compiler {
         match file.content.file_type() {
             FileType::JavaScript => BuildManifestLoader::Js,
             FileType::TypeScript => BuildManifestLoader::Ts,
-            FileType::Html => BuildManifestLoader::Html,
             FileType::SourceMap => BuildManifestLoader::Map,
             FileType::Json => BuildManifestLoader::Json,
             FileType::TypeScriptDeclaration => BuildManifestLoader::Dts,
@@ -41,24 +37,5 @@ impl Compiler {
             FileType::Object => BuildManifestLoader::Object,
             _ => BuildManifestLoader::Asset,
         }
-    }
-
-    /// Build one manifest index path when the target publishes one document.
-    pub(crate) fn build_manifest_index_path(
-        &self,
-        output_layout: &TargetLocation<'_>,
-        target: &Target,
-        output: &PackageOutput,
-    ) -> Option<String> {
-        if target.emit != destack_artifact::EmitFormat::Html {
-            return None;
-        }
-
-        output
-            .outputs
-            .get(&TargetOutputName::Document)
-            .and_then(|files| files.first())
-            .and_then(|file| self.file_output_location(output_layout, file))
-            .map(|location| output_layout.manifest_path(&location))
     }
 }

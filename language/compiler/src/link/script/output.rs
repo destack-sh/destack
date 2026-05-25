@@ -277,12 +277,6 @@ impl Compiler {
             );
         }
 
-        if file_type == FileType::Html {
-            return Err(CompilerError::Internal {
-                message: "TODO #Incomplete".to_string(),
-            });
-        }
-
         Err(CompilerError::Internal {
             message: format!("unsupported file type: {file_type:?}"),
         })
@@ -515,7 +509,6 @@ fn linked_script_file_types(target: &Target) -> Result<Vec<FileType>, String> {
 
             Ok(file_types)
         }
-        EmitFormat::Html => Err("TODO #Incomplete".to_string()),
-        other => Err(format!("expected JS, TS, or HTML output, got {other:?}")),
+        other => Err(format!("expected JS or TS output, got {other:?}")),
     }
 }

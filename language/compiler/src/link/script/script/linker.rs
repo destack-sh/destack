@@ -7,7 +7,6 @@ use destack_codegen_js as js;
 use destack_source::{FileType, ModuleId, PackageId};
 use destack_workspace::{BundleFormat, BundleMode, Target};
 
-use super::super::plan::Plan;
 use super::super::{
     ModuleSet, OutputGraph, OutputId, OutputLayout, ScriptDependencyTarget, ScriptLinker,
 };
@@ -205,7 +204,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return the emitted file type for one linked script target.
     pub(crate) fn script_output_file_type(&self) -> LinkResult<FileType> {
         match self.target.emit {
-            EmitFormat::Js | EmitFormat::Html => Ok(FileType::JavaScript),
+            EmitFormat::Js => Ok(FileType::JavaScript),
             EmitFormat::Ts => Ok(FileType::TypeScript),
             other => Err(LinkError::Internal {
                 anchor: (self.package_id).into(),
@@ -303,36 +302,6 @@ impl<'a> ScriptLinker<'a> {
                 target,
             ),
         }
-    }
-
-    /// Build the final linked stylesheet URL for one CSS module.
-    pub(in crate::link::script) fn stylesheet_reference(
-        &self,
-        output_id: OutputId,
-        plan: &Plan,
-        module_id: ModuleId,
-    ) -> LinkResult<String> {
-        let output_location =
-            plan.stylesheet_output_location(module_id)
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!(
-                        "missing planned stylesheet output for module {:?}",
-                        module_id
-                    ),
-                })?;
-        let current_output = plan
-            .output_layout()
-            .output_location(output_id)
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("missing output placement for output id {}", output_id.0),
-            })?;
-        let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
-
-        Ok(target_layout.runtime_reference(current_output, output_location))
     }
 }
 

@@ -51,7 +51,7 @@ impl Compiler {
 
         // dispatch through the selected linker family
         let output = match target.emit {
-            EmitFormat::Js | EmitFormat::Ts | EmitFormat::Html => ScriptLinker::new(
+            EmitFormat::Js | EmitFormat::Ts => ScriptLinker::new(
                 self,
                 context,
                 &package_directory,

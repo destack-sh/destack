@@ -18,11 +18,9 @@ destack_artifact_macros = { workspace = true }
 destack_codegen_js = { workspace = true }
 destack_codegen_native = { workspace = true, optional = true }
 destack_core = { workspace = true }
-destack_css = { workspace = true }
 destack_dir = { workspace = true }
 destack_engine = { workspace = true }
 destack_fir = { workspace = true }
-destack_html = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
@@ -34,7 +32,6 @@ destack_workspace = { path = "../workspace", default-features = false }
 dashmap = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true }
-lightningcss = { workspace = true, features = ["bundler", "into_owned", "serde", "visitor"] }
 mime_guess = { workspace = true }
 parking_lot = { workspace = true }
 postcard = { workspace = true }

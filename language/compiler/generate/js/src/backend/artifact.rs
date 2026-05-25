@@ -119,7 +119,7 @@ impl<'a> ScriptOutputGenerator<'a> {
 
         // language selection
         let language = match self.target.emit {
-            EmitFormat::Js | EmitFormat::Html => ScriptLanguage::JavaScript,
+            EmitFormat::Js => ScriptLanguage::JavaScript,
             EmitFormat::Ts => ScriptLanguage::TypeScript,
             _ => {
                 return Err(CodegenJsError::UnsupportedTarget {

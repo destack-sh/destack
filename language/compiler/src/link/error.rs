@@ -53,24 +53,9 @@ pub enum LinkError {
         value: String,
     },
 
-    /// Missing graph edge for one linked reference.
-    #[diagnostic(
-        code = "EK104",
-        message = "missing reference edge: {target}: {reference} missing graph edge for module '{module}' site {reference_site} and specifier '{specifier}'"
-    )]
-    MissingReferenceEdge {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        target: TargetId,
-        reference: String,
-        module: String,
-        reference_site: u32,
-        specifier: String,
-    },
-
     /// Invalid output path state for one linked subject.
     #[diagnostic(
-        code = "EK105",
+        code = "EK104",
         message = "invalid output path: {target}: {subject} has no usable emitted path segment from '{value}'"
     )]
     InvalidOutputPath {

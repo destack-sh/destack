@@ -1,4 +1,3 @@
-use destack_artifact::EmitFormat;
 use destack_source::ModuleId;
 use destack_workspace::BundleMode;
 use indexmap::{IndexMap, IndexSet};
@@ -41,7 +40,7 @@ impl<'a> ScriptLinker<'a> {
             &dynamic_target_modules,
             self.context,
         )?;
-        let mut output_graph = match self.effective_bundle_mode(module_set) {
+        let output_graph = match self.effective_bundle_mode() {
             BundleMode::SingleFile => self.build_single_file_script_output_graph(module_set),
             BundleMode::Chunked => self.build_chunked_script_output_graph(
                 module_set,
@@ -55,24 +54,11 @@ impl<'a> ScriptLinker<'a> {
             }
         }?;
 
-        self.collect_output_stylesheet_modules(
-            &mut output_graph,
-            &static_entry_sets,
-            &dynamic_target_sets,
-        )?;
-
         Ok(output_graph)
     }
 
     /// Return the effective bundle mode for the current linked module set.
-    fn effective_bundle_mode(&self, module_set: &ModuleSet) -> BundleMode {
-        if self.target.emit == EmitFormat::Html
-            && self.target.assembly == BundleMode::SingleFile
-            && module_set.entry_modules().len() > 1
-        {
-            return BundleMode::Chunked;
-        }
-
+    fn effective_bundle_mode(&self) -> BundleMode {
         self.target.assembly
     }
 
@@ -135,7 +121,6 @@ impl<'a> ScriptLinker<'a> {
                 dynamic_output_dependencies: Vec::new(),
                 external_imports: Vec::new(),
                 external_dynamic_imports: Vec::new(),
-                stylesheet_modules: Vec::new(),
             });
             output_ids_by_module.insert(*module_id, output_id);
 
@@ -171,7 +156,6 @@ impl<'a> ScriptLinker<'a> {
             dynamic_output_dependencies: Vec::new(),
             external_imports: module_set.external_targets().cloned().collect(),
             external_dynamic_imports: module_set.dynamic_targets().cloned().collect(),
-            stylesheet_modules: Vec::new(),
         };
         let output_ids_by_module = module_set
             .modules()
@@ -423,7 +407,6 @@ impl<'a> ScriptLinker<'a> {
             dynamic_output_dependencies,
             external_imports,
             external_dynamic_imports,
-            stylesheet_modules: Vec::new(),
         })
     }
 
@@ -527,64 +510,6 @@ impl<'a> ScriptLinker<'a> {
             output.external_dynamic_imports = external_dynamic_imports.into_iter().collect();
         }
 
-        Ok(())
-    }
-
-    /// Collect the associated plain stylesheet modules for each emitted output.
-    fn collect_output_stylesheet_modules(
-        &self,
-        output_graph: &mut OutputGraph,
-        static_entry_sets: &IndexMap<ModuleId, IndexSet<ModuleId>>,
-        dynamic_target_sets: &IndexMap<ModuleId, IndexSet<ModuleId>>,
-    ) -> LinkResult<()> {
-        let mut stylesheet_modules_by_output = IndexMap::<OutputId, IndexSet<ModuleId>>::new();
-
-        // static stylesheet reachability
-        for (module_id, entry_modules) in static_entry_sets {
-            if !self.is_plain_stylesheet_module(*module_id)? {
-                continue;
-            }
-
-            for entry_module in entry_modules {
-                let Some(output_id) = output_graph.output_id_for_module(*entry_module) else {
-                    continue;
-                };
-
-                stylesheet_modules_by_output
-                    .entry(output_id)
-                    .or_default()
-                    .insert(*module_id);
-            }
-        }
-
-        // dynamic stylesheet reachability
-        for (module_id, entry_modules) in dynamic_target_sets {
-            if !self.is_plain_stylesheet_module(*module_id)? {
-                continue;
-            }
-
-            for entry_module in entry_modules {
-                let Some(output_id) = output_graph.output_id_for_module(*entry_module) else {
-                    continue;
-                };
-
-                stylesheet_modules_by_output
-                    .entry(output_id)
-                    .or_default()
-                    .insert(*module_id);
-            }
-        }
-
-        // stable output-local stylesheet membership
-        for (output_index, output) in output_graph.outputs.iter_mut().enumerate() {
-            let output_id = OutputId(output_index);
-            let stylesheet_modules = stylesheet_modules_by_output
-                .shift_remove(&output_id)
-                .map(|module_ids| module_ids.into_iter().collect())
-                .unwrap_or_default();
-
-            output.stylesheet_modules = stylesheet_modules;
-        }
         Ok(())
     }
 }

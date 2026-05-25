@@ -61,11 +61,6 @@ impl<'a> TargetLocation<'a> {
         OutputLocation::new(manifest_directory.join(format!("{}.manifest.json", self.target_name)))
     }
 
-    /// Resolve one linked HTML document path for this target.
-    pub(crate) fn document_location(&self) -> OutputLocation {
-        OutputLocation::new(self.default_target_output_path("html"))
-    }
-
     /// Resolve one standalone source map path next to one output file.
     pub(crate) fn linked_source_map_location(
         &self,
@@ -119,15 +114,6 @@ impl<'a> TargetLocation<'a> {
         }
 
         self.output_reference(from_output, to_output)
-    }
-
-    /// Return one document-visible reference from one output file to another.
-    pub(crate) fn document_reference(
-        &self,
-        from_output: &OutputLocation,
-        to_output: &OutputLocation,
-    ) -> String {
-        self.runtime_reference(from_output, to_output)
     }
 
     /// Resolve the absolute output directory for this target.
@@ -265,16 +251,16 @@ mod tests {
     /// Render import references between emitted output files.
     #[test]
     fn test_render_output_reference_between_output_files() {
-        let mut target = Target::html();
+        let mut target = Target::js();
         target.out_dir = PathBuf::from("dist");
         let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "site");
-        let document_path =
+        let index_path =
             layout.output_location(Path::new("/workspace/pkg/dist/index.html").to_path_buf());
         let entry_path =
             layout.output_location(Path::new("/workspace/pkg/dist/site.js").to_path_buf());
 
         assert_eq!(
-            layout.output_reference(&document_path, &entry_path),
+            layout.output_reference(&index_path, &entry_path),
             "./site.js"
         );
     }

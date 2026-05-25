@@ -3,7 +3,6 @@ use destack_workspace::BundleMode;
 use indexmap::{IndexMap, IndexSet};
 
 use super::super::AssetReference;
-use crate::link::OutputLocation;
 
 use super::OutputLayout;
 
@@ -56,8 +55,6 @@ pub(crate) struct Output {
     pub(super) external_imports: Vec<String>,
     /// The retained external dynamic imports.
     pub(super) external_dynamic_imports: Vec<String>,
-    /// The associated plain stylesheet modules for this output.
-    pub(super) stylesheet_modules: Vec<ModuleId>,
 }
 
 /// One output graph for one script target.
@@ -77,18 +74,12 @@ pub(crate) type AssetReferenceMap = IndexMap<ModuleId, AssetReference>;
 /// One authoritative output plan for one script target.
 #[derive(Debug, Clone)]
 pub(crate) struct Plan {
-    /// The discovered document modules for this target.
-    document_module_ids: Vec<ModuleId>,
     /// The linked script modules for this target.
     module_set: ModuleSet,
     /// The script output graph for this target.
     output_graph: OutputGraph,
     /// The output placement for the script outputs.
     output_layout: OutputLayout,
-    /// The rooted stylesheet modules for this target.
-    stylesheet_module_ids: Vec<ModuleId>,
-    /// The planned stylesheet output locations by source module.
-    stylesheet_output_locations: IndexMap<ModuleId, OutputLocation>,
     /// The asset reference map.
     asset_reference_map: AssetReferenceMap,
 }
@@ -170,11 +161,6 @@ impl Output {
     pub(crate) fn external_dynamic_imports(&self) -> &[String] {
         &self.external_dynamic_imports
     }
-
-    /// Return the associated plain stylesheet modules for this output.
-    pub(crate) fn stylesheet_modules(&self) -> &[ModuleId] {
-        &self.stylesheet_modules
-    }
 }
 
 impl OutputGraph {
@@ -216,28 +202,17 @@ impl OutputGraph {
 impl Plan {
     /// Create one output plan.
     pub(super) fn new(
-        document_module_ids: Vec<ModuleId>,
         module_set: ModuleSet,
         output_graph: OutputGraph,
         output_layout: OutputLayout,
-        stylesheet_module_ids: Vec<ModuleId>,
-        stylesheet_output_locations: IndexMap<ModuleId, OutputLocation>,
         asset_reference_map: AssetReferenceMap,
     ) -> Self {
         Self {
-            document_module_ids,
             module_set,
             output_graph,
             output_layout,
-            stylesheet_module_ids,
-            stylesheet_output_locations,
             asset_reference_map,
         }
-    }
-
-    /// Return the discovered document modules for this target.
-    pub(crate) fn document_module_ids(&self) -> &[ModuleId] {
-        &self.document_module_ids
     }
 
     /// Return the linked script modules for this target.
@@ -253,19 +228,6 @@ impl Plan {
     /// Return the output placement for the script outputs.
     pub(crate) fn output_layout(&self) -> &OutputLayout {
         &self.output_layout
-    }
-
-    /// Return the rooted stylesheet module ids.
-    pub(crate) fn stylesheet_module_ids(&self) -> impl Iterator<Item = ModuleId> + '_ {
-        self.stylesheet_module_ids.iter().copied()
-    }
-
-    /// Return one planned stylesheet output location by its source module.
-    pub(crate) fn stylesheet_output_location(
-        &self,
-        module_id: ModuleId,
-    ) -> Option<&OutputLocation> {
-        self.stylesheet_output_locations.get(&module_id)
     }
 
     /// Return the asset reference map.
