@@ -1,7 +1,7 @@
 use destack_dir::{
     Block, BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm,
     IfForm, Key, LetKind, MatchCase, Name, NodeType, Property, ScalarLiteral, TokenType,
-    YieldCardinality,
+    TypeExpression, YieldCardinality,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -1162,12 +1162,9 @@ fn test_parse_new_without_receiver_as_statement_recovers_missing_constructor() {
 
     // new
     let new_id = expressions[0];
-    assert_node!(parser.tree, new_id, Expression::New { left, generic_arguments, arguments } => {
+    assert_node!(parser.tree, new_id, Expression::New { ty, arguments } => {
         // missing constructor
-        assert_node!(parser.tree, *left, Expression::Missing);
-
-        // no generic arguments
-        assert!(generic_arguments.is_empty());
+        assert_node!(parser.tree, *ty, TypeExpression::Missing);
 
         // no dynamic arguments
         assert!(arguments.is_empty());
@@ -1192,12 +1189,9 @@ new
 
     // new
     let new_id = expressions[0];
-    assert_node!(parser.tree, new_id, Expression::New { left, generic_arguments, arguments } => {
+    assert_node!(parser.tree, new_id, Expression::New { ty, arguments } => {
         // missing constructor
-        assert_node!(parser.tree, *left, Expression::Missing);
-
-        // no generic arguments
-        assert!(generic_arguments.is_empty());
+        assert_node!(parser.tree, *ty, TypeExpression::Missing);
 
         // no dynamic arguments
         assert!(arguments.is_empty());
@@ -1222,9 +1216,8 @@ next()
     assert_eq!(expressions.len(), 2);
 
     // new
-    assert_node!(parser.tree, expressions[0], Expression::New { left, generic_arguments, arguments } => {
-            assert_node!(parser.tree, *left, Expression::Missing);
-            assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expressions[0], Expression::New { ty, arguments } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Missing);
             assert!(arguments.is_empty());
     });
 
@@ -1254,9 +1247,8 @@ const value = 1
     assert_eq!(expressions.len(), 2);
 
     // new
-    assert_node!(parser.tree, expressions[0], Expression::New { left, generic_arguments, arguments } => {
-            assert_node!(parser.tree, *left, Expression::Missing);
-            assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expressions[0], Expression::New { ty, arguments } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Missing);
             assert!(arguments.is_empty());
     });
 

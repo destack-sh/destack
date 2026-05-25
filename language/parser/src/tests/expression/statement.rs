@@ -1,5 +1,5 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node, assert_string};
+use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -257,19 +257,21 @@ fn test_parse_statement_expression() {
 }
 
 #[test]
-fn test_parse_new_without_parenthesized_type_arguments_in_statement() {
-    let mut test = TestParser::new_with_language("new A < T;", LanguageType::TypeScript);
+fn test_parse_new_type_arguments_with_spaces_in_statement() {
+    let mut test = TestParser::new_with_language("new A < T >;", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.try_eat_statement_expression().unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::LessThan);
-        assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, arguments } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "A");
-            assert!(generic_arguments.is_empty());
-            assert!(arguments.is_empty());
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "A");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "T");
+            });
         });
-        assert_expression_path!(parser, parser.tree.get(*right), "T");
+        assert!(arguments.is_empty());
     });
 }
 

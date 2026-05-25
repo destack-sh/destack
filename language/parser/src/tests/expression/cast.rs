@@ -920,9 +920,11 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "Set");
-        assert_eq!(generic_arguments.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "Set");
+            assert_eq!(generic_arguments.len(), 1);
+        });
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {

@@ -440,6 +440,33 @@ fn test_parse_struct_literal_path() {
     test.assert_no_errors(&parser);
 }
 
+/// Parse an inferred struct literal as a typed value hole.
+#[test]
+fn test_parse_struct_literal_infer_hole() {
+    let mut test = TestParser::new("_ { x: 1 }");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::StructExpression { ty, properties, .. } => {
+            assert_node!(parser.tree, *ty, TypeExpression::Infer { form, name, constraint } => {
+                assert_eq!(*form, InferForm::Hole);
+                assert!(name.is_none());
+                assert!(constraint.is_none());
+            });
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                assert_string!(parser, *name, "x");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        }
+    );
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse a struct literal with generic parameters and two fields.
 #[test]
 fn test_parse_struct_literal_path_with_generic_parameters() {

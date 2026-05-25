@@ -7,20 +7,16 @@ use destack_source::LanguageType;
 #[test]
 fn test_parse_class_expression_with_implements() {
     let mut test =
-        TestParser::new_with_language("new (class implements Foo {})()", LanguageType::TypeScript);
+        TestParser::new_with_language("class implements Foo {}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
-                    assert_eq!(implements_types.len(), 1);
-                    assert_expression_path!(parser, parser.tree.get(implements_types[0]), "Foo");
-                });
-            });
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
+            assert_eq!(implements_types.len(), 1);
+            assert_expression_path!(parser, parser.tree.get(implements_types[0]), "Foo");
         });
     });
 }
@@ -45,23 +41,17 @@ fn test_parse_final_class_expression() {
 /// Parse a class expression when heritage starts on the next line.
 #[test]
 fn test_parse_class_expression_with_newline_implements() {
-    let mut test = TestParser::new_with_language(
-        "new (class\n  implements Foo\n{})()",
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new_with_language("class\n  implements Foo\n{}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
-                    assert_eq!(implements_types.len(), 1);
-                    assert_expression_path!(parser, parser.tree.get(implements_types[0]), "Foo");
-                });
-            });
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, .. }) => {
+            assert_eq!(implements_types.len(), 1);
+            assert_expression_path!(parser, parser.tree.get(implements_types[0]), "Foo");
         });
     });
 }
@@ -69,50 +59,39 @@ fn test_parse_class_expression_with_newline_implements() {
 /// Parse a class expression with multiline extends heritage.
 #[test]
 fn test_parse_class_expression_with_newline_extends() {
-    let mut test = TestParser::new_with_language(
-        "new (class\n  extends Foo<Bar>\n{})()",
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new_with_language("class\n  extends Foo<Bar>\n{}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, extends_generic_arguments, .. }) => {
-                    let extends_expression = extends_expression.expect("expected extends expression");
-                    assert_expression_path!(parser, parser.tree.get(extends_expression), "Foo");
-                    assert_eq!(extends_generic_arguments.len(), 1);
-                    assert_node!(parser.tree, extends_generic_arguments[0], GenericArgument::Type { value } => {
-                            assert_expression_path!(parser, parser.tree.get(*value), "Bar");
-                    });
-                });
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, extends_generic_arguments, .. }) => {
+            let extends_expression = extends_expression.expect("expected extends expression");
+            assert_expression_path!(parser, parser.tree.get(extends_expression), "Foo");
+            assert_eq!(extends_generic_arguments.len(), 1);
+            assert_node!(parser.tree, extends_generic_arguments[0], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "Bar");
             });
         });
     });
 }
 
-/// Parse an unparenthesized class expression as a new receiver.
+/// Parse an unparenthesized class expression with extends.
 #[test]
-fn test_parse_new_unparenthesized_class_expression_with_extends() {
-    let mut test = TestParser::new_with_language(
-        "new class extends TestRepository {}()",
-        LanguageType::TypeScript,
-    );
+fn test_parse_unparenthesized_class_expression_with_extends() {
+    let mut test =
+        TestParser::new_with_language("class extends TestRepository {}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expr_id, Expression::New { left, arguments, .. } => {
-        assert!(arguments.is_empty());
-        assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
-                let extends_expression = extends_expression.expect("expected extends expression");
-                assert_expression_path!(parser, parser.tree.get(extends_expression), "TestRepository");
-            });
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { extends_expression, .. }) => {
+            let extends_expression = extends_expression.expect("expected extends expression");
+            assert_expression_path!(parser, parser.tree.get(extends_expression), "TestRepository");
         });
     });
 }
@@ -204,29 +183,26 @@ fn test_eat_decorator_object_property_named_class_expression_value() {
     });
 }
 
-/// Parse new class expressions with generic implements clauses.
+/// Parse class expressions with generic implements clauses.
 #[test]
-fn test_parse_new_class_expression_with_generic_implements_clause() {
+fn test_parse_class_expression_with_generic_implements_clause() {
     let mut test = TestParser::new_with_language(
-        r#"new class implements Iterable<string> {
+        r#"class implements Iterable<string> {
   *[Symbol.iterator]() {
     yield "value";
   }
-}()"#,
+}"#,
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, arguments, .. } => {
-        assert_eq!(arguments.len(), 0);
-        assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
-            assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
-                assert_eq!(implements_types.len(), 1);
-                assert_eq!(members.len(), 1);
-                assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                    assert!(signature.is_generator);
-                });
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { implements_types, members, .. }) => {
+            assert_eq!(implements_types.len(), 1);
+            assert_eq!(members.len(), 1);
+            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                assert!(signature.is_generator);
             });
         });
     });

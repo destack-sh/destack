@@ -2,8 +2,8 @@ use crate::parse::DeclarationHeader;
 use crate::parse::scope::ExpressionScope;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
-    BinaryOperator, BlockContext, Expression, Keyword, LocalNodeId, NodeType, Path, ScalarLiteral,
-    TokenType, TypeExpression, UnaryOperator,
+    BinaryOperator, BlockContext, Expression, InferForm, Keyword, LocalNodeId, NodeType, Path,
+    ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
 };
 use smallvec::smallvec;
 
@@ -114,16 +114,27 @@ impl Parser {
         }
 
         let (name, name_span) = self.eat_identifier_with_span()?;
-        let path = Path {
-            segments: smallvec![name],
+        let ty = if self.get_span_str(name_span) == "_" {
+            self.insert_node(
+                TypeExpression::Infer {
+                    form: InferForm::Hole,
+                    name: None,
+                    constraint: None,
+                },
+                name_span,
+            )
+        } else {
+            let path = Path {
+                segments: smallvec![name],
+            };
+            self.insert_node(
+                TypeExpression::Reference {
+                    path,
+                    generic_arguments: Vec::new(),
+                },
+                name_span,
+            )
         };
-        let ty = self.insert_node(
-            TypeExpression::Reference {
-                path,
-                generic_arguments: Vec::new(),
-            },
-            name_span,
-        );
         self.tree.set_main_span(ty, name_span);
 
         let properties = self.with_flags(self.flags.not_in_position(), |parser| {
