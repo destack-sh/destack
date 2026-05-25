@@ -2,6 +2,7 @@ mod error;
 mod export;
 mod provide;
 mod state;
+mod r#static;
 mod warning;
 
 pub use error::*;

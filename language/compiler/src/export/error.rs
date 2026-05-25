@@ -24,6 +24,28 @@ pub enum ExportError {
     #[diagnostic(code = "ET102", message = "unsupported global export")]
     UnsupportedGlobalExport { anchor: DiagnosticAnchor },
 
+    /// Static export guard is missing a condition.
+    #[diagnostic(code = "ET103", message = "`@if` export guard requires a condition")]
+    StaticIfRequiresCondition { anchor: DiagnosticAnchor },
+
+    /// Static export guard has more than one condition argument.
+    #[diagnostic(
+        code = "ET104",
+        message = "`@if` export guard requires exactly one condition"
+    )]
+    StaticIfRequiresOneArgument { anchor: DiagnosticAnchor },
+
+    /// Static export guard did not evaluate to a boolean.
+    #[diagnostic(
+        code = "ET105",
+        message = "`@if` export guard condition must be boolean"
+    )]
+    StaticIfRequiresBoolean { anchor: DiagnosticAnchor },
+
+    /// Static export guard uses a condition that cannot be evaluated here.
+    #[diagnostic(code = "ET106", message = "`@if` export guard condition is not static")]
+    StaticIfNotStatic { anchor: DiagnosticAnchor },
+
     /// Internal export failure.
     #[diagnostic(code = "ET900", message = "internal error: {message}")]
     Internal {
