@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use destack_core::StringPool;
+use destack_dir::{Expression, LocalNodeId};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use pprof::ProfilerGuardBuilder;
@@ -31,6 +32,9 @@ struct RunOptions {
     /// The parser trivia retention mode.
     trivia_mode: ParserTriviaMode,
 }
+
+/// The parser and root expressions retained during profiling.
+type ParserProfileOutput = (Parser, Vec<LocalNodeId<Expression>>);
 
 /// Parse one file repeatedly under the pprof sampler.
 fn main() -> Result<(), Box<dyn Error>> {
@@ -102,18 +106,22 @@ fn load_file(path: &Path) -> Result<Arc<File>, Box<dyn Error>> {
 }
 
 /// Parse one file through the selected parser pipeline.
-fn parse_file(file: Arc<File>, language: LanguageType, options: ParserOptions) -> Parser {
+fn parse_file(
+    file: Arc<File>,
+    language: LanguageType,
+    options: ParserOptions,
+) -> ParserProfileOutput {
     let strings = Arc::new(StringPool::new());
     let mut parser = Parser::lex_file_with_options(file, language, options, strings);
 
     // attach comments only when retained
-    if options.trivia_mode.keeps_comments() {
-        parser.parse();
+    let roots = if options.trivia_mode.keeps_comments() {
+        parser.parse()
     } else {
-        parser.parse_without_attaching_comments();
-    }
+        parser.parse_without_attaching_comments()
+    };
 
-    parser
+    (parser, roots)
 }
 
 /// Write a pprof report as an SVG flamegraph.
