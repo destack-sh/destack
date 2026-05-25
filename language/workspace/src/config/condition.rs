@@ -36,22 +36,36 @@ pub struct ConditionCatalog {
     /// Named source graph tags.
     pub tags: IndexMap<String, Condition>,
     /// Named condition aliases.
-    pub aliases: IndexMap<String, ConditionGate>,
+    pub aliases: IndexMap<String, ConditionRef>,
 }
 
 impl ConditionCatalog {
     /// Resolve one condition reference against this catalog.
     pub fn resolve(&self, reference: &ConditionRef) -> Result<ConditionGate, ConditionRefError> {
+        self.resolve_reference(reference, &mut Vec::new())
+    }
+
+    /// Resolve one condition reference while tracking aliases.
+    fn resolve_reference(
+        &self,
+        reference: &ConditionRef,
+        aliases: &mut Vec<String>,
+    ) -> Result<ConditionGate, ConditionRefError> {
         match reference {
-            ConditionRef::Name(name) => self.resolve_name(name),
-            ConditionRef::Gate(gate) => Ok(gate.clone()),
+            ConditionRef::Name(name) => self.resolve_name(name, aliases),
+            ConditionRef::Predicate(predicate) => self.resolve_predicate(predicate, aliases),
         }
     }
 
     /// Return every unambiguous condition name accepted in file suffixes.
     pub fn suffix_aliases(&self) -> Result<IndexMap<String, ConditionGate>, ConditionRefError> {
         // preserve explicit aliases
-        let mut aliases = self.aliases.clone();
+        let mut aliases = IndexMap::new();
+        for (name, reference) in &self.aliases {
+            let gate = self.resolve_alias(name, reference, &mut Vec::new())?;
+
+            aliases.insert(name.clone(), gate);
+        }
 
         // add declared source graph names
         self.insert_axis_aliases(&mut aliases, ConditionAxis::Mode)?;
@@ -63,19 +77,94 @@ impl ConditionCatalog {
     }
 
     /// Resolve one named condition or prefixed condition reference.
-    fn resolve_name(&self, name: &str) -> Result<ConditionGate, ConditionRefError> {
+    fn resolve_name(
+        &self,
+        name: &str,
+        aliases: &mut Vec<String>,
+    ) -> Result<ConditionGate, ConditionRefError> {
         // resolve explicit axis references
         if let Some((axis, value)) = name.split_once(':') {
             return self.resolve_axis_name(axis, value);
         }
 
         // resolve explicit aliases
-        if let Some(gate) = self.aliases.get(name) {
-            return Ok(gate.clone());
+        if let Some(reference) = self.aliases.get(name) {
+            return self.resolve_alias(name, reference, aliases);
         }
 
         // resolve declared condition names
         self.resolve_unprefixed_name(name)
+    }
+
+    /// Resolve one named alias while detecting cycles.
+    fn resolve_alias(
+        &self,
+        name: &str,
+        reference: &ConditionRef,
+        aliases: &mut Vec<String>,
+    ) -> Result<ConditionGate, ConditionRefError> {
+        if aliases.iter().any(|alias| alias == name) {
+            let mut cycle = aliases.clone();
+            cycle.push(name.to_string());
+
+            return Err(ConditionRefError::AliasCycle { aliases: cycle });
+        }
+
+        aliases.push(name.to_string());
+        let gate = self.resolve_reference(reference, aliases);
+        aliases.pop();
+
+        gate
+    }
+
+    /// Resolve one inline condition predicate.
+    fn resolve_predicate(
+        &self,
+        predicate: &ConditionPredicate,
+        aliases: &mut Vec<String>,
+    ) -> Result<ConditionGate, ConditionRefError> {
+        let all = predicate
+            .all
+            .as_ref()
+            .map(|references| self.resolve_references(references, aliases))
+            .transpose()?;
+        let any = predicate
+            .any
+            .as_ref()
+            .map(|references| self.resolve_references(references, aliases))
+            .transpose()?;
+        let not = predicate
+            .not
+            .as_ref()
+            .map(|reference| self.resolve_reference(reference, aliases).map(Box::new))
+            .transpose()?;
+
+        Ok(ConditionGate {
+            mode: predicate.mode.clone(),
+            role: predicate.role.clone(),
+            feature: predicate.feature.clone(),
+            tag: predicate.tag.clone(),
+            target: predicate.target.clone(),
+            product: predicate.product.clone(),
+            platform: predicate.platform.clone(),
+            host: predicate.host.clone(),
+            runtime: predicate.runtime.clone(),
+            all,
+            any,
+            not,
+        })
+    }
+
+    /// Resolve condition references in declaration order.
+    fn resolve_references(
+        &self,
+        references: &[ConditionRef],
+        aliases: &mut Vec<String>,
+    ) -> Result<Vec<ConditionGate>, ConditionRefError> {
+        references
+            .iter()
+            .map(|reference| self.resolve_reference(reference, aliases))
+            .collect()
     }
 
     /// Resolve one prefixed condition reference.
@@ -193,12 +282,12 @@ pub enum ConditionRef {
     /// Named condition alias or `axis:name` reference.
     Name(String),
     /// Inline condition gate.
-    Gate(ConditionGate),
+    Predicate(ConditionPredicate),
 }
 
 impl Default for ConditionRef {
     fn default() -> Self {
-        Self::Gate(ConditionGate::default())
+        Self::Predicate(ConditionPredicate::default())
     }
 }
 
@@ -213,6 +302,8 @@ pub enum ConditionRefError {
     UnknownName { name: String },
     /// The unprefixed condition name exists on multiple axes.
     AmbiguousName { name: String },
+    /// The condition aliases recursively include one another.
+    AliasCycle { aliases: Vec<String> },
 }
 
 impl std::fmt::Display for ConditionRefError {
@@ -229,8 +320,43 @@ impl std::fmt::Display for ConditionRefError {
                     "ambiguous condition '{name}', use an explicit axis prefix"
                 )
             }
+            Self::AliasCycle { aliases } => {
+                write!(formatter, "condition alias cycle: {}", aliases.join(" -> "))
+            }
         }
     }
+}
+
+/// Declared condition predicate before named references are resolved.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionPredicate {
+    /// Active mode selector.
+    pub mode: Option<ConditionSelector>,
+    /// Active role selector.
+    pub role: Option<ConditionSelector>,
+    /// Active feature selector.
+    pub feature: Option<ConditionSelector>,
+    /// Active tag selector.
+    pub tag: Option<ConditionSelector>,
+    /// Active build target selector.
+    pub target: Option<ConditionSelector>,
+    /// Active product selector.
+    pub product: Option<ConditionSelector>,
+    /// Active target platform selector.
+    pub platform: Option<ConditionSelector>,
+    /// Active host environment selector.
+    pub host: Option<ConditionSelector>,
+    /// Active runtime selector.
+    pub runtime: Option<ConditionSelector>,
+    /// Predicates that must all match.
+    pub all: Option<Vec<ConditionRef>>,
+    /// Predicates where at least one must match.
+    pub any: Option<Vec<ConditionRef>>,
+    /// Predicate that must not match.
+    pub not: Option<Box<ConditionRef>>,
 }
 
 /// Predicate over active source graph and runtime conditions.
@@ -259,6 +385,12 @@ pub struct ConditionGate {
     pub host: Option<ConditionSelector>,
     /// Active runtime selector.
     pub runtime: Option<ConditionSelector>,
+    /// Predicates that must all match.
+    pub all: Option<Vec<ConditionGate>>,
+    /// Predicates where at least one must match.
+    pub any: Option<Vec<ConditionGate>>,
+    /// Predicate that must not match.
+    pub not: Option<Box<ConditionGate>>,
 }
 
 impl ConditionGate {
@@ -352,6 +484,9 @@ impl ConditionGate {
                 .runtime
                 .as_ref()
                 .is_none_or(ConditionSelector::is_empty)
+            && self.all.as_ref().is_none_or(Vec::is_empty)
+            && self.any.is_none()
+            && self.not.is_none()
     }
 
     /// Return true when this gate matches one active condition set.
@@ -376,7 +511,20 @@ impl ConditionGate {
                 conditions.runtime.map(|runtime| runtime.canonical_tag()),
             );
 
-        source_graph_matches && profile_matches
+        let all_matches = self
+            .all
+            .as_ref()
+            .is_none_or(|gates| gates.iter().all(|gate| gate.matches(conditions)));
+        let any_matches = self
+            .any
+            .as_ref()
+            .is_none_or(|gates| gates.iter().any(|gate| gate.matches(conditions)));
+        let not_matches = self
+            .not
+            .as_ref()
+            .is_none_or(|gate| !gate.matches(conditions));
+
+        source_graph_matches && profile_matches && all_matches && any_matches && not_matches
     }
 
     /// Return true when an optional selector matches one set axis.
@@ -479,11 +627,20 @@ impl ConditionAxis {
 }
 
 /// Selector over one active condition axis.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ConditionSelector {
     /// Condition names or glob patterns.
     pub patterns: Vec<String>,
+}
+
+impl<'de> Deserialize<'de> for ConditionSelector {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        ConditionSelectorValue::deserialize(deserializer).map(Into::into)
+    }
 }
 
 impl ConditionSelector {
@@ -514,7 +671,102 @@ impl ConditionSelector {
     }
 }
 
+/// Deserialized selector shorthand.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ConditionSelectorValue {
+    /// Exact selector name.
+    Exact(String),
+    /// Selector patterns.
+    Patterns(Vec<String>),
+    /// Full selector object.
+    Object {
+        /// Condition names or glob patterns.
+        #[serde(default)]
+        patterns: Vec<String>,
+    },
+}
+
+impl From<ConditionSelectorValue> for ConditionSelector {
+    fn from(value: ConditionSelectorValue) -> Self {
+        match value {
+            ConditionSelectorValue::Exact(pattern) => Self {
+                patterns: vec![pattern],
+            },
+            ConditionSelectorValue::Patterns(patterns)
+            | ConditionSelectorValue::Object { patterns } => Self { patterns },
+        }
+    }
+}
+
 /// Return true when one glob-like pattern matches text.
 fn glob_match(pattern: &str, text: &str) -> bool {
     glob_matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn condition_ref(json: &str) -> ConditionRef {
+        serde_json::from_str(json).unwrap()
+    }
+
+    fn conditions(modes: &[&str], roles: &[&str]) -> ConditionSet {
+        let mut conditions = ConditionSet::default();
+
+        for mode in modes {
+            conditions.modes.insert((*mode).to_string());
+        }
+
+        for role in roles {
+            conditions.roles.insert((*role).to_string());
+        }
+
+        conditions
+    }
+
+    #[test]
+    fn test_match_all_and_not_predicates() {
+        let catalog = ConditionCatalog::default();
+        let gate = catalog
+            .resolve(&condition_ref(
+                r#"{ "all": ["role:server", { "not": "mode:test" }] }"#,
+            ))
+            .unwrap();
+
+        assert!(gate.matches(&conditions(&["dev"], &["server"])));
+        assert!(!gate.matches(&conditions(&["test"], &["server"])));
+        assert!(!gate.matches(&conditions(&["dev"], &["client"])));
+    }
+
+    #[test]
+    fn test_match_any_predicate() {
+        let catalog = ConditionCatalog::default();
+        let gate = catalog
+            .resolve(&condition_ref(
+                r#"{ "any": ["role:client", "role:server"] }"#,
+            ))
+            .unwrap();
+
+        assert!(gate.matches(&conditions(&[], &["client"])));
+        assert!(gate.matches(&conditions(&[], &["server"])));
+        assert!(!gate.matches(&conditions(&[], &["worker"])));
+    }
+
+    #[test]
+    fn test_parse_selector_shorthand() {
+        let catalog = ConditionCatalog::default();
+        let exact = catalog
+            .resolve(&condition_ref(r#"{ "role": "server" }"#))
+            .unwrap();
+        let either = catalog
+            .resolve(&condition_ref(r#"{ "role": ["client", "server"] }"#))
+            .unwrap();
+
+        assert!(exact.matches(&conditions(&[], &["server"])));
+        assert!(!exact.matches(&conditions(&[], &["client"])));
+        assert!(either.matches(&conditions(&[], &["client"])));
+        assert!(either.matches(&conditions(&[], &["server"])));
+    }
 }
