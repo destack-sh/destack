@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{FileId, ModuleId, NodeSourceMap, ProfileId};
+use destack_source::{FileId, ModuleId, ProfileId, SourceIndex};
 use destack_workspace::{ArtifactReader, ProviderError, Repository, Revision};
 
 use super::QueryModule;
@@ -36,6 +36,10 @@ pub struct ModuleQueryContext<'a> {
     dir_extensions: dir::ExtensionTable<'static>,
     /// The checked resolution table.
     dir_resolutions: dir::ResolutionTable<'static>,
+    /// The source file token spans.
+    tokens: Vec<dir::TokenSpan>,
+    /// The source file side token spans.
+    side_tokens: Vec<dir::TokenSpan>,
     /// The profile global environment.
     global_environment: Arc<GlobalEnvironment>,
     /// Shared repository strings.
@@ -158,9 +162,9 @@ impl<'a> DirQueryContext<'a> {
         self.tree
     }
 
-    /// Return the parsed DIR source map.
-    pub(crate) fn source_map(self) -> &'a NodeSourceMap {
-        &self.tree.source_map
+    /// Return the parsed DIR source index.
+    pub(crate) fn source_index(self) -> &'a SourceIndex {
+        &self.tree.source_index
     }
 
     /// Return the parsed DIR parent index.
@@ -337,8 +341,8 @@ impl<'a> ModuleQueryContext<'a> {
             roots,
             patch: &self.dir_expanded.patch,
             namespace_scope: self.dir_bound.namespace_scope,
-            tokens: &self.dir_parsed.tokens,
-            side_tokens: &self.dir_parsed.side_tokens,
+            tokens: &self.tokens,
+            side_tokens: &self.side_tokens,
             symbols: &self.dir_bindings,
             modules: &self.dir_modules,
             exports: &self.dir_exported.exports,
@@ -529,6 +533,12 @@ fn read_module_query_context_from_checked(
     let dir_statics = dir_checked.static_table(&dir_bound, &dir_expanded);
     let dir_extensions = dir_checked.extension_table();
     let dir_resolutions = dir_checked.resolution_table();
+    let tokens = dir_parsed
+        .iter_token_spans_for_file(module.file_id)?
+        .collect();
+    let side_tokens = dir_parsed
+        .iter_side_token_spans_for_file(module.file_id)?
+        .collect();
 
     Some(ModuleQueryContext {
         repository,
@@ -542,6 +552,8 @@ fn read_module_query_context_from_checked(
         dir_statics,
         dir_extensions,
         dir_resolutions,
+        tokens,
+        side_tokens,
         global_environment,
         strings: repository.string_pool().as_ref(),
         revision,
@@ -596,6 +608,16 @@ pub(crate) fn require_module_query_context<'a>(
     let dir_statics = dir_checked.static_table(&dir_bound, &dir_expanded);
     let dir_extensions = dir_checked.extension_table();
     let dir_resolutions = dir_checked.resolution_table();
+    let tokens = dir_parsed
+        .iter_token_spans_for_file(module.file_id)
+        .ok_or_else(|| ProviderError::internal(format!("missing token stream for {module_id:?}")))?
+        .collect();
+    let side_tokens = dir_parsed
+        .iter_side_token_spans_for_file(module.file_id)
+        .ok_or_else(|| {
+            ProviderError::internal(format!("missing side token stream for {module_id:?}"))
+        })?
+        .collect();
 
     Ok(ModuleQueryContext {
         repository,
@@ -609,6 +631,8 @@ pub(crate) fn require_module_query_context<'a>(
         dir_statics,
         dir_extensions,
         dir_resolutions,
+        tokens,
+        side_tokens,
         global_environment,
         strings: repository.string_pool().as_ref(),
         revision,

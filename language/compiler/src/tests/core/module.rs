@@ -27,8 +27,6 @@ pub(crate) fn parse_module(
 ) -> DirParsed {
     let mut tree = dir::Tree::new(module.id);
     let mut files = Vec::with_capacity(module.files.len());
-    let mut tokens = Vec::new();
-    let mut side_tokens = Vec::new();
 
     // parse each contributing file into one module tree
     for module_file in &module.files {
@@ -41,8 +39,6 @@ pub(crate) fn parse_module(
             source_file,
             repository,
             &mut tree,
-            &mut tokens,
-            &mut side_tokens,
         );
 
         files.push(parsed_file);
@@ -54,7 +50,7 @@ pub(crate) fn parse_module(
         Span::empty(module.file_id),
     );
 
-    DirParsed::new(tree, files, tokens, side_tokens, anchor_expression)
+    DirParsed::new(tree, files, anchor_expression)
 }
 
 /// Parse one physical module file into a shared parsed DIR tree.
@@ -63,8 +59,6 @@ fn parse_module_file(
     source_file: Arc<File>,
     repository: &Repository,
     tree: &mut dir::Tree,
-    tokens: &mut Vec<dir::TokenSpan>,
-    side_tokens: &mut Vec<dir::TokenSpan>,
 ) -> DirParsedFile {
     let language_type =
         LanguageType::try_from(source_file.ty).expect("test code file should have a language type");
@@ -86,13 +80,15 @@ fn parse_module_file(
     );
 
     // append token side data
-    let token_start = tokens.len() as u32;
-    let side_token_start = side_tokens.len() as u32;
-    let (mut file_tokens, mut file_side_tokens) = parser.take_tokens();
-    tokens.append(&mut file_tokens);
-    side_tokens.append(&mut file_side_tokens);
-    let token_end = tokens.len() as u32;
-    let side_token_end = side_tokens.len() as u32;
+    let (file_tokens, file_side_tokens) = parser.take_tokens();
+    let tokens = file_tokens
+        .into_iter()
+        .map(dir::TokenRange::from_token_span)
+        .collect();
+    let side_tokens = file_side_tokens
+        .into_iter()
+        .map(dir::TokenRange::from_token_span)
+        .collect();
 
     // restore the shared tree
     *tree = parser.tree;
@@ -105,8 +101,8 @@ fn parse_module_file(
         file_id: source_file.id,
         aliases,
         roots,
-        token_range: token_start..token_end,
-        side_token_range: side_token_start..side_token_end,
+        tokens,
+        side_tokens,
         anchor_expression,
     }
 }
