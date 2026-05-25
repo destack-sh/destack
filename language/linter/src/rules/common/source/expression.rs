@@ -493,7 +493,7 @@ pub fn expression_is_immediately_invoked(
             {
                 current_expression_id = parent_expression_id;
             }
-            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => {
+            dir::Expression::Call { left, .. } => {
                 return *left == current_expression_id;
             }
             _ => return false,
@@ -1128,6 +1128,18 @@ pub fn expression_path_segments(
     Some(segments)
 }
 
+/// Return path segments when the type expression is a non-generic reference chain.
+pub fn type_expression_path_segments(
+    tree: &dir::Tree,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+) -> Option<Vec<dir::StringId>> {
+    let mut segments = Vec::new();
+
+    collect_type_expression_path_segments(tree, type_expression_id, &mut segments)?;
+
+    Some(segments)
+}
+
 /// Collect path segments for one non-generic reference chain.
 fn collect_expression_path_segments(
     tree: &dir::Tree,
@@ -1159,6 +1171,46 @@ fn collect_expression_path_segments(
             name: Some(name),
         } => {
             collect_expression_path_segments(tree, *left, segments)?;
+            segments.push(*name);
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+/// Collect path segments for one non-generic type reference chain.
+fn collect_type_expression_path_segments(
+    tree: &dir::Tree,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+    segments: &mut Vec<dir::StringId>,
+) -> Option<()> {
+    let type_expression = tree.get(type_expression_id);
+
+    match type_expression {
+        dir::TypeExpression::Parenthesized { expression } => {
+            collect_type_expression_path_segments(tree, *expression, segments)
+        }
+        dir::TypeExpression::Reference {
+            path,
+            generic_arguments,
+        } => {
+            if !generic_arguments.is_empty() {
+                return None;
+            }
+
+            segments.extend_from_slice(&path.segments);
+            Some(())
+        }
+        dir::TypeExpression::Member {
+            left,
+            name,
+            generic_arguments,
+        } => {
+            if !generic_arguments.is_empty() {
+                return None;
+            }
+
+            collect_type_expression_path_segments(tree, *left, segments)?;
             segments.push(*name);
             Some(())
         }

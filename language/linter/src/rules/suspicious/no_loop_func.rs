@@ -379,7 +379,7 @@ fn expression_is_immediately_invoked(
             {
                 current_expression_id = parent_expression_id;
             }
-            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => {
+            dir::Expression::Call { left, .. } => {
                 return *left == current_expression_id;
             }
             _ => return false,

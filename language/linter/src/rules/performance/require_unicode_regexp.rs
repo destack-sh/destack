@@ -4,6 +4,7 @@ use destack_workspace::{LintSeverity, UnicodeRegexpRequireFlag};
 use crate::rules::common::{
     expression_path_segments, expression_unwrap_parenthesized_source_form,
     path_is_regexp_constructor, regex_pattern_info, regexp_global_qualifier_names,
+    type_expression_path_segments,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -122,20 +123,25 @@ fn has_unknown_constructor_flags_argument(
 ) -> bool {
     let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
-    let (callee_id, arguments) = match expression {
+    let (path_segments, arguments) = match expression {
         Expression::Call {
             left, arguments, ..
+        } => {
+            let Some(path_segments) = expression_path_segments(ctx.dir.tree(), *left) else {
+                return false;
+            };
+            (path_segments, arguments.as_slice())
         }
-        | Expression::New {
-            left, arguments, ..
-        } => (*left, arguments.as_slice()),
+        Expression::New { ty, arguments } => {
+            let Some(path_segments) = type_expression_path_segments(ctx.dir.tree(), *ty) else {
+                return false;
+            };
+            (path_segments, arguments.as_slice())
+        }
         _ => return false,
     };
 
     // require optional structure
-    let Some(path_segments) = expression_path_segments(ctx.dir.tree(), callee_id) else {
-        return false;
-    };
     if !path_is_regexp_constructor(
         path_segments.as_slice(),
         regexp_name,
@@ -200,16 +206,19 @@ fn unicode_regex_fix(
     }
 
     // fix RegExp constructors by adding or extending the flags argument
-    let (callee_id, arguments) = match expression {
+    let (path_segments, arguments) = match expression {
         Expression::Call {
             left, arguments, ..
-        }
-        | Expression::New {
-            left, arguments, ..
-        } => (*left, arguments.as_slice()),
+        } => (
+            expression_path_segments(ctx.dir.tree(), *left)?,
+            arguments.as_slice(),
+        ),
+        Expression::New { ty, arguments } => (
+            type_expression_path_segments(ctx.dir.tree(), *ty)?,
+            arguments.as_slice(),
+        ),
         _ => return None,
     };
-    let path_segments = expression_path_segments(ctx.dir.tree(), callee_id)?;
     if !path_is_regexp_constructor(
         path_segments.as_slice(),
         regexp_name,

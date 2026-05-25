@@ -682,9 +682,9 @@ pub fn expression_type_or_call_return_type_map<T>(
         return Some(mapped_value);
     }
 
-    // resolve return types for call-like expressions
+    // resolve return types for call expressions
     let callee_id = match expression {
-        dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
+        dir::Expression::Call { left, .. } => *left,
         _ => return None,
     };
     let return_type_id = expression_type_map(
@@ -720,10 +720,9 @@ pub fn expression_is_promise_like(
         return true;
     }
 
-    // fall back to async and Promise return checks for call-like expressions
+    // fall back to async and Promise return checks for call expressions
     let callee_id = match expression {
         dir::Expression::Call { left, .. } => Some(*left),
-        dir::Expression::New { left, .. } => Some(*left),
         _ => None,
     };
     let Some(callee_id) = callee_id else {

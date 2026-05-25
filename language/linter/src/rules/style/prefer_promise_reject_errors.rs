@@ -101,10 +101,8 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
         }
 
         // executor reject(...)
-        if let dir::Expression::New {
-            left, arguments, ..
-        } = expression
-            && expression_target_symbol(self.ctx, *left) == Some(self.promise_symbol)
+        if let dir::Expression::New { ty, arguments, .. } = expression
+            && self.ctx.type_expression_target_symbol(*ty) == Some(self.promise_symbol)
         {
             self.check_executor_reject_calls(arguments);
         }

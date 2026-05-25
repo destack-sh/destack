@@ -44,9 +44,6 @@ impl LintRule for NoArgumentsOrderMismatch {
             let (callee_expression_id, argument_ids) = match expression {
                 dir::Expression::Call {
                     left, arguments, ..
-                }
-                | dir::Expression::New {
-                    left, arguments, ..
                 } => (*left, arguments.as_slice()),
                 _ => continue,
             };

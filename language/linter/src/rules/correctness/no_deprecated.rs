@@ -184,7 +184,7 @@ fn should_skip_expression(
         let parent_id = parent.into_typed::<dir::Expression>();
         let parent_expression = tree.get(parent_id);
         match parent_expression {
-            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => {
+            dir::Expression::Call { left, .. } => {
                 return *left == expression_id;
             }
             _ => {}

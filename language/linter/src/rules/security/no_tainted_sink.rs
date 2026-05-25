@@ -211,13 +211,6 @@ impl NodeVisitor for NoTaintedSinkVisitor<'_, '_> {
             self.check_call_like(*left, arguments);
         }
 
-        if let dir::Expression::New {
-            left, arguments, ..
-        } = expression
-        {
-            self.check_call_like(*left, arguments);
-        }
-
         walk_expression(self, tree, id, expression);
     }
 }

@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolForm, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_target_symbol, symbol_declaration_for, symbol_for};
+use crate::rules::common::{symbol_declaration_for, symbol_for};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -69,9 +69,9 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         }
     }
 
-    /// Return true when the constructor callee resolves to a struct symbol.
-    fn is_struct_constructor(&self, callee_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let Some(target_symbol) = expression_target_symbol(self.ctx, callee_id) else {
+    /// Return true when the constructor type resolves to a struct symbol.
+    fn is_struct_constructor(&self, ty: dir::LocalNodeId<dir::TypeExpression>) -> bool {
+        let Some(target_symbol) = self.ctx.type_expression_target_symbol(ty) else {
             return false;
         };
 
@@ -85,13 +85,13 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         .is_some_and(|symbol| symbol.form == SymbolForm::Struct)
     }
 
-    /// Collect struct field names in constructor order for one constructor callee.
+    /// Collect struct field names in constructor order for one constructor type.
     fn constructor_field_names(
         &self,
-        callee_id: dir::LocalNodeId<dir::Expression>,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> Option<Vec<destack_core::StringId>> {
         // resolve the struct constructor symbol
-        let target_symbol = expression_target_symbol(self.ctx, callee_id)?;
+        let target_symbol = self.ctx.type_expression_target_symbol(ty)?;
         let target_symbol_entry = symbol_for(
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
@@ -146,17 +146,11 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
     fn struct_literal_fix(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        callee_id: dir::LocalNodeId<dir::Expression>,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        ty: dir::LocalNodeId<dir::TypeExpression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<LintFix> {
-        // skip generic constructor calls until we support generic argument rendering
-        if !generic_arguments.is_empty() {
-            return None;
-        }
-
         // require a field mapping in declaration order
-        let field_names = self.constructor_field_names(callee_id)?;
+        let field_names = self.constructor_field_names(ty)?;
         if field_names.len() != arguments.len() {
             return None;
         }
@@ -176,12 +170,12 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         }
 
         // build the tagged struct literal replacement
-        let callee_span = self.ctx.get_span(callee_id);
-        let callee_text = self.ctx.get_span_text(callee_span);
+        let type_span = self.ctx.get_span(ty);
+        let type_text = self.ctx.get_span_text(type_span);
         let replacement = if field_initializers.is_empty() {
-            format!("{callee_text} {{}}")
+            format!("{type_text} {{}}")
         } else {
-            format!("{callee_text} {{ {} }}", field_initializers.join(", "))
+            format!("{type_text} {{ {} }}", field_initializers.join(", "))
         };
 
         // replace the full constructor expression
@@ -198,12 +192,11 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
     fn check_new_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        callee_id: dir::LocalNodeId<dir::Expression>,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        ty: dir::LocalNodeId<dir::TypeExpression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // only lint real struct constructors
-        if !self.is_struct_constructor(callee_id) {
+        if !self.is_struct_constructor(ty) {
             return;
         }
 
@@ -226,9 +219,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         .label("replace this constructor call with a tagged struct literal");
 
         // attach fix when argument to field mapping is unambiguous
-        if let Some(fix) =
-            self.struct_literal_fix(expression_id, callee_id, generic_arguments, arguments)
-        {
+        if let Some(fix) = self.struct_literal_fix(expression_id, ty, arguments) {
             diagnostic = diagnostic.fix(fix);
         }
 
@@ -248,13 +239,8 @@ impl NodeVisitor for PreferStructLiteralVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check struct constructor calls
-        if let dir::Expression::New {
-            left,
-            generic_arguments,
-            arguments,
-        } = expression
-        {
-            self.check_new_expression(id, *left, generic_arguments.as_slice(), arguments);
+        if let dir::Expression::New { ty, arguments } = expression {
+            self.check_new_expression(id, *ty, arguments);
         }
 
         // walk expression children

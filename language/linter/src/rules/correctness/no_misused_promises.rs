@@ -320,9 +320,6 @@ impl NodeVisitor for MisusedPromiseVisitor<'_, '_> {
             }
             dir::Expression::Call {
                 left, arguments, ..
-            }
-            | dir::Expression::New {
-                left, arguments, ..
             } => {
                 self.check_call_arguments(id, *left, arguments);
             }

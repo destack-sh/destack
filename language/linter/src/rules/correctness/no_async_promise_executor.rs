@@ -3,8 +3,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    CallLikeExpressionInfo, expression_call_like, expression_target_symbol,
-    expression_unwrap_parenthesized, is_async_function_type, remove_first_async_keyword,
+    expression_call_like, expression_target_symbol, expression_unwrap_parenthesized,
+    is_async_function_type, remove_first_async_keyword,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -84,10 +84,11 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
     fn check_promise_executor(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        call_like: CallLikeExpressionInfo<'_>,
+        target_symbol: Option<dir::GlobalSymbolId>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non promise calls
-        let Some(target_symbol) = expression_target_symbol(self.ctx, call_like.left) else {
+        let Some(target_symbol) = target_symbol else {
             return;
         };
         if target_symbol != self.promise_symbol {
@@ -95,7 +96,7 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
         }
 
         // get the executor argument
-        let Some(argument_id) = call_like.arguments.first() else {
+        let Some(argument_id) = arguments.first() else {
             return;
         };
         let argument = self.ctx.dir.get(*argument_id);
@@ -206,7 +207,12 @@ impl NodeVisitor for AsyncPromiseExecutorVisitor<'_, '_> {
     ) {
         // check Promise calls and constructors
         if let Some(call_like) = expression_call_like(expression) {
-            self.check_promise_executor(id, call_like);
+            let target_symbol = expression_target_symbol(self.ctx, call_like.left);
+            self.check_promise_executor(id, target_symbol, call_like.arguments);
+        }
+        if let dir::Expression::New { ty, arguments } = expression {
+            let target_symbol = self.ctx.type_expression_target_symbol(*ty);
+            self.check_promise_executor(id, target_symbol, arguments);
         }
 
         // walk expression children

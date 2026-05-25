@@ -240,8 +240,8 @@ impl NodeVisitor for NoRegexInLoopVisitor<'_, '_> {
             return;
         }
 
-        // check constructor calls
-        if let dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } = expression {
+        // check function calls
+        if let dir::Expression::Call { left, .. } = expression {
             self.check_constructor(id, *left);
         }
 

@@ -1,7 +1,9 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{argument_value_expression_id, expression_path_segments};
+use crate::rules::common::{
+    argument_value_expression_id, expression_path_segments, type_expression_path_segments,
+};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -101,16 +103,20 @@ fn extract_placeholder_message(
     }
 
     // match Error constructor or call payloads
-    let (callee_id, arguments) = match expression {
-        dir::Expression::New {
+    let (is_error_constructor, arguments) = match expression {
+        dir::Expression::New { ty, arguments } => (
+            type_expression_is_error_constructor(ctx, *ty),
+            arguments.as_slice(),
+        ),
+        dir::Expression::Call {
             left, arguments, ..
-        }
-        | dir::Expression::Call {
-            left, arguments, ..
-        } => (left, arguments),
+        } => (
+            expression_is_error_constructor(ctx, *left),
+            arguments.as_slice(),
+        ),
         _ => return None,
     };
-    if !expression_is_error_constructor(ctx, *callee_id) {
+    if !is_error_constructor {
         return None;
     }
     let first_argument_id = arguments.first().copied()?;
@@ -133,6 +139,18 @@ fn extract_placeholder_message(
     None
 }
 
+/// Return true when one type expression names one error constructor or helper.
+fn type_expression_is_error_constructor(
+    ctx: &LintModuleContext<'_>,
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+) -> bool {
+    let Some(segments) = type_expression_path_segments(ctx.dir.tree(), type_expression_id) else {
+        return false;
+    };
+
+    path_segments_name_error(ctx, segments.as_slice())
+}
+
 /// Return true when one expression names one error constructor or helper.
 fn expression_is_error_constructor(
     ctx: &LintModuleContext<'_>,
@@ -141,6 +159,12 @@ fn expression_is_error_constructor(
     let Some(segments) = expression_path_segments(ctx.dir.tree(), expression_id) else {
         return false;
     };
+
+    path_segments_name_error(ctx, segments.as_slice())
+}
+
+/// Return true when one path ends in an Error constructor name.
+fn path_segments_name_error(ctx: &LintModuleContext<'_>, segments: &[dir::StringId]) -> bool {
     let Some(last_segment) = segments.last().copied() else {
         return false;
     };
