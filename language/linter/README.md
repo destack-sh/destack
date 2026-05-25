@@ -179,7 +179,6 @@ Patterns that may expose the application to attacks.
 | `LS001` | `no-blank-target` | Biome | AST | ✓ | Sometimes | Safe | Disallow `target="_blank"` without `rel="noopener"` |
 | `LS016` | `no-ffi-abi-mismatch` | Rust | DIR |  |  | None | Disallow FFI calls with ABI-unsafe layouts |
 | `LS002` | `no-hardcoded-ip` | SonarQube | AST | ✓ | No | None | Disallow hardcoded IP addresses |
-| `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | No | None | Disallow `setTimeout` and `setInterval` with string arguments |
 | `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | No | None | Disallow insecure random number generators |
 | `LS005` | `no-open-redirect` | Semgrep | DIR | ✓ | No | None | Disallow tainted values in browser redirect APIs |
 | `LS007` | `no-regex-injection` | Destack | DIR | ✓ | No | None | Disallow tainted values in dynamic regular expression patterns |
