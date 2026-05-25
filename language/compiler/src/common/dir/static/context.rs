@@ -3,7 +3,7 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_workspace::Module;
 
-use crate::common::dir::r#static::{StaticFailure, StaticValue, static_string};
+use super::{StaticFailure, StaticValue};
 
 /// A static evaluator over the load-known compiler environment.
 #[derive(Debug, Clone, Copy)]
@@ -162,21 +162,21 @@ impl<'a> StaticContext<'a> {
                 emit_format_tag(self.profile.emit).to_string(),
             )),
             "target" => Ok(StaticValue::Object),
-            "targetName" => Ok(static_string(conditions.target.as_deref())),
-            "product" => Ok(static_string(conditions.product.as_deref())),
-            "platform" => Ok(static_string(platform_tag(conditions))),
-            "host" => Ok(static_string(host_tag(conditions))),
-            "runtime" => Ok(static_string(runtime_tag(conditions))),
-            "modes" => Ok(StaticValue::Strings(
+            "targetName" => Ok(optional_string(conditions.target.as_deref())),
+            "product" => Ok(optional_string(conditions.product.as_deref())),
+            "platform" => Ok(optional_string(platform_tag(conditions))),
+            "host" => Ok(optional_string(host_tag(conditions))),
+            "runtime" => Ok(optional_string(runtime_tag(conditions))),
+            "modes" => Ok(StaticValue::StringList(
                 conditions.modes.iter().cloned().collect(),
             )),
-            "roles" => Ok(StaticValue::Strings(
+            "roles" => Ok(StaticValue::StringList(
                 conditions.roles.iter().cloned().collect(),
             )),
-            "features" => Ok(StaticValue::Strings(
+            "features" => Ok(StaticValue::StringList(
                 conditions.features.iter().cloned().collect(),
             )),
-            "tags" => Ok(StaticValue::Strings(
+            "tags" => Ok(StaticValue::StringList(
                 conditions.tags.iter().cloned().collect(),
             )),
             "debug" => Ok(StaticValue::Boolean(conditions.contains_mode("debug"))),
@@ -198,20 +198,20 @@ impl<'a> StaticContext<'a> {
         let profile = self.profile;
 
         match name {
-            "family" => Ok(static_string(target_family_tag(self.conditions))),
-            "arch" => Ok(static_string(
+            "family" => Ok(optional_string(target_family_tag(self.conditions))),
+            "arch" => Ok(optional_string(
                 profile
                     .target_arch
                     .as_ref()
                     .map(|arch| arch.triple_component()),
             )),
-            "vendor" => Ok(static_string(
+            "vendor" => Ok(optional_string(
                 profile
                     .target_vendor
                     .as_ref()
                     .map(|vendor| vendor.triple_component()),
             )),
-            "abi" => Ok(static_string(
+            "abi" => Ok(optional_string(
                 profile
                     .target_abi
                     .as_ref()
@@ -266,16 +266,21 @@ impl<'a> StaticContext<'a> {
             return Err(StaticFailure::NotStatic(left));
         };
 
-        let receiver = self.evaluate_expression(*receiver_expression);
-        let receiver = receiver?
-            .into_strings()
+        // evaluate the list receiver
+        let receiver = self.evaluate_expression(*receiver_expression)?;
+        let receiver = receiver
+            .as_string_list()
             .ok_or(StaticFailure::NotStatic(*receiver_expression))?;
-        let argument = self.evaluate_expression(*argument_expression);
-        let argument = argument?
-            .into_string()
+
+        // evaluate the string argument
+        let argument = self.evaluate_expression(*argument_expression)?;
+        let argument = argument
+            .as_string()
             .ok_or(StaticFailure::NotStatic(*argument_expression))?;
 
-        Ok(StaticValue::Boolean(receiver.contains(&argument)))
+        Ok(StaticValue::Boolean(
+            receiver.iter().any(|value| value == argument),
+        ))
     }
 
     /// Evaluate one unary expression.
@@ -369,4 +374,12 @@ fn runtime_tag(conditions: &ConditionSet) -> Option<&'static str> {
 /// Return the active target family tag when present.
 fn target_family_tag(conditions: &ConditionSet) -> Option<&'static str> {
     conditions.platform.map(|platform| platform.family_tag())
+}
+
+/// Build an optional static string value.
+fn optional_string(value: Option<impl Into<String>>) -> StaticValue {
+    match value {
+        Some(value) => StaticValue::String(value.into()),
+        None => StaticValue::Undefined,
+    }
 }

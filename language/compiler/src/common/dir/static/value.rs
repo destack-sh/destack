@@ -12,7 +12,7 @@ pub(crate) enum StaticValue {
     /// String value.
     String(String),
     /// String list value.
-    Strings(Vec<String>),
+    StringList(Vec<String>),
     /// Scalar literal value.
     Scalar(dir::ScalarLiteral),
 }
@@ -34,40 +34,32 @@ impl StaticValue {
             Self::Undefined
             | Self::Object
             | Self::String(_)
-            | Self::Strings(_)
+            | Self::StringList(_)
             | Self::Scalar(_) => None,
         }
     }
 
     /// Return this value as a string when it is one.
-    pub(crate) fn into_string(self) -> Option<String> {
+    pub(crate) fn as_string(&self) -> Option<&str> {
         match self {
             Self::String(value) => Some(value),
             Self::Undefined
             | Self::Object
             | Self::Boolean(_)
-            | Self::Strings(_)
+            | Self::StringList(_)
             | Self::Scalar(_) => None,
         }
     }
 
-    /// Return this value as strings when it is one.
-    pub(crate) fn into_strings(self) -> Option<Vec<String>> {
+    /// Return this value as a string list when it is one.
+    pub(crate) fn as_string_list(&self) -> Option<&[String]> {
         match self {
-            Self::Strings(values) => Some(values),
+            Self::StringList(values) => Some(values),
             Self::Undefined
             | Self::Object
             | Self::Boolean(_)
             | Self::String(_)
             | Self::Scalar(_) => None,
         }
-    }
-}
-
-/// Build a static optional string value.
-pub(crate) fn static_string(value: Option<impl Into<String>>) -> StaticValue {
-    match value {
-        Some(value) => StaticValue::String(value.into()),
-        None => StaticValue::Undefined,
     }
 }
