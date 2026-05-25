@@ -393,22 +393,6 @@ let item = second(items);
 item satisfies &readonly int32;
 ```
 
-### managed is not a lifetime
-
-Managed storage participates in lifetime inference, but it does not introduce a lifetime literal.
-
-```ds
-class User {
-    name: string = "";
-}
-
-function nameView(user: User): ReadonlyBorrowed<string, "managed"> {
-    return &readonly user.name;
-}
-```
-
-- contains: lifetime
-
 ### boxed field borrow follows the box
 
 A borrow through a box depends on the boxed owner.
