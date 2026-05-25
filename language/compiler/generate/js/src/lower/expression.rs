@@ -3,6 +3,72 @@ use {destack_dir as dir, destack_js as js};
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
+    /// Lower a constructor name into a JS callee.
+    fn lower_new_type_callee(
+        &mut self,
+        type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CodegenJsResult<(
+        js::LocalNodeId<js::Expression>,
+        Vec<js::LocalNodeId<js::TypeExpression>>,
+    )> {
+        let source_id = type_expression_id.into_any();
+        let type_expression = self.dir_tree.get(type_expression_id);
+
+        match type_expression {
+            dir::TypeExpression::Parenthesized { expression } => {
+                self.lower_new_type_callee(*expression)
+            }
+            dir::TypeExpression::Reference {
+                path,
+                generic_arguments,
+            } => {
+                let path = self.lower_path(source_id, path)?;
+                let left = js::Expression::Path {
+                    path,
+                    generic_arguments: Vec::new(),
+                };
+                let left_id = self
+                    .tree
+                    .insert_from_source_any(left, self.module.id, source_id);
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
+
+                Ok((left_id, generic_arguments))
+            }
+            dir::TypeExpression::Member {
+                left,
+                name,
+                generic_arguments,
+            } => {
+                let left_source_id = left.into_any();
+                let (left_id, left_generic_arguments) = self.lower_new_type_callee(*left)?;
+                let left_id = if left_generic_arguments.is_empty() {
+                    left_id
+                } else {
+                    let left = js::Expression::Instantiation {
+                        left: left_id,
+                        generic_arguments: left_generic_arguments,
+                    };
+                    self.tree
+                        .insert_from_source_any(left, self.module.id, left_source_id)
+                };
+                let left = js::Expression::Member {
+                    left: left_id,
+                    name: *name,
+                };
+                let left_id = self
+                    .tree
+                    .insert_from_source_any(left, self.module.id, source_id);
+                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
+
+                Ok((left_id, generic_arguments))
+            }
+            _ => Err(CodegenJsError::UnsupportedConstruct {
+                node: type_expression_id.into_global_any(self.module.id),
+                message: Some("new target must be a path or member expression".to_string()),
+            }),
+        }
+    }
+
     /// Lower one import attribute value into a JS expression.
     fn lower_import_attribute_value(
         &mut self,
@@ -985,15 +1051,8 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::New {
-                left,
-                generic_arguments,
-                arguments,
-            } => {
-                let left_id = self
-                    .lower_expression(*left)
-                    .expect_node::<js::Expression>(left.into_global_any(self.module.id), self)?;
-                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
+            dir::Expression::New { ty, arguments } => {
+                let (left_id, generic_arguments) = self.lower_new_type_callee(*ty)?;
                 let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))

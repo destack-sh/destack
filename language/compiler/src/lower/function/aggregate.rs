@@ -265,22 +265,8 @@ impl FunctionLowerer<'_> {
     pub(crate) fn lower_new_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // reject generic arguments for now
-        if !generic_arguments.is_empty() {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "generic arguments are not supported".to_string(),
-            }
-            .into());
-        }
-
         // call explicit constructors when present
         if let Some(constructor_id) =
             self.explicit_constructor_member_for_expression(expression_id)?
@@ -689,19 +675,15 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let dir::Expression::New { left, .. } = self.context.dir_tree.get(expression_id) else {
+        let dir::Expression::New { ty, .. } = self.context.dir_tree.get(expression_id) else {
             return Ok(None);
         };
 
-        let symbol = match self.context.dir_tree.get(*left) {
-            dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
-                let symbol = self.resolve_expression_symbol(*left)?;
-                Some(symbol)
-            }
-            _ => None,
+        let Some(type_id) = self.type_id_for_type_expression(*ty) else {
+            return Ok(None);
         };
 
-        Ok(symbol)
+        Ok(self.concrete_symbol_for_type(type_id))
     }
 
     /// Find a nominal reference type id for a symbol in checked type state.

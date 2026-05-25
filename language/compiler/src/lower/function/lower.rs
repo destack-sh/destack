@@ -585,11 +585,9 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => self.lower_call_expression(expression_id, left, arguments, generic_arguments),
 
-            dir::Expression::New {
-                generic_arguments,
-                arguments,
-                ..
-            } => self.lower_new_expression(expression_id, generic_arguments, arguments),
+            dir::Expression::New { arguments, .. } => {
+                self.lower_new_expression(expression_id, arguments)
+            }
 
             dir::Expression::TupleExpression { elements } => {
                 self.lower_tuple_expression(expression_id, elements)

@@ -52,7 +52,7 @@ impl dir::NodeVisitor for ExpressionTypeCollector {
         expression: &dir::Expression,
     ) {
         // skip lowering callee types for direct calls
-        if let dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } = expression {
+        if let dir::Expression::Call { left, .. } = expression {
             self.callee_expression_ids.insert(left.id);
         }
         self.expression_ids.push(id);
