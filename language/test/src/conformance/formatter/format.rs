@@ -149,7 +149,7 @@ fn format_once(
     }
 
     // format parsed expressions
-    let (tokens, side_tokens) = parser.take_tokens();
+    let (tokens, side_tokens) = parser.take_token_spans();
     Ok(format_expressions(
         &parser,
         &tokens,

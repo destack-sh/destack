@@ -69,7 +69,7 @@ pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
     }
 
     // format
-    let (tokens, side_tokens) = parser.take_tokens();
+    let (tokens, side_tokens) = parser.take_token_spans();
     let formatted = format_expressions(
         &parser,
         &tokens,
