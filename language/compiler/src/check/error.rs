@@ -9,37 +9,19 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     // 1xx: inference
     // -------------------------------------------------------------------------
-    /// Type inference could not determine a required type.
-    #[diagnostic(code = "EC100", message = "cannot infer type")]
-    CannotInferType {
-        /// Report the node that requires the type.
+    /// Solver could not determine a required type or static value.
+    #[diagnostic(code = "EC100", message = "cannot solve constraints")]
+    CannotSolve {
+        /// Report the node that requires the solution.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
     },
 
-    /// Static evaluation could not determine a required value.
-    #[diagnostic(code = "EC101", message = "cannot evaluate static value")]
-    CannotEvaluateStatic {
-        /// Report the static expression.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// Type solving found an illegal recursive type.
-    #[diagnostic(code = "EC102", message = "recursive type is not valid here")]
-    RecursiveType {
-        /// Report the cycle source.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// Static evaluation found an illegal recursive value.
-    #[diagnostic(code = "EC103", message = "recursive static value is not valid here")]
-    RecursiveStatic {
-        /// Report the cycle source.
+    /// A declaration requires an explicit or contextual type annotation.
+    #[diagnostic(code = "EC101", message = "missing type annotation")]
+    MissingTypeAnnotation {
+        /// Report the declaration that needs a type.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -279,9 +261,9 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------
-    /// Type cannot be represented as a concrete value.
+    /// Type is not concrete and therefore has no layout.
     #[diagnostic(code = "EC500", message = "type has no concrete layout")]
-    LayoutNotRealizable {
+    LayoutNotConcrete {
         /// Report the layout request.
         anchor: DiagnosticAnchor,
         /// The module being checked.
