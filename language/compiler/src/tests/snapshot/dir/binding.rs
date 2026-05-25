@@ -54,6 +54,14 @@ impl SnapshotTable for dir::BindingSegment {
             builder.push(row);
         }
 
+        // render implicit receivers recorded by bind
+        for (node_id, symbol_id) in self.implicit_receivers() {
+            let row = SnapshotRow::new(builder.anchor_node(node_id), "binding", "receiver")
+                .field("node", builder.node_label(node_id))
+                .field("symbol", builder.local_symbol_label(symbol_id));
+            builder.push(row);
+        }
+
         // render exact node cursors only for targeted binding tests
         if builder.binding_nodes {
             for (node_id, scope) in node_scopes {
@@ -73,6 +81,7 @@ impl SnapshotTable for dir::BindingSegment {
                 "declarations",
                 self.declaration_symbols().count().to_string(),
             )
+            .count_field("receivers", self.implicit_receivers().count())
             .field("node_scopes", self.node_scopes().count().to_string())
             .count_field("replaced_symbols", self.replaced_symbols().count())
             .count_field("replaced_scopes", self.replaced_scopes().count());

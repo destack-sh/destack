@@ -273,12 +273,12 @@ impl Compiler {
         if let Some(scope_id) = self.bind_type_member_symbol(state, id, type_member) {
             state.bind_node_to_scope(id.into_any(), scope_id);
             state.push_scope(scope_id);
-            self.bind_type_member_body(state, tree, type_member);
+            self.bind_type_member_body(state, tree, id, type_member);
             state.pop_scope();
         }
         // visit unscoped type member body
         else {
-            self.bind_type_member_body(state, tree, type_member);
+            self.bind_type_member_body(state, tree, id, type_member);
         }
     }
 
@@ -324,6 +324,7 @@ impl Compiler {
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeMember>,
         type_member: &dir::TypeMember,
     ) {
         match type_member {
@@ -347,7 +348,7 @@ impl Compiler {
                 ..
             } => {
                 if signature.this_parameter.is_none() && !*is_static {
-                    self.bind_implicit_this_symbol(state);
+                    self.bind_implicit_this_symbol(state, id);
                 }
 
                 // visit method key
