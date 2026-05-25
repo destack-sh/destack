@@ -161,6 +161,17 @@ impl<'a> BindingTable<'a> {
         None
     }
 
+    /// Find the implicit receiver symbol bound for one member node.
+    pub fn implicit_receiver_symbol(&self, owner: GlobalNodeIdAny) -> Option<LocalSymbolId> {
+        for segment in self.segments.iter().rev() {
+            if let Some(symbol_id) = segment.implicit_receiver_symbol(owner) {
+                return Some(symbol_id);
+            }
+        }
+
+        None
+    }
+
     /// Iterate symbols keyed by declaration node.
     pub fn declaration_symbols(
         &self,
@@ -168,6 +179,15 @@ impl<'a> BindingTable<'a> {
         self.segments
             .iter()
             .flat_map(|segment| segment.declaration_symbols())
+    }
+
+    /// Iterate implicit receiver symbols keyed by member node.
+    pub fn implicit_receivers(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalSymbolId)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.implicit_receivers())
     }
 
     /// Return the lexical scope attached to one global node.
@@ -219,6 +239,8 @@ pub struct BindingSegment {
     pub(crate) scopes: Arena<Scope>,
     /// Symbols keyed by their declaration node.
     pub(crate) symbol_by_declaration: IndexMap<GlobalNodeIdAny, LocalSymbolId>,
+    /// Implicit receiver symbols keyed by their owner node.
+    pub(crate) implicit_receiver_by_node: IndexMap<GlobalNodeIdAny, LocalSymbolId>,
     /// Scopes keyed by their owner or member node.
     pub(crate) scope_by_node: IndexMap<GlobalNodeIdAny, LocalScope>,
     /// Replacements for visible symbols copied into this segment.
@@ -238,6 +260,7 @@ impl BindingSegment {
             symbols: Arena::new(),
             scopes: Arena::new(),
             symbol_by_declaration: IndexMap::new(),
+            implicit_receiver_by_node: IndexMap::new(),
             scope_by_node: IndexMap::new(),
             replaced_symbol_by_id: IndexMap::new(),
             replaced_scope_by_id: IndexMap::new(),
@@ -253,6 +276,7 @@ impl BindingSegment {
             symbols: Arena::new(),
             scopes: Arena::new(),
             symbol_by_declaration: IndexMap::new(),
+            implicit_receiver_by_node: IndexMap::new(),
             scope_by_node: IndexMap::new(),
             replaced_symbol_by_id: IndexMap::new(),
             replaced_scope_by_id: IndexMap::new(),
@@ -331,11 +355,37 @@ impl BindingSegment {
         self.symbol_by_declaration.get(&declaration).copied()
     }
 
+    /// Attach an implicit receiver symbol to its owner node.
+    pub fn bind_implicit_receiver<T: Node>(
+        &mut self,
+        owner: LocalNodeId<T>,
+        symbol: LocalSymbolId,
+    ) {
+        let owner = owner.into_global_any(self.module_id);
+
+        self.implicit_receiver_by_node.insert(owner, symbol);
+    }
+
+    /// Find the implicit receiver symbol bound for one member node.
+    #[inline]
+    pub fn implicit_receiver_symbol(&self, owner: GlobalNodeIdAny) -> Option<LocalSymbolId> {
+        self.implicit_receiver_by_node.get(&owner).copied()
+    }
+
     /// Iterate symbols keyed by declaration node.
     pub fn declaration_symbols(
         &self,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalSymbolId)> + '_ {
         self.symbol_by_declaration
+            .iter()
+            .map(|(node_id, symbol_id)| (*node_id, *symbol_id))
+    }
+
+    /// Iterate implicit receiver symbols keyed by member node.
+    pub fn implicit_receivers(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalSymbolId)> + '_ {
+        self.implicit_receiver_by_node
             .iter()
             .map(|(node_id, symbol_id)| (*node_id, *symbol_id))
     }
