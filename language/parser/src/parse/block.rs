@@ -8,7 +8,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use super::r#if::IfHead;
 use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 /// One pending statement-position if branch.
 struct PendingStatementIf {
@@ -64,7 +64,7 @@ impl Parser {
     }
 
     /// Eat one control body as a block-like expression.
-    pub(crate) fn eat_control_body_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub(crate) fn eat_control_body_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         self.with_recursive_descent(NodeType::Expression, |parser| {
             parser.eat_control_body_expression_at_current_depth()
         })
@@ -73,7 +73,7 @@ impl Parser {
     /// Eat one control body after recursive descent state has been entered.
     fn eat_control_body_expression_at_current_depth(
         &mut self,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // semicolon statement forms allow empty branches
@@ -94,7 +94,7 @@ impl Parser {
 
         // semicolon statement forms reject declarations in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
-            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
         }
 
         // keep existing block-like expressions
@@ -130,7 +130,7 @@ impl Parser {
     pub(crate) fn eat_if_after_head(
         &mut self,
         head: IfHead,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if self.if_then_body_starts_statement_if_chain() {
             return self.eat_statement_if_chain(head);
         }
@@ -146,7 +146,7 @@ impl Parser {
     }
 
     /// Eat an if expression through an explicit statement-position chain.
-    fn eat_statement_if_chain(&mut self, head: IfHead) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_statement_if_chain(&mut self, head: IfHead) -> ParserResult<LocalNodeId<Expression>> {
         self.with_flags(self.statement_position_flags(), |parser| {
             parser.eat_statement_if_chain_in_statement_position(head)
         })
@@ -156,7 +156,7 @@ impl Parser {
     fn eat_statement_if_chain_in_statement_position(
         &mut self,
         head: IfHead,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let mut chain = Vec::new();
         let mut head = head;
 
@@ -189,7 +189,7 @@ impl Parser {
 
         let pending_if = chain
             .pop()
-            .ok_or_else(|| ParseError::unexpected(self.anchor_span_here()))?;
+            .ok_or_else(|| ParserError::unexpected(self.anchor_span_here()))?;
         let then_expression = self.insert_block_expression(
             &pending_if.block_start,
             BlockContext::Expression,
@@ -273,7 +273,7 @@ impl Parser {
         &mut self,
         form: BlockForm,
         statements: &mut Vec<LocalNodeId<Expression>>,
-    ) -> ParseResult<bool> {
+    ) -> ParserResult<bool> {
         if form != BlockForm::Implicit {
             return Ok(false);
         }
@@ -284,7 +284,7 @@ impl Parser {
         };
 
         // stray closers should produce one error node and advance
-        let error = ParseError::unexpected_for(token.span, NodeType::Expression);
+        let error = ParserError::unexpected_for(token.span, NodeType::Expression);
         self.error(&error);
         self.bump();
 
@@ -338,7 +338,7 @@ impl Parser {
     /// Eat one labeled expression shell after the caller accepted `identifier:`.
     pub(super) fn eat_label_expression_shell(
         &mut self,
-    ) -> ParseResult<(StringId, Span, LocalNodeId<Expression>)> {
+    ) -> ParserResult<(StringId, Span, LocalNodeId<Expression>)> {
         // parse label prefix
         let (label, label_span) = self.eat_identifier_with_span()?;
         self.eat_colon()?;
@@ -364,7 +364,7 @@ impl Parser {
 
         // semicolon statement forms reject labeled declarations
         if !self.language.is_destack() && self.is_single_statement_declaration(body) {
-            return Err(ParseError::unexpected(self.tree.get_span(body)));
+            return Err(ParserError::unexpected(self.tree.get_span(body)));
         }
 
         Ok((label, label_span, body))
@@ -374,7 +374,7 @@ impl Parser {
     fn try_parse_label_statement_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !self.can_parse_label_expression() {
             return Ok(None);
         }
@@ -394,7 +394,7 @@ impl Parser {
     fn try_dispatch_identifier_statement_expression(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         // parse labeled statements before keyword and expression dispatch
         if let Some(expression_id) = self.try_parse_label_statement_expression(start)? {
             return Ok(Some(expression_id));
@@ -474,7 +474,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         token_type: TokenType,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         // block statements stay in the statement dispatch
         if token_type == TokenType::OpenBrace {
             // object literals stay in value space when their property shape is explicit
@@ -499,7 +499,7 @@ impl Parser {
 
     /// Eat one statement expression in the current parser flags.
     #[inline]
-    pub(crate) fn eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub(crate) fn eat_statement_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         // normalize to the next non-newline token once per dispatch
         let token_type = self.peek_token_type();
         self.eat_statement_expression_from_token_kind(token_type)
@@ -510,7 +510,7 @@ impl Parser {
     fn eat_statement_expression_from_token_kind(
         &mut self,
         token_type: TokenType,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         // statement dispatch
         let start = self.span_start();
         if let Some(expression_id) = self.try_dispatch_statement_expression(&start, token_type)? {
@@ -554,14 +554,14 @@ impl Parser {
     }
 
     /// Eat a block or a single statement wrapped in a block.
-    pub fn eat_block_or_statement(&mut self) -> ParseResult<LocalNodeId<Block>> {
+    pub fn eat_block_or_statement(&mut self) -> ParserResult<LocalNodeId<Block>> {
         self.with_recursive_descent(NodeType::Block, |parser| {
             parser.eat_block_or_statement_at_current_depth()
         })
     }
 
     /// Eat a block or statement body after recursive descent state has been entered.
-    fn eat_block_or_statement_at_current_depth(&mut self) -> ParseResult<LocalNodeId<Block>> {
+    fn eat_block_or_statement_at_current_depth(&mut self) -> ParserResult<LocalNodeId<Block>> {
         // if it's a block, just eat it
         if self.is_block_start() {
             return self.eat_block(BlockContext::Statement);
@@ -591,7 +591,7 @@ impl Parser {
 
         // reject declaration statements in single statement contexts
         if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
-            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
         }
 
         // consume trailing semicolon if present (e.g., `do x; while (true)`)
@@ -643,7 +643,7 @@ impl Parser {
     /// { ... }
     /// block: { ... }
     /// ```
-    pub fn eat_block(&mut self, block_context: BlockContext) -> ParseResult<LocalNodeId<Block>> {
+    pub fn eat_block(&mut self, block_context: BlockContext) -> ParserResult<LocalNodeId<Block>> {
         self.with_recursive_descent(NodeType::Block, |parser| {
             parser.eat_block_at_current_depth(block_context)
         })
@@ -653,7 +653,7 @@ impl Parser {
     fn eat_block_at_current_depth(
         &mut self,
         block_context: BlockContext,
-    ) -> ParseResult<LocalNodeId<Block>> {
+    ) -> ParserResult<LocalNodeId<Block>> {
         let start = self.span_start();
 
         // `do` prefix
@@ -691,7 +691,10 @@ impl Parser {
 
     /// Eat a block of expressions (without the label, `{`, and `}`).
     /// ASI rules apply such that expressions are automatically coerced into statements in relevant positions.
-    pub fn eat_block_body(&mut self, form: BlockForm) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+    pub fn eat_block_body(
+        &mut self,
+        form: BlockForm,
+    ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
         let block_context = if form.is_explicit() {
             BlockContext::Expression
         } else {
@@ -705,7 +708,7 @@ impl Parser {
         &mut self,
         form: BlockForm,
         block_context: BlockContext,
-    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
         let (mut leading_expressions, tail_expression) =
             self.eat_block_body_split_in_context(form, block_context)?;
         if let Some(tail_expression) = tail_expression {
@@ -720,7 +723,7 @@ impl Parser {
         &mut self,
         form: BlockForm,
         block_context: BlockContext,
-    ) -> ParseResult<(
+    ) -> ParserResult<(
         Vec<LocalNodeId<Expression>>,
         Option<LocalNodeId<Expression>>,
     )> {
@@ -746,7 +749,7 @@ impl Parser {
         block_context: BlockContext,
         mut statements: Vec<LocalNodeId<Expression>>,
         mut pending_tail_expression: Option<LocalNodeId<Expression>>,
-    ) -> ParseResult<(
+    ) -> ParserResult<(
         Vec<LocalNodeId<Expression>>,
         Option<LocalNodeId<Expression>>,
     )> {
@@ -815,7 +818,7 @@ impl Parser {
     /// Returns whether the expression should be treated as a statement.
     pub fn try_eat_statement_expression_classified(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         self.with_flags(self.statement_position_flags(), |parser| {
             parser.try_eat_statement_expression_in_statement_position()
         })
@@ -826,7 +829,7 @@ impl Parser {
     #[inline]
     fn try_eat_statement_expression_in_statement_position(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let start = self.span_start();
         let token_type = self.peek_token_type();
 
@@ -839,7 +842,7 @@ impl Parser {
         start: &ParserSpanStart,
         token_type: TokenType,
         block_context: Option<(BlockForm, BlockContext)>,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         let parsed_expression = self
             .eat_statement_expression_from_token_kind(token_type)
             .and_then(|expression_id| {
@@ -865,7 +868,7 @@ impl Parser {
         start: &ParserSpanStart,
         expression_id: LocalNodeId<Expression>,
         block_context: Option<(BlockForm, BlockContext)>,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
@@ -902,7 +905,7 @@ impl Parser {
         if !is_statement && !has_separator && !stops_at_block_terminator {
             // keep a plausible next statement head for the outer block loop
             if Self::token_can_start_recovered_statement_item(next_token_type) {
-                let error = ParseError::unexpected(self.peek()?.span);
+                let error = ParserError::unexpected(self.peek()?.span);
                 self.error(&error);
 
                 self.tree.set_side_span(
@@ -914,7 +917,7 @@ impl Parser {
                 return Ok((expression_id, true));
             }
 
-            let error = ParseError::unexpected(self.peek()?.span);
+            let error = ParserError::unexpected(self.peek()?.span);
             let recovery_start = self.span_start();
             self.try_recover_in_statement(&recovery_start, Some(error))?;
             self.tree.set_side_span(
@@ -944,7 +947,7 @@ impl Parser {
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
     /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
-    pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn try_eat_statement_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let (expression_id, _is_statement) = self.try_eat_statement_expression_classified()?;
         Ok(expression_id)
     }
@@ -978,7 +981,7 @@ impl Parser {
     /// break (value)
     /// break label: value
     /// ```
-    pub fn eat_break(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_break(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Break)?;
 
@@ -1008,7 +1011,7 @@ impl Parser {
             }
             // unlabeled values must be parenthesized
             else {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
         }
         // trailing value: break (value)
@@ -1018,7 +1021,7 @@ impl Parser {
         }
         // other trailing tokens are invalid operands
         else if !self.is_any_stop() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         } else {
             (None, None, None)
         };
@@ -1044,7 +1047,7 @@ impl Parser {
     /// continue
     /// continue label
     /// ```
-    pub fn eat_continue(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_continue(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Continue)?;
 
@@ -1054,13 +1057,13 @@ impl Parser {
         } else if self.peek_is(TokenType::Identifier) {
             let next_token = self.next_token();
             if !self.token_ends_label_statement(next_token) {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
         } else if !self.is_any_stop() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         } else {
             (None, None)
         };
@@ -1083,7 +1086,7 @@ impl Parser {
     /// await? someFallibleAsync()
     /// await! someFallibleAsync()
     /// ```
-    pub fn eat_await(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_await(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -1133,7 +1136,7 @@ impl Parser {
     /// comptime factorial(10)
     /// comptime { generateLookupTable() }
     /// ```
-    pub fn eat_comptime(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_comptime(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -1178,7 +1181,7 @@ impl Parser {
     /// yield* someIterator
     /// yield *a  // same as yield* a (only if no newline after yield)
     /// ```
-    pub fn eat_yield(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_yield(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // keyword
@@ -1249,7 +1252,7 @@ impl Parser {
     /// throw someError
     /// throw anyOldExpression()
     /// ```
-    pub fn eat_throw(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_throw(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Throw)?;
 
@@ -1277,7 +1280,7 @@ impl Parser {
     /// return
     /// return 17
     /// ```
-    pub fn eat_return(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_return(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Return)?;
 

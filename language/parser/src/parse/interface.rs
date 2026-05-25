@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
 use crate::parse::{DeclarationHeader, TypeMemberBodyMode};
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Declaration, InterfaceDeclaration, Keyword, LocalNodeId, NodeType, TokenType, TypeKind,
@@ -54,7 +54,7 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
         kind: TypeKind,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         // typed interface heads do not admit tree literals
         let allow_tree_literals = if self.language.is_typescript() {
             let allow_tree_literals = self.allow_tree_literals();
@@ -71,7 +71,7 @@ impl Parser {
 
             // interface keyword cannot be followed by a newline
             if self.current_token_is_on_new_line() {
-                let error = ParseError::unexpected(self.peek()?.span);
+                let error = ParserError::unexpected(self.peek()?.span);
                 self.error(&error);
             }
 

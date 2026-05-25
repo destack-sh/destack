@@ -2,12 +2,12 @@ use destack_core::StringId;
 use destack_source::{NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
 
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{Expression, LocalNodeId, Path, TokenType};
 
 impl Parser {
     /// Eat a path.
-    pub fn eat_path(&mut self) -> ParseResult<Path> {
+    pub fn eat_path(&mut self) -> ParserResult<Path> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier
@@ -25,7 +25,7 @@ impl Parser {
     }
 
     /// Eat a path and return the spans of all its segments.
-    pub fn eat_path_with_segment_spans(&mut self) -> ParseResult<(Path, SmallVec<[Span; 3]>)> {
+    pub fn eat_path_with_segment_spans(&mut self) -> ParserResult<(Path, SmallVec<[Span; 3]>)> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
@@ -48,17 +48,17 @@ impl Parser {
     /// Eat a path and return the spans of its first and last segments.
     pub fn eat_path_with_endpoint_spans(
         &mut self,
-    ) -> ParseResult<(Path, SmallVec<[Span; 3]>, Span)> {
+    ) -> ParserResult<(Path, SmallVec<[Span; 3]>, Span)> {
         let (path, segment_spans) = self.eat_path_with_segment_spans()?;
         let Some(last_span) = segment_spans.last().copied() else {
-            return Err(ParseError::unexpected(self.anchor_span_here()));
+            return Err(ParserError::unexpected(self.anchor_span_here()));
         };
 
         Ok((path, segment_spans, last_span))
     }
 
     /// Eat a tree literal path.
-    pub fn eat_tree_literal_path(&mut self) -> ParseResult<Path> {
+    pub fn eat_tree_literal_path(&mut self) -> ParserResult<Path> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
@@ -78,7 +78,7 @@ impl Parser {
     /// Eat a tree literal path and return the spans of all its segments.
     pub fn eat_tree_literal_path_with_segment_spans(
         &mut self,
-    ) -> ParseResult<(Path, SmallVec<[Span; 3]>)> {
+    ) -> ParserResult<(Path, SmallVec<[Span; 3]>)> {
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
         let mut segment_spans: SmallVec<[Span; 3]> = SmallVec::new();
 
@@ -101,10 +101,10 @@ impl Parser {
     /// Eat a tree literal path and return the spans of its first and last segments.
     pub fn eat_tree_literal_path_with_endpoint_spans(
         &mut self,
-    ) -> ParseResult<(Path, SmallVec<[Span; 3]>, Span)> {
+    ) -> ParserResult<(Path, SmallVec<[Span; 3]>, Span)> {
         let (path, segment_spans) = self.eat_tree_literal_path_with_segment_spans()?;
         let Some(last_span) = segment_spans.last().copied() else {
-            return Err(ParseError::unexpected(self.anchor_span_here()));
+            return Err(ParserError::unexpected(self.anchor_span_here()));
         };
 
         Ok((path, segment_spans, last_span))
@@ -115,12 +115,12 @@ impl Parser {
         &mut self,
         expression_id: LocalNodeId<Expression>,
         segment_spans: &[Span],
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         let Some(first_span) = segment_spans.first().copied() else {
-            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
         };
         let Some(last_span) = segment_spans.last().copied() else {
-            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
         };
 
         self.tree.set_main_span(expression_id, last_span);
@@ -134,7 +134,7 @@ impl Parser {
         // record each path segment so semantic consumers can target the exact token
         for (index, segment_span) in segment_spans.iter().copied().enumerate() {
             let Ok(segment_index) = u16::try_from(index) else {
-                return Err(ParseError::unexpected(segment_span));
+                return Err(ParserError::unexpected(segment_span));
             };
 
             self.tree.set_side_span(

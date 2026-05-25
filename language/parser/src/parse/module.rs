@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     BlockContext, BlockForm, Declaration, LocalNodeId, ModuleDeclaration, NodeType, TokenType,
@@ -10,7 +10,7 @@ impl Parser {
     pub(crate) fn eat_module(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         self.eat_identifier_str("module")?;
 
         self.eat_token(TokenType::OpenBrace)?;

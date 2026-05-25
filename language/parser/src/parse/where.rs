@@ -1,5 +1,5 @@
 // parse use and where declarations
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
 use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -14,7 +14,7 @@ impl Parser {
     /// where Foo.Bar: Baz
     /// where BaseOf<Foo>: Copy
     /// ```
-    pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
+    pub fn eat_where_maybe(&mut self) -> ParserResult<Option<Vec<LocalNodeId<WhereClause>>>> {
         // where clauses start at the current token
         if !self.is_keyword(Keyword::Where) {
             return Ok(None);
@@ -37,7 +37,7 @@ impl Parser {
     ///    F: Numeric // optional comma
     /// )
     /// ```
-    pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
+    pub fn eat_where(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         self.eat_keyword(Keyword::Where)?;
         let body_flags = self.flags.in_before_block();
         let clauses = self.with_flags(body_flags, |parser| parser.eat_where_body())?;
@@ -46,7 +46,7 @@ impl Parser {
 
     /// Eat the clauses of a `where` declaration (without the `where` keyword).
     /// Separated by commas.
-    fn eat_where_body(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
+    fn eat_where_body(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {
         let mut clauses: Vec<LocalNodeId<WhereClause>> = Vec::new();
 
         // parenthesized list with newlines
@@ -86,7 +86,7 @@ impl Parser {
     }
 
     /// Eat a single where clause.
-    fn eat_where_clause(&mut self) -> ParseResult<LocalNodeId<WhereClause>> {
+    fn eat_where_clause(&mut self) -> ParserResult<LocalNodeId<WhereClause>> {
         // span start
         let start = self.span_start();
 
@@ -109,7 +109,7 @@ impl Parser {
             self.current_keyword(),
             Some(Keyword::Extends | Keyword::Implements)
         ) {
-            let error = ParseError::expected(self.peek()?.span, TokenType::Colon);
+            let error = ParserError::expected(self.peek()?.span, TokenType::Colon);
             self.error(&error);
             self.bump(); // eat stale relation separator
         } else {

@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 
 use destack_dir::{InferForm, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 
@@ -11,7 +11,7 @@ impl Parser {
     /// infer T extends U
     /// infer T extends (U extends V ? X : Y)
     /// ```
-    pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    pub fn eat_type_infer_expression(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         // `infer T`
         let start = self.span_start();
         self.eat_keyword(Keyword::Infer)?;
@@ -42,7 +42,7 @@ impl Parser {
     /// ```
     fn eat_infer_binding(
         &mut self,
-    ) -> ParseResult<(Option<destack_core::StringId>, destack_source::Span)> {
+    ) -> ParserResult<(Option<destack_core::StringId>, destack_source::Span)> {
         let (name, name_span) = self.eat_identifier_with_span()?;
         if self.language.is_destack() && self.get_span_str(name_span) == "_" {
             return Ok((None, name_span));
@@ -59,7 +59,7 @@ impl Parser {
     /// extends keyof T
     /// extends { id: string }
     /// ```
-    fn eat_infer_constraint(&mut self) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    fn eat_infer_constraint(&mut self) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
@@ -85,7 +85,7 @@ impl Parser {
     /// readonly string[]
     /// T extends U ? A : B
     /// ```
-    fn eat_infer_constraint_type(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_infer_constraint_type(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut flags = self
             .flags
             .not_in_position()

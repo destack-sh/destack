@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 
 use destack_dir::{
     Keyword, LocalNodeId, MappedTypeModifier, NodeType, TokenType, TypeExpression,
@@ -33,7 +33,7 @@ impl Parser {
     /// { readonly [K in keyof T]?: T[K] }
     /// { [K in keyof T as `get${K}`]: T[K] }
     /// ```
-    pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    pub fn eat_type_mapped_expression(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.span_start();
 
         // mapped body: `{ ... }`
@@ -116,7 +116,7 @@ impl Parser {
     /// [K in keyof T as `get${K}`]
     /// [P in keyof Model as P]
     /// ```
-    fn eat_type_mapped_head(&mut self) -> ParseResult<MappedTypeHead> {
+    fn eat_type_mapped_head(&mut self) -> ParserResult<MappedTypeHead> {
         let start = self.span_start();
         self.eat_token(TokenType::OpenBracket)?;
 
@@ -161,7 +161,7 @@ impl Parser {
     fn eat_type_mapped_key_remap(
         &mut self,
         source_type: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if !self.is_keyword(Keyword::As) {
             return Ok(None);
         }
@@ -185,7 +185,7 @@ impl Parser {
     /// : readonly T[K]
     /// : T[K] | undefined
     /// ```
-    fn eat_type_mapped_value(&mut self) -> ParseResult<MappedTypeValue> {
+    fn eat_type_mapped_value(&mut self) -> ParserResult<MappedTypeValue> {
         if !self.peek_is(TokenType::Colon) {
             return Ok(MappedTypeValue {
                 value: None,
@@ -217,7 +217,7 @@ impl Parser {
     /// +readonly [K in keyof T]
     /// -readonly [K in keyof T]
     /// ```
-    fn eat_type_mapped_readonly_modifier(&mut self) -> ParseResult<MappedTypeModifier> {
+    fn eat_type_mapped_readonly_modifier(&mut self) -> ParserResult<MappedTypeModifier> {
         // readonly modifier: `readonly`, `+readonly`, `-readonly`
         if self.is_keyword(Keyword::Readonly) {
             self.bump();
@@ -252,7 +252,7 @@ impl Parser {
     /// [K in keyof T]+?
     /// [K in keyof T]-?
     /// ```
-    fn eat_type_mapped_optional_modifier(&mut self) -> ParseResult<MappedTypeModifier> {
+    fn eat_type_mapped_optional_modifier(&mut self) -> ParserResult<MappedTypeModifier> {
         // ?
         if self.peek_is(TokenType::Maybe) {
             self.bump();

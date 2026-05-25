@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 
 use destack_dir::{
     Expression, InterfaceHeritage, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression,
@@ -26,9 +26,9 @@ impl Parser {
     fn eat_super_list<Item>(
         &mut self,
         terminators: &[Keyword],
-        mut eat_item: impl FnMut(&mut Parser) -> ParseResult<Item>,
-        mut finish_item: impl FnMut(&mut Parser, &Item, Span, bool) -> ParseResult<()>,
-    ) -> ParseResult<Vec<Item>> {
+        mut eat_item: impl FnMut(&mut Parser) -> ParserResult<Item>,
+        mut finish_item: impl FnMut(&mut Parser, &Item, Span, bool) -> ParserResult<()>,
+    ) -> ParserResult<Vec<Item>> {
         let mut items = Vec::new();
         let mut expects_item = true;
 
@@ -40,7 +40,7 @@ impl Parser {
             // clause boundary
             if self.is_super_clause_terminator(terminators) {
                 if expects_item && !items.is_empty() {
-                    return Err(ParseError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?.span));
                 }
                 break;
             }
@@ -49,13 +49,13 @@ impl Parser {
             if self.current_token_is_on_new_line() {
                 if self.newline_before_super_clause_terminator(terminators) {
                     if expects_item && !items.is_empty() {
-                        return Err(ParseError::unexpected(self.peek()?.span));
+                        return Err(ParserError::unexpected(self.peek()?.span));
                     }
                     break;
                 }
 
                 if !allow_newline_separator && !expects_item {
-                    return Err(ParseError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?.span));
                 }
                 if !expects_item {
                     expects_item = true;
@@ -82,7 +82,7 @@ impl Parser {
 
             // next heritage item
             if !expects_item {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             let item_start = self.span_start();
@@ -108,7 +108,7 @@ impl Parser {
     /// ```
     pub fn eat_extends_types_if_present(
         &mut self,
-    ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
+    ) -> ParserResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
         if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
@@ -138,7 +138,7 @@ impl Parser {
     #[inline]
     pub fn eat_interface_extends_if_present(
         &mut self,
-    ) -> ParseResult<Option<Vec<InterfaceHeritage>>> {
+    ) -> ParserResult<Option<Vec<InterfaceHeritage>>> {
         if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
@@ -172,7 +172,7 @@ impl Parser {
     #[inline]
     pub fn eat_extends_expressions_if_present(
         &mut self,
-    ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
+    ) -> ParserResult<Option<Vec<LocalNodeId<Expression>>>> {
         if !self.is_keyword(Keyword::Extends) {
             return Ok(None);
         }
@@ -202,7 +202,7 @@ impl Parser {
     #[inline]
     pub fn eat_implements_types_if_present(
         &mut self,
-    ) -> ParseResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
+    ) -> ParserResult<Option<Vec<LocalNodeId<TypeExpression>>>> {
         if !self.is_keyword(Keyword::Implements) {
             return Ok(None);
         }
@@ -268,7 +268,7 @@ impl Parser {
     fn eat_super_type_list(
         &mut self,
         terminators: &[Keyword],
-    ) -> ParseResult<Vec<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Vec<LocalNodeId<TypeExpression>>> {
         self.eat_super_list(
             terminators,
             |parser| {
@@ -302,7 +302,7 @@ impl Parser {
     fn eat_super_expression_list(
         &mut self,
         terminators: &[Keyword],
-    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
         self.eat_super_list(
             terminators,
             |parser| parser.eat_heritage_expression(),
@@ -316,7 +316,7 @@ impl Parser {
                 if !item_starts_with_parenthesis
                     && parser.super_type_has_invalid_unparenthesized_head(*ty)
                 {
-                    return Err(ParseError::unexpected(parser.tree.get_span(*ty)));
+                    return Err(ParserError::unexpected(parser.tree.get_span(*ty)));
                 }
 
                 Ok(())
@@ -335,7 +335,7 @@ impl Parser {
     fn eat_interface_heritage_list(
         &mut self,
         terminators: &[Keyword],
-    ) -> ParseResult<Vec<InterfaceHeritage>> {
+    ) -> ParserResult<Vec<InterfaceHeritage>> {
         self.eat_super_list(
             terminators,
             |parser| {
@@ -353,7 +353,7 @@ impl Parser {
                 if !item_starts_with_parenthesis
                     && parser.super_type_has_invalid_unparenthesized_head(heritage.expression)
                 {
-                    return Err(ParseError::unexpected(
+                    return Err(ParserError::unexpected(
                         parser.tree.get_span(heritage.expression),
                     ));
                 }
@@ -371,7 +371,7 @@ impl Parser {
     /// Base<T>
     /// Namespace.Base
     /// ```
-    fn eat_heritage_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_heritage_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let flags = self.flags.in_before_block().not_in_sequence_expression();
 
         self.eat_expression_at_precedence(flags, u16::MAX)

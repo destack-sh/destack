@@ -1,6 +1,6 @@
 use crate::parse::flags::ParserFlags;
 use crate::parse::prelude::*;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Expression, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField, RangeEnd,
@@ -22,14 +22,14 @@ impl Parser {
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ...] }
     /// ```
-    pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
+    pub fn eat_pattern(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
         self.with_recursive_descent(NodeType::Pattern, |parser| {
             parser.eat_pattern_at_current_depth()
         })
     }
 
     /// Eat a pattern after recursive descent state has been entered.
-    fn eat_pattern_at_current_depth(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
+    fn eat_pattern_at_current_depth(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
         let start = self.span_start();
 
         // ------------------------------------------------------------
@@ -391,7 +391,7 @@ impl Parser {
     fn eat_range_pattern_end_maybe(
         &mut self,
         end_kind: RangeEnd,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         let is_omitted = self.range_pattern_end_is_omitted();
 
         // open-ended ranges may omit the right endpoint
@@ -416,7 +416,7 @@ impl Parser {
     fn eat_range_pattern_end_expression(
         &mut self,
         flags: ParserFlags,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // match arrows terminate symbolic endpoints
@@ -434,7 +434,7 @@ impl Parser {
     fn eat_startless_range_pattern(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Pattern>> {
+    ) -> ParserResult<LocalNodeId<Pattern>> {
         let end_kind = match self.peek_token_type() {
             TokenType::Range => RangeEnd::Open,
             TokenType::RangeInclusive => RangeEnd::Inclusive,
@@ -464,7 +464,7 @@ impl Parser {
         start: &ParserSpanStart,
         start_id: LocalNodeId<Expression>,
         end_kind: RangeEnd,
-    ) -> ParseResult<LocalNodeId<Pattern>> {
+    ) -> ParserResult<LocalNodeId<Pattern>> {
         self.bump(); // eat range operator
         let end = self.eat_range_pattern_end_maybe(end_kind)?;
 
@@ -483,7 +483,7 @@ impl Parser {
         &mut self,
         separator: TokenType,
         terminator: TokenType,
-    ) -> ParseResult<Vec<LocalNodeId<PatternField>>> {
+    ) -> ParserResult<Vec<LocalNodeId<PatternField>>> {
         let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
         let is_object_pattern = terminator == TokenType::CloseBrace;
         let enforce_terminal_spread =
@@ -498,7 +498,7 @@ impl Parser {
 
             // spread fields must be terminal in typed and untyped patterns
             if enforce_terminal_spread && has_spread_field {
-                return Err(ParseError::unexpected(self.peek()?.span));
+                return Err(ParserError::unexpected(self.peek()?.span));
             }
 
             // parse one field
@@ -522,7 +522,7 @@ impl Parser {
                 let has_non_terminal_newline_after_spread =
                     self.current_token_is_on_new_line() && !self.peek_is(terminator);
                 if has_separator_after_spread || has_non_terminal_newline_after_spread {
-                    return Err(ParseError::unexpected(self.peek()?.span));
+                    return Err(ParserError::unexpected(self.peek()?.span));
                 }
             }
 
@@ -548,7 +548,7 @@ impl Parser {
         terminator: TokenType,
         is_object_pattern: bool,
         field_start: ParserSpanStart,
-    ) -> ParseResult<(PatternField, Option<Span>)> {
+    ) -> ParserResult<(PatternField, Option<Span>)> {
         // array and tuple elisions are empty fields before a separator
         if !is_object_pattern && self.peek_token_type() == separator {
             return Ok((PatternField::Elision, None));
@@ -568,7 +568,7 @@ impl Parser {
         separator: TokenType,
         terminator: TokenType,
         field_start: ParserSpanStart,
-    ) -> ParseResult<(PatternField, Option<Span>)> {
+    ) -> ParserResult<(PatternField, Option<Span>)> {
         // computed property
         if self.peek_is(TokenType::OpenBracket) {
             let pattern_field = self.eat_computed_pattern_field(field_start)?;
@@ -595,7 +595,7 @@ impl Parser {
         separator: TokenType,
         terminator: TokenType,
         field_start: ParserSpanStart,
-    ) -> ParseResult<(PatternField, Option<Span>)> {
+    ) -> ParserResult<(PatternField, Option<Span>)> {
         // wildcard fields are positional unless explicitly used as labels
         if self.peek_identifier_str_is("_") && self.token_type_at_offset(1) != TokenType::Colon {
             let pattern_field = self.eat_positional_pattern_field()?;
@@ -623,7 +623,7 @@ impl Parser {
     fn eat_computed_pattern_field(
         &mut self,
         field_start: ParserSpanStart,
-    ) -> ParseResult<PatternField> {
+    ) -> ParserResult<PatternField> {
         self.eat_token(TokenType::OpenBracket)?;
         let key = self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
         self.eat_close_token_or_recover_missing_with(
@@ -648,7 +648,7 @@ impl Parser {
         separator: TokenType,
         terminator: TokenType,
         field_start: ParserSpanStart,
-    ) -> ParseResult<(PatternField, Option<Span>)> {
+    ) -> ParserResult<(PatternField, Option<Span>)> {
         if self.peek_is(TokenType::Spread) {
             let pattern_field = self.eat_spread_pattern_field(separator, terminator)?;
             return Ok((pattern_field, None));
@@ -662,7 +662,7 @@ impl Parser {
         &mut self,
         terminator: TokenType,
         field_start: ParserSpanStart,
-    ) -> ParseResult<(PatternField, Option<Span>)> {
+    ) -> ParserResult<(PatternField, Option<Span>)> {
         let has_named_colon_field = self.peek_name_is()
             && self.token_type_at_offset(1) == TokenType::Colon
             || terminator == TokenType::CloseBrace && self.peek_object_pattern_alias_head();
@@ -690,7 +690,7 @@ impl Parser {
         &mut self,
         terminator: TokenType,
         field_start: ParserSpanStart,
-    ) -> ParseResult<(PatternField, Option<Span>)> {
+    ) -> ParserResult<(PatternField, Option<Span>)> {
         let (name, _name_span) = self.eat_pattern_field_name_with_span(terminator)?;
         self.bump(); // eat colon
 
@@ -711,7 +711,7 @@ impl Parser {
         &mut self,
         separator: TokenType,
         terminator: TokenType,
-    ) -> ParseResult<PatternField> {
+    ) -> ParserResult<PatternField> {
         self.bump(); // eat spread
 
         // omitted targets are allowed before separators and terminators
@@ -744,7 +744,7 @@ impl Parser {
     }
 
     // eat a positional pattern field with an optional default
-    fn eat_positional_pattern_field(&mut self) -> ParseResult<PatternField> {
+    fn eat_positional_pattern_field(&mut self) -> ParserResult<PatternField> {
         let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
         let pattern = self.eat_pattern_assignment_maybe(pattern, self.tree.get_span(pattern))?;
 
@@ -756,7 +756,7 @@ impl Parser {
         &mut self,
         pattern_id: LocalNodeId<Pattern>,
         span: Span,
-    ) -> ParseResult<LocalNodeId<Pattern>> {
+    ) -> ParserResult<LocalNodeId<Pattern>> {
         let has_immediate_default = self.peek_is(TokenType::Assign);
         let has_newline_default =
             self.current_token_is_on_new_line() && self.peek_is(TokenType::Assign);
@@ -781,7 +781,7 @@ impl Parser {
         name: Name,
         name_span: Span,
         field_span: Span,
-    ) -> ParseResult<Option<LocalNodeId<Pattern>>> {
+    ) -> ParserResult<Option<LocalNodeId<Pattern>>> {
         let identifier = match name {
             Name::Identifier(name) | Name::String(name) | Name::Number(name) => name,
         };
@@ -823,7 +823,7 @@ impl Parser {
     fn eat_pattern_field_name_with_span(
         &mut self,
         terminator: TokenType,
-    ) -> ParseResult<(Name, Span)> {
+    ) -> ParserResult<(Name, Span)> {
         let is_numeric_object_key =
             terminator == TokenType::CloseBrace && self.peek_numeric_literal_is();
         if is_numeric_object_key {
@@ -839,7 +839,7 @@ impl Parser {
     }
 
     // eat a numeric pattern field name as Name::Number
-    fn eat_numeric_pattern_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
+    fn eat_numeric_pattern_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
         let token = *self.peek_numeric_literal()?;
         let key_string = self.file.span_str(token.span).to_string();
 
@@ -848,7 +848,7 @@ impl Parser {
             numeric_literal,
             ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
         ) {
-            return Err(ParseError::unexpected(token.span));
+            return Err(ParserError::unexpected(token.span));
         }
 
         let key_name = self.strings.intern(&key_string);
@@ -856,12 +856,12 @@ impl Parser {
     }
 
     // eat a boolean pattern field name as Name::Identifier
-    fn eat_boolean_pattern_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
+    fn eat_boolean_pattern_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
         let token = *self.peek()?;
         if token.token.ty != TokenType::Literal
             || !matches!(token.token.literal, Some(TokenLiteral::Boolean { .. }))
         {
-            return Err(ParseError::unexpected(token.span));
+            return Err(ParserError::unexpected(token.span));
         }
 
         self.bump();

@@ -1,5 +1,5 @@
 use crate::parse::scope::TypeScope;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_core::StringId;
 use destack_dir::{LocalNodeId, NodeType, Path, TokenType, TypeExpression};
@@ -32,7 +32,7 @@ impl Parser {
         start: &ParserSpanStart,
         mut left: LocalNodeId<TypeExpression>,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         loop {
             let token_type = self.peek_token_type();
             let is_on_new_line = self.current_token_is_on_new_line();
@@ -102,7 +102,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+    ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if self.current_token_is_on_new_line() {
             return Ok(None);
         }
@@ -154,7 +154,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::Dot)?;
         let (name, _) = self.eat_member_name_with_span()?;
         let generic_arguments = if self.type_generic_arguments_start_here() {
@@ -184,7 +184,7 @@ impl Parser {
     fn eat_type_index_postfix(
         &mut self,
         left: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.span_start();
         self.eat_token(TokenType::OpenBracket)?;
 

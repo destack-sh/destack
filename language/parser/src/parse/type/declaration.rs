@@ -1,5 +1,5 @@
 use crate::parse::DeclarationHeader;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
@@ -34,7 +34,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let keyword_start = self.span_start();
         let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
         let keyword_span = self.get_span_from(&keyword_start);
@@ -71,11 +71,11 @@ impl Parser {
     }
 
     /// Return type keyword metadata.
-    fn type_keyword_header(&mut self, keyword: Keyword) -> ParseResult<TypeKeywordHeader> {
+    fn type_keyword_header(&mut self, keyword: Keyword) -> ParserResult<TypeKeywordHeader> {
         let kind = match keyword {
             Keyword::Type | Keyword::Readonly => TypeKind::Structural,
             Keyword::Newtype => TypeKind::Nominal,
-            _ => return Err(ParseError::unexpected(self.anchor_span_here())),
+            _ => return Err(ParserError::unexpected(self.anchor_span_here())),
         };
 
         let mutability = if keyword == Keyword::Readonly {
@@ -100,7 +100,7 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
         type_keyword: TypeKeywordHeader,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let (name, name_span) = self.eat_name_with_span()?;
         let generic_parameter_container_start = self.span_start();
         let generic_parameters = match self.eat_generic_parameters_maybe(true)? {
@@ -158,7 +158,7 @@ impl Parser {
         start: &ParserSpanStart,
         keyword_span: destack_source::Span,
         type_keyword: TypeKeywordHeader,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let right = self.eat_type_keyword_body()?;
         if type_keyword.mutability != Some(Mutability::Immutable) {
             return Ok(right);
@@ -182,7 +182,7 @@ impl Parser {
     /// value is string
     /// T extends U ? X : Y
     /// ```
-    pub(crate) fn eat_type_expression(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    pub(crate) fn eat_type_expression(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.flags.is_in_type() {
             return self.eat_type_expression_in_flags(self.flags);
         }
@@ -198,7 +198,7 @@ impl Parser {
     /// string | number
     /// { id: string }
     /// ```
-    fn eat_type_alias_value(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_type_alias_value(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         // bare intrinsic marker
         if self.peek_identifier_is() {
             let reference = *self.peek()?;
@@ -216,7 +216,7 @@ impl Parser {
 
         // reject optional type suffixes outside tuple and parameter heads
         if self.peek_is(TokenType::Maybe) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         Ok(value)
@@ -230,7 +230,7 @@ impl Parser {
     /// readonly T
     /// T extends U ? X : Y
     /// ```
-    fn eat_type_keyword_body(&mut self) -> ParseResult<LocalNodeId<TypeExpression>> {
+    fn eat_type_keyword_body(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut value_flags = self.flags.not_in_position().in_type();
         if self.flags.is_in_type_conditional_right() {
             value_flags = value_flags.in_type_conditional_right();

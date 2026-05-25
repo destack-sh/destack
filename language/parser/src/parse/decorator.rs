@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 use destack_dir::{Decorator, DecoratorPosition, LocalNodeId, TokenType};
 use smallvec::SmallVec;
 
@@ -16,7 +16,7 @@ pub(crate) type PendingDecorators = SmallVec<[PendingDecorator; 2]>;
 
 impl Parser {
     /// Parse a decorator prefix sequence if present at the current token.
-    pub(crate) fn eat_decorators_maybe(&mut self) -> ParseResult<PendingDecorators> {
+    pub(crate) fn eat_decorators_maybe(&mut self) -> ParserResult<PendingDecorators> {
         let mut decorators = PendingDecorators::new();
 
         while self.peek_is(TokenType::At) {
@@ -49,7 +49,7 @@ impl Parser {
     }
 
     /// Parse one decorator expression.
-    fn eat_decorator(&mut self) -> ParseResult<LocalNodeId<Decorator>> {
+    fn eat_decorator(&mut self) -> ParserResult<LocalNodeId<Decorator>> {
         let start = self.span_start();
 
         // eat @ marker

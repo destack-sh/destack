@@ -1,6 +1,6 @@
 use crate::parse::flags::ParserFlags;
 use crate::parse::scope::TypeScope;
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 use destack_dir::{LocalNodeId, NodeType, TokenType, TypeExpression};
 use smallvec::SmallVec;
 
@@ -16,7 +16,7 @@ impl Parser {
     pub(crate) fn eat_type_expression_in_flags(
         &mut self,
         flags: ParserFlags,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let scope = TypeScope::from_flags(flags);
 
         self.with_recursive_descent(NodeType::TypeExpression, |parser| {
@@ -35,7 +35,7 @@ impl Parser {
     pub(in crate::parse) fn eat_type_expression_body(
         &mut self,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let start = self.span_start();
         let mut decorators = if !self.flags.is_in_decorator() && self.peek_is(TokenType::At) {
             self.eat_decorators_maybe()?
@@ -60,7 +60,7 @@ impl Parser {
     pub(super) fn eat_type_expression_scope(
         &mut self,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.with_flags(scope.flags, |parser| parser.eat_type_expression_body(scope))
     }
 
@@ -75,7 +75,7 @@ impl Parser {
     pub(super) fn eat_type_operand(
         &mut self,
         scope: TypeScope,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.with_flags(scope.flags, |parser| {
             let start = parser.span_start();
 

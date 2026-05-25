@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     BlockContext, BlockForm, Declaration, GlobalDeclaration, LocalNodeId, NodeType, TokenType,
@@ -14,7 +14,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
-    ) -> ParseResult<LocalNodeId<Declaration>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         self.eat_identifier_str("global")?;
 
         self.eat_token(TokenType::OpenBrace)?;

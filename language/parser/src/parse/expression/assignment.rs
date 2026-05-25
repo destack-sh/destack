@@ -1,6 +1,6 @@
 use crate::parse::expression::operator::ExpressionInfixOperator;
 use crate::parse::scope::ExpressionScope;
-use crate::{ParseError, ParseResult, Parser, ParserCheckpoint, ParserSpanStart};
+use crate::{Parser, ParserCheckpoint, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     AssignOperator, AssignPattern, AssignPatternField, Expression, Key, LocalNodeId, Name,
     NodeType, TokenType,
@@ -20,7 +20,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         scope: ExpressionScope,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         // remember source for destructuring targets
         let starts_destructuring = matches!(
             self.peek_token_type(),
@@ -58,7 +58,7 @@ impl Parser {
         start: &ParserSpanStart,
         left_expression: LocalNodeId<Expression>,
         scope: ExpressionScope,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign)) {
             return Ok(left_expression);
         }
@@ -85,7 +85,7 @@ impl Parser {
     /// await load()
     /// condition ? yes : no
     /// ```
-    fn eat_assignment_right_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_assignment_right_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let right_scope =
             ExpressionScope::from_flags(self.flags.not_in_position().not_in_sequence_expression())
                 .with_newline_call_boundary(true);
@@ -119,7 +119,7 @@ impl Parser {
     fn eat_assignment_operator(
         &mut self,
         scope: ExpressionScope,
-    ) -> ParseResult<Option<(AssignOperator, Span)>> {
+    ) -> ParserResult<Option<(AssignOperator, Span)>> {
         let operator_is_outer =
             scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign));
         if operator_is_outer {
@@ -142,11 +142,11 @@ impl Parser {
         &self,
         left: LocalNodeId<AssignPattern>,
         operator: AssignOperator,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         if operator != AssignOperator::Assign
             && !matches!(self.tree.get(left), AssignPattern::Expression { .. })
         {
-            Err(ParseError::unexpected(self.tree.get_span(left)))
+            Err(ParserError::unexpected(self.tree.get_span(left)))
         } else {
             Ok(())
         }
@@ -165,17 +165,17 @@ impl Parser {
         start: &ParserSpanStart,
         scope: ExpressionScope,
         checkpoint: Option<(ParserCheckpoint, u32)>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         // restore the source shaped target
         let Some((checkpoint, mark)) = checkpoint else {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         };
         self.restore(checkpoint, mark);
 
         // parse the target as a pattern
         let left = self.eat_assignment_target_pattern(false)?;
         let Some((operator, operator_span)) = self.eat_assignment_operator(scope)? else {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         };
         self.require_assignable_operator(left, operator)?;
 
@@ -196,7 +196,7 @@ impl Parser {
     fn eat_assignment_target_pattern(
         &mut self,
         allows_default: bool,
-    ) -> ParseResult<LocalNodeId<AssignPattern>> {
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
         self.with_recursive_descent(NodeType::AssignPattern, |parser| {
             parser.eat_assignment_target_pattern_at_current_depth(allows_default)
         })
@@ -206,7 +206,7 @@ impl Parser {
     fn eat_assignment_target_pattern_at_current_depth(
         &mut self,
         allows_default: bool,
-    ) -> ParseResult<LocalNodeId<AssignPattern>> {
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let start = self.span_start();
         let mut pattern = match self.peek_token_type() {
             TokenType::OpenBracket => self.eat_assignment_sequence_pattern(&start)?,
@@ -224,7 +224,7 @@ impl Parser {
                 let value_span = self.tree.get_span(value);
                 let span = Span::new(pattern_span.file, pattern_span.start, value_span.end);
 
-                return Err(ParseError::unexpected(span));
+                return Err(ParserError::unexpected(span));
             }
 
             let assign_start = self.span_start();
@@ -250,7 +250,7 @@ impl Parser {
     fn eat_assignment_sequence_pattern(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<AssignPattern>> {
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
         self.eat_token(TokenType::OpenBracket)?;
         let mut fields = Vec::new();
         let mut expects_field = true;
@@ -289,7 +289,7 @@ impl Parser {
     /// second = fallback
     /// ...rest
     /// ```
-    fn eat_assignment_sequence_field(&mut self) -> ParseResult<LocalNodeId<AssignPatternField>> {
+    fn eat_assignment_sequence_field(&mut self) -> ParserResult<LocalNodeId<AssignPatternField>> {
         let start = self.span_start();
         let field = if self.peek_is(TokenType::Spread) {
             self.bump();
@@ -318,7 +318,7 @@ impl Parser {
     fn eat_assignment_object_pattern(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<AssignPattern>> {
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
         self.eat_token(TokenType::OpenBrace)?;
         let mut fields = Vec::new();
 
@@ -350,7 +350,7 @@ impl Parser {
     /// name = fallback
     /// value: target
     /// ```
-    fn eat_assignment_object_field(&mut self) -> ParseResult<LocalNodeId<AssignPatternField>> {
+    fn eat_assignment_object_field(&mut self) -> ParserResult<LocalNodeId<AssignPatternField>> {
         let start = self.span_start();
 
         if self.peek_is(TokenType::Spread) {
@@ -381,7 +381,7 @@ impl Parser {
         &mut self,
         key: Key,
         key_span: Span,
-    ) -> ParseResult<AssignPatternField> {
+    ) -> ParserResult<AssignPatternField> {
         if self.peek_colon_is() {
             self.bump();
             let pattern = self.eat_assignment_target_pattern(true)?;
@@ -392,12 +392,12 @@ impl Parser {
                     is_shorthand: false,
                 }),
                 Key::Expression(key) => Ok(AssignPatternField::Computed { key, pattern }),
-                Key::Private(_) => Err(ParseError::unexpected(key_span)),
+                Key::Private(_) => Err(ParserError::unexpected(key_span)),
             };
         }
 
         let Key::Name(name @ Name::Identifier(identifier)) = key else {
-            return Err(ParseError::unexpected(key_span));
+            return Err(ParserError::unexpected(key_span));
         };
 
         if !self.peek_is(TokenType::Assign) {
@@ -440,7 +440,7 @@ impl Parser {
     /// object.field
     /// array[index]
     /// ```
-    fn eat_assignment_expression_pattern(&mut self) -> ParseResult<LocalNodeId<AssignPattern>> {
+    fn eat_assignment_expression_pattern(&mut self) -> ParserResult<LocalNodeId<AssignPattern>> {
         let start = self.span_start();
         let expression_id =
             self.eat_conditional(&start, ExpressionScope::from_flags(self.flags))?;
@@ -459,7 +459,7 @@ impl Parser {
     fn assignment_pattern_from_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<AssignPattern>> {
+    ) -> ParserResult<LocalNodeId<AssignPattern>> {
         let is_parenthesized = matches!(
             self.tree.get(expression_id),
             Expression::Parenthesized { .. }
@@ -474,17 +474,17 @@ impl Parser {
             Expression::As { .. } | Expression::Satisfies { .. }
         ) && !is_parenthesized
         {
-            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
         }
 
         // reject parenthesized assignments and destructuring expressions
         if let Expression::Parenthesized { expression } = self.tree.get(expression_id) {
             match self.tree.get(*expression) {
                 Expression::Assign { .. } => {
-                    return Err(ParseError::unexpected(self.tree.get_span(*expression)));
+                    return Err(ParserError::unexpected(self.tree.get_span(*expression)));
                 }
                 Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. } => {
-                    return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+                    return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
                 }
                 _ => {}
             }
@@ -492,7 +492,7 @@ impl Parser {
 
         // reject non assignable values
         if !self.expression_is_simple_assignment_target(expression_id) {
-            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
         }
 
         let target_id = self.without_parentheses_expression(expression_id);

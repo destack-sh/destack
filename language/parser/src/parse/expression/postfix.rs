@@ -1,5 +1,5 @@
 use crate::parse::scope::ExpressionScope;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Expression, Keyword, LocalNodeId, NodeType, Path, PostfixPosition, ScalarLiteral, TokenType,
     TypeExpression, UnaryOperator,
@@ -21,7 +21,7 @@ impl Parser {
         mut left: LocalNodeId<Expression>,
         mut is_parenthesized: bool,
         scope: ExpressionScope,
-    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
+    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
         loop {
             let token_type = self.peek_token_type();
             let is_on_new_line = self.current_token_is_on_new_line();
@@ -96,13 +96,13 @@ impl Parser {
         is_parenthesized: bool,
         scope: ExpressionScope,
         is_on_new_line: bool,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.call_belongs_to_outer_scope(left, scope, is_on_new_line) {
             return Ok(None);
         }
 
         if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.eat_call(left, Vec::new().into(), PostfixPosition::Direct)
@@ -142,7 +142,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
         position: PostfixPosition,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let operator_span = self.peek()?.span;
         self.bump();
         let expression_id = self.insert_node(
@@ -167,7 +167,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
         position: PostfixPosition,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let operator_span = self.peek()?.span;
         self.bump();
         let expression_id = self.insert_node(
@@ -267,7 +267,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.generic_belongs_to_outer_scope(scope)? {
             return Ok(None);
         }
@@ -300,7 +300,7 @@ impl Parser {
     }
 
     /// Return whether value generic postfix is owned by an outer parser.
-    fn generic_belongs_to_outer_scope(&mut self, scope: ExpressionScope) -> ParseResult<bool> {
+    fn generic_belongs_to_outer_scope(&mut self, scope: ExpressionScope) -> ParserResult<bool> {
         if self.peek_is(TokenType::ShiftLeft) && !self.shift_left_can_start_generic_arguments() {
             return Ok(true);
         }
@@ -314,7 +314,7 @@ impl Parser {
                 return Ok(true);
             }
 
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         Ok(false)
@@ -332,7 +332,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let value = self.eat_tagged_template_literal()?;
 
         Ok(self.insert_node(
@@ -461,7 +461,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !self.language.is_destack()
             || !self.peek_is(TokenType::OpenBrace)
             || self.current_token_is_on_new_line()
@@ -480,7 +480,7 @@ impl Parser {
         };
 
         if !self.can_start_tagged_object_literal_type(ty) {
-            return Err(ParseError::unexpected(self.tree.get_span(left)));
+            return Err(ParserError::unexpected(self.tree.get_span(left)));
         }
 
         let properties = self.with_flags(self.flags.not_in_position(), |parser| {
@@ -666,10 +666,10 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let dot_span = self.eat_token(TokenType::Dot)?.span;
         if self.expression_is_decimal_integer_before_dot(left, dot_span) {
-            return Err(ParseError::unexpected(dot_span));
+            return Err(ParserError::unexpected(dot_span));
         }
 
         // indirect call and index
@@ -719,9 +719,9 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let Some(generic_arguments) = self.eat_generic_arguments_if_valid(true) else {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         };
 
         if self.peek_is(TokenType::OpenParenthesis) {
@@ -749,9 +749,9 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if self.language.is_destack() {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         let hash_span = self.peek()?.span;
@@ -785,7 +785,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if !self.current_token_starts_member_name() {
             self.report_unexpected_for_here(NodeType::Expression);
             let expression = self.insert_node(

@@ -1,5 +1,5 @@
 use crate::parse::flags::ParserFlags;
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{Expression, LocalNodeId, NodeType, TokenType, TypeExpression};
 use destack_source::Span;
 
@@ -89,7 +89,7 @@ impl Parser {
 
     /// Report one unexpected node at the current cursor position.
     pub(crate) fn report_unexpected_for_here(&mut self, owner: NodeType) {
-        let error = ParseError::unexpected_for(self.anchor_span_here(), owner);
+        let error = ParserError::unexpected_for(self.anchor_span_here(), owner);
 
         self.error(&error);
     }
@@ -100,9 +100,9 @@ impl Parser {
         expected: TokenType,
         owner: NodeType,
         is_recoverable_boundary: bool,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         if !is_recoverable_boundary {
-            return Err(ParseError::expected(self.anchor_span_here(), expected));
+            return Err(ParserError::expected(self.anchor_span_here(), expected));
         }
 
         self.report_unexpected_for_here(owner);
@@ -132,7 +132,7 @@ impl Parser {
         &mut self,
         flags: ParserFlags,
         owner: NodeType,
-    ) -> ParseResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         if self.is_type_expression_boundary() {
             return Ok(self.recover_missing_type_expression_here(owner));
         }
@@ -145,7 +145,7 @@ impl Parser {
         &mut self,
         flags: ParserFlags,
         owner: NodeType,
-    ) -> ParseResult<LocalNodeId<Expression>> {
+    ) -> ParserResult<LocalNodeId<Expression>> {
         if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
             return Ok(self.recover_missing_expression_here(owner));
         }
@@ -158,7 +158,7 @@ impl Parser {
         &mut self,
         expected: TokenType,
         owner: NodeType,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         self.eat_close_token_or_recover_missing_with(expected, owner, |parser, token_type| {
             Self::is_close_delimiter_boundary_token(token_type)
                 || parser.current_token_is_on_new_line()
@@ -172,7 +172,7 @@ impl Parser {
         expected: TokenType,
         owner: NodeType,
         is_recoverable_boundary: impl FnOnce(&mut Self, TokenType) -> bool,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         if self.peek_is(expected) {
             self.bump();
             return Ok(());
@@ -189,7 +189,7 @@ impl Parser {
         &mut self,
         expected: TokenType,
         owner: NodeType,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         if self.peek_is(expected) {
             self.bump();
             return Ok(());
@@ -204,7 +204,7 @@ impl Parser {
         &mut self,
         expected: TokenType,
         owner: NodeType,
-    ) -> ParseResult<()> {
+    ) -> ParserResult<()> {
         self.eat_close_token_or_recover_missing_with(expected, owner, |_, token_type| {
             Self::is_type_container_boundary_token(token_type)
         })
@@ -214,7 +214,7 @@ impl Parser {
     pub fn with_token_recovery<T>(
         &mut self,
         start: &ParserSpanStart,
-        parse: impl FnOnce(&mut Self) -> ParseResult<T>,
+        parse: impl FnOnce(&mut Self) -> ParserResult<T>,
         default: T,
         bail: TokenType,
     ) -> T {
@@ -231,7 +231,7 @@ impl Parser {
     pub fn with_statement_recovery<T>(
         &mut self,
         start: &ParserSpanStart,
-        parse: impl FnOnce(&mut Self) -> ParseResult<T>,
+        parse: impl FnOnce(&mut Self) -> ParserResult<T>,
         default: T,
     ) -> T {
         match parse(self) {
@@ -248,8 +248,8 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         recover: TokenType,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
+        error: Option<ParserError>,
+    ) -> ParserResult<()> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
@@ -258,7 +258,7 @@ impl Parser {
             }
 
             if token_type == recover {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
             }
@@ -266,7 +266,7 @@ impl Parser {
             self.bump();
         }
 
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
         self.error(&error);
 
         Err(error)
@@ -277,8 +277,8 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         terminator: TokenType,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
+        error: Option<ParserError>,
+    ) -> ParserResult<()> {
         let mut depth = RecoveryDelimiterDepth::new(terminator);
 
         while let Ok(token) = self.peek() {
@@ -295,7 +295,7 @@ impl Parser {
                     || Self::is_item_stop_token(token_type)
                     || Self::is_close_delimiter_token(token_type));
             if is_boundary {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
             }
@@ -304,7 +304,7 @@ impl Parser {
             self.bump();
         }
 
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
         self.error(&error);
 
         Err(error)
@@ -314,8 +314,8 @@ impl Parser {
     pub fn try_recover_in_statement(
         &mut self,
         start: &ParserSpanStart,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
+        error: Option<ParserError>,
+    ) -> ParserResult<()> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
@@ -328,7 +328,7 @@ impl Parser {
                 || Self::is_statement_stop_token(token_type)
                 || token_type == TokenType::CloseBrace;
             if is_boundary {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
             }
@@ -336,7 +336,7 @@ impl Parser {
             self.bump();
         }
 
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
         self.error(&error);
 
         Ok(())
@@ -346,8 +346,8 @@ impl Parser {
     pub fn try_recover_in_statement_from_span(
         &mut self,
         start_span: Span,
-        error: Option<ParseError>,
-    ) -> ParseResult<Span> {
+        error: Option<ParserError>,
+    ) -> ParserResult<Span> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
@@ -362,7 +362,7 @@ impl Parser {
                 || token_type == TokenType::CloseBrace;
             if is_boundary {
                 let recovered_span = self.recovered_span_from(start_span);
-                let error = ParseError::from_source_maybe(recovered_span, error);
+                let error = ParserError::from_source_maybe(recovered_span, error);
                 self.error(&error);
                 return Ok(recovered_span);
             }
@@ -371,7 +371,7 @@ impl Parser {
         }
 
         let recovered_span = self.recovered_span_from(start_span);
-        let error = ParseError::from_source_maybe(recovered_span, error);
+        let error = ParserError::from_source_maybe(recovered_span, error);
         self.error(&error);
 
         Ok(recovered_span)
@@ -407,8 +407,8 @@ impl Parser {
     pub fn try_recover_in_body(
         &mut self,
         start: &ParserSpanStart,
-        error: Option<ParseError>,
-    ) -> ParseResult<()> {
+        error: Option<ParserError>,
+    ) -> ParserResult<()> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
@@ -421,7 +421,7 @@ impl Parser {
                 || token_type == TokenType::CloseBrace
                 || Self::is_any_stop_token(token_type);
             if is_boundary {
-                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
                 self.error(&error);
                 return Ok(());
             }
@@ -429,7 +429,7 @@ impl Parser {
             self.bump();
         }
 
-        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
         self.error(&error);
 
         Err(error)
@@ -439,8 +439,8 @@ impl Parser {
     pub fn try_recover_in_body_from_span(
         &mut self,
         start_span: Span,
-        error: Option<ParseError>,
-    ) -> ParseResult<Span> {
+        error: Option<ParserError>,
+    ) -> ParserResult<Span> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
@@ -455,7 +455,7 @@ impl Parser {
                 || Self::is_any_stop_token(token_type);
             if is_boundary {
                 let recovered_span = self.recovered_span_from(start_span);
-                let error = ParseError::from_source_maybe(recovered_span, error);
+                let error = ParserError::from_source_maybe(recovered_span, error);
                 self.error(&error);
                 return Ok(recovered_span);
             }
@@ -464,7 +464,7 @@ impl Parser {
         }
 
         let recovered_span = self.recovered_span_from(start_span);
-        let error = ParseError::from_source_maybe(recovered_span, error);
+        let error = ParserError::from_source_maybe(recovered_span, error);
         self.error(&error);
 
         Err(error)
@@ -479,7 +479,7 @@ impl Parser {
     }
 
     /// Eat the expected token with forward recovery.
-    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParseResult<()> {
+    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParserResult<()> {
         if self.peek_is(expected) {
             self.bump();
             return Ok(());
@@ -494,7 +494,7 @@ impl Parser {
             }
 
             if token.token.ty == expected {
-                let error = ParseError::unexpected(self.get_span_from(&start));
+                let error = ParserError::unexpected(self.get_span_from(&start));
                 self.bump();
                 self.error(&error);
                 return Ok(());
@@ -503,7 +503,7 @@ impl Parser {
             self.bump();
         }
 
-        let error = ParseError::unexpected(self.get_span_from(&start));
+        let error = ParserError::unexpected(self.get_span_from(&start));
         self.error(&error);
 
         Err(error)

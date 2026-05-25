@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{Parser, ParserResult};
 use destack_dir::{BlockContext, Catch, Expression, Keyword, LocalNodeId, NodeType, TokenType};
 
 impl Parser {
@@ -31,7 +31,7 @@ impl Parser {
     /// ```
     ///
     /// The parser accepts `try <expr>` without catch/finally, but Analyze rejects it.
-    pub fn eat_try(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_try(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
         self.eat_keyword(Keyword::Try)?;
 
@@ -138,7 +138,7 @@ impl Parser {
     }
 
     /// Eat a catch or finally branch body.
-    fn eat_try_branch_body(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    fn eat_try_branch_body(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         if self.is_block_start() {
             let block = self.eat_block(BlockContext::Expression)?;
             let span = self.tree.get_span(block);

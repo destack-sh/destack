@@ -5,7 +5,7 @@ use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::Format;
-use destack_parser::{ParseResult, Parser, ParserOptions, ParserTriviaMode};
+use destack_parser::{Parser, ParserOptions, ParserResult, ParserTriviaMode};
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
 };
@@ -24,9 +24,9 @@ pub(crate) struct TestFormatter {
 
 impl TestFormatter {
     /// Parse one input with the default file type.
-    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParseResult<(Self, N)>
+    pub(crate) fn parse<F, N>(input: &str, parse_fn: F) -> ParserResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser) -> ParseResult<N>,
+        F: FnOnce(&mut Parser) -> ParserResult<N>,
     {
         Self::parse_with_file_type(input, FileType::Destack, parse_fn)
     }
@@ -36,9 +36,9 @@ impl TestFormatter {
         input: &str,
         file_type: FileType,
         parse_fn: F,
-    ) -> ParseResult<(Self, N)>
+    ) -> ParserResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser) -> ParseResult<N>,
+        F: FnOnce(&mut Parser) -> ParserResult<N>,
     {
         Self::parse_with_file_name_and_type(input, "<string>", file_type, parse_fn)
     }
@@ -49,9 +49,9 @@ impl TestFormatter {
         file_name: &str,
         file_type: FileType,
         parse_fn: F,
-    ) -> ParseResult<(Self, N)>
+    ) -> ParserResult<(Self, N)>
     where
-        F: FnOnce(&mut Parser) -> ParseResult<N>,
+        F: FnOnce(&mut Parser) -> ParserResult<N>,
     {
         // source
         let file_id = FileId::new(0);
@@ -132,7 +132,7 @@ impl TestFormatter {
 }
 
 /// Parse the first expression from one formatter test source.
-pub(crate) fn parse_first_expression(parser: &mut Parser) -> ParseResult<LocalNodeId<Expression>> {
+pub(crate) fn parse_first_expression(parser: &mut Parser) -> ParserResult<LocalNodeId<Expression>> {
     let expressions = parser.parse();
     let expression = expressions
         .into_iter()
@@ -207,7 +207,7 @@ pub(crate) fn assert_format_roundtrip_with_file_type<F, N>(
     parse_fn: F,
     options: DestackFormatOptions,
 ) where
-    F: Fn(&mut Parser) -> ParseResult<N> + Copy,
+    F: Fn(&mut Parser) -> ParserResult<N> + Copy,
     N: for<'a> Format<DestackFormatContext<'a>>,
 {
     let options = normalize_test_options_for_file_type(options, file_type);

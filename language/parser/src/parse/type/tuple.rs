@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
+use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{Keyword, LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
 
@@ -40,7 +40,7 @@ impl Parser {
     /// name?: string
     /// rest: ...string[]
     /// ```
-    fn eat_labeled_type_tuple_head(&mut self) -> ParseResult<(StringId, bool)> {
+    fn eat_labeled_type_tuple_head(&mut self) -> ParserResult<(StringId, bool)> {
         let (label, _) = self.eat_identifier_with_span()?;
 
         let is_optional = if self.peek_is(TokenType::Maybe) {
@@ -66,7 +66,7 @@ impl Parser {
     fn eat_type_tuple_element(
         &mut self,
         terminator: TokenType,
-    ) -> ParseResult<LocalNodeId<TupleElement>> {
+    ) -> ParserResult<LocalNodeId<TupleElement>> {
         let start = self.span_start();
         let is_readonly = self.eat_type_tuple_readonly_modifier()?;
 
@@ -93,7 +93,7 @@ impl Parser {
     /// readonly name: string
     /// readonly [string, number]
     /// ```
-    fn eat_type_tuple_readonly_modifier(&mut self) -> ParseResult<bool> {
+    fn eat_type_tuple_readonly_modifier(&mut self) -> ParserResult<bool> {
         let next = *self.peek()?;
         if !self.language.is_destack()
             && next.token.ty == TokenType::Identifier
@@ -119,17 +119,17 @@ impl Parser {
         start: &ParserSpanStart,
         _terminator: TokenType,
         is_readonly: bool,
-    ) -> ParseResult<LocalNodeId<TupleElement>> {
+    ) -> ParserResult<LocalNodeId<TupleElement>> {
         self.bump();
 
         if is_readonly {
-            return Err(ParseError::unexpected(self.get_span_from(start)));
+            return Err(ParserError::unexpected(self.get_span_from(start)));
         }
 
         let label = if self.starts_labeled_type_tuple_head() {
             let (label, is_optional) = self.eat_labeled_type_tuple_head()?;
             if is_optional {
-                return Err(ParseError::unexpected(self.get_span_from(start)));
+                return Err(ParserError::unexpected(self.get_span_from(start)));
             }
 
             Some(label)
@@ -153,7 +153,7 @@ impl Parser {
     /// name?: string
     /// ...rest: string[]
     /// ```
-    fn eat_type_tuple_label_if_present(&mut self) -> ParseResult<(Option<StringId>, bool)> {
+    fn eat_type_tuple_label_if_present(&mut self) -> ParserResult<(Option<StringId>, bool)> {
         if !self.starts_labeled_type_tuple_head() {
             return Ok((None, false));
         }
@@ -177,11 +177,11 @@ impl Parser {
         label: Option<StringId>,
         is_optional: bool,
         is_readonly: bool,
-    ) -> ParseResult<LocalNodeId<TupleElement>> {
+    ) -> ParserResult<LocalNodeId<TupleElement>> {
         self.bump();
 
         if is_optional || is_readonly {
-            return Err(ParseError::unexpected(self.get_span_from(start)));
+            return Err(ParserError::unexpected(self.get_span_from(start)));
         }
 
         let value = self.eat_type_expression()?;
@@ -207,7 +207,7 @@ impl Parser {
         label: Option<StringId>,
         is_optional: bool,
         is_readonly: bool,
-    ) -> ParseResult<LocalNodeId<TupleElement>> {
+    ) -> ParserResult<LocalNodeId<TupleElement>> {
         let value = self.eat_type_expression()?;
 
         let is_optional = if label.is_some() {
@@ -243,7 +243,7 @@ impl Parser {
         start: &ParserSpanStart,
         terminator: TokenType,
         value: LocalNodeId<TypeExpression>,
-    ) -> ParseResult<Vec<LocalNodeId<TupleElement>>> {
+    ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         // optional marker on an unlabeled tuple element
         let is_optional = if self.current_type_tuple_element_is_optional(terminator) {
             self.bump();
@@ -284,7 +284,7 @@ impl Parser {
     pub(crate) fn eat_type_tuple_elements_body(
         &mut self,
         terminator: TokenType,
-    ) -> ParseResult<Vec<LocalNodeId<TupleElement>>> {
+    ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         let mut element_ids = Vec::new();
 
         while self.has_more_tokens() {

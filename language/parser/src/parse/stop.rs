@@ -1,4 +1,4 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{TokenSpan, TokenType};
 use destack_source::Span;
 
@@ -119,7 +119,7 @@ impl Parser {
 
     /// Peek an item stop.
     #[inline]
-    pub fn peek_item_stop(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_item_stop(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && Self::is_item_stop_token(token.token.ty)
@@ -127,39 +127,39 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(eof_span, TokenType::Comma))
+            Err(ParserError::expected(eof_span, TokenType::Comma))
         }
     }
 
     /// Eat an item stop.
     #[inline]
-    pub fn eat_item_stop(&mut self) -> ParseResult<()> {
+    pub fn eat_item_stop(&mut self) -> ParserResult<()> {
         if let Ok(token) = self.peek()
             && token.token.ty == TokenType::Comma
         {
             self.bump();
         } else {
-            return Err(ParseError::expected(self.eof_span(), TokenType::Comma));
+            return Err(ParserError::expected(self.eof_span(), TokenType::Comma));
         }
         Ok(())
     }
 
     /// Peek a statement stop.
     #[inline]
-    pub fn peek_statement_stop(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_statement_stop(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && Self::is_statement_stop_token(token.token.ty)
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(eof_span, TokenType::Semicolon))
+            Err(ParserError::expected(eof_span, TokenType::Semicolon))
         }
     }
 
     /// Eat a statement stop.
     #[inline]
-    pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
+    pub fn eat_statement_stop(&mut self) -> ParserResult<()> {
         if let Ok(token) = self.peek()
             && token.token.ty == TokenType::Semicolon
         {
@@ -171,37 +171,37 @@ impl Parser {
             return Ok(());
         }
 
-        Err(ParseError::expected(self.eof_span(), TokenType::Semicolon))
+        Err(ParserError::expected(self.eof_span(), TokenType::Semicolon))
     }
 
     /// Peek any stop.
     #[inline]
-    pub fn peek_any_stop(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_any_stop(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && Self::is_any_stop_token(token.token.ty)
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(eof_span, TokenType::Semicolon))
+            Err(ParserError::expected(eof_span, TokenType::Semicolon))
         }
     }
 
     /// Peek next any stop.
     #[inline]
-    pub fn peek_next_any_stop(&mut self) -> ParseResult<TokenSpan> {
+    pub fn peek_next_any_stop(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         let token = self.next_token();
         if token.token.is_on_new_line || Self::is_any_stop_token(token.token.ty) {
             return Ok(token);
         }
 
-        Err(ParseError::expected(eof_span, TokenType::Semicolon))
+        Err(ParserError::expected(eof_span, TokenType::Semicolon))
     }
 
     /// Eat any stop.
     #[inline]
-    pub fn eat_any_stop(&mut self) -> ParseResult<()> {
+    pub fn eat_any_stop(&mut self) -> ParserResult<()> {
         if let Ok(token) = self.peek()
             && matches!(token.token.ty, TokenType::Comma | TokenType::Semicolon)
         {
@@ -213,12 +213,12 @@ impl Parser {
             return Ok(());
         }
 
-        Err(ParseError::expected(self.eof_span(), TokenType::Semicolon))
+        Err(ParserError::expected(self.eof_span(), TokenType::Semicolon))
     }
 
     /// Peek any open parenthesis (`(`, `[`, `{`)
     #[inline]
-    pub fn peek_any_open_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_any_open_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::OpenParenthesis
@@ -227,13 +227,13 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(eof_span, TokenType::OpenParenthesis))
+            Err(ParserError::expected(eof_span, TokenType::OpenParenthesis))
         }
     }
 
     /// Peek any close parenthesis (`)`, `]`, `}`)
     #[inline]
-    pub fn peek_any_close_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn peek_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::CloseParenthesis
@@ -241,13 +241,13 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(eof_span, TokenType::CloseParenthesis))
+            Err(ParserError::expected(eof_span, TokenType::CloseParenthesis))
         }
     }
 
     /// Peek next any close parenthesis (`)`, `]`, `}`)
     #[inline]
-    pub fn peek_next_any_close_parenthesis(&mut self) -> ParseResult<TokenSpan> {
+    pub fn peek_next_any_close_parenthesis(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         let token = self.next_token();
         if token.token.ty == TokenType::CloseParenthesis
@@ -256,7 +256,7 @@ impl Parser {
             return Ok(token);
         }
 
-        Err(ParseError::expected(eof_span, TokenType::CloseParenthesis))
+        Err(ParserError::expected(eof_span, TokenType::CloseParenthesis))
     }
 
     /// Return true when the next token is any close parenthesis.
@@ -270,7 +270,7 @@ impl Parser {
 
     /// Find a token at or after the current cursor.
     #[inline]
-    pub fn find_token(&mut self, target_token: TokenType) -> ParseResult<Span> {
+    pub fn find_token(&mut self, target_token: TokenType) -> ParserResult<Span> {
         self.lookahead(|parser| {
             while parser.peek_token_type() != TokenType::End {
                 if parser.peek_is(target_token) {
@@ -280,7 +280,7 @@ impl Parser {
                 parser.bump();
             }
 
-            Err(ParseError::unexpected(parser.eof_span()))
+            Err(ParserError::unexpected(parser.eof_span()))
         })
     }
 
@@ -290,7 +290,7 @@ impl Parser {
         &mut self,
         position: u32,
         target_token: TokenType,
-    ) -> ParseResult<Span> {
+    ) -> ParserResult<Span> {
         self.lookahead(|parser| {
             while parser.current_token().span.start < position
                 && parser.peek_token_type() != TokenType::End
@@ -306,7 +306,7 @@ impl Parser {
                 parser.bump();
             }
 
-            Err(ParseError::unexpected(parser.eof_span()))
+            Err(ParserError::unexpected(parser.eof_span()))
         })
     }
 
@@ -315,10 +315,10 @@ impl Parser {
         &mut self,
         open_token: TokenType,
         close_token: TokenType,
-    ) -> ParseResult<Span> {
+    ) -> ParserResult<Span> {
         self.lookahead(|parser| {
             if parser.peek_token_type() != open_token {
-                return Err(ParseError::expected(
+                return Err(ParserError::expected(
                     parser.current_token().span,
                     open_token,
                 ));
@@ -340,7 +340,7 @@ impl Parser {
                 parser.bump();
             }
 
-            Err(ParseError::expected(parser.eof_span(), open_token))
+            Err(ParserError::expected(parser.eof_span(), open_token))
         })
     }
 
@@ -349,14 +349,14 @@ impl Parser {
         &mut self,
         open_token: TokenType,
         close_token: TokenType,
-    ) -> ParseResult<Span> {
+    ) -> ParserResult<Span> {
         self.lookahead(|parser| {
             if parser.prev_token_type() != open_token {
                 let span = parser
                     .prev()
                     .map(|token| token.span)
                     .unwrap_or_else(|| parser.current_token().span);
-                return Err(ParseError::expected(span, open_token));
+                return Err(ParserError::expected(span, open_token));
             }
 
             let mut depth = 1u32;
@@ -375,7 +375,7 @@ impl Parser {
                 parser.bump();
             }
 
-            Err(ParseError::expected(parser.eof_span(), open_token))
+            Err(ParserError::expected(parser.eof_span(), open_token))
         })
     }
 
@@ -404,7 +404,7 @@ impl Parser {
         open_token: TokenType,
         close_token: TokenType,
         target_type: TokenType,
-    ) -> ParseResult<Span> {
+    ) -> ParserResult<Span> {
         self.lookahead(|parser| {
             let mut depth = 0u32;
             while parser.peek_token_type() != TokenType::End {
@@ -424,7 +424,7 @@ impl Parser {
                 parser.bump();
             }
 
-            Err(ParseError::expected(parser.eof_span(), open_token))
+            Err(ParserError::expected(parser.eof_span(), open_token))
         })
     }
 
@@ -434,7 +434,7 @@ impl Parser {
         close_span: Span,
         target_token: TokenType,
         track_angle: bool,
-    ) -> ParseResult<bool> {
+    ) -> ParserResult<bool> {
         self.lookahead(|parser| {
             let mut paren_depth = 1u32;
             let mut brace_depth = 0u32;
