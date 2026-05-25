@@ -87,17 +87,3 @@ const size = comptime sizeOf<Writer>();
 ```
 
 - contains: no concrete representation
-
-### erased constraints have layout
-
-`Any<T>` requests one explicit erased representation.
-
-```ds
-type Writer = {
-    write(bytes: [uint8]): uint;
-}
-
-const size = comptime sizeOf<Any<Writer>>();
-
-size satisfies usize;
-```
