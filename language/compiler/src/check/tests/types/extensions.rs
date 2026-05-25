@@ -201,7 +201,7 @@ extension BoxReadable<T> of Box<T> where T: Readable {
 
 declare const boxed: Box<Document>;
 /// @type.symbol symbol=boxed type=Box<Document>
-/// @instance.application source="Box<Document>" id=Box<Document>
+/// @generic.application source="Box<Document>" id=Box<Document>
 
 const text = boxed.read();
 /// @resolution.name source=boxed target=boxed
@@ -209,8 +209,8 @@ const text = boxed.read();
 /// @resolution.call source="boxed.read()" parameters=[] return=string kind=symbol target=BoxReadable.read receiver=Box<Document> instance=BoxReadable<Document>
 /// @type.symbol symbol=text type=string
 
-/// @instance.entry id=Box<Document> symbol=Box arguments=[Document]
-/// @instance.entry id=BoxReadable<Document> symbol=BoxReadable arguments=[Document]
+/// @generic.instance id=Box<Document> symbol=Box arguments=[Document]
+/// @generic.instance id=BoxReadable<Document> symbol=BoxReadable arguments=[Document]
 "#,
     );
 }
@@ -280,12 +280,12 @@ extension BoxReadable<T> of Box<T> where T: Readable {
 
 declare const boxed: Box<Token>;
 /// @type.symbol symbol=boxed type=Box<Token>
-/// @instance.application source="Box<Token>" id=Box<Token>
+/// @generic.application source="Box<Token>" id=Box<Token>
 
 boxed.read();
 /// @resolution.name source=boxed target=boxed
 
-/// @instance.entry id=Box<Token> symbol=Box arguments=[Token]
+/// @generic.instance id=Box<Token> symbol=Box arguments=[Token]
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="missing member 'read'"

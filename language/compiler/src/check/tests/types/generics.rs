@@ -20,29 +20,38 @@ const text = identity("x");
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
+
 }
 
 const number = identity(1);
+/// @type.symbol symbol=number type=1
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=symbol target=identity instance=identity<int32>
-/// @instance.application source="identity(1)" id=identity<int32>
-/// @type.symbol symbol=number type=int32
+/// @resolution.call source=identity(1) parameters=[1] return=1 kind=symbol target=identity instance=identity<1>
+/// @generic.application source=identity(1) id=identity<1>
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source=identity(1) type=1
+/// @type.node source=1 type=1
 
 const text = identity("x");
+/// @type.symbol symbol=text type="x"
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=symbol target=identity instance=identity<string>
-/// @instance.application source="identity(\"x\")" id=identity<string>
-/// @type.symbol symbol=text type=string
-
-/// @instance.entry id=identity<int32> symbol=identity arguments=[int32]
-/// @instance.entry id=identity<string> symbol=identity arguments=[string]
+/// @resolution.call source="identity(\"x\")" parameters=["x"] return="x" kind=symbol target=identity instance="identity<\"x\">"
+/// @generic.application source="identity(\"x\")" id="identity<\"x\">"
+/// @type.node source="identity(\"x\")" type="x"
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source="\"x\"" type="x"
+/// @generic.instance id="identity<\"x\">" symbol=identity arguments=["x"]
+/// @generic.instance id=identity<1> symbol=identity arguments=[1]
 "#);
 }
 
 #[test]
-fn test_check_reuses_identical_generic_instances() {
+fn test_check_records_distinct_literal_generic_instances() {
     let session = TestSession::single(
         r#"
 function identity<T>(value: T): T {
@@ -61,23 +70,33 @@ const second = identity(2);
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
+
 }
 
 const first = identity(1);
+/// @type.symbol symbol=first type=1
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=symbol target=identity instance=identity<int32>
-/// @instance.application source="identity(1)" id=identity<int32>
-/// @type.symbol symbol=first type=int32
+/// @resolution.call source=identity(1) parameters=[1] return=1 kind=symbol target=identity instance=identity<1>
+/// @generic.application source=identity(1) id=identity<1>
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source=identity(1) type=1
+/// @type.node source=1 type=1
 
 const second = identity(2);
+/// @type.symbol symbol=second type=2
 /// @resolution.name source=identity target=identity
-/// @resolution.call source="identity(2)" parameters=[int32] return=int32 kind=symbol target=identity instance=identity<int32>
-/// @instance.application source="identity(2)" id=identity<int32>
-/// @type.symbol symbol=second type=int32
-
-/// @instance.entry id=identity<int32> symbol=identity arguments=[int32]
+/// @resolution.call source=identity(2) parameters=[2] return=2 kind=symbol target=identity instance=identity<2>
+/// @generic.application source=identity(2) id=identity<2>
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source=identity(2) type=2
+/// @type.node source=2 type=2
+/// @generic.instance id=identity<1> symbol=identity arguments=[1]
+/// @generic.instance id=identity<2> symbol=identity arguments=[2]
 "#);
 }
 
@@ -100,17 +119,23 @@ const text = identity<string>("x");
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
+
 }
 
 const text = identity<string>("x");
+/// @type.symbol symbol=text type=string
 /// @resolution.name source=identity target=identity
 /// @resolution.call source="identity<string>(\"x\")" parameters=[string] return=string kind=symbol target=identity instance=identity<string>
-/// @instance.application source="identity<string>(\"x\")" id=identity<string>
-/// @type.symbol symbol=text type=string
-
-/// @instance.entry id=identity<string> symbol=identity arguments=[string]
+/// @generic.application source="identity<string>(\"x\")" id=identity<string>
+/// @type.node source="identity<string>(\"x\")" type=string
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source="\"x\"" type=string
+/// @generic.instance id=identity<string> symbol=identity arguments=[string]
 "#);
 }
 
@@ -133,16 +158,21 @@ const asInt = identity<int32>;
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
+
 }
 
 const asInt = identity<int32>;
-/// @resolution.name source=identity target=identity
-/// @instance.application source="identity<int32>" id=identity<int32>
 /// @type.symbol symbol=asInt type=(int32) => int32
-
-/// @instance.entry id=identity<int32> symbol=identity arguments=[int32]
+/// @resolution.name source=identity target=identity
+/// @generic.application source=identity<int32> id=identity<int32>
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source=identity<int32> type=(int32) => int32
+/// @generic.instance id=identity<int32> symbol=identity arguments=[int32]
 "#,
     );
 }
@@ -164,23 +194,31 @@ const overridden = pair(1, "x");
         r#"
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @generic.slot symbol=pair.T index=0 kind=type
-/// @generic.slot symbol=pair.U index=1 kind=type default=pair.T
+/// @generic.slot symbol=pair.U index=1 kind=type default=T
 /// @type.symbol symbol=pair type=<T, U = T>(T, U?) => (T, U)
+/// @type.symbol symbol=left type=T
+/// @type.symbol symbol=right type=U
 
 const defaulted = pair(1);
+/// @type.symbol symbol=defaulted type=(1, 1)
 /// @resolution.name source=pair target=pair
-/// @resolution.call source="pair(1)" parameters=[int32] return=(int32, int32) kind=symbol target=pair instance="pair<int32, int32>"
-/// @instance.application source="pair(1)" id="pair<int32, int32>"
-/// @type.symbol symbol=defaulted type=(int32, int32)
+/// @resolution.call source=pair(1) parameters=[1, 1] return=(1, 1) kind=symbol target=pair instance="pair<1, 1>"
+/// @generic.application source=pair(1) id="pair<1, 1>"
+/// @type.node source=pair type=<T, U = T>(T, U?) => (T, U)
+/// @type.node source=pair(1) type=(1, 1)
+/// @type.node source=1 type=1
 
 const overridden = pair(1, "x");
+/// @type.symbol symbol=overridden type=(1, "x")
 /// @resolution.name source=pair target=pair
-/// @resolution.call source="pair(1, \"x\")" parameters=[int32, string] return=(int32, string) kind=symbol target=pair instance="pair<int32, string>"
-/// @instance.application source="pair(1, \"x\")" id="pair<int32, string>"
-/// @type.symbol symbol=overridden type=(int32, string)
-
-/// @instance.entry id="pair<int32, int32>" symbol=pair arguments=[int32, int32]
-/// @instance.entry id="pair<int32, string>" symbol=pair arguments=[int32, string]
+/// @resolution.call source="pair(1, \"x\")" parameters=[1, "x"] return=(1, "x") kind=symbol target=pair instance="pair<1, \"x\">"
+/// @generic.application source="pair(1, \"x\")" id="pair<1, \"x\">"
+/// @type.node source="pair(1, \"x\")" type=(1, "x")
+/// @type.node source=pair type=<T, U = T>(T, U?) => (T, U)
+/// @type.node source=1 type=1
+/// @type.node source="\"x\"" type="x"
+/// @generic.instance id="pair<1, 1>" symbol=pair arguments=[1, 1]
+/// @generic.instance id="pair<1, \"x\">" symbol=pair arguments=[1, "x"]
 "#);
 }
 
@@ -202,18 +240,28 @@ const bytes = take<4>([1, 2, 3, 4]);
         r#"
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
 /// @generic.slot symbol=take.N index=0 kind=static constraint=uint
-/// @type.symbol symbol=take type=<N: uint>([uint8; N]) => [uint8; N]
+/// @type.symbol symbol=value type=[uint8; N]
+/// @resolution.name source=N target=N
+/// @resolution.name source=N target=N
 
     return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=[uint8; N]
+
 }
 
 const bytes = take<4>([1, 2, 3, 4]);
+/// @type.symbol symbol=bytes type=[uint8; 4]
 /// @resolution.name source=take target=take
 /// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=[[uint8; 4]] return=[uint8; 4] kind=symbol target=take instance=take<4>
-/// @instance.application source="take<4>([1, 2, 3, 4])" id=take<4>
-/// @type.symbol symbol=bytes type=[uint8; 4]
-
-/// @instance.entry id=take<4> symbol=take arguments=[4]
+/// @generic.application source="take<4>([1, 2, 3, 4])" id=take<4>
+/// @type.node source="take<4>([1, 2, 3, 4])" type=[uint8; 4]
+/// @type.node source=[1, 2, 3, 4] type=[uint8; 4]
+/// @type.node source=1 type=float64
+/// @type.node source=2 type=float64
+/// @type.node source=3 type=float64
+/// @type.node source=4 type=float64
+/// @generic.instance id=take<4> symbol=take arguments=[4]
 "#);
 }
 
@@ -235,18 +283,23 @@ const value = choose(1);
         r#"
 function choose<comptime Flag: boolean = true>(value: int32): int32 {
 /// @generic.slot symbol=choose.Flag index=0 kind=static constraint=boolean default=true
-/// @type.symbol symbol=choose type=<Flag: boolean = true>(int32) => int32
+/// @type.node source=true type=true
+/// @type.symbol symbol=value#1 type=int32
 
     return value;
+    /// @resolution.name source=value target=value#1
+    /// @type.node source=value type=int32
+
 }
 
 const value = choose(1);
+/// @type.symbol symbol=value#2 type=int32
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose(1)" parameters=[int32] return=int32 kind=symbol target=choose instance=choose<true>
-/// @instance.application source="choose(1)" id=choose<true>
-/// @type.symbol symbol=value type=int32
-
-/// @instance.entry id=choose<true> symbol=choose arguments=[true]
+/// @resolution.call source=choose(1) parameters=[int32] return=int32 kind=symbol target=choose instance=choose<true>
+/// @generic.application source=choose(1) id=choose<true>
+/// @type.node source=choose(1) type=int32
+/// @type.node source=1 type=int32
+/// @generic.instance id=choose<true> symbol=choose arguments=[true]
 "#);
 }
 
@@ -275,17 +328,16 @@ type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
 /// @type.symbol symbol=Flagged type=Config
 
 declare const tagged: Tagged<"alpha">;
-/// @resolution.name source=Tagged target=Tagged
-/// @instance.application source="Tagged<\"alpha\">" id="Tagged<\"alpha\">"
 /// @type.symbol symbol=tagged type={ tag: "alpha" }
+/// @resolution.name source=Tagged target=Tagged
+/// @generic.application source="Tagged<\"alpha\">" id="Tagged<\"alpha\">"
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
-/// @resolution.name source=Flagged target=Flagged
-/// @instance.application source="Flagged<{ name: \"search\"; enabled: true }>" id="Flagged<{ name: \"search\"; enabled: true }>"
 /// @type.symbol symbol=flagged type={ name: "search"; enabled: true }
-
-/// @instance.entry id="Tagged<\"alpha\">" symbol=Tagged arguments=["alpha"]
-/// @instance.entry id="Flagged<{ name: \"search\"; enabled: true }>" symbol=Flagged arguments=[{ name: "search"; enabled: true }]
+/// @resolution.name source=Flagged target=Flagged
+/// @generic.application source="Flagged<{ name: \"search\"; enabled: true }>" id="Flagged<{ name: \"search\"; enabled: true }>"
+/// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" symbol=Flagged arguments=[{ name: "search"; enabled: true }]
+/// @generic.instance id="Tagged<\"alpha\">" symbol=Tagged arguments=["alpha"]
 "#,
     );
 }
@@ -309,13 +361,18 @@ identity<int32>("x");
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
+
 }
 
 identity<int32>("x");
 /// @resolution.name source=identity target=identity
-/// @type.node source="identity<int32>(\"x\")" type=int32
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source="\"x\"" type="x"
 
 "#,
         r#"
@@ -355,29 +412,36 @@ const text = identity("x");
 export function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
-}
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
 
+}
 
 === main.ds ===
 import { identity } from "./lib.ds";
-/// @resolution.name source=identity target=lib.identity
 
 const number = identity(1);
+/// @type.symbol symbol=number type=1
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(1)" parameters=[int32] return=int32 kind=symbol target=lib.identity instance=lib.identity<int32>
-/// @instance.application source="identity(1)" id=lib.identity<int32>
-/// @type.symbol symbol=number type=int32
+/// @resolution.call source=identity(1) parameters=[1] return=1 kind=symbol target=lib.identity instance=lib.identity<1>
+/// @generic.application source=identity(1) id=lib.identity<1>
+/// @type.node source=identity type=<lib.identity.T>(lib.identity.T) => lib.identity.T
+/// @type.node source=identity(1) type=1
+/// @type.node source=1 type=1
 
 const text = identity("x");
+/// @type.symbol symbol=text type="x"
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=symbol target=lib.identity instance=lib.identity<string>
-/// @instance.application source="identity(\"x\")" id=lib.identity<string>
-/// @type.symbol symbol=text type=string
-
-/// @instance.entry id=lib.identity<int32> symbol=lib.identity arguments=[int32]
-/// @instance.entry id=lib.identity<string> symbol=lib.identity arguments=[string]
+/// @resolution.call source="identity(\"x\")" parameters=["x"] return="x" kind=symbol target=lib.identity instance="lib.identity<\"x\">"
+/// @generic.application source="identity(\"x\")" id="lib.identity<\"x\">"
+/// @type.node source="identity(\"x\")" type="x"
+/// @type.node source=identity type=<lib.identity.T>(lib.identity.T) => lib.identity.T
+/// @type.node source="\"x\"" type="x"
+/// @generic.instance id="lib.identity<\"x\">" symbol=lib.identity arguments=["x"]
+/// @generic.instance id=lib.identity<1> symbol=lib.identity arguments=[1]
 "#);
 }
 
@@ -410,23 +474,25 @@ const text = identity("x");
 export function identity<T>(value: T) {
 /// @generic.slot symbol=identity.T index=0 kind=type
 /// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
 
     return value;
     /// @resolution.name source=value target=value
     /// @type.node source=value type=T
-}
 
+}
 
 === main.ds ===
 import { identity } from "./lib.ds";
-/// @resolution.name source=identity target=lib.identity
 
 const text = identity("x");
+/// @type.symbol symbol=text type="x"
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=[string] return=string kind=symbol target=lib.identity instance=lib.identity<string>
-/// @instance.application source="identity(\"x\")" id=lib.identity<string>
-/// @type.symbol symbol=text type=string
-
-/// @instance.entry id=lib.identity<string> symbol=lib.identity arguments=[string]
+/// @resolution.call source="identity(\"x\")" parameters=["x"] return="x" kind=symbol target=lib.identity instance="lib.identity<\"x\">"
+/// @generic.application source="identity(\"x\")" id="lib.identity<\"x\">"
+/// @type.node source="identity(\"x\")" type="x"
+/// @type.node source=identity type=<lib.identity.T>(lib.identity.T) => lib.identity.T
+/// @type.node source="\"x\"" type="x"
+/// @generic.instance id="lib.identity<\"x\">" symbol=lib.identity arguments=["x"]
 "#);
 }

@@ -32,34 +32,35 @@ struct Point {
     /// @type.symbol symbol=Point.length type=(this: Point) => int32
 
         return this.x;
+        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
+        /// @resolution.receiver source=this kind=this owner=Point type=Point
         /// @type.node source=this type=Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
 
     }
 }
 
 const point = Point { x: 1 };
 /// @type.symbol symbol=point type=Point
-/// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
+/// @type.node source="Point { x: 1 }" type=Point
 /// @type.node source=1 type=int32
 
 const x = point.x;
 /// @type.symbol symbol=x type=int32
-/// @type.node source=point type=Point
-/// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point kind=symbol target=Point.x
+/// @type.node source=point type=Point
+/// @type.node source=point.x type=int32
 
 const length = point.length();
 /// @type.symbol symbol=length type=int32
-/// @type.node source=point type=Point
-/// @type.node source=point.length type=(this: Point) => int32
-/// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.length receiver=Point kind=symbol target=Point.length
 /// @resolution.call source=point.length() parameters=[] return=int32 kind=symbol target=Point.length receiver=Point
+/// @type.node source=point type=Point
+/// @type.node source=point.length type=(this: Point) => int32
+/// @type.node source=point.length() type=int32
 
 "#);
 }

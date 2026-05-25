@@ -297,6 +297,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
+    /// Return the source anchor for one name resolution row.
+    pub(crate) fn name_resolution_anchor(&self, node_id: dir::GlobalNodeIdAny) -> SnapshotAnchor {
+        self.anchor_node(node_id)
+    }
+
     /// Return the source anchor for one symbol.
     pub(crate) fn anchor_symbol(&self, symbol_id: dir::GlobalSymbolId) -> SnapshotAnchor {
         let bindings = self.binding_table();
@@ -596,13 +601,21 @@ impl<'a> DirSnapshotBuilder<'a> {
                 // render object properties recursively
                 let properties = self.static_property_labels(properties);
 
-                format!("{{{properties}}}")
+                if properties.is_empty() {
+                    "{}".to_string()
+                } else {
+                    format!("{{ {properties} }}")
+                }
             }
             dir::StaticTerm::Struct { ty, properties } => {
                 // render typed struct literal syntax
                 let properties = self.static_property_labels(properties);
 
-                format!("{} {{{properties}}}", self.type_label(*ty))
+                if properties.is_empty() {
+                    format!("{} {{}}", self.type_label(*ty))
+                } else {
+                    format!("{} {{ {properties} }}", self.type_label(*ty))
+                }
             }
         }
     }
@@ -686,11 +699,62 @@ impl<'a> DirSnapshotBuilder<'a> {
         if node_id.local_id.ty != dir::NodeType::Expression {
             return false;
         }
+        if self.node_is_nested_inside_type_context(node_id.local_id) {
+            return false;
+        }
 
         let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.local_id.id);
         let expression = self.tree.get(expression_id);
 
         self.type_references || !expression.is_reference()
+    }
+
+    /// Return whether one node is nested inside non-runtime type context.
+    fn node_is_nested_inside_type_context(&self, node_id: dir::LocalNodeIdAny) -> bool {
+        let mut current = self.tree.get_parent(node_id.id);
+
+        // follow the source tree until a type-only parent is found
+        while let Some(node_id) = current {
+            if matches!(
+                node_id.ty,
+                dir::NodeType::TypeExpression | dir::NodeType::GenericArgument
+            ) {
+                return true;
+            }
+
+            current = self.tree.get_parent(node_id.id);
+        }
+
+        self.node_span_is_inside_type_context(node_id)
+    }
+
+    /// Return whether one node span is nested inside type-only syntax.
+    fn node_span_is_inside_type_context(&self, node_id: dir::LocalNodeIdAny) -> bool {
+        let Some(span) = self.tree.get_span_by_id(node_id.id) else {
+            return false;
+        };
+
+        // detect detached static argument expressions by source containment
+        for context in self.tree.iter_node_ids() {
+            if !matches!(
+                context.ty,
+                dir::NodeType::TypeExpression | dir::NodeType::GenericArgument
+            ) {
+                continue;
+            }
+            if context.id == node_id.id {
+                continue;
+            }
+
+            let Some(context_span) = self.tree.get_span_by_id(context.id) else {
+                continue;
+            };
+            if context_span.start <= span.start && span.end <= context_span.end {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Render source text for one node when it is compact enough for a row.
@@ -699,11 +763,35 @@ impl<'a> DirSnapshotBuilder<'a> {
         let source = &self.source[span.start as usize..span.end as usize];
         let source = source.trim();
 
-        if source.is_empty() || source.contains('\n') || source.len() > 40 {
+        if source.is_empty() || source.contains('\n') || source.len() > 80 {
             return None;
         }
 
         Some(source.to_string())
+    }
+
+    /// Render source text for one name resolution row.
+    pub(crate) fn name_resolution_source(&self, node_id: dir::GlobalNodeIdAny) -> Option<String> {
+        if node_id.module_id != self.tree.module_id {
+            return None;
+        }
+
+        // prefer the referenced path over the full type application
+        if node_id.local_id.ty == dir::NodeType::TypeExpression {
+            let type_id = dir::LocalNodeId::<dir::TypeExpression>::new(node_id.local_id.id);
+            if let dir::TypeExpression::Reference { path, .. } = self.tree.get(type_id) {
+                let source = path
+                    .segments
+                    .iter()
+                    .map(|segment| self.strings.get(*segment))
+                    .collect::<Vec<_>>()
+                    .join(".");
+
+                return Some(source);
+            }
+        }
+
+        self.node_source(node_id)
     }
 
     /// Render one module path.
@@ -791,7 +879,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             .iter()
             .map(|property| self.static_property_label(property))
             .collect::<Vec<_>>()
-            .join(", ")
+            .join("; ")
     }
 
     /// Render one static property label.

@@ -59,7 +59,7 @@ class Segment<Row> {
 
 declare const narrow: Segment<int32>;
 /// @type.symbol symbol=narrow type=Segment<int32>
-/// @instance.application source="Segment<int32>" id=Segment<int32>
+/// @generic.application source="Segment<int32>" id=Segment<int32>
 
 const narrowMeta = narrow.narrow;
 /// @resolution.name source=narrow target=narrow
@@ -68,15 +68,15 @@ const narrowMeta = narrow.narrow;
 
 declare const wide: Segment<string>;
 /// @type.symbol symbol=wide type=Segment<string>
-/// @instance.application source="Segment<string>" id=Segment<string>
+/// @generic.application source="Segment<string>" id=Segment<string>
 
 const wideMeta = wide.wide;
 /// @resolution.name source=wide target=wide
 /// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide
 /// @type.symbol symbol=wideMeta type=WideMeta
 
-/// @instance.entry id=Segment<int32> symbol=Segment arguments=[int32]
-/// @instance.entry id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<int32> symbol=Segment arguments=[int32]
+/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
 "#);
 }
 
@@ -136,12 +136,12 @@ class Segment<Row> {
 
 declare const segment: Segment<string>;
 /// @type.symbol symbol=segment type=Segment<string>
-/// @instance.application source="Segment<string>" id=Segment<string>
+/// @generic.application source="Segment<string>" id=Segment<string>
 
 segment.narrow;
 /// @resolution.name source=segment target=segment
 
-/// @instance.entry id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="missing member 'narrow'"

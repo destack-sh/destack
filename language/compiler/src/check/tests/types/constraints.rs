@@ -141,15 +141,15 @@ declare const number: NumberSink;
 write("message", text);
 /// @resolution.name source=write target=write
 /// @resolution.call source="write(\"message\", text)" parameters=[string, TextSink] return=void kind=symbol target=write instance="write<string, TextSink>"
-/// @instance.application source="write(\"message\", text)" id="write<string, TextSink>"
+/// @generic.application source="write(\"message\", text)" id="write<string, TextSink>"
 
 write(1, number);
 /// @resolution.name source=write target=write
 /// @resolution.call source="write(1, number)" parameters=[int32, NumberSink] return=void kind=symbol target=write instance="write<int32, NumberSink>"
-/// @instance.application source="write(1, number)" id="write<int32, NumberSink>"
+/// @generic.application source="write(1, number)" id="write<int32, NumberSink>"
 
-/// @instance.entry id="write<string, TextSink>" symbol=write arguments=[string, TextSink]
-/// @instance.entry id="write<int32, NumberSink>" symbol=write arguments=[int32, NumberSink]
+/// @generic.instance id="write<string, TextSink>" symbol=write arguments=[string, TextSink]
+/// @generic.instance id="write<int32, NumberSink>" symbol=write arguments=[int32, NumberSink]
 "#);
 }
 

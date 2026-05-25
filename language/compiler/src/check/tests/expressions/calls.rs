@@ -93,7 +93,7 @@ const text = transform(1);
         r#"
 declare const transform: Function<(int32,), string>;
 /// @type.symbol symbol=transform type=(int32) => string
-/// @instance.application source="Function<(int32,), string>" id="types.function.Function<(int32,), string>"
+/// @generic.application source="Function<(int32,), string>" id="types.function.Function<(int32,), string>"
 
 const text = transform(1);
 /// @type.symbol symbol=text type=string
@@ -101,7 +101,7 @@ const text = transform(1);
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) parameters=[int32] return=string kind=symbol target=transform
 /// @type.node source=1 type=int32
-/// @instance.entry id="types.function.Function<(int32,), string>" symbol=types.function.Function arguments=[(int32,), string]
+/// @generic.instance id="types.function.Function<(int32,), string>" symbol=types.function.Function arguments=[(int32,), string]
 "#,
     );
 }
