@@ -7,6 +7,18 @@ use destack_dir::{
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
+/// One pending right-associative assignment expression.
+struct PendingAssignmentExpression {
+    /// The assignment source start.
+    start: ParserSpanStart,
+    /// The assignment target.
+    left: LocalNodeId<AssignPattern>,
+    /// The assignment operator.
+    operator: AssignOperator,
+    /// The assignment operator span.
+    operator_span: Span,
+}
+
 impl Parser {
     /// Eat an assignment expression.
     ///
@@ -70,11 +82,14 @@ impl Parser {
         // validate expression target
         let left = self.assignment_pattern_from_expression(left_expression)?;
         self.require_assignable_operator(left, operator)?;
+        let pending = vec![PendingAssignmentExpression {
+            start: *start,
+            left,
+            operator,
+            operator_span,
+        }];
 
-        // finish assignment
-        let right = self.eat_assignment_right_expression()?;
-
-        Ok(self.insert_assignment_expression(start, left, operator, operator_span, right))
+        self.eat_assignment_right_fold(pending)
     }
 
     /// Parse the right side of an assignment expression.
@@ -86,11 +101,84 @@ impl Parser {
     /// condition ? yes : no
     /// ```
     fn eat_assignment_right_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let right_scope =
-            ExpressionScope::from_flags(self.flags.not_in_position().not_in_sequence_expression())
-                .with_newline_call_boundary(true);
+        let right_scope = self.assignment_right_scope();
 
         self.eat_expression_scope(right_scope)
+    }
+
+    /// Return the expression scope for assignment right sides.
+    fn assignment_right_scope(&self) -> ExpressionScope {
+        ExpressionScope::from_flags(self.flags.not_in_position().not_in_sequence_expression())
+            .with_newline_call_boundary(true)
+    }
+
+    /// Eat a right-associative assignment tail and fold it from the right.
+    fn eat_assignment_right_fold(
+        &mut self,
+        mut pending: Vec<PendingAssignmentExpression>,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        loop {
+            let right_start = self.span_start();
+            let right_scope = self.assignment_right_scope();
+            let right_starts_destructuring = matches!(
+                self.peek_token_type(),
+                TokenType::OpenBracket | TokenType::OpenBrace
+            );
+            let checkpoint =
+                right_starts_destructuring.then(|| (self.checkpoint(), self.tree.next_id()));
+
+            // parse up to the next assignment operator
+            let right = self.with_flags(right_scope.flags, |parser| {
+                parser.eat_conditional(&right_start, right_scope)
+            })?;
+            let has_assignment_operator = self.assignment_operator_is_present(right_scope);
+            if !has_assignment_operator {
+                return Ok(self.finish_pending_assignment_expressions(pending, right));
+            }
+
+            // reparse source shaped destructuring targets
+            let left = if matches!(
+                self.tree.get(right),
+                Expression::ArrayExpression { .. } | Expression::ObjectExpression { .. }
+            ) {
+                let Some((checkpoint, mark)) = checkpoint else {
+                    return Err(ParserError::unexpected(self.peek()?.span));
+                };
+                self.restore(checkpoint, mark);
+                self.eat_assignment_target_pattern(false)?
+            } else {
+                self.assignment_pattern_from_expression(right)?
+            };
+            let Some((operator, operator_span)) = self.eat_assignment_operator(right_scope)? else {
+                return Err(ParserError::unexpected(self.peek()?.span));
+            };
+            self.require_assignable_operator(left, operator)?;
+            pending.push(PendingAssignmentExpression {
+                start: right_start,
+                left,
+                operator,
+                operator_span,
+            });
+        }
+    }
+
+    /// Finish pending right-associative assignment expression nodes.
+    fn finish_pending_assignment_expressions(
+        &mut self,
+        pending: Vec<PendingAssignmentExpression>,
+        mut right: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        for frame in pending.into_iter().rev() {
+            right = self.insert_assignment_expression(
+                &frame.start,
+                frame.left,
+                frame.operator,
+                frame.operator_span,
+                right,
+            );
+        }
+
+        right
     }
 
     /// Build an assignment expression node.
@@ -137,6 +225,15 @@ impl Parser {
         Ok(Some((operator, operator_span)))
     }
 
+    /// Return whether an assignment operator is present in this scope.
+    fn assignment_operator_is_present(&mut self, scope: ExpressionScope) -> bool {
+        if scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign)) {
+            return false;
+        }
+
+        AssignOperator::from_token(self.peek_token_type()).is_some()
+    }
+
     /// Require compound assignment to target a simple expression pattern.
     fn require_assignable_operator(
         &self,
@@ -178,11 +275,14 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek()?.span));
         };
         self.require_assignable_operator(left, operator)?;
+        let pending = vec![PendingAssignmentExpression {
+            start: *start,
+            left,
+            operator,
+            operator_span,
+        }];
 
-        // finish assignment
-        let right = self.eat_assignment_right_expression()?;
-
-        Ok(self.insert_assignment_expression(start, left, operator, operator_span, right))
+        self.eat_assignment_right_fold(pending)
     }
 
     /// Eat one assignment target pattern from source.
