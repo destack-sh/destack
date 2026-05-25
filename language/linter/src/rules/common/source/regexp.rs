@@ -1,6 +1,6 @@
 use destack_dir::{self as dir};
 
-use crate::rules::common::expression_path_segments;
+use crate::rules::common::{expression_path_segments, type_expression_path_segments};
 
 /// Regex pattern info extracted from one source expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,18 +47,18 @@ pub fn regex_pattern_info(
     }
 
     // support `RegExp(...)` and `new RegExp(...)`
-    let (callee_id, arguments) = match expression {
+    let (path_segments, arguments) = match expression {
         dir::Expression::Call {
             left, arguments, ..
-        }
-        | dir::Expression::New {
-            left, arguments, ..
-        } => (*left, arguments.as_slice()),
+        } => (expression_path_segments(tree, *left)?, arguments.as_slice()),
+        dir::Expression::New { ty, arguments } => (
+            type_expression_path_segments(tree, *ty)?,
+            arguments.as_slice(),
+        ),
         _ => return None,
     };
 
     // require global RegExp constructor identifier
-    let path_segments = expression_path_segments(tree, callee_id)?;
     if !path_is_regexp_constructor(
         path_segments.as_slice(),
         regexp_name,

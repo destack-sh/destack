@@ -125,6 +125,27 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         false
     }
 
+    /// Return true when the type expression names the built in Boolean constructor.
+    fn is_boolean_type_reference(
+        &self,
+        type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> bool {
+        if self
+            .ctx
+            .type_expression_target_symbol(type_expression_id)
+            .is_some()
+        {
+            return false;
+        }
+
+        let type_expression = self.ctx.dir.get(type_expression_id);
+        if let dir::TypeExpression::Reference { path, .. } = type_expression {
+            return path.segments.len() == 1 && path.segments[0] == self.boolean_name;
+        }
+
+        false
+    }
+
     /// Check `Boolean(value)` and `new Boolean(value)` calls.
     fn check_boolean_cast(
         &mut self,
@@ -136,6 +157,15 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             return;
         }
 
+        self.check_boolean_cast_arguments(expression_id, arguments);
+    }
+
+    /// Check one Boolean constructor argument list.
+    fn check_boolean_cast_arguments(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) {
         if arguments.len() != 1 {
             return;
         }
@@ -219,13 +249,18 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         match parent_expression {
             dir::Expression::Call {
                 left, arguments, ..
-            }
-            | dir::Expression::New {
-                left, arguments, ..
             } => {
                 if arguments.first().is_some_and(|argument_id| {
                     self.ctx.dir.get(*argument_id).value() == Some(expression_id)
                 }) && self.is_boolean_reference(*left)
+                {
+                    return true;
+                }
+            }
+            dir::Expression::New { ty, arguments } => {
+                if arguments.first().is_some_and(|argument_id| {
+                    self.ctx.dir.get(*argument_id).value() == Some(expression_id)
+                }) && self.is_boolean_type_reference(*ty)
                 {
                     return true;
                 }
@@ -320,11 +355,10 @@ impl NodeVisitor for NoExtraBooleanCastVisitor<'_, '_> {
         }
 
         // new Boolean(value)
-        if let dir::Expression::New {
-            left, arguments, ..
-        } = expression
+        if let dir::Expression::New { ty, arguments } = expression
+            && self.is_boolean_type_reference(*ty)
         {
-            self.check_boolean_cast(id, *left, arguments);
+            self.check_boolean_cast_arguments(id, arguments);
         }
 
         // !!value

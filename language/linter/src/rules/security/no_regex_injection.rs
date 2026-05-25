@@ -82,11 +82,11 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     fn check_new(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // check if this is new RegExp()
-        if !self.is_regexp_constructor(left) {
+        if self.ctx.type_expression_target_symbol(ty) != Some(self.regexp_symbol) {
             return;
         }
 
@@ -194,11 +194,8 @@ impl NodeVisitor for NoRegexInjectionVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check new RegExp()
-        if let dir::Expression::New {
-            left, arguments, ..
-        } = expression
-        {
-            self.check_new(id, *left, arguments);
+        if let dir::Expression::New { ty, arguments } = expression {
+            self.check_new(id, *ty, arguments);
         }
 
         // check RegExp() call without new

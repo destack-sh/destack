@@ -248,7 +248,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 dir::Expression::Instantiation { left, .. } if *left == current_id => {
                     current_id = parent_id;
                 }
-                dir::Expression::Call { left, .. } | dir::Expression::New { left, .. }
+                dir::Expression::Call { left, .. }
                     if *left == current_id
                         && call_like_invocation_is_receiver_bound(
                             self.ctx.dir.tree(),

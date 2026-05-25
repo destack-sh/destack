@@ -86,11 +86,11 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     fn check_executor_returns(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
+        target_symbol: Option<dir::GlobalSymbolId>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non promise calls
-        let Some(target_symbol) = expression_target_symbol(self.ctx, left) else {
+        let Some(target_symbol) = target_symbol else {
             return;
         };
         if target_symbol != self.promise_symbol {
@@ -160,11 +160,9 @@ impl NodeVisitor for PromiseExecutorReturnVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check Promise constructors only
-        if let dir::Expression::New {
-            left, arguments, ..
-        } = expression
-        {
-            self.check_executor_returns(id, *left, arguments);
+        if let dir::Expression::New { ty, arguments, .. } = expression {
+            let target_symbol = self.ctx.type_expression_target_symbol(*ty);
+            self.check_executor_returns(id, target_symbol, arguments);
         }
 
         // walk expression children

@@ -131,12 +131,8 @@ fn expression_coarse_key(
             (!generic_arguments.is_empty()).hash(&mut hasher);
             arguments.len().hash(&mut hasher);
         }
-        dir::Expression::New {
-            generic_arguments,
-            arguments,
-            ..
-        } => {
-            (!generic_arguments.is_empty()).hash(&mut hasher);
+        dir::Expression::New { ty, arguments } => {
+            std::mem::discriminant(ctx.dir.get(*ty)).hash(&mut hasher);
             arguments.len().hash(&mut hasher);
         }
         dir::Expression::ArrayExpression { elements }
@@ -223,15 +219,16 @@ fn expression_structural_key(
             generic_arguments,
             arguments,
             ..
-        }
-        | dir::Expression::New {
-            left,
-            generic_arguments,
-            arguments,
-            ..
         } => {
             hash_expression_kind(ctx, &mut hasher, *left);
             (!generic_arguments.is_empty()).hash(&mut hasher);
+            arguments.len().hash(&mut hasher);
+            for argument_id in arguments {
+                hash_argument_shape(ctx, &mut hasher, *argument_id);
+            }
+        }
+        dir::Expression::New { ty, arguments } => {
+            std::mem::discriminant(ctx.dir.get(*ty)).hash(&mut hasher);
             arguments.len().hash(&mut hasher);
             for argument_id in arguments {
                 hash_argument_shape(ctx, &mut hasher, *argument_id);

@@ -103,12 +103,9 @@ impl LintRule for PreferSetOverEmptyMap {
                             map_symbol,
                         )
                     }),
-                // constructor calls keep generic arguments on the new expression
-                dir::Expression::New {
-                    left,
-                    generic_arguments,
-                    ..
-                } => new_map_has_empty_value_argument(ctx, *left, generic_arguments, map_symbol),
+                dir::Expression::New { ty, .. } => {
+                    new_map_has_empty_value_argument(ctx, *ty, map_symbol)
+                }
                 _ => false,
             };
             if !should_report {
@@ -152,17 +149,22 @@ fn report_prefer_set_over_empty_map<T: dir::Node>(
 /// Return true when one `new` expression constructs `Map<_, void|never>`.
 fn new_map_has_empty_value_argument(
     ctx: &LintModuleContext<'_>,
-    callee_expression_id: dir::LocalNodeId<dir::Expression>,
-    generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     map_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    let Some(target_symbol) = ctx.expression_target_symbol(callee_expression_id) else {
+    let Some(target_symbol) = ctx.type_expression_target_symbol(type_expression_id) else {
         return false;
     };
     if target_symbol != map_symbol {
         return false;
     }
 
+    let dir::TypeExpression::Reference {
+        generic_arguments, ..
+    } = ctx.dir.get(type_expression_id)
+    else {
+        return false;
+    };
     if generic_arguments.len() != 2 {
         return false;
     }

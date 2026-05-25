@@ -394,9 +394,6 @@ impl<'a> TaintAnalysis<'a> {
             }
             dir::Expression::Call {
                 left, arguments, ..
-            }
-            | dir::Expression::New {
-                left, arguments, ..
             } => {
                 // call results can be marked tainted by callee attributes
                 let callee_expression = self.tree.get(*left);
@@ -428,6 +425,18 @@ impl<'a> TaintAnalysis<'a> {
                     *left,
                 );
                 labels.apply_sanitizer(&sanitizer_labels);
+            }
+            dir::Expression::New { arguments, .. } => {
+                // propagate taint from constructor arguments
+                for argument_id in arguments.iter().copied() {
+                    let argument = self.tree.get(argument_id);
+                    let Some(value) = argument.value() else {
+                        continue;
+                    };
+                    let argument_labels =
+                        self.expression_taint_labels_inner(value, expression_stack, symbol_stack);
+                    labels.merge(&argument_labels);
+                }
             }
             dir::Expression::Await { expression }
             | dir::Expression::AwaitMaybe { expression }

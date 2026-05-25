@@ -123,7 +123,7 @@ fn call_like_callee_has_must_use(
     expression: &dir::Expression,
 ) -> bool {
     let callee_id = match expression {
-        dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
+        dir::Expression::Call { left, .. } => *left,
         _ => return false,
     };
 

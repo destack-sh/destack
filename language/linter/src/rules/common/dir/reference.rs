@@ -413,9 +413,6 @@ pub fn call_like_invocation_is_receiver_bound(
     let (callee_id, arguments) = match expression {
         dir::Expression::Call {
             left, arguments, ..
-        }
-        | dir::Expression::New {
-            left, arguments, ..
         } => (*left, arguments.as_slice()),
         _ => return false,
     };
@@ -500,7 +497,7 @@ pub struct CallLikeExpressionInfo<'a> {
     pub is_new: bool,
 }
 
-/// Match one call-like expression and extract call target and arguments.
+/// Match one call expression and extract call target and arguments.
 pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpressionInfo<'_>> {
     match expression {
         dir::Expression::Call {
@@ -513,16 +510,6 @@ pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpr
             generic_arguments: generic_arguments.as_slice(),
             arguments,
             is_new: false,
-        }),
-        dir::Expression::New {
-            left,
-            generic_arguments,
-            arguments,
-        } => Some(CallLikeExpressionInfo {
-            left: *left,
-            generic_arguments: generic_arguments.as_slice(),
-            arguments,
-            is_new: true,
         }),
         _ => None,
     }

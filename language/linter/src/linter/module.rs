@@ -341,6 +341,32 @@ impl<'a> LintModuleContext<'a> {
         Some(symbol)
     }
 
+    /// Resolve the lexical target symbol for one type expression.
+    pub fn type_expression_target_symbol(
+        &self,
+        mut type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        if !self.dir.is_visible(type_expression_id.into_any()) {
+            return None;
+        }
+
+        loop {
+            let type_expression = self.dir.get(type_expression_id);
+            let dir::TypeExpression::Parenthesized { expression } = type_expression else {
+                break;
+            };
+            type_expression_id = *expression;
+        }
+
+        let global_id = type_expression_id.into_global_any(self.module.id);
+        let symbol = self.resolutions.symbol_resolution(global_id)?;
+        if !self.symbol_is_active(symbol.local_id) {
+            return None;
+        }
+
+        Some(symbol)
+    }
+
     /// Return whether one local DIR symbol is visible in this lint view.
     fn symbol_is_active(&self, symbol_id: dir::LocalSymbolId) -> bool {
         let symbol = self.symbols.get_symbol(symbol_id);

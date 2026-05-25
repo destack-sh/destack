@@ -319,9 +319,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let (callee_id, arguments) = match expression {
             dir::Expression::Call {
                 left, arguments, ..
-            }
-            | dir::Expression::New {
-                left, arguments, ..
             } => (*left, arguments.as_slice()),
             _ => return false,
         };
