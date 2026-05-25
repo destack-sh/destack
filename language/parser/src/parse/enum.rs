@@ -194,7 +194,7 @@ impl Parser {
     fn peek_enum_field_is(&mut self) -> bool {
         let is_computed_name = self.peek_is(TokenType::OpenBracket);
         let is_bare_name = (self.peek_name_is() || self.peek_numeric_literal_is())
-            && (self.next_token().token.is_on_new_line
+            && (self.next_token().token.is_on_new_line()
                 || matches!(
                     self.token_type_at_offset(1),
                     TokenType::Assign
@@ -242,7 +242,7 @@ impl Parser {
 
             let name = if self.peek_is(TokenType::Literal)
                 && matches!(
-                    self.peek()?.token.literal,
+                    self.peek()?.token.literal(),
                     Some(TokenLiteral::String { .. })
                 ) {
                 let token = *self.peek()?;

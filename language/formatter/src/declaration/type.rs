@@ -90,7 +90,7 @@ fn generic_argument_list_span_after_expression(
     let arguments_span = combined_node_span(context, generic_arguments)?;
     let open_token = context.next_non_trivia_token_after_span(expression_span)?;
 
-    if open_token.token.ty != TokenType::LessThan {
+    if open_token.token.ty() != TokenType::LessThan {
         return Some(arguments_span);
     }
 
@@ -119,7 +119,7 @@ fn write_heritage_type_list<'ast>(
             let comma_token = f
                 .context()
                 .next_non_trivia_token_after_span(type_span)
-                .filter(|token| token.token.ty == TokenType::Comma)
+                .filter(|token| token.token.ty() == TokenType::Comma)
                 .ok_or(FormatError::SyntaxError {
                     message: "expected comma between heritage types",
                 })?;
@@ -185,7 +185,7 @@ fn write_interface_heritage_list<'ast>(
             let comma_token = f
                 .context()
                 .next_non_trivia_token_after_span(heritage_span)
-                .filter(|token| token.token.ty == TokenType::Comma)
+                .filter(|token| token.token.ty() == TokenType::Comma)
                 .ok_or(FormatError::SyntaxError {
                     message: "expected comma between interface heritage items",
                 })?;
@@ -284,12 +284,12 @@ fn class_body_open_brace_token<'ast>(
             .context()
             .previous_non_trivia_token_before_span(first_member_start)?;
 
-        return (open_token.token.ty == TokenType::OpenBrace).then_some(open_token);
+        return (open_token.token.ty() == TokenType::OpenBrace).then_some(open_token);
     }
 
     let node_span = f.context().span(node_id);
     let close_token = f.context().last_non_trivia_token_in_span(node_span)?;
-    if close_token.token.ty != TokenType::CloseBrace {
+    if close_token.token.ty() != TokenType::CloseBrace {
         return None;
     }
 
@@ -297,7 +297,7 @@ fn class_body_open_brace_token<'ast>(
         .context()
         .previous_non_trivia_token_before_span(close_token.span)?;
 
-    (open_token.token.ty == TokenType::OpenBrace).then_some(open_token)
+    (open_token.token.ty() == TokenType::OpenBrace).then_some(open_token)
 }
 
 /// Write class header comments that appear before the body opening brace.

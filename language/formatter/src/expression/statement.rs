@@ -103,7 +103,7 @@ pub(crate) fn format_statement_expression<'ast>(
             let separator_comments = if let Some(separator_token) =
                 f.context().previous_non_trivia_token_before_span(body_span)
             {
-                if separator_token.token.ty == TokenType::Colon {
+                if separator_token.token.ty() == TokenType::Colon {
                     let comments = f.context().comments();
                     comments
                         .comments_in_range(separator_token.span.end, body_span.start)

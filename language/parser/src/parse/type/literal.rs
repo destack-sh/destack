@@ -92,14 +92,14 @@ impl Parser {
     fn next_identifier_str_is(&mut self, expected: &str) -> bool {
         let token = self.next_token();
 
-        token.token.ty == TokenType::Identifier && self.get_span_str(token.span) == expected
+        token.token.ty() == TokenType::Identifier && self.get_span_str(token.span) == expected
     }
 
     /// Peek one non composite type literal.
     pub fn peek_type_literal(&mut self) -> ParserResult<TypeLiteral> {
         // require identifier text
         let next = *self.peek()?;
-        if next.token.ty != TokenType::Identifier {
+        if next.token.ty() != TokenType::Identifier {
             return Err(ParserError::unexpected(next.span));
         }
 

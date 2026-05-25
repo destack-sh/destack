@@ -251,7 +251,7 @@ impl Parser {
         error: Option<ParserError>,
     ) -> ParserResult<()> {
         while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
+            let token_type = token.token.ty();
 
             if token_type == TokenType::End {
                 break;
@@ -282,13 +282,13 @@ impl Parser {
         let mut depth = RecoveryDelimiterDepth::new(terminator);
 
         while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
+            let token_type = token.token.ty();
 
             if token_type == TokenType::End {
                 break;
             }
 
-            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line;
+            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
             let is_boundary = depth.is_top_level()
                 && (is_new_line_boundary
                     || self.token_matches_terminator(token_type, terminator)
@@ -317,13 +317,13 @@ impl Parser {
         error: Option<ParserError>,
     ) -> ParserResult<()> {
         while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
+            let token_type = token.token.ty();
 
             if token_type == TokenType::End {
                 break;
             }
 
-            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line;
+            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
             let is_boundary = is_new_line_boundary
                 || Self::is_statement_stop_token(token_type)
                 || token_type == TokenType::CloseBrace;
@@ -349,14 +349,14 @@ impl Parser {
         error: Option<ParserError>,
     ) -> ParserResult<Span> {
         while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
+            let token_type = token.token.ty();
 
             if token_type == TokenType::End {
                 break;
             }
 
             let is_new_line_boundary =
-                start_span.start < token.span.start && token.token.is_on_new_line;
+                start_span.start < token.span.start && token.token.is_on_new_line();
             let is_boundary = is_new_line_boundary
                 || Self::is_statement_stop_token(token_type)
                 || token_type == TokenType::CloseBrace;
@@ -410,13 +410,13 @@ impl Parser {
         error: Option<ParserError>,
     ) -> ParserResult<()> {
         while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
+            let token_type = token.token.ty();
 
             if token_type == TokenType::End {
                 break;
             }
 
-            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line;
+            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
             let is_boundary = is_new_line_boundary
                 || token_type == TokenType::CloseBrace
                 || Self::is_any_stop_token(token_type);
@@ -442,14 +442,14 @@ impl Parser {
         error: Option<ParserError>,
     ) -> ParserResult<Span> {
         while let Ok(token) = self.peek() {
-            let token_type = token.token.ty;
+            let token_type = token.token.ty();
 
             if token_type == TokenType::End {
                 break;
             }
 
             let is_new_line_boundary =
-                start_span.start < token.span.start && token.token.is_on_new_line;
+                start_span.start < token.span.start && token.token.is_on_new_line();
             let is_boundary = is_new_line_boundary
                 || token_type == TokenType::CloseBrace
                 || Self::is_any_stop_token(token_type);
@@ -487,13 +487,13 @@ impl Parser {
 
         let start = self.span_start();
         while let Ok(token) = self.peek()
-            && token.token.ty != bail
+            && token.token.ty() != bail
         {
-            if token.token.ty == TokenType::End {
+            if token.token.ty() == TokenType::End {
                 break;
             }
 
-            if token.token.ty == expected {
+            if token.token.ty() == expected {
                 let error = ParserError::unexpected(self.get_span_from(&start));
                 self.bump();
                 self.error(&error);

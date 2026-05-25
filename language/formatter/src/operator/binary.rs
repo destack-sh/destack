@@ -73,7 +73,7 @@ fn binary_expression_has_inline_block_postfix_comment(
         .iter()
         .any(|token| {
             matches!(
-                token.token.ty,
+                token.token.ty(),
                 TokenType::BlockComment | TokenType::DocBlockComment
             )
         })

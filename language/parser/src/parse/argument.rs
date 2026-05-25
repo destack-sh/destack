@@ -441,7 +441,7 @@ impl Parser {
     /// Return true when the next same-line token can start a member name.
     pub(crate) fn next_same_line_token_starts_member_name(&mut self) -> bool {
         let next_token = self.next_token();
-        if next_token.token.is_on_new_line {
+        if next_token.token.is_on_new_line() {
             return false;
         }
 
@@ -452,7 +452,7 @@ impl Parser {
     fn token_starts_member_name(&self, token: TokenSpan) -> bool {
         // check for common member name starters
         if matches!(
-            token.token.ty,
+            token.token.ty(),
             TokenType::Identifier
                 | TokenType::Hash
                 | TokenType::OpenBracket
@@ -462,13 +462,13 @@ impl Parser {
         ) {
             return true;
         }
-        if token.token.ty != TokenType::Literal {
+        if token.token.ty() != TokenType::Literal {
             return false;
         }
 
         // check for valid literal member names
         matches!(
-            token.token.literal,
+            token.token.literal(),
             Some(TokenLiteral::String {
                 is_terminated: true,
                 has_invalid_escape: false,
@@ -509,7 +509,7 @@ impl Parser {
             let current_keyword = self.current_keyword();
             let is_out_variance_modifier = allow_variance_modifier
                 && self.current_identifier_str_is("out")
-                && !self.next_token().token.is_on_new_line
+                && !self.next_token().token.is_on_new_line()
                 && (self.token_type_at_offset(1) == TokenType::Identifier
                     || self.keyword_at_offset(1) == Some(Keyword::In));
             let can_start_modifier = current_keyword.is_some_and(|keyword| {
@@ -740,8 +740,8 @@ impl Parser {
                 && self.is_keyword(Keyword::Comptime)
             {
                 let next_token = self.next_token();
-                let target_starts_after_comptime = next_token.token.ty == TokenType::OpenBrace
-                    || !next_token.token.is_on_new_line
+                let target_starts_after_comptime = next_token.token.ty() == TokenType::OpenBrace
+                    || !next_token.token.is_on_new_line()
                         && self.token_starts_member_name(next_token);
                 if !target_starts_after_comptime {
                     break;
@@ -1643,9 +1643,9 @@ impl Parser {
             // jsx content without braces must be text or nested tags
             if self.language.supports_jsx() && self.flags.is_in_tree_literal() {
                 let token = *self.peek()?;
-                let is_tree_text = token.token.ty == TokenType::Literal
+                let is_tree_text = token.token.ty() == TokenType::Literal
                     && matches!(
-                        token.token.literal,
+                        token.token.literal(),
                         Some(TokenLiteral::TreeString)
                             | Some(TokenLiteral::Character {
                                 is_html_entity: true,
@@ -1653,7 +1653,7 @@ impl Parser {
                             })
                     );
                 let is_tree_literal =
-                    token.token.ty == TokenType::LessThan && self.peek_tree_literal().is_ok();
+                    token.token.ty() == TokenType::LessThan && self.peek_tree_literal().is_ok();
                 if !is_tree_text && !is_tree_literal {
                     return Err(ParserError::unexpected(token.span));
                 }

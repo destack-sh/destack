@@ -162,7 +162,7 @@ impl Parser {
 
         let dot_end = self.current_token().span.end;
         let next = self.token_at_offset(1);
-        if next.token.ty != TokenType::Identifier {
+        if next.token.ty() != TokenType::Identifier {
             return false;
         }
 

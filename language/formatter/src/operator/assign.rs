@@ -336,7 +336,7 @@ fn assignment_rhs_has_inline_operator_prefix_annotation_style(
                     else {
                         return false;
                     };
-                    if !is_assignment_operator_token(previous_token.token.ty) {
+                    if !is_assignment_operator_token(previous_token.token.ty()) {
                         return false;
                     }
 
@@ -396,7 +396,7 @@ pub(crate) fn assignment_operator_has_line_comment_between(
     let comment_tokens = context.comment_tokens_intersecting_span(between_span);
     comment_tokens.into_iter().any(|comment_token| {
         if !matches!(
-            comment_token.token.ty,
+            comment_token.token.ty(),
             TokenType::LineComment | TokenType::DocLineComment
         ) {
             return false;
@@ -404,7 +404,7 @@ pub(crate) fn assignment_operator_has_line_comment_between(
 
         context
             .previous_non_whitespace_token_before_span(comment_token.span)
-            .is_some_and(|token| is_assignment_operator_token(token.token.ty))
+            .is_some_and(|token| is_assignment_operator_token(token.token.ty()))
     })
 }
 
@@ -426,7 +426,7 @@ fn assignment_rhs_operator_comment_nodes(
     // transparent grouping and adjacent comments
     while let Some(token) = previous_token {
         if !matches!(
-            token.token.ty,
+            token.token.ty(),
             TokenType::OpenParenthesis
                 | TokenType::LineComment
                 | TokenType::BlockComment
@@ -443,7 +443,7 @@ fn assignment_rhs_operator_comment_nodes(
         return Vec::new();
     };
 
-    if !is_assignment_operator_token(previous_token.token.ty)
+    if !is_assignment_operator_token(previous_token.token.ty())
         || previous_token.span.file != right_span.file
         || previous_token.span.end >= right_token_start
     {

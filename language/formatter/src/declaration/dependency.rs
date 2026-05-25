@@ -840,11 +840,11 @@ fn dependency_item_collection_close_brace_token(
 ) -> Option<TokenSpan> {
     if let Some(last_item_id) = items.last().copied() {
         let mut candidate = context.next_non_trivia_token_after_span(context.span(last_item_id))?;
-        if candidate.token.ty == TokenType::Comma {
+        if candidate.token.ty() == TokenType::Comma {
             candidate = context.next_non_trivia_token_after_span(candidate.span)?;
         }
 
-        return (candidate.token.ty == TokenType::CloseBrace).then_some(candidate);
+        return (candidate.token.ty() == TokenType::CloseBrace).then_some(candidate);
     }
 
     let expression_span = context.span(node_id);
@@ -869,7 +869,7 @@ fn dependency_item_collection_close_brace_token(
         .non_trivia_tokens_in_span(clause_span)
         .into_iter()
         .rev()
-        .find(|token| token.token.ty == TokenType::CloseBrace)
+        .find(|token| token.token.ty() == TokenType::CloseBrace)
 }
 
 /// Return one dependency item collection open-brace token.
@@ -881,7 +881,7 @@ fn dependency_item_collection_open_brace_token(
     if let Some(first_item_id) = items.first().copied() {
         let candidate =
             context.previous_non_trivia_token_before_span(context.span(first_item_id))?;
-        return (candidate.token.ty == TokenType::OpenBrace).then_some(candidate);
+        return (candidate.token.ty() == TokenType::OpenBrace).then_some(candidate);
     }
 
     let close_brace = dependency_item_collection_close_brace_token(context, node_id, items)?;
@@ -895,7 +895,7 @@ fn dependency_item_collection_open_brace_token(
     context
         .non_trivia_tokens_in_span(clause_span)
         .into_iter()
-        .find(|token| token.token.ty == TokenType::OpenBrace)
+        .find(|token| token.token.ty() == TokenType::OpenBrace)
 }
 
 /// Return whether one dependency item collection interior has preserved source signal.
@@ -939,7 +939,7 @@ fn dependency_item_collection_has_interior_signal(
 
     let trailing_start = context
         .previous_non_trivia_token_before_span(close_brace.span)
-        .filter(|token| token.token.ty == TokenType::Comma)
+        .filter(|token| token.token.ty() == TokenType::Comma)
         .map_or_else(
             || context.span(*items.last().expect("items is not empty")).end,
             |token| token.span.end,
@@ -1006,7 +1006,9 @@ fn write_dependency_item_entries<'ast>(
         let gap_start = f
             .context()
             .next_non_trivia_token_after_span(item_span)
-            .filter(|token| token.token.ty == TokenType::Comma && token.span.end <= next_item_start)
+            .filter(|token| {
+                token.token.ty() == TokenType::Comma && token.span.end <= next_item_start
+            })
             .map_or(item_span.end, |token| token.span.end);
 
         if dependency_gap_has_comments(f.context(), gap_start, next_item_start) {
@@ -1103,7 +1105,7 @@ fn write_dependency_item_collection<'ast>(
                             {
                                 f.context()
                                     .previous_non_trivia_token_before_span(close_brace.span)
-                                    .filter(|token| token.token.ty == TokenType::Comma)
+                                    .filter(|token| token.token.ty() == TokenType::Comma)
                                     .map_or(last_item_end, |token| token.span.end)
                             } else {
                                 last_item_end

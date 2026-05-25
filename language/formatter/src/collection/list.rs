@@ -305,13 +305,13 @@ fn separator_token_after_element(
     let separator_token_type = separator_token_type(separator)?;
     let last_token_in_element = context.last_non_trivia_token_in_span(element_span);
     if let Some(token) = last_token_in_element
-        && token.token.ty == separator_token_type
+        && token.token.ty() == separator_token_type
     {
         return Some(token);
     }
 
     let separator_token = context.next_non_trivia_token_after_span(element_span)?;
-    if separator_token.token.ty != separator_token_type {
+    if separator_token.token.ty() != separator_token_type {
         return None;
     }
 
@@ -634,7 +634,7 @@ fn ignored_range_starts_with_separator(
 
     context
         .first_non_trivia_token_in_span(range_span)
-        .is_some_and(|token| token.token.ty == separator_token)
+        .is_some_and(|token| token.token.ty() == separator_token)
 }
 
 /// Return whether one ignored range ends with a separator token.
@@ -653,7 +653,7 @@ fn ignored_range_ends_with_separator(
 
     context
         .last_non_trivia_token_in_span(range_span)
-        .is_some_and(|token| token.token.ty == separator_token)
+        .is_some_and(|token| token.token.ty() == separator_token)
 }
 
 /// Return whether one ignored range already owns a trailing comment.

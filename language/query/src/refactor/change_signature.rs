@@ -262,7 +262,7 @@ fn function_parameter_span(
             };
             function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(decl_id);
-            ctx.dir().source_map().get(source_id)
+            ctx.dir().source_index().get(source_id)
         }
         dir::NodeType::Member => {
             let Ok(member_id) = local_id.try_into_typed::<dir::Member>() else {
@@ -270,12 +270,12 @@ fn function_parameter_span(
             };
             function_signature_for_node(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(member_id);
-            ctx.dir().source_map().get(source_id)
+            ctx.dir().source_index().get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
             let source_id = dir_tree.get_source(declaration_id);
-            ctx.dir().source_map().get(source_id)
+            ctx.dir().source_index().get(source_id)
         }
         _ => return None,
     };
@@ -426,7 +426,7 @@ fn find_parenthesis_inner_span(ctx: &ModuleQueryContext<'_>, span: Span) -> Opti
             break;
         }
 
-        match token.token.ty {
+        match token.token.ty() {
             TokenType::OpenParenthesis => {
                 depth += 1;
                 if depth == 1 {

@@ -47,7 +47,7 @@ fn scalar_literal_source_info(
 
     (
         context.literal_lexeme_in_span(span).map(ToOwned::to_owned),
-        token.and_then(|token| token.token.literal),
+        token.and_then(|token| token.token.literal()),
     )
 }
 

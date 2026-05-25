@@ -71,7 +71,7 @@ fn collect_comment_tokens(tokens: &[TokenSpan]) -> Vec<TokenSpan> {
     tokens
         .iter()
         .copied()
-        .filter(|token| token_type_is_comment(token.token.ty))
+        .filter(|token| token_type_is_comment(token.token.ty()))
         .collect()
 }
 

@@ -127,7 +127,7 @@ macro_rules! assert_tokenize_eq_roundtrip {
         let mut expected_tokens = vec![$($expected),*];
 
         // ensure the last token is an EOF token
-        if !matches!(expected_tokens.last(), Some(token) if token.ty == TokenType::End) {
+        if !matches!(expected_tokens.last(), Some(token) if token.ty() == TokenType::End) {
             expected_tokens.push(Token::end());
         }
         assert_eq!(tokens, expected_tokens);
@@ -168,7 +168,7 @@ macro_rules! assert_tree_tokenize_eq_roundtrip {
         let mut expected_tokens = vec![$($expected),*];
 
         // ensure the last token is an EOF token
-        if !matches!(expected_tokens.last(), Some(token) if token.ty == TokenType::End) {
+        if !matches!(expected_tokens.last(), Some(token) if token.ty() == TokenType::End) {
             expected_tokens.push(Token::end());
         }
         assert_eq!(tokens, expected_tokens);

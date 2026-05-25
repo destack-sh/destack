@@ -18,7 +18,7 @@ fn token_to_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color>
         Color::White
     };
 
-    match token.token.ty {
+    match token.token.ty() {
         TokenType::Newline | TokenType::Whitespace | TokenType::Unknown | TokenType::End => None,
 
         TokenType::LineComment | TokenType::BlockComment => Some(Color::BrightBlue),
@@ -34,7 +34,7 @@ fn token_to_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color>
         }
 
         TokenType::Literal => {
-            if let Some(literal) = token.token.literal {
+            if let Some(literal) = token.token.literal() {
                 match literal {
                     TokenLiteral::Boolean { .. }
                     | TokenLiteral::Int { .. }

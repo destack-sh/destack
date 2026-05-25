@@ -96,7 +96,7 @@ impl Parser {
     fn eat_type_tuple_readonly_modifier(&mut self) -> ParserResult<bool> {
         let next = *self.peek()?;
         if !self.language.is_destack()
-            && next.token.ty == TokenType::Identifier
+            && next.token.ty() == TokenType::Identifier
             && self.get_span_str(next.span) == "readonly"
         {
             self.bump();

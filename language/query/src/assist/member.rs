@@ -43,7 +43,7 @@ fn member_access_context_from_member_name(
     cursor_position: u32,
 ) -> Option<CompletionContext> {
     let token_at_cursor = token_span_at_cursor_offset(ctx, cursor_position)?;
-    if token_at_cursor.token.ty != dir::TokenType::Identifier {
+    if token_at_cursor.token.ty() != dir::TokenType::Identifier {
         return None;
     }
 
@@ -54,7 +54,7 @@ fn member_access_context_from_member_name(
 
     // scan enclosing spans for one member expression at the cursor
     for enc in &enclosing {
-        let main_span = ctx.tree().source_map.get_main(enc.idx);
+        let main_span = ctx.tree().source_index.get_main(enc.idx);
         let is_in_member_name = main_span
             .map(|span| span.contains(cursor_position))
             .unwrap_or(true);

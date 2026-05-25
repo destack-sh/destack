@@ -191,7 +191,7 @@ impl Parser {
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
         let literal_span = *self.eat()?;
-        let Some(body) = literal_span.token.literal else {
+        let Some(body) = literal_span.token.literal() else {
             return Err(ParserError::unexpected(literal_span.span));
         };
         let has_adjacent_identifier_suffix =
@@ -520,7 +520,7 @@ impl Parser {
         follow_mode: ContextualLexMode,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let token = *self.peek()?;
-        let Some(body) = token.token.literal else {
+        let Some(body) = token.token.literal() else {
             return Err(ParserError::unexpected(token.span));
         };
         let literal_str = self.file.span_str(token.span);
@@ -716,7 +716,7 @@ impl Parser {
         let Ok(next) = self.peek() else {
             return false;
         };
-        if next.token.ty != TokenType::Identifier {
+        if next.token.ty() != TokenType::Identifier {
             return false;
         }
 
@@ -817,7 +817,7 @@ impl Parser {
         let next_str = self.file.span_str(next.span);
 
         // template string without interpolation
-        if next.token.ty == TokenType::TemplateString {
+        if next.token.ty() == TokenType::TemplateString {
             let string = Self::template_chunk_body(next_str, 1, 1);
             self.validate_template_literal_chunk_maybe(
                 next.span,
@@ -830,7 +830,7 @@ impl Parser {
         }
 
         // template string with interpolation
-        if next.token.ty == TokenType::TemplateStringStart {
+        if next.token.ty() == TokenType::TemplateStringStart {
             let mut strings: Vec<StringId> = Vec::new();
             let mut spans: Vec<T> = Vec::new();
 
@@ -1389,8 +1389,8 @@ impl Parser {
             let token = *self.peek()?;
 
             // skip non-meaningful whitespace-only tree strings
-            if token.token.ty == TokenType::Literal
-                && token.token.literal == Some(TokenLiteral::TreeString)
+            if token.token.ty() == TokenType::Literal
+                && token.token.literal() == Some(TokenLiteral::TreeString)
             {
                 let content = self.get_span_str(token.span);
                 if Self::tree_text_is_ignored_whitespace(content) {

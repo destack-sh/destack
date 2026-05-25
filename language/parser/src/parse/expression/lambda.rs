@@ -103,7 +103,7 @@ impl Parser {
 
     /// Return whether `async` can begin an async lambda or function expression.
     fn can_start_async_lambda_head(&mut self) -> bool {
-        if self.next_token().token.is_on_new_line {
+        if self.next_token().token.is_on_new_line() {
             return false;
         }
 

@@ -108,7 +108,7 @@ impl Parser {
         if self.flags.is_in_super_type()
             || self.flags.is_in_before_block()
             || self.flags.is_in_for_each()
-            || self.next_token().token.is_on_new_line
+            || self.next_token().token.is_on_new_line()
         {
             return Ok(None);
         }
@@ -661,8 +661,8 @@ impl Parser {
         }
 
         let next_token = self.next_token();
-        let next_token_type = next_token.token.ty;
-        let next_is_on_new_line = next_token.token.is_on_new_line;
+        let next_token_type = next_token.token.ty();
+        let next_is_on_new_line = next_token.token.is_on_new_line();
         let next_keyword = self.next_keyword();
         let following_token_type = self.token_type_at_offset(2);
         if !self.keyword_begins_type_form(

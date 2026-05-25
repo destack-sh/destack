@@ -114,7 +114,7 @@ impl Parser {
     pub fn is_next_any_stop(&mut self) -> bool {
         let token = self.next_token();
 
-        token.token.is_on_new_line || Self::is_any_stop_token(token.token.ty)
+        token.token.is_on_new_line() || Self::is_any_stop_token(token.token.ty())
     }
 
     /// Peek an item stop.
@@ -122,8 +122,8 @@ impl Parser {
     pub fn peek_item_stop(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && Self::is_item_stop_token(token.token.ty)
-            && token.token.ty != TokenType::End
+            && Self::is_item_stop_token(token.token.ty())
+            && token.token.ty() != TokenType::End
         {
             Ok(token)
         } else {
@@ -135,7 +135,7 @@ impl Parser {
     #[inline]
     pub fn eat_item_stop(&mut self) -> ParserResult<()> {
         if let Ok(token) = self.peek()
-            && token.token.ty == TokenType::Comma
+            && token.token.ty() == TokenType::Comma
         {
             self.bump();
         } else {
@@ -149,7 +149,7 @@ impl Parser {
     pub fn peek_statement_stop(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && Self::is_statement_stop_token(token.token.ty)
+            && Self::is_statement_stop_token(token.token.ty())
         {
             Ok(token)
         } else {
@@ -161,7 +161,7 @@ impl Parser {
     #[inline]
     pub fn eat_statement_stop(&mut self) -> ParserResult<()> {
         if let Ok(token) = self.peek()
-            && token.token.ty == TokenType::Semicolon
+            && token.token.ty() == TokenType::Semicolon
         {
             self.bump(); // eat semicolon
             return Ok(());
@@ -179,7 +179,7 @@ impl Parser {
     pub fn peek_any_stop(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && Self::is_any_stop_token(token.token.ty)
+            && Self::is_any_stop_token(token.token.ty())
         {
             Ok(token)
         } else {
@@ -192,7 +192,7 @@ impl Parser {
     pub fn peek_next_any_stop(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         let token = self.next_token();
-        if token.token.is_on_new_line || Self::is_any_stop_token(token.token.ty) {
+        if token.token.is_on_new_line() || Self::is_any_stop_token(token.token.ty()) {
             return Ok(token);
         }
 
@@ -203,7 +203,7 @@ impl Parser {
     #[inline]
     pub fn eat_any_stop(&mut self) -> ParserResult<()> {
         if let Ok(token) = self.peek()
-            && matches!(token.token.ty, TokenType::Comma | TokenType::Semicolon)
+            && matches!(token.token.ty(), TokenType::Comma | TokenType::Semicolon)
         {
             self.bump();
             return Ok(());
@@ -221,9 +221,9 @@ impl Parser {
     pub fn peek_any_open_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && (token.token.ty == TokenType::OpenParenthesis
-                || token.token.ty == TokenType::OpenBracket
-                || token.token.ty == TokenType::OpenBrace)
+            && (token.token.ty() == TokenType::OpenParenthesis
+                || token.token.ty() == TokenType::OpenBracket
+                || token.token.ty() == TokenType::OpenBrace)
         {
             Ok(token)
         } else {
@@ -236,8 +236,8 @@ impl Parser {
     pub fn peek_any_close_parenthesis(&mut self) -> ParserResult<&TokenSpan> {
         let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
-            && (token.token.ty == TokenType::CloseParenthesis
-                || token.token.ty == TokenType::CloseBracket)
+            && (token.token.ty() == TokenType::CloseParenthesis
+                || token.token.ty() == TokenType::CloseBracket)
         {
             Ok(token)
         } else {
@@ -250,8 +250,8 @@ impl Parser {
     pub fn peek_next_any_close_parenthesis(&mut self) -> ParserResult<TokenSpan> {
         let eof_span = self.eof_span();
         let token = self.next_token();
-        if token.token.ty == TokenType::CloseParenthesis
-            || token.token.ty == TokenType::CloseBracket
+        if token.token.ty() == TokenType::CloseParenthesis
+            || token.token.ty() == TokenType::CloseBracket
         {
             return Ok(token);
         }

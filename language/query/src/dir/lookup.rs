@@ -130,7 +130,7 @@ pub(crate) fn get_member_access_name_span(
 ) -> Option<Span> {
     let expression = ctx.view().get::<Expression>(expression_id);
 
-    // resolve the expression span from DIR source maps
+    // resolve the expression span from DIR source indexes
     let expression_span = get_node_tree_span(ctx, ctx.view(), expression_id.into());
 
     // prefer the first identifier after the receiver span
@@ -148,7 +148,7 @@ pub(crate) fn get_member_access_name_span(
                 continue;
             }
             if !matches!(
-                token.token.ty,
+                token.token.ty(),
                 dir::TokenType::Identifier | dir::TokenType::InvalidIdentifier
             ) {
                 continue;
@@ -168,7 +168,7 @@ pub(crate) fn get_member_access_name_span(
             continue;
         }
         if !matches!(
-            token.token.ty,
+            token.token.ty(),
             dir::TokenType::Identifier | dir::TokenType::InvalidIdentifier
         ) {
             continue;
@@ -230,7 +230,7 @@ fn find_symbol_at_offset_impl(ctx: &ModuleQueryContext<'_>, offset: u32) -> Opti
     let dir = ctx.dir();
 
     // find source nodes at the offset
-    let enclosing = dir.tree().source_map.get_enclosing_spans(offset, offset);
+    let enclosing = dir.tree().source_index.get_enclosing_spans(offset, offset);
     if enclosing.is_empty() {
         return None;
     }
@@ -245,7 +245,7 @@ fn find_symbol_at_offset_impl(ctx: &ModuleQueryContext<'_>, offset: u32) -> Opti
             return false;
         }
         matches!(
-            token.token.ty,
+            token.token.ty(),
             dir::TokenType::DocLineComment
                 | dir::TokenType::DocBlockComment
                 | dir::TokenType::LineComment
@@ -654,7 +654,7 @@ fn declaration_modifier_symbol_at_offset(
     offset: u32,
 ) -> Option<SymbolAtOffset> {
     let token = token_span_at_offset(ctx.dir(), offset)?;
-    if token.token.ty != dir::TokenType::Identifier {
+    if token.token.ty() != dir::TokenType::Identifier {
         return None;
     }
 
@@ -676,7 +676,7 @@ fn declaration_modifier_symbol_at_offset(
     let mut enclosing = ctx
         .dir()
         .tree()
-        .source_map
+        .source_index
         .get_enclosing_spans(offset, offset);
     enclosing.sort_by_key(|span| span.length);
 
@@ -689,7 +689,7 @@ fn declaration_modifier_symbol_at_offset(
             continue;
         }
 
-        let Some(name_span) = ctx.dir().tree().source_map.get_main(enclosing_span.idx) else {
+        let Some(name_span) = ctx.dir().tree().source_index.get_main(enclosing_span.idx) else {
             continue;
         };
         if token.span.start >= name_span.start {
@@ -746,7 +746,11 @@ fn generic_parameter_symbol_at_offset(
             let main_span = dir
                 .tree()
                 .get_main_span_by_id(source_node_id)
-                .unwrap_or_else(|| dir.tree().source_map.get_main_or_enclosing(source_node_id));
+                .unwrap_or_else(|| {
+                    dir.tree()
+                        .source_index
+                        .get_main_or_enclosing(source_node_id)
+                });
             let parameter = dir_tree.get::<dir::GenericParameter>(parameter_id);
             let span = Span::new(ctx.file_id(), main_span.start, main_span.end);
             if !offset_matches_symbol_span(offset, span) {

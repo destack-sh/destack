@@ -534,7 +534,7 @@ fn source_expression_main_span_without_parentheses(
         expression,
         dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. }
     ) {
-        let expression_span = ctx.tree().source_map.get(expression_id.id);
+        let expression_span = ctx.tree().source_index.get(expression_id.id);
         if let Some(identifier_span) = source_identifier_span_in_expression(ctx, expression_span) {
             return Some(identifier_span);
         }
@@ -542,9 +542,9 @@ fn source_expression_main_span_without_parentheses(
 
     let span = ctx
         .tree()
-        .source_map
+        .source_index
         .get_main(expression_id.id)
-        .unwrap_or_else(|| ctx.tree().source_map.get(expression_id.id));
+        .unwrap_or_else(|| ctx.tree().source_index.get(expression_id.id));
     Some(Span::new(ctx.file_id(), span.start, span.end))
 }
 
@@ -558,7 +558,7 @@ fn source_identifier_span_in_expression(
         if token.span.file != ctx.file_id() {
             continue;
         }
-        if token.token.ty != dir::TokenType::Identifier {
+        if token.token.ty() != dir::TokenType::Identifier {
             continue;
         }
         if token.span.start < expression_span.start || token.span.end > expression_span.end {

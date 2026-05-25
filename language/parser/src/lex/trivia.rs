@@ -156,7 +156,7 @@ impl Trivia {
 
     /// Attach pending leading comments to one semantic token boundary.
     pub(super) fn handle_token(&mut self, token_span: TokenSpan) {
-        self.state.previous_token_type = token_span.token.ty;
+        self.state.previous_token_type = token_span.token.ty();
 
         let active_comment_end = self.active_comment_end(token_span.span.start);
 
