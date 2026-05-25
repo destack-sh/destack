@@ -607,6 +607,7 @@ fn matches_conditions(selector: &SubjectSelector, conditions: &ConditionSet) -> 
         platform: selector.platform.clone(),
         host: selector.host.clone(),
         runtime: selector.runtime.clone(),
+        ..ConditionGate::default()
     };
 
     gate.matches(conditions)
