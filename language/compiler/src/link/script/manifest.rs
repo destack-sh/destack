@@ -2,7 +2,7 @@ use crate::link::{OutputLocation, TargetLocation};
 use crate::{LinkError, LinkResult};
 use destack_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, OutputFile,
-    PackageOutput, TargetOutputName,
+    PackageOutput,
 };
 use destack_source::FileType;
 use destack_workspace::BundleMode;
@@ -77,10 +77,9 @@ impl<'a> ScriptLinker<'a> {
     ) -> LinkResult<BuildManifest> {
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut files = Vec::new();
-        for (output_name, output_files) in &output.outputs {
+        for output_files in output.outputs.values() {
             for file in output_files {
-                let file =
-                    self.build_script_manifest_file(&target_layout, *output_name, file, plan)?;
+                let file = self.build_script_manifest_file(&target_layout, file, plan)?;
 
                 files.push(file);
             }
@@ -88,19 +87,13 @@ impl<'a> ScriptLinker<'a> {
 
         files.sort_by(|left, right| left.path.cmp(&right.path));
 
-        Ok(BuildManifest {
-            index: self
-                .compiler
-                .build_manifest_index_path(&target_layout, self.target, output),
-            files,
-        })
+        Ok(BuildManifest { index: None, files })
     }
 
     /// Build one public build manifest file for one script output.
     fn build_script_manifest_file(
         &self,
         target_layout: &TargetLocation<'_>,
-        output_name: TargetOutputName,
         file: &OutputFile,
         plan: &Plan,
     ) -> LinkResult<BuildManifestFile> {
@@ -114,7 +107,6 @@ impl<'a> ScriptLinker<'a> {
             });
         let chunk = self.build_script_manifest_output_metadata(
             target_layout,
-            output_name,
             file.content.file_type(),
             output_location.as_ref(),
             plan,
@@ -133,23 +125,10 @@ impl<'a> ScriptLinker<'a> {
     fn build_script_manifest_output_metadata(
         &self,
         target_layout: &TargetLocation<'_>,
-        output_name: TargetOutputName,
         file_type: FileType,
         output_location: Option<&OutputLocation>,
         plan: &Plan,
     ) -> LinkResult<Option<ManifestChunkMetadata>> {
-        if matches!(file_type, FileType::Html) {
-            return Ok(Some(ManifestChunkMetadata {
-                name: None,
-                input: None,
-                is_entry: output_name == TargetOutputName::Document,
-                is_dynamic_entry: false,
-                imports: Vec::new(),
-                dynamic_imports: Vec::new(),
-                stylesheets: Vec::new(),
-            }));
-        }
-
         if !matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
             return Ok(None);
         }
@@ -220,16 +199,6 @@ impl<'a> ScriptLinker<'a> {
                 Some(target_layout.output_reference(output_location, dependency_output_location))
             })
             .collect::<Vec<_>>();
-        let stylesheets = output
-            .stylesheet_modules()
-            .iter()
-            .filter_map(|module_id| {
-                let stylesheet_output_location = plan.stylesheet_output_location(*module_id)?;
-
-                Some(target_layout.output_reference(output_location, stylesheet_output_location))
-            })
-            .collect::<Vec<_>>();
-
         imports.extend(output.external_imports().iter().cloned());
         dynamic_imports.extend(output.external_dynamic_imports().iter().cloned());
 
@@ -253,7 +222,7 @@ impl<'a> ScriptLinker<'a> {
             is_dynamic_entry: output.is_dynamic_entry(),
             imports,
             dynamic_imports,
-            stylesheets,
+            stylesheets: Vec::new(),
         })
     }
 }

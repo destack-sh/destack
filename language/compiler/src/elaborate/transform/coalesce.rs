@@ -438,7 +438,9 @@ impl Compiler {
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
         // preserve current expression result type for rewritten nodes
-        let result_type_id = state.type_table().get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id));
+        let result_type_id = state
+            .type_table()
+            .get_declared_or_inferred_type_id(expression_id.into_global_any(state.module_id));
 
         // create one lexical block scope for the local temp
         let block_scope_id = state
@@ -483,12 +485,10 @@ impl Compiler {
         );
 
         // build local block value: { let t = left; if (...) ... else ... }
-        let block_id = state.tree.reserve_from(
-            NodeType::Block,
-            expression_id.into_any(),
-            block_scope,
-            None,
-        );
+        let block_id =
+            state
+                .tree
+                .reserve_from(NodeType::Block, expression_id.into_any(), block_scope, None);
         let block_id = state.tree.insert_as_owner(
             block_id,
             dir::Block {
@@ -509,8 +509,8 @@ impl Compiler {
         if let Some(result_type_id) = result_type_id {
             self.set_expression_type(state.types_tail, state.module_id, if_id, result_type_id);
             state
-            .types_tail
-            .set_inferred_type(block_id.into_global_any(state.module_id), result_type_id);
+                .types_tail
+                .set_inferred_type(block_id.into_global_any(state.module_id), result_type_id);
             state.types_tail.set_inferred_type(
                 expression_id.into_global_any(state.module_id),
                 result_type_id,
@@ -526,7 +526,9 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         left: LocalNodeId<Expression>,
     ) -> bool {
-        let Some(left_type_id) = state.type_table().get_declared_or_inferred_type_id(left.into_global_any(state.module.id))
+        let Some(left_type_id) = state
+            .type_table()
+            .get_declared_or_inferred_type_id(left.into_global_any(state.module.id))
         else {
             return false;
         };
@@ -574,7 +576,9 @@ impl Compiler {
             None,
         );
         let global_symbol = symbol_id.into_global(state.module_id);
-        state.types_tail.set_value_type(global_symbol, value_type_id);
+        state
+            .types_tail
+            .set_value_type(global_symbol, value_type_id);
 
         // create one stable synthetic name
         let name_text = format!("{name_prefix}{}", symbol_id.id);
@@ -666,7 +670,7 @@ impl Compiler {
             .key
             .emit;
 
-        Ok(matches!(emit, EmitFormat::Js | EmitFormat::Ts | EmitFormat::Html))
+        Ok(matches!(emit, EmitFormat::Js | EmitFormat::Ts))
     }
 
     /// Build the shared synthetic binding and nullish condition for one left operand.
@@ -683,7 +687,9 @@ impl Compiler {
         }
 
         // require a known type for the left operand
-        let Some(left_type_id) = state.type_table().get_declared_or_inferred_type_id(left.into_global_any(state.module_id))
+        let Some(left_type_id) = state
+            .type_table()
+            .get_declared_or_inferred_type_id(left.into_global_any(state.module_id))
         else {
             return Ok(None);
         };

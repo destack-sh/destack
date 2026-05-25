@@ -176,12 +176,9 @@ impl<'a> ScriptLinker<'a> {
     pub(in crate::link::script) fn collect_asset_modules(
         &self,
         asset_root_modules: &[ModuleId],
-        stylesheet_module_ids: &[ModuleId],
         script_module_ids: &[ModuleId],
     ) -> CompilerResult<Vec<ModuleId>> {
         let mut asset_module_ids = asset_root_modules.iter().copied().collect::<IndexSet<_>>();
-
-        asset_module_ids.extend(self.collect_stylesheet_assets(stylesheet_module_ids)?);
 
         // script file-loader modules also participate in the asset lane
         asset_module_ids.extend(self.collect_file_modules(script_module_ids)?);
@@ -218,28 +215,6 @@ impl<'a> ScriptLinker<'a> {
         self.file(module.file_id)
     }
 
-    /// Return one display string for one asset module id.
-    pub(in crate::link::script) fn asset_display_name(
-        &self,
-        module_id: ModuleId,
-    ) -> LinkResult<String> {
-        let module = self.asset_module(module_id)?;
-
-        if let Some(path) = module.path.as_ref() {
-            return Ok(path.display().to_string());
-        }
-
-        Ok(module.uri.to_string())
-    }
-
-    /// Return one original authored-like reference string for one asset module id.
-    pub(in crate::link::script) fn asset_original_reference(
-        &self,
-        module_id: ModuleId,
-    ) -> LinkResult<String> {
-        self.asset_display_name(module_id)
-    }
-
     /// Return one linker-local asset payload from one source module.
     fn asset(&self, module_id: ModuleId) -> LinkResult<Asset> {
         let module = self.asset_module(module_id)?;
@@ -250,17 +225,6 @@ impl<'a> ScriptLinker<'a> {
             package: self.package_id,
             message,
         })
-    }
-
-    /// Return one emitted asset output location for one asset module.
-    pub(in crate::link::script) fn asset_output_location(
-        &self,
-        module_id: ModuleId,
-    ) -> LinkResult<OutputLocation> {
-        let asset = self.asset(module_id)?;
-        let output_location = self.asset_output_location_with_asset(module_id, &asset)?;
-
-        Ok(output_location)
     }
 
     /// Return one emitted asset output location for one asset payload.

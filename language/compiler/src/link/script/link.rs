@@ -1,6 +1,6 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
-use destack_artifact::{EmitFormat, OutputFile, PackageOutput, TargetOutputName};
+use destack_artifact::{OutputFile, PackageOutput, TargetOutputName};
 use destack_source::{FileType, ModuleId};
 use destack_workspace::BundleFormat;
 
@@ -17,18 +17,6 @@ impl<'a> ScriptLinker<'a> {
         // script outputs
         output_files.extend(
             self.render_script_graph(&plan)
-                .map_err(CompilerError::from)?,
-        );
-
-        // stylesheet outputs
-        output_files.extend(
-            self.render_css_stylesheet_outputs(&plan)
-                .map_err(CompilerError::from)?,
-        );
-
-        // document outputs
-        output_files.extend(
-            self.render_html_target_outputs(&plan)
                 .map_err(CompilerError::from)?,
         );
 
@@ -112,11 +100,10 @@ impl<'a> ScriptLinker<'a> {
         match file_type {
             FileType::TypeScriptDeclaration => TargetOutputName::Types,
             FileType::SourceMap => TargetOutputName::Maps,
-            FileType::Html => TargetOutputName::Document,
 
-            // html and single-file script targets publish an entry file
+            // single-file script targets publish an entry file
             FileType::JavaScript | FileType::TypeScript => {
-                if self.target.emit == EmitFormat::Html || self.target.is_single_file() {
+                if self.target.is_single_file() {
                     TargetOutputName::Entry
                 } else {
                     TargetOutputName::Module

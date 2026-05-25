@@ -312,7 +312,6 @@ impl<'a> ScriptLinker<'a> {
                     self.target_name()
                 ),
             })?;
-        let is_plain_stylesheet = self.is_plain_stylesheet_module(module_id)?;
         let mut tree = js::Tree::new();
         let mut strings = StringPool::new();
         let value = self.resource_value(
@@ -323,50 +322,41 @@ impl<'a> ScriptLinker<'a> {
             &mut tree,
             &mut strings,
         )?;
-        let should_export_default = if is_plain_stylesheet {
-            false
-        } else if let Some(output) = output_graph.output(output_id) {
+        let should_export_default = if let Some(output) = output_graph.output(output_id) {
             output.facade_module() == Some(source_module.id)
         } else {
             false
         };
-        let script_module = if is_plain_stylesheet {
-            js::Module {
-                tree,
-                roots: Vec::new(),
-                strings,
-            }
-        } else {
-            let let_statement = insert_bound_value_statement(
+
+        let let_statement = insert_bound_value_statement(
+            &mut tree,
+            &mut strings,
+            module_id,
+            dir.module_node,
+            js::MODULE_DEFAULT_NAME,
+            value,
+        );
+        let mut roots = vec![let_statement.into_any()];
+
+        // standalone resource outputs still need one module default export
+        if should_export_default {
+            let export_statement = insert_default_export_statement(
                 &mut tree,
                 &mut strings,
                 module_id,
                 dir.module_node,
                 js::MODULE_DEFAULT_NAME,
-                value,
             );
-            let mut roots = vec![let_statement.into_any()];
+            roots.push(export_statement.into_any());
+        }
 
-            // standalone resource outputs still need one module default export
-            if should_export_default {
-                let export_statement = insert_default_export_statement(
-                    &mut tree,
-                    &mut strings,
-                    module_id,
-                    dir.module_node,
-                    js::MODULE_DEFAULT_NAME,
-                );
-                roots.push(export_statement.into_any());
-            }
-
-            js::Module {
-                tree,
-                roots,
-                strings,
-            }
+        let script_module = js::Module {
+            tree,
+            roots,
+            strings,
         };
         let language = match self.target.emit {
-            EmitFormat::Js | EmitFormat::Html => ScriptLanguage::JavaScript,
+            EmitFormat::Js => ScriptLanguage::JavaScript,
             EmitFormat::Ts => ScriptLanguage::TypeScript,
             other => {
                 return Err(LinkError::Internal {
@@ -387,7 +377,7 @@ impl<'a> ScriptLinker<'a> {
             module: script_module,
             declaration,
             source_map: None,
-            has_top_level_side_effects: is_plain_stylesheet,
+            has_top_level_side_effects: false,
         })
     }
 
@@ -401,27 +391,9 @@ impl<'a> ScriptLinker<'a> {
         tree: &mut js::Tree,
         strings: &mut StringPool,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
-        if self.is_plain_stylesheet_module(module.id)? {
-            let stylesheet_url = self.stylesheet_reference(output_id, plan, module.id)?;
-
-            return Ok(insert_string_expression(
-                tree,
-                strings,
-                module.id,
-                anchor,
-                &stylesheet_url,
-            ));
-        }
-
         if module.loader.is_data() {
             let value = self.data(module.id)?;
-            let Data::Json(value) = value.as_ref() else {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!("expected json payload for data module '{}'", module.uri),
-                });
-            };
+            let Data::Json(value) = value.as_ref();
 
             return Ok(insert_json_expression(
                 tree, strings, module.id, anchor, value,
