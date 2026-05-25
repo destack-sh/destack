@@ -46,6 +46,19 @@ fn nested_assignment_sequence_source(depth: usize) -> String {
     source
 }
 
+/// Build one long right-associative assignment expression.
+fn long_assignment_chain_source(depth: usize) -> String {
+    let mut source = String::new();
+
+    for index in 0..depth {
+        source.push_str(&format!("value{index} = "));
+    }
+
+    source.push_str("finalValue");
+
+    source
+}
+
 /// Assert that one expression rejects with a single leaf span.
 fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_leaf: &str) {
     let mut test = TestParser::new_with_language(input, language);
@@ -144,6 +157,30 @@ a['b'] = c[d] = "test"
         assert_eq!(*operator, BinaryOperator::EqualStrict);
     });
     assert_node!(parser.tree, expressions[7], Expression::Assign { .. });
+}
+
+/// Parse a long assignment chain without overflowing the parser stack.
+#[test]
+fn test_parse_long_assignment_chain() {
+    let depth = 2100;
+    let source = long_assignment_chain_source(depth);
+    let mut test = TestParser::new(&source);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    let mut expression_id = expression_id;
+    for index in 0..depth {
+        let expected = format!("value{index}");
+
+        assert_node!(parser.tree, expression_id, Expression::Assign { left, right, .. } => {
+            assert_assign_pattern_path(&parser, *left, &expected);
+            expression_id = *right;
+        });
+    }
+
+    assert_expression_path!(parser, parser.tree.get(expression_id), "finalValue");
 }
 
 /// Addition is left associative.

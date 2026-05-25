@@ -52,6 +52,20 @@ pub(super) fn long_nullish_chain(mode: StressMode, scale: usize, width: usize) -
     generator.finish()
 }
 
+/// Generate one very long right associative assignment expression.
+pub(super) fn long_assignment_chain(mode: StressMode, scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(mode, scale, width, scale * 16);
+    generator.emit("const longAssignmentChain = ");
+
+    for index in 0..scale {
+        emit!(generator, "value{index} = ");
+    }
+
+    generator.emit("finalValue;\n");
+
+    generator.finish()
+}
+
 /// Generate one very long union and intersection type expression.
 pub(super) fn long_type_operator_chain(mode: StressMode, scale: usize, width: usize) -> String {
     let mut generator = Generator::new(mode, scale, width, scale * 18);
