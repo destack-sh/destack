@@ -66,6 +66,63 @@ pub(super) fn long_assignment_chain(mode: StressMode, scale: usize, width: usize
     generator.finish()
 }
 
+/// Generate one very long value prefix expression.
+pub(super) fn long_value_prefix_chain(mode: StressMode, scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(mode, scale, width, scale * 4);
+    generator.emit("const longValuePrefixChain = ");
+
+    for _ in 0..scale {
+        generator.emit("!");
+    }
+
+    generator.emit("seed;\n");
+
+    generator.finish()
+}
+
+/// Generate one very long type prefix expression.
+pub(super) fn long_type_prefix_chain(mode: StressMode, scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(mode, scale, width, scale * 8);
+    generator.emit("type LongTypePrefixChain<T> = ");
+
+    if mode.is_destack() {
+        generator.emit("(");
+    }
+
+    for _ in 0..scale {
+        generator.emit("keyof ");
+    }
+
+    generator.emit("T");
+
+    if mode.is_destack() {
+        generator.emit(")");
+    }
+
+    generator.emit(";\n");
+
+    generator.finish()
+}
+
+/// Generate one very long pattern prefix expression.
+pub(super) fn long_pattern_prefix_chain(mode: StressMode, scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(mode, scale, width, scale * 4);
+    generator.emit("function longPatternPrefixChain(value) {\n");
+    generator.emit("    return match (value) {\n");
+    generator.emit("        ");
+
+    for _ in 0..scale {
+        generator.emit("& ");
+    }
+
+    generator.emit("item => item;\n");
+    generator.emit("        _ => value\n");
+    generator.emit("    };\n");
+    generator.emit("}\n");
+
+    generator.finish()
+}
+
 /// Generate one very long union and intersection type expression.
 pub(super) fn long_type_operator_chain(mode: StressMode, scale: usize, width: usize) -> String {
     let mut generator = Generator::new(mode, scale, width, scale * 18);

@@ -275,7 +275,9 @@ impl Parser {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
 
-        self.eat_type_operand(scope)
+        self.with_recursive_descent(NodeType::TypeExpression, |parser| {
+            parser.eat_type_operand(scope)
+        })
     }
 
     /// Parse one type prefix operator.
@@ -329,7 +331,9 @@ impl Parser {
             return Ok(self.recover_missing_type_expression_here(NodeType::TypeExpression));
         }
 
-        self.eat_type_operand(scope)
+        self.with_recursive_descent(NodeType::TypeExpression, |parser| {
+            parser.eat_type_operand(scope)
+        })
     }
 
     /// Return whether a type can receive tagged object literal construction.

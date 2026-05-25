@@ -839,7 +839,9 @@ impl Parser {
         let right_scope =
             ExpressionScope::from_flags(self.flags.not_in_position().not_in_before_block())
                 .at_precedence(Some(OperatorPrecedence::Prefix as u16));
-        let right = self.eat_value_operand(right_scope)?;
+        let right = self.with_recursive_descent(NodeType::Expression, |parser| {
+            parser.eat_value_operand(right_scope)
+        })?;
         let expression = if token_type == TokenType::ElementwiseAnd {
             Expression::BorrowOf {
                 mutability,
