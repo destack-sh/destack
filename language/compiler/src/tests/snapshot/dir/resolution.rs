@@ -55,8 +55,12 @@ fn add_name_resolution_row(
     node_id: dir::GlobalNodeIdAny,
     resolution: &dir::NameResolution,
 ) {
-    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "name")
-        .optional_field("source", builder.node_source(node_id));
+    let row = SnapshotRow::new(
+        builder.name_resolution_anchor(node_id),
+        "resolution",
+        "name",
+    )
+    .optional_field("source", builder.name_resolution_source(node_id));
     let row = if resolution.symbols.len() == 1 {
         row.field("target", builder.symbol_path_label(resolution.symbols[0]))
     } else {

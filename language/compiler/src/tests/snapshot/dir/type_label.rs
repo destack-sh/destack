@@ -28,7 +28,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Object => "object".to_string(),
             dir::Type::Primitive(primitive) => Self::primitive_type_label(*primitive),
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
-            dir::Type::Parameter(parameter) => self.symbol_label(parameter.symbol),
+            dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
             dir::Type::Named(named) => self.named_type_label(named),
             dir::Type::This => "this".to_string(),
             dir::Type::Form(form) => self.form_type_label(types, form),
@@ -439,7 +439,7 @@ impl DirSnapshotBuilder<'_> {
     ) -> String {
         // render method generics and parameters
         let generics = self.function_generic_label(types, function);
-        let parameters = self.type_id_list_label(types, &function.parameters, ", ");
+        let parameters = self.function_parameter_list_label(types, &function.parameters, ", ");
 
         // render the result type
         let return_type = function
@@ -486,11 +486,11 @@ impl DirSnapshotBuilder<'_> {
         &self,
         types: &dir::TypeTable<'_>,
         this_parameter: Option<String>,
-        parameters: &[dir::LocalTypeId],
+        parameters: &[dir::FunctionParameterType],
     ) -> String {
         let parameters = parameters
             .iter()
-            .map(|type_id| self.type_id_label(types, *type_id));
+            .map(|parameter| self.function_parameter_label(types, parameter));
         let parameters = this_parameter
             .into_iter()
             .chain(parameters)
@@ -498,6 +498,38 @@ impl DirSnapshotBuilder<'_> {
             .join(", ");
 
         parameters
+    }
+
+    /// Return one function parameter list label.
+    fn function_parameter_list_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        parameters: &[dir::FunctionParameterType],
+        separator: &'static str,
+    ) -> String {
+        parameters
+            .iter()
+            .map(|parameter| self.function_parameter_label(types, parameter))
+            .collect::<Vec<_>>()
+            .join(separator)
+    }
+
+    /// Return one function parameter label.
+    fn function_parameter_label(
+        &self,
+        types: &dir::TypeTable<'_>,
+        parameter: &dir::FunctionParameterType,
+    ) -> String {
+        let mut label = String::new();
+        if parameter.is_rest {
+            label.push_str("...");
+        }
+        label.push_str(&self.type_id_label(types, parameter.ty));
+        if parameter.is_optional {
+            label.push('?');
+        }
+
+        label
     }
 
     /// Return one function generic parameter label.
@@ -524,14 +556,91 @@ impl DirSnapshotBuilder<'_> {
     ) -> String {
         // render parameter symbols with their constraints
         if let dir::Type::Parameter(parameter) = types.get_type(type_id) {
-            let symbol = self.symbol_label(parameter.symbol);
+            let label = self.parameter_type_label(parameter);
+            let suffix = self.generic_slot_signature_suffix(types, parameter);
 
-            symbol
+            format!("{label}{suffix}")
         }
         // fall back to the nested type label
         else {
             self.type_id_label(types, type_id)
         }
+    }
+
+    /// Return one generic parameter label.
+    fn parameter_type_label(&self, parameter: &dir::ParameterType) -> String {
+        match parameter.key {
+            dir::GenericSlotKey::Symbol(symbol) => self.symbol_label(symbol),
+            dir::GenericSlotKey::Generated(name) => self.strings.get(name).to_string(),
+        }
+    }
+
+    /// Return the constraint and default label for one generic parameter.
+    fn generic_slot_signature_suffix(
+        &self,
+        types: &dir::TypeTable<'_>,
+        parameter: &dir::ParameterType,
+    ) -> String {
+        let Some(slot) = self.generic_slot_for_parameter(parameter) else {
+            return String::new();
+        };
+
+        match slot {
+            dir::GenericSlot::Type {
+                constraint,
+                default,
+                ..
+            }
+            | dir::GenericSlot::VariadicType {
+                constraint,
+                default,
+                ..
+            } => {
+                let constraint = constraint
+                    .map(|ty| format!(": {}", self.type_id_label(types, ty)))
+                    .unwrap_or_default();
+                let default = default
+                    .map(|ty| format!(" = {}", self.type_id_label(types, ty)))
+                    .unwrap_or_default();
+
+                format!("{constraint}{default}")
+            }
+            dir::GenericSlot::Static {
+                constraint,
+                default,
+                ..
+            }
+            | dir::GenericSlot::VariadicStatic {
+                constraint,
+                default,
+                ..
+            } => {
+                let constraint = constraint
+                    .map(|ty| format!(": {}", self.type_id_label(types, ty)))
+                    .unwrap_or_default();
+                let default = default
+                    .map(|static_id| format!(" = {}", self.static_label(static_id)))
+                    .unwrap_or_default();
+
+                format!("{constraint}{default}")
+            }
+        }
+    }
+
+    /// Return the generic slot represented by one parameter type.
+    fn generic_slot_for_parameter(
+        &self,
+        parameter: &dir::ParameterType,
+    ) -> Option<&dir::GenericSlot> {
+        let generics = self.generics.as_ref()?;
+
+        generics.iter_slots().find_map(|(_, slot)| {
+            let is_match = slot.owner() == parameter.owner
+                && slot.key() == parameter.key
+                && slot.index() == parameter.index;
+
+            is_match.then_some(slot)
+        })
     }
 
     /// Return one type id list label.

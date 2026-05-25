@@ -21,16 +21,16 @@ type Select<T> = T extends string ? string : int32;
 
 declare const text: Select<string>;
 /// @resolution.name source=Select target=Select
-/// @instance.application source="Select<string>" id=Select<string>
+/// @generic.application source="Select<string>" id=Select<string>
 /// @type.symbol symbol=text type=string
 
 declare const number: Select<boolean>;
 /// @resolution.name source=Select target=Select
-/// @instance.application source="Select<boolean>" id=Select<boolean>
+/// @generic.application source="Select<boolean>" id=Select<boolean>
 /// @type.symbol symbol=number type=int32
 
-/// @instance.entry id=Select<string> symbol=Select arguments=[string]
-/// @instance.entry id=Select<boolean> symbol=Select arguments=[boolean]
+/// @generic.instance id=Select<string> symbol=Select arguments=[string]
+/// @generic.instance id=Select<boolean> symbol=Select arguments=[boolean]
 "#,
     );
 }
@@ -132,14 +132,14 @@ type Flags<T> = { [K in keyof T]: boolean };
 
 type Actual = Flags<{ name: string; age: int32 }>;
 /// @resolution.name source=Flags target=Flags
-/// @instance.application source="Flags<{ name: string; age: int32 }>" id="Flags<{ name: string; age: int32 }>"
+/// @generic.application source="Flags<{ name: string; age: int32 }>" id="Flags<{ name: string; age: int32 }>"
 /// @type.symbol symbol=Actual type={ name: boolean; age: boolean }
 
 declare const value: Actual;
 /// @resolution.name source=Actual target=Actual
 /// @type.symbol symbol=value type={ name: boolean; age: boolean }
 
-/// @instance.entry id="Flags<{ name: string; age: int32 }>" symbol=Flags arguments=[{ name: string; age: int32 }]
+/// @generic.instance id="Flags<{ name: string; age: int32 }>" symbol=Flags arguments=[{ name: string; age: int32 }]
 "#,
     );
 }
@@ -165,14 +165,14 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 
 type Name = Segment<"/api">;
 /// @resolution.name source=Segment target=Segment
-/// @instance.application source="Segment<\"/api\">" id="Segment<\"/api\">"
+/// @generic.application source="Segment<\"/api\">" id="Segment<\"/api\">"
 /// @type.symbol symbol=Name type="api"
 
 declare const name: Name;
 /// @resolution.name source=Name target=Name
 /// @type.symbol symbol=name type="api"
 
-/// @instance.entry id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
+/// @generic.instance id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
 "#,
     );
 }

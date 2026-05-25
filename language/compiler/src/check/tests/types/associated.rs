@@ -31,10 +31,10 @@ struct Box<T> {
 declare const value: Box<string>.Item;
 /// @resolution.name source=Box target=Box
 /// @resolution.member source=Box<string>.Item receiver=Box<string> kind=symbol target=Box.Item
-/// @instance.application source="Box<string>" id=Box<string>
+/// @generic.application source="Box<string>" id=Box<string>
 /// @type.symbol symbol=value type=string
 
-/// @instance.entry id=Box<string> symbol=Box arguments=[string]
+/// @generic.instance id=Box<string> symbol=Box arguments=[string]
 "#,
     );
 }
@@ -72,10 +72,10 @@ class Segment<Row> {
 declare const lane: Segment<string>.Lane;
 /// @resolution.name source=Segment target=Segment
 /// @resolution.member source=Segment<string>.Lane receiver=Segment<string> kind=symbol target=Segment.Lane
-/// @instance.application source="Segment<string>" id=Segment<string>
+/// @generic.application source="Segment<string>" id=Segment<string>
 /// @type.symbol symbol=lane type=[uint8; 8]
 
-/// @instance.entry id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
 "#);
 }
 
