@@ -66,7 +66,7 @@ impl Parser {
         Ok(index_id)
     }
 
-    /// Eat a new constructor call (including the receiver).
+    /// Eat a new constructor call.
     ///
     /// Examples:
     /// ```
@@ -74,6 +74,7 @@ impl Parser {
     /// new Foo()
     /// new Foo(1, 2)
     /// new Foo<T>()
+    /// new _()
     /// ```
     pub fn eat_new(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
@@ -81,41 +82,20 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::New)?;
 
-        // receiver
-        let left = if self.current_token_is_on_new_line() {
-            self.recover_missing_expression_here(NodeType::Expression)
+        // constructor name
+        let ty = if self.current_token_is_on_new_line() {
+            self.recover_missing_type_expression_here(NodeType::Expression)
         } else {
-            let receiver_flags = self.flags.not_in_position().in_new_receiver();
-            self.with_flags(receiver_flags, |parser| {
-                parser.eat_expression_or_recover_missing(parser.flags, NodeType::Expression)
-            })?
+            let ty_flags = self.flags.not_in_position().in_type().in_new_receiver();
+            self.eat_type_expression_or_recover_missing(ty_flags, NodeType::Expression)?
         };
 
-        // hoist generic arguments parsed on the receiver
-        let mut generic_arguments = None;
-        if let Expression::QualifiedReference {
-            generic_arguments: path_arguments,
-            ..
-        } = self.tree.get_mut(left)
-        {
-            generic_arguments = Some(std::mem::take(path_arguments));
-        }
-
-        // generic arguments: may be empty
-        if generic_arguments.is_none() {
-            generic_arguments = self.eat_generic_arguments_if_valid(true);
-        }
-
-        // dynamic arguments: untyped value mode accepts `new Foo` without parentheses
+        // call arguments: untyped value mode accepts `new Foo` without parentheses
         let arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call
         let call_id = self.insert_node(
-            Expression::New {
-                left,
-                generic_arguments: generic_arguments.unwrap_or_default(),
-                arguments,
-            },
+            Expression::New { ty, arguments },
             self.get_span_from(&start),
         );
         Ok(call_id)

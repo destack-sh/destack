@@ -1,11 +1,11 @@
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
-    LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TypeExpression,
+    InferForm, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TypeExpression,
 };
 use destack_source::LanguageType;
 use std::fmt::Write;
 
-use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path};
+use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
 fn make_receiver(parser: &mut Parser) -> LocalNodeId<Expression> {
     let receiver_str = parser.strings.intern("receiver");
@@ -385,10 +385,9 @@ fn test_parse_new_without_parentheses() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         // Foo
-        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
-        assert!(generic_arguments.is_empty());
+        assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
         assert!(arguments.is_empty());
     });
 }
@@ -400,12 +399,82 @@ fn test_parse_new_with_empty_parentheses() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         // Foo
-        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
-        assert!(generic_arguments.is_empty());
+        assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
         assert!(arguments.is_empty());
     });
+}
+
+#[test]
+fn test_parse_new_with_infer_hole() {
+    let mut test = TestParser::new("new _()");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Infer { form, name, constraint } => {
+            assert_eq!(*form, InferForm::Hole);
+            assert!(name.is_none());
+            assert!(constraint.is_none());
+        });
+        assert!(arguments.is_empty());
+    });
+
+    test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_new_with_infer_hole_type_argument() {
+    let mut test = TestParser::new("new Box<_>(value)");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "Box");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Infer { form, name, constraint } => {
+                    assert_eq!(*form, InferForm::Hole);
+                    assert!(name.is_none());
+                    assert!(constraint.is_none());
+                });
+            });
+        });
+        assert_eq!(arguments.len(), 1);
+    });
+
+    test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_new_with_generic_member_constructor_name() {
+    let mut test = TestParser::new("new ns.Box<_>.Inner<T>(value)");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Member { left, name, generic_arguments } => {
+            assert_string!(parser, *name, "Inner");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "T");
+            });
+            assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "ns.Box");
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Infer { form, .. } => {
+                        assert_eq!(*form, InferForm::Hole);
+                    });
+                });
+            });
+        });
+        assert_eq!(arguments.len(), 1);
+    });
+
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -417,9 +486,8 @@ fn test_parse_new_without_receiver_recovers_missing_constructor() {
     test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
 
     // new
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_node!(parser.tree, *left, Expression::Missing);
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Missing);
         assert!(arguments.is_empty());
     });
 }
@@ -431,10 +499,9 @@ fn test_parse_new_with_arguments() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         // Foo
-        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
-        assert!(generic_arguments.is_empty());
+        assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
         // (1, 2)
         assert_eq!(arguments.len(), 2);
     });
@@ -448,14 +515,16 @@ fn test_parse_new_type_arguments_before_if_keyword() {
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // new A<T>
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "A");
-        assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "A");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "T");
                     assert!(generic_arguments.is_empty());
                 });
+            });
         });
         assert!(arguments.is_empty());
     });
@@ -469,58 +538,63 @@ fn test_parse_new_type_arguments_without_parenthesized_call() {
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // new A<T>
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "A");
-        assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "A");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "T");
                     assert!(generic_arguments.is_empty());
                 });
+            });
         });
         assert!(arguments.is_empty());
     });
 }
 
 #[test]
-fn test_parse_new_type_arguments_without_parentheses_as_comparison() {
-    // new A < T
-    let mut test = TestParser::new_with_language("new A < T", LanguageType::TypeScript);
+fn test_parse_new_type_arguments_with_spaces() {
+    // new A < T >
+    let mut test = TestParser::new_with_language("new A < T >", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    // new A < T
-    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::LessThan);
-        assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, arguments } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "A");
-            assert!(generic_arguments.is_empty());
-            assert!(arguments.is_empty());
+    // new A < T >
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "A");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "T");
+            });
         });
-        assert_expression_path!(parser, parser.tree.get(*right), "T");
+        assert!(arguments.is_empty());
     });
 }
 
 #[test]
-fn test_parse_new_multiple_comparisons_without_parenthesized_call() {
-    // new A < B > C
-    let mut test = TestParser::new_with_language("new A < B > C", LanguageType::TypeScript);
+fn test_parse_new_multiple_type_arguments_with_spaces() {
+    // new A < B, C >
+    let mut test = TestParser::new_with_language("new A < B, C >", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    // new A < B > C
-    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
-        assert_eq!(*operator, BinaryOperator::GreaterThan);
-        assert_expression_path!(parser, parser.tree.get(*right), "C");
-        assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
-            assert_eq!(*operator, BinaryOperator::LessThan);
-            assert_node!(parser.tree, *left, Expression::New { left, generic_arguments, arguments } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "A");
-                assert!(generic_arguments.is_empty());
-                assert!(arguments.is_empty());
+    // new A < B, C >
+    test.assert_no_errors(&parser);
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "A");
+            assert_eq!(generic_arguments.len(), 2);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "B");
             });
-            assert_expression_path!(parser, parser.tree.get(*right), "B");
+            assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "C");
+            });
         });
+        assert!(arguments.is_empty());
     });
 }
 
@@ -565,16 +639,15 @@ fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
 
 #[test]
 fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
-    // new type(...instances)
+    // new Type(...instances)
     let mut test =
-        TestParser::new_with_language("new type(...instances)", LanguageType::TypeScript);
+        TestParser::new_with_language("new Type(...instances)", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    // new type(...instances)
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "type");
-        assert!(generic_arguments.is_empty());
+    // new Type(...instances)
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_expression_path!(parser, parser.tree.get(*ty), "Type");
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Spread { label, value } => {
             assert!(label.is_none());
@@ -586,24 +659,24 @@ fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
 #[test]
 fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
     let mut test = TestParser::new_with_language(
-        "new (Promise as PromiseConstructor)<Foo>((resolve, reject) => {})",
+        "new Promise<Foo>((resolve, reject) => {})",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::As { .. } => {
-            });
-        });
-        assert_eq!(generic_arguments.len(), 1);
-        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "Promise");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
                 assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "Foo");
                     assert!(generic_arguments.is_empty());
                 });
+            });
         });
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(_));

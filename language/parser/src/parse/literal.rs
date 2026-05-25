@@ -1430,12 +1430,11 @@ impl Parser {
     /// Examples:
     /// ```
     /// <Entity />
-    /// <Entity a=1 test />
-    /// <Level level=1>
+    /// <Entity name="Alfred" active />
+    /// <Level difficulty={3}>
+    ///     some text
     ///     <Entity name="Alfred" />
-    ///     <Entity>2</Entity>
-    ///     "some text"
-    ///     ..someChildren.map(child => <Entity name={child.name} />)
+    ///     {children.map(child => <Entity name={child.name} />)}
     /// </Level>
     /// ```
     pub fn eat_tree_literal(&mut self) -> ParserResult<LocalNodeId<Expression>> {

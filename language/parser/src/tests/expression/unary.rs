@@ -1,5 +1,5 @@
 use crate::tests::*;
-use crate::{assert_expression_path, assert_node};
+use crate::{assert_expression_path, assert_node, assert_path};
 use destack_dir::*;
 use destack_source::LanguageType;
 
@@ -142,9 +142,11 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
     // await (new Promise<void>(...))
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
         assert_node!(parser.tree, *expression, Expression::Parenthesized { expression: parenthesized_expression } => {
-            assert_node!(parser.tree, *parenthesized_expression, Expression::New { left, generic_arguments, arguments } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "Promise");
-                assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, *parenthesized_expression, Expression::New { ty, arguments } => {
+                assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
+                    assert_path!(parser, *path, "Promise");
+                    assert_eq!(generic_arguments.len(), 1);
+                });
                 assert_eq!(arguments.len(), 1);
             });
         });
@@ -271,9 +273,8 @@ fn test_parse_new_constructor_call() {
     let mut test = TestParser::new("new Foo()");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::New { left, generic_arguments, arguments } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "Foo");
-        assert!(generic_arguments.is_empty());
+    assert_node!(parser.tree, expr_id, Expression::New { ty, arguments } => {
+        assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
         assert!(arguments.is_empty());
     });
 }
