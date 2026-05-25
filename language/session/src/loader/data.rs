@@ -1,6 +1,4 @@
-use destack_artifact::{ArtifactPayload, Css, Data, Html};
-use destack_css::parse_css;
-use destack_html::parse_html;
+use destack_artifact::{ArtifactPayload, Data};
 use destack_source::{File, FileId, FileType, ModuleId, Span};
 
 use crate::{ProviderAttempt, SessionError, SessionState};
@@ -19,8 +17,6 @@ impl SessionState {
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
         let file = self.source_file(revision, module.file_id, attempt)?;
         let data = match file.ty {
-            FileType::Html => Self::parse_html_data(file.as_ref()),
-            FileType::Css => Self::parse_css_data(file.as_ref())?,
             FileType::Json => {
                 let value = Self::parse_json_value(file.as_ref())?;
                 Data::Json(value)
@@ -41,28 +37,6 @@ impl SessionState {
         };
 
         Ok(ArtifactPayload::Data(data))
-    }
-
-    /// Parse HTML content into a data artifact.
-    fn parse_html_data(file: &File) -> Data {
-        let source = file.text().to_string();
-        let (tree, document) = parse_html(file, &source);
-
-        Data::Html(Box::new(Html { tree, document }))
-    }
-
-    /// Parse CSS content into a data artifact.
-    fn parse_css_data(file: &File) -> Result<Data, SessionError> {
-        let source = file.text().to_string();
-        let (tree, stylesheet) =
-            parse_css(file, &source).map_err(|error| SessionError::Internal {
-                detail: format!(
-                    "css data parse failed at {:?}: {}",
-                    error.span, error.message
-                ),
-            })?;
-
-        Ok(Data::Css(Box::new(Css { tree, stylesheet })))
     }
 
     /// Parse JSON content into a JSON value.
