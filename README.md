@@ -23,8 +23,8 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 
 ## The Destack
 
-**Destack is a universal software engine with a language, compiler, toolchain, runtime, and librariesbuilt on top of TypeScript and the open web ecosystem.**
-Mechanically, Destack is a fully integrated stack for building eventually all software systems extremely well, but conceptually, Destack is the antithesis to the very idea of a "stack":
+**Destack is a universal software engine with a language, compiler, toolchain, runtime, and libraries built on top of TypeScript and the open web ecosystem.**
+Mechanically, Destack is an integrated stack for building software systems extremely well, but conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
@@ -32,9 +32,8 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for integrating the Destack universe.
 
-The whole point of Destack is to make software systems - including itself - fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
-The architecture is modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.
-We aim to provide _some_ common [apps](app/README.md) and [templates](template/README.md), but Destack is optimized for programmers of all kinds building their _own_ software processes in one integrated system.
+The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale, and we accomplish this by making all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
+The architecture is therefore modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.
 
 ## Usage
 
@@ -46,12 +45,19 @@ We aim to provide _some_ common [apps](app/README.md) and [templates](template/R
 - Install Destack via `curl -fsSL https://destack.sh/install | sh`.
 - Create a new Destack app with `destack new my-destack-app`.
 
-## Rationale
+## Higher-Order Programming
 
 Over 50 years after [C introduced higher order programming](https://en.wikipedia.org/wiki/C_(programming_language)#History) programming is still astoundingly immature.
 Software "engineering" is _still_ anything but, and while our tools have gotten prettier, the fundamental motions are unchanged: text in, text out, no [_real_ confidence](https://apple.github.io/foundationdb/flow.html).
 We have increasingly grown accustomed to the acrued sediment of software being buggy, slow and fragmented, but it doesn't have to be this way. 
-See [Rationale](RATIONALE.md).
+
+Software "engineering" bears little resemblence to real engineering: 
+we routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it is not well integrated with other software.
+The inscrutability, inefficiency, and instability of software spans the entire lifecycle, and it must be solved by reimagining software production end-to-end across _all_ incidentally disparate sub-processes.
+
+Software is very useful, we have a lot of it, and there is about to be much, much more, with exciting new possibilities to integrate probabilistic into symbolic computation.
+The more we can express in software, the higher order the tasks we can program -
+there is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to support that.
 
 ## Contributing
 
