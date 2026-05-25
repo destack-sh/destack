@@ -381,9 +381,29 @@ impl Compiler {
         // bind catch pattern before the catch body
         if let Some(pattern) = catch.pattern {
             let pattern_node = tree.get(pattern);
-            state.push_binding(BindingContext::default());
+            state.push_binding(BindingContext {
+                export: None,
+                mutability: Some(dir::Mutability::Mutable),
+            });
             state.visit_pattern(tree, pattern, pattern_node);
             state.pop_binding();
+        }
+
+        // bind catch match failure before the catch body
+        if catch.pattern.is_none()
+            && catch.ty.is_none()
+            && let dir::Expression::Match { value, .. } = tree.get(catch.body)
+            && let dir::Expression::Identifier { name } = tree.get(*value)
+        {
+            let symbol_id = state.insert_symbol(
+                dir::SymbolRole::Local,
+                dir::SymbolForm::Variable,
+                Some(dir::StaticKey::Name(*name)),
+                None,
+            );
+
+            state.set_binding_mutability(symbol_id, Some(dir::Mutability::Mutable));
+            state.declare_symbol(symbol_id, *value);
         }
 
         // visit catch body
