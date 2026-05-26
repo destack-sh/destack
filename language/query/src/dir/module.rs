@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolForm};
+use destack_dir::{GlobalSymbolId, StaticKey, SymbolKind};
 use destack_source::{ModuleId, PathExt};
 
 use super::module_specifier_in_expression;
@@ -15,7 +15,7 @@ pub(crate) struct ExportedSymbol {
     /// The name of the exported symbol.
     pub name: String,
     /// The kind of symbol.
-    pub kind: SymbolForm,
+    pub kind: SymbolKind,
     /// The export lookup space.
     pub space: dir::SymbolSpace,
     /// The module that exports this symbol.
@@ -44,11 +44,11 @@ fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> 
     Some(path.to_string())
 }
 
-/// Return the symbol form for an export entry.
-fn export_symbol_form(
+/// Return the symbol kind for an export entry.
+fn export_symbol_kind(
     ctx: &ModuleQueryContext<'_>,
     symbol_id: GlobalSymbolId,
-) -> Option<SymbolForm> {
+) -> Option<SymbolKind> {
     if symbol_id.module_id != ctx.module_id() {
         return None;
     }
@@ -56,7 +56,7 @@ fn export_symbol_form(
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
-    Some(symbol.form)
+    Some(symbol.kind)
 }
 
 /// Search for importable symbols across indexed modules.
@@ -71,7 +71,7 @@ pub(crate) fn search_importable_symbols(
     let entries = search_import_candidates(workspace, query, exclude_module);
     exports.extend(entries.into_iter().map(|entry| ExportedSymbol {
         name: entry.name,
-        kind: entry.form,
+        kind: entry.kind,
         space: entry.space,
         module_id: entry.module_id,
         local_id: entry.local_id,
@@ -91,7 +91,7 @@ pub(crate) fn build_import_candidates_for_module(ctx: &ModuleQueryContext<'_>) -
         .into_iter()
         .map(|export| ImportEntry {
             name: export.name,
-            form: export.kind,
+            kind: export.kind,
             space: export.space,
             module_id: export.module_id,
             local_id: export.local_id,
@@ -120,7 +120,7 @@ fn module_exports(ctx: &ModuleQueryContext<'_>) -> Option<Vec<ExportedSymbol>> {
 
         let target_symbol = export.source.into_global(module_id);
 
-        let Some(kind) = export_symbol_form(ctx, target_symbol) else {
+        let Some(kind) = export_symbol_kind(ctx, target_symbol) else {
             continue;
         };
 

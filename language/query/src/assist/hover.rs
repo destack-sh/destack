@@ -167,7 +167,7 @@ pub fn hover(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Hover> {
                     container_name.as_deref(),
                 )
             } else {
-                format_simple_signature(symbol.form, name.as_deref())
+                format_simple_signature(symbol.kind, name.as_deref())
             }
         }
         NodeType::EnumField => {
@@ -184,7 +184,7 @@ pub fn hover(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Hover> {
                     container_name.as_deref(),
                 )
             } else {
-                format_simple_signature(symbol.form, name.as_deref())
+                format_simple_signature(symbol.kind, name.as_deref())
             }
         }
         NodeType::Parameter => {
@@ -193,14 +193,14 @@ pub fn hover(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<Hover> {
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(ctx.dir().strings(), ctx, param, param_id, module_id, types)
             } else {
-                format_simple_signature(symbol.form, name.as_deref())
+                format_simple_signature(symbol.kind, name.as_deref())
             }
         }
         NodeType::Pattern => {
             // local variable or destructuring pattern
             format_local_variable_hover(name.as_deref(), symbol_at.symbol_id, types, ctx)
         }
-        _ => format_simple_signature(symbol.form, name.as_deref()),
+        _ => format_simple_signature(symbol.kind, name.as_deref()),
     };
 
     // resolve type and location metadata

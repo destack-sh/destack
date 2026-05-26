@@ -68,7 +68,7 @@ fn symbol_is_type_symbol(dir: DirQueryContext<'_>, symbol_id: GlobalSymbolId) ->
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
-    is_type_symbol(symbol.form)
+    is_type_symbol(symbol.kind)
 }
 
 /// Return one unambiguous symbol target from a recorded expression resolution.

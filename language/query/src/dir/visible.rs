@@ -74,7 +74,7 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
 
                 // filter by space if requested
                 if let Some(space) = self.space_filter {
-                    let matches = matches_symbol_space_filter(symbol.form, Some(space));
+                    let matches = matches_symbol_space_filter(symbol.kind, Some(space));
                     if !matches {
                         continue;
                     }
