@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct LanguageEnvironment {
     /// Language item symbols by item id.
     pub symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
-    ///  Language items by symbol id.
+    /// Language items by symbol id.
     pub items_by_symbol: IndexMap<GlobalSymbolId, LanguageItem>,
     /// Builtin symbols by export name.
     pub symbols: IndexMap<StringId, GlobalSymbolId>,
@@ -39,13 +39,6 @@ pub struct GlobalEnvironment {
     pub language: LanguageEnvironment,
     /// Explicit global modules in load order.
     pub globals: Vec<ModuleId>,
-}
-
-impl GlobalEnvironment {
-    /// Return the supporting modules needed to consume these bindings.
-    pub fn supporting_modules(&self) -> Vec<ModuleId> {
-        self.globals.clone()
-    }
 }
 
 /// Resolved compiler-known intrinsic bindings for a profile.
