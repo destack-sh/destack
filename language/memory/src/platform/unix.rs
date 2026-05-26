@@ -1,3 +1,4 @@
+use std::io::Error as IoError;
 use std::mem::zeroed;
 use std::os::fd::RawFd;
 use std::ptr::{null_mut, write_bytes};
@@ -14,13 +15,13 @@ pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = true;
 /// Anonymous mapping flag on Darwin targets.
 #[cfg(target_os = "macos")]
 const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANON;
-/// Anonymous mapping flag on non-Darwin Unix targets.
+/// Anonymous mapping flag on non Darwin Unix targets.
 #[cfg(not(target_os = "macos"))]
 const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANONYMOUS;
 /// Private anonymous mapping flags for reserved address ranges.
 const MAP_PRIVATE_ANONYMOUS: libc::c_int = libc::MAP_PRIVATE | MAP_ANONYMOUS;
 /// The previously installed Unix memory fault handlers.
-static SIGNAL_HANDLERS: OnceLock<SignalHandlers> = OnceLock::new();
+static SIGNAL_HANDLERS: OnceLock<MemoryResult<SignalHandlers>> = OnceLock::new();
 
 /// One reserved virtual byte space.
 #[derive(Debug)]
@@ -53,17 +54,17 @@ impl VirtualSpace {
     }
 }
 
-/// One page-sized backing frame.
+/// One page sized backing frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PageFrame {
-    /// The byte offset of this frame inside the page-frame allocator.
+    /// The byte offset of this frame inside the page frame allocator.
     pub(crate) offset: u64,
 }
 
-/// One platform page-frame allocator.
+/// One platform page frame allocator.
 #[derive(Debug)]
 pub(crate) struct PageFrameAllocator {
-    /// The page-frame file descriptor.
+    /// The page frame file descriptor.
     fd: RawFd,
     /// The reusable frame state.
     state: Mutex<PageFrameAllocatorState>,
@@ -76,18 +77,18 @@ impl Drop for PageFrameAllocator {
     }
 }
 
-/// The page-frame file frontier, free ranges, and live reference counts.
+/// The page frame file frontier, free ranges, and live reference counts.
 #[derive(Debug)]
 struct PageFrameAllocatorState {
-    /// The next never-allocated byte offset.
+    /// The next never allocated byte offset.
     next_offset: u64,
-    /// The free page-frame byte ranges.
+    /// The free page frame byte ranges.
     free_ranges: Vec<PageFrameRange>,
-    /// The live reference counts keyed by page-frame index.
+    /// The live reference counts keyed by page frame index.
     frame_ref_counts: Vec<u32>,
 }
 
-/// One reusable range inside the page-frame file.
+/// One reusable range inside the page frame file.
 #[derive(Debug, Clone, Copy)]
 struct PageFrameRange {
     /// The first byte offset.
@@ -111,7 +112,7 @@ unsafe impl Send for SignalHandlers {}
 // SAFETY: signal actions are immutable after installation
 unsafe impl Sync for SignalHandlers {}
 
-/// Create one page-frame allocator from an owned descriptor.
+/// Create one page frame allocator from an owned descriptor.
 pub(crate) fn create_page_frame_allocator_from_fd(
     fd: RawFd,
     _byte_len: usize,
@@ -141,7 +142,7 @@ pub(crate) fn allocate_frame_range(
 ) -> MemoryResult<PageFrame> {
     let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
 
-    // reused frame-file ranges must regain reserved-page zero semantics
+    // reused frame file ranges must regain reserved page zero semantics
     if is_reused {
         zero_frame_range(allocator, frame, byte_len)?;
     }
@@ -200,7 +201,7 @@ pub(crate) fn copy_page(
     copy_frame_range(allocator, source, page_bytes, page_bytes)
 }
 
-/// Copy one mapped byte range into a fresh page-frame range.
+/// Copy one mapped byte range into a fresh page frame range.
 pub(crate) fn copy_frame_range(
     allocator: &PageFrameAllocator,
     source: *mut u8,
@@ -215,7 +216,7 @@ pub(crate) fn copy_frame_range(
     Ok(frame)
 }
 
-/// Return the platform frame byte width for fixed-address mappings.
+/// Return the platform frame byte width for fixed address mappings.
 pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
     let page_bytes = system_page_bytes();
     if page_bytes <= 0 {
@@ -262,7 +263,7 @@ pub(crate) fn map_page_writable(
     map_frame_range_writable(base, page_index, page_bytes, page_bytes, allocator, frame)
 }
 
-/// Map one page-frame range as copy-on-write memory.
+/// Map one page frame range as copy on write memory.
 pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
@@ -283,7 +284,7 @@ pub(crate) fn map_frame_range_cow(
     )
 }
 
-/// Map one page-frame range as writable memory.
+/// Map one page frame range as writable memory.
 pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
@@ -328,7 +329,11 @@ pub(crate) fn register_write_watch(
 ) -> MemoryResult<WriteWatchRegistration> {
     let registration = WriteWatchTable::register(base, byte_len, context)?;
 
-    install_write_fault_handler();
+    if let Err(error) = install_write_fault_handler() {
+        WriteWatchTable::unregister(&registration);
+
+        return Err(error);
+    }
 
     Ok(registration)
 }
@@ -338,7 +343,7 @@ pub(crate) fn unregister_write_watch(registration: &WriteWatchRegistration) {
     WriteWatchTable::unregister(registration);
 }
 
-/// Allocate backing storage for one page-frame range.
+/// Allocate backing storage for one page frame range.
 fn allocate_frame_storage(
     allocator: &PageFrameAllocator,
     byte_len: usize,
@@ -355,7 +360,7 @@ fn allocate_frame_storage(
         };
         let next_offset = frame.offset + byte_len as u64;
 
-        extend_frame_file(allocator.fd, next_offset, page_bytes)?;
+        extend_frame_file(allocator.fd, next_offset)?;
         state.next_offset = next_offset;
 
         (frame, false)
@@ -419,7 +424,7 @@ fn frame_index(frame: PageFrame, page_bytes: usize) -> usize {
     (frame.offset as usize) / page_bytes
 }
 
-/// Merge adjacent free page-frame ranges.
+/// Merge adjacent free page frame ranges.
 fn merge_free_frame_ranges(ranges: &mut Vec<PageFrameRange>) {
     ranges.sort_by_key(|range| range.offset);
 
@@ -457,7 +462,7 @@ fn system_page_bytes() -> libc::c_long {
 
 /// Close one file descriptor.
 fn close_fd(fd: RawFd) -> libc::c_int {
-    // SAFETY: fd is owned by the page-frame allocator
+    // SAFETY: fd is owned by the page frame allocator
     unsafe { libc::close(fd) }
 }
 
@@ -541,11 +546,11 @@ fn write_at(fd: RawFd, source: *mut u8, byte_len: usize, offset: u64) -> isize {
 
 /// Truncate one file to the given byte length.
 fn truncate_file(fd: RawFd, byte_len: u64) -> libc::c_int {
-    // SAFETY: fd is owned by the page-frame allocator
+    // SAFETY: fd is owned by the page frame allocator
     unsafe { libc::ftruncate(fd, byte_len as libc::off_t) }
 }
 
-/// Map one page-frame range into reserved virtual pages.
+/// Map one page frame range into reserved virtual pages.
 fn map_frame_range(
     base: *mut u8,
     first_page: usize,
@@ -556,7 +561,7 @@ fn map_frame_range(
     protection: libc::c_int,
     flags: libc::c_int,
 ) -> MemoryResult<()> {
-    // replace the reserved range with a file-backed view
+    // replace the reserved range with a file backed view
     let address = page_address(base, first_page, page_bytes);
     let mapped = map_frame_fixed(
         address,
@@ -619,6 +624,11 @@ fn write_frame_range(
         let remaining = byte_len - written;
         let result = write_at(fd, source, remaining, offset);
 
+        // retry interrupted writes without surfacing a spurious system error
+        if result < 0 && IoError::last_os_error().raw_os_error() == Some(libc::EINTR) {
+            continue;
+        }
+
         if result <= 0 {
             return Err(last_system_error(
                 MemoryOperation::CopyFrameStorage,
@@ -632,12 +642,13 @@ fn write_frame_range(
     Ok(())
 }
 
-/// Extend one page-frame file to the requested byte length.
-fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> MemoryResult<()> {
+/// Extend one page frame file to the requested byte length.
+fn extend_frame_file(fd: RawFd, byte_len: u64) -> MemoryResult<()> {
     if byte_len > libc::off_t::MAX as u64 {
-        return Err(MemoryError::system(
+        return Err(MemoryError::system_bytes(
             MemoryOperation::ExtendFrameAllocator,
-            page_bytes,
+            None,
+            byte_len as usize,
         ));
     }
 
@@ -648,23 +659,24 @@ fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> MemoryResul
 
     Err(last_system_error(
         MemoryOperation::ExtendFrameAllocator,
-        page_bytes,
+        byte_len as usize,
     ))
 }
 
 /// Return one system error from the last platform error code.
 fn last_system_error(operation: MemoryOperation, byte_len: usize) -> MemoryError {
-    MemoryError::system_with_code(
-        operation,
-        std::io::Error::last_os_error().raw_os_error(),
-        byte_len,
-    )
+    MemoryError::system_bytes(operation, IoError::last_os_error().raw_os_error(), byte_len)
+}
+
+/// Return one system error from the last platform error code without byte context.
+fn last_system_error_without_bytes(operation: MemoryOperation) -> MemoryError {
+    MemoryError::system(operation, IoError::last_os_error().raw_os_error(), None)
 }
 
 /// Install the write fault handler once.
-fn install_write_fault_handler() {
-    SIGNAL_HANDLERS.get_or_init(|| {
-        // install one process-level handler for protected pages
+fn install_write_fault_handler() -> MemoryResult<()> {
+    let handlers = SIGNAL_HANDLERS.get_or_init(|| {
+        // install one process level handler for protected pages
         // SAFETY: zeroed sigaction is filled before installation
         let mut action = unsafe { zeroed::<libc::sigaction>() };
         // SAFETY: zeroed storage is passed to sigaction as an out parameter
@@ -674,25 +686,42 @@ fn install_write_fault_handler() {
         action.sa_flags = libc::SA_SIGINFO;
         action.sa_sigaction = handle_write_watch as *const () as usize;
 
-        // SAFETY: action contains a valid SA_SIGINFO handler
-        unsafe {
-            libc::sigemptyset(&mut action.sa_mask);
-            libc::sigaction(libc::SIGSEGV, &action, &mut segmentation);
-            libc::sigaction(libc::SIGBUS, &action, &mut bus);
+        // SAFETY: action contains storage for one signal mask
+        if unsafe { libc::sigemptyset(&mut action.sa_mask) } != 0 {
+            return Err(last_system_error_without_bytes(
+                MemoryOperation::InstallWriteWatch,
+            ));
         }
 
-        SignalHandlers { segmentation, bus }
+        // SAFETY: action contains a valid SA_SIGINFO handler
+        if unsafe { libc::sigaction(libc::SIGSEGV, &action, &mut segmentation) } != 0 {
+            return Err(last_system_error_without_bytes(
+                MemoryOperation::InstallWriteWatch,
+            ));
+        }
+
+        // SAFETY: action contains a valid SA_SIGINFO handler
+        if unsafe { libc::sigaction(libc::SIGBUS, &action, &mut bus) } != 0 {
+            let error = last_system_error_without_bytes(MemoryOperation::InstallWriteWatch);
+
+            // SAFETY: segmentation was captured while installing SIGSEGV above
+            unsafe {
+                libc::sigaction(libc::SIGSEGV, &segmentation, null_mut());
+            }
+
+            return Err(error);
+        }
+
+        Ok(SignalHandlers { segmentation, bus })
     });
+
+    handlers.as_ref().map(|_| ()).map_err(Clone::clone)
 }
 
 /// Restore the previous signal handler and raise the signal again.
 fn raise_unhandled_signal(signal: libc::c_int) {
-    let Some(handlers) = SIGNAL_HANDLERS.get() else {
-        // SAFETY: restoring the default handler before re-raising delegates the fault
-        unsafe {
-            libc::signal(signal, libc::SIG_DFL);
-            libc::raise(signal);
-        }
+    let Some(Ok(handlers)) = SIGNAL_HANDLERS.get() else {
+        raise_default_signal(signal);
 
         return;
     };
@@ -701,11 +730,7 @@ fn raise_unhandled_signal(signal: libc::c_int) {
         libc::SIGSEGV => &handlers.segmentation,
         libc::SIGBUS => &handlers.bus,
         _ => {
-            // SAFETY: restoring the default handler before re-raising delegates the fault
-            unsafe {
-                libc::signal(signal, libc::SIG_DFL);
-                libc::raise(signal);
-            }
+            raise_default_signal(signal);
 
             return;
         }
@@ -727,24 +752,23 @@ unsafe extern "C" fn handle_write_watch(
     // SAFETY: SA_SIGINFO delivers a valid siginfo pointer for this handler
     let address = unsafe { (*signal_info).si_addr() as usize };
 
-    // scan watched ranges without signal-unsafe locks
-    for page in WriteWatchTable::pages() {
-        let Some(entries) = page.entries() else {
-            continue;
-        };
-
-        for entry in entries {
-            let Some(context) = entry.context(address) else {
-                continue;
-            };
-
-            // SAFETY: context comes from the write-watch table registration
-            if unsafe { watch_page_write(context, address) } {
-                return;
-            }
+    // handle writes inside registered memory spaces
+    if let Some(context) = WriteWatchTable::context(address) {
+        // SAFETY: context comes from the write watch table registration
+        if unsafe { watch_page_write(context, address) } {
+            return;
         }
     }
 
     // raise unrelated signals through the previous platform handler
     raise_unhandled_signal(signal);
+}
+
+/// Restore the default signal handler and raise the signal again.
+fn raise_default_signal(signal: libc::c_int) {
+    // SAFETY: restoring the default handler before re raising delegates the fault
+    unsafe {
+        libc::signal(signal, libc::SIG_DFL);
+        libc::raise(signal);
+    }
 }

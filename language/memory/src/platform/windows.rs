@@ -28,12 +28,12 @@ pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = true;
 const EXCEPTION_CONTINUE_EXECUTION: i32 = -1;
 /// Search the next vectored exception handler.
 const EXCEPTION_CONTINUE_SEARCH: i32 = 0;
-/// The minimum frame count for one Windows page-frame section.
+/// The minimum frame count for one Windows page frame section.
 const MIN_PAGE_FRAME_SECTION_FRAMES: usize = 256;
-/// The Windows access-violation code for writes.
+/// The Windows access violation code for writes.
 const ACCESS_VIOLATION_WRITE: usize = 1;
-/// The one-time Windows write fault handler installation.
-static WRITE_FAULT_HANDLER: OnceLock<()> = OnceLock::new();
+/// The one time Windows write fault handler installation.
+static WRITE_FAULT_HANDLER: OnceLock<MemoryResult<()>> = OnceLock::new();
 
 /// One reserved virtual byte space.
 #[derive(Debug)]
@@ -80,7 +80,7 @@ impl VirtualSpace {
     }
 }
 
-/// One page-sized backing frame.
+/// One page sized backing frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PageFrame {
     /// The section that owns this page frame.
@@ -89,7 +89,7 @@ pub(crate) struct PageFrame {
     pub(crate) offset: u64,
 }
 
-/// One platform page-frame allocator.
+/// One platform page frame allocator.
 #[derive(Debug)]
 pub(crate) struct PageFrameAllocator {
     /// The reusable frame state.
@@ -122,25 +122,25 @@ impl PageFrameAllocator {
     }
 }
 
-/// The page-frame sections, free ranges, and live reference counts.
+/// The page frame sections, free ranges, and live reference counts.
 #[derive(Debug)]
 struct PageFrameAllocatorState {
-    /// The page-frame sections.
+    /// The page frame sections.
     sections: Vec<PageFrameSection>,
-    /// The free page-frame byte ranges.
+    /// The free page frame byte ranges.
     free_ranges: Vec<PageFrameRange>,
 }
 
-/// One page-frame section and its live reference counts.
+/// One page frame section and its live reference counts.
 #[derive(Debug)]
 struct PageFrameSection {
     /// The Windows section handle.
     handle: HANDLE,
     /// The byte length of the section.
     byte_len: u64,
-    /// The next never-allocated byte offset.
+    /// The next never allocated byte offset.
     next_offset: u64,
-    /// The live reference counts keyed by page-frame index.
+    /// The live reference counts keyed by page frame index.
     frame_ref_counts: Vec<u32>,
 }
 
@@ -148,20 +148,18 @@ impl PageFrameSection {
     /// Reserve one contiguous byte range inside this section.
     fn reserve(&mut self, byte_len: usize) -> Option<u64> {
         let byte_len = byte_len as u64;
-        let next_offset = self.next_offset + byte_len;
-
-        if next_offset > self.byte_len {
+        if byte_len > self.byte_len - self.next_offset {
             return None;
         }
 
         let offset = self.next_offset;
-        self.next_offset = next_offset;
+        self.next_offset += byte_len;
 
         Some(offset)
     }
 }
 
-/// One reusable range inside a page-frame section.
+/// One reusable range inside a page frame section.
 #[derive(Debug, Clone, Copy)]
 struct PageFrameRange {
     /// The first page frame.
@@ -170,7 +168,7 @@ struct PageFrameRange {
     byte_len: u64,
 }
 
-/// Create one page-frame allocator.
+/// Create one page frame allocator.
 pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> MemoryResult<PageFrameAllocator> {
     Ok(PageFrameAllocator {
         state: Mutex::new(PageFrameAllocatorState {
@@ -188,7 +186,7 @@ pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) 
     }
 }
 
-/// Allocate one zeroed page-frame range.
+/// Allocate one zeroed page frame range.
 pub(crate) fn allocate_frame_range(
     allocator: &PageFrameAllocator,
     byte_len: usize,
@@ -196,7 +194,7 @@ pub(crate) fn allocate_frame_range(
 ) -> MemoryResult<PageFrame> {
     let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
 
-    // reused page-file ranges must regain reserved-page zero semantics
+    // reused page file ranges must regain reserved page zero semantics
     if is_reused {
         zero_frame_range(allocator, frame, byte_len)?;
     }
@@ -257,7 +255,7 @@ pub(crate) fn copy_page(
     copy_frame_range(allocator, source, page_bytes, page_bytes)
 }
 
-/// Copy one mapped byte range into a fresh page-frame range.
+/// Copy one mapped byte range into a fresh page frame range.
 pub(crate) fn copy_frame_range(
     allocator: &PageFrameAllocator,
     source: *mut u8,
@@ -277,7 +275,7 @@ pub(crate) fn copy_frame_range(
     Ok(frame)
 }
 
-/// Return the platform frame byte width for fixed-address mappings.
+/// Return the platform frame byte width for fixed address mappings.
 pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
     let mut system = MaybeUninit::<SYSTEM_INFO>::uninit();
 
@@ -333,7 +331,7 @@ pub(crate) fn map_page_writable(
     )
 }
 
-/// Map one page-frame range as copy-on-write memory.
+/// Map one page frame range as copy on write memory.
 pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
@@ -353,7 +351,7 @@ pub(crate) fn map_frame_range_cow(
     )
 }
 
-/// Map one page-frame range as writable memory.
+/// Map one page frame range as writable memory.
 pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
@@ -382,7 +380,7 @@ pub(crate) fn make_shared_pages_writable(
 ) -> MemoryResult<()> {
     let page_count = byte_len / page_bytes;
 
-    // each mapped view is currently page-granular on Windows
+    // each mapped view is currently page granular on Windows
     for page_offset in 0..page_count {
         let page_index = first_page + page_offset;
         // SAFETY: page_index is inside the reserved address space
@@ -413,7 +411,11 @@ pub(crate) fn register_write_watch(
 ) -> MemoryResult<WriteWatchRegistration> {
     let registration = WriteWatchTable::register(base, byte_len, context)?;
 
-    install_write_fault_handler();
+    if let Err(error) = install_write_fault_handler() {
+        WriteWatchTable::unregister(&registration);
+
+        return Err(error);
+    }
 
     Ok(registration)
 }
@@ -423,7 +425,7 @@ pub(crate) fn unregister_write_watch(registration: &WriteWatchRegistration) {
     WriteWatchTable::unregister(registration);
 }
 
-/// Allocate backing storage for one page-frame range.
+/// Allocate backing storage for one page frame range.
 fn allocate_frame_storage(
     allocator: &PageFrameAllocator,
     byte_len: usize,
@@ -446,7 +448,7 @@ fn allocate_frame_storage(
     Ok((frame, is_reused))
 }
 
-/// Map one page-frame range into reserved virtual pages.
+/// Map one page frame range into reserved virtual pages.
 fn map_frame_range(
     base: *mut u8,
     first_page: usize,
@@ -473,12 +475,22 @@ fn map_frame_range(
 }
 
 /// Install the write fault handler once.
-fn install_write_fault_handler() {
-    // SAFETY: the handler has the system calling convention and remains loaded
-    WRITE_FAULT_HANDLER.get_or_init(|| unsafe {
-        // register before regular handlers so watched writes are handled first
-        AddVectoredExceptionHandler(1, Some(handle_write_watch));
-    });
+fn install_write_fault_handler() -> MemoryResult<()> {
+    WRITE_FAULT_HANDLER
+        .get_or_init(|| {
+            // register before regular handlers so watched writes are handled first
+            // SAFETY: the handler has the system calling convention and remains loaded
+            let handler = unsafe { AddVectoredExceptionHandler(1, Some(handle_write_watch)) };
+
+            if handler.is_null() {
+                return Err(last_system_error_without_bytes(
+                    MemoryOperation::InstallWriteWatch,
+                ));
+            }
+
+            Ok(())
+        })
+        .clone()
 }
 
 /// Handle one watched page write.
@@ -501,21 +513,11 @@ unsafe extern "system" fn handle_write_watch(exception: *mut EXCEPTION_POINTERS)
     // SAFETY: access violation records carry fault address at index 1
     let address = unsafe { (*record).ExceptionInformation[1] };
 
-    // scan watched ranges without exception-unsafe locks
-    for page in WriteWatchTable::pages() {
-        let Some(entries) = page.entries() else {
-            continue;
-        };
-
-        for entry in entries {
-            let Some(context) = entry.context(address) else {
-                continue;
-            };
-
-            // SAFETY: context comes from the write-watch table registration
-            if unsafe { watch_page_write(context, address) } {
-                return EXCEPTION_CONTINUE_EXECUTION;
-            }
+    // handle writes inside registered memory spaces
+    if let Some(context) = WriteWatchTable::context(address) {
+        // SAFETY: context comes from the write watch table registration
+        if unsafe { watch_page_write(context, address) } {
+            return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
 
@@ -620,7 +622,7 @@ fn release_virtual_gap(base: *mut u8, first_page: usize, end_page: usize, page_b
 
 /// Unmap one page view back into an exact placeholder.
 fn unmap_page_view(address: *mut u8) {
-    // SAFETY: address is either a mapped page view or this cleanup is a no-op failure
+    // SAFETY: address is either a mapped page view or this cleanup is a no op failure
     let _ = unsafe {
         UnmapViewOfFile2(
             GetCurrentProcess(),
@@ -693,7 +695,7 @@ fn zero_frame_range(
     Ok(())
 }
 
-/// Allocate one never-used frame range from section storage.
+/// Allocate one never used frame range from section storage.
 fn allocate_new_frame_range(
     state: &mut PageFrameAllocatorState,
     byte_len: usize,
@@ -742,12 +744,12 @@ fn page_frame_section_bytes(byte_len: usize, page_bytes: usize) -> usize {
     section_bytes.next_multiple_of(page_bytes)
 }
 
-/// Create one page-file backed section.
+/// Create one page file backed section.
 fn create_section(byte_len: usize) -> MemoryResult<HANDLE> {
     let max_size = byte_len as u64;
     let max_size_high = (max_size >> 32) as u32;
     let max_size_low = max_size as u32;
-    // SAFETY: INVALID_HANDLE_VALUE requests page-file backed storage
+    // SAFETY: INVALID_HANDLE_VALUE requests page file backed storage
     let section = unsafe {
         CreateFileMappingW(
             INVALID_HANDLE_VALUE,
@@ -773,7 +775,15 @@ fn last_system_error(operation: MemoryOperation, byte_len: usize) -> MemoryError
     // SAFETY: GetLastError reads thread-local Windows error state
     let code = unsafe { GetLastError() } as i32;
 
-    MemoryError::system_with_code(operation, Some(code), byte_len)
+    MemoryError::system_bytes(operation, Some(code), byte_len)
+}
+
+/// Return one system error from the last platform error code without byte context.
+fn last_system_error_without_bytes(operation: MemoryOperation) -> MemoryError {
+    // SAFETY: GetLastError reads thread-local Windows error state
+    let code = unsafe { GetLastError() } as i32;
+
+    MemoryError::system(operation, Some(code), None)
 }
 
 /// Allocate one free frame range when a large enough range exists.
@@ -827,7 +837,7 @@ fn frame_index(frame: PageFrame, page_bytes: usize) -> usize {
     (frame.offset as usize) / page_bytes
 }
 
-/// Merge adjacent free page-frame ranges.
+/// Merge adjacent free page frame ranges.
 fn merge_free_frame_ranges(ranges: &mut Vec<PageFrameRange>) {
     ranges.sort_by_key(|range| (range.frame.section_index, range.frame.offset));
 

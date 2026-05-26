@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 
 use crate::{MemoryError, MemoryResult};
 
-/// The WebAssembly linear-memory page width.
+/// The WebAssembly linear memory page width.
 const WASM_PAGE_BYTES: usize = 64 * 1024;
 
 /// Whether mapped spaces can share page frames directly.
@@ -32,14 +32,14 @@ impl VirtualSpace {
     }
 }
 
-/// One page-sized backing frame.
+/// One page sized backing frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PageFrame {
-    /// The frame index inside the page-frame allocator.
+    /// The frame index inside the page frame allocator.
     pub(crate) index: usize,
 }
 
-/// One platform page-frame allocator.
+/// One platform page frame allocator.
 #[derive(Debug)]
 pub(crate) struct PageFrameAllocator {
     /// The reusable frame state.
@@ -50,7 +50,7 @@ pub(crate) struct PageFrameAllocator {
 #[derive(Debug)]
 pub(crate) struct WriteWatchRegistration;
 
-/// The linear-memory frame store, free ranges, and live reference counts.
+/// The linear memory frame store, free ranges, and live reference counts.
 #[derive(Debug)]
 struct PageFrameAllocatorState {
     /// The owned page frames.
@@ -61,10 +61,10 @@ struct PageFrameAllocatorState {
     frame_ref_counts: Vec<u32>,
 }
 
-/// One reusable page-frame range.
+/// One reusable page frame range.
 #[derive(Debug, Clone, Copy)]
 struct PageFrameRange {
-    /// The first page-frame index.
+    /// The first page frame index.
     index: usize,
     /// The frame count.
     frame_count: usize,
@@ -77,7 +77,7 @@ pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, _page_bytes: usize)
     }
 }
 
-/// Create one page-frame allocator.
+/// Create one page frame allocator.
 pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> MemoryResult<PageFrameAllocator> {
     Ok(PageFrameAllocator {
         state: Mutex::new(PageFrameAllocatorState {
@@ -88,7 +88,7 @@ pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> MemoryResult<Page
     })
 }
 
-/// Allocate one zeroed page-frame range.
+/// Allocate one zeroed page frame range.
 pub(crate) fn allocate_frame_range(
     allocator: &PageFrameAllocator,
     byte_len: usize,
@@ -97,7 +97,7 @@ pub(crate) fn allocate_frame_range(
     let page_count = byte_len / page_bytes;
     let (frame, is_reused) = allocate_frame_storage(allocator, page_count, page_bytes);
 
-    // reused linear-memory frames must regain fresh-page zero semantics
+    // reused linear memory frames must regain fresh page zero semantics
     if is_reused {
         zero_frame_range(allocator, frame, page_count);
     }
@@ -154,7 +154,7 @@ pub(crate) fn copy_page(
     copy_frame_range(allocator, source, page_bytes, page_bytes)
 }
 
-/// Copy one mapped byte range into a fresh page-frame range.
+/// Copy one mapped byte range into a fresh page frame range.
 pub(crate) fn copy_frame_range(
     allocator: &PageFrameAllocator,
     source: *mut u8,
@@ -165,7 +165,7 @@ pub(crate) fn copy_frame_range(
     let (page_frame, _) = allocate_frame_storage(allocator, page_count, page_bytes);
     let mut state = allocator.state.lock();
 
-    // copy each linear-memory page into the contiguous frame range
+    // copy each linear memory page into the contiguous frame range
     for page_offset in 0..page_count {
         // SAFETY: caller passes a mapped source range covering byte_len bytes
         let source = unsafe { source.add(page_offset * page_bytes) };
@@ -180,7 +180,7 @@ pub(crate) fn copy_frame_range(
     Ok(page_frame)
 }
 
-/// Allocate backing storage for one page-frame range.
+/// Allocate backing storage for one page frame range.
 fn allocate_frame_storage(
     allocator: &PageFrameAllocator,
     frame_count: usize,
@@ -188,7 +188,7 @@ fn allocate_frame_storage(
 ) -> (PageFrame, bool) {
     let mut state = allocator.state.lock();
 
-    // reuse returned linear-memory frames before extending the frame store
+    // reuse returned linear memory frames before extending the frame store
     let (frame, is_reused) = if let Some(frame) = allocate_free_frame_range(&mut state, frame_count)
     {
         (frame, true)
@@ -210,7 +210,7 @@ fn allocate_frame_storage(
     (frame, is_reused)
 }
 
-/// Return the platform frame byte width for linear-memory mappings.
+/// Return the platform frame byte width for linear memory mappings.
 pub(crate) const fn system_frame_bytes() -> MemoryResult<usize> {
     Ok(WASM_PAGE_BYTES)
 }
@@ -233,7 +233,7 @@ pub(crate) fn map_page_writable(
     map_page(base, page_index, page_bytes, allocator, frame)
 }
 
-/// Copy one page-frame range into linear memory.
+/// Copy one page frame range into linear memory.
 pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
@@ -245,7 +245,7 @@ pub(crate) fn map_frame_range_cow(
     map_frame_range(base, first_page, page_bytes, byte_len, allocator, frame)
 }
 
-/// Copy one page-frame range into linear memory.
+/// Copy one page frame range into linear memory.
 pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
@@ -257,7 +257,7 @@ pub(crate) fn map_frame_range_writable(
     map_frame_range(base, first_page, page_bytes, byte_len, allocator, frame)
 }
 
-/// Prepare copied linear-memory pages for writes.
+/// Prepare copied linear memory pages for writes.
 pub(crate) fn make_shared_pages_writable(
     _base: *mut u8,
     _first_page: usize,
@@ -279,7 +279,7 @@ pub(crate) fn register_write_watch(
 /// Unregister one write watched virtual range.
 pub(crate) fn unregister_write_watch(_registration: &WriteWatchRegistration) {}
 
-/// Copy one page-frame range into linear memory.
+/// Copy one page frame range into linear memory.
 fn map_frame_range(
     base: *mut u8,
     first_page: usize,
@@ -321,7 +321,7 @@ fn map_page(
         frame.as_ptr()
     };
 
-    // SAFETY: page_index is inside the owned linear-memory reservation
+    // SAFETY: page_index is inside the owned linear memory reservation
     let target = unsafe { base.add(page_index * page_bytes) };
     // SAFETY: source and target both cover one full page
     unsafe {
