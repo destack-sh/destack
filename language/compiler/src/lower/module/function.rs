@@ -66,7 +66,7 @@ struct AddressTakenCollector<'a> {
     types: &'a dir::TypeTable<'a>,
     /// Provide access to checked resolutions.
     resolutions: &'a dir::ResolutionTable<'a>,
-    /// Provide access to declaration forms.
+    /// Provide access to declaration kinds.
     symbols: &'a dir::BindingTable<'a>,
     /// Identify the module for expression lookups.
     module_id: destack_source::ModuleId,
@@ -175,9 +175,9 @@ impl<'a> AddressTakenCollector<'a> {
         match ty {
             dir::Type::Form(form) => self.type_is_reference_like(form.value, visited),
             dir::Type::Named(reference) => {
-                match self.symbols.get_symbol(reference.symbol.local_id).form {
-                    dir::SymbolForm::Class | dir::SymbolForm::Interface => true,
-                    dir::SymbolForm::TypeAlias => self
+                match self.symbols.get_symbol(reference.symbol.local_id).kind {
+                    dir::SymbolKind::Class | dir::SymbolKind::Interface => true,
+                    dir::SymbolKind::TypeAlias => self
                         .types
                         .get_alias_target_type_id(reference.symbol)
                         .is_some_and(|target| self.type_is_reference_like(target, visited)),
@@ -1112,7 +1112,7 @@ impl ModuleLowerer<'_> {
             let class_symbol = constructor_symbol.filter(|symbol| {
                 function_lowerer
                     .context
-                    .symbol_is(*symbol, dir::SymbolForm::Class)
+                    .symbol_kind_matches(*symbol, dir::SymbolKind::Class)
             });
             function_lowerer.initialize_constructor(this_ty, layout.clone(), node, class_symbol)?;
         }

@@ -27,7 +27,7 @@ impl ModuleLowerer<'_> {
         let interfaces = Vec::new();
 
         // record lineage metadata
-        let is_interface = self.symbol_is(symbol, dir::SymbolForm::Interface);
+        let is_interface = self.symbol_kind_matches(symbol, dir::SymbolKind::Interface);
         let is_abstract = is_interface
             || self
                 .declaration_ids_for_symbol(symbol)

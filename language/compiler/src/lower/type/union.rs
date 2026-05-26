@@ -586,7 +586,7 @@ impl TypeLowerer<'_> {
         let dir_type = types.get_type(type_id);
         match dir_type {
             dir::Type::Named(reference) => {
-                if self.symbol_is(reference.symbol, dir::SymbolForm::TypeAlias)
+                if self.symbol_kind_matches(reference.symbol, dir::SymbolKind::TypeAlias)
                     && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
                     return self.discriminant_fields_for_type_inner(types, target, node, visited);
@@ -678,7 +678,7 @@ impl TypeLowerer<'_> {
         let dir_type = types.get_type(type_id);
         match dir_type {
             dir::Type::Named(reference) => {
-                if self.symbol_is(reference.symbol, dir::SymbolForm::TypeAlias)
+                if self.symbol_kind_matches(reference.symbol, dir::SymbolKind::TypeAlias)
                     && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
                     return self.discriminant_literal_for_type_inner(types, target, node, visited);

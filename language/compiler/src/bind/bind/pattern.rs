@@ -21,7 +21,7 @@ impl Compiler {
         let binding = state.binding();
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolForm::Variable,
+            dir::SymbolKind::Variable,
             Some(dir::StaticKey::Name(*name)),
             binding.export,
         );
@@ -50,7 +50,7 @@ impl Compiler {
             let binding = state.binding();
             let symbol_id = state.insert_symbol(
                 dir::SymbolRole::Local,
-                dir::SymbolForm::Variable,
+                dir::SymbolKind::Variable,
                 Some(name.static_key()),
                 binding.export,
             );

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
     Block, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId, MatchCase, MatchForm,
-    MatchOrigin, MatchSelector, NodeType, Pattern, SymbolForm, SymbolRole, Type, TypeLiteral,
+    MatchOrigin, MatchSelector, NodeType, Pattern, SymbolKind, SymbolRole, Type, TypeLiteral,
 };
 
 use crate::elaborate::ElaborateState;
@@ -132,7 +132,7 @@ impl Compiler {
         let scope_mark = state.symbols.get_scope_mark(scope_id);
         let (symbol_id, _) = state.symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Variable,
+            SymbolKind::Variable,
             None,
             (scope_id, scope_mark),
             None,

@@ -2,7 +2,7 @@ use destack_artifact::EmitFormat;
 use destack_dir as dir;
 use dir::{
     Argument, BinaryOperator, Declarator, Expression, IfCondition, IfForm, LocalNodeId, Mutability,
-    NodeType, Property, ScopeKind, SymbolForm, SymbolRole, Type, TypeLiteral,
+    NodeType, Property, ScopeKind, SymbolKind, SymbolRole, Type, TypeLiteral,
 };
 
 use crate::elaborate::ElaborateState;
@@ -570,7 +570,7 @@ impl Compiler {
         let scope_mark = state.symbols.get_scope_mark(scope.0);
         let (symbol_id, _) = state.symbols.insert_symbol(
             SymbolRole::Local,
-            SymbolForm::Variable,
+            SymbolKind::Variable,
             None,
             (scope.0, scope_mark),
             None,

@@ -136,7 +136,7 @@ impl ModuleLowerer<'_> {
                 field_inputs,
                 LayoutPolicy::default(),
             )
-        } else if self.symbol_is(symbol, dir::SymbolForm::Class) && has_vtable_header {
+        } else if self.symbol_kind_matches(symbol, dir::SymbolKind::Class) && has_vtable_header {
             let vtable_name = self.vtable_field_name;
             let vtable_type = self.builder.type_reference(
                 mir::ReferenceKind::Raw,

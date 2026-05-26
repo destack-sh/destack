@@ -39,8 +39,8 @@ impl ModuleLowerer<'_> {
         // predeclare nominal instance layouts
         if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
             && matches!(
-                self.symbol_form(symbol),
-                Some(dir::SymbolForm::Struct | dir::SymbolForm::Class)
+                self.symbol_kind(symbol),
+                Some(dir::SymbolKind::Struct | dir::SymbolKind::Class)
             )
         {
             self.lower_nominal_layout(symbol)?;
@@ -50,8 +50,8 @@ impl ModuleLowerer<'_> {
         match self.types.get_type(type_id) {
             dir::Type::Named(reference) => {
                 if matches!(
-                    self.symbol_form(reference.symbol),
-                    Some(dir::SymbolForm::Struct | dir::SymbolForm::Class)
+                    self.symbol_kind(reference.symbol),
+                    Some(dir::SymbolKind::Struct | dir::SymbolKind::Class)
                 ) {
                     self.lower_nominal_layout(reference.symbol)?;
                 }
@@ -104,7 +104,7 @@ impl ModuleLowerer<'_> {
                     self.declare_nominal_layouts_for_type(this_parameter, visited)?;
                 }
                 for parameter in &function.parameters {
-                    self.declare_nominal_layouts_for_type(*parameter, visited)?;
+                    self.declare_nominal_layouts_for_type(parameter.ty, visited)?;
                 }
                 if let Some(return_type) = function.return_type {
                     self.declare_nominal_layouts_for_type(return_type, visited)?;

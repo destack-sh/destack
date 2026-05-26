@@ -81,14 +81,14 @@ impl Compiler {
             });
         };
 
-        // verify symbol form
+        // verify symbol kind
         let symbol = bindings.get_symbol(symbol_id);
-        let expected_form = dir::SymbolForm::from(item.form());
-        if symbol.form != expected_form {
+        let expected_kind = dir::SymbolKind::from(item.kind());
+        if symbol.kind != expected_kind {
             return Err(CompilerError::Internal {
                 message: format!(
                     "language item {key} expects {:?}, got {:?}",
-                    expected_form, symbol.form
+                    expected_kind, symbol.kind
                 ),
             });
         }

@@ -183,7 +183,8 @@ impl CheckModuleState {
                 let symbol = self
                     .lookup_name(id.into_any(), *name, dir::SymbolSpace::Value)
                     .unique_symbol()?;
-                if self.is_static_generic_symbol(symbol) {
+
+                if self.symbol_kind(symbol) == Some(dir::SymbolKind::GenericValueParameter) {
                     let variable = self.intern_symbol_static_variable(symbol);
 
                     StaticTerm::Variable(variable)

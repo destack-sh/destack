@@ -21,7 +21,7 @@ impl Compiler {
                 let key = dir::StaticKey::Name(*label);
                 let (symbol_id, scope_id) = state.insert_symbol_with_scope(
                     dir::SymbolRole::Local,
-                    dir::SymbolForm::Label,
+                    dir::SymbolKind::Label,
                     Some(key),
                     None,
                     dir::ScopeKind::Label,
@@ -397,7 +397,7 @@ impl Compiler {
         {
             let symbol_id = state.insert_symbol(
                 dir::SymbolRole::Local,
-                dir::SymbolForm::Variable,
+                dir::SymbolKind::Variable,
                 Some(dir::StaticKey::Name(*name)),
                 None,
             );

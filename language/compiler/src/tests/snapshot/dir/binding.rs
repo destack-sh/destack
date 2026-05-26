@@ -27,7 +27,7 @@ impl SnapshotTable for dir::BindingSegment {
                 SnapshotRow::new(builder.anchor_symbol(global_symbol_id), "binding", "symbol")
                     .field("symbol", builder.local_symbol_label(symbol_id))
                     .field("role", DirSnapshotBuilder::variant_label(symbol.role))
-                    .field("form", DirSnapshotBuilder::variant_label(symbol.form))
+                    .field("kind", DirSnapshotBuilder::variant_label(symbol.kind))
                     .field("scope", builder.scope_cursor_label(symbol.scope));
 
             if let Some(mutability) = symbol.binding_mutability {
@@ -50,7 +50,7 @@ impl SnapshotTable for dir::BindingSegment {
             let row = SnapshotRow::new(SnapshotAnchor::End, "binding", "replaced_symbol")
                 .field("symbol", builder.local_symbol_label(symbol_id))
                 .field("role", DirSnapshotBuilder::variant_label(symbol.role))
-                .field("form", DirSnapshotBuilder::variant_label(symbol.form));
+                .field("kind", DirSnapshotBuilder::variant_label(symbol.kind));
             builder.push(row);
         }
 

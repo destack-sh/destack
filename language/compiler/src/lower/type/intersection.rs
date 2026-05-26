@@ -33,12 +33,12 @@ impl TypeLowerer<'_> {
             match dir_type {
                 dir::Type::Named(reference) => {
                     if matches!(
-                        self.symbol_form(reference.symbol),
+                        self.symbol_kind(reference.symbol),
                         Some(
-                            dir::SymbolForm::Struct
-                                | dir::SymbolForm::Class
-                                | dir::SymbolForm::Enum
-                                | dir::SymbolForm::Newtype
+                            dir::SymbolKind::Struct
+                                | dir::SymbolKind::Class
+                                | dir::SymbolKind::Enum
+                                | dir::SymbolKind::Newtype
                         )
                     ) {
                         if let Some(existing) = primary_nominal {

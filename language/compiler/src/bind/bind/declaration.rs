@@ -14,7 +14,7 @@ impl Compiler {
         declaration: &dir::Declaration,
     ) -> Option<dir::LocalScopeId> {
         // ignore anonymous declarations
-        let form = declaration.symbol_form()?;
+        let kind = declaration.symbol_kind()?;
         let role = declaration.symbol_role()?;
         let scope_kind = declaration.symbol_scope_kind()?;
         let key = declaration.name().map(|name| name.static_key());
@@ -22,7 +22,7 @@ impl Compiler {
 
         // declare surface symbol and scope
         let (symbol_id, scope_id) =
-            state.insert_symbol_with_scope(role, form, key, export, scope_kind);
+            state.insert_symbol_with_scope(role, kind, key, export, scope_kind);
 
         state.declare_symbol(symbol_id, node_id);
 
@@ -191,7 +191,7 @@ impl Compiler {
         // declare enum constant
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Item,
-            dir::SymbolForm::EnumField,
+            dir::SymbolKind::EnumField,
             Some(field.name.static_key()),
             None,
         );

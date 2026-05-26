@@ -31,12 +31,12 @@ impl Compiler {
         let Some(key) = dependency_item.symbol_key() else {
             return;
         };
-        let Some(form) = dependency_item.symbol_form() else {
+        let Some(kind) = dependency_item.symbol_kind() else {
             return;
         };
 
         // declare imported symbol
-        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, form, Some(key), None);
+        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, kind, Some(key), None);
 
         state.declare_symbol(symbol_id, node_id);
     }
@@ -55,7 +55,7 @@ impl Compiler {
         // declare anonymous default export
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolForm::Variable,
+            dir::SymbolKind::Variable,
             None,
             Some(dir::ExportKind::Default),
         );

@@ -58,7 +58,7 @@ pub(crate) fn enum_field_value_for_symbol(
         return Ok(None);
     };
     let scope_owner_entry = symbols.get_symbol(scope_owner);
-    if scope_owner_entry.form != dir::SymbolForm::Enum {
+    if scope_owner_entry.kind != dir::SymbolKind::Enum {
         return Ok(None);
     }
     let enum_symbol = scope_owner.into_global(member_symbol.module_id);

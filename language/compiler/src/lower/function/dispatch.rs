@@ -95,7 +95,7 @@ impl FunctionLowerer<'_> {
             dir::Type::Named(reference)
                 if self
                     .context
-                    .symbol_is(reference.symbol, dir::SymbolForm::Interface) =>
+                    .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface) =>
             {
                 Some(reference.symbol)
             }

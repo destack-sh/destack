@@ -127,15 +127,15 @@ impl FunctionLoweringContext<'_> {
         }
     }
 
-    /// Return the declaration form for one symbol.
-    pub(crate) fn symbol_form(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::SymbolForm> {
-        Some(self.symbol(symbol_id)?.form)
+    /// Return the declaration kind for one symbol.
+    pub(crate) fn symbol_kind(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::SymbolKind> {
+        Some(self.symbol(symbol_id)?.kind)
     }
 
-    /// Return whether one symbol has the given declaration form.
-    pub(crate) fn symbol_is(&self, symbol_id: dir::GlobalSymbolId, form: dir::SymbolForm) -> bool {
-        self.symbol_form(symbol_id)
-            .is_some_and(|actual| actual.matches_form(form))
+    /// Return whether one symbol has the given declaration kind.
+    pub(crate) fn symbol_kind_matches(&self, symbol_id: dir::GlobalSymbolId, kind: dir::SymbolKind) -> bool {
+        self.symbol_kind(symbol_id)
+            .is_some_and(|actual| actual.matches_kind(kind))
     }
 }
 
@@ -709,7 +709,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         if self
             .context
-            .symbol_is(target_symbol, dir::SymbolForm::Function)
+            .symbol_kind_matches(target_symbol, dir::SymbolKind::Function)
         {
             return self.lower_function_value_for_symbol(expression_id, target_symbol);
         }
