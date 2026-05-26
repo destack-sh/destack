@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{Constraint, VariableId};
+use crate::check::{Constraint, Progress, VariableId};
 
 /// Component constraint solver queue.
 pub(in crate::check) struct ConstraintQueue {
@@ -19,7 +19,7 @@ pub(in crate::check) struct ConstraintQueue {
 
 impl ConstraintQueue {
     /// Create a queue containing every work item.
-    pub(in crate::check) fn new(constraints: Vec<Constraint>) -> Self {
+    pub(in crate::check) fn from(constraints: Vec<Constraint>) -> Self {
         let pending = (0..constraints.len()).collect::<VecDeque<_>>();
         let queued = vec![true; constraints.len()];
         let mut dependents = IndexMap::<VariableId, SmallVec<[usize; 4]>>::new();
@@ -55,6 +55,17 @@ impl ConstraintQueue {
         }
     }
 
+    /// Wake every constraint.
+    pub(in crate::check) fn wake_all(&mut self) {
+        // global bound solving can solve variables created after the queue index
+        for index in 0..self.constraints.len() {
+            if !self.queued[index] {
+                self.pending.push_back(index);
+                self.queued[index] = true;
+            }
+        }
+    }
+
     /// Enqueue constraints that depend on changed variables.
     fn enqueue_dependents(&mut self, variables: &[VariableId]) {
         for variable in variables {
@@ -68,48 +79,6 @@ impl ConstraintQueue {
                     self.pending.push_back(*index);
                     self.queued[*index] = true;
                 }
-            }
-        }
-    }
-}
-
-/// Variable changes produced by one solver reduction.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum Progress {
-    /// The reduction did not change any variable.
-    Unchanged,
-    /// The work item changed these variables.
-    Changed(SmallVec<[VariableId; 4]>),
-}
-
-impl Progress {
-    /// Return one changed variable.
-    pub(in crate::check) fn changed(variable: VariableId) -> Self {
-        Self::Changed(smallvec::smallvec![variable])
-    }
-
-    /// Return progress from a conditional variable change.
-    pub(in crate::check) fn from_change(variable: VariableId, is_changed: bool) -> Self {
-        if is_changed {
-            Self::changed(variable)
-        } else {
-            Self::Unchanged
-        }
-    }
-
-    /// Return whether this progress did not change any variable.
-    pub(in crate::check) fn is_unchanged(&self) -> bool {
-        matches!(self, Self::Unchanged)
-    }
-
-    /// Merge two progress values.
-    pub(in crate::check) fn merge(self, other: Self) -> Self {
-        match (self, other) {
-            (Self::Unchanged, progress) | (progress, Self::Unchanged) => progress,
-            (Self::Changed(mut left), Self::Changed(right)) => {
-                left.extend(right);
-
-                Self::Changed(left)
             }
         }
     }

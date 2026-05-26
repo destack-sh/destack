@@ -3,10 +3,11 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckComponentState, Solution, StaticTerm, TypeTerm, VariableId, VariableKind, VariableOrigin,
+    CheckComponentState, ConstraintOrigin, ExportLookup, Solution, StaticTerm, TypeTerm,
+    VariableId, VariableKind,
 };
 
-use super::queue::Progress;
+use super::Progress;
 
 impl CheckComponentState<'_> {
     /// Solve one type variable and return the queue progress.
@@ -37,14 +38,15 @@ impl CheckComponentState<'_> {
         Ok(Progress::from_change(variable, changed))
     }
 
-    /// Push one solved type variable for a reduced term.
-    pub(in crate::check) fn push_solved_type_variable(
+    /// Define one reduced type term as a fresh variable.
+    pub(in crate::check) fn define_reduced_type(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         term: TypeTerm,
     ) -> CompilerResult<VariableId> {
         let module = self.module_mut(module)?;
-        let variable = module.push_variable(VariableKind::Type, VariableOrigin::generated());
+        let variable = module.allocate_anonymous_variable(VariableKind::Type, origin);
         let value = Solution::Type(term);
 
         module.solve_variable(variable, value);
@@ -52,28 +54,40 @@ impl CheckComponentState<'_> {
         Ok(variable)
     }
 
-    /// Push one solved static variable for a reduced DIR term.
-    pub(in crate::check) fn push_solved_static_value_variable(
+    /// Define one reduced DIR static value as a fresh variable.
+    pub(in crate::check) fn define_reduced_static_value(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         term: dir::StaticTerm,
     ) -> CompilerResult<VariableId> {
-        self.push_solved_static_term_variable(module, StaticTerm::Literal(term))
+        self.define_reduced_static(module, origin, StaticTerm::Literal(term))
     }
 
-    /// Push one solved static variable for a reduced check term.
-    pub(in crate::check) fn push_solved_static_term_variable(
+    /// Define one reduced static term as a fresh variable.
+    pub(in crate::check) fn define_reduced_static(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         term: StaticTerm,
     ) -> CompilerResult<VariableId> {
         let module = self.module_mut(module)?;
-        let variable = module.push_variable(VariableKind::Static, VariableOrigin::generated());
+        let variable = module.allocate_anonymous_variable(VariableKind::Static, origin);
         let value = Solution::Static(term);
 
         module.solve_variable(variable, value);
 
         Ok(variable)
+    }
+
+    /// Return one variable's diagnostic origin.
+    pub(in crate::check) fn variable_origin(
+        &self,
+        variable: VariableId,
+    ) -> CompilerResult<ConstraintOrigin> {
+        let origin = self.module(variable.module)?.variable(variable).source;
+
+        Ok(origin)
     }
 
     /// Solve variables whose lower bounds determine a concrete solution.
@@ -115,11 +129,7 @@ impl CheckComponentState<'_> {
 
     /// Solve one type variable from lower bounds.
     fn solve_bound_type_variable(&mut self, variable: VariableId) -> CompilerResult<Progress> {
-        let lower_bounds = self
-            .module(variable.module)?
-            .variable(variable)
-            .lower_bounds
-            .clone();
+        let lower_bounds = self.module(variable.module)?.lower_bounds(variable);
         if lower_bounds.is_empty() {
             return Ok(Progress::Unchanged);
         }
@@ -130,22 +140,18 @@ impl CheckComponentState<'_> {
             let Some(term) = self.solved_type_term(lower_bound)? else {
                 return Ok(Progress::Unchanged);
             };
-            let term = Self::widen_inferred_type(term);
 
             candidates.push(term);
         }
-        let term = self.reduce_best_common_terms(variable.module, candidates)?;
+        let origin = self.variable_origin(variable)?;
+        let term = self.reduce_best_common_terms(variable.module, origin, candidates)?;
 
         self.solve_type_variable(variable, term)
     }
 
     /// Solve one static variable from lower bounds.
     fn solve_bound_static_variable(&mut self, variable: VariableId) -> CompilerResult<Progress> {
-        let lower_bounds = self
-            .module(variable.module)?
-            .variable(variable)
-            .lower_bounds
-            .clone();
+        let lower_bounds = self.module(variable.module)?.lower_bounds(variable);
         if lower_bounds.is_empty() {
             return Ok(Progress::Unchanged);
         }
@@ -213,13 +219,6 @@ impl CheckComponentState<'_> {
             Some(Solution::Static(StaticTerm::Variable(source))) if source != variable => {
                 self.solved_static_term(source)?
             }
-            Some(Solution::Static(StaticTerm::Expression(source))) => {
-                if let Some(term) = self.static_expression_term(source.clone())? {
-                    Some(StaticTerm::Literal(term))
-                } else {
-                    Some(StaticTerm::Expression(source))
-                }
-            }
             Some(Solution::Static(term)) => Some(term),
             _ => None,
         };
@@ -229,21 +228,123 @@ impl CheckComponentState<'_> {
 
     /// Return one locally concrete static expression term.
     pub(in crate::check) fn static_expression_term(
-        &self,
+        &mut self,
         expression: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let expression_node = self
-            .module(expression.module_id)?
-            .input
-            .view()
-            .get(expression.local_id);
+        self.static_expression_term_from_node(expression.module_id, expression.local_id)
+    }
+
+    /// Return one locally concrete static expression term by local expression id.
+    fn static_expression_term_from_node(
+        &mut self,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let expression_node = self.module(module)?.input.view().get(expression).clone();
         let term = match expression_node {
-            dir::Expression::ScalarLiteral(value) => Some(dir::StaticTerm::ScalarLiteral {
-                value: value.clone(),
-            }),
+            dir::Expression::Identifier { name } => {
+                self.static_reference_expression_term(module, expression, name)?
+            }
+            dir::Expression::QualifiedReference { path, .. } => {
+                self.static_path_expression_term(module, expression, &path)?
+            }
+            dir::Expression::ScalarLiteral(value) => Some(dir::StaticTerm::ScalarLiteral { value }),
+            dir::Expression::ObjectExpression { properties } => {
+                self.static_object_expression_term(module, &properties)?
+            }
             _ => None,
         };
 
         Ok(term)
+    }
+
+    /// Return one locally concrete static reference expression term.
+    fn static_reference_expression_term(
+        &mut self,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+        name: dir::StringId,
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let Some(symbol) = self
+            .module(module)?
+            .lookup_name(expression.into_any(), name, dir::SymbolSpace::Value)
+            .unique_symbol()
+        else {
+            return Ok(None);
+        };
+
+        self.static_symbol_expression_term(module, symbol)
+    }
+
+    /// Return one locally concrete static path expression term.
+    fn static_path_expression_term(
+        &mut self,
+        module: ModuleId,
+        expression: dir::LocalNodeId<dir::Expression>,
+        path: &dir::Path,
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let symbol = match self.resolve_static_path_symbol(
+            module,
+            expression.into_any(),
+            path,
+            dir::SymbolSpace::Value,
+        )? {
+            ExportLookup::Found(symbol) => symbol,
+            ExportLookup::Missing | ExportLookup::Ambiguous(_) => return Ok(None),
+        };
+
+        self.static_symbol_expression_term(module, symbol)
+    }
+
+    /// Return one locally concrete static symbol expression term.
+    fn static_symbol_expression_term(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let Some(variable) = self.generic_static_variable(module, symbol)? else {
+            return Ok(None);
+        };
+        let term = match self.solved_static_term(variable)? {
+            Some(StaticTerm::Literal(term)) => Some(term),
+            _ => None,
+        };
+
+        Ok(term)
+    }
+
+    /// Return one locally concrete static object expression term.
+    fn static_object_expression_term(
+        &mut self,
+        module: ModuleId,
+        properties: &[dir::LocalNodeId<dir::Property>],
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let view = self.module(module)?.input.view();
+        let mut fields = Vec::with_capacity(properties.len());
+
+        // collect field keys and value expressions
+        for property in properties {
+            let dir::Property::Field { key, value, .. } = view.get(*property) else {
+                return Ok(None);
+            };
+            let Some(key) = key.static_key(view.tree()) else {
+                return Ok(None);
+            };
+
+            fields.push((key, *value));
+        }
+
+        let mut terms = Vec::with_capacity(properties.len());
+
+        // solve statically known field values
+        for (key, value) in fields {
+            let Some(value) = self.static_expression_term_from_node(module, value)? else {
+                return Ok(None);
+            };
+
+            terms.push(dir::StaticProperty::Field { key, value });
+        }
+
+        Ok(Some(dir::StaticTerm::Object { properties: terms }))
     }
 }

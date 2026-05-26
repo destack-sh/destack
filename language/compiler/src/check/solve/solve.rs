@@ -1,17 +1,20 @@
 use crate::CompilerResult;
-use crate::check::{CheckComponentState, Constraint, StaticTerm, TypeTerm, VariableId};
+use crate::check::{
+    CheckComponentState, Constraint, PatternRelation, StaticTerm, TypeTerm, VariableId,
+};
 
-use super::queue::{ConstraintQueue, Progress};
+use super::Progress;
+use super::queue::ConstraintQueue;
 
 impl CheckComponentState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        let mut queue = ConstraintQueue::new(self.collect_constraints());
+        let mut queue = ConstraintQueue::from(self.collect_constraints());
 
         loop {
-            // reduce queued constraints until no variable changes
+            // step queued constraints until no variable changes
             while let Some(constraint) = queue.next() {
-                let progress = self.reduce_constraint(&constraint)?;
+                let progress = self.step_constraint(&constraint)?;
 
                 queue.wake(progress);
             }
@@ -20,7 +23,7 @@ impl CheckComponentState<'_> {
                 break;
             }
 
-            queue.wake(progress);
+            queue.wake_all();
         }
 
         Ok(())
@@ -32,54 +35,60 @@ impl CheckComponentState<'_> {
 
         // preserve module order and then local walk order
         for check_module in self.modules.values() {
-            constraints.extend(check_module.constraints().iter().cloned());
+            constraints.extend(check_module.work.constraints.iter().cloned());
         }
 
         constraints
     }
 
-    /// Reduce one constraint once.
-    fn reduce_constraint(&mut self, constraint: &Constraint) -> CompilerResult<Progress> {
+    /// Step one constraint once.
+    fn step_constraint(&mut self, constraint: &Constraint) -> CompilerResult<Progress> {
         match constraint {
-            Constraint::DefineType { result, term, .. } => {
-                self.reduce_type_definition(*result, term)
-            }
+            Constraint::DefineType { result, term, .. } => self.step_type_definition(*result, term),
             Constraint::DefineStatic { result, term, .. } => {
-                self.reduce_static_definition(*result, term)
+                self.step_static_definition(*result, term)
             }
             Constraint::RelateType {
                 relation,
                 left,
                 right,
                 ..
-            } => self.relate_type(*relation, *left, *right),
+            } => self.solve_type_relation(*relation, *left, *right),
             Constraint::RelateStatic {
                 relation,
                 left,
                 right,
                 ..
-            } => self.relate_static(*relation, *left, *right),
-            Constraint::RequirePlaceWrite { .. } => Ok(Progress::Unchanged),
+            } => self.solve_static_relation(*relation, *left, *right),
+            Constraint::RelatePattern {
+                relation, value, ..
+            } => match relation {
+                PatternRelation::Match(pattern) => self.propagate_pattern_relation(*value, pattern),
+                PatternRelation::Assign(pattern) => {
+                    self.propagate_assign_pattern_relation(*value, pattern)
+                }
+            },
         }
     }
 
-    /// Reduce one type definition.
-    fn reduce_type_definition(
+    /// Step one type definition.
+    fn step_type_definition(
         &mut self,
         result: VariableId,
         term: &TypeTerm,
     ) -> CompilerResult<Progress> {
-        let forward = match self.reduce_type_term(result.module, term)? {
+        let reduction = self.reduce_type_term(result.module, term)?;
+        let forward = match reduction.value {
             Some(term) => self.solve_type_variable(result, term)?,
             None => Progress::Unchanged,
         };
-        let backward = self.expect_type_term(result, term)?;
+        let backward = self.propagate_type_expectation(result, term)?;
 
-        Ok(forward.merge(backward))
+        Ok(reduction.progress.merge(forward).merge(backward))
     }
 
-    /// Reduce one static definition constraint.
-    fn reduce_static_definition(
+    /// Step one static definition constraint.
+    fn step_static_definition(
         &mut self,
         result: VariableId,
         term: &StaticTerm,

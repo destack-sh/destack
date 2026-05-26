@@ -18,4 +18,13 @@ impl Decision {
             (Self::Yes, Self::Yes) => Self::Yes,
         }
     }
+
+    /// Combine decisions where either one may hold.
+    pub(in crate::check) fn or(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Yes, _) | (_, Self::Yes) => Self::Yes,
+            (Self::Undecidable, _) | (_, Self::Undecidable) => Self::Undecidable,
+            (Self::No, Self::No) => Self::No,
+        }
+    }
 }
