@@ -167,38 +167,6 @@ impl SharedHeapSpaceImage {
     }
 }
 
-/// Restore one shared heap mapping from one image.
-fn restore_shared_mapping(
-    allocator: &Allocator,
-    image: &SharedHeapSpaceImage,
-    mapping: &mut AddressSpace,
-) -> HeapResult<()> {
-    // restore each captured small span range
-    for span in image.spans() {
-        let byte_len = span.pages.len() * allocator.page_bytes();
-        if byte_len == 0 {
-            continue;
-        }
-
-        let bytes = allocator.read_bytes_from(&span.pages, 0, byte_len)?;
-
-        mapping.write_bytes(span.first_offset, &bytes)?;
-    }
-
-    // restore each captured large allocation range
-    for allocation in image.allocations() {
-        if !allocation.is_live || allocation.len == 0 {
-            continue;
-        }
-
-        let bytes = allocator.read_bytes_from(&allocation.pages, 0, allocation.len)?;
-
-        mapping.write_bytes(allocation.first_offset, &bytes)?;
-    }
-
-    Ok(())
-}
-
 impl SharedHeapSpace {
     /// Fork one shared heap space over the same shared allocator.
     ///
@@ -534,4 +502,36 @@ impl SharedHeapSpace {
             }
         }
     }
+}
+
+/// Restore one shared heap mapping from one image.
+fn restore_shared_mapping(
+    allocator: &Allocator,
+    image: &SharedHeapSpaceImage,
+    mapping: &mut AddressSpace,
+) -> HeapResult<()> {
+    // restore each captured small span range
+    for span in image.spans() {
+        let byte_len = span.pages.len() * allocator.page_bytes();
+        if byte_len == 0 {
+            continue;
+        }
+
+        let bytes = allocator.read_bytes_from(&span.pages, 0, byte_len)?;
+
+        mapping.write_bytes(span.first_offset, &bytes)?;
+    }
+
+    // restore each captured large allocation range
+    for allocation in image.allocations() {
+        if !allocation.is_live || allocation.len == 0 {
+            continue;
+        }
+
+        let bytes = allocator.read_bytes_from(&allocation.pages, 0, allocation.len)?;
+
+        mapping.write_bytes(allocation.first_offset, &bytes)?;
+    }
+
+    Ok(())
 }

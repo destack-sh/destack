@@ -1,13 +1,11 @@
+use crate::DEFAULT_CARD_BYTES;
 use crate::allocator::Bitmap;
-use crate::local::constants::DEFAULT_CARD_BYTES;
 
 /// One card set for mature remembered regions.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CardSet {
     /// The logical byte length covered by this card set.
     byte_len: usize,
-    /// The byte width covered by each remembered card.
-    card_bytes: usize,
     /// The dirty cards keyed by card index.
     dirty: Bitmap,
 }
@@ -19,7 +17,6 @@ impl CardSet {
 
         Self {
             byte_len,
-            card_bytes: DEFAULT_CARD_BYTES,
             dirty: Bitmap::with_capacity(card_count),
         }
     }
@@ -32,8 +29,8 @@ impl CardSet {
         }
 
         let end = (start + len).min(self.byte_len);
-        let start_card = start / self.card_bytes;
-        let end_card = end.div_ceil(self.card_bytes);
+        let start_card = start / DEFAULT_CARD_BYTES;
+        let end_card = end.div_ceil(DEFAULT_CARD_BYTES);
 
         // mark the covered card run in one bitmap update
         self.dirty.set_range(start_card, end_card - start_card);
@@ -47,8 +44,8 @@ impl CardSet {
     /// Return each dirty byte range.
     pub(crate) fn dirty_ranges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
         self.dirty.set_ranges().map(|(start_card, card_count)| {
-            let start = start_card * self.card_bytes;
-            let end = ((start_card + card_count) * self.card_bytes).min(self.byte_len);
+            let start = start_card * DEFAULT_CARD_BYTES;
+            let end = ((start_card + card_count) * DEFAULT_CARD_BYTES).min(self.byte_len);
 
             (start, end - start)
         })

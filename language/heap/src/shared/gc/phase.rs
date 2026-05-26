@@ -24,13 +24,13 @@ impl SharedGcPhase {
     }
 
     /// Decode one atomic phase byte.
-    pub(crate) const fn from_bits(bits: u8) -> Self {
+    pub(crate) fn from_bits(bits: u8) -> Self {
         match bits {
             0 => Self::Idle,
             1 => Self::Mark,
             2 => Self::Sweep,
             _ => {
-                debug_assert!(false, "invalid shared gc phase byte");
+                debug_assert!(bits <= 2, "invalid shared gc phase byte");
 
                 Self::Idle
             }

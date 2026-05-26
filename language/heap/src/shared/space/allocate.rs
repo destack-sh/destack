@@ -868,7 +868,7 @@ impl SharedHeapSpace {
     /// Write bytes into one mapped payload range.
     #[inline(always)]
     fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
-        // allocation paths materialize the destination before publishing it
+        // SAFETY: allocation paths materialize the destination before publishing it
         unsafe {
             self.mapping.write_mapped_bytes(offset, bytes);
         }
@@ -879,7 +879,7 @@ impl SharedHeapSpace {
     fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
         let address = self.mapping.base_address() + offset;
 
-        // allocation paths materialize the destination before publishing it
+        // SAFETY: allocation paths materialize the destination before publishing it
         unsafe {
             std::ptr::write_bytes(address as *mut u8, 0, byte_len);
         }

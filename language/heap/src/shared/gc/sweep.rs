@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
-
 use crate::shared::gc::SharedGcPhase;
 use crate::shared::space::SharedHeapSpace;
 use crate::{GcKind, GcProgress, GcStats, HeapError, HeapResult};
@@ -24,12 +21,9 @@ impl SharedHeapSpace {
             return Ok(false);
         }
 
-        // sweep snapshot
+        // sweep state
         let references = self.live_references()?;
-        *self.gc.sweep_references.lock() = Arc::from(references);
-
-        // sweep cursor
-        self.gc.sweep_cursor.store(0, Ordering::Release);
+        self.gc.start_sweep(references);
         self.gc.set_phase(SharedGcPhase::Sweep);
 
         Ok(true)
@@ -37,20 +31,30 @@ impl SharedHeapSpace {
 
     /// Perform bounded shared sweep work.
     pub(crate) fn sweep_step(&self, budget_bytes: usize) -> HeapResult<GcProgress> {
+        // lifecycle
+        let _lifecycle = self.gc.lock_lifecycle();
+        match self.gc.phase() {
+            SharedGcPhase::Sweep => {}
+            SharedGcPhase::Idle => return Ok(GcProgress::Idle),
+            SharedGcPhase::Mark => return Err(HeapError::SharedCollectionNotSweeping),
+        }
+
         // snapshot active sweep candidates
-        let references = self.gc.sweep_references.lock().clone();
+        let references = self.gc.sweep_references();
         let reference_len = references.len();
+        let mut cursor = self.gc.sweep_cursor();
 
         let mut swept_bytes = 0usize;
         let mut released_references = Vec::new();
 
         // sweep cursor
         while swept_bytes < budget_bytes {
-            let index = self.gc.sweep_cursor.fetch_add(1, Ordering::AcqRel);
-            if index >= reference_len {
+            if cursor >= reference_len {
                 break;
             }
 
+            let index = cursor;
+            cursor += 1;
             let Some(reference) = references.get(index).copied() else {
                 continue;
             };
@@ -66,19 +70,23 @@ impl SharedHeapSpace {
 
             released_references.push(reference);
         }
+        self.gc.set_sweep_cursor(cursor);
 
         // reclaimed allocation
+        let mut freed_allocations = 0usize;
+        let mut freed_bytes = 0u64;
         for reference in released_references {
             let released_bytes = self.free(reference)?;
 
-            self.gc.freed_allocations.fetch_add(1, Ordering::AcqRel);
-            self.gc
-                .freed_bytes
-                .fetch_add(released_bytes, Ordering::AcqRel);
+            freed_allocations += 1;
+            freed_bytes += released_bytes;
+        }
+        if freed_allocations > 0 {
+            self.gc.record_sweep_freed(freed_allocations, freed_bytes);
         }
 
         // end of sweep
-        if self.gc.sweep_cursor.load(Ordering::Acquire) >= reference_len {
+        if cursor >= reference_len {
             return self.finish_collection().map(GcProgress::Complete);
         }
 
@@ -87,29 +95,23 @@ impl SharedHeapSpace {
 
     /// Finish one completed shared collection cycle.
     fn finish_collection(&self) -> HeapResult<GcStats> {
-        // lifecycle
-        let _lifecycle = self.gc.lock_lifecycle();
         let mut store = self.state.write();
         let retained_bytes = self.live_retained_bytes(&store);
         let (live_allocations, allocated_bytes) = self.live_allocated_usage(&store);
 
         // cycle stats
+        let (freed_allocations, freed_bytes) = self.gc.sweep_freed();
         let stats = GcStats {
-            freed_allocations: self.gc.freed_allocations.load(Ordering::Acquire),
+            freed_allocations,
             live_allocations,
-            freed_bytes: self.gc.freed_bytes.load(Ordering::Acquire),
+            freed_bytes,
             allocated_bytes,
             retained_bytes,
         };
 
         // cycle reset
         self.gc.close_mark_publication();
-        self.gc.sweep_cursor.store(0, Ordering::Release);
-        self.gc.mark_publishers.store(0, Ordering::Release);
-        self.gc.mark_inflight.store(0, Ordering::Release);
-        self.gc.freed_allocations.store(0, Ordering::Release);
-        self.gc.freed_bytes.store(0, Ordering::Release);
-        *self.gc.sweep_references.lock() = Arc::from([]);
+        self.gc.reset_sweep();
         self.gc.trace_queue.clear();
 
         // cycle summary

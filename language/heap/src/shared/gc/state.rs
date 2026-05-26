@@ -1,12 +1,137 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 
 use crate::SharedHeapReference;
 
 use super::SharedGcPhase;
+
+/// One active shared heap collection state.
+#[derive(Debug, Default)]
+pub(crate) struct SharedGcState {
+    /// The shared collector lifecycle gate.
+    lifecycle: Mutex<()>,
+    /// The reusable collector trace queue.
+    pub(crate) trace_queue: SharedTraceQueue,
+    /// The current shared collection phase.
+    phase: AtomicU8,
+    /// Whether shared mark publication is closed for termination.
+    mark_closing: AtomicBool,
+    /// The number of shared mark publications currently in flight.
+    pub(crate) mark_publishers: AtomicUsize,
+    /// The number of mark items currently being traced.
+    pub(crate) mark_inflight: AtomicUsize,
+    /// The active sweep state.
+    sweep: Mutex<SharedSweepState>,
+}
+
+impl SharedGcState {
+    /// Lock the shared collector lifecycle.
+    pub(crate) fn lock_lifecycle(&self) -> MutexGuard<'_, ()> {
+        self.lifecycle.lock()
+    }
+
+    /// Return the current shared collection phase.
+    #[inline(always)]
+    pub(crate) fn phase(&self) -> SharedGcPhase {
+        SharedGcPhase::from_bits(self.phase.load(Ordering::Acquire))
+    }
+
+    /// Set the current shared collection phase.
+    #[inline(always)]
+    pub(crate) fn set_phase(&self, phase: SharedGcPhase) {
+        self.phase.store(phase.bits(), Ordering::Release);
+    }
+
+    /// Reset sweep state for a new mark cycle.
+    pub(crate) fn reset_sweep(&self) {
+        *self.sweep.lock() = SharedSweepState::default();
+    }
+
+    /// Start sweeping one stable reference snapshot.
+    pub(crate) fn start_sweep(&self, references: Vec<SharedHeapReference>) {
+        *self.sweep.lock() = SharedSweepState {
+            references: Arc::from(references),
+            ..SharedSweepState::default()
+        };
+    }
+
+    /// Return the stable sweep reference snapshot.
+    pub(crate) fn sweep_references(&self) -> Arc<[SharedHeapReference]> {
+        self.sweep.lock().references.clone()
+    }
+
+    /// Return the next reference index to sweep.
+    pub(crate) fn sweep_cursor(&self) -> usize {
+        self.sweep.lock().cursor
+    }
+
+    /// Set the next reference index to sweep.
+    pub(crate) fn set_sweep_cursor(&self, cursor: usize) {
+        self.sweep.lock().cursor = cursor;
+    }
+
+    /// Record allocation bytes freed by sweep.
+    pub(crate) fn record_sweep_freed(&self, freed_allocations: usize, freed_bytes: u64) {
+        let mut sweep = self.sweep.lock();
+
+        sweep.freed_allocations += freed_allocations;
+        sweep.freed_bytes += freed_bytes;
+    }
+
+    /// Return the completed sweep free counts.
+    pub(crate) fn sweep_freed(&self) -> (usize, u64) {
+        let sweep = self.sweep.lock();
+
+        (sweep.freed_allocations, sweep.freed_bytes)
+    }
+
+    /// Return whether shared mark publication is currently closed.
+    pub(crate) fn is_mark_closing(&self) -> bool {
+        self.mark_closing.load(Ordering::Acquire)
+    }
+
+    /// Open shared mark publication.
+    pub(crate) fn open_mark_publication(&self) {
+        self.mark_closing.store(false, Ordering::Release);
+    }
+
+    /// Close shared mark publication for termination.
+    pub(crate) fn close_mark_publication(&self) {
+        self.mark_closing.store(true, Ordering::Release);
+    }
+
+    /// Return whether the active shared mark phase is fully drained.
+    pub(crate) fn mark_drained(&self) -> bool {
+        // read all termination counters
+        let is_queue_empty = self.trace_queue.is_empty();
+        let inflight = self.mark_inflight.load(Ordering::Acquire);
+        let publishers = self.mark_publishers.load(Ordering::Acquire);
+
+        is_queue_empty && inflight == 0 && publishers == 0
+    }
+
+    /// Begin one shared mark publication and return its lifetime guard.
+    pub(crate) fn begin_mark_publication(&self) -> Option<SharedMarkPublication<'_>> {
+        // reject inactive or terminating mark cycles
+        if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
+            return None;
+        }
+
+        self.mark_publishers.fetch_add(1, Ordering::AcqRel);
+
+        // close the race with mark termination
+        if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
+            self.mark_publishers.fetch_sub(1, Ordering::AcqRel);
+
+            return None;
+        }
+
+        Some(SharedMarkPublication { state: self })
+    }
+}
 
 /// One queued unit of shared mark work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,10 +161,8 @@ pub struct SharedGcWorker {
 pub(crate) struct SharedTraceQueue {
     /// Work published without a worker context.
     global: Injector<SharedTraceWork>,
-    /// The next worker-local queue index.
-    next_worker: AtomicUsize,
     /// Stealing handles for registered collector workers.
-    stealers: Mutex<Vec<Option<Stealer<SharedTraceWork>>>>,
+    stealers: Mutex<Vec<Stealer<SharedTraceWork>>>,
 }
 
 impl SharedTraceQueue {
@@ -47,14 +170,11 @@ impl SharedTraceQueue {
     pub(crate) fn register_worker(&self) -> SharedGcWorker {
         let local = Worker::new_fifo();
         let stealer = local.stealer();
-        let worker_index = self.next_worker.fetch_add(1, Ordering::Relaxed);
         let mut stealers = self.stealers.lock();
+        let worker_index = stealers.len();
 
         // publish the stealing handle for other workers
-        if stealers.len() <= worker_index {
-            stealers.resize_with(worker_index + 1, || None);
-        }
-        stealers[worker_index] = Some(stealer);
+        stealers.push(stealer);
 
         SharedGcWorker {
             index: worker_index,
@@ -113,8 +233,8 @@ impl SharedTraceQueue {
         }
 
         // worker queues
-        let stealers = self.stealers.lock().clone();
-        for stealer in stealers.into_iter().flatten() {
+        let stealers = self.stealers_snapshot();
+        for stealer in stealers {
             if !stealer.is_empty() {
                 return false;
             }
@@ -268,99 +388,7 @@ impl SharedTraceQueue {
 
     /// Return the currently registered worker stealers.
     fn stealers_snapshot(&self) -> Vec<Stealer<SharedTraceWork>> {
-        self.stealers
-            .lock()
-            .iter()
-            .filter_map(Clone::clone)
-            .collect()
-    }
-}
-
-/// One active shared heap collection state.
-#[derive(Debug, Default)]
-pub(crate) struct SharedGcState {
-    /// The shared collector lifecycle gate.
-    lifecycle: Mutex<()>,
-    /// The reusable collector trace queue.
-    pub(crate) trace_queue: SharedTraceQueue,
-    /// The current shared collection phase.
-    phase: AtomicU8,
-    /// Whether shared mark publication is closed for termination.
-    mark_closing: AtomicU8,
-    /// The number of shared mark publications currently in flight.
-    pub(crate) mark_publishers: AtomicUsize,
-    /// The next reference index to sweep.
-    pub(crate) sweep_cursor: AtomicUsize,
-    /// The shared reference snapshot for the active sweep.
-    pub(crate) sweep_references: Mutex<Arc<[SharedHeapReference]>>,
-    /// The number of mark items currently being traced.
-    pub(crate) mark_inflight: AtomicUsize,
-    /// The allocations freed so far in the active cycle.
-    pub(crate) freed_allocations: AtomicUsize,
-    /// The bytes freed so far in the active cycle.
-    pub(crate) freed_bytes: AtomicU64,
-}
-
-impl SharedGcState {
-    /// Lock the shared collector lifecycle.
-    pub(crate) fn lock_lifecycle(&self) -> parking_lot::MutexGuard<'_, ()> {
-        self.lifecycle.lock()
-    }
-
-    /// Return the current shared collection phase.
-    #[inline(always)]
-    pub(crate) fn phase(&self) -> SharedGcPhase {
-        SharedGcPhase::from_bits(self.phase.load(Ordering::Acquire))
-    }
-
-    /// Set the current shared collection phase.
-    #[inline(always)]
-    pub(crate) fn set_phase(&self, phase: SharedGcPhase) {
-        self.phase.store(phase.bits(), Ordering::Release);
-    }
-
-    /// Return whether shared mark publication is currently closed.
-    pub(crate) fn is_mark_closing(&self) -> bool {
-        self.mark_closing.load(Ordering::Acquire) != 0
-    }
-
-    /// Open shared mark publication.
-    pub(crate) fn open_mark_publication(&self) {
-        self.mark_closing.store(0, Ordering::Release);
-    }
-
-    /// Close shared mark publication for termination.
-    pub(crate) fn close_mark_publication(&self) {
-        self.mark_closing.store(1, Ordering::Release);
-    }
-
-    /// Return whether the active shared mark phase is fully drained.
-    pub(crate) fn mark_drained(&self) -> bool {
-        // read all termination counters
-        let is_queue_empty = self.trace_queue.is_empty();
-        let inflight = self.mark_inflight.load(Ordering::Acquire);
-        let publishers = self.mark_publishers.load(Ordering::Acquire);
-
-        is_queue_empty && inflight == 0 && publishers == 0
-    }
-
-    /// Begin one shared mark publication and return its lifetime guard.
-    pub(crate) fn begin_mark_publication(&self) -> Option<SharedMarkPublication<'_>> {
-        // reject inactive or terminating mark cycles
-        if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
-            return None;
-        }
-
-        self.mark_publishers.fetch_add(1, Ordering::AcqRel);
-
-        // close the race with mark termination
-        if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
-            self.mark_publishers.fetch_sub(1, Ordering::AcqRel);
-
-            return None;
-        }
-
-        Some(SharedMarkPublication { state: self })
+        self.stealers.lock().clone()
     }
 }
 
@@ -369,6 +397,19 @@ impl SharedGcState {
 pub(crate) struct SharedMarkPublication<'a> {
     /// The owning shared collection state.
     state: &'a SharedGcState,
+}
+
+/// Active shared sweep state.
+#[derive(Debug, Default)]
+struct SharedSweepState {
+    /// The stable shared reference snapshot for the active sweep.
+    references: Arc<[SharedHeapReference]>,
+    /// The next reference index to sweep.
+    cursor: usize,
+    /// The allocations freed so far in the active cycle.
+    freed_allocations: usize,
+    /// The bytes freed so far in the active cycle.
+    freed_bytes: u64,
 }
 
 impl Drop for SharedMarkPublication<'_> {

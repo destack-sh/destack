@@ -13,7 +13,7 @@ pub struct SharedAllocator {
     pub(super) small: Vec<SmallBucket>,
 }
 
-// allocator ownership follows runtime worker ownership
+// SAFETY: runtime worker ownership keeps one shared allocator on one worker at a time
 unsafe impl Send for SharedAllocator {}
 
 /// One worker-local small allocation bucket.
@@ -116,7 +116,7 @@ impl SharedAllocator {
         &mut self,
         small: SmallAllocationPlan,
     ) -> Option<SharedHeapReference> {
-        // forward the resolved layout facts to the trusted hot path
+        // SAFETY: small allocation plan carries a matching bucket index and slot width
         unsafe { self.reserve_zeroed_run_slot_unchecked(small.bucket_index(), small.slot_bytes()) }
     }
 
@@ -133,8 +133,9 @@ impl SharedAllocator {
         bucket_index: usize,
         slot_bytes: usize,
     ) -> Option<SharedHeapReference> {
-        // trusted resolved class indexes directly into worker arrays
+        // SAFETY: caller resolved both values from the same small allocation plan
         let run = unsafe { self.runs.get_unchecked_mut(bucket_index) };
+        // SAFETY: caller resolved both values from the same small allocation plan
         let bucket = unsafe { self.small.get_unchecked_mut(bucket_index) };
         let reference = run.reserve_reference(slot_bytes)?;
 

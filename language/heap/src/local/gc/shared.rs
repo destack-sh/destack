@@ -1,36 +1,25 @@
-use crate::local::space::HeapSpace;
+use crate::local::gc::SharedEdgeWork;
+use crate::local::space::{HeapPlace, HeapSpace};
 use crate::{
     HeapError, HeapReference, HeapResult, ScanSource, SharedHeapReference,
     scan_shared_references as scan_shared_heap_references,
+    scan_shared_references_in_range as scan_shared_heap_references_in_range,
 };
 
 impl HeapSpace {
     /// Start one incremental local-to-shared edge scan.
     pub(crate) fn start_shared_edge_scan(&mut self) {
-        // reset scan cursors
-        self.is_scanning_shared_edges = true;
-        self.shared_edge_cursor = 0;
-        self.shared_edge_queue.clear();
-        self.shared_edge_pending.clear();
+        self.collector.start_shared_edge_scan();
     }
 
     /// Return whether the current local-to-shared edge scan is fully drained.
     pub(crate) fn shared_edge_scan_idle(&self) -> bool {
-        !self.is_scanning_shared_edges
-            || (self.shared_edge_cursor >= self.shared_edge_roots.len()
-                && self.shared_edge_queue.is_empty())
+        self.collector.shared_edge_scan_idle()
     }
 
     /// Finish the current local-to-shared edge scan.
     pub(crate) fn finish_shared_edge_scan(&mut self) {
-        // close the active scan
-        self.is_scanning_shared_edges = false;
-        self.shared_edge_cursor = 0;
-        self.shared_edge_queue.clear();
-        self.shared_edge_pending.clear();
-
-        // remove tombstones left by concurrent root removal
-        self.compact_shared_edge_roots();
+        self.collector.finish_shared_edge_scan();
     }
 
     /// Scan bounded local-to-shared edge work into the provided root buffer.
@@ -40,7 +29,7 @@ impl HeapSpace {
         budget_bytes: usize,
     ) -> HeapResult<usize> {
         // inactive scan
-        if !self.is_scanning_shared_edges || budget_bytes == 0 {
+        if !self.collector.is_scanning_shared_edges || budget_bytes == 0 {
             return Ok(0);
         }
 
@@ -48,21 +37,21 @@ impl HeapSpace {
 
         // drain queued rescans first
         while scanned_bytes < budget_bytes {
-            let Some(reference) = self.shared_edge_queue.pop() else {
+            let Some(work) = self.collector.pop_shared_edge_work() else {
                 break;
             };
 
-            self.shared_edge_pending.remove(&reference);
-            scanned_bytes += self.trace_shared_edges(reference, roots)?;
+            scanned_bytes += self.trace_shared_edge_work(work, roots)?;
         }
 
         // then continue the tracked shared-edge walk
         while scanned_bytes < budget_bytes {
-            let Some(reference) = self.next_shared_edge_root() else {
+            let Some(reference) = self.collector.next_shared_edge_root() else {
                 break;
             };
 
-            scanned_bytes += self.trace_shared_edges(reference, roots)?;
+            scanned_bytes +=
+                self.trace_shared_edge_work(SharedEdgeWork::Reference(reference), roots)?;
         }
 
         Ok(scanned_bytes)
@@ -71,16 +60,13 @@ impl HeapSpace {
     /// Queue one local reference for one later shared-edge rescan.
     pub(crate) fn queue_shared_reference(&mut self, reference: HeapReference) -> HeapResult<()> {
         // only live shared-reference carriers need rescanning
-        if !self.is_scanning_shared_edges || !self.reference_has_shared_roots(reference)? {
+        if !self.collector.is_scanning_shared_edges
+            || !self.reference_has_shared_roots(reference)?
+        {
             return Ok(());
         }
 
-        // avoid duplicate queued rescans
-        if !self.shared_edge_pending.insert(reference) {
-            return Ok(());
-        }
-
-        self.shared_edge_queue.push(reference);
+        self.collector.queue_shared_edge_root(reference);
 
         Ok(())
     }
@@ -98,20 +84,18 @@ impl HeapSpace {
         Ok(trace_map.has_shared_reference())
     }
 
-    /// Return the next tracked local reference that may contain shared edges.
-    fn next_shared_edge_root(&mut self) -> Option<HeapReference> {
-        // skip tombstones left by removals during the active scan
-        while self.shared_edge_cursor < self.shared_edge_roots.len() {
-            let index = self.shared_edge_cursor;
-            self.shared_edge_cursor += 1;
-
-            let reference = self.shared_edge_roots.get(index).copied()?;
-            if !reference.is_null() {
-                return Some(reference);
+    /// Trace shared heap roots from one queued edge work item.
+    fn trace_shared_edge_work(
+        &mut self,
+        work: SharedEdgeWork,
+        roots: &mut Vec<SharedHeapReference>,
+    ) -> HeapResult<usize> {
+        match work {
+            SharedEdgeWork::Reference(reference) => self.trace_shared_edges(reference, roots),
+            SharedEdgeWork::LargeRange { reference, start } => {
+                self.trace_large_shared_edges(reference, start, roots)
             }
         }
-
-        None
     }
 
     /// Trace shared heap roots from one heap reference.
@@ -138,6 +122,11 @@ impl HeapSpace {
             return Ok(location.byte_len);
         }
 
+        // large references are sliced to keep shared-root scans bounded
+        if matches!(location.place, HeapPlace::Large(_)) {
+            return self.trace_large_shared_edges(reference, 0, roots);
+        }
+
         // scan mapped heap memory directly
         let base_address = self.mapping.base_address() + location.base.offset();
         let mut reference_buffer = Vec::new();
@@ -155,5 +144,72 @@ impl HeapSpace {
         roots.extend(reference_buffer);
 
         Ok(location.byte_len)
+    }
+
+    /// Trace one page-sized range of shared roots from one large heap reference.
+    fn trace_large_shared_edges(
+        &mut self,
+        reference: HeapReference,
+        start: usize,
+        roots: &mut Vec<SharedHeapReference>,
+    ) -> HeapResult<usize> {
+        // freed references contribute no work
+        let Some(location) = self.resolve_location(reference) else {
+            return Ok(0);
+        };
+        let HeapPlace::Large(_) = location.place else {
+            return Err(HeapError::InvariantViolation {
+                context: "large shared-edge work resolved to non-large allocation",
+            });
+        };
+
+        // load exact shared-reference layout
+        let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
+            HeapError::HeapScanFailed {
+                source: ScanSource::Reference(reference),
+                error: Box::new(error),
+            }
+        })?;
+
+        // empty or noscan ranges need no continuation
+        if start >= location.byte_len || !trace_map.has_shared_reference() {
+            return Ok(0);
+        }
+
+        // scan at most one allocator page
+        let range_len = self.allocator().page_bytes().min(location.byte_len - start);
+        let base_address = self.mapping.base_address() + location.base.offset();
+        let mut reference_buffer = Vec::new();
+        let result = scan_shared_heap_references_in_range(
+            &trace_map,
+            start,
+            range_len,
+            base_address,
+            &mut reference_buffer,
+        );
+
+        if let Err(error) = result {
+            return Err(HeapError::HeapScanFailed {
+                source: ScanSource::Reference(reference),
+                error: Box::new(error),
+            });
+        }
+
+        // publish non-null shared roots
+        reference_buffer.retain(|reference| !reference.is_null());
+        roots.extend(reference_buffer);
+
+        // continue this large allocation on a later step
+        let next_start = start + range_len;
+        if next_start < location.byte_len {
+            self.collector
+                .shared_edge_queue
+                .push(SharedEdgeWork::LargeRange {
+                    reference,
+                    start: next_start,
+                });
+        }
+
+        Ok(range_len)
     }
 }

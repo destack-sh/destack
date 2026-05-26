@@ -1,15 +1,12 @@
 use super::Promotion;
 use crate::local::space::{
-    GcKind, GcStats, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId, YoungPlace,
-    YoungRunCursor,
+    GcKind, GcStats, HeapPageMapEntry, HeapPlace, HeapSpace, HeapTraceQueue, LargeAllocationId,
+    YoungPlace, YoungRunCursor,
 };
 use crate::{
-    HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource, TraceQueue,
-    scan_heap_references, scan_heap_references_in_range, slot_trace_map,
+    HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource, scan_heap_references,
+    scan_heap_references_in_range, slot_trace_map,
 };
-
-/// Collector queue for heap references.
-type HeapTraceQueue = TraceQueue<HeapReference>;
 
 impl HeapSpace {
     /// Perform one young-generation collection over mutable heap roots.
@@ -18,27 +15,27 @@ impl HeapSpace {
         R: RootSet,
     {
         // reject overlapping collection work
-        if self.is_collecting {
+        if self.collector.is_collecting {
             return Err(HeapError::HeapCollectionActive.into());
         }
 
         // prepare reusable collection state
-        let queue = std::mem::take(&mut self.trace_queue);
+        let queue = std::mem::take(&mut self.collector.minor_queue);
         let mut pending = queue;
         let mut promotions = Vec::new();
-        let pinned = self.pins.references().collect::<Vec<_>>();
+        let pinned = self.collector.pins.references().collect::<Vec<_>>();
 
         // begin the new cycle
         self.clear_mark_bits()?;
         pending.clear();
-        self.is_collecting = true;
+        self.collector.is_collecting = true;
 
         // trace every reachable young allocation from roots and remembered mature writes
         let result =
             self.collect_minor_cycle(roots, pinned.iter().copied(), &mut pending, &mut promotions);
 
-        self.trace_queue = pending;
-        self.is_collecting = false;
+        self.collector.minor_queue = pending;
+        self.collector.is_collecting = false;
 
         result
     }
@@ -141,7 +138,7 @@ impl HeapSpace {
         }
 
         // rewrite references only after every target has been staged
-        if let Err(error) = self.commit_young_promotions(promotions) {
+        if let Err(error) = self.verify_young_promotions(promotions) {
             self.discard_young_promotions(promotions)?;
 
             return Err(error);
@@ -288,8 +285,8 @@ impl HeapSpace {
     /// Queue every young reference discovered from remembered mature writes.
     fn enqueue_dirty_young_references(&mut self, pending: &mut HeapTraceQueue) -> HeapResult<()> {
         // snapshot dirty sets before scanning through self
-        let dirty_spans = self.dirty_spans.clone();
-        let dirty_large_allocations = self.dirty_large_allocations.clone();
+        let dirty_spans = self.collector.dirty_spans.clone();
+        let dirty_large_allocations = self.collector.dirty_large_allocations.clone();
 
         // scan each queued dirty span
         for span_index in dirty_spans {
@@ -301,8 +298,8 @@ impl HeapSpace {
             self.enqueue_dirty_large_allocation_references(allocation_id, pending)?;
         }
 
-        self.dirty_spans.clear();
-        self.dirty_large_allocations.clear();
+        self.collector.dirty_spans.clear();
+        self.collector.dirty_large_allocations.clear();
 
         Ok(())
     }

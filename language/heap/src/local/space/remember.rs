@@ -6,8 +6,8 @@ use crate::{HeapError, HeapResult, overlaps_heap_range, overlaps_shared_range};
 impl HeapSpace {
     /// Rebuild the mature remembered set conservatively.
     pub(crate) fn rebuild_remembered_set(&mut self) -> HeapResult<()> {
-        self.dirty_spans.clear();
-        self.dirty_large_allocations.clear();
+        self.collector.dirty_spans.clear();
+        self.collector.dirty_large_allocations.clear();
 
         // conservatively dirty every mature span slot with heap references
         for span_index in 0..self.small.spans.len() {
@@ -86,7 +86,7 @@ impl HeapSpace {
 
         // queue the owning span once for the next minor collection
         if should_queue {
-            self.dirty_spans.push(span_index);
+            self.collector.dirty_spans.push(span_index);
         }
 
         Ok(())
@@ -123,7 +123,7 @@ impl HeapSpace {
 
         // queue the owning allocation once for the next minor collection
         if should_queue {
-            self.dirty_large_allocations.push(allocation_id);
+            self.collector.dirty_large_allocations.push(allocation_id);
         }
 
         Ok(())

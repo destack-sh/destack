@@ -9,7 +9,7 @@ use super::{
     LargeAllocationImage, SmallSpan, SmallSpanImage, YoungImage, YoungRunCursor, YoungSpace,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
-use crate::{Bitmap, CowTable, HeapError, HeapResult, SmallSpanClass, TraceQueue};
+use crate::{Bitmap, CowTable, HeapError, HeapResult, SmallSpanClass};
 
 /// One frozen heap-space image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -249,11 +249,11 @@ impl HeapSpace {
 
     /// Check that image and fork boundaries cannot capture transient GC state.
     pub(crate) fn check_branch_boundary(&self) -> Result<(), HeapError> {
-        if self.is_collecting {
+        if self.collector.is_collecting {
             return Err(HeapError::CaptureGcActive);
         }
 
-        if self.pins.is_active() {
+        if self.collector.pins.is_active() {
             return Err(HeapError::CapturePinsActive);
         }
 
@@ -375,23 +375,7 @@ impl HeapSpace {
             next_offset: space.next_offset,
             mapping,
             gc: space.gc.clone(),
-            trace_queue: TraceQueue::default(),
-            major_phase: super::LocalGcPhase::Idle,
-            major_trace_queue: TraceQueue::default(),
-            major_sweep_references: Vec::new(),
-            major_sweep_cursor: 0,
-            major_freed_allocations: 0,
-            major_freed_bytes: 0,
-            is_collecting: false,
-            pins: Default::default(),
-            dirty_spans: Vec::new(),
-            dirty_large_allocations: Vec::new(),
-            shared_edge_roots: Vec::new(),
-            shared_edge_index: Default::default(),
-            is_scanning_shared_edges: false,
-            shared_edge_cursor: 0,
-            shared_edge_queue: TraceQueue::default(),
-            shared_edge_pending: Default::default(),
+            collector: super::LocalGcState::default(),
         })
     }
 
@@ -419,23 +403,7 @@ impl HeapSpace {
             next_offset: image.next_offset(),
             mapping,
             gc: image.gc_state().clone(),
-            trace_queue: TraceQueue::default(),
-            major_phase: super::LocalGcPhase::Idle,
-            major_trace_queue: TraceQueue::default(),
-            major_sweep_references: Vec::new(),
-            major_sweep_cursor: 0,
-            major_freed_allocations: 0,
-            major_freed_bytes: 0,
-            is_collecting: false,
-            pins: Default::default(),
-            dirty_spans: Vec::new(),
-            dirty_large_allocations: Vec::new(),
-            shared_edge_roots: Vec::new(),
-            shared_edge_index: Default::default(),
-            is_scanning_shared_edges: false,
-            shared_edge_cursor: 0,
-            shared_edge_queue: TraceQueue::default(),
-            shared_edge_pending: Default::default(),
+            collector: super::LocalGcState::default(),
         })
     }
 

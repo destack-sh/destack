@@ -1,88 +1,20 @@
-use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
 use destack_mir::TraceMap;
 
 use super::{
-    GcState, HeapPageMapEntry, HeapPlace, LargeAllocation, LargeAllocationId, PinSet, SmallSpan,
-    YoungPlace, YoungRange, YoungSpace,
+    GcState, HeapPageMapEntry, HeapPlace, LargeAllocation, LargeAllocationId, LocalGcState,
+    SmallSpan, YoungPlace, YoungRange, YoungSpace,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{
     AllocationPlan, AllocationShape, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
-    HeapSpaceUsage, SmallSpanClass, TraceQueue, TraceReference, allocation_plan,
-    allocation_trace_map, slot_trace_map,
+    HeapSpaceUsage, SmallSpanClass, allocation_plan, allocation_trace_map, slot_trace_map,
 };
-
-/// Collector queue for heap references.
-type HeapTraceQueue = TraceQueue<HeapReference>;
-
-/// One queued unit of local major mark work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LocalTraceWork {
-    /// One heap allocation to scan.
-    Reference(HeapReference),
-    /// One range of one large heap allocation to scan.
-    LargeRange {
-        /// The heap allocation reference.
-        reference: HeapReference,
-        /// The range start in bytes.
-        start: usize,
-    },
-}
-
-impl TraceReference for LocalTraceWork {
-    /// Report whether this trace work points at null.
-    fn is_null(self) -> bool {
-        match self {
-            Self::Reference(reference) | Self::LargeRange { reference, .. } => reference.is_null(),
-        }
-    }
-}
-
-/// Collector queue for local major mark work.
-type LocalTraceQueue = TraceQueue<LocalTraceWork>;
 
 /// The first non-null heap large-allocation id.
 const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
-
-/// The current local major collection phase.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LocalGcPhase {
-    /// No major collection is active.
-    Idle,
-    /// The major collector is marking reachable allocations.
-    Mark,
-    /// The major collector is reclaiming unreachable allocations.
-    Sweep,
-}
-
-/// One heap small space.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SmallSpace {
-    /// The configured size-class table.
-    pub(crate) size_classes: SizeClassTable,
-    /// The configured span width.
-    pub(crate) span_bytes: usize,
-    /// The live heap spans.
-    pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per size and scan class.
-    pub(crate) partial_spans: Vec<Vec<usize>>,
-}
-
-/// One heap large space.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LargeSpace {
-    /// The configured page width for allocations in large space.
-    pub(crate) page_bytes: usize,
-    /// The live heap allocations.
-    pub(crate) allocations: CowTable<LargeAllocation>,
-    /// The free heap allocation ids available for reuse.
-    pub(crate) free_large_allocation_ids: Vec<u64>,
-    /// The next heap allocation id to allocate.
-    pub(crate) next_unused_large_allocation_id: u64,
-}
 
 /// One heap space over a shared allocator.
 #[derive(Debug)]
@@ -107,42 +39,10 @@ pub struct HeapSpace {
 
     /// The maximum payload size routed to young space.
     pub(crate) max_young_allocation_bytes: usize,
-    /// The live GC state.
+    /// The completed GC cycle summary.
     pub(crate) gc: GcState,
-    /// The reusable collector trace queue.
-    pub(crate) trace_queue: HeapTraceQueue,
-    /// The current local major collection phase.
-    pub(crate) major_phase: LocalGcPhase,
-    /// The persistent trace queue for an active local major cycle.
-    pub(crate) major_trace_queue: LocalTraceQueue,
-    /// The stable sweep reference snapshot for an active local major cycle.
-    pub(crate) major_sweep_references: Vec<HeapReference>,
-    /// The next sweep snapshot index to visit.
-    pub(crate) major_sweep_cursor: usize,
-    /// The number of allocations freed by the active local major cycle.
-    pub(crate) major_freed_allocations: usize,
-    /// The number of bytes freed by the active local major cycle.
-    pub(crate) major_freed_bytes: u64,
-    /// Whether a heap collection is currently running.
-    pub(crate) is_collecting: bool,
-    /// The scoped heap pins that keep stable addresses and block branch boundaries.
-    pub(crate) pins: PinSet,
-    /// Mature spans queued for dirty-card scanning.
-    pub(crate) dirty_spans: Vec<usize>,
-    /// Mature large allocations queued for dirty-card scanning.
-    pub(crate) dirty_large_allocations: Vec<LargeAllocationId>,
-    /// Live local references whose layouts may contain shared heap references.
-    pub(crate) shared_edge_roots: Vec<HeapReference>,
-    /// Reverse index into tracked shared-edge roots.
-    pub(crate) shared_edge_index: BTreeMap<HeapReference, usize>,
-    /// Whether one local-to-shared edge scan is currently active.
-    pub(crate) is_scanning_shared_edges: bool,
-    /// The next dense reference slot to scan for shared edges.
-    pub(crate) shared_edge_cursor: usize,
-    /// The pending local references whose shared edges need rescanning.
-    pub(crate) shared_edge_queue: HeapTraceQueue,
-    /// Queue membership for pending shared-edge rescans.
-    pub(crate) shared_edge_pending: BTreeSet<HeapReference>,
+    /// The active collector state.
+    pub(crate) collector: LocalGcState,
 }
 
 impl HeapSpace {
@@ -209,34 +109,12 @@ impl HeapSpace {
             next_offset: next_heap_offset,
             mapping,
             gc: GcState::default(),
-            trace_queue: TraceQueue::default(),
-            major_phase: LocalGcPhase::Idle,
-            major_trace_queue: TraceQueue::default(),
-            major_sweep_references: Vec::new(),
-            major_sweep_cursor: 0,
-            major_freed_allocations: 0,
-            major_freed_bytes: 0,
-            is_collecting: false,
-            pins: PinSet::default(),
-            dirty_spans: Vec::new(),
-            dirty_large_allocations: Vec::new(),
-            shared_edge_roots: Vec::new(),
-            shared_edge_index: BTreeMap::new(),
-            is_scanning_shared_edges: false,
-            shared_edge_cursor: 0,
-            shared_edge_queue: TraceQueue::default(),
-            shared_edge_pending: BTreeSet::new(),
+            collector: LocalGcState::default(),
         };
 
         space.map_page_run(0, &young_pages, |logical_page_index| {
             HeapPageMapEntry::Young { logical_page_index }
         });
-
-        // materialize the nursery before object allocation starts
-        if options.heap_young_bytes > 0 {
-            space.mapping.materialize(0, options.heap_young_bytes)?;
-            space.young.mapped_until = options.heap_young_bytes;
-        }
 
         Ok(space)
     }
@@ -282,7 +160,7 @@ impl HeapSpace {
         };
 
         // then record the active pin count
-        self.pins.pin(location.base)?;
+        self.collector.pins.pin(location.base)?;
 
         Ok(reference)
     }
@@ -293,7 +171,7 @@ impl HeapSpace {
             return Err(HeapError::InvalidHeapReference { reference });
         };
 
-        self.pins.unpin(location.base)
+        self.collector.pins.unpin(location.base)
     }
 
     /// Return the number of live heap allocations.
@@ -389,74 +267,17 @@ impl HeapSpace {
 
     /// Rebuild the tracked local references that may contain shared edges.
     pub(crate) fn rebuild_shared_edge_roots(&mut self) -> HeapResult<()> {
-        self.shared_edge_roots.clear();
-        self.shared_edge_index.clear();
+        self.collector.clear_shared_edge_roots();
 
         for reference in self.live_references()? {
             if !self.reference_has_shared_roots(reference)? {
                 continue;
             }
 
-            self.track_shared_edge_root(reference)?;
+            self.collector.track_shared_edge_root(reference);
         }
 
         Ok(())
-    }
-
-    /// Record one live reference whose layout may contain shared edges.
-    pub(crate) fn track_shared_edge_root(&mut self, reference: HeapReference) -> HeapResult<()> {
-        if self.shared_edge_index.contains_key(&reference) {
-            return Ok(());
-        }
-
-        let tracked_index = self.shared_edge_roots.len();
-        self.shared_edge_roots.push(reference);
-        self.shared_edge_index.insert(reference, tracked_index);
-
-        Ok(())
-    }
-
-    /// Remove one live reference from the tracked shared-edge set.
-    pub(crate) fn remove_shared_edge_root(&mut self, reference: HeapReference) -> HeapResult<()> {
-        let Some(tracked_index) = self.shared_edge_index.remove(&reference) else {
-            return Ok(());
-        };
-
-        self.shared_edge_pending.remove(&reference);
-
-        // active scans need stable cursor ordering
-        if self.is_scanning_shared_edges {
-            self.shared_edge_roots[tracked_index] = HeapReference::NULL;
-
-            return Ok(());
-        }
-
-        let Some(moved_reference) = self.shared_edge_roots.pop() else {
-            return Ok(());
-        };
-
-        if tracked_index == self.shared_edge_roots.len() {
-            return Ok(());
-        }
-
-        self.shared_edge_roots[tracked_index] = moved_reference;
-        if !moved_reference.is_null() {
-            self.shared_edge_index
-                .insert(moved_reference, tracked_index);
-        }
-
-        Ok(())
-    }
-
-    /// Compact removed roots after one active shared-edge scan.
-    pub(crate) fn compact_shared_edge_roots(&mut self) {
-        self.shared_edge_roots
-            .retain(|reference| !reference.is_null());
-        self.shared_edge_index.clear();
-
-        for (index, reference) in self.shared_edge_roots.iter().copied().enumerate() {
-            self.shared_edge_index.insert(reference, index);
-        }
     }
 
     /// Return one live large allocation by id.
@@ -733,6 +554,32 @@ impl Drop for HeapSpace {
     fn drop(&mut self) {
         let _ = self.close();
     }
+}
+
+/// One heap small space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SmallSpace {
+    /// The configured size-class table.
+    pub(crate) size_classes: SizeClassTable,
+    /// The configured span width.
+    pub(crate) span_bytes: usize,
+    /// The live heap spans.
+    pub(crate) spans: CowTable<SmallSpan>,
+    /// The reusable non-full spans per size and scan class.
+    pub(crate) partial_spans: Vec<Vec<usize>>,
+}
+
+/// One heap large space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LargeSpace {
+    /// The configured page width for allocations in large space.
+    pub(crate) page_bytes: usize,
+    /// The live heap allocations.
+    pub(crate) allocations: CowTable<LargeAllocation>,
+    /// The free heap allocation ids available for reuse.
+    pub(crate) free_large_allocation_ids: Vec<u64>,
+    /// The next heap allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
 }
 
 /// Return the offset rounded up to one allocation boundary.

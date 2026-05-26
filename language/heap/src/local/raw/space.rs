@@ -15,32 +15,6 @@ use crate::{
 /// The first non-null raw large-allocation id.
 const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
 
-/// One raw small space.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SmallSpace {
-    /// The configured size-class table.
-    pub(crate) size_classes: SizeClassTable,
-    /// The configured span width.
-    pub(crate) span_bytes: usize,
-    /// The live raw spans.
-    pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per raw small-span class.
-    pub(crate) partial_spans: BTreeMap<RawSmallSpanClass, Vec<usize>>,
-}
-
-/// One raw large space.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LargeSpace {
-    /// The configured page width for allocations in large space.
-    pub(crate) page_bytes: usize,
-    /// The live raw allocations.
-    pub(crate) allocations: CowTable<LargeAllocation>,
-    /// The free raw allocation ids available for reuse.
-    pub(crate) free_large_allocation_ids: Vec<u64>,
-    /// The next raw allocation id to allocate.
-    pub(crate) next_unused_large_allocation_id: u64,
-}
-
 /// One live raw allocation space over one allocator.
 #[derive(Debug)]
 pub struct RawSpace {
@@ -382,6 +356,32 @@ impl Drop for RawSpace {
     fn drop(&mut self) {
         let _ = self.close();
     }
+}
+
+/// One raw small space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SmallSpace {
+    /// The configured size-class table.
+    pub(crate) size_classes: SizeClassTable,
+    /// The configured span width.
+    pub(crate) span_bytes: usize,
+    /// The live raw spans.
+    pub(crate) spans: CowTable<SmallSpan>,
+    /// The reusable non-full spans per raw small-span class.
+    pub(crate) partial_spans: BTreeMap<RawSmallSpanClass, Vec<usize>>,
+}
+
+/// One raw large space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LargeSpace {
+    /// The configured page width for allocations in large space.
+    pub(crate) page_bytes: usize,
+    /// The live raw allocations.
+    pub(crate) allocations: CowTable<LargeAllocation>,
+    /// The free raw allocation ids available for reuse.
+    pub(crate) free_large_allocation_ids: Vec<u64>,
+    /// The next raw allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
 }
 
 /// Return the offset rounded up to one allocation boundary.

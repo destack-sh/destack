@@ -264,7 +264,10 @@ fn test_pin_promotes_young_reference() {
 
     let reference = heap.pin(reference).expect("pin should succeed");
 
-    assert_eq!(heap.pins.references().collect::<Vec<_>>(), vec![reference]);
+    assert_eq!(
+        heap.collector.pins.references().collect::<Vec<_>>(),
+        vec![reference]
+    );
     assert!(is_mature(&heap, reference));
     let address = heap.base_address() + reference.offset();
 
@@ -296,14 +299,14 @@ fn test_pin_promotes_interior_young_reference() {
 
     assert_eq!(location.byte_offset, 3);
     assert_eq!(
-        heap.pins.references().collect::<Vec<_>>(),
+        heap.collector.pins.references().collect::<Vec<_>>(),
         vec![location.base]
     );
     assert!(is_mature(&heap, interior));
 
     heap.unpin(interior).expect("interior unpin should succeed");
 
-    assert!(heap.pins.references().next().is_none());
+    assert!(heap.collector.pins.references().next().is_none());
 }
 
 /// Minor collection rewrites interior young roots without losing their offset.
@@ -446,6 +449,74 @@ fn test_scan_shared_roots_uses_shared_reference_width() {
     heap.finish_shared_edge_scan();
 
     assert!(heap.is_live(local));
+}
+
+/// Continue local-to-shared edge scans across large allocation pages.
+#[test]
+fn test_scan_shared_roots_scans_large_allocations_incrementally() {
+    let options = HeapOptions {
+        heap_young_bytes: 0,
+        ..HeapOptions::local()
+    };
+    let allocator = test_allocator(&options);
+    let page_bytes = allocator.page_bytes();
+    let first_offset = 0usize;
+    let second_offset = page_bytes;
+    let small_limit = options
+        .size_classes
+        .max_small_allocation_bytes()
+        .expect("default size classes should not be empty");
+    let parent_byte_len = small_limit + second_offset + SharedHeapReference::BYTE_LEN;
+    let second_offset = u32::try_from(second_offset).expect("page offset should fit uint32");
+    let trace_map = TraceMap::Fixed {
+        local_offsets: Vec::new().into_boxed_slice(),
+        shared_offsets: vec![first_offset as u32, second_offset].into_boxed_slice(),
+    };
+    let layout = test_layout(parent_byte_len, trace_map);
+    let mut heap =
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
+    let first_shared = SharedHeapReference::new(11);
+    let second_shared = SharedHeapReference::new(22);
+    let mut parent_bytes = vec![0; parent_byte_len];
+    parent_bytes[first_offset..first_offset + SharedHeapReference::BYTE_LEN]
+        .copy_from_slice(&first_shared.bits().to_le_bytes());
+    parent_bytes[second_offset as usize..second_offset as usize + SharedHeapReference::BYTE_LEN]
+        .copy_from_slice(&second_shared.bits().to_le_bytes());
+    let parent = heap
+        .allocate(
+            &heap.allocation_plan(layout.allocation()),
+            Payload::Bytes(&parent_bytes),
+        )
+        .expect("heap allocation should succeed");
+    let mut roots = Vec::new();
+
+    heap.start_shared_edge_scan();
+
+    let first_scanned = heap
+        .scan_shared_references(&mut roots, 1)
+        .expect("first shared-root scan should succeed");
+
+    assert_eq!(first_scanned, page_bytes);
+    assert_eq!(roots, vec![first_shared]);
+    assert!(!heap.shared_edge_scan_idle());
+
+    let second_scanned = heap
+        .scan_shared_references(&mut roots, 1)
+        .expect("second shared-root scan should succeed");
+
+    assert_eq!(second_scanned, page_bytes);
+    assert_eq!(roots, vec![first_shared, second_shared]);
+
+    while !heap.shared_edge_scan_idle() {
+        let scanned_bytes = heap
+            .scan_shared_references(&mut roots, 1)
+            .expect("remaining shared-root scan should succeed");
+        assert!(scanned_bytes > 0);
+    }
+
+    heap.finish_shared_edge_scan();
+
+    assert!(heap.is_live(parent));
 }
 
 /// Keep unscanned shared-edge roots stable when earlier roots are freed.

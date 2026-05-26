@@ -10,7 +10,7 @@ use crate::{
 impl HeapSpace {
     /// Return whether one local major collection is active.
     pub(crate) fn major_gc_active(&self) -> bool {
-        self.major_phase != LocalGcPhase::Idle
+        self.collector.major_phase != LocalGcPhase::Idle
     }
 
     /// Publish one allocation to an active local major cycle.
@@ -20,7 +20,7 @@ impl HeapSpace {
         place: HeapPlace,
     ) -> HeapResult<()> {
         // inactive collector
-        if self.major_phase != LocalGcPhase::Mark {
+        if self.collector.major_phase != LocalGcPhase::Mark {
             return Ok(());
         }
 
@@ -36,7 +36,7 @@ impl HeapSpace {
         byte_len: usize,
     ) -> HeapResult<()> {
         // inactive collector
-        if self.major_phase != LocalGcPhase::Mark {
+        if self.collector.major_phase != LocalGcPhase::Mark {
             return Ok(());
         }
 
@@ -123,19 +123,19 @@ impl HeapSpace {
         R: RootSet,
     {
         // reject overlapping collection work
-        if self.is_collecting {
+        if self.collector.is_collecting {
             return Err(HeapError::HeapCollectionActive.into());
         }
 
         // reset cycle state
         self.clear_mark_bits()?;
-        self.major_trace_queue.clear();
-        self.major_sweep_references.clear();
-        self.major_sweep_cursor = 0;
-        self.major_freed_allocations = 0;
-        self.major_freed_bytes = 0;
-        self.major_phase = LocalGcPhase::Mark;
-        self.is_collecting = true;
+        self.collector.major_queue.clear();
+        self.collector.major_sweep_references.clear();
+        self.collector.major_sweep_cursor = 0;
+        self.collector.major_freed_allocations = 0;
+        self.collector.major_freed_bytes = 0;
+        self.collector.major_phase = LocalGcPhase::Mark;
+        self.collector.is_collecting = true;
 
         // seed initial roots
         self.seed_major_roots(roots)?;
@@ -153,12 +153,12 @@ impl HeapSpace {
         R: RootSet,
     {
         // no active work
-        if budget_bytes == 0 || self.major_phase == LocalGcPhase::Idle {
+        if budget_bytes == 0 || self.collector.major_phase == LocalGcPhase::Idle {
             return Ok(GcProgress::Idle);
         }
 
         // phase work
-        match self.major_phase {
+        match self.collector.major_phase {
             LocalGcPhase::Idle => Ok(GcProgress::Idle),
             LocalGcPhase::Mark => {
                 // roots may have changed between incremental steps
@@ -166,10 +166,10 @@ impl HeapSpace {
                 let marked_bytes = self.mark_reachable_references_step(budget_bytes)?;
 
                 // switch to sweep when mark work drains
-                if self.major_trace_queue.is_empty() {
-                    self.major_sweep_references = self.live_references()?;
-                    self.major_sweep_cursor = 0;
-                    self.major_phase = LocalGcPhase::Sweep;
+                if self.collector.major_queue.is_empty() {
+                    self.collector.major_sweep_references = self.live_references()?;
+                    self.collector.major_sweep_cursor = 0;
+                    self.collector.major_phase = LocalGcPhase::Sweep;
 
                     // spend remaining budget in the sweep phase
                     if marked_bytes < budget_bytes {
@@ -200,7 +200,7 @@ impl HeapSpace {
         })?;
 
         // pins
-        let pins = self.pins.references().collect::<Vec<_>>();
+        let pins = self.collector.pins.references().collect::<Vec<_>>();
         for reference in pins {
             self.enqueue_major_reference(reference)?;
         }
@@ -210,18 +210,20 @@ impl HeapSpace {
 
     /// Finish the active local major collection.
     fn finish_major_gc(&mut self) -> HeapResult<GcStats> {
-        let stats =
-            self.stats_after_collection(self.major_freed_allocations, self.major_freed_bytes);
+        let stats = self.stats_after_collection(
+            self.collector.major_freed_allocations,
+            self.collector.major_freed_bytes,
+        );
 
         // publish cycle statistics and reset collector state
         self.gc.record_cycle(GcKind::Full, stats);
-        self.major_phase = LocalGcPhase::Idle;
-        self.major_trace_queue.clear();
-        self.major_sweep_references.clear();
-        self.major_sweep_cursor = 0;
-        self.major_freed_allocations = 0;
-        self.major_freed_bytes = 0;
-        self.is_collecting = false;
+        self.collector.major_phase = LocalGcPhase::Idle;
+        self.collector.major_queue.clear();
+        self.collector.major_sweep_references.clear();
+        self.collector.major_sweep_cursor = 0;
+        self.collector.major_freed_allocations = 0;
+        self.collector.major_freed_bytes = 0;
+        self.collector.is_collecting = false;
 
         Ok(stats)
     }
@@ -232,10 +234,11 @@ impl HeapSpace {
 
         // sweep bounded live-reference candidates
         while swept_bytes < budget_bytes
-            && self.major_sweep_cursor < self.major_sweep_references.len()
+            && self.collector.major_sweep_cursor < self.collector.major_sweep_references.len()
         {
-            let reference = self.major_sweep_references[self.major_sweep_cursor];
-            self.major_sweep_cursor += 1;
+            let reference =
+                self.collector.major_sweep_references[self.collector.major_sweep_cursor];
+            self.collector.major_sweep_cursor += 1;
 
             let Some(location) = self.resolve_location(reference) else {
                 continue;
@@ -253,12 +256,12 @@ impl HeapSpace {
                     reference,
                     error: Box::new(error),
                 })?;
-            self.major_freed_allocations += 1;
-            self.major_freed_bytes += location.byte_len as u64;
+            self.collector.major_freed_allocations += 1;
+            self.collector.major_freed_bytes += location.byte_len as u64;
         }
 
         // finish once every candidate has been visited
-        if self.major_sweep_cursor >= self.major_sweep_references.len() {
+        if self.collector.major_sweep_cursor >= self.collector.major_sweep_references.len() {
             return self.finish_major_gc().map(GcProgress::Complete);
         }
 
@@ -272,7 +275,7 @@ impl HeapSpace {
         // trace bounded mark work
         while marked_bytes < budget_bytes {
             // claim the next bounded mark item
-            let Some(work) = self.major_trace_queue.pop() else {
+            let Some(work) = self.collector.major_queue.pop() else {
                 break;
             };
 
@@ -381,7 +384,7 @@ impl HeapSpace {
         // continue this large allocation on a later step
         let next_start = start + range_len;
         if next_start < location.byte_len {
-            self.major_trace_queue.push(LocalTraceWork::LargeRange {
+            self.collector.major_queue.push(LocalTraceWork::LargeRange {
                 reference,
                 start: next_start,
             });
@@ -408,9 +411,9 @@ impl HeapSpace {
                 return Ok(());
             }
 
-            // large allocations must not monopolize one safepoint
+            // large allocations are sliced to keep major steps bounded
             if matches!(location.place, HeapPlace::Large(_)) {
-                self.major_trace_queue.push(LocalTraceWork::LargeRange {
+                self.collector.major_queue.push(LocalTraceWork::LargeRange {
                     reference,
                     start: 0,
                 });
@@ -419,7 +422,8 @@ impl HeapSpace {
             }
 
             // smaller allocations are one mark item
-            self.major_trace_queue
+            self.collector
+                .major_queue
                 .push(LocalTraceWork::Reference(reference));
         }
 

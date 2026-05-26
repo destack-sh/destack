@@ -11,15 +11,6 @@ use crate::{
     RootSet, SharedHeapReference,
 };
 
-/// One pending local GC request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum GcRequest {
-    /// Run one minor cycle.
-    Minor,
-    /// Run one full cycle.
-    Full,
-}
-
 /// One live heap over one shared allocator.
 #[derive(Debug)]
 pub struct Heap {
@@ -499,7 +490,7 @@ impl Heap {
         pointer: RawPointer,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<*mut u8> {
+    ) -> HeapResult<*const u8> {
         self.raw.address(pointer, start, byte_len)
     }
 
@@ -629,4 +620,13 @@ impl Heap {
         self.gc_pacer
             .charge_allocation(self.options.gc, allocated_bytes);
     }
+}
+
+/// One pending local GC request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum GcRequest {
+    /// Run one minor cycle.
+    Minor,
+    /// Run one full cycle.
+    Full,
 }
