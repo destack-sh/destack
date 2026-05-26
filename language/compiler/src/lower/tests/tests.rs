@@ -269,18 +269,6 @@ type String {
             .unwrap_or_else(|| panic!("missing vtable for '{type_id:?}'"))
     }
 
-    /// Resolve union layout metadata for a type id or panic.
-    pub(crate) fn union_layout<'a>(
-        &self,
-        tree: &'a mir::Tree,
-        type_id: mir::LocalNodeId<mir::Type>,
-    ) -> &'a mir::UnionLayout {
-        tree.metadata
-            .layout
-            .union_layout(type_id)
-            .unwrap_or_else(|| panic!("missing union layout metadata for '{type_id:?}'"))
-    }
-
     /// Resolve a function parameter type id from DIR by function name.
     #[allow(dead_code)]
     pub(crate) fn dir_function_parameter_type_id(
@@ -385,7 +373,8 @@ type String {
         let layout_id = tree.metadata.layout.layout_id(struct_type)?;
         let layout = tree.metadata.layout.layout_table.layout(layout_id);
         layout
-            .fields
+            .shape
+            .fields()
             .iter()
             .find(|field| field.name == Some(expected_name))
             .map(|field| field.offset)

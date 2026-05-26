@@ -1977,13 +1977,15 @@ impl<'a> FunctionLowerer<'a> {
         let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
             CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)
         })?;
+        let fields = layout.shape.fields();
         let layout_field = layout
-            .fields
+            .shape
+            .fields()
             .iter()
             .find(|field| field.source_index == Some(index))
-            .or_else(|| layout.fields.get(index as usize))
+            .or_else(|| fields.get(index as usize))
             .ok_or_else(|| {
-                CodegenCraneliftError::out_of_bounds(node, index, layout.fields.len())
+                CodegenCraneliftError::out_of_bounds(node, index, fields.len())
             })?;
 
         if layout_field.ty != field_type {

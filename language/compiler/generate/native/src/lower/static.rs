@@ -146,14 +146,16 @@ fn record_static_elements(
     let layout = tree.metadata.layout.type_layout(ty).ok_or_else(|| {
         CodegenCraneliftError::unsupported_type("missing layout metadata", ty.into_any())
     })?;
-    if layout.fields.len() != expected_len {
+    let fields = layout.shape.fields();
+    if fields.len() != expected_len {
         return Err(CodegenCraneliftError::Internal {
             message: "aggregate initializer length does not match layout fields".to_string(),
         });
     }
 
     let elements = layout
-        .fields
+        .shape
+        .fields()
         .iter()
         .map(|field| StaticElement {
             ty: field.ty,

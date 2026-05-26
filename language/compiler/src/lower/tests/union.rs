@@ -34,7 +34,7 @@ function takeShape(value: Circle | Square): int32 {
         module_id,
         "native",
         r#"
-type takeShape.payload#union { tag: uint8, payload: [usize; 1] }
+type takeShape.payload#union { tag: uint8, storage: [usize; 1] }
 
 function takeShape(value0: takeShape.payload#union): int32 {
 entry0(value0: takeShape.payload#union):
@@ -51,10 +51,10 @@ entry0(value0: takeShape.payload#union):
         // find the union struct type
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
-        // resolve the tag and payload field types
+        // resolve the tag and storage field types
         let tag_type = test.expect_struct_field_type_by_name(tree, strings, union_type, "tag");
-        let payload_type =
-            test.expect_struct_field_type_by_name(tree, strings, union_type, "payload");
+        let storage_type =
+            test.expect_struct_field_type_by_name(tree, strings, union_type, "storage");
 
         // assert the tag field type
         let tag_type = tree.get(tag_type);
@@ -68,13 +68,13 @@ entry0(value0: takeShape.payload#union):
         assert_eq!(*width, 8);
         assert!(!*signed);
 
-        // assert the payload field type
-        let payload_type = tree.get(payload_type);
+        // assert the storage field type
+        let storage_type = tree.get(storage_type);
         let mir::Type::Array {
             element, length, ..
-        } = payload_type
+        } = storage_type
         else {
-            panic!("expected inline payload array for union");
+            panic!("expected inline storage array for union");
         };
         assert_eq!(*length, 1);
         assert!(matches!(
@@ -82,15 +82,10 @@ entry0(value0: takeShape.payload#union):
             mir::Type::Usize
         ));
 
-        let union_layout = test.union_layout(tree, union_type);
-        assert!(matches!(
-            union_layout.payload,
-            mir::VariantPayload::Inline
-        ));
     });
 }
 
-/// Lower large unions into boxed payloads.
+/// Lower large unions into boxed storage.
 #[test]
 fn test_lower_union_layout_boxed() {
     // set up the test program
@@ -127,7 +122,7 @@ function takeFrame(value: Frame | MegaFrame): int32 {
         module_id,
         "native",
         r#"
-type takeFrame.payload#union { tag: uint8, payload: ref<void, managed, readonly> }
+type takeFrame.payload#union { tag: uint8, storage: ref<void, managed, readonly> }
 
 function takeFrame(value0: takeFrame.payload#union): int32 {
 entry0(value0: takeFrame.payload#union):
@@ -144,32 +139,26 @@ entry0(value0: takeFrame.payload#union):
         // find the union struct type
         let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
-        // assert the payload field is a managed reference
-        let payload_type =
-            test.expect_struct_field_type_by_name(tree, strings, union_type, "payload");
-        let payload_type = tree.get(payload_type);
+        // assert the storage field is a managed reference
+        let storage_type =
+            test.expect_struct_field_type_by_name(tree, strings, union_type, "storage");
+        let storage_type = tree.get(storage_type);
         let mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
             pointee,
             ..
-        } = payload_type
+        } = storage_type
         else {
-            panic!("expected managed reference payload for boxed union");
+            panic!("expected managed reference storage for boxed union");
         };
         assert!(matches!(
-            tree.get(pointee.ty().expect("payload pointee should be concrete")),
+            tree.get(pointee.ty().expect("storage pointee should be concrete")),
             mir::Type::Void
-        ));
-
-        let union_layout = test.union_layout(tree, union_type);
-        assert!(matches!(
-            union_layout.payload,
-            mir::VariantPayload::Boxed
         ));
     });
 }
 
-/// Lower union upcasts into tagged union payloads.
+/// Lower union upcasts into tagged union values.
 #[test]
 fn test_lower_union_upcast() {
     // set up the test program
@@ -203,7 +192,7 @@ function makeShape(value: Circle): Circle | Square {
         r#"
 type makeShape.return#union {
     tag: uint8;
-    payload: [usize; 1];
+    storage: [usize; 1];
 }
 type Circle {
     value: int32;
@@ -266,7 +255,7 @@ entry0(value0: ref<Circle, managed, readonly, nullable>):
 "#,
     );
 
-    test.with_mir_tree(module_id, "native", |tree, strings| {
+    test.with_mir_tree(module_id, "native", |tree, _strings| {
         // resolve the function signature types
         let function = test.function_by_name(tree, strings, "acceptNullable");
         let parameter_type = function.parameters.first().expect("missing parameter").ty;
@@ -300,23 +289,6 @@ entry0(value0: ref<Circle, managed, readonly, nullable>):
         assert!(matches!(return_kind, mir::ReferenceKind::Managed));
         assert_eq!(*return_nullability, mir::Nullability::Null);
 
-        // compact reference unions do not need variant metadata
-        let parameter_union = "test/test:acceptNullable.payload#union";
-        let return_union = "test/test:acceptNullable.return#union";
-        let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union);
-        let return_union_type = test.type_by_metadata_name(tree, strings, return_union);
-        assert!(
-            tree.metadata
-                .layout
-                .union_layout(parameter_union_type)
-                .is_none()
-        );
-        assert!(
-            tree.metadata
-                .layout
-                .union_layout(return_union_type)
-                .is_none()
-        );
     });
 }
 
@@ -350,7 +322,7 @@ function acceptUnion(value: Circle | null | undefined): Circle | null | undefine
         r#"
 type acceptUnion.payload#union {
     tag: uint8;
-    payload: [usize; 1];
+    storage: [usize; 1];
 }
 
 function acceptUnion(value0: acceptUnion.payload#union): acceptUnion.payload#union {
@@ -366,17 +338,13 @@ entry0(value0: acceptUnion.payload#union):
         let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union_name);
         let return_union_type = test.type_by_metadata_name(tree, strings, return_union_name);
 
-        // assert the parameter and return layouts are tagged unions
-        let parameter_layout = test.union_layout(tree, parameter_union_type);
-        let return_layout = test.union_layout(tree, return_union_type);
-        assert!(matches!(
-            parameter_layout.payload,
-            mir::VariantPayload::Inline
-        ));
-        assert!(matches!(
-            return_layout.payload,
-            mir::VariantPayload::Inline
-        ));
+        // assert the parameter and return layouts use inline storage
+        let parameter_storage =
+            test.expect_struct_field_type_by_name(tree, strings, parameter_union_type, "storage");
+        let return_storage =
+            test.expect_struct_field_type_by_name(tree, strings, return_union_type, "storage");
+        assert!(matches!(tree.get(parameter_storage), mir::Type::Array { .. }));
+        assert!(matches!(tree.get(return_storage), mir::Type::Array { .. }));
     });
 }
 
@@ -410,7 +378,7 @@ function makeNull(): Circle | null | undefined {
         r#"
 type makeNull.return#union {
     tag: uint8;
-    payload: [usize; 1];
+    storage: [usize; 1];
 }
 
 function makeNull(): makeNull.return#union {
@@ -456,7 +424,7 @@ function makeUndefined(): Circle | null | undefined {
         r#"
 type makeUndefined.return#union {
     tag: uint8;
-    payload: [usize; 1];
+    storage: [usize; 1];
 }
 
 function makeUndefined(): makeUndefined.return#union {
@@ -472,7 +440,7 @@ entry0:
     );
 }
 
-/// Lower boxed union upcasts into managed payload pointers.
+/// Lower boxed union upcasts into managed storage pointers.
 #[test]
 fn test_lower_union_upcast_boxed() {
     // set up the test program
@@ -516,7 +484,7 @@ type Frame {
 }
 type makeFrame.return#union {
     tag: uint8;
-    payload: ref<void, managed, readonly>;
+    storage: ref<void, managed, readonly>;
 }
 
 function makeFrame(value0: Frame): makeFrame.return#union {
@@ -532,7 +500,7 @@ entry0(value0: Frame):
     );
 }
 
-/// Lower union downcasts into payload loads.
+/// Lower union downcasts into storage loads.
 #[test]
 fn test_lower_union_downcast() {
     // set up the test program
@@ -564,7 +532,7 @@ function takeCircle(value: Circle | Square): Circle {
         module_id,
         "native",
         r#"
-type takeCircle.payload#union { tag: uint8, payload: [usize; 1] }
+type takeCircle.payload#union { tag: uint8, storage: [usize; 1] }
 type Circle { value: int32 }
 
 function takeCircle(value0: takeCircle.payload#union): Circle {
@@ -604,7 +572,7 @@ function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): i
         module_id,
         "native",
         r#"
-type select.payload#union { tag: uint8, payload: [usize; 1] }
+type select.payload#union { tag: uint8, storage: [usize; 1] }
 
 function select(value0: select.payload#union): int32 {
 entry0(value0: select.payload#union):
@@ -652,7 +620,7 @@ function isNull(value: Circle | null | undefined): boolean {
         module_id,
         "native",
         r#"
-type isNull.payload#union { tag: uint8, payload: [usize; 1] }
+type isNull.payload#union { tag: uint8, storage: [usize; 1] }
 
 function isNull(value0: isNull.payload#union): boolean {
 entry0(value0: isNull.payload#union):
@@ -693,7 +661,7 @@ function isUndefined(value: Circle | null | undefined): boolean {
         module_id,
         "native",
         r#"
-type isUndefined.payload#union { tag: uint8, payload: [usize; 1] }
+type isUndefined.payload#union { tag: uint8, storage: [usize; 1] }
 
 function isUndefined(value0: isUndefined.payload#union): boolean {
 entry0(value0: isUndefined.payload#union):
@@ -730,7 +698,7 @@ function isOne(value: 1 | 2): boolean {
         module_id,
         "native",
         r#"
-type isOne.payload#union { tag: uint8, payload: [usize; 1] }
+type isOne.payload#union { tag: uint8, storage: [usize; 1] }
 
 function isOne(value0: isOne.payload#union): boolean {
 entry0(value0: isOne.payload#union):
@@ -767,7 +735,7 @@ function isReady(value: true | { value: int32 }): boolean {
         module_id,
         "native",
         r#"
-type isReady.payload#union { tag: uint8, payload: [usize; 1] }
+type isReady.payload#union { tag: uint8, storage: [usize; 1] }
 
 function isReady(value0: isReady.payload#union): boolean {
 entry0(value0: isReady.payload#union):
@@ -804,7 +772,7 @@ function isA(value: { kind: 1, value: int32 } | { kind: 0, value: int32 }): bool
         module_id,
         "native",
         r#"
-type isA.payload#union { tag: uint8, payload: [usize; 1] }
+type isA.payload#union { tag: uint8, storage: [usize; 1] }
 
 function isA(value0: isA.payload#union): boolean {
 entry0(value0: isA.payload#union):
@@ -840,7 +808,7 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
     // assert the lowered mir
     let expected = r#"
 ${string_alias}
-type isA.payload#union { tag: uint8, payload: [usize; 2] }
+type isA.payload#union { tag: uint8, storage: [usize; 2] }
 readonly global ${string_a}: ref<String, managed, readonly> = "a"
 function isA(value0: isA.payload#union): boolean {
 entry0(value0: isA.payload#union):
@@ -879,7 +847,7 @@ function isReady(value: { kind: true, value: int32 } | { kind: false, value: int
         module_id,
         "native",
         r#"
-type isReady.payload#union { tag: uint8, payload: [usize; 1] }
+type isReady.payload#union { tag: uint8, storage: [usize; 1] }
 
 function isReady(value0: isReady.payload#union): boolean {
 entry0(value0: isReady.payload#union):
@@ -916,7 +884,7 @@ function isLarge(value: { kind: 1.5, value: int32 } | { kind: 0.5, value: int32 
         module_id,
         "native",
         r#"
-type isLarge.payload#union { tag: uint8, payload: [usize; 2] }
+type isLarge.payload#union { tag: uint8, storage: [usize; 2] }
 
 function isLarge(value0: isLarge.payload#union): boolean {
 entry0(value0: isLarge.payload#union):
