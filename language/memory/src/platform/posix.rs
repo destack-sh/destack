@@ -1,7 +1,7 @@
 use std::env::temp_dir;
 use std::os::unix::ffi::OsStrExt;
 
-use crate::{MemoryError, MemoryResult};
+use crate::{MemoryError, MemoryOperation, MemoryResult};
 
 pub(crate) use super::unix::{
     PageFrame, PageFrameAllocator, SUPPORTS_SHARED_PAGE_FRAMES, VirtualSpace,
@@ -19,12 +19,18 @@ pub(crate) fn create_page_frame_allocator(byte_len: usize) -> MemoryResult<PageF
     let mut path = path.as_os_str().as_bytes().to_vec();
     path.push(0);
 
+    // SAFETY: path is a writable nul-terminated mkstemp template
     let fd = unsafe { libc::mkstemp(path.as_mut_ptr().cast()) };
     if fd < 0 {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(MemoryError::system_with_code(
+            MemoryOperation::CreateFrameAllocator,
+            std::io::Error::last_os_error().raw_os_error(),
+            byte_len,
+        ));
     }
 
     // unlink immediately so the descriptor is the only reference
+    // SAFETY: path remains nul-terminated after mkstemp returns
     let _ = unsafe { libc::unlink(path.as_ptr().cast()) };
 
     super::unix::create_page_frame_allocator_from_fd(fd, byte_len)

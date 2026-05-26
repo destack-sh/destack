@@ -1,4 +1,4 @@
-use crate::{MemoryError, MemoryResult};
+use crate::{MemoryError, MemoryOperation, MemoryResult};
 
 pub(crate) use super::unix::{
     PageFrame, PageFrameAllocator, SUPPORTS_SHARED_PAGE_FRAMES, VirtualSpace,
@@ -11,9 +11,15 @@ pub(crate) use super::unix::{
 /// Create one page-frame allocator.
 pub(crate) fn create_page_frame_allocator(byte_len: usize) -> MemoryResult<PageFrameAllocator> {
     let name = c"destack-memory";
+
+    // SAFETY: name is a static nul-terminated C string (see above)
     let fd = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
     if fd < 0 {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(MemoryError::system_with_code(
+            MemoryOperation::CreateFrameAllocator,
+            std::io::Error::last_os_error().raw_os_error(),
+            byte_len,
+        ));
     }
 
     super::unix::create_page_frame_allocator_from_fd(fd, byte_len)
