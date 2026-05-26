@@ -639,9 +639,6 @@ impl Parser {
 
                 Ok(Some(expression))
             }
-            Keyword::New if self.next_token_type() == TokenType::Dot => {
-                self.eat_new_target(start).map(Some)
-            }
             Keyword::New => self.eat_new().map(Some),
             Keyword::Async => self.eat_lambda_expression(start),
             Keyword::Import if self.can_start_import_statement() => self.eat_import().map(Some),
@@ -746,22 +743,6 @@ impl Parser {
         }
 
         Err(ParserError::unexpected(self.peek()?.span))
-    }
-
-    /// Parse `new.target`.
-    ///
-    /// Examples:
-    /// ```ds
-    /// new.target
-    /// new.target.name
-    /// new.target?.name
-    /// ```
-    fn eat_new_target(&mut self, start: &ParserSpanStart) -> ParserResult<LocalNodeId<Expression>> {
-        self.eat_keyword(Keyword::New)?;
-        self.eat_token(TokenType::Dot)?;
-        self.eat_identifier_str("target")?;
-
-        Ok(self.insert_node(Expression::NewTarget, self.get_span_from(start)))
     }
 
     /// Parse value brace primary.

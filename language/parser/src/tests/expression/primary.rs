@@ -22,19 +22,6 @@ fn test_parse_import_meta_expression() {
     });
 }
 
-/// Parse new target as one dedicated expression root.
-#[test]
-fn test_parse_new_target_expression() {
-    let mut test = TestParser::new("new.target.member");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
-        assert_string!(parser, name.expect("expected member name"), "member");
-        assert_node!(parser.tree, *left, Expression::NewTarget);
-    });
-}
-
 /// Disambiguate import source phase access as a path.
 #[test]
 fn test_parse_import_source_as_path() {
