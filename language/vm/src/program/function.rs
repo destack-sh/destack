@@ -148,9 +148,8 @@ fn environment_layout(
     let function = tree.get(function_id);
     let environment = function.environment?;
     let environment_type = environment.ty()?;
-    let layout = word_layout_from_type(tree, environment_type).unwrap_or(WordLayout::HeapReference);
 
-    Some(layout)
+    word_layout_from_type(tree, environment_type)
 }
 
 /// Return whether one function matches one bare signature type.

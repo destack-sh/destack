@@ -159,7 +159,7 @@ impl TestIsolate {
             .isolate
             .allocation_shape(layout_id)
             .unwrap_or_else(|error| panic!("failed to resolve allocation shape: {error}"));
-        let layout = self.heap.allocation_layout(shape);
+        let layout = self.heap.allocation_plan(shape);
         let reference = self
             .heap
             .allocate_bytes(&layout, &bytes)

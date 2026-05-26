@@ -1,17 +1,17 @@
 use destack_heap as heap;
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
-use super::{AllocationClassId, ReferenceMapId};
+use super::{AllocationClassId, TraceMapId};
 
-/// The allocation layout consumed by heap allocation instructions.
+/// The allocation site consumed by heap allocation instructions.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct AllocationLayout {
+pub(crate) struct AllocationSite {
     /// The exact payload byte length.
     pub byte_len: usize,
     /// The required allocation base alignment in bytes.
     pub alignment: usize,
-    /// The exact heap reference map id.
-    pub reference_map: ReferenceMapId,
+    /// The exact heap trace map id.
+    pub trace_map: TraceMapId,
     /// Whether the payload contains no heap references.
     pub is_noscan: bool,
     /// Whether the payload may contain shared heap references.
@@ -20,30 +20,30 @@ pub(crate) struct AllocationLayout {
     pub class: AllocationClassId,
 }
 
-impl AllocationLayout {
+impl AllocationSite {
     /// Return one borrowed heap allocation shape.
     #[inline(always)]
-    pub(crate) fn shape<'a>(&self, reference_map: &'a ReferenceMap) -> heap::AllocationShape<'a> {
+    pub(crate) fn shape<'a>(&self, trace_map: &'a TraceMap) -> heap::AllocationShape<'a> {
         heap::AllocationShape {
             byte_len: self.byte_len,
             alignment: self.alignment,
-            reference_map,
+            trace_map,
             is_noscan: self.is_noscan,
             has_shared_reference: self.has_shared_reference,
         }
     }
 
-    /// Return one heap allocation layout.
+    /// Return one heap allocation plan.
     #[inline(always)]
-    pub(crate) fn heap_layout<'a>(
+    pub(crate) fn heap_plan<'a>(
         &self,
-        reference_map: &'a ReferenceMap,
+        trace_map: &'a TraceMap,
         class: heap::AllocationClass,
-    ) -> heap::AllocationLayout<'a> {
-        heap::AllocationLayout {
+    ) -> heap::AllocationPlan<'a> {
+        heap::AllocationPlan {
             byte_len: self.byte_len,
             alignment: self.alignment,
-            reference_map,
+            trace_map,
             is_noscan: self.is_noscan,
             has_shared_reference: self.has_shared_reference,
             class,

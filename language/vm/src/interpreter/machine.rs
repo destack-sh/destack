@@ -11,7 +11,7 @@ use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError};
 use crate::options::IsolateOptions;
 use crate::program::{
-    AllocationLayoutId, ArgumentRange, Check, CheckId, Edge, EdgeId, Function, Instruction, Layout,
+    AllocationSiteId, ArgumentRange, Check, CheckId, Edge, EdgeId, Function, Instruction, Layout,
     Program, Projection, ProjectionId, SideRecord, SideTable, SliceProjection, SliceProjectionId,
     SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId,
     TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
@@ -322,17 +322,17 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { &mut *self.shared_allocator }
     }
 
-    /// Allocate one zeroed local heap payload from one pooled allocation layout.
+    /// Allocate one zeroed local heap payload from one pooled allocation site.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_allocation(
         &mut self,
-        id: AllocationLayoutId,
+        id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let side_table = self.side_table();
-        let allocation = side_table.allocation_layout(id);
-        let reference_map = side_table.reference_map(allocation.reference_map);
+        let allocation = side_table.allocation_site(id);
+        let trace_map = side_table.trace_map(allocation.trace_map);
         let class = side_table.allocation_class(allocation.class);
-        let layout = allocation.heap_layout(reference_map, class);
+        let layout = allocation.heap_plan(trace_map, class);
 
         self.heap_mut()
             .allocate_zeroed(&layout)
@@ -343,22 +343,22 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_slice(
         &mut self,
-        element: AllocationLayoutId,
+        element: AllocationSiteId,
         length: usize,
     ) -> Result<HeapReference, Error> {
         let side_table = self.side_table();
-        let element = side_table.allocation_layout(element);
-        let reference_map = side_table.reference_map(element.reference_map);
-        let element_shape = element.shape(reference_map);
-        let (byte_len, reference_map) = repeated_layout(
+        let element = side_table.allocation_site(element);
+        let trace_map = side_table.trace_map(element.trace_map);
+        let element_shape = element.shape(trace_map);
+        let (byte_len, trace_map) = repeated_layout(
             element_shape.byte_len,
             element.alignment,
-            element_shape.reference_map,
+            element_shape.trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment, &reference_map);
+        let shape = AllocationShape::new(byte_len, element.alignment, &trace_map);
         let heap = self.heap_mut();
-        let layout = heap.allocation_layout(shape);
+        let layout = heap.allocation_plan(shape);
 
         heap.allocate_zeroed(&layout).map_err(Error::from)
     }
@@ -378,22 +378,22 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> Result<HeapReference, Error> {
         let shape = self.program.allocation_shape(layout_id)?;
         let heap = self.heap_mut();
-        let layout = heap.allocation_layout(shape);
+        let layout = heap.allocation_plan(shape);
 
         heap.allocate_bytes(&layout, bytes).map_err(Error::from)
     }
 
-    /// Allocate one zeroed shared heap payload from one pooled allocation layout.
+    /// Allocate one zeroed shared heap payload from one pooled allocation site.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_shared_heap_allocation(
         &mut self,
-        id: AllocationLayoutId,
+        id: AllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
         let side_table = self.side_table();
-        let allocation = side_table.allocation_layout(id);
-        let reference_map = side_table.reference_map(allocation.reference_map);
+        let allocation = side_table.allocation_site(id);
+        let trace_map = side_table.trace_map(allocation.trace_map);
         let class = side_table.allocation_class(allocation.class);
-        let layout = allocation.heap_layout(reference_map, class);
+        let layout = allocation.heap_plan(trace_map, class);
 
         unsafe {
             (&*self.shared)
@@ -406,21 +406,21 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_zeroed_shared_heap_slice(
         &mut self,
-        element: AllocationLayoutId,
+        element: AllocationSiteId,
         length: usize,
     ) -> Result<SharedHeapReference, Error> {
         let side_table = self.side_table();
-        let element = side_table.allocation_layout(element);
-        let reference_map = side_table.reference_map(element.reference_map);
-        let element_shape = element.shape(reference_map);
-        let (byte_len, reference_map) = repeated_layout(
+        let element = side_table.allocation_site(element);
+        let trace_map = side_table.trace_map(element.trace_map);
+        let element_shape = element.shape(trace_map);
+        let (byte_len, trace_map) = repeated_layout(
             element_shape.byte_len,
             element.alignment,
-            element_shape.reference_map,
+            element_shape.trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment, &reference_map);
-        let layout = self.shared().allocation_layout(shape);
+        let shape = AllocationShape::new(byte_len, element.alignment, &trace_map);
+        let layout = self.shared().allocation_plan(shape);
 
         unsafe {
             (&*self.shared)

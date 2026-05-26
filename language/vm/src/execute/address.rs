@@ -1,8 +1,8 @@
 use crate::interpreter::Machine;
 use crate::program::Projection;
 use crate::{
-    HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer, StaticPointer,
-    Word,
+    FramePointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer,
+    StaticPointer, Word,
 };
 
 /// Return one element byte offset.
@@ -65,6 +65,14 @@ pub(crate) fn offset_stack(pointer: StackPointer, byte_offset: usize) -> Word {
     let pointer = pointer.add_bytes(byte_offset);
 
     Word::stack_pointer(pointer)
+}
+
+/// Compute a fixed-offset address from a frame pointer.
+#[inline(always)]
+pub(crate) fn offset_frame(pointer: FramePointer, byte_offset: usize) -> Word {
+    let pointer = pointer.add_bytes(byte_offset);
+
+    Word::frame_pointer(pointer)
 }
 
 /// Compute a fixed-offset address from a static pointer.
@@ -143,6 +151,20 @@ pub(crate) fn element_stack(
     let pointer = pointer.add_bytes(element_offset);
 
     Word::stack_pointer(pointer)
+}
+
+/// Compute an element address from a frame pointer.
+#[inline(always)]
+pub(crate) fn element_frame(
+    _machine: &mut Machine<'_, '_>,
+    pointer: FramePointer,
+    element: Projection,
+    index: u64,
+) -> Word {
+    let element_offset = element_byte_offset(index, element.byte_stride);
+    let pointer = pointer.add_bytes(element_offset);
+
+    Word::frame_pointer(pointer)
 }
 
 /// Compute an element address from a static pointer.

@@ -88,6 +88,20 @@ pub(crate) fn execute_address_stack_offset(
     Ok(())
 }
 
+/// Execute fixed-offset address on frame pointers.
+pub(crate) fn execute_address_frame_offset(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let base = machine.load_word_at(instruction.b);
+    let byte_offset = instruction_byte_offset(instruction);
+    let value = address::offset_frame(base.as_frame_pointer(), byte_offset);
+    publish_offset_address(machine, dest, value);
+
+    Ok(())
+}
+
 /// Execute fixed-offset address on static pointers.
 pub(crate) fn execute_address_static_offset(
     machine: &mut Machine<'_, '_>,

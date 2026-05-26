@@ -27,9 +27,9 @@ pub(super) fn frame_element_offset(
     access.byte_offset + access.byte_stride * index as usize
 }
 
-/// Execute fixed-offset frame address calculation.
+/// Execute fixed-offset frame value address calculation.
 #[inline(always)]
-pub(crate) fn execute_address_frame_offset(
+pub(crate) fn execute_address_frame_value_offset(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -45,9 +45,9 @@ pub(crate) fn execute_address_frame_offset(
     Ok(())
 }
 
-/// Execute frame element address calculation.
+/// Execute frame value element address calculation.
 #[inline(always)]
-pub(crate) fn execute_address_frame_element(
+pub(crate) fn execute_address_frame_value_element(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -475,13 +475,13 @@ pub(crate) fn materialize_value(
 
             match boundary_pointer_class(program, value.ty) {
                 PointerClass::Heap => {
-                    let layout = heap.allocation_layout(shape);
+                    let layout = heap.allocation_plan(shape);
                     let reference = heap.allocate_bytes(&layout, &bytes).map_err(Error::from)?;
 
                     Ok(engine::Value::HeapReference(reference))
                 }
                 PointerClass::SharedHeap => {
-                    let layout = shared.allocation_layout(shape);
+                    let layout = shared.allocation_plan(shape);
                     let reference = shared
                         .allocate_bytes(shared_gc, shared_allocator, &layout, &bytes)
                         .map_err(Error::from)?;

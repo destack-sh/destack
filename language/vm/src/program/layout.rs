@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use destack_mir::{LayoutId, ReferenceMap};
+use destack_mir::{LayoutId, TraceMap};
 use {destack_engine as engine, destack_mir as mir};
 
-use crate::program::{pointer_class_from_reference, word_layout_from_pointer_class};
+use crate::program::{WordLayout, pointer_class_from_reference, word_layout_from_pointer_class};
 use crate::{Error, Result, Word};
 
 const WORD_BITS: usize = Word::BYTE_LEN * 8;
@@ -15,8 +15,8 @@ pub(crate) struct Layout {
     pub byte_len: usize,
     /// The structural layout shape.
     shape: LayoutShape,
-    /// The reference map for this type.
-    pub reference_map: ReferenceMap,
+    /// The trace map for this type.
+    pub trace_map: TraceMap,
     /// The byte alignment of the value representation.
     alignment: usize,
 }
@@ -232,16 +232,12 @@ impl TypeTable {
 
 impl CallableObjectLayout {
     /// Return the heap layout table entry for callable objects.
-    pub(crate) fn table_layout(self) -> mir::Layout {
+    pub(crate) fn table_layout(self, environment_layout: WordLayout) -> mir::Layout {
         mir::Layout {
-            shape: mir::LayoutShape::Callable,
+            shape: mir::LayoutShape::Closure,
             size: self.byte_len as u32,
             alignment: self.alignment as u32,
-            reference_map: ReferenceMap::Direct {
-                local_offsets: vec![self.environment_offset as u32].into_boxed_slice(),
-                shared_offsets: Vec::new().into_boxed_slice(),
-            },
-            fields: Vec::new(),
+            trace_map: callable_trace_map(self.environment_offset, environment_layout),
         }
     }
 }
@@ -257,6 +253,34 @@ pub(crate) fn callable_object_layout(pointer_bytes: usize) -> CallableObjectLayo
         environment_offset,
         byte_len,
         alignment: pointer_bytes,
+    }
+}
+
+/// Return the heap trace map for one callable object.
+fn callable_trace_map(environment_offset: usize, environment_layout: WordLayout) -> TraceMap {
+    let environment_offset = environment_offset as u32;
+
+    match environment_layout {
+        WordLayout::HeapReference => TraceMap::Fixed {
+            local_offsets: vec![environment_offset].into_boxed_slice(),
+            shared_offsets: Vec::new().into_boxed_slice(),
+        },
+        WordLayout::SharedHeapReference => TraceMap::Fixed {
+            local_offsets: Vec::new().into_boxed_slice(),
+            shared_offsets: vec![environment_offset].into_boxed_slice(),
+        },
+        WordLayout::Void
+        | WordLayout::Bool
+        | WordLayout::Int { .. }
+        | WordLayout::Uint { .. }
+        | WordLayout::Float32
+        | WordLayout::Float64
+        | WordLayout::RawPointer
+        | WordLayout::SharedRawPointer
+        | WordLayout::StackPointer
+        | WordLayout::FramePointer
+        | WordLayout::StaticPointer
+        | WordLayout::FunctionPointer => TraceMap::empty(),
     }
 }
 
@@ -452,8 +476,8 @@ fn build_layout(
     // publish one placeholder first so recursive tracing can see the shape graph
     layouts.insert(ty, layout.clone());
 
-    // fill in the reference map after all child layouts exist
-    layout.reference_map = build_reference_map(tree, layouts, ty)?;
+    // fill in the trace map after all child layouts exist
+    layout.trace_map = build_trace_map(tree, layouts, ty)?;
     layouts.insert(ty, layout.clone());
 
     Ok(layout)
@@ -464,7 +488,7 @@ fn scalar_layout(byte_len: usize, alignment: usize) -> Layout {
     Layout {
         byte_len,
         shape: LayoutShape::Scalar,
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment,
     }
 }
@@ -481,9 +505,9 @@ fn build_mir_layout(
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     layout: &mir::Layout,
 ) -> Result<Layout> {
-    let mut fields = Vec::with_capacity(layout.fields.len());
+    let mut fields = Vec::with_capacity(layout.shape.fields().len());
 
-    for field in &layout.fields {
+    for field in layout.shape.fields() {
         build_layout(tree, layouts, field.ty)?;
         fields.push(FieldLayout {
             ty: field.ty,
@@ -495,7 +519,7 @@ fn build_mir_layout(
     Ok(Layout {
         byte_len: layout.size as usize,
         shape: LayoutShape::Fields(fields),
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment: layout.alignment as usize,
     })
 }
@@ -582,7 +606,7 @@ fn build_record_layout(
     Ok(Layout {
         byte_len: raw_layout.size as usize,
         shape: LayoutShape::Fields(fields),
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment: raw_layout.alignment as usize,
     })
 }
@@ -657,7 +681,7 @@ fn build_slice_layout(
     Ok(Layout {
         byte_len,
         shape: LayoutShape::Slice,
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment: pointer_bytes,
     })
 }
@@ -783,7 +807,7 @@ fn build_tensor_view_layout(shape: &[mir::TensorDimension]) -> Result<Layout> {
     Ok(Layout {
         byte_len,
         shape: LayoutShape::TensorView { rank },
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment: Word::BYTE_LEN,
     })
 }
@@ -809,7 +833,7 @@ fn repeated_layout(
     Layout {
         byte_len,
         shape: shape(element),
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment,
     }
 }
@@ -899,7 +923,8 @@ fn is_heap_reference_kind(kind: mir::ReferenceKind) -> bool {
 /// Extract ordered field layouts from one raw MIR layout.
 fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
     let mut fields: Vec<_> = layout
-        .fields
+        .shape
+        .fields()
         .iter()
         .enumerate()
         .map(|(index, field)| {
@@ -961,7 +986,7 @@ fn build_runtime_fields_layout(
     let layout = Layout {
         byte_len,
         shape: LayoutShape::Fields(fields),
-        reference_map: ReferenceMap::empty(),
+        trace_map: TraceMap::empty(),
         alignment,
     };
 
@@ -983,16 +1008,16 @@ fn align_offset(offset: usize, alignment: usize) -> usize {
     }
 }
 
-/// Build one reference map for one compiled layout.
-fn build_reference_map(
+/// Build one trace map for one compiled layout.
+fn build_trace_map(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
-) -> Result<ReferenceMap> {
+) -> Result<TraceMap> {
     if let Some(layout) = tree.type_layout(ty)
         && matches!(layout.shape, mir::LayoutShape::Variant { .. })
     {
-        return build_variant_reference_map(tree, layouts, ty, layout);
+        return build_variant_trace_map(tree, layouts, ty, layout);
     }
 
     let mut local_offsets = Vec::new();
@@ -1008,68 +1033,75 @@ fn build_reference_map(
         &mut shared_offsets,
     )?;
 
-    let reference_map = if local_offsets.is_empty() && shared_offsets.is_empty() {
-        ReferenceMap::empty()
+    let trace_map = if local_offsets.is_empty() && shared_offsets.is_empty() {
+        TraceMap::empty()
     } else {
-        ReferenceMap::Direct {
+        TraceMap::Fixed {
             local_offsets: local_offsets.into_boxed_slice(),
             shared_offsets: shared_offsets.into_boxed_slice(),
         }
     };
 
-    Ok(reference_map)
+    Ok(trace_map)
 }
 
-/// Build a tag-selected reference map for one lowered variant.
-fn build_variant_reference_map(
+/// Build a tag-selected trace map for one lowered variant.
+fn build_variant_trace_map(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
     layout: &mir::Layout,
-) -> Result<ReferenceMap> {
+) -> Result<TraceMap> {
     let mir::LayoutShape::Variant {
         tag_offset,
-        payload_type,
-        payload_offset,
-        payload,
+        storage_offset,
     } = &layout.shape
     else {
         return Err(Error::InvariantViolation {
-            context: "reference map requested for non-variant layout".to_string(),
+            context: "trace map requested for non-variant layout".to_string(),
         });
     };
-    let mir::Type::Variant { tag, cases, .. } = tree.get(ty) else {
+    let mir::Type::Variant {
+        tag,
+        storage,
+        cases,
+        ..
+    } = tree.get(ty)
+    else {
         return Err(Error::InvariantViolation {
-            context: "reference map requested for non-variant type".to_string(),
+            context: "trace map requested for non-variant type".to_string(),
         });
     };
     let tag_type = tag.ty().ok_or_else(|| Error::InvariantViolation {
         context: "variant tag type is not concrete".to_string(),
     })?;
+    let storage_type = storage.ty().ok_or_else(|| Error::InvariantViolation {
+        context: "variant storage type is not concrete".to_string(),
+    })?;
 
     let tag_bytes = variant_tag_bytes(tree, tag_type)?;
-    let mut reference_variants = Vec::with_capacity(cases.len());
+    let mut trace_variants = Vec::with_capacity(cases.len());
 
     for case in cases.iter() {
         let element_type = case.ty.ty().ok_or_else(|| Error::InvariantViolation {
-            context: "variant case type is not concrete".to_string(),
+            context: "variant value type is not concrete".to_string(),
         })?;
-        let map = variant_case_reference_map(layouts, *payload, *payload_type, element_type)?;
-        reference_variants.push(mir::ReferenceVariant {
+        let map = variant_trace_map(layouts, storage_type, element_type)?;
+        trace_variants.push(mir::TraceVariant {
             tag: variant_tag_bits(tree, tag_type, &case.tag)?,
-            payload_offset: *payload_offset,
+            storage_offset: *storage_offset,
             map,
         });
     }
 
-    Ok(ReferenceMap::Tagged {
+    Ok(TraceMap::Tagged {
         tag_offset: *tag_offset,
         tag_bytes,
-        variants: reference_variants.into_boxed_slice(),
+        variants: trace_variants.into_boxed_slice(),
     })
 }
 
-/// Return one variant case tag as normalized runtime bits.
+/// Return one variant tag as normalized runtime bits.
 fn variant_tag_bits(
     tree: &mir::Tree,
     tag_type: mir::LocalNodeId<mir::Type>,
@@ -1113,23 +1145,27 @@ fn variant_tag_bytes(tree: &mir::Tree, tag_type: mir::LocalNodeId<mir::Type>) ->
     })
 }
 
-/// Return the payload reference map for one variant case.
-fn variant_case_reference_map(
+/// Return the storage trace map for one variant.
+fn variant_trace_map(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    payload: mir::VariantPayload,
-    payload_type: mir::LocalNodeId<mir::Type>,
+    storage_type: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
-) -> Result<ReferenceMap> {
-    let payload_type = match payload {
-        mir::VariantPayload::Inline => element_type,
-        mir::VariantPayload::Boxed => payload_type,
-    };
+) -> Result<TraceMap> {
+    let storage_layout = layouts
+        .get(&storage_type)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing variant storage layout for {storage_type:?}"),
+        })?;
+
+    if storage_layout.is_word() {
+        return Ok(storage_layout.trace_map.clone());
+    }
 
     layouts
-        .get(&payload_type)
-        .map(|layout| layout.reference_map.clone())
+        .get(&element_type)
+        .map(|layout| layout.trace_map.clone())
         .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing variant case layout for {payload_type:?}"),
+            context: format!("missing variant layout for {element_type:?}"),
         })
 }
 
@@ -1159,14 +1195,14 @@ fn append_reference_offsets(
             for field in fields {
                 let field_offset =
                     u32::try_from(field.offset).map_err(|_| Error::InvariantViolation {
-                        context: format!("reference map field offset too large: {}", field.offset),
+                        context: format!("trace map field offset too large: {}", field.offset),
                     })?;
                 let field_base =
                     base_offset
                         .checked_add(field_offset)
                         .ok_or_else(|| Error::InvariantViolation {
                             context: format!(
-                                "reference map field base overflow: base={base_offset}, offset={field_offset}",
+                                "trace map field base overflow: base={base_offset}, offset={field_offset}",
                             ),
                         })?;
                 append_reference_offsets(
@@ -1230,22 +1266,20 @@ fn append_reference_offsets(
                         .checked_mul(element.stride)
                         .ok_or_else(|| Error::InvariantViolation {
                             context: format!(
-                                "reference map element offset overflow: index={index}, stride={}",
+                                "trace map element offset overflow: index={index}, stride={}",
                                 element.stride,
                             ),
                         })?;
                 let element_offset =
                     u32::try_from(element_offset).map_err(|_| Error::InvariantViolation {
-                        context: format!(
-                            "reference map element offset too large: {element_offset}",
-                        ),
+                        context: format!("trace map element offset too large: {element_offset}",),
                     })?;
                 let element_base =
                     base_offset
                         .checked_add(element_offset)
                         .ok_or_else(|| Error::InvariantViolation {
                             context: format!(
-                                "reference map element base overflow: base={base_offset}, offset={element_offset}",
+                                "trace map element base overflow: base={base_offset}, offset={element_offset}",
                             ),
                         })?;
                 append_reference_offsets(
@@ -1389,8 +1423,8 @@ type Packed {
 
         // reference tracing should point at the heap reference field
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1410,8 +1444,8 @@ type View {
         let layout = layouts.get(&ty).expect("missing layout");
 
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1431,8 +1465,8 @@ type View {
         let layout = layouts.get(&ty).expect("missing layout");
 
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1457,8 +1491,8 @@ type Vec = vector<ref<int32, managed, readonly>, 2>"#;
 
         // reference tracing should include both elements
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![0, 8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1480,55 +1514,33 @@ type Holder {
 
         // newtype-wrapped heap refs should still appear in the trace map
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
         );
     }
 
-    /// Lowered unions trace only the active payload variant.
+    /// Lowered unions trace only the active storage variant.
     #[test]
-    fn test_build_layout_uses_tagged_reference_map_for_union() {
+    fn test_build_layout_uses_tagged_trace_map_for_union() {
         let mir_text = r#"
 type Ref = ref<int32, managed, readonly>;
 type Plain = int32;
 type Tag = uint8;
-type Payload = [usize; 1];
-type Shape = variant<Tag, Payload> { 0uint8 = Ref; 1uint8 = Plain; }"#;
+type Storage = [usize; 1];
+type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
         let (mut tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let union_type = lookup_type_alias(&tree, &strings, "Shape");
-        let tag_type = lookup_type_alias(&tree, &strings, "Tag");
-        let payload_type = lookup_type_alias(&tree, &strings, "Payload");
         let layout_id = tree.metadata.layout.layout_table.insert(mir::Layout {
             shape: mir::LayoutShape::Variant {
                 tag_offset: 0,
-                payload_type,
-                payload_offset: 8,
-                payload: mir::VariantPayload::Inline,
+                storage_offset: 8,
             },
             size: 16,
             alignment: 8,
-            reference_map: ReferenceMap::empty(),
-            fields: vec![
-                mir::LayoutField {
-                    name: None,
-                    ty: tag_type,
-                    offset: 0,
-                    size: 1,
-                    alignment: 1,
-                    source_index: Some(0),
-                },
-                mir::LayoutField {
-                    name: None,
-                    ty: payload_type,
-                    offset: 8,
-                    size: 8,
-                    alignment: 8,
-                    source_index: Some(1),
-                },
-            ],
+            trace_map: TraceMap::empty(),
         });
         let union_types = tree
             .iter_nodes::<Type>()
@@ -1543,23 +1555,23 @@ type Shape = variant<Tag, Payload> { 0uint8 = Ref; 1uint8 = Plain; }"#;
         let layout = layouts.get(&union_type).expect("missing layout");
 
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Tagged {
+            layout.trace_map,
+            TraceMap::Tagged {
                 tag_offset: 0,
                 tag_bytes: 1,
                 variants: vec![
-                    mir::ReferenceVariant {
+                    mir::TraceVariant {
                         tag: 0,
-                        payload_offset: 8,
-                        map: ReferenceMap::Direct {
+                        storage_offset: 8,
+                        map: TraceMap::Fixed {
                             local_offsets: vec![0].into_boxed_slice(),
                             shared_offsets: Vec::new().into_boxed_slice(),
                         },
                     },
-                    mir::ReferenceVariant {
+                    mir::TraceVariant {
                         tag: 1,
-                        payload_offset: 8,
-                        map: ReferenceMap::empty(),
+                        storage_offset: 8,
+                        map: TraceMap::empty(),
                     },
                 ]
                 .into_boxed_slice(),
@@ -1581,8 +1593,8 @@ type Callable = () => int32"#;
         assert!(layout.is_scalar());
         assert_eq!(layout.byte_len, tree.pointer_bytes() as usize);
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
@@ -1605,8 +1617,8 @@ type Holder {
 
         // the callable field should stay traced after the VM field rewrite
         assert_eq!(
-            layout.reference_map,
-            ReferenceMap::Direct {
+            layout.trace_map,
+            TraceMap::Fixed {
                 local_offsets: vec![8].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }

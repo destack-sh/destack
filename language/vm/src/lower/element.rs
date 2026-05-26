@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op};
+use crate::program::Instruction;
 use crate::{Error, Result};
 
 use super::frame::{value_offset, word_offset};
@@ -52,10 +52,14 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // frame projections keep the dynamic index in frame metadata
+        let layout = self
+            .value_layout_map()
+            .get(array)
+            .ok_or(Error::InvalidInstruction)?;
         let op = select_element_addr_op(self.value_layout_map(), array)?;
         let element = self.element_projection_for_value(array)?;
         let array_length = self.array_length_for_value(array)?;
-        if op == Op::AddressFrameElement {
+        if layout.is_frame_storage() {
             let access = pool.projection(element.with_length(array_length));
 
             return Ok(Instruction::new(

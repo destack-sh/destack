@@ -1,9 +1,8 @@
-use destack_heap::{AllocationClass, HeapOptions, SmallAllocationLayout};
+use destack_heap::{AllocationClass, HeapOptions, SmallAllocationPlan};
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationLayout, Instruction, Layout, Op, PointerClass, pointer_class_from_reference,
-    repr_type,
+    AllocationSite, Instruction, Layout, Op, PointerClass, pointer_class_from_reference, repr_type,
 };
 use crate::{Error, Result};
 
@@ -34,14 +33,14 @@ impl<'a> BlockLowerer<'a> {
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
 
         // precompute the heap allocation shape
-        let (allocation, small) = allocation_layout(
+        let (allocation, small) = allocation_site(
             pool,
             pointer_class,
             layout,
             self.heap_options,
             self.shared_heap_options,
         )?;
-        let allocation = pool.allocation_layout(allocation);
+        let allocation = pool.allocation_site(allocation);
         let op = allocation_op(pointer_class, small)?;
         let slot_bytes = small.map_or(0, |small| small.slot_bytes() as u32);
         let bucket_index = small.map_or(0, |small| small.bucket_index() as u32);
@@ -85,7 +84,7 @@ impl<'a> BlockLowerer<'a> {
         // compile the backing element shape
         let element_layout = self.layout_for_type(element_type)?;
         let pointer_class = slice_backing_pointer_class(self.tree, result_type)?;
-        let (element, _) = allocation_layout(
+        let (element, _) = allocation_site(
             pool,
             pointer_class,
             element_layout,
@@ -94,7 +93,7 @@ impl<'a> BlockLowerer<'a> {
         )?;
         let access = slice_projection(self.tree, self.layouts(), result_type)
             .ok_or(Error::InvalidInstruction)?;
-        let element = pool.allocation_layout(element);
+        let element = pool.allocation_site(element);
         let access = pool.slice_projection(access);
 
         let op = match pointer_class {
@@ -307,17 +306,17 @@ fn slice_backing_pointer_class(
     }
 }
 
-/// Build one allocation layout for a concrete MIR type.
-fn allocation_layout(
+/// Build one allocation site for a concrete MIR type.
+fn allocation_site(
     pool: &mut Pool<'_, '_>,
     pointer_class: PointerClass,
     layout: &Layout,
     heap_options: &HeapOptions,
     shared_heap_options: &HeapOptions,
-) -> Result<(AllocationLayout, Option<SmallAllocationLayout>)> {
+) -> Result<(AllocationSite, Option<SmallAllocationPlan>)> {
     // resolve the allocation class from the destination space
-    let is_noscan = !layout.reference_map.has_reference();
-    let has_shared_reference = layout.reference_map.has_shared_reference();
+    let is_noscan = !layout.trace_map.has_reference();
+    let has_shared_reference = layout.trace_map.has_shared_reference();
     let class = match pointer_class {
         PointerClass::Heap => {
             heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
@@ -333,17 +332,17 @@ fn allocation_layout(
     };
 
     // intern allocation metadata once during lowering
-    let reference_map = pool.reference_map(layout.reference_map.clone());
+    let trace_map = pool.trace_map(layout.trace_map.clone());
     let small = match class {
         AllocationClass::Small(small) if is_noscan => Some(small),
         _ => None,
     };
     let class = pool.allocation_class(class);
 
-    let allocation = AllocationLayout {
+    let allocation = AllocationSite {
         byte_len: layout.byte_len,
         alignment: layout.alignment(),
-        reference_map,
+        trace_map,
         is_noscan,
         has_shared_reference,
         class,
@@ -353,7 +352,7 @@ fn allocation_layout(
 }
 
 /// Select one heap allocation operation from destination and size class.
-fn allocation_op(pointer_class: PointerClass, small: Option<SmallAllocationLayout>) -> Result<Op> {
+fn allocation_op(pointer_class: PointerClass, small: Option<SmallAllocationPlan>) -> Result<Op> {
     match (pointer_class, small.is_some()) {
         (PointerClass::Heap, true) => Ok(Op::AllocateHeapSmallNoscan),
         (PointerClass::Heap, false) => Ok(Op::AllocateHeap),

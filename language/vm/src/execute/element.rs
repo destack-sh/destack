@@ -106,6 +106,21 @@ pub(crate) fn execute_address_stack_element(
     Ok(())
 }
 
+/// Execute element addr on frame pointers.
+pub(crate) fn execute_address_frame_element(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let array = machine.load_word_at(instruction.b);
+    let index = load_array_index_at(machine, instruction.c);
+    let element = instruction_element(machine, instruction.d);
+    let value = address::element_frame(machine, array.as_frame_pointer(), element, index);
+    publish_element_address(machine, dest, value);
+
+    Ok(())
+}
+
 /// Execute element addr on static pointers.
 pub(crate) fn execute_address_static_element(
     machine: &mut Machine<'_, '_>,
