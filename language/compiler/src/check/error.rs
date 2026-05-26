@@ -199,6 +199,28 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Reference does not resolve to a visible symbol.
+    #[diagnostic(code = "EC308", message = "unresolved reference '{name}'")]
+    UnresolvedReference {
+        /// Report the reference expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unresolved reference text.
+        name: String,
+    },
+
+    /// Reference resolves to more than one visible symbol.
+    #[diagnostic(code = "EC309", message = "ambiguous reference '{name}'")]
+    AmbiguousReference {
+        /// Report the reference expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The ambiguous reference text.
+        name: String,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------
