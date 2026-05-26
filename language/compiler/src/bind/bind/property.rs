@@ -210,8 +210,16 @@ impl Compiler {
                 signature,
                 body,
             } => {
-                // create method scope
-                let scope_id = state.insert_child_scope(dir::ScopeKind::Function);
+                // declare anonymous function backing the method value
+                let (symbol_id, scope_id) = state.insert_symbol_with_scope(
+                    dir::SymbolRole::Local,
+                    dir::SymbolForm::Function,
+                    None,
+                    None,
+                    dir::ScopeKind::Function,
+                );
+
+                state.declare_symbol(symbol_id, id);
                 state.bind_node_to_scope(id.into_any(), scope_id);
 
                 // visit method key
