@@ -413,9 +413,6 @@ pub enum Expression {
     /// Import meta intrinsic value.
     ImportMeta,
 
-    /// New target intrinsic value.
-    NewTarget,
-
     /// Literal scalar value.
     ///
     /// Examples:
