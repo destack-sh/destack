@@ -390,7 +390,6 @@ impl BinaryLikeExpression {
                     | Expression::New { .. }
                     | Expression::Import { .. }
                     | Expression::ImportMeta
-                    | Expression::NewTarget
             );
         }
 
@@ -408,7 +407,6 @@ impl BinaryLikeExpression {
                 | Expression::New { .. }
                 | Expression::Import { .. }
                 | Expression::ImportMeta
-                | Expression::NewTarget
         )
     }
 

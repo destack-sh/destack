@@ -57,7 +57,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
-        | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::Type { .. }
@@ -235,7 +234,6 @@ fn format_expression_body_at_current_stack<'ast>(
         | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
-        | Expression::NewTarget
         | Expression::This
         | Expression::Super
         | Expression::Type { .. }
