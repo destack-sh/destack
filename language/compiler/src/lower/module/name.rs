@@ -97,12 +97,12 @@ impl ModuleLowerer<'_> {
         // use nominal naming when the type resolves to a symbol
         if let dir::Type::Named(reference) = dir_type
             && matches!(
-                self.symbol_form(reference.symbol),
+                self.symbol_kind(reference.symbol),
                 Some(
-                    dir::SymbolForm::Struct
-                        | dir::SymbolForm::Class
-                        | dir::SymbolForm::Interface
-                        | dir::SymbolForm::Enum
+                    dir::SymbolKind::Struct
+                        | dir::SymbolKind::Class
+                        | dir::SymbolKind::Interface
+                        | dir::SymbolKind::Enum
                 )
             )
         {
@@ -125,12 +125,12 @@ impl ModuleLowerer<'_> {
 
         if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
             && matches!(
-                self.symbol_form(symbol),
+                self.symbol_kind(symbol),
                 Some(
-                    dir::SymbolForm::Struct
-                        | dir::SymbolForm::Class
-                        | dir::SymbolForm::Interface
-                        | dir::SymbolForm::Enum
+                    dir::SymbolKind::Struct
+                        | dir::SymbolKind::Class
+                        | dir::SymbolKind::Interface
+                        | dir::SymbolKind::Enum
                 )
             )
         {
@@ -197,7 +197,7 @@ impl ModuleLowerer<'_> {
         // record dynamic parameter names
         for parameter in &function.parameters {
             let param_name = self
-                .metadata_base_name_for_type(*parameter)
+                .metadata_base_name_for_type(parameter.ty)
                 .unwrap_or_else(|| "unknown".to_string());
             name.push('.');
             name.push_str(&param_name);
@@ -288,7 +288,7 @@ impl ModuleLowerer<'_> {
         names.reference = Some(name_id);
 
         // resolve Any and instance types separately
-        if self.symbol_is(symbol, dir::SymbolForm::Interface) {
+        if self.symbol_kind_matches(symbol, dir::SymbolKind::Interface) {
             let instance_name = format!("{name}{OBJECT_METADATA_SUFFIX}");
             let instance_name_id = self.builder.intern(&instance_name);
             names.reference = Some(name_id);
@@ -318,7 +318,7 @@ impl ModuleLowerer<'_> {
         }
 
         // resolve class reference types separately
-        if self.symbol_is(symbol, dir::SymbolForm::Class)
+        if self.symbol_kind_matches(symbol, dir::SymbolKind::Class)
             && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             && let Some(mir_type) = self.type_lowerer.cached_type(reference_type_id)
         {
@@ -488,7 +488,7 @@ impl ModuleLowerer<'_> {
             self.symbol_path_from_symbols(reference.symbol, &bindings)
         })?;
 
-        if self.symbol_is(reference.symbol, dir::SymbolForm::Class) {
+        if self.symbol_kind_matches(reference.symbol, dir::SymbolKind::Class) {
             return Some(format!("{name}{REFERENCE_METADATA_SUFFIX}"));
         }
 

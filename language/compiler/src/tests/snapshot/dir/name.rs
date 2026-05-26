@@ -147,7 +147,7 @@ impl<'a> BindingSnapshotName<'a> {
     fn symbol_should_qualify(&self, symbol: &dir::Symbol) -> bool {
         symbol.role == dir::SymbolRole::Item
             || symbol.role == dir::SymbolRole::Namespace
-            || symbol.form == dir::SymbolForm::TypeAlias
+            || symbol.kind == dir::SymbolKind::TypeAlias
     }
 
     /// Return the owner symbol for the symbol scope.

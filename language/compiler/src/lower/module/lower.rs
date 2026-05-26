@@ -1013,8 +1013,8 @@ impl<'a> ModuleLowerer<'a> {
             }
 
             if matches!(
-                self.symbol_form(symbol),
-                Some(dir::SymbolForm::Class | dir::SymbolForm::Interface)
+                self.symbol_kind(symbol),
+                Some(dir::SymbolKind::Class | dir::SymbolKind::Interface)
             ) && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             {
                 self.lower_type(reference_type_id, anchor)?;
@@ -1103,8 +1103,8 @@ impl<'a> ModuleLowerer<'a> {
             // skip non nominal symbols
             let symbol = self.symbols.get_symbol_by_id(symbol_id);
             if !matches!(
-                symbol.form,
-                dir::SymbolForm::Newtype | dir::SymbolForm::Enum
+                symbol.kind,
+                dir::SymbolKind::Newtype | dir::SymbolKind::Enum
             ) {
                 continue;
             }

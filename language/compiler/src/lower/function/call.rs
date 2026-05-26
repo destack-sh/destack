@@ -144,7 +144,7 @@ impl FunctionLowerer<'_> {
 
         if self
             .context
-            .symbol_is(target_symbol, dir::SymbolForm::Newtype)
+            .symbol_kind_matches(target_symbol, dir::SymbolKind::Newtype)
         {
             let (value, result_type) =
                 self.lower_newtype_constructor_call(expression_id, target_symbol, arguments)?;
@@ -167,7 +167,7 @@ impl FunctionLowerer<'_> {
         // lower calls through callable values
         if !self
             .context
-            .symbol_is(target_symbol, dir::SymbolForm::Function)
+            .symbol_kind_matches(target_symbol, dir::SymbolKind::Function)
             && self.function_for_symbol(target_symbol).is_none()
             && let Some(type_id) = self
                 .type_for_expression(*left)
@@ -192,7 +192,7 @@ impl FunctionLowerer<'_> {
             .is_some_and(|set| !set.captures.is_empty());
         if self
             .context
-            .symbol_is(target_symbol, dir::SymbolForm::Function)
+            .symbol_kind_matches(target_symbol, dir::SymbolKind::Function)
             && has_captures
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
@@ -832,7 +832,11 @@ impl FunctionLowerer<'_> {
             return Vec::new();
         };
 
-        function.parameters.clone()
+        function
+            .parameters
+            .iter()
+            .map(|parameter| parameter.ty)
+            .collect()
     }
 
     /// Return MIR parameter type ids from a function signature type.

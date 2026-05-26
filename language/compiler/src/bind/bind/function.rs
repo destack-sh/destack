@@ -80,7 +80,7 @@ impl Compiler {
         let Some(key) = parameter.symbol_key() else {
             return;
         };
-        let Some(form) = parameter.symbol_form() else {
+        let Some(kind) = parameter.symbol_kind() else {
             return;
         };
 
@@ -134,7 +134,7 @@ impl Compiler {
         }
 
         // declare generic parameter symbol
-        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, form, Some(key), None);
+        let symbol_id = state.insert_symbol(dir::SymbolRole::Local, kind, Some(key), None);
 
         state.declare_symbol(symbol_id, node_id);
     }
@@ -234,7 +234,7 @@ impl Compiler {
         // declare parameter symbol
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolForm::Variable,
+            dir::SymbolKind::Variable,
             Some(key),
             None,
         );

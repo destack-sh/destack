@@ -216,7 +216,7 @@ impl Compiler {
 
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolForm::TypeAlias,
+            dir::SymbolKind::TypeAlias,
             Some(dir::StaticKey::Name(parameter.name)),
             None,
         );
@@ -251,7 +251,7 @@ impl Compiler {
         if let Some(name) = name {
             let symbol_id = state.insert_symbol(
                 dir::SymbolRole::Local,
-                dir::SymbolForm::TypeAlias,
+                dir::SymbolKind::TypeAlias,
                 Some(dir::StaticKey::Name(name)),
                 None,
             );
@@ -293,7 +293,7 @@ impl Compiler {
         let Some(key) = type_member.symbol_key() else {
             return None;
         };
-        let Some(form) = type_member.symbol_form() else {
+        let Some(kind) = type_member.symbol_kind() else {
             return None;
         };
 
@@ -301,7 +301,7 @@ impl Compiler {
         let (symbol_id, scope_id) = if let Some(scope_kind) = type_member.symbol_scope_kind() {
             let (symbol_id, scope_id) = state.insert_symbol_with_scope(
                 dir::SymbolRole::Item,
-                form,
+                kind,
                 Some(key),
                 None,
                 scope_kind,
@@ -309,7 +309,7 @@ impl Compiler {
 
             (symbol_id, Some(scope_id))
         } else {
-            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, form, Some(key), None);
+            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, kind, Some(key), None);
 
             (symbol_id, None)
         };

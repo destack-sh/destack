@@ -384,8 +384,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         // ignore non alias symbols
         let symbol_entry = symbols.get_symbol(reference.symbol.local_id);
         if !matches!(
-            symbol_entry.form,
-            dir::SymbolForm::TypeAlias | dir::SymbolForm::Newtype
+            symbol_entry.kind,
+            dir::SymbolKind::TypeAlias | dir::SymbolKind::Newtype
         ) {
             return type_id;
         }

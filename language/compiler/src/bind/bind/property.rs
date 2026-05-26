@@ -15,10 +15,10 @@ impl Compiler {
     ) -> Option<dir::LocalScopeId> {
         // bind keyed members through normal member lookup
         if let Some(key) = member.symbol_key() {
-            let form = member.symbol_form()?;
+            let kind = member.symbol_kind()?;
             let scope_kind = member.symbol_scope_kind();
 
-            return self.bind_member_symbol_key(state, node_id, form, Some(key), scope_kind);
+            return self.bind_member_symbol_key(state, node_id, kind, Some(key), scope_kind);
         }
 
         // bind role members as anonymous symbols
@@ -35,7 +35,7 @@ impl Compiler {
         self.bind_member_symbol_key(
             state,
             node_id,
-            dir::SymbolForm::Function,
+            dir::SymbolKind::Function,
             None,
             Some(dir::ScopeKind::Function),
         )
@@ -46,18 +46,18 @@ impl Compiler {
         &self,
         state: &mut BindState<'_>,
         node_id: dir::LocalNodeId<dir::Member>,
-        form: dir::SymbolForm,
+        kind: dir::SymbolKind,
         key: Option<dir::StaticKey>,
         scope_kind: Option<dir::ScopeKind>,
     ) -> Option<dir::LocalScopeId> {
         // declare scoped or plain member symbol
         let (symbol_id, scope_id) = if let Some(scope_kind) = scope_kind {
             let (symbol_id, scope_id) =
-                state.insert_symbol_with_scope(dir::SymbolRole::Item, form, key, None, scope_kind);
+                state.insert_symbol_with_scope(dir::SymbolRole::Item, kind, key, None, scope_kind);
 
             (symbol_id, Some(scope_id))
         } else {
-            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, form, key, None);
+            let symbol_id = state.insert_symbol(dir::SymbolRole::Item, kind, key, None);
 
             (symbol_id, None)
         };
@@ -180,7 +180,7 @@ impl Compiler {
         let key = dir::StaticKey::Name(self.strings().intern("this"));
         let symbol = state.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolForm::Variable,
+            dir::SymbolKind::Variable,
             Some(key),
             None,
         );
@@ -213,7 +213,7 @@ impl Compiler {
                 // declare anonymous function backing the method value
                 let (symbol_id, scope_id) = state.insert_symbol_with_scope(
                     dir::SymbolRole::Local,
-                    dir::SymbolForm::Function,
+                    dir::SymbolKind::Function,
                     None,
                     None,
                     dir::ScopeKind::Function,

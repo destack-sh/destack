@@ -59,7 +59,7 @@ impl<'a> BindState<'a> {
         // create namespace owner
         let (namespace_symbol, _) = bindings.insert_symbol(
             dir::SymbolRole::Namespace,
-            dir::SymbolForm::Variable,
+            dir::SymbolKind::Variable,
             None,
             namespace,
             None,
@@ -183,14 +183,14 @@ impl<'a> BindState<'a> {
     pub(in crate::bind) fn insert_symbol(
         &mut self,
         role: dir::SymbolRole,
-        form: dir::SymbolForm,
+        kind: dir::SymbolKind,
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
     ) -> dir::LocalSymbolId {
         let scope = self.scope();
         let symbol_id = self
             .bindings
-            .insert_symbol(role, form, key, scope, export)
+            .insert_symbol(role, kind, key, scope, export)
             .0;
         if scope.id == self.global_scope {
             self.bindings.get_symbol_mut(symbol_id).origin = dir::SymbolOrigin::Global;
@@ -203,12 +203,12 @@ impl<'a> BindState<'a> {
     pub(in crate::bind) fn insert_symbol_with_scope(
         &mut self,
         role: dir::SymbolRole,
-        form: dir::SymbolForm,
+        kind: dir::SymbolKind,
         key: Option<dir::StaticKey>,
         export: Option<dir::ExportKind>,
         scope_kind: dir::ScopeKind,
     ) -> (dir::LocalSymbolId, dir::LocalScopeId) {
-        let symbol_id = self.insert_symbol(role, form, key, export);
+        let symbol_id = self.insert_symbol(role, kind, key, export);
         let scope_id = self
             .bindings
             .insert_scope(scope_kind, Some(self.scope()), Some(symbol_id));

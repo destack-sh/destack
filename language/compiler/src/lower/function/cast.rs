@@ -79,7 +79,7 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Named(reference) = target_type
             && self
                 .context
-                .symbol_is(reference.symbol, dir::SymbolForm::Interface)
+                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
         {
             if matches!(
                 self.context.types.get_type(source_type_id),
@@ -544,7 +544,7 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Named(reference) = target_dir_type
             && self
                 .context
-                .symbol_is(reference.symbol, dir::SymbolForm::Interface)
+                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
         {
             return self.lower_any_upcast(
                 expression_id,
@@ -602,7 +602,7 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Named(reference) = source_dir_type
             && self
                 .context
-                .symbol_is(reference.symbol, dir::SymbolForm::Interface)
+                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
         {
             // resolve Any value layout
             let layout = self
@@ -1037,7 +1037,7 @@ impl FunctionLowerer<'_> {
                 dir::Type::Named(reference)
                     if self
                         .context
-                        .symbol_is(reference.symbol, dir::SymbolForm::Interface)
+                        .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
             ) {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
@@ -1227,8 +1227,8 @@ impl FunctionLowerer<'_> {
         match self.context.types.get_type(type_id) {
             dir::Type::Named(reference)
                 if matches!(
-                    self.context.symbol_form(reference.symbol),
-                    Some(dir::SymbolForm::Class | dir::SymbolForm::Struct)
+                    self.context.symbol_kind(reference.symbol),
+                    Some(dir::SymbolKind::Class | dir::SymbolKind::Struct)
                 ) =>
             {
                 Some(reference.symbol)
@@ -1267,8 +1267,8 @@ impl FunctionLowerer<'_> {
             }
             dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let symbol = self.resolve_expression_symbol(expression_id).ok()?;
-                match self.context.symbol_form(symbol) {
-                    Some(dir::SymbolForm::Class | dir::SymbolForm::Struct) => Some(symbol),
+                match self.context.symbol_kind(symbol) {
+                    Some(dir::SymbolKind::Class | dir::SymbolKind::Struct) => Some(symbol),
                     _ => None,
                 }
             }

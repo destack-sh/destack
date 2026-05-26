@@ -216,7 +216,7 @@ impl FunctionLowerer<'_> {
             dir::Type::Named(reference)
                 if self
                     .context
-                    .symbol_is(reference.symbol, dir::SymbolForm::Class) =>
+                    .symbol_kind_matches(reference.symbol, dir::SymbolKind::Class) =>
             {
                 Some(reference.symbol)
             }
@@ -298,14 +298,14 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Named(reference) = self.context.types.get_type(type_id)
             && self
                 .context
-                .symbol_is(reference.symbol, dir::SymbolForm::Enum)
+                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Enum)
         {
             return self.context.types.get_enum_backing_type(reference.symbol);
         }
 
         // accept enum instance types
         let symbol = self.context.types.symbol_for_instance_type(type_id)?;
-        if !self.context.symbol_is(symbol, dir::SymbolForm::Enum) {
+        if !self.context.symbol_kind_matches(symbol, dir::SymbolKind::Enum) {
             return None;
         }
 

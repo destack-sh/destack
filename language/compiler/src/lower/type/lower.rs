@@ -34,7 +34,7 @@ pub(crate) struct TypeLowerer<'a> {
     pub(super) profile: ProfileId,
     /// DIR tree being lowered.
     pub(super) dir_tree: &'a dir::Tree,
-    /// Symbol table for local declaration form reads.
+    /// Symbol table for local declaration kind reads.
     pub(super) symbols: &'a dir::BindingTable<'a>,
     /// Cached Vector type symbol for vector lowering.
     pub(crate) vector_symbol: Option<dir::GlobalSymbolId>,
@@ -141,15 +141,15 @@ impl<'a> TypeLowerer<'a> {
         }
     }
 
-    /// Return the declaration form for one symbol.
-    pub(crate) fn symbol_form(&self, symbol: dir::GlobalSymbolId) -> Option<dir::SymbolForm> {
-        Some(self.symbol(symbol)?.form)
+    /// Return the declaration kind for one symbol.
+    pub(crate) fn symbol_kind(&self, symbol: dir::GlobalSymbolId) -> Option<dir::SymbolKind> {
+        Some(self.symbol(symbol)?.kind)
     }
 
-    /// Return whether one symbol has the given declaration form.
-    pub(crate) fn symbol_is(&self, symbol: dir::GlobalSymbolId, form: dir::SymbolForm) -> bool {
-        self.symbol_form(symbol)
-            .is_some_and(|actual| actual.matches_form(form))
+    /// Return whether one symbol has the given declaration kind.
+    pub(crate) fn symbol_kind_matches(&self, symbol: dir::GlobalSymbolId, kind: dir::SymbolKind) -> bool {
+        self.symbol_kind(symbol)
+            .is_some_and(|actual| actual.matches_kind(kind))
     }
 
     /// Return the diagnostic anchor for one DIR node.
@@ -323,7 +323,7 @@ impl<'a> TypeLowerer<'a> {
         // lower the declared parameters
         let mut lowered_parameters = Vec::with_capacity(function.parameters.len());
         for parameter in &function.parameters {
-            let parameter_type = self.lower_type(types, *parameter, module_id, node, builder)?;
+            let parameter_type = self.lower_type(types, parameter.ty, module_id, node, builder)?;
             lowered_parameters.push(parameter_type);
         }
 
@@ -367,7 +367,7 @@ impl<'a> TypeLowerer<'a> {
 
         // lower enum instance types as nominal wrappers over their backing representation
         if let Some(enum_symbol) = types.symbol_for_instance_type(type_id)
-            && self.symbol_is(enum_symbol, dir::SymbolForm::Enum)
+            && self.symbol_kind_matches(enum_symbol, dir::SymbolKind::Enum)
         {
             let mir_type = self.lower_nominal_enum_type(types, enum_symbol, node, builder)?;
             self.type_cache
@@ -533,10 +533,10 @@ impl<'a> TypeLowerer<'a> {
             return Ok(mir_type);
         }
 
-        if self.symbol_is(symbol, dir::SymbolForm::Interface) {
+        if self.symbol_kind_matches(symbol, dir::SymbolKind::Interface) {
             return self.lower_any_value_type(types, type_id, module_id, node, builder);
         }
-        if self.symbol_is(symbol, dir::SymbolForm::Enum) {
+        if self.symbol_kind_matches(symbol, dir::SymbolKind::Enum) {
             if let Some(instance_type_id) = types.get_instance_type_id(symbol)
                 && instance_type_id != type_id
             {
@@ -550,7 +550,7 @@ impl<'a> TypeLowerer<'a> {
         }
 
         // handle vector type lowering
-        let is_alias_with_target = self.symbol_is(symbol, dir::SymbolForm::TypeAlias)
+        let is_alias_with_target = self.symbol_kind_matches(symbol, dir::SymbolKind::TypeAlias)
             && types.get_alias_target_type_id(symbol).is_some();
 
         if !is_alias_with_target && self.is_vector_symbol(symbol) {
@@ -565,7 +565,7 @@ impl<'a> TypeLowerer<'a> {
         }
 
         // handle nominal newtypes with a transparent MIR wrapper
-        if self.symbol_is(symbol, dir::SymbolForm::Newtype) {
+        if self.symbol_kind_matches(symbol, dir::SymbolKind::Newtype) {
             if let Some(instance_type_id) = types.get_instance_type_id(symbol)
                 && instance_type_id != type_id
             {
@@ -591,7 +591,7 @@ impl<'a> TypeLowerer<'a> {
         let instance_type =
             self.lower_nominal_instance_type(types, type_id, symbol, module_id, node, builder)?;
 
-        if self.symbol_is(symbol, dir::SymbolForm::Class) {
+        if self.symbol_kind_matches(symbol, dir::SymbolKind::Class) {
             Ok(builder.type_managed_reference(instance_type))
         } else {
             Ok(instance_type)
@@ -666,7 +666,7 @@ impl<'a> TypeLowerer<'a> {
             return self.lower_type(types, type_id, module_id, node, builder);
         };
 
-        if !self.symbol_is(reference.symbol, dir::SymbolForm::Class) {
+        if !self.symbol_kind_matches(reference.symbol, dir::SymbolKind::Class) {
             return self.lower_type(types, type_id, module_id, node, builder);
         }
 
@@ -697,8 +697,8 @@ impl<'a> TypeLowerer<'a> {
         }
 
         if !matches!(
-            self.symbol_form(symbol),
-            Some(dir::SymbolForm::TypeAlias | dir::SymbolForm::Newtype)
+            self.symbol_kind(symbol),
+            Some(dir::SymbolKind::TypeAlias | dir::SymbolKind::Newtype)
         ) {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
@@ -728,7 +728,7 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
-        if symbol.module_id == current_module_id || !self.symbol_is(symbol, dir::SymbolForm::Struct)
+        if symbol.module_id == current_module_id || !self.symbol_kind_matches(symbol, dir::SymbolKind::Struct)
         {
             return Ok(None);
         }
@@ -884,8 +884,8 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
-        if !self.symbol_is(symbol, dir::SymbolForm::TypeAlias)
-            && !self.symbol_is(symbol, dir::SymbolForm::Newtype)
+        if !self.symbol_kind_matches(symbol, dir::SymbolKind::TypeAlias)
+            && !self.symbol_kind_matches(symbol, dir::SymbolKind::Newtype)
         {
             return Ok(None);
         }
