@@ -1,4 +1,5 @@
 use std::env::temp_dir;
+use std::io::Error as IoError;
 use std::os::unix::ffi::OsStrExt;
 
 use crate::{MemoryError, MemoryOperation, MemoryResult};
@@ -11,7 +12,7 @@ pub(crate) use super::unix::{
     unregister_write_watch,
 };
 
-/// Create one page-frame allocator.
+/// Create one page frame allocator.
 pub(crate) fn create_page_frame_allocator(byte_len: usize) -> MemoryResult<PageFrameAllocator> {
     let mut path = temp_dir();
     path.push("ds-memory-XXXXXX");
@@ -19,18 +20,18 @@ pub(crate) fn create_page_frame_allocator(byte_len: usize) -> MemoryResult<PageF
     let mut path = path.as_os_str().as_bytes().to_vec();
     path.push(0);
 
-    // SAFETY: path is a writable nul-terminated mkstemp template
+    // SAFETY: path is a writable nul terminated mkstemp template
     let fd = unsafe { libc::mkstemp(path.as_mut_ptr().cast()) };
     if fd < 0 {
-        return Err(MemoryError::system_with_code(
+        return Err(MemoryError::system_bytes(
             MemoryOperation::CreateFrameAllocator,
-            std::io::Error::last_os_error().raw_os_error(),
+            IoError::last_os_error().raw_os_error(),
             byte_len,
         ));
     }
 
     // unlink immediately so the descriptor is the only reference
-    // SAFETY: path remains nul-terminated after mkstemp returns
+    // SAFETY: path remains nul terminated after mkstemp returns
     let _ = unsafe { libc::unlink(path.as_ptr().cast()) };
 
     super::unix::create_page_frame_allocator_from_fd(fd, byte_len)

@@ -1,3 +1,5 @@
+use std::io::Error as IoError;
+
 use crate::{MemoryError, MemoryOperation, MemoryResult};
 
 pub(crate) use super::unix::{
@@ -8,16 +10,16 @@ pub(crate) use super::unix::{
     unregister_write_watch,
 };
 
-/// Create one page-frame allocator.
+/// Create one page frame allocator.
 pub(crate) fn create_page_frame_allocator(byte_len: usize) -> MemoryResult<PageFrameAllocator> {
     let name = c"destack-memory";
 
-    // SAFETY: name is a static nul-terminated C string (see above)
+    // SAFETY: name is a static nul terminated C string
     let fd = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
     if fd < 0 {
-        return Err(MemoryError::system_with_code(
+        return Err(MemoryError::system_bytes(
             MemoryOperation::CreateFrameAllocator,
-            std::io::Error::last_os_error().raw_os_error(),
+            IoError::last_os_error().raw_os_error(),
             byte_len,
         ));
     }

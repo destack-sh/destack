@@ -14,9 +14,9 @@ pub enum MemoryError {
         /// The platform error code when available.
         code: Option<i32>,
         /// The requested byte length.
-        byte_len: usize,
+        byte_len: Option<usize>,
     },
-    /// One process-wide memory table reached capacity.
+    /// One process wide memory table reached capacity.
     CapacityExceeded {
         /// The table that reached capacity.
         table: MemoryTable,
@@ -40,26 +40,26 @@ pub enum MemoryError {
 }
 
 impl MemoryError {
-    /// Create one system error without a platform error code.
-    pub const fn system(operation: MemoryOperation, byte_len: usize) -> Self {
-        Self::SystemError {
-            operation,
-            code: None,
-            byte_len,
-        }
-    }
-
-    /// Create one system error with a platform error code.
-    pub const fn system_with_code(
+    /// Create one system error.
+    pub const fn system(
         operation: MemoryOperation,
         code: Option<i32>,
-        byte_len: usize,
+        byte_len: Option<usize>,
     ) -> Self {
         Self::SystemError {
             operation,
             code,
             byte_len,
         }
+    }
+
+    /// Create one system error with byte context.
+    pub const fn system_bytes(
+        operation: MemoryOperation,
+        code: Option<i32>,
+        byte_len: usize,
+    ) -> Self {
+        Self::system(operation, code, Some(byte_len))
     }
 }
 
@@ -78,12 +78,14 @@ pub enum MemoryOperation {
     MapFrameRange,
     /// Change virtual page protection.
     ProtectPages,
+    /// Install the process wide write watch handler.
+    InstallWriteWatch,
 }
 
-/// A bounded process-wide memory table.
+/// A bounded process wide memory table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryTable {
-    /// The write-watch registration table.
+    /// The write watch registration table.
     WriteWatch,
 }
 
@@ -94,19 +96,27 @@ impl Display for MemoryError {
                 operation,
                 code,
                 byte_len,
-            } => {
-                if let Some(code) = code {
+            } => match (code, byte_len) {
+                (Some(code), Some(byte_len)) => {
                     write!(
                         formatter,
                         "memory system operation failed: {operation}, code {code}, {byte_len} bytes"
                     )
-                } else {
+                }
+                (Some(code), None) => {
+                    write!(
+                        formatter,
+                        "memory system operation failed: {operation}, code {code}"
+                    )
+                }
+                (None, Some(byte_len)) => {
                     write!(
                         formatter,
                         "memory system operation failed: {operation}, {byte_len} bytes"
                     )
                 }
-            }
+                (None, None) => write!(formatter, "memory system operation failed: {operation}"),
+            },
             Self::CapacityExceeded { table, capacity } => {
                 write!(
                     formatter,
@@ -141,6 +151,7 @@ impl Display for MemoryOperation {
             Self::ReserveAddressSpace => write!(formatter, "reserve address space"),
             Self::MapFrameRange => write!(formatter, "map frame range"),
             Self::ProtectPages => write!(formatter, "protect pages"),
+            Self::InstallWriteWatch => write!(formatter, "install write watch"),
         }
     }
 }
