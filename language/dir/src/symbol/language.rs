@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::SymbolForm;
+use crate::SymbolKind;
 
-/// The declaration form expected for one language item.
+/// The declaration kind expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum LanguageItemForm {
+pub enum LanguageItemKind {
     /// A variable-like value declaration.
     Variable,
     /// A `class` declaration.
@@ -25,19 +25,19 @@ pub enum LanguageItemForm {
     Function,
 }
 
-impl From<LanguageItemForm> for SymbolForm {
-    /// Convert a language item form to its declaring symbol form.
-    fn from(value: LanguageItemForm) -> Self {
+impl From<LanguageItemKind> for SymbolKind {
+    /// Convert a language item kind to its declaring symbol kind.
+    fn from(value: LanguageItemKind) -> Self {
         match value {
-            LanguageItemForm::Variable => Self::Variable,
-            LanguageItemForm::Class => Self::Class,
-            LanguageItemForm::Interface => Self::Interface,
-            LanguageItemForm::NewtypeInterface => Self::NewtypeInterface,
-            LanguageItemForm::Struct => Self::Struct,
-            LanguageItemForm::Enum => Self::Enum,
-            LanguageItemForm::Type => Self::TypeAlias,
-            LanguageItemForm::Newtype => Self::Newtype,
-            LanguageItemForm::Function => Self::Function,
+            LanguageItemKind::Variable => Self::Variable,
+            LanguageItemKind::Class => Self::Class,
+            LanguageItemKind::Interface => Self::Interface,
+            LanguageItemKind::NewtypeInterface => Self::NewtypeInterface,
+            LanguageItemKind::Struct => Self::Struct,
+            LanguageItemKind::Enum => Self::Enum,
+            LanguageItemKind::Type => Self::TypeAlias,
+            LanguageItemKind::Newtype => Self::Newtype,
+            LanguageItemKind::Function => Self::Function,
         }
     }
 }
@@ -62,7 +62,7 @@ macro_rules! define_language_items {
                         $(
                             $(#[$item_attr:meta])*
                             $name:ident => (
-                                $form:ident,
+                                $kind:ident,
                                 $module:literal,
                                 $export:literal
                                 $(, $key:literal)?
@@ -130,10 +130,10 @@ macro_rules! define_language_items {
                 }
             }
 
-            /// Return the expected declaration form.
-            pub fn form(&self) -> LanguageItemForm {
+            /// Return the expected declaration kind.
+            pub fn kind(&self) -> LanguageItemKind {
                 match self {
-                    $($($(Self::$name => LanguageItemForm::$form,)*)*)*
+                    $($($(Self::$name => LanguageItemKind::$kind,)*)*)*
                 }
             }
 

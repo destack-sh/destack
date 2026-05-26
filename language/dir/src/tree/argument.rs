@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, LocalNodeId, Name, Node, NodeType, Pattern, StaticKey, StringId, SymbolForm,
+    Expression, LocalNodeId, Name, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind,
     SymbolSpace, TypeExpression, VarianceModifier, Visibility,
 };
 
@@ -67,11 +67,13 @@ impl GenericParameter {
         }
     }
 
-    /// Return the symbol form introduced by this generic parameter.
-    pub fn symbol_form(&self) -> Option<SymbolForm> {
+    /// Return the symbol kind introduced by this generic parameter.
+    pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
-            Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolForm::TypeAlias),
-            Self::Value { .. } | Self::VariadicValue { .. } => Some(SymbolForm::Variable),
+            Self::Type { .. } | Self::VariadicType { .. } => Some(SymbolKind::GenericTypeParameter),
+            Self::Value { .. } | Self::VariadicValue { .. } => {
+                Some(SymbolKind::GenericValueParameter)
+            }
             Self::Error => None,
         }
     }

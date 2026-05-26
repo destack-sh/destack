@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, ScopeKind, StaticKey, StringId, SymbolForm, SymbolSpace, TypeExpression, Visibility,
+    NodeType, ScopeKind, StaticKey, StringId, SymbolKind, SymbolSpace, TypeExpression, Visibility,
     WhereClause,
 };
 
@@ -246,12 +246,13 @@ impl Member {
         }
     }
 
-    /// Return the symbol form introduced by this member.
-    pub fn symbol_form(&self) -> Option<SymbolForm> {
+    /// Return the symbol kind introduced by this member.
+    pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
-            Self::AssociatedType { .. } => Some(SymbolForm::TypeAlias),
-            Self::AssociatedConst { .. } | Self::Field { .. } => Some(SymbolForm::Variable),
-            Self::Method { key: Some(_), .. } => Some(SymbolForm::Function),
+            Self::AssociatedType { .. } => Some(SymbolKind::AssociatedType),
+            Self::AssociatedConst { .. } => Some(SymbolKind::AssociatedConst),
+            Self::Field { .. } => Some(SymbolKind::Variable),
+            Self::Method { key: Some(_), .. } => Some(SymbolKind::Function),
             Self::Method { key: None, .. }
             | Self::StaticBlock { .. }
             | Self::ComptimeBlock { .. }
@@ -261,7 +262,7 @@ impl Member {
 
     /// Return the symbol space introduced by this member.
     pub fn symbol_space(&self) -> Option<SymbolSpace> {
-        self.symbol_form().map(SymbolForm::symbol_space)
+        self.symbol_kind().map(SymbolKind::symbol_space)
     }
 
     /// Return the scope kind owned by this member symbol.

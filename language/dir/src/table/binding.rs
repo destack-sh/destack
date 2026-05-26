@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, SegmentView, StaticKey, Symbol,
-    SymbolForm, SymbolOrigin, SymbolRole,
+    SymbolKind, SymbolOrigin, SymbolRole,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -319,7 +319,7 @@ impl BindingSegment {
     pub fn insert_symbol(
         &mut self,
         role: SymbolRole,
-        form: SymbolForm,
+        kind: SymbolKind,
         key: Option<StaticKey>,
         scope: LocalScope,
         export: Option<ExportKind>,
@@ -327,7 +327,7 @@ impl BindingSegment {
         let symbol_id = LocalSymbolId::new(self.symbol_count());
         let symbol = Symbol {
             role,
-            form,
+            kind,
             binding_mutability: None,
             origin: SymbolOrigin::Module,
             key,
