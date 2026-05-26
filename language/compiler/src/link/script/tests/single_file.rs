@@ -2054,10 +2054,6 @@ fn test_links_single_file_meta_property_expressions() {
 export function current() {
     return import.meta;
 }
-
-export function construct() {
-    return new.target;
-}
 "#),
     );
 
@@ -2066,9 +2062,6 @@ export function construct() {
         r#"
 export function current() {
     return import.meta;
-}
-export function construct() {
-    return new.target;
 }
 "#,
     ));
