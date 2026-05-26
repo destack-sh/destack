@@ -92,32 +92,30 @@ type FiddleHeaderProps = {
 function FiddleHeader(props: FiddleHeaderProps) {
     return (
         <div class="relative z-10 m-3 mb-0">
-            <DottedFrame depth="medium">
-                <header class="grid gap-2 bg-destack-ink px-4 py-3 text-sm font-extrabold lowercase text-destack-panel">
-                    <div class="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
-                        <PathRow
-                            activeIndex={props.areaIndex}
-                            labels={exampleAreas.map((item) => `${item.label.toLowerCase()}/`)}
-                            onSelect={props.onAreaChange}
-                        />
-                        <OutputPicker
-                            onChange={props.onTargetChange}
-                            target={props.target}
-                            targets={props.targets}
-                        />
-                    </div>
+            <header class="grid gap-2 border-[2px] border-neutral-950 bg-[radial-gradient(circle,#d6d0c4_0_1px,transparent_1.25px)] bg-[length:5px_5px] px-4 py-4 text-sm font-extrabold lowercase">
+                <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                     <PathRow
-                        activeIndex={props.categoryIndex}
-                        labels={props.area.categories.map((item) => `${item.label.toLowerCase()}/`)}
-                        onSelect={props.onCategoryChange}
+                        activeIndex={props.areaIndex}
+                        labels={exampleAreas.map((item) => `${item.label.toLowerCase()}/`)}
+                        onSelect={props.onAreaChange}
                     />
-                    <PathRow
-                        activeIndex={props.topicIndex}
-                        labels={props.category.topics.map((item) => `${item.label}.ds`)}
-                        onSelect={props.onTopicChange}
+                    <OutputPicker
+                        onChange={props.onTargetChange}
+                        target={props.target}
+                        targets={props.targets}
                     />
-                </header>
-            </DottedFrame>
+                </div>
+                <PathRow
+                    activeIndex={props.categoryIndex}
+                    labels={props.area.categories.map((item) => `${item.label.toLowerCase()}/`)}
+                    onSelect={props.onCategoryChange}
+                />
+                <PathRow
+                    activeIndex={props.topicIndex}
+                    labels={props.category.topics.map((item) => `${item.label}.ds`)}
+                    onSelect={props.onTopicChange}
+                />
+            </header>
         </div>
     );
 }
@@ -131,14 +129,14 @@ type PathRowProps = {
 function PathRow(props: PathRowProps) {
     return (
         <div class="relative min-w-0">
-            <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-4 bg-gradient-to-l from-destack-ink to-transparent" />
-            <div class="flex min-w-0 snap-x gap-4 overflow-x-auto overscroll-x-contain pr-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-gradient-to-l from-destack-page to-transparent" />
+            <div class="flex min-w-0 snap-x gap-2 overflow-x-auto overscroll-x-contain pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {props.labels.map((label, index) => (
                     <button
-                        class="group flex shrink-0 snap-start items-center gap-2 text-left"
+                        class="group flex shrink-0 snap-start items-center gap-1.5 border bg-destack-panel px-3 py-1.5 text-left"
                         classList={{
-                            "text-destack-panel": props.activeIndex === index,
-                            "text-destack-panel/45 hover:text-destack-panel/80":
+                            "border-neutral-950 text-neutral-950": props.activeIndex === index,
+                            "border-neutral-950/30 text-neutral-500 shadow-none hover:border-neutral-950/70 hover:text-neutral-950":
                                 props.activeIndex !== index,
                         }}
                         onClick={() => props.onSelect(index)}
@@ -148,19 +146,10 @@ function PathRow(props: PathRowProps) {
                             class="size-2 shrink-0 rounded-full"
                             classList={{
                                 "bg-destack-accent": props.activeIndex === index,
-                                "bg-destack-panel/25 group-hover:bg-destack-panel/55":
-                                    props.activeIndex !== index,
+                                "bg-neutral-300 group-hover:bg-neutral-500": props.activeIndex !== index,
                             }}
                         />
-                        <span
-                            class="block whitespace-nowrap border-b-4"
-                            classList={{
-                                "border-destack-accent": props.activeIndex === index,
-                                "border-transparent": props.activeIndex !== index,
-                            }}
-                        >
-                            {label}
-                        </span>
+                        <span class="block whitespace-nowrap">{label}</span>
                     </button>
                 ))}
             </div>
@@ -176,7 +165,7 @@ type OutputPickerProps = {
 
 function OutputPicker(props: OutputPickerProps) {
     return (
-        <div class="flex gap-5 md:justify-end">
+        <div class="flex gap-2 md:justify-end">
             {props.targets.map((target) => (
                 <OutputButton
                     isActive={props.target === target}
@@ -197,10 +186,11 @@ type OutputButtonProps = {
 function OutputButton(props: OutputButtonProps) {
     return (
         <button
-            class="group flex shrink-0 items-center gap-2 text-left"
+            class="group flex shrink-0 items-center gap-1.5 border bg-destack-panel px-3 py-1.5 text-left"
             classList={{
-                "text-destack-panel": props.isActive,
-                "text-destack-panel/45 hover:text-destack-panel/80": !props.isActive,
+                "border-neutral-950 text-neutral-950": props.isActive,
+                "border-neutral-950/30 text-neutral-500 shadow-none hover:border-neutral-950/70 hover:text-neutral-950":
+                    !props.isActive,
             }}
             onClick={props.onClick}
             type="button"
@@ -209,18 +199,10 @@ function OutputButton(props: OutputButtonProps) {
                 class="size-2 shrink-0 rounded-full"
                 classList={{
                     "bg-destack-accent": props.isActive,
-                    "bg-destack-panel/25 group-hover:bg-destack-panel/55": !props.isActive,
+                    "bg-neutral-300 group-hover:bg-neutral-500": !props.isActive,
                 }}
             />
-            <span
-                class="block border-b-4"
-                classList={{
-                    "border-destack-accent": props.isActive,
-                    "border-transparent": !props.isActive,
-                }}
-            >
-                {props.label}
-            </span>
+            <span class="block">{props.label}</span>
         </button>
     );
 }

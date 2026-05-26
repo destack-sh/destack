@@ -37,12 +37,12 @@ export const exampleAreas = [
                 topic("types/primitives", "primitives"),
                 diagnosticTopic("types/intervals", "intervals"),
                 diagnosticTopic("types/newtypes", "newtypes"),
-                topic("types/interfaces", "interfaces"),
-                diagnosticTopic("types/any", "any"),
                 topic("types/extensions", "extensions"),
                 topic("types/enums", "enums"),
                 topic("types/structs", "structs"),
-                topic("types/sequences", "sequences"),
+                topic("types/tuples", "tuples"),
+                topic("types/slices", "slices"),
+                topic("types/arrays", "arrays"),
                 diagnosticTopic("types/readonly", "readonly"),
                 topic("types/generics", "generics"),
                 topic("types/constraints", "constraints"),
@@ -50,12 +50,13 @@ export const exampleAreas = [
                 topic("types/reflection", "reflection"),
                 topic("types/tagged-unions", "tagged"),
                 topic("types/static", "static"),
+                diagnosticTopic("types/any", "any"),
             ]),
             category("Expressions", [
                 topic("expressions/blocks", "blocks"),
-                topic("expressions/captures", "captures"),
-                topic("expressions/continuations", "continuations"),
                 topic("expressions/patterns", "patterns"),
+                topic("expressions/let-else", "let-else"),
+                topic("expressions/match", "match"),
                 topic("expressions/is", "is"),
                 topic("expressions/loops", "loops"),
                 topic("expressions/using", "using"),
@@ -67,6 +68,7 @@ export const exampleAreas = [
                 topic("expressions/module", "module"),
                 topic("expressions/comptime", "comptime"),
                 topic("expressions/macros", "macros"),
+                topic("expressions/captures", "captures"),
             ]),
             category("Memory", [
                 topic("memory/space", "space"),
@@ -74,12 +76,9 @@ export const exampleAreas = [
                 diagnosticTopic("memory/borrowing", "borrowing"),
                 topic("memory/lifetimes", "lifetimes"),
                 topic("memory/drop", "drop"),
-                topic("memory/conversions", "conversions"),
+                topic("memory/dispose", "dispose"),
                 topic("memory/unsafe", "unsafe"),
-                topic("memory/algebra", "algebra"),
                 topic("memory/polymorphism", "polymorphism"),
-                topic("memory/capabilities", "capabilities"),
-                topic("memory/sync", "sync"),
             ]),
         ],
     },
@@ -238,31 +237,82 @@ export const next = () => {
 };`,
     ),
     "expressions/patterns": compiled(
-        `route:
-    cmp     [rdi + tag], Message.write
-    jne     .delete
-    mov     rax, [rdi + bytes.length]
-    cmp     rax, 4096
-    ja      .blob
-    call    Route.Inline
+        `readPacket:
+    mov     r0, [packet.header.requestId]
+    movzx   r1, byte [packet.header.retries]
+    movzx   r2, byte [packet.bytes]
+    lea     r3, [packet.bytes + 1]
     ret
-.blob:
-    call    hash
-    call    Route.Blob
+
+payload:
+    .slice  packet.bytes + 1, 3`,
+        `const {
+  header: { requestId, retries },
+  bytes: [tag, ...payload],
+} = packet;`,
+    ),
+    "expressions/let-else": compiled(
+        `frameSize:
+    call    decodeHeader
+    test    rax, rax
+    jz      .missing
+    mov     eax, [rax + Header.size]
+    cmp     eax, 1048576
+    ja      .large
+    call    Result.ok
     ret
-.delete:
-    call    Route.Tombstone
+.missing:
+    call    decodeError
+    call    Result.err
+    ret
+.large:
+    call    decodeError
+    call    Result.err
     ret`,
-        `export function route(message) {
-  if (message.kind === "write" && message.bytes.length <= 4096) {
-    return Route.Inline({ id: message.id, bytes: message.bytes });
+        `export function frameSize(bytes) {
+  const header = decodeHeader(bytes);
+  if (header == null) {
+    return Result.err(decodeError("missing header"));
   }
 
-  if (message.kind === "write") {
-    return Route.Blob({ id: message.id, hash: hash(message.bytes) });
+  if (header.size > 1048576) {
+    return Result.err(decodeError("frame too large"));
   }
 
-  return Route.Tombstone({ id: message.id });
+  return Result.ok(header.size);
+}`,
+    ),
+    "expressions/match": compiled(
+        `describe:
+    cmp     [rdi + kind], Ok
+    je      .ok
+    cmp     [rdi + error.tag], MissingUser
+    je      .missing
+    cmp     [rdi + error.offset], 255
+    jbe     .header
+    jmp     .body
+.ok:
+    call    formatUser
+    ret
+.missing:
+    call    formatMissing
+    ret
+.header:
+    call    staticBadHeader
+    ret
+.body:
+    call    formatBadBody
+    ret`,
+        `export function describe(result) {
+  if (result.kind === "Ok") {
+    return formatUser(result.value);
+  }
+
+  if (result.error.kind === "MissingUser") {
+    return formatMissing(result.error);
+  }
+
+  return result.error.offset <= 255 ? "bad header" : formatBadBody(result.error);
 }`,
     ),
     "expressions/overloads": compiled(
@@ -366,46 +416,36 @@ stats:
 }`,
     ),
     "memory/drop": compiled(
-        `copyWithDispose:
-    call    openFile
+        `run:
+    call    allocate
+    mov     rdi, rax
+    call    process
+    mov     rdi, rax
+    call    Buffer.drop
+    ret`,
+        `export function run() {
+  const buffer = allocate(4096);
+  process(buffer);
+
+  buffer.drop();
+}`,
+    ),
+    "memory/dispose": compiled(
+        `copyFile:
+    call    open
     mov     r12, rax
-    call    openFile
-    mov     r13, rax
     call    copy
-    mov     rdi, r13
-    call    FileHandle.dispose
     mov     rdi, r12
     call    FileHandle.dispose
-    ret`,
-        `export function copyWithDispose(inputPath, outputPath) {
-  using input = openFile(inputPath).try();
-  using output = openFile(outputPath).try();
-
-  return copy(input, output);
-}`,
-    ),
-    "memory/algebra": compiled(
-        `inspect:
-    mov     rax, rdi
     ret
+unwind:
+    mov     rdi, r12
+    call    FileHandle.dispose
+    raise`,
+        `export function copyFile(path) {
+  using file = open(path).try();
 
-ReadBuffer:
-    .type   ref<Buffer, borrowed, readonly>`,
-        `export function inspect(buffer) {
-  return buffer;
-}`,
-    ),
-    "memory/sync": compiled(
-        `submit:
-    mov     rdi, [rdi + queue.ptr]
-    mov     rsi, rsi
-    call    ConcurrentQueue.push
-    xor     eax, eax
-    ret`,
-        `export function submit(queue, job) {
-  queue.push(job);
-
-  return Result.ok(undefined);
+  return copy(file);
 }`,
     ),
     "runtime/modules": compiled(

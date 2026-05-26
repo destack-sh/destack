@@ -1,0 +1,30 @@
+/**
+* Match expressions are exhaustive and return the joined arm type.
+* Arms can mix nominal patterns, ranges, literals, and guards.
+*/
+
+import { Err, Ok, Result } from "destack:error";
+
+newtype UserId = uint64;
+
+struct User {
+    id: UserId;
+    name: string;
+}
+
+struct MissingUser {
+    id: UserId;
+}
+
+struct DecodeError {
+    offset: uint32;
+}
+
+function describe(result: Result<User, MissingUser | DecodeError>): string {
+    match (result) {
+        Ok { value: User { id, name } } => `${id}: ${name}`
+        Err { error: MissingUser { id } } => `missing ${id}`
+        Err { error: DecodeError { offset: 0..=255 } } => "bad header"
+        Err { error: DecodeError { offset } } => `bad body at ${offset}`
+    }
+}

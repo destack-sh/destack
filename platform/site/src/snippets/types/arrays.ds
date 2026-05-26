@@ -1,0 +1,26 @@
+/**
+* Fixed arrays store exactly N homogeneous elements inline.
+* The length is part of the type and can come from static terms.
+*/
+
+type Rgb = [uint8; 3];
+type Block = [uint8; 4096];
+
+struct Packet<comptime Size: uint32> {
+    bytes: [uint8; Size];
+}
+
+let color: Rgb = [255, 128, 0];
+let block: Block = [0; 4096];
+
+// destructuring preserves fixed length information
+let [red, green, blue] = color;
+
+red satisfies uint8;
+green satisfies uint8;
+blue satisfies uint8;
+
+// static parameters can size inline storage
+let packet: Packet<32> = Packet { bytes: [0; 32] };
+
+packet.bytes satisfies [uint8; 32];
