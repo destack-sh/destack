@@ -35,8 +35,6 @@ pub enum Expression {
     This,
     /// Super intrinsic value.
     Super,
-    /// New target expression.
-    NewTarget,
     /// Private identifier.
     PrivateIdentifier { name: StringId },
     /// Scalar literal.
@@ -324,7 +322,6 @@ impl Expression {
             | Self::ImportMeta
             | Self::This
             | Self::Super
-            | Self::NewTarget
             | Self::PrivateIdentifier { .. }
             | Self::ScalarLiteral { .. }
             | Self::TemplateLiteral { .. }

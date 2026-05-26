@@ -122,9 +122,6 @@ fn format_expression_with_precedence<'ast>(
         Expression::Super => {
             write!(f, [Keyword::Super])?;
         }
-        Expression::NewTarget => {
-            write!(f, [Keyword::New, token("."), token("target")])?;
-        }
         Expression::PrivateIdentifier { name } => {
             write!(f, [token("#"), *name])?;
         }
