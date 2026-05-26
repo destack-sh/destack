@@ -398,7 +398,7 @@ function label(envelope: Envelope): int32 {
 }
 ```
 
-## irrefutable patterns
+## contextual refutability
 
 ### irrefutable bindings cover the value
 
@@ -411,6 +411,100 @@ function identity(value: number): number {
     };
 }
 ```
+
+### nominal object patterns cover their own type
+
+Nominal object patterns are irrefutable when the value already has the nominal type.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function read(user: User): string {
+    return match (user) {
+        User { name } => name
+    };
+}
+```
+
+### nominal object patterns need fallback arms for nullish unions
+
+Nominal object patterns do not cover nullish union members.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function read(user: User | null): string {
+    return match (user) {
+        User { name } => name
+    };
+}
+```
+
+- contains: non-exhaustive match
+
+### newtype patterns cover their own type
+
+Newtype patterns are irrefutable when the value already has the newtype.
+
+```ds
+newtype UserId = int64;
+
+function read(id: UserId): int64 {
+    return match (id) {
+        UserId(value) => value
+    };
+}
+```
+
+### newtype patterns need fallback arms for nullish unions
+
+Newtype patterns do not cover nullish union members.
+
+```ds
+newtype UserId = int64;
+
+function read(id: UserId | null): int64 {
+    return match (id) {
+        UserId(value) => value
+    };
+}
+```
+
+- contains: non-exhaustive match
+
+### structural object patterns cover known object types
+
+Object patterns are irrefutable when all required fields are present.
+
+```ds
+type Config = { retries: int32 };
+
+function read(config: Config): int32 {
+    return match (config) {
+        { retries } => retries
+    };
+}
+```
+
+### object defaults do not cover nullish unions
+
+Defaults only cover missing fields inside matched objects.
+
+```ds
+type Config = { retries?: int32 };
+
+function read(config: Config | null): int32 {
+    return match (config) {
+        { retries = 0 } => retries
+    };
+}
+```
+
+- contains: non-exhaustive match
 
 ## fallback arms
 

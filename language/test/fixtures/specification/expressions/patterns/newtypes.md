@@ -39,3 +39,15 @@ newtype Config = { debug: boolean };
 let Config({ debug }) = Config({ debug: true });
 debug satisfies boolean;
 ```
+
+### object newtype patterns reject nominal object syntax
+
+Object-backed newtypes unwrap through the wrapper pattern.
+
+```ds
+newtype Config = { debug: boolean };
+
+let Config { debug } = Config({ debug: true });
+```
+
+- contains: newtype

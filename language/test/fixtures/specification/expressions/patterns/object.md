@@ -4,7 +4,7 @@
 
 ### object patterns bind fields
 
-Object patterns bind properties by name.
+Object patterns bind structural fields by name.
 
 ```ds
 let { x, y } = { x: 1, y: 2 };
@@ -12,9 +12,9 @@ x satisfies number;
 y satisfies number;
 ```
 
-### struct object patterns need tags
+### nominal object patterns bind struct fields
 
-Struct destructuring uses the struct tag.
+Nominal object patterns use the nominal tag.
 
 ```ds
 struct Point {
@@ -27,9 +27,44 @@ x satisfies int32;
 y satisfies int32;
 ```
 
-### bare object patterns reject structs
+### nominal object patterns bind class fields
 
-Untagged object patterns do not destructure nominal structs.
+Class patterns use the class tag and bind stored fields.
+
+```ds
+class User {
+    name: string = "";
+}
+
+declare const user: User;
+
+let User { name } = user;
+name satisfies string;
+```
+
+### nominal object patterns reject getters
+
+Object patterns bind stored fields, not getters.
+
+```ds
+class User {
+    name: string = "";
+
+    get displayName(): string {
+        return this.name;
+    }
+}
+
+declare const user: User;
+
+let User { displayName } = user;
+```
+
+- contains: stored field
+
+### bare object patterns reject nominal values
+
+Untagged object patterns do not destructure nominal values.
 
 ```ds
 struct Point {

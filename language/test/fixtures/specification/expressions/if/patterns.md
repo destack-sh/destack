@@ -209,11 +209,11 @@ if (let { debug } = config) {
 
 - contains: not assignable
 
-## struct patterns
+## nominal object patterns
 
-### if (let ...) struct patterns need tags
+### if (let ...) nominal object patterns need tags
 
-Struct patterns use the type tag.
+Nominal object patterns use the type tag.
 
 ```ds
 struct Point {
@@ -229,9 +229,49 @@ if (let Point { x, y } = point) {
 }
 ```
 
-### if (let ...) struct patterns reject bare objects
+### if (let ...) nominal object patterns bind class fields
 
-Bare object patterns do not match nominal structs.
+Class patterns use the class tag and bind stored fields.
+
+```ds
+class User {
+    name: string = "";
+}
+
+declare const value: User | null;
+
+if (let User { name } = value) {
+    name satisfies string;
+} else {
+    value satisfies null;
+}
+```
+
+### if (let ...) nominal object patterns reject getters
+
+Object patterns bind stored fields, not getters.
+
+```ds
+class User {
+    name: string = "";
+
+    get displayName(): string {
+        return this.name;
+    }
+}
+
+declare const user: User;
+
+if (let User { displayName } = user) {
+    displayName
+}
+```
+
+- contains: stored field
+
+### if (let ...) nominal object patterns reject bare objects
+
+Bare object patterns do not match nominal values.
 
 ```ds
 struct Point {

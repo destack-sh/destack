@@ -48,11 +48,11 @@ function read(id: UserId): int64 {
 }
 ```
 
-## structs
+## nominal object patterns
 
-### let else binds structs
+### let else binds nominal object fields
 
-Struct patterns use the nominal tag.
+Nominal object patterns use the nominal tag.
 
 ```ds
 struct Point {
@@ -69,6 +69,24 @@ function read(point: Point): int32 {
 }
 ```
 
+### let else binds nullish nominal object fields
+
+Nominal object patterns need an else continuation over nullish unions.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function read(user: User | null): string {
+    let User { name } = user else {
+        return "guest";
+    };
+
+    name
+}
+```
+
 ### refutable let patterns need else
 
 Refutable patterns need an else continuation.
@@ -77,6 +95,19 @@ Refutable patterns need an else continuation.
 function parse(value: "ok" | "bad"): int32 {
     let "ok" = value;
     1
+}
+```
+
+- contains: else
+
+### object defaults do not make nullish patterns irrefutable
+
+Defaults cover missing fields after the object has matched.
+
+```ds
+function parse(value: { id?: int32 } | null): int32 {
+    let { id = 0 } = value;
+    id
 }
 ```
 
