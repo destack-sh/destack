@@ -960,7 +960,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::PrivateIdentifier { name: _ } => {}
 
-        Expression::This | Expression::Super | Expression::ImportMeta | Expression::NewTarget => {}
+        Expression::This | Expression::Super | Expression::ImportMeta => {}
 
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit
