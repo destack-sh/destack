@@ -767,6 +767,7 @@ impl Repository {
     ) -> Result<Option<ArtifactVersion>, RepositoryError> {
         let _revision = self.revision(revision)?;
 
+        // FUGU #Performance: this only checks the revision binding, not reusable exact artifact versions
         Ok(self
             .artifact_versions
             .get(&(revision, *artifact_key))
