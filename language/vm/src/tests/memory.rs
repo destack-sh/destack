@@ -8,7 +8,7 @@ use destack_heap::{
     AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawAllocationShape, RawPointer,
     SharedHeapReference, SharedRawBudget, SharedRawLimits,
 };
-use destack_mir::{DataLayout, ReferenceMap};
+use destack_mir::{DataLayout, TraceMap};
 
 /// Decode one native-width heap reference from materialized bytes.
 fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
@@ -630,9 +630,9 @@ b0(v0: int32):
     run_mir_expect(mir, "readBox", &[Value::int32(9)], Value::int32(9));
 }
 
-/// Managed nominal allocations record their reference map.
+/// Managed nominal allocations record their trace map.
 #[test]
-fn test_new_records_empty_reference_map_for_scalar_struct() {
+fn test_new_records_empty_trace_map_for_scalar_struct() {
     let mir = r#"
 type Box {
     value: int32;
@@ -652,7 +652,7 @@ b0:
         panic!("expected heap reference value");
     };
 
-    assert_eq!(isolate.heap.scan(reference), Ok(ReferenceMap::empty()));
+    assert_eq!(isolate.heap.scan(reference), Ok(TraceMap::empty()));
 }
 
 /// Managed nominal stores write the struct field bytes.
@@ -709,7 +709,7 @@ b0:
 
     assert_eq!(
         isolate.heap.scan(reference),
-        Ok(ReferenceMap::Direct {
+        Ok(TraceMap::Fixed {
             local_offsets: vec![8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
         })
@@ -740,7 +740,7 @@ b0:
 
     assert_eq!(
         isolate.heap.scan(reference),
-        Ok(ReferenceMap::Direct {
+        Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
         })

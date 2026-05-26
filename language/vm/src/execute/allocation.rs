@@ -1,7 +1,7 @@
 use super::slice::{load_slice_length_at, store_slice_at};
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{AllocationLayoutId, Instruction, SliceProjectionId};
+use crate::program::{AllocationSiteId, Instruction, SliceProjectionId};
 use crate::{StackPointer, Word};
 use destack_heap::{HeapError, Payload, RawAllocationShape};
 
@@ -17,7 +17,7 @@ pub(crate) fn execute_allocate_heap_small_noscan(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationLayoutId(instruction.b);
+    let allocation = AllocationSiteId(instruction.b);
     let slot_bytes = instruction.c as usize;
 
     // reserve from the active young run, refill on capacity failure
@@ -38,7 +38,7 @@ pub(crate) fn execute_allocate_heap(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationLayoutId(instruction.b);
+    let allocation = AllocationSiteId(instruction.b);
 
     // allocate through the compiled heap layout
     let reference = machine.allocate_zeroed_heap_allocation(allocation)?;
@@ -55,7 +55,7 @@ pub(crate) fn execute_allocate_shared_heap_small_noscan(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationLayoutId(instruction.b);
+    let allocation = AllocationSiteId(instruction.b);
     let slot_bytes = instruction.c as usize;
     let bucket_index = instruction.d as usize;
 
@@ -77,7 +77,7 @@ pub(crate) fn execute_allocate_shared_heap(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationLayoutId(instruction.b);
+    let allocation = AllocationSiteId(instruction.b);
 
     // allocate through the compiled shared heap layout
     let reference = machine.allocate_zeroed_shared_heap_allocation(allocation)?;
@@ -96,7 +96,7 @@ pub(crate) fn execute_allocate_slice(
     // decode fixed fields
     let dest = instruction.a;
     let length = instruction.b;
-    let element = AllocationLayoutId(instruction.c);
+    let element = AllocationSiteId(instruction.c);
     let access = SliceProjectionId(instruction.d);
     let access = machine.slice_projection(access);
 
@@ -122,7 +122,7 @@ pub(crate) fn execute_allocate_shared_slice(
     // decode fixed fields
     let dest = instruction.a;
     let length = instruction.b;
-    let element = AllocationLayoutId(instruction.c);
+    let element = AllocationSiteId(instruction.c);
     let access = SliceProjectionId(instruction.d);
     let access = machine.slice_projection(access);
 

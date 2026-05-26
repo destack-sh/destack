@@ -565,9 +565,11 @@ pub(super) fn select_field_addr_op(
     base: mir::Value,
 ) -> Result<Op, Error> {
     let layout = value_layouts.get(base).ok_or(Error::InvalidInstruction)?;
-    let pointer_class = field_base_pointer_class(layout)?;
-
-    select_offset_address_op(pointer_class)
+    match layout {
+        ValueLayout::FrameBytes { .. } => Ok(Op::AddressFrameValueOffset),
+        ValueLayout::Pointer { pointer_class, .. } => select_offset_address_op(pointer_class),
+        _ => Err(Error::InvalidInstruction),
+    }
 }
 
 /// Select an element address handler based on inferred value layout.
@@ -576,9 +578,13 @@ pub(super) fn select_element_addr_op(
     array: mir::Value,
 ) -> Result<Op, Error> {
     let layout = value_layouts.get(array).ok_or(Error::InvalidInstruction)?;
-    let pointer_class = element_base_pointer_class(layout)?;
-
-    select_index_address_op(pointer_class)
+    match layout {
+        ValueLayout::FrameBytes { .. } | ValueLayout::Array { .. } => {
+            Ok(Op::AddressFrameValueElement)
+        }
+        ValueLayout::Pointer { pointer_class, .. } => select_index_address_op(pointer_class),
+        _ => Err(Error::InvalidInstruction),
+    }
 }
 
 /// Select a slice element address handler based on the backing pointer class.
@@ -594,24 +600,6 @@ pub(super) fn select_slice_element_addr_op(pointer_class: PointerClass) -> Resul
         PointerClass::Frame => Ok(Op::AddressFrameSliceElement),
         PointerClass::Static => Ok(Op::AddressStaticSliceElement),
         PointerClass::Unknown => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Return the pointer class addressed by one field projection.
-fn field_base_pointer_class(layout: ValueLayout) -> Result<PointerClass, Error> {
-    match layout {
-        ValueLayout::FrameBytes { .. } => Ok(PointerClass::Frame),
-        ValueLayout::Pointer { pointer_class, .. } => Ok(pointer_class),
-        _ => Err(Error::InvalidInstruction),
-    }
-}
-
-/// Return the pointer class addressed by one element projection.
-fn element_base_pointer_class(layout: ValueLayout) -> Result<PointerClass, Error> {
-    match layout {
-        ValueLayout::FrameBytes { .. } | ValueLayout::Array { .. } => Ok(PointerClass::Frame),
-        ValueLayout::Pointer { pointer_class, .. } => Ok(pointer_class),
-        _ => Err(Error::InvalidInstruction),
     }
 }
 

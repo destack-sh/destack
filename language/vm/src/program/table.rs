@@ -1,7 +1,7 @@
 use {destack_heap as heap, destack_mir as mir};
 
 use super::{
-    AllocationLayout, AtomicCompareExchange, Call, CallBranch, CallClass, CallClassBranch,
+    AllocationSite, AtomicCompareExchange, Call, CallBranch, CallClass, CallClassBranch,
     CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallableBind, ConstValue,
     FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SwitchCase, TailCall,
     TailCallClass, TailCallIndirect, TailCallInterface, TensorBinary, TensorBroadcast,
@@ -149,9 +149,9 @@ pub(crate) struct SwitchTable {
     pub cases: Box<[SwitchCase]>,
 }
 
-/// Identifier for one pooled allocation layout.
+/// Identifier for one pooled allocation site.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct AllocationLayoutId(pub(crate) u32);
+pub(crate) struct AllocationSiteId(pub(crate) u32);
 
 /// Identifier for one pooled constant value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -161,9 +161,9 @@ pub(crate) struct ConstValueId(pub(crate) u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationClassId(pub(crate) u32);
 
-/// Identifier for one pooled reference map.
+/// Identifier for one pooled trace map.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReferenceMapId(pub(crate) u32);
+pub(crate) struct TraceMapId(pub(crate) u32);
 
 /// Identifier for one pooled address projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -316,14 +316,14 @@ side_record_table! {
 pub(crate) struct SideTable {
     /// Pooled side records.
     record: Box<SideRecordTable>,
-    /// Pooled allocation layouts.
-    allocation_layout: Box<[AllocationLayout]>,
+    /// Pooled allocation sites.
+    allocation_site: Box<[AllocationSite]>,
     /// Pooled constants.
     constant: Box<[ConstValue]>,
     /// Pooled allocation classes.
     allocation_class: Box<[heap::AllocationClass]>,
-    /// Pooled reference maps.
-    reference_map: Box<[mir::ReferenceMap]>,
+    /// Pooled trace maps.
+    trace_map: Box<[mir::TraceMap]>,
     /// Pooled address projections.
     projection: Box<[Projection]>,
     /// Pooled slice projectiones.
@@ -365,14 +365,14 @@ pub(crate) struct SideTableBuilder {
     switch_table: Vec<SwitchTable>,
     /// Pooled control edges.
     edge: Vec<Edge>,
-    /// Pooled allocation layouts.
-    allocation_layout: Vec<AllocationLayout>,
+    /// Pooled allocation sites.
+    allocation_site: Vec<AllocationSite>,
     /// Pooled constants.
     constant: Vec<ConstValue>,
     /// Pooled allocation classes.
     allocation_class: Vec<heap::AllocationClass>,
-    /// Pooled reference maps.
-    reference_map: Vec<mir::ReferenceMap>,
+    /// Pooled trace maps.
+    trace_map: Vec<mir::TraceMap>,
     /// Pooled address projections.
     projection: Vec<Projection>,
     /// Pooled slice projectiones.
@@ -402,10 +402,10 @@ impl SideTableBuilder {
             switch_cases,
             switch_table,
             edge,
-            allocation_layout,
+            allocation_site,
             constant,
             allocation_class,
-            reference_map,
+            trace_map,
             projection,
             slice_projection,
             u32_ranges,
@@ -419,10 +419,10 @@ impl SideTableBuilder {
 
         SideTable {
             record: Box::new(record.finish()),
-            allocation_layout: allocation_layout.into_boxed_slice(),
+            allocation_site: allocation_site.into_boxed_slice(),
             constant: constant.into_boxed_slice(),
             allocation_class: allocation_class.into_boxed_slice(),
-            reference_map: reference_map.into_boxed_slice(),
+            trace_map: trace_map.into_boxed_slice(),
             projection: projection.into_boxed_slice(),
             slice_projection: slice_projection.into_boxed_slice(),
             check: check.into_boxed_slice(),
@@ -471,15 +471,12 @@ impl SideTableBuilder {
         EdgeId(id)
     }
 
-    /// Add one allocation layout to the side table.
-    pub(crate) fn push_allocation_layout(
-        &mut self,
-        allocation: AllocationLayout,
-    ) -> AllocationLayoutId {
-        let id = self.allocation_layout.len() as u32;
-        self.allocation_layout.push(allocation);
+    /// Add one allocation site to the side table.
+    pub(crate) fn push_allocation_site(&mut self, allocation: AllocationSite) -> AllocationSiteId {
+        let id = self.allocation_site.len() as u32;
+        self.allocation_site.push(allocation);
 
-        AllocationLayoutId(id)
+        AllocationSiteId(id)
     }
 
     /// Add one constant to the side table.
@@ -509,23 +506,20 @@ impl SideTableBuilder {
         AllocationClassId(id)
     }
 
-    /// Add one reference map to the side table.
-    pub(crate) fn push_reference_map(
-        &mut self,
-        reference_map: mir::ReferenceMap,
-    ) -> ReferenceMapId {
+    /// Add one trace map to the side table.
+    pub(crate) fn push_trace_map(&mut self, trace_map: mir::TraceMap) -> TraceMapId {
         if let Some(id) = self
-            .reference_map
+            .trace_map
             .iter()
-            .position(|existing| *existing == reference_map)
+            .position(|existing| *existing == trace_map)
         {
-            return ReferenceMapId(id as u32);
+            return TraceMapId(id as u32);
         }
 
-        let id = self.reference_map.len() as u32;
-        self.reference_map.push(reference_map);
+        let id = self.trace_map.len() as u32;
+        self.trace_map.push(trace_map);
 
-        ReferenceMapId(id)
+        TraceMapId(id)
     }
 
     /// Add one address projection to the side table.
@@ -673,10 +667,10 @@ impl SideTable {
         &self.tensor_layout[id.0 as usize]
     }
 
-    /// Borrow one pooled allocation layout.
+    /// Borrow one pooled allocation site.
     #[inline(always)]
-    pub(crate) fn allocation_layout(&self, id: AllocationLayoutId) -> &AllocationLayout {
-        &self.allocation_layout[id.0 as usize]
+    pub(crate) fn allocation_site(&self, id: AllocationSiteId) -> &AllocationSite {
+        &self.allocation_site[id.0 as usize]
     }
 
     /// Borrow one pooled constant.
@@ -691,10 +685,10 @@ impl SideTable {
         self.allocation_class[id.0 as usize]
     }
 
-    /// Borrow one pooled reference map.
+    /// Borrow one pooled trace map.
     #[inline(always)]
-    pub(crate) fn reference_map(&self, id: ReferenceMapId) -> &mir::ReferenceMap {
-        &self.reference_map[id.0 as usize]
+    pub(crate) fn trace_map(&self, id: TraceMapId) -> &mir::TraceMap {
+        &self.trace_map[id.0 as usize]
     }
 
     /// Borrow one pooled address projection.

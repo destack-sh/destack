@@ -478,11 +478,17 @@ macro_rules! dispatch_instruction {
                 instruction
             )),
             Op::Abort => $transfer!(super::execute_abort($machine, instruction)),
-            Op::AddressFrameOffset => {
-                $step!(super::execute_address_frame_offset($machine, instruction))
+            Op::AddressFrameValueOffset => {
+                $step!(super::execute_address_frame_value_offset(
+                    $machine,
+                    instruction
+                ))
             }
-            Op::AddressFrameElement => {
-                $step!(super::execute_address_frame_element($machine, instruction))
+            Op::AddressFrameValueElement => {
+                $step!(super::execute_address_frame_value_element(
+                    $machine,
+                    instruction
+                ))
             }
             Op::AddressHeapOffset => {
                 $step!(super::execute_address_heap_offset($machine, instruction))
@@ -504,6 +510,9 @@ macro_rules! dispatch_instruction {
             }
             Op::AddressStackOffset => {
                 $step!(super::execute_address_stack_offset($machine, instruction))
+            }
+            Op::AddressFrameOffset => {
+                $step!(super::execute_address_frame_offset($machine, instruction))
             }
             Op::AddressStaticOffset => {
                 $step!(super::execute_address_static_offset($machine, instruction))
@@ -528,6 +537,9 @@ macro_rules! dispatch_instruction {
             }
             Op::AddressStackElement => {
                 $step!(super::execute_address_stack_element($machine, instruction))
+            }
+            Op::AddressFrameElement => {
+                $step!(super::execute_address_frame_element($machine, instruction))
             }
             Op::AddressStaticElement => {
                 $step!(super::execute_address_static_element($machine, instruction))

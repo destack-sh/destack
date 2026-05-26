@@ -51,7 +51,7 @@ impl Program {
             });
         }
 
-        visit_heap_root_slots_in_bytes(&layout.reference_map, bytes, visit).map_err(Error::from)
+        visit_heap_root_slots_in_bytes(&layout.trace_map, bytes, visit).map_err(Error::from)
     }
 
     /// Return the heap edge carried by one scalar value.

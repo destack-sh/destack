@@ -84,6 +84,14 @@ pub(crate) enum ValueLayout {
     Unknown,
 }
 
+impl ValueLayout {
+    /// Return whether this value lives inline in the current frame.
+    #[inline(always)]
+    pub(crate) const fn is_frame_storage(self) -> bool {
+        matches!(self, Self::FrameBytes { .. } | Self::Array { .. })
+    }
+}
+
 /// Native word layout for one load or store.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WordLayout {

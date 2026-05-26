@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{
-    AllocationClassId, AllocationLayout, AllocationLayoutId, ArgumentRange, CallTarget, Check,
-    CheckId, ConstValue, ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot,
-    MoveSource, Op, Projection, ProjectionId, ReferenceMapId, SideRecord, SideTableBuilder,
-    SliceProjection, SliceProjectionId, SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId,
-    TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
-    TensorScatterId, TensorWindowId, U32RangeId,
+    AllocationClassId, AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId,
+    ConstValue, ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource,
+    Op, Projection, ProjectionId, SideRecord, SideTableBuilder, SliceProjection, SliceProjectionId,
+    SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
+    TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, TraceMapId,
+    U32RangeId,
 };
 use crate::{Error, Result};
 
@@ -59,9 +59,9 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         (self.argument, self.move_pair)
     }
 
-    /// Return one pooled allocation layout id.
-    pub(super) fn allocation_layout(&mut self, allocation: AllocationLayout) -> AllocationLayoutId {
-        self.side_table.push_allocation_layout(allocation)
+    /// Return one pooled allocation site id.
+    pub(super) fn allocation_site(&mut self, allocation: AllocationSite) -> AllocationSiteId {
+        self.side_table.push_allocation_site(allocation)
     }
 
     /// Return one pooled constant id.
@@ -77,9 +77,9 @@ impl<'layout, 'table> Pool<'layout, 'table> {
         self.side_table.push_allocation_class(allocation_class)
     }
 
-    /// Return one pooled reference map id.
-    pub(super) fn reference_map(&mut self, reference_map: mir::ReferenceMap) -> ReferenceMapId {
-        self.side_table.push_reference_map(reference_map)
+    /// Return one pooled trace map id.
+    pub(super) fn trace_map(&mut self, trace_map: mir::TraceMap) -> TraceMapId {
+        self.side_table.push_trace_map(trace_map)
     }
 
     /// Return one pooled projection id.

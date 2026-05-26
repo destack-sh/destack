@@ -39,6 +39,7 @@ pub(super) fn vtable_projection(
     let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
     let mir::LayoutShape::Object {
         table_offset: vtable_offset,
+        ..
     } = &raw_layout.shape
     else {
         return None;
@@ -47,7 +48,7 @@ pub(super) fn vtable_projection(
     field_projection_at_offset(tree, layouts, receiver_type, *vtable_offset as usize)
 }
 
-/// Build the dispatch-table projection for one Any receiver.
+/// Build the dispatch-table projection for one dynamic receiver.
 pub(super) fn interface_table_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -55,11 +56,9 @@ pub(super) fn interface_table_projection(
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
     let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
-    let mir::LayoutShape::Any { table_offset, .. } = &raw_layout.shape else {
-        return None;
-    };
+    let table_offset = raw_layout.dynamic_table_offset()?;
 
-    field_projection_at_offset(tree, layouts, receiver_type, *table_offset as usize)
+    field_projection_at_offset(tree, layouts, receiver_type, table_offset as usize)
 }
 
 /// Build one field projection from a lowered byte offset.

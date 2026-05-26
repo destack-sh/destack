@@ -248,10 +248,12 @@ pub(crate) enum Op {
     // ============================================================================
     // field projection
     // ============================================================================
-    /// Compute a fixed-offset address in frame memory.
+    /// Compute a fixed-offset address from a frame value.
+    AddressFrameValueOffset,
+    /// Compute an element address from a frame value.
+    AddressFrameValueElement,
+    /// Compute a fixed-offset address from a frame pointer.
     AddressFrameOffset,
-    /// Compute a frame element address.
-    AddressFrameElement,
     /// Compute a fixed-offset address in local heap memory.
     AddressHeapOffset,
     /// Compute a fixed-offset address in shared heap memory.
@@ -278,6 +280,8 @@ pub(crate) enum Op {
     AddressSharedRawElement,
     /// Compute an element address in stack memory.
     AddressStackElement,
+    /// Compute an element address from a frame pointer.
+    AddressFrameElement,
     /// Compute an element address in static memory.
     AddressStaticElement,
     /// Compute a slice element address in local heap memory.

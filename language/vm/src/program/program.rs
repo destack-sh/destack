@@ -2,13 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use destack_core::StringPool;
-use destack_mir::{LayoutId, LayoutShape, LayoutTable, ReferenceMap};
+use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, TypeTable, build_layouts, callable_object_layout};
 use super::{
     CallTarget, CallableObjectLayout, FrameBinding, FrameEntry, Function, FunctionTable,
-    ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder,
+    ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder, word_layout_from_type,
 };
 use crate::lower::{ValueType, analyze_value_types, lower_function};
 use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
@@ -27,8 +27,8 @@ pub struct Program {
     pub(crate) statics: engine::StaticSpace,
     /// Engine-visible execution layout.
     pub(crate) layout: engine::ProgramLayout,
-    /// Heap allocation layouts keyed by MIR layout id.
-    heap_layouts: LayoutTable,
+    /// MIR layouts keyed by MIR layout id.
+    mir_layouts: LayoutTable,
 
     /// Lookup table for function ids by name.
     function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
@@ -188,7 +188,7 @@ impl Program {
 
     /// Return the MIR layouts for this program.
     pub(crate) fn layouts(&self) -> &LayoutTable {
-        &self.heap_layouts
+        &self.mir_layouts
     }
 
     /// Return the heap allocation shape for one layout id.
@@ -196,16 +196,16 @@ impl Program {
         &self,
         layout_id: LayoutId,
     ) -> Result<heap::AllocationShape<'_>> {
-        let Some(layout) = self.heap_layouts.layouts.get(layout_id.index()) else {
+        let Some(layout) = self.mir_layouts.layouts.get(layout_id.index()) else {
             return Err(Error::InvariantViolation {
-                context: format!("missing allocation layout {layout_id:?}"),
+                context: format!("missing MIR layout {layout_id:?}"),
             });
         };
 
         Ok(heap::AllocationShape::new(
             layout.size as usize,
             layout.alignment as usize,
-            &layout.reference_map,
+            &layout.trace_map,
         ))
     }
 
@@ -625,7 +625,7 @@ impl ProgramBuilder {
         let (function_ids, target_by_id) = self.build_function_targets();
         let type_layouts = build_layouts(&self.tree)?;
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
-        let heap_layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
+        let mir_layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
         let statics = self.build_statics(&type_layouts)?;
         let mut side_table = SideTableBuilder::default();
         let functions = self.build_functions(
@@ -645,7 +645,7 @@ impl ProgramBuilder {
             function_id_by_name,
             statics,
             types,
-            heap_layouts,
+            mir_layouts,
             layout: self.layout,
             resume: self.resume,
             functions,
@@ -690,7 +690,7 @@ impl ProgramBuilder {
                 expected: "compiled global layout".to_string(),
                 actual: format!("{ty:?}"),
             })?;
-            if layout.reference_map.has_reference() {
+            if layout.trace_map.has_reference() {
                 continue;
             }
 
@@ -778,11 +778,10 @@ impl ProgramBuilder {
             .unwrap_or(0);
         let mut table = LayoutTable::new();
         table.layouts.resize_with(max_layout_id, || mir::Layout {
-            shape: LayoutShape::Struct,
+            shape: LayoutShape::Struct { fields: Vec::new() },
             size: 0,
             alignment: 1,
-            reference_map: ReferenceMap::empty(),
-            fields: Vec::new(),
+            trace_map: TraceMap::empty(),
         });
 
         // compiled type layouts
@@ -793,15 +792,25 @@ impl ProgramBuilder {
                     context: format!("missing program layout for heap type {type_id:?}"),
                 })?;
             let module_layout = match self.tree.get(*type_id) {
-                mir::Type::Closure { .. } => {
-                    callable_object_layout(self.tree.pointer_bytes() as usize).table_layout()
+                mir::Type::Closure { environment, .. } => {
+                    let environment =
+                        environment.ty().ok_or_else(|| Error::InvariantViolation {
+                            context: format!(
+                                "closure environment type is not concrete: {type_id:?}"
+                            ),
+                        })?;
+                    let environment_layout = word_layout_from_type(&self.tree, environment)
+                        .ok_or_else(|| Error::InvariantViolation {
+                            context: format!("closure environment type is not a word: {type_id:?}"),
+                        })?;
+                    callable_object_layout(self.tree.pointer_bytes() as usize)
+                        .table_layout(environment_layout)
                 }
                 _ => mir::Layout {
-                    shape: LayoutShape::Struct,
+                    shape: LayoutShape::Struct { fields: Vec::new() },
                     size: layout.byte_len as u32,
                     alignment: layout.alignment() as u32,
-                    reference_map: layout.reference_map.clone(),
-                    fields: Vec::new(),
+                    trace_map: layout.trace_map.clone(),
                 },
             };
             let index = layout_id.index();
