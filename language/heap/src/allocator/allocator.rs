@@ -5,23 +5,7 @@ use parking_lot::Mutex;
 
 use super::chunk::{Chunk, ChunkIndex, max_chunk_count};
 use super::{DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, PageId, PageRun, PageRunSet};
-use crate::{HeapError, HeapOptions, HeapResult};
-
-/// The chunk frontier, current chunk, free runs, and chunk lifetime state.
-#[derive(Debug)]
-#[allow(clippy::vec_box)]
-struct AllocatorState {
-    /// The number of chunks available to the page allocator.
-    chunk_count: usize,
-    /// The current chunk used for monotonic single-chunk allocation.
-    current_chunk_index: Option<usize>,
-    /// The free physical runs.
-    free_runs: PageRunSet,
-    /// The chunk records, boxed so chunk index pointers stay stable.
-    chunks: Vec<Box<Chunk>>,
-    /// The image bytes keyed by allocator page id.
-    image_pages: BTreeMap<PageId, Box<[u8]>>,
-}
+use crate::{HeapError, HeapResult, validate_allocator_chunk_bytes, validate_page_bytes};
 
 /// One branchable allocator of fixed-size pages.
 #[derive(Debug)]
@@ -33,17 +17,17 @@ pub struct Allocator {
     /// The number of pages stored in each allocator chunk.
     pages_per_chunk: u32,
     /// The maximum addressable chunk count.
-    max_chunk_count: u32,
+    max_chunk_count: usize,
     /// The chunks keyed by logical index and address frame.
     chunk_index: ChunkIndex,
     /// The chunk frontier, current chunk, and free-run index.
     state: Mutex<AllocatorState>,
 }
 
-// allocator metadata is synchronized internally
+// SAFETY: allocator metadata is synchronized internally
 unsafe impl Send for Allocator {}
 
-// payload access is external, allocator metadata is synchronized internally
+// SAFETY: payload access is external, allocator metadata is synchronized internally
 unsafe impl Sync for Allocator {}
 
 impl Allocator {
@@ -54,8 +38,8 @@ impl Allocator {
 
     /// Create one empty allocator with the given page and chunk sizes.
     pub fn try_new(page_bytes: usize, chunk_bytes: usize) -> HeapResult<Self> {
-        let page_bytes = HeapOptions::validate_page_bytes(page_bytes)?;
-        let chunk_bytes = HeapOptions::validate_allocator_chunk_bytes(page_bytes, chunk_bytes)?;
+        let page_bytes = validate_page_bytes(page_bytes)?;
+        let chunk_bytes = validate_allocator_chunk_bytes(page_bytes, chunk_bytes)?;
         let pages_per_chunk = chunk_bytes / page_bytes;
         let max_chunk_count = max_chunk_count(page_bytes, chunk_bytes);
 
@@ -63,7 +47,7 @@ impl Allocator {
             page_bytes: page_bytes as u32,
             chunk_bytes: chunk_bytes as u32,
             pages_per_chunk: pages_per_chunk as u32,
-            max_chunk_count: max_chunk_count as u32,
+            max_chunk_count,
             chunk_index: ChunkIndex::new(max_chunk_count),
             state: Mutex::new(AllocatorState {
                 chunk_count: 0,
@@ -87,7 +71,7 @@ impl Allocator {
 
     /// Return the maximum addressable chunk count.
     fn max_chunk_count(&self) -> usize {
-        self.max_chunk_count as usize
+        self.max_chunk_count
     }
 
     /// Allocate pages for one byte length.
@@ -620,4 +604,20 @@ impl Allocator {
 
         Ok(())
     }
+}
+
+/// The chunk frontier, current chunk, free runs, and chunk lifetime state.
+#[derive(Debug)]
+#[allow(clippy::vec_box)]
+struct AllocatorState {
+    /// The number of chunks available to the page allocator.
+    chunk_count: usize,
+    /// The current chunk used for monotonic single-chunk allocation.
+    current_chunk_index: Option<usize>,
+    /// The free physical runs.
+    free_runs: PageRunSet,
+    /// The chunk records, boxed so chunk index pointers stay stable.
+    chunks: Vec<Box<Chunk>>,
+    /// The image bytes keyed by allocator page id.
+    image_pages: BTreeMap<PageId, Box<[u8]>>,
 }
