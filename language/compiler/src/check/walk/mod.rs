@@ -11,6 +11,7 @@ mod parameter;
 mod pattern;
 mod place;
 mod property;
+mod resolve;
 mod r#static;
 mod r#type;
 mod visit;

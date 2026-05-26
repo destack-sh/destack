@@ -41,6 +41,8 @@ pub(in crate::check) struct ControlTarget {
     pub(in crate::check) break_values: Vec<VariableId>,
     /// Flow branches collected at break sites.
     pub(in crate::check) break_branches: Vec<FlowBranch>,
+    /// Flow branches collected at continue sites.
+    pub(in crate::check) continue_branches: Vec<FlowBranch>,
     /// The flow position before entering the control body.
     pub(in crate::check) checkpoint: FlowCheckpoint,
 }

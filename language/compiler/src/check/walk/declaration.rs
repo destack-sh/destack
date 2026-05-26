@@ -3,7 +3,7 @@ use dir::NodeVisitor as _;
 
 use super::property::MemberReceiverContext;
 
-use crate::check::{ArgumentTerm, CheckModuleState, ReceiverCapture, TypeTerm, VariableId};
+use crate::check::{CheckModuleState, ReceiverCapture, TypeTerm, VariableId};
 
 impl CheckModuleState {
     /// Walk one declaration.
@@ -37,17 +37,11 @@ impl CheckModuleState {
             dir::Declaration::Type(declaration) => {
                 // define the declaration symbol output
                 if let Some(symbol) = self.declaration_symbol(id.into_any()) {
-                    if declaration.is_nominal {
-                        self.define_declaration_self_type(
-                            symbol,
-                            &declaration.generic_parameters,
-                            tree,
-                        );
-                    } else {
+                    if !declaration.is_nominal {
                         let variable = self.intern_symbol_type_variable(symbol);
                         let value = self.intern_local_type_variable(declaration.value);
 
-                        self.define_type_term(variable, TypeTerm::Variable(value));
+                        self.define_type(variable, TypeTerm::Variable(value));
                     }
                 }
 
@@ -61,17 +55,16 @@ impl CheckModuleState {
 
                 // walk aliased type expression
                 self.walk_type_expression(tree, declaration.value, tree.get(declaration.value));
+
+                if declaration.is_nominal
+                    && let Some(symbol) = self.declaration_symbol(id.into_any())
+                {
+                    self.intern_symbol_type_variable(symbol);
+                }
             }
             // struct S { ... }
             dir::Declaration::Struct(declaration) => {
                 let symbol = self.declaration_symbol(id.into_any());
-                if let Some(symbol) = symbol {
-                    self.define_declaration_self_type(
-                        symbol,
-                        &declaration.generic_parameters,
-                        tree,
-                    );
-                }
 
                 // walk generic header
                 for parameter in &declaration.generic_parameters {
@@ -95,17 +88,14 @@ impl CheckModuleState {
                 for member in &declaration.members {
                     self.walk_member(tree, *member, tree.get(*member), receiver);
                 }
+
+                if let Some(symbol) = symbol {
+                    self.intern_symbol_type_variable(symbol);
+                }
             }
             // class C { ... }
             dir::Declaration::Class(declaration) => {
                 let symbol = self.declaration_symbol(id.into_any());
-                if let Some(symbol) = symbol {
-                    self.define_declaration_self_type(
-                        symbol,
-                        &declaration.generic_parameters,
-                        tree,
-                    );
-                }
 
                 // walk generic header
                 for parameter in &declaration.generic_parameters {
@@ -117,7 +107,11 @@ impl CheckModuleState {
 
                 // walk superclass and implemented types
                 if let Some(extends_expression) = declaration.extends_expression {
+                    // check superclass expression in declaration context
+                    let before_extends = self.checkpoint_flow();
+
                     self.walk_expression(tree, extends_expression, tree.get(extends_expression));
+                    self.restore_flow(before_extends);
                 }
                 for implemented_type in &declaration.implements_types {
                     self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
@@ -132,17 +126,14 @@ impl CheckModuleState {
                 for member in &declaration.members {
                     self.walk_member(tree, *member, tree.get(*member), receiver);
                 }
+
+                if let Some(symbol) = symbol {
+                    self.intern_symbol_type_variable(symbol);
+                }
             }
             // enum E { ... }
             dir::Declaration::Enum(declaration) => {
                 let symbol = self.declaration_symbol(id.into_any());
-                if let Some(symbol) = symbol {
-                    self.define_declaration_self_type(
-                        symbol,
-                        &declaration.generic_parameters,
-                        tree,
-                    );
-                }
 
                 // walk generic header
                 for parameter in &declaration.generic_parameters {
@@ -169,18 +160,16 @@ impl CheckModuleState {
                 for member in &declaration.members {
                     self.walk_member(tree, *member, tree.get(*member), receiver);
                 }
+
+                if let Some(symbol) = symbol {
+                    self.intern_symbol_type_variable(symbol);
+                }
             }
             // interface I { ... }
             dir::Declaration::Interface(declaration) => {
                 // define the interface symbol output
                 if let Some(symbol) = self.declaration_symbol(id.into_any()) {
-                    if declaration.is_nominal {
-                        self.define_declaration_self_type(
-                            symbol,
-                            &declaration.generic_parameters,
-                            tree,
-                        );
-                    } else {
+                    if !declaration.is_nominal {
                         self.intern_symbol_type_variable(symbol);
                     }
                 }
@@ -195,13 +184,24 @@ impl CheckModuleState {
 
                 // walk inherited contracts and members
                 for heritage in &declaration.extends {
+                    // check inherited contract expression in declaration context
+                    let before_heritage = self.checkpoint_flow();
+
                     self.walk_expression(tree, heritage.expression, tree.get(heritage.expression));
+                    self.restore_flow(before_heritage);
+
                     for argument in &heritage.generic_arguments {
                         self.walk_generic_argument(tree, *argument, tree.get(*argument));
                     }
                 }
                 for member in &declaration.members {
                     self.walk_type_member(tree, *member, tree.get(*member));
+                }
+
+                if declaration.is_nominal
+                    && let Some(symbol) = self.declaration_symbol(id.into_any())
+                {
+                    self.intern_symbol_type_variable(symbol);
                 }
             }
             // extension T { ... }
@@ -245,10 +245,13 @@ impl CheckModuleState {
                 // define the callable symbol output
                 if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     let variable = self.intern_symbol_type_variable(symbol);
-                    let term =
-                        self.function_signature_term(&declaration.signature, return_type, tree);
+                    let term = self.build_function_signature_term(
+                        &declaration.signature,
+                        return_type,
+                        tree,
+                    );
 
-                    self.define_type_term(variable, TypeTerm::Function(term));
+                    self.define_type(variable, TypeTerm::Function(term));
 
                     // walk signature and body in the function flow frame
                     self.walk_function_declaration(
@@ -280,63 +283,12 @@ impl CheckModuleState {
         self.visit_any(tree, dir::NodeType::EnumField, id.id);
 
         if let Some(value) = enum_field.value {
+            // check enum value in declaration context
+            let before_value = self.checkpoint_flow();
+
             self.walk_expression(tree, value, tree.get(value));
+            self.restore_flow(before_value);
         }
-    }
-
-    /// Define the self type for one declaration.
-    fn define_declaration_self_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        generic_parameters: &[dir::LocalNodeId<dir::GenericParameter>],
-        tree: &dir::Tree,
-    ) {
-        let variable = self.intern_symbol_type_variable(symbol);
-        let mut arguments = Vec::with_capacity(generic_parameters.len());
-
-        for parameter in generic_parameters {
-            let generic_parameter = tree.get(*parameter);
-            if matches!(generic_parameter, dir::GenericParameter::Error) {
-                continue;
-            }
-
-            let Some(parameter_symbol) = self.declaration_symbol(parameter.into_any()) else {
-                continue;
-            };
-
-            let argument = match generic_parameter {
-                // <T>
-                dir::GenericParameter::Type { .. } => {
-                    ArgumentTerm::Type(self.intern_symbol_type_variable(parameter_symbol))
-                }
-                // <...T>
-                dir::GenericParameter::VariadicType { .. } => {
-                    ArgumentTerm::SpreadType(self.intern_symbol_type_variable(parameter_symbol))
-                }
-                // <comptime C: T>
-                dir::GenericParameter::Value { .. } => {
-                    ArgumentTerm::Static(self.intern_symbol_static_variable(parameter_symbol))
-                }
-                // <comptime ...C: T>
-                dir::GenericParameter::VariadicValue { .. } => {
-                    ArgumentTerm::SpreadStatic(self.intern_symbol_static_variable(parameter_symbol))
-                }
-                // ignore damaged syntax
-                dir::GenericParameter::Error => {
-                    continue;
-                }
-            };
-
-            arguments.push(argument);
-        }
-
-        let term = TypeTerm::Reference {
-            source: None,
-            symbol,
-            arguments,
-        };
-
-        self.define_type_term(variable, term);
     }
 
     /// Walk one function signature and body with a flow frame.

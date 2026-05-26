@@ -1,7 +1,10 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use crate::check::{CheckModuleState, FlowPath, PatternRelation, TypeOperationTerm, TypeTerm};
+use crate::check::{
+    CheckModuleState, ConstraintOrigin, FlowPath, PatternRelation, TypeOperationTerm, TypeRelation,
+    TypeTerm,
+};
 
 impl CheckModuleState {
     /// Walk one declarator.
@@ -20,9 +23,8 @@ impl CheckModuleState {
 
         // define the direct binding type from its annotation or initializer
         let symbol = self.declaration_symbol(declarator.pattern.into_any());
-        if let Some(symbol) = symbol {
-            let variable = self.intern_symbol_type_variable(symbol);
-
+        let binding_type = symbol.map(|symbol| self.intern_symbol_type_variable(symbol));
+        if let Some(variable) = binding_type {
             // let x: T
             let term = if let Some(ty) = declarator.ty {
                 Some(TypeTerm::Variable(self.intern_local_type_variable(ty)))
@@ -46,18 +48,30 @@ impl CheckModuleState {
             };
 
             if let Some(term) = term {
-                self.define_type_term(variable, term);
+                self.define_type(variable, term);
+            }
+
+            // check initializers against explicit annotations
+            if let (Some(ty), Some(value)) = (declarator.ty, declarator.value) {
+                let origin = ConstraintOrigin::Node(value.into_global_any(self.input.module_id));
+                let value = self.intern_local_type_variable(value);
+                let target = self.intern_local_type_variable(ty);
+
+                self.constrain_type(origin, TypeRelation::Assignable, value, target);
             }
         }
 
         // constrain the declared pattern against its initializer
-        let matched_value = declarator
-            .value
-            .map(|value| self.intern_local_type_variable(value))
+        let matched_value = binding_type
+            .or_else(|| {
+                declarator
+                    .value
+                    .map(|value| self.intern_local_type_variable(value))
+            })
             .or_else(|| declarator.ty.map(|ty| self.intern_local_type_variable(ty)));
 
         if let Some(value) = matched_value
-            && let Some(pattern) = self.pattern_term(declarator.pattern, tree)
+            && let Some(pattern) = self.build_pattern_term(declarator.pattern, tree)
         {
             if Self::declarator_requires_irrefutable_pattern(tree, id) {
                 self.require_irrefutable_pattern(
@@ -67,7 +81,7 @@ impl CheckModuleState {
                 );
             }
 
-            self.relate_pattern(
+            self.constrain_pattern(
                 PatternRelation::Match(pattern),
                 declarator.pattern.into_any(),
                 value,
@@ -157,7 +171,7 @@ impl CheckModuleState {
     }
 
     /// Apply successful pattern facts to one flow path.
-    fn apply_pattern_success_narrowings(
+    pub(in crate::check) fn apply_pattern_success_narrowings(
         &mut self,
         tree: &dir::Tree,
         path: FlowPath,

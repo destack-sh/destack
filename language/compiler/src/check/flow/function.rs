@@ -35,9 +35,11 @@ impl CheckModuleState {
 
     /// Leave the current function body.
     pub(in crate::check) fn leave_function_frame(&mut self) {
-        let Some(capture) = self.work.flow.pop_function() else {
+        let Some(mut capture) = self.work.flow.pop_function() else {
             return;
         };
+
+        capture.directive = self.capture_directive_for_symbol(capture.symbol);
 
         self.work.captures.push(capture);
     }
@@ -55,7 +57,7 @@ impl CheckModuleState {
         };
         let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
 
-        self.relate_type(
+        self.constrain_type(
             origin,
             TypeRelation::Assignable,
             value,
@@ -92,7 +94,7 @@ impl CheckModuleState {
                 None => self.define_void_type(source),
             };
 
-            self.relate_type(origin, TypeRelation::Assignable, value, yield_type);
+            self.constrain_type(origin, TypeRelation::Assignable, value, yield_type);
         }
         // yield* values
         else if let (Some(value), Some(delegate_return_type), Some(resume_type)) =
@@ -102,7 +104,7 @@ impl CheckModuleState {
                 dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
             };
-            let Some(symbol) = self.input.environment.language.symbol(item) else {
+            let Some(symbol) = self.language_symbol(item) else {
                 self.report_internal_error(
                     source,
                     format!("missing language item: {}", item.key()),
@@ -119,9 +121,9 @@ impl CheckModuleState {
                     ArgumentTerm::Type(resume_type),
                 ],
             };
-            let expected = self.define_type(origin, expected);
+            let expected = self.define_anonymous_type(origin, expected);
 
-            self.relate_type(origin, TypeRelation::Assignable, value, expected);
+            self.constrain_type(origin, TypeRelation::Assignable, value, expected);
         }
         // reject malformed delegation
         else {
@@ -176,6 +178,6 @@ impl CheckModuleState {
     pub(in crate::check) fn define_void_type(&mut self, source: dir::LocalNodeIdAny) -> VariableId {
         let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
 
-        self.define_type(origin, TypeTerm::Literal(TypeLiteralTerm::Void))
+        self.define_anonymous_type(origin, TypeTerm::Literal(TypeLiteralTerm::Void))
     }
 }

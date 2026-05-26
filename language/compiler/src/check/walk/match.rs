@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::NodeVisitor as _;
 
-use crate::check::{CheckModuleState, PatternRelation, VariableId};
+use crate::check::{CheckModuleState, FlowPath, PatternRelation, VariableId};
 
 use super::expression::ConditionBranch;
 
@@ -12,7 +12,7 @@ impl CheckModuleState {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::MatchCase>,
         match_case: &dir::MatchCase,
-        value: Option<VariableId>,
+        value: Option<(VariableId, Option<FlowPath>)>,
     ) {
         // apply static owner guards
         if !self.static_allows(tree, id.into_any()) {
@@ -44,18 +44,22 @@ impl CheckModuleState {
         &mut self,
         tree: &dir::Tree,
         selector: &dir::MatchSelector,
-        value: Option<VariableId>,
+        value: Option<(VariableId, Option<FlowPath>)>,
     ) {
         match selector {
             // case pattern if guard
             dir::MatchSelector::Pattern { pattern, guard } => {
-                // walk pattern and relate it to the matched value
+                // walk pattern and constrain it against the matched value
                 self.walk_pattern(tree, *pattern, tree.get(*pattern));
 
-                if let Some(value) = value
-                    && let Some(term) = self.pattern_term(*pattern, tree)
+                if let Some((value, path)) = value
+                    && let Some(term) = self.build_pattern_term(*pattern, tree)
                 {
-                    self.relate_pattern(PatternRelation::Match(term), pattern.into_any(), value);
+                    self.constrain_pattern(PatternRelation::Match(term), pattern.into_any(), value);
+
+                    if let Some(path) = path {
+                        self.apply_pattern_success_narrowings(tree, path, *pattern);
+                    }
                 }
 
                 // pattern bindings are assigned in the selected arm

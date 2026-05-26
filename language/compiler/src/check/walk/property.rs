@@ -33,7 +33,11 @@ impl CheckModuleState {
         match property {
             // { key: value }
             dir::Property::Field { key, value, .. } => {
-                self.walk_key(tree, key);
+                // compute runtime property key
+                if let dir::Key::Expression(key) = key {
+                    self.walk_expression(tree, *key, tree.get(*key));
+                }
+
                 self.walk_expression(tree, *value, tree.get(*value));
             }
             // { method() {} }
@@ -43,7 +47,10 @@ impl CheckModuleState {
                 body,
             } => {
                 if let Some(key) = key {
-                    self.walk_key(tree, key);
+                    // compute runtime property key
+                    if let dir::Key::Expression(key) = key {
+                        self.walk_expression(tree, *key, tree.get(*key));
+                    }
                 }
 
                 let symbol = self.declaration_symbol(id.into_any());
@@ -51,9 +58,9 @@ impl CheckModuleState {
                     self.intern_signature_return_type_variable(id.into_any(), signature, *body);
                 if let Some(symbol) = symbol {
                     let variable = self.intern_symbol_type_variable(symbol);
-                    let term = self.function_signature_term(signature, return_type, tree);
+                    let term = self.build_function_signature_term(signature, return_type, tree);
 
-                    self.define_type_term(variable, TypeTerm::Function(term));
+                    self.define_type(variable, TypeTerm::Function(term));
                 }
 
                 self.walk_function_signature(tree, signature);
@@ -103,7 +110,7 @@ impl CheckModuleState {
                     let value = self.intern_local_type_variable(*value);
                     let term = TypeTerm::Variable(value);
 
-                    self.define_type_term(variable, term);
+                    self.define_type(variable, term);
                 }
 
                 // generic parameters
@@ -146,7 +153,7 @@ impl CheckModuleState {
                         let variable = self.intern_symbol_type_variable(symbol);
                         let declared_type = self.intern_local_type_variable(*declared_type);
 
-                        self.define_type_term(variable, TypeTerm::Variable(declared_type));
+                        self.define_type(variable, TypeTerm::Variable(declared_type));
                     }
 
                     // associated const value lives in static space
@@ -154,7 +161,7 @@ impl CheckModuleState {
                         let variable = self.intern_symbol_static_variable(symbol);
                         let value = self.define_static_expression_variable(*value);
 
-                        self.define_static_term(variable, StaticTerm::Variable(value));
+                        self.define_static(variable, StaticTerm::Variable(value));
                     }
                 }
 
@@ -165,7 +172,7 @@ impl CheckModuleState {
                     let value = self.intern_local_type_variable(*value);
                     let declared_type = self.intern_local_type_variable(*declared_type);
 
-                    self.relate_type(origin, TypeRelation::Assignable, value, declared_type);
+                    self.constrain_type(origin, TypeRelation::Assignable, value, declared_type);
                 }
 
                 // type
@@ -175,7 +182,11 @@ impl CheckModuleState {
 
                 // value
                 if let Some(value) = value {
+                    // check associated const value in declaration context
+                    let before_value = self.checkpoint_flow();
+
                     self.walk_expression(tree, *value, tree.get(*value));
+                    self.restore_flow(before_value);
                 }
             }
             // field: T = value
@@ -195,7 +206,7 @@ impl CheckModuleState {
                             let variable = self.intern_symbol_type_variable(symbol);
                             let declared_type = self.intern_local_type_variable(*declared_type);
 
-                            self.define_type_term(variable, TypeTerm::Variable(declared_type));
+                            self.define_type(variable, TypeTerm::Variable(declared_type));
                         }
                     }
                 }
@@ -207,15 +218,26 @@ impl CheckModuleState {
                     let value = self.intern_local_type_variable(*default);
                     let declared_type = self.intern_local_type_variable(*declared_type);
 
-                    self.relate_type(origin, TypeRelation::Assignable, value, declared_type);
+                    self.constrain_type(origin, TypeRelation::Assignable, value, declared_type);
                 }
 
-                self.walk_key(tree, key);
+                // check computed member key in declaration context
+                if let dir::Key::Expression(key) = key {
+                    let before_key = self.checkpoint_flow();
+
+                    self.walk_expression(tree, *key, tree.get(*key));
+                    self.restore_flow(before_key);
+                }
+
                 if let Some(declared_type) = declared_type {
                     self.walk_type_expression(tree, *declared_type, tree.get(*declared_type));
                 }
                 if let Some(default) = default {
+                    // check field default in declaration context
+                    let before_default = self.checkpoint_flow();
+
                     self.walk_expression(tree, *default, tree.get(*default));
+                    self.restore_flow(before_default);
                 }
             }
             // method() {}
@@ -227,7 +249,13 @@ impl CheckModuleState {
                 ..
             } => {
                 if let Some(key) = key {
-                    self.walk_key(tree, key);
+                    // check computed member key in declaration context
+                    if let dir::Key::Expression(key) = key {
+                        let before_key = self.checkpoint_flow();
+
+                        self.walk_expression(tree, *key, tree.get(*key));
+                        self.restore_flow(before_key);
+                    }
                 }
 
                 let receiver =
@@ -236,12 +264,12 @@ impl CheckModuleState {
                 if let Some(symbol) = symbol {
                     let variable = self.intern_symbol_type_variable(symbol);
                     let return_type = self.method_return_type(id, signature, *body, receiver);
-                    let mut term = self.function_signature_term(signature, return_type, tree);
+                    let mut term = self.build_function_signature_term(signature, return_type, tree);
                     if term.this_parameter.is_none() && Self::method_type_uses_receiver(signature) {
                         term.this_parameter = receiver.map(|receiver| receiver.ty);
                     }
 
-                    self.define_type_term(variable, TypeTerm::Function(term));
+                    self.define_type(variable, TypeTerm::Function(term));
                 }
 
                 self.walk_function_signature(tree, signature);
@@ -264,7 +292,11 @@ impl CheckModuleState {
             dir::Member::StaticBlock { body }
             // comptime { ... }
             | dir::Member::ComptimeBlock { body } => {
+                // check member block in declaration context
+                let before_body = self.checkpoint_flow();
+
                 self.walk_expression(tree, *body, tree.get(*body));
+                self.restore_flow(before_body);
             }
             // ignore damaged syntax
             dir::Member::Error => {}

@@ -16,7 +16,7 @@ impl CheckModuleState {
             dir::Expression::Identifier { name } => {
                 let symbol = self.require_name(id.into_any(), *name, dir::SymbolSpace::Value)?;
 
-                self.record_name_resolution(source, dir::NameResolution::new(symbol));
+                self.record_name_resolution(source, symbol);
 
                 PlaceTarget::Binding { symbol }
             }
@@ -29,7 +29,7 @@ impl CheckModuleState {
                 };
                 let symbol = self.require_name(id.into_any(), *name, dir::SymbolSpace::Value)?;
 
-                self.record_name_resolution(source, dir::NameResolution::new(symbol));
+                self.record_name_resolution(source, symbol);
 
                 PlaceTarget::Binding { symbol }
             }
