@@ -2,7 +2,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalSymbolId, StaticKey};
+use crate::{GlobalSymbolId, LanguageItem, LocalSymbolId, StaticKey};
 
 /// Resolved import targets for one module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,6 +15,8 @@ pub struct ImportTable {
     pub target_by_symbol: IndexMap<LocalSymbolId, ImportTarget>,
     /// Global symbols made visible by the active profile.
     pub global_symbol_by_key: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
+    /// Language item symbols required by compiler syntax.
+    pub language_symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
 }
 
 impl ImportTable {
@@ -25,6 +27,7 @@ impl ImportTable {
             dependencies: Vec::new(),
             target_by_symbol: IndexMap::new(),
             global_symbol_by_key: IndexMap::new(),
+            language_symbol_by_item: IndexMap::new(),
         }
     }
 
@@ -48,6 +51,11 @@ impl ImportTable {
         }
     }
 
+    /// Insert one imported language item symbol.
+    pub fn insert_language_symbol(&mut self, item: LanguageItem, symbol: GlobalSymbolId) {
+        self.language_symbol_by_item.insert(item, symbol);
+    }
+
     /// Return one resolved local import symbol target.
     pub fn symbol_target(&self, symbol: LocalSymbolId) -> Option<ImportTarget> {
         self.target_by_symbol.get(&symbol).copied()
@@ -68,6 +76,16 @@ impl ImportTable {
     /// Return imported global symbols for one key.
     pub fn global_symbols(&self, key: StaticKey) -> Option<&[GlobalSymbolId]> {
         self.global_symbol_by_key.get(&key).map(Vec::as_slice)
+    }
+
+    /// Return one imported language item symbol.
+    pub fn language_symbol(&self, item: LanguageItem) -> Option<GlobalSymbolId> {
+        self.language_symbol_by_item.get(&item).copied()
+    }
+
+    /// Return imported language item symbols.
+    pub fn language_symbols(&self) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+        self.language_symbol_by_item.values().copied()
     }
 }
 

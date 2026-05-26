@@ -29,7 +29,6 @@ impl Compiler {
         let environment = artifacts
             .global_environment(profile)
             .map_err(CompilerError::from)?;
-
         // build expanded resolve inputs
         let patches = std::slice::from_ref(&expanded.patch);
         let view = dir::View::with_patches(&parsed.tree, patches);
@@ -53,6 +52,12 @@ impl Compiler {
 
         // resolve profile globals through global tables
         state.resolve_profile_globals(&environment.globals)?;
+
+        // resolve source-visible language globals
+        state.resolve_language_globals(&environment.language)?;
+
+        // resolve syntax-required language item modules
+        state.resolve_syntax_language_items(&environment.language)?;
 
         // emit recoverable resolve diagnostics
         for diagnostic in state.take_diagnostics() {
