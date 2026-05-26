@@ -76,7 +76,7 @@ Destack requires sound static shapes for all object types and thus does not supp
 | Feature | Example | Compatibility | Reason |
 | --- | --- | --- | --- |
 | **Declaration expressions** | `const C = class {}` | not supported | runtime type generation is not statically knowable |
-| **Prototype objects** | `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, `Object.create(proto)` | not supported | prototypes rely on the dynamic JavaScript object model |
+| **Prototype objects** | `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, `Object.create(proto)`, `defineProperty`, ... | not supported | prototypes rely on the dynamic JavaScript object model |
 | **Shape mutation** | `delete obj.x`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, shape-changing `Object.assign` | forbidden | object shapes must stay statically known |
 | **Metaobject dispatch** | `Proxy`, most `Reflect.*` APIs | not supported | dynamic interception and emulation hide object behavior from the static model |
 | **Class index signatures** | `class C { [key: string]: T }` | not supported | classes have fixed declared members, use structural object types or interfaces instead |
@@ -89,6 +89,7 @@ Destack does not support any unsound, imprecise or dynamic legacy hooks into run
 | Feature | Example | Compatibility | Reason |
 | --- | --- | --- | --- |
 | **Sloppy mode** | duplicate function declarations, `arguments` magic, `caller`, `callee`, `yield` identifiers, `with` | not supported | Destack targets modern strict-mode TypeScript |
+| **Ambient call metadata** | `arguments`, `new.target`, dynamic `this` rebinding | not supported as magic bindings | callable context must be explicit |
 | **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
 | **Truthiness** | `if (value)` | only for boolean values | control flow must use explicit boolean tests |
 | **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` | runtime code generation conflicts with AOT compilation |
