@@ -3,85 +3,6 @@ use serde::{Deserialize, Serialize};
 use crate::allocator::{Allocator, Bitmap, PageRun, PageRunCache, SpanSlot};
 use crate::{HeapReference, HeapResult, SmallSpanClass};
 
-/// One live byte range in young space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungRange {
-    /// The first byte offset inside young space.
-    pub(crate) first_offset: usize,
-    /// The logical byte length for this allocation.
-    pub(crate) byte_len: usize,
-}
-
-/// One live fixed-size no-scan run in young space.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungRun {
-    /// The first byte offset inside young space.
-    pub(crate) first_offset: usize,
-    /// The next byte offset allocated from this run.
-    pub(crate) next_offset: usize,
-    /// The byte offset after this run.
-    pub(crate) end_offset: usize,
-    /// The byte length of each slot in this run.
-    pub(crate) size_class: usize,
-    /// The total byte length of this run.
-    pub(crate) span_bytes: usize,
-    /// The number of slots in this run.
-    pub(crate) slot_count: usize,
-}
-
-/// Mark bits for one fixed-size no-scan young run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungRunBits {
-    /// The live slots retired before the next young reset.
-    pub(crate) freed: Bitmap,
-    /// The marked slots in this run.
-    pub(crate) marked: Bitmap,
-}
-
-/// The active fixed-size no-scan young run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct YoungRunCursor {
-    /// The smallest payload byte length allocated by this cursor.
-    pub(crate) minimum_byte_len: usize,
-    /// The fixed slot byte length allocated by this cursor.
-    pub(crate) size_class: usize,
-    /// The run index written back when this cursor changes.
-    pub(crate) run_index: usize,
-    /// The next byte offset allocated by this cursor.
-    pub(crate) next_offset: usize,
-    /// The byte offset after this cursor.
-    pub(crate) end_offset: usize,
-}
-
-/// One frozen young-space image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct YoungImage {
-    /// The generation number for this young space.
-    generation: u32,
-    /// The configured byte capacity for the young space.
-    capacity_bytes: usize,
-    /// The fixed page width for young space.
-    page_bytes: usize,
-    /// The bump-allocation cursor inside the logical young byte space.
-    next_offset: usize,
-    /// The required alignment for young allocation bases.
-    allocation_alignment_bytes: usize,
-    /// The allocator pages backing this young space.
-    pages: PageRun,
-    /// The captured young-space ranges.
-    ranges: Box<[YoungRange]>,
-    /// The captured young-space fixed-size runs.
-    runs: Box<[YoungRun]>,
-    /// The captured fixed-size young-space run bits.
-    run_bits: Box<[YoungRunBits]>,
-    /// The live young-space boundary bits.
-    live: Bitmap,
-    /// The exact local-reference bits across young space.
-    local_reference_bits: Bitmap,
-    /// The exact shared-reference bits across young space.
-    shared_reference_bits: Bitmap,
-}
-
 /// One live heap young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct YoungSpace {
@@ -378,6 +299,23 @@ impl YoungSpace {
     }
 }
 
+/// One live fixed-size no-scan run in young space.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct YoungRun {
+    /// The first byte offset inside young space.
+    pub(crate) first_offset: usize,
+    /// The next byte offset allocated from this run.
+    pub(crate) next_offset: usize,
+    /// The byte offset after this run.
+    pub(crate) end_offset: usize,
+    /// The byte length of each slot in this run.
+    pub(crate) size_class: usize,
+    /// The total byte length of this run.
+    pub(crate) span_bytes: usize,
+    /// The number of slots in this run.
+    pub(crate) slot_count: usize,
+}
+
 impl YoungRun {
     /// Return the homogeneous payload class for this run.
     pub(crate) const fn class(&self) -> SmallSpanClass {
@@ -398,6 +336,21 @@ impl YoungRun {
     pub(crate) fn slot_offset(&self, slot_index: usize) -> usize {
         self.first_offset + slot_index * self.size_class
     }
+}
+
+/// The active fixed-size no-scan young run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct YoungRunCursor {
+    /// The smallest payload byte length allocated by this cursor.
+    pub(crate) minimum_byte_len: usize,
+    /// The fixed slot byte length allocated by this cursor.
+    pub(crate) size_class: usize,
+    /// The run index written back when this cursor changes.
+    pub(crate) run_index: usize,
+    /// The next byte offset allocated by this cursor.
+    pub(crate) next_offset: usize,
+    /// The byte offset after this cursor.
+    pub(crate) end_offset: usize,
 }
 
 impl YoungRunCursor {
@@ -449,6 +402,53 @@ impl YoungRunCursor {
 
         self.reserve_reference()
     }
+}
+
+/// One live byte range in young space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct YoungRange {
+    /// The first byte offset inside young space.
+    pub(crate) first_offset: usize,
+    /// The logical byte length for this allocation.
+    pub(crate) byte_len: usize,
+}
+
+/// Mark bits for one fixed-size no-scan young run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct YoungRunBits {
+    /// The live slots retired before the next young reset.
+    pub(crate) freed: Bitmap,
+    /// The marked slots in this run.
+    pub(crate) marked: Bitmap,
+}
+
+/// One frozen young-space image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct YoungImage {
+    /// The generation number for this young space.
+    generation: u32,
+    /// The configured byte capacity for the young space.
+    capacity_bytes: usize,
+    /// The fixed page width for young space.
+    page_bytes: usize,
+    /// The bump-allocation cursor inside the logical young byte space.
+    next_offset: usize,
+    /// The required alignment for young allocation bases.
+    allocation_alignment_bytes: usize,
+    /// The allocator pages backing this young space.
+    pages: PageRun,
+    /// The captured young-space ranges.
+    ranges: Box<[YoungRange]>,
+    /// The captured young-space fixed-size runs.
+    runs: Box<[YoungRun]>,
+    /// The captured fixed-size young-space run bits.
+    run_bits: Box<[YoungRunBits]>,
+    /// The live young-space boundary bits.
+    live: Bitmap,
+    /// The exact local-reference bits across young space.
+    local_reference_bits: Bitmap,
+    /// The exact shared-reference bits across young space.
+    shared_reference_bits: Bitmap,
 }
 
 impl YoungImage {

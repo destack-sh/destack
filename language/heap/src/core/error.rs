@@ -157,6 +157,8 @@ pub enum HeapError {
     SharedCollectionActive,
     /// One shared heap mark operation was requested while shared mark was inactive.
     SharedCollectionNotMarking,
+    /// One shared heap sweep operation was requested while shared sweep was inactive.
+    SharedCollectionNotSweeping,
     /// One heap reference was unpinned without one active scoped pin.
     HeapPinMissing {
         /// The unpinned heap reference.
@@ -524,6 +526,9 @@ impl Display for HeapError {
             }
             Self::SharedCollectionNotMarking => {
                 write!(formatter, "shared heap is not currently marking")
+            }
+            Self::SharedCollectionNotSweeping => {
+                write!(formatter, "shared heap is not currently sweeping")
             }
             Self::HeapPinMissing { reference } => {
                 write!(

@@ -167,7 +167,7 @@ impl HeapSpace {
         byte_len: usize,
     ) -> HeapResult<()> {
         // inactive local-to-shared scan
-        if !self.is_scanning_shared_edges {
+        if !self.collector.is_scanning_shared_edges {
             return Ok(());
         }
 

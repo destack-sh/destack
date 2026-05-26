@@ -5,19 +5,32 @@ use destack_mir::TraceMap;
 use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
 
-/// One frozen shared heap large-allocation image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedHeapLargeAllocationImage {
-    /// Whether this allocation slot is live.
-    pub is_live: bool,
+/// One live shared heap large allocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SharedLargeAllocation {
+    /// Whether this large-allocation slot is live.
+    pub(crate) is_live: bool,
     /// The first byte offset inside shared heap space.
-    pub first_offset: usize,
+    pub(crate) first_offset: usize,
     /// The logical byte length of this allocation.
-    pub len: usize,
+    pub(crate) len: usize,
     /// The allocator pages for this allocation.
-    pub pages: PageRun,
+    pub(crate) pages: PageRun,
     /// The trace map for this allocation.
-    pub trace_map: TraceMap,
+    pub(crate) trace_map: TraceMap,
+    /// Whether this allocation is marked in the active cycle.
+    pub(crate) is_marked: bool,
+}
+
+impl SharedLargeAllocation {
+    /// Retire this shared heap large-allocation slot.
+    pub(crate) fn retire(&mut self) {
+        self.is_live = false;
+        self.first_offset = 0;
+        self.len = 0;
+        self.pages = PageRun::empty();
+        self.is_marked = false;
+    }
 }
 
 /// One stable shared heap large-allocation identifier.
@@ -45,30 +58,17 @@ impl SharedLargeAllocationId {
     }
 }
 
-/// One live shared heap large allocation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SharedLargeAllocation {
-    /// Whether this large-allocation slot is live.
-    pub(crate) is_live: bool,
+/// One frozen shared heap large-allocation image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedHeapLargeAllocationImage {
+    /// Whether this allocation slot is live.
+    pub is_live: bool,
     /// The first byte offset inside shared heap space.
-    pub(crate) first_offset: usize,
+    pub first_offset: usize,
     /// The logical byte length of this allocation.
-    pub(crate) len: usize,
+    pub len: usize,
     /// The allocator pages for this allocation.
-    pub(crate) pages: PageRun,
+    pub pages: PageRun,
     /// The trace map for this allocation.
-    pub(crate) trace_map: TraceMap,
-    /// Whether this allocation is marked in the active cycle.
-    pub(crate) is_marked: bool,
-}
-
-impl SharedLargeAllocation {
-    /// Retire this shared heap large-allocation slot.
-    pub(crate) fn retire(&mut self) {
-        self.is_live = false;
-        self.first_offset = 0;
-        self.len = 0;
-        self.pages = PageRun::empty();
-        self.is_marked = false;
-    }
+    pub trace_map: TraceMap,
 }

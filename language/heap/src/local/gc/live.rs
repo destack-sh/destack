@@ -10,7 +10,9 @@ impl HeapSpace {
         // contiguous young allocations
         while let Some(allocation_index) = self.young.live.first_set_from(start) {
             let Some(allocation) = self.young_range(allocation_index) else {
-                break;
+                return Err(HeapError::InvariantViolation {
+                    context: "live young range missing",
+                });
             };
             references.push(HeapReference::new(allocation.first_offset));
             start = allocation_index + 1;

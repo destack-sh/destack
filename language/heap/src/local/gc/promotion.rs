@@ -39,7 +39,7 @@ impl HeapSpace {
         }
 
         // publish the mature location only after staging succeeds
-        if let Err(error) = self.commit_young_promotions(&promotions) {
+        if let Err(error) = self.verify_young_promotions(&promotions) {
             self.discard_young_promotions(&promotions)?;
 
             return Err(error);
@@ -117,9 +117,9 @@ impl HeapSpace {
         })?;
 
         // then rewrite every pinned reference
-        let mut pins = std::mem::take(&mut self.pins);
+        let mut pins = std::mem::take(&mut self.collector.pins);
         let rewrite_result = pins.rewrite_with(|reference| self.forwarded_reference(reference));
-        self.pins = pins;
+        self.collector.pins = pins;
         rewrite_result?;
 
         // then rewrite every mature payload that may still contain young references
@@ -127,9 +127,8 @@ impl HeapSpace {
 
         // finally rebuild the auxiliary shared-edge tracking over the new stable refs
         self.rebuild_shared_edge_roots()?;
-        self.shared_edge_cursor = 0;
-        self.shared_edge_queue.clear();
-        self.shared_edge_pending.clear();
+        self.collector.shared_edge_cursor = 0;
+        self.collector.clear_shared_edge_work();
 
         Ok(())
     }
@@ -330,7 +329,7 @@ impl HeapSpace {
     }
 
     /// Verify every staged young relocation still refers to the staged source.
-    pub(super) fn commit_young_promotions(&mut self, promotions: &[Promotion]) -> HeapResult<()> {
+    pub(super) fn verify_young_promotions(&mut self, promotions: &[Promotion]) -> HeapResult<()> {
         // verify every source before committing root rewrites
         for promotion in promotions {
             let reference = promotion.reference;

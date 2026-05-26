@@ -8,19 +8,6 @@ use super::{SharedRawAllocation, SharedRawSpace};
 use crate::allocator::PageRunCache;
 use crate::{AllocationUsage, Allocator, HeapResult, PageId, PageRun};
 
-/// One frozen shared raw-space allocation image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedRawAllocationImage {
-    /// Whether this allocation is live.
-    pub is_live: bool,
-    /// The first byte offset inside shared raw space.
-    pub first_offset: usize,
-    /// The logical byte length of this allocation.
-    pub len: usize,
-    /// The page run for this allocation.
-    pub pages: PageRun,
-}
-
 /// One frozen shared raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRawSpaceImage {
@@ -104,6 +91,19 @@ impl SharedRawSpaceImage {
             .filter_map(|allocation| allocation.is_live.then_some(allocation.pages))
             .collect()
     }
+}
+
+/// One frozen shared raw-space allocation image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedRawAllocationImage {
+    /// Whether this allocation is live.
+    pub is_live: bool,
+    /// The first byte offset inside shared raw space.
+    pub first_offset: usize,
+    /// The logical byte length of this allocation.
+    pub len: usize,
+    /// The page run for this allocation.
+    pub pages: PageRun,
 }
 
 impl SharedRawSpace {

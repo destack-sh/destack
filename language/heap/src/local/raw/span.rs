@@ -2,6 +2,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Bitmap, PageRun};
 
+/// One live raw span.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SmallSpan {
+    /// The first byte offset inside raw space.
+    pub(crate) first_offset: usize,
+    /// The homogeneous class for this span.
+    pub(crate) class: RawSmallSpanClass,
+    /// The number of slots in this span.
+    pub(crate) slot_count: usize,
+    /// The number of occupied slots in this span.
+    pub(crate) occupied_count: usize,
+    /// The next likely free-slot search cursor.
+    pub(crate) free_cursor: usize,
+    /// The occupied slots in this span.
+    pub(crate) occupied: Bitmap,
+    /// The allocator pages for this span.
+    pub(crate) pages: PageRun,
+}
+
 /// One homogeneous raw small-span class.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub(crate) struct RawSmallSpanClass {
@@ -26,23 +45,4 @@ pub(crate) struct SmallSpanImage {
     pub occupied: Bitmap,
     /// The full byte payload for this span.
     pub bytes: Box<[u8]>,
-}
-
-/// One live raw span.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SmallSpan {
-    /// The first byte offset inside raw space.
-    pub(crate) first_offset: usize,
-    /// The homogeneous class for this span.
-    pub(crate) class: RawSmallSpanClass,
-    /// The number of slots in this span.
-    pub(crate) slot_count: usize,
-    /// The number of occupied slots in this span.
-    pub(crate) occupied_count: usize,
-    /// The next likely free-slot search cursor.
-    pub(crate) free_cursor: usize,
-    /// The occupied slots in this span.
-    pub(crate) occupied: Bitmap,
-    /// The allocator pages for this span.
-    pub(crate) pages: PageRun,
 }

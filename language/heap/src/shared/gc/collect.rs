@@ -22,11 +22,9 @@ impl SharedHeapSpace {
         self.clear_mark_bits();
         self.gc.trace_queue.clear();
         self.gc.open_mark_publication();
-        self.gc.sweep_cursor.store(0, Ordering::Release);
+        self.gc.reset_sweep();
         self.gc.mark_publishers.store(0, Ordering::Release);
         self.gc.mark_inflight.store(0, Ordering::Release);
-        self.gc.freed_allocations.store(0, Ordering::Release);
-        self.gc.freed_bytes.store(0, Ordering::Release);
         self.gc.set_phase(SharedGcPhase::Mark);
 
         // begin with roots
@@ -75,7 +73,7 @@ impl SharedHeapSpace {
 
         // mark queue
         let mut marked_bytes = 0usize;
-        let batch_capacity = self.trace_batch_capacity();
+        let batch_capacity = self.trace_batch_capacity()?;
         while marked_bytes < budget_bytes {
             // reserve before popping so termination sees in-flight batches
             let batch_len = batch_capacity;
@@ -124,16 +122,16 @@ impl SharedHeapSpace {
     }
 
     /// Return the mark queue batch capacity for this space.
-    fn trace_batch_capacity(&self) -> usize {
+    fn trace_batch_capacity(&self) -> HeapResult<usize> {
         // derive a bounded batch from the smallest possible small allocation
         let state = self.state.read();
         let min_slot_bytes = state
             .small
             .size_classes
             .min_small_allocation_bytes()
-            .unwrap_or(state.small.span_bytes);
+            .ok_or(HeapError::EmptySizeClassTable)?;
 
-        (state.small.span_bytes / min_slot_bytes).max(1)
+        Ok((state.small.span_bytes / min_slot_bytes).max(1))
     }
 
     /// Trace one shared mark batch.

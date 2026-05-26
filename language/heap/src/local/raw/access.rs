@@ -20,11 +20,11 @@ impl RawSpace {
         pointer: RawPointer,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<*mut u8> {
+    ) -> HeapResult<*const u8> {
         let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
         let offset = location.base.offset() + byte_offset;
 
-        Ok(self.mapping.address(offset, byte_len)?)
+        Ok(self.mapping.address(offset, byte_len)? as *const u8)
     }
 
     /// Return one checked mutable address for a live raw byte range.

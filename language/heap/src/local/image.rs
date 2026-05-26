@@ -13,7 +13,7 @@ use crate::{HeapError, HeapLimits, HeapOptions, HeapResult};
 #[derive(Debug, Clone)]
 pub struct HeapImage {
     /// The retained heap image state.
-    inner: Arc<HeapImageState>,
+    state: Arc<HeapImageState>,
 }
 
 /// One retained heap image state.
@@ -72,7 +72,7 @@ impl HeapImage {
         };
 
         Ok(Self {
-            inner: Arc::new(state),
+            state: Arc::new(state),
         })
     }
 
@@ -107,7 +107,7 @@ impl HeapImage {
         };
 
         Ok(Self {
-            inner: Arc::new(state),
+            state: Arc::new(state),
         })
     }
 
@@ -126,22 +126,22 @@ impl HeapImage {
 
     /// Return the shared allocator for this image.
     pub fn allocator(&self) -> &Arc<Allocator> {
-        &self.inner.allocator
+        &self.state.allocator
     }
 
     /// Return the heap options for this image.
     pub fn options(&self) -> &HeapOptions {
-        &self.inner.options
+        &self.state.options
     }
 
     /// Return the heap-space image.
     pub(crate) fn heap(&self) -> &HeapSpaceImage {
-        &self.inner.heap
+        &self.state.heap
     }
 
     /// Return the raw-space image.
     pub(crate) fn raw(&self) -> &RawSpaceImage {
-        &self.inner.raw
+        &self.state.raw
     }
 
     /// Return the captured collector state.

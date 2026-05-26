@@ -8,24 +8,17 @@ use crate::{HeapError, HeapReference, HeapResult};
 pub(crate) struct PinSet {
     /// The active scoped pins keyed by heap reference.
     counts: BTreeMap<HeapReference, NonZeroUsize>,
-    /// The total number of active scoped pins across all references.
-    active_count: usize,
 }
 
 impl PinSet {
     /// Pin one heap reference.
     pub(crate) fn pin(&mut self, reference: HeapReference) -> HeapResult<()> {
         if let Some(count) = self.counts.get_mut(&reference) {
-            self.active_count += 1;
-            let next_count = count.get() + 1;
-
-            // adding to a nonzero count preserves nonzero
-            *count = unsafe { NonZeroUsize::new_unchecked(next_count) };
+            *count = Self::checked_add_nonzero(*count, NonZeroUsize::MIN)?;
 
             return Ok(());
         }
 
-        self.active_count += 1;
         self.counts.insert(reference, NonZeroUsize::MIN);
 
         Ok(())
@@ -36,8 +29,6 @@ impl PinSet {
         let Some(count) = self.counts.get(&reference).copied() else {
             return Err(HeapError::HeapPinMissing { reference });
         };
-
-        self.active_count -= 1;
 
         if count.get() == 1 {
             self.counts.remove(&reference);
@@ -56,8 +47,8 @@ impl PinSet {
     }
 
     /// Return whether any scoped pin is active.
-    pub(crate) const fn is_active(&self) -> bool {
-        self.active_count != 0
+    pub(crate) fn is_active(&self) -> bool {
+        !self.counts.is_empty()
     }
 
     /// Return every currently pinned heap reference.
@@ -77,12 +68,7 @@ impl PinSet {
             let reference = rewrite(reference)?.unwrap_or(reference);
 
             if let Some(previous_count) = next_counts.get_mut(&reference) {
-                let merged_count = previous_count.get() + count.get();
-
-                // merging nonzero counts preserves nonzero
-                let merged_count = unsafe { NonZeroUsize::new_unchecked(merged_count) };
-
-                *previous_count = merged_count;
+                *previous_count = Self::checked_add_nonzero(*previous_count, count)?;
 
                 continue;
             }
@@ -93,6 +79,21 @@ impl PinSet {
         self.counts = next_counts;
 
         Ok(())
+    }
+
+    /// Add two non-zero pin counts.
+    fn checked_add_nonzero(left: NonZeroUsize, right: NonZeroUsize) -> HeapResult<NonZeroUsize> {
+        let count = left
+            .get()
+            .checked_add(right.get())
+            .ok_or(HeapError::InvariantViolation {
+                context: "heap pin count overflow",
+            })?;
+        let count = NonZeroUsize::new(count).ok_or(HeapError::InvariantViolation {
+            context: "heap pin count overflow",
+        })?;
+
+        Ok(count)
     }
 }
 
@@ -112,7 +113,6 @@ mod tests {
 
         assert!(pins.is_active());
         assert_eq!(pins.references().collect::<Vec<_>>(), vec![reference]);
-        assert_eq!(pins.active_count, 2);
         assert_eq!(
             pins.counts.get(&reference).map(|count| count.get()),
             Some(2)
@@ -122,7 +122,6 @@ mod tests {
 
         assert!(pins.is_active());
         assert_eq!(pins.references().collect::<Vec<_>>(), vec![reference]);
-        assert_eq!(pins.active_count, 1);
         assert_eq!(
             pins.counts.get(&reference).map(|count| count.get()),
             Some(1)
@@ -132,7 +131,6 @@ mod tests {
 
         assert!(!pins.is_active());
         assert!(pins.references().next().is_none());
-        assert_eq!(pins.active_count, 0);
     }
 
     /// Reject unpinning one reference with no active scoped pin.

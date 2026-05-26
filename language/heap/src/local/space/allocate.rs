@@ -78,7 +78,7 @@ impl HeapSpace {
 
         // track every live reference whose layout may contain shared edges
         if tracks_shared_edges {
-            self.track_shared_edge_root(reference)?;
+            self.collector.track_shared_edge_root(reference);
         }
 
         self.publish_major_allocation(
@@ -129,7 +129,7 @@ impl HeapSpace {
 
         // track every live reference whose layout may contain shared edges
         if tracks_shared_edges {
-            self.track_shared_edge_root(reference)?;
+            self.collector.track_shared_edge_root(reference);
             self.queue_shared_reference(reference)?;
         }
 
@@ -163,7 +163,7 @@ impl HeapSpace {
         let reference = HeapReference::new(write_offset);
 
         // objects allocated during marking start black
-        if self.major_phase == LocalGcPhase::Mark {
+        if self.collector.major_phase == LocalGcPhase::Mark {
             self.young.marked.set_in_bounds(start_index);
         }
 
@@ -319,7 +319,7 @@ impl HeapSpace {
         self.write_mapped_bytes(write_offset, bytes);
 
         // objects allocated during marking start black
-        if self.major_phase == LocalGcPhase::Mark {
+        if self.collector.major_phase == LocalGcPhase::Mark {
             self.young.marked.set_in_bounds(start_index);
         }
 
@@ -349,7 +349,7 @@ impl HeapSpace {
         )? {
             // track every live reference whose layout may contain shared edges
             if tracks_shared_edges {
-                self.track_shared_edge_root(reference)?;
+                self.collector.track_shared_edge_root(reference);
             }
 
             // queue newly published shared edges during an active shared cycle
@@ -386,7 +386,7 @@ impl HeapSpace {
 
         // track every live reference whose layout may contain shared edges
         if layout.has_shared_reference {
-            self.track_shared_edge_root(reference)?;
+            self.collector.track_shared_edge_root(reference);
         }
 
         // queue newly published shared edges during an active shared cycle
@@ -421,7 +421,7 @@ impl HeapSpace {
                     allocation.byte_len,
                 );
 
-                self.remove_shared_edge_root(reference)?;
+                self.collector.remove_shared_edge_root(reference);
 
                 Ok(())
             }
@@ -436,7 +436,7 @@ impl HeapSpace {
 
                 bits.freed.set(slot.slot_index());
                 bits.marked.clear(slot.slot_index());
-                self.remove_shared_edge_root(reference)?;
+                self.collector.remove_shared_edge_root(reference);
 
                 Ok(())
             }
@@ -444,7 +444,7 @@ impl HeapSpace {
             // release one small-span slot
             HeapPlace::Small(slot) => {
                 self.release_small_slot(slot)?;
-                self.remove_shared_edge_root(reference)?;
+                self.collector.remove_shared_edge_root(reference);
 
                 Ok(())
             }
@@ -472,7 +472,7 @@ impl HeapSpace {
                     .free_large_allocation_ids
                     .push(allocation_id.id());
 
-                self.remove_shared_edge_root(reference)?;
+                self.collector.remove_shared_edge_root(reference);
 
                 self.unmap_page_run(first_offset, &pages);
                 self.release_page_run(pages)?;
@@ -1167,7 +1167,7 @@ impl HeapSpace {
     /// Write bytes into one mapped payload range.
     #[inline(always)]
     pub(super) fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
-        // allocation paths materialize the destination before publishing it
+        // SAFETY: allocation paths materialize the destination before publishing it
         unsafe {
             self.mapping.write_mapped_bytes(offset, bytes);
         }
@@ -1178,7 +1178,7 @@ impl HeapSpace {
     pub(super) fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
         let address = self.mapping.base_address() + offset;
 
-        // allocation paths materialize the destination before publishing it
+        // SAFETY: allocation paths materialize the destination before publishing it
         unsafe {
             std::ptr::write_bytes(address as *mut u8, 0, byte_len);
         }

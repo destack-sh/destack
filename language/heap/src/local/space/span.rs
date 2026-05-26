@@ -4,25 +4,6 @@ use super::CardSet;
 use crate::SmallSpanClass;
 use crate::allocator::{Bitmap, PageRun};
 
-/// One frozen heap span image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct SmallSpanImage {
-    /// The first byte offset inside heap space.
-    pub first_offset: usize,
-    /// The homogeneous payload class for this span.
-    pub class: SmallSpanClass,
-    /// The number of slots in this span.
-    pub slot_count: usize,
-    /// The occupied slots in this span.
-    pub occupied: Bitmap,
-    /// The exact local-reference bits for each occupied slot.
-    pub local_reference_bits: Bitmap,
-    /// The exact shared-reference bits for each occupied slot.
-    pub shared_reference_bits: Bitmap,
-    /// The allocator pages for this span.
-    pub pages: PageRun,
-}
-
 /// One live heap span.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SmallSpan {
@@ -57,4 +38,23 @@ impl SmallSpan {
     pub(crate) fn clear_marks(&mut self) {
         self.marked.clear_all();
     }
+}
+
+/// One frozen heap span image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct SmallSpanImage {
+    /// The first byte offset inside heap space.
+    pub first_offset: usize,
+    /// The homogeneous payload class for this span.
+    pub class: SmallSpanClass,
+    /// The number of slots in this span.
+    pub slot_count: usize,
+    /// The occupied slots in this span.
+    pub occupied: Bitmap,
+    /// The exact local-reference bits for each occupied slot.
+    pub local_reference_bits: Bitmap,
+    /// The exact shared-reference bits for each occupied slot.
+    pub shared_reference_bits: Bitmap,
+    /// The allocator pages for this span.
+    pub pages: PageRun,
 }
