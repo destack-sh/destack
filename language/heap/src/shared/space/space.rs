@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{
@@ -11,8 +11,8 @@ use super::{
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::shared::gc::{SharedGcPhase, SharedGcState};
 use crate::{
-    AllocationLayout, AllocationShape, GcState, HeapError, HeapOptions, HeapResult,
-    SharedHeapReference, SharedHeapSpaceUsage, SmallSpanClass, allocation_layout,
+    AllocationPlan, AllocationShape, GcState, HeapError, HeapOptions, HeapResult,
+    SharedHeapReference, SharedHeapSpaceUsage, SmallSpanClass, allocation_plan,
 };
 
 /// The first non-null shared heap large-allocation id.
@@ -139,10 +139,10 @@ impl SharedHeapSpace {
 
     /// Resolve one allocation shape against this shared heap space.
     #[inline(always)]
-    pub(crate) fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
+    pub(crate) fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
         let store = self.state.read();
 
-        allocation_layout(
+        allocation_plan(
             shape,
             &store.small.size_classes,
             self.allocator.page_bytes(),
@@ -346,12 +346,12 @@ impl SharedHeapSpace {
         store.page_run_cache.flush(&self.allocator)
     }
 
-    /// Return the exact reference map stored for one shared small slot.
-    pub(crate) fn small_slot_reference_map(
+    /// Return the exact trace map stored for one shared small slot.
+    pub(crate) fn small_slot_trace_map(
         &self,
         span_index: usize,
         slot_index: usize,
-    ) -> HeapResult<ReferenceMap> {
+    ) -> HeapResult<TraceMap> {
         // resolve the small span
         let store = self.state.read();
         let Some(span) = store.small.spans.get(span_index).cloned() else {
@@ -366,7 +366,7 @@ impl SharedHeapSpace {
             });
         }
 
-        Ok(span.reference_map(slot_index))
+        Ok(span.trace_map(slot_index))
     }
 
     /// Return every live shared heap reference.

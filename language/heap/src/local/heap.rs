@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    AllocationLayout, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats,
-    HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawAllocationShape,
-    RawPointer, RootSet, SharedHeapReference,
+    AllocationPlan, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
+    HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawAllocationShape, RawPointer,
+    RootSet, SharedHeapReference,
 };
 
 /// One pending local GC request.
@@ -301,7 +301,7 @@ impl Heap {
     #[inline(always)]
     pub fn allocate(
         &mut self,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<HeapReference> {
         if self.heap.layout_fits_young(layout) {
@@ -328,7 +328,7 @@ impl Heap {
     #[inline(always)]
     pub fn allocate_bytes(
         &mut self,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         bytes: &[u8],
     ) -> HeapResult<HeapReference> {
         if layout.is_empty() {
@@ -363,7 +363,7 @@ impl Heap {
 
     /// Allocate one zeroed managed heap allocation.
     #[inline(always)]
-    pub fn allocate_zeroed(&mut self, layout: &AllocationLayout<'_>) -> HeapResult<HeapReference> {
+    pub fn allocate_zeroed(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<HeapReference> {
         if layout.is_empty() {
             return Err(HeapError::ZeroSizeAllocation);
         }
@@ -388,10 +388,7 @@ impl Heap {
     /// Refill zeroed allocation state or allocate from mature space.
     #[cold]
     #[inline(never)]
-    fn allocate_zeroed_refill(
-        &mut self,
-        layout: &AllocationLayout<'_>,
-    ) -> HeapResult<HeapReference> {
+    fn allocate_zeroed_refill(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<HeapReference> {
         // refill the young cursor or allocate through mature space
         if let Some(reference) = self.heap.try_allocate_young_zeroed(layout)? {
             return Ok(reference);
@@ -414,8 +411,8 @@ impl Heap {
 
     /// Resolve one allocation shape against this heap.
     #[inline(always)]
-    pub fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
-        self.heap.allocation_layout(shape)
+    pub fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
+        self.heap.allocation_plan(shape)
     }
 
     /// Allocate one raw allocation.
@@ -451,7 +448,7 @@ impl Heap {
     }
 
     /// Return the heap scan metadata for one heap allocation.
-    pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
+    pub fn scan(&self, reference: HeapReference) -> HeapResult<TraceMap> {
         self.heap.scan(reference)
     }
 

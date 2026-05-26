@@ -4,7 +4,7 @@ use crate::{
     Allocator, HeapOptions, PageRun, Payload, RawAllocationShape, SharedHeapSpace, SharedRawSpace,
     SizeClassTable, test_allocator, test_layouts,
 };
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::{read_mapped_bytes, write_mapped_bytes};
 
@@ -140,7 +140,7 @@ fn test_roundtrip_shared_heap_space_image() {
         ..HeapOptions::shared()
     };
     let allocator = test_allocator(&options);
-    let layouts = test_layouts(&[(6, ReferenceMap::empty()), (6, ReferenceMap::empty())]);
+    let layouts = test_layouts(&[(6, TraceMap::empty()), (6, TraceMap::empty())]);
     let first_layout = &layouts[0];
     let second_layout = &layouts[1];
     let heap = SharedHeapSpace::with_options(allocator.clone(), &options)
@@ -153,7 +153,7 @@ fn test_roundtrip_shared_heap_space_image() {
     let first = heap
         .allocate(
             &mut shared_allocator,
-            &heap.allocation_layout(first_layout.allocation()),
+            &heap.allocation_plan(first_layout.allocation()),
             Payload::Bytes(&first_bytes),
             true,
         )
@@ -161,7 +161,7 @@ fn test_roundtrip_shared_heap_space_image() {
     let _second = heap
         .allocate(
             &mut shared_allocator,
-            &heap.allocation_layout(second_layout.allocation()),
+            &heap.allocation_plan(second_layout.allocation()),
             Payload::Bytes(&second_bytes),
             true,
         )
@@ -172,7 +172,7 @@ fn test_roundtrip_shared_heap_space_image() {
     let restored_image = restored.image().expect("shared heap image should capture");
 
     // restored metadata should match the captured image
-    assert_eq!(restored.scan(first), Ok(ReferenceMap::empty()));
+    assert_eq!(restored.scan(first), Ok(TraceMap::empty()));
     assert!(Arc::ptr_eq(&restored.allocator, &allocator));
     assert_eq!(image.spans().len(), restored_image.spans().len());
 

@@ -346,7 +346,7 @@ impl SharedHeapSpace {
                 first_offset: allocation.first_offset,
                 len: allocation.len,
                 pages,
-                reference_map: allocation.reference_map.clone(),
+                trace_map: allocation.trace_map.clone(),
             });
         }
 
@@ -439,7 +439,7 @@ impl SharedHeapSpace {
                                 first_offset: allocation.first_offset,
                                 len: allocation.len,
                                 pages,
-                                reference_map: allocation.reference_map.clone(),
+                                trace_map: allocation.trace_map.clone(),
                                 is_marked: false,
                             })))
                         },

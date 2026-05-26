@@ -3,7 +3,7 @@ use crate::{
     HeapError, HeapOptions, HeapReference, HeapSpace, Payload, SizeClassTable, test_aligned_layout,
     test_allocator, test_layout,
 };
-use destack_mir::{ReferenceMap, ReferenceVariant};
+use destack_mir::{TraceMap, TraceVariant};
 
 use super::read_mapped_bytes;
 
@@ -11,13 +11,13 @@ use super::read_mapped_bytes;
 #[test]
 fn test_allocate_heap_rejects_zero_size_layout() {
     let options = HeapOptions::local();
-    let layout = test_layout(0, ReferenceMap::empty());
+    let layout = test_layout(0, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
     let error = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[]),
         )
         .expect_err("heap allocation should reject zero-size layouts");
@@ -29,12 +29,12 @@ fn test_allocate_heap_rejects_zero_size_layout() {
 #[test]
 fn test_free_heap_reclaims_live_allocation() {
     let options = HeapOptions::local();
-    let layout = test_layout(1, ReferenceMap::empty());
+    let layout = test_layout(1, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
     let reference = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[0xAB]),
         )
         .expect("heap allocation should succeed");
@@ -45,7 +45,7 @@ fn test_free_heap_reclaims_live_allocation() {
 
     let next_reference = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[0xCD]),
         )
         .expect("heap allocation should succeed");
@@ -62,20 +62,20 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let full_layout = test_layout(8, ReferenceMap::empty());
-    let short_layout = test_layout(1, ReferenceMap::empty());
+    let full_layout = test_layout(8, TraceMap::empty());
+    let short_layout = test_layout(1, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
     let first = heap
         .allocate(
-            &heap.allocation_layout(full_layout.allocation()),
+            &heap.allocation_plan(full_layout.allocation()),
             Payload::Bytes(&[0xAA; 8]),
         )
         .expect("heap allocation should succeed");
     let second = heap
         .allocate(
-            &heap.allocation_layout(short_layout.allocation()),
+            &heap.allocation_plan(short_layout.allocation()),
             Payload::Bytes(&[0xBB]),
         )
         .expect("heap allocation should succeed");
@@ -84,7 +84,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
 
     let reused = heap
         .allocate(
-            &heap.allocation_layout(short_layout.allocation()),
+            &heap.allocation_plan(short_layout.allocation()),
             Payload::Bytes(&[0xCC]),
         )
         .expect("heap allocation should succeed");
@@ -105,20 +105,20 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
         size_classes: SizeClassTable::new([8, 16]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let first_layout = test_layout(9, ReferenceMap::empty());
-    let second_layout = test_layout(10, ReferenceMap::empty());
+    let first_layout = test_layout(9, TraceMap::empty());
+    let second_layout = test_layout(10, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
     let first = heap
         .allocate(
-            &heap.allocation_layout(first_layout.allocation()),
+            &heap.allocation_plan(first_layout.allocation()),
             Payload::Bytes(&[0xAA; 9]),
         )
         .expect("first heap allocation should succeed");
     let second = heap
         .allocate(
-            &heap.allocation_layout(second_layout.allocation()),
+            &heap.allocation_plan(second_layout.allocation()),
             Payload::Bytes(&[0xBB; 10]),
         )
         .expect("second heap allocation should succeed");
@@ -134,9 +134,9 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
     assert_eq!(second_bytes, &[0xBB; 10]);
 }
 
-/// Keep tagged reference maps on allocation records.
+/// Keep tagged trace maps on allocation records.
 #[test]
-fn test_allocate_heap_routes_tagged_reference_map_to_large() {
+fn test_allocate_heap_routes_tagged_trace_map_to_large() {
     let options = HeapOptions {
         heap_young_bytes: 64,
         max_heap_young_allocation_bytes: 64,
@@ -144,28 +144,25 @@ fn test_allocate_heap_routes_tagged_reference_map_to_large() {
         size_classes: SizeClassTable::new([16]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let reference_map = ReferenceMap::Tagged {
+    let trace_map = TraceMap::Tagged {
         tag_offset: 0,
         tag_bytes: 1,
-        variants: vec![ReferenceVariant {
+        variants: vec![TraceVariant {
             tag: 0,
-            payload_offset: 8,
-            map: ReferenceMap::Direct {
+            storage_offset: 8,
+            map: TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Box::default(),
             },
         }]
         .into_boxed_slice(),
     };
-    let layout = test_layout(16, reference_map);
+    let layout = test_layout(16, trace_map);
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
     let reference = heap
-        .allocate(
-            &heap.allocation_layout(layout.allocation()),
-            Payload::Zeroed,
-        )
+        .allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
         .expect("heap allocation should succeed");
 
     assert!(matches!(heap.place(reference), Some(HeapPlace::Large(_))));
@@ -181,19 +178,19 @@ fn test_allocate_heap_honors_layout_alignment() {
         size_classes: SizeClassTable::new([8, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let layout = test_aligned_layout(17, 16, ReferenceMap::empty());
+    let layout = test_aligned_layout(17, 16, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
     let first = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[0xAA; 17]),
         )
         .expect("first aligned heap allocation should succeed");
     let second = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[0xBB; 17]),
         )
         .expect("second aligned heap allocation should succeed");
@@ -212,12 +209,12 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let layout = test_layout(1, ReferenceMap::empty());
+    let layout = test_layout(1, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
     let reference = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[0xAB]),
         )
         .expect("heap allocation should succeed");
@@ -251,12 +248,12 @@ fn test_free_heap_reclaims_large_allocation() {
         .max_small_allocation_bytes()
         .expect("size class table should not be empty")
         + 1;
-    let layout = test_layout(large_byte_len, ReferenceMap::empty());
+    let layout = test_layout(large_byte_len, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
     let first = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&vec![0xAB; large_byte_len]),
         )
         .expect("heap large allocation should succeed");
@@ -267,7 +264,7 @@ fn test_free_heap_reclaims_large_allocation() {
 
     let second = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&vec![0xCD; large_byte_len]),
         )
         .expect("heap large reallocation should succeed");

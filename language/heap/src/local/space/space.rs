@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::{
     GcState, HeapPageMapEntry, HeapPlace, LargeAllocation, LargeAllocationId, PinSet, SmallSpan,
@@ -10,9 +10,9 @@ use super::{
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{
-    AllocationLayout, AllocationShape, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
-    HeapSpaceUsage, SmallSpanClass, TraceQueue, TraceReference, allocation_layout,
-    allocation_reference_map, slot_reference_map,
+    AllocationPlan, AllocationShape, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
+    HeapSpaceUsage, SmallSpanClass, TraceQueue, TraceReference, allocation_plan,
+    allocation_trace_map, slot_trace_map,
 };
 
 /// Collector queue for heap references.
@@ -505,26 +505,26 @@ impl HeapSpace {
         self.small.spans.get_mut(span_index)
     }
 
-    /// Return the reference map for one heap place.
-    pub(crate) fn reference_map_for_place(&self, place: HeapPlace) -> HeapResult<ReferenceMap> {
+    /// Return the trace map for one heap place.
+    pub(crate) fn trace_map_for_place(&self, place: HeapPlace) -> HeapResult<TraceMap> {
         match place {
             HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                self.young_range_reference_map(first_offset)
+                self.young_range_trace_map(first_offset)
             }
-            HeapPlace::Young(YoungPlace::Slot(_)) => Ok(ReferenceMap::None),
+            HeapPlace::Young(YoungPlace::Slot(_)) => Ok(TraceMap::Empty),
             HeapPlace::Small(slot) => {
-                self.small_slot_reference_map(slot.span_index(), slot.slot_index())
+                self.small_slot_trace_map(slot.span_index(), slot.slot_index())
             }
             HeapPlace::Large(allocation_id) => {
-                let reference_map = self
+                let trace_map = self
                     .large_allocation(allocation_id)
                     .ok_or(HeapError::MissingLargeAllocation {
                         allocation_id: allocation_id.id(),
                     })?
-                    .reference_map
+                    .trace_map
                     .clone();
 
-                Ok(reference_map)
+                Ok(trace_map)
             }
         }
     }
@@ -644,12 +644,12 @@ impl HeapSpace {
         Ok(first_offset)
     }
 
-    /// Return the exact reference map stored for one small slot.
-    pub(crate) fn small_slot_reference_map(
+    /// Return the exact trace map stored for one small slot.
+    pub(crate) fn small_slot_trace_map(
         &self,
         span_index: usize,
         slot_index: usize,
-    ) -> HeapResult<ReferenceMap> {
+    ) -> HeapResult<TraceMap> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
         };
@@ -660,7 +660,7 @@ impl HeapSpace {
             });
         }
 
-        Ok(slot_reference_map(
+        Ok(slot_trace_map(
             &span.local_reference_bits,
             &span.shared_reference_bits,
             slot_index,
@@ -669,15 +669,12 @@ impl HeapSpace {
         ))
     }
 
-    /// Return the exact reference map stored for one young range.
-    pub(crate) fn young_range_reference_map(
-        &self,
-        first_offset: usize,
-    ) -> HeapResult<ReferenceMap> {
+    /// Return the exact trace map stored for one young range.
+    pub(crate) fn young_range_trace_map(&self, first_offset: usize) -> HeapResult<TraceMap> {
         let Some((_range_index, range)) = self.young_range_by_offset(first_offset) else {
             return Err(HeapError::MissingYoungRange { first_offset });
         };
-        Ok(allocation_reference_map(
+        Ok(allocation_trace_map(
             &self.young.local_reference_bits,
             &self.young.shared_reference_bits,
             range.first_offset,
@@ -692,8 +689,8 @@ impl HeapSpace {
 
     /// Resolve one allocation shape against this heap space.
     #[inline(always)]
-    pub(crate) fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
-        allocation_layout(
+    pub(crate) fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
+        allocation_plan(
             shape,
             &self.small.size_classes,
             self.allocator.page_bytes(),

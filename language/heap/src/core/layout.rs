@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapResult, SizeClassTable};
@@ -12,8 +12,8 @@ pub struct AllocationShape<'a> {
     pub byte_len: usize,
     /// The required allocation base alignment in bytes.
     pub alignment: usize,
-    /// The exact heap reference map.
-    pub reference_map: &'a ReferenceMap,
+    /// The exact heap trace map.
+    pub trace_map: &'a TraceMap,
     /// Whether the payload contains no heap references.
     pub is_noscan: bool,
     /// Whether the payload may contain shared heap references.
@@ -23,15 +23,15 @@ pub struct AllocationShape<'a> {
 impl<'a> AllocationShape<'a> {
     /// Create one allocation shape.
     #[inline(always)]
-    pub fn new(byte_len: usize, alignment: usize, reference_map: &'a ReferenceMap) -> Self {
+    pub fn new(byte_len: usize, alignment: usize, trace_map: &'a TraceMap) -> Self {
         debug_assert!(alignment == 0 || alignment.is_power_of_two());
 
         Self {
             byte_len,
             alignment: alignment.max(1),
-            reference_map,
-            is_noscan: !reference_map.has_reference(),
-            has_shared_reference: reference_map.has_shared_reference(),
+            trace_map,
+            is_noscan: !trace_map.has_reference(),
+            has_shared_reference: trace_map.has_shared_reference(),
         }
     }
 
@@ -72,14 +72,14 @@ impl RawAllocationShape {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AllocationClass {
     /// One allocation backed by a small-span slot.
-    Small(SmallAllocationLayout),
+    Small(SmallAllocationPlan),
     /// One allocation backed by a dedicated page run.
     Large,
 }
 
 impl AllocationClass {
     /// Return the small allocation class when this class uses small spans.
-    pub const fn small(self) -> Option<SmallAllocationLayout> {
+    pub const fn small(self) -> Option<SmallAllocationPlan> {
         match self {
             Self::Small(small) => Some(small),
             Self::Large => None,
@@ -87,34 +87,34 @@ impl AllocationClass {
     }
 }
 
-/// One allocator-ready managed heap layout.
+/// One allocator-ready managed heap plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AllocationLayout<'a> {
+pub struct AllocationPlan<'a> {
     /// The exact payload byte length.
     pub byte_len: usize,
     /// The required allocation base alignment in bytes.
     pub alignment: usize,
-    /// The exact heap reference map.
-    pub reference_map: &'a ReferenceMap,
+    /// The exact heap trace map.
+    pub trace_map: &'a TraceMap,
     /// Whether the payload contains no heap references.
     pub is_noscan: bool,
     /// Whether the payload may contain shared heap references.
     pub has_shared_reference: bool,
-    /// The allocator class used by this layout.
+    /// The allocator class used by this plan.
     pub class: AllocationClass,
 }
 
-impl<'a> AllocationLayout<'a> {
-    /// Return whether this layout describes a valid non-empty heap allocation.
+impl<'a> AllocationPlan<'a> {
+    /// Return whether this plan describes a valid non-empty heap allocation.
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.byte_len == 0
     }
 }
 
-/// One allocator-ready small allocation layout.
+/// One allocator-ready small allocation plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SmallAllocationLayout {
+pub struct SmallAllocationPlan {
     /// The reusable bucket index for this class.
     pub(crate) bucket_index: usize,
     /// The exact size-class index.
@@ -169,7 +169,7 @@ impl SmallSpanClass {
     }
 }
 
-impl SmallAllocationLayout {
+impl SmallAllocationPlan {
     /// Return the reusable bucket index for this small allocation.
     #[inline(always)]
     pub const fn bucket_index(self) -> usize {
@@ -184,13 +184,13 @@ impl SmallAllocationLayout {
 }
 
 /// Resolve one allocation shape against a concrete small allocation table.
-pub(crate) fn allocation_layout<'a>(
+pub(crate) fn allocation_plan<'a>(
     shape: AllocationShape<'a>,
     size_classes: &SizeClassTable,
     page_bytes: usize,
     span_bytes: usize,
-) -> AllocationLayout<'a> {
-    let class = if shape.reference_map.has_tagged_reference() {
+) -> AllocationPlan<'a> {
+    let class = if shape.trace_map.has_tagged_reference() {
         AllocationClass::Large
     } else {
         allocation_class(
@@ -203,10 +203,10 @@ pub(crate) fn allocation_layout<'a>(
         )
     };
 
-    AllocationLayout {
+    AllocationPlan {
         byte_len: shape.byte_len,
         alignment: shape.alignment,
-        reference_map: shape.reference_map,
+        trace_map: shape.trace_map,
         is_noscan: shape.is_noscan,
         has_shared_reference: shape.has_shared_reference,
         class,
@@ -233,7 +233,7 @@ pub(crate) fn allocation_class(
     let class = SmallSpanClass::new(size_class.bytes, span_bytes, is_noscan);
     let bucket_index = class_index * 2 + is_noscan as usize;
 
-    AllocationClass::Small(SmallAllocationLayout {
+    AllocationClass::Small(SmallAllocationPlan {
         bucket_index,
         class_index,
         minimum_byte_len,
@@ -256,13 +256,13 @@ impl Ord for SmallSpanClass {
     }
 }
 
-/// Return the allocation layout for one repeated element layout.
+/// Return the allocation plan for one repeated element layout.
 pub fn repeated_layout(
     element_byte_len: usize,
     element_alignment: usize,
-    element_reference_map: &ReferenceMap,
+    element_trace_map: &TraceMap,
     count: usize,
-) -> HeapResult<(usize, ReferenceMap)> {
+) -> HeapResult<(usize, TraceMap)> {
     let element_stride = layout_stride(element_byte_len, element_alignment);
     let byte_len =
         element_stride
@@ -270,9 +270,9 @@ pub fn repeated_layout(
             .ok_or(HeapError::RepresentationLimitExceeded {
                 context: "repeated payload byte length",
             })?;
-    let reference_map = repeated_reference_map(element_reference_map, element_stride, count)?;
+    let trace_map = repeated_trace_map(element_trace_map, element_stride, count)?;
 
-    Ok((byte_len, reference_map))
+    Ok((byte_len, trace_map))
 }
 
 /// Return the aligned stride for one payload.
@@ -282,20 +282,20 @@ fn layout_stride(byte_len: usize, alignment: usize) -> usize {
     byte_len.div_ceil(alignment) * alignment
 }
 
-/// Return the repeated reference map for one repeated element layout.
-fn repeated_reference_map(
-    element_map: &ReferenceMap,
+/// Return the repeated trace map for one repeated element layout.
+fn repeated_trace_map(
+    element_map: &TraceMap,
     element_stride: usize,
     count: usize,
-) -> HeapResult<ReferenceMap> {
+) -> HeapResult<TraceMap> {
     if count == 0 {
-        return Ok(ReferenceMap::None);
+        return Ok(TraceMap::Empty);
     }
 
     match element_map {
-        ReferenceMap::None => Ok(ReferenceMap::None),
-        _ if !element_map.has_reference() => Ok(ReferenceMap::None),
-        _ => Ok(ReferenceMap::Repeat {
+        TraceMap::Empty => Ok(TraceMap::Empty),
+        _ if !element_map.has_reference() => Ok(TraceMap::Empty),
+        _ => Ok(TraceMap::Repeated {
             count: u32::try_from(count).map_err(|_| HeapError::RepresentationLimitExceeded {
                 context: "repeated payload element count",
             })?,

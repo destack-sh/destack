@@ -1,13 +1,11 @@
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Bitmap, PageRun};
-use crate::{
-    SmallSpanClass, local_reference_offsets, shared_reference_offsets, slot_reference_map,
-};
+use crate::{SmallSpanClass, local_reference_offsets, shared_reference_offsets, slot_trace_map};
 
 /// The number of bits in one atomic bitmap word.
 const ATOMIC_BITMAP_WORD_BITS: usize = u64::BITS as usize;
@@ -288,8 +286,8 @@ impl SharedSmallSpan {
     }
 
     /// Write exact reference bits for one occupied slot.
-    pub(crate) fn write_reference_bits(&self, slot_index: usize, reference_map: &ReferenceMap) {
-        if !reference_map.has_reference() {
+    pub(crate) fn write_reference_bits(&self, slot_index: usize, trace_map: &TraceMap) {
+        if !trace_map.has_reference() {
             return;
         }
 
@@ -297,8 +295,8 @@ impl SharedSmallSpan {
         self.clear_reference_bits(slot_index);
 
         // encode both edge classes into side bitmaps
-        self.write_reference_offsets(slot_index, reference_map, true);
-        self.write_reference_offsets(slot_index, reference_map, false);
+        self.write_reference_offsets(slot_index, trace_map, true);
+        self.write_reference_offsets(slot_index, trace_map, false);
     }
 
     /// Return whether one reserved slot must be cleared before zeroed reuse.
@@ -312,12 +310,12 @@ impl SharedSmallSpan {
     }
 
     /// Return exact reference metadata for one occupied slot.
-    pub(crate) fn reference_map(&self, slot_index: usize) -> ReferenceMap {
+    pub(crate) fn trace_map(&self, slot_index: usize) -> TraceMap {
         // snapshot both edge classes consistently enough for tracing
         let local_reference_bits = self.local_reference_bits.snapshot();
         let shared_reference_bits = self.shared_reference_bits.snapshot();
 
-        slot_reference_map(
+        slot_trace_map(
             &local_reference_bits,
             &shared_reference_bits,
             slot_index,
@@ -400,16 +398,11 @@ impl SharedSmallSpan {
     }
 
     /// Write one reference kind into exact slot bits.
-    fn write_reference_offsets(
-        &self,
-        slot_index: usize,
-        reference_map: &ReferenceMap,
-        is_local: bool,
-    ) {
+    fn write_reference_offsets(&self, slot_index: usize, trace_map: &TraceMap, is_local: bool) {
         let offsets = if is_local {
-            local_reference_offsets(reference_map)
+            local_reference_offsets(trace_map)
         } else {
-            shared_reference_offsets(reference_map)
+            shared_reference_offsets(trace_map)
         };
 
         self.write_direct_reference_offsets(slot_index, &offsets, is_local);

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::CardSet;
 use crate::allocator::PageRun;
@@ -17,8 +17,8 @@ pub(crate) struct LargeAllocationImage {
     pub len: usize,
     /// The allocator pages for this allocation.
     pub pages: PageRun,
-    /// The reference map for this allocation.
-    pub reference_map: ReferenceMap,
+    /// The trace map for this allocation.
+    pub trace_map: TraceMap,
 }
 
 /// One heap large-allocation identifier.
@@ -57,8 +57,8 @@ pub(crate) struct LargeAllocation {
     pub(crate) len: usize,
     /// The allocator pages for this allocation.
     pub(crate) pages: PageRun,
-    /// The reference map for this allocation.
-    pub(crate) reference_map: ReferenceMap,
+    /// The trace map for this allocation.
+    pub(crate) trace_map: TraceMap,
     /// Whether this allocation is marked in the active cycle.
     pub(crate) is_marked: bool,
     /// The dirty cards remembered for young tracing.

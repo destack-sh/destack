@@ -2,7 +2,7 @@ use crate::{
     AccountingRegion, DEFAULT_YOUNG_BYTES, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits,
     Payload, RawAllocationShape, RawLimits, test_layout,
 };
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::TestHeap;
 
@@ -11,12 +11,12 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 
 /// Return the retained heap bytes for one allocation in the given heap options.
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
-    let layout = test_layout(bytes.len(), ReferenceMap::empty());
+    let layout = test_layout(bytes.len(), TraceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
 
     heap.allocate(
-        &heap.allocation_layout(layout.allocation()),
+        &heap.allocation_plan(layout.allocation()),
         Payload::Bytes(bytes),
     )
     .expect("heap allocation should succeed");
@@ -41,16 +41,13 @@ fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 
 /// Track retained bytes for default young-space allocation.
 #[test]
 fn test_track_default_young_retained_bytes() {
-    let layout = test_layout(SMALL_ALLOCATION_BYTES, ReferenceMap::empty());
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate(
-            &heap.allocation_layout(layout.allocation()),
-            Payload::Zeroed,
-        )
-        .expect("heap allocation should succeed");
+        heap.allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
+            .expect("heap allocation should succeed");
     }
 
     let usage = heap.usage().heap;
@@ -71,7 +68,7 @@ fn test_track_small_span_retained_bytes() {
         max_heap_young_allocation_bytes: 0,
         ..HeapOptions::local()
     };
-    let layout = test_layout(SMALL_ALLOCATION_BYTES, ReferenceMap::empty());
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
     let class_index = options
         .size_classes
         .class_index_for(SMALL_ALLOCATION_BYTES)
@@ -87,11 +84,8 @@ fn test_track_small_span_retained_bytes() {
     let heap = &mut test_heap.heap;
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate(
-            &heap.allocation_layout(layout.allocation()),
-            Payload::Zeroed,
-        )
-        .expect("heap allocation should succeed");
+        heap.allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
+            .expect("heap allocation should succeed");
     }
 
     let usage = heap.usage().heap;
@@ -113,7 +107,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
         ..HeapOptions::local()
     };
     let expected_used_bytes = heap_retained_bytes_after_allocate(options.clone(), &[1]);
-    let layout = test_layout(1, ReferenceMap::empty());
+    let layout = test_layout(1, TraceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
     let baseline = heap.usage().heap.retained_bytes;
@@ -128,7 +122,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 
     let error = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[1]),
         )
         .expect_err("heap allocation should be rejected");

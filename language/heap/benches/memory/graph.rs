@@ -2,7 +2,7 @@ use destack_heap::{
     AllocationShape, Heap, HeapReference, SharedAllocator, SharedGcWorker, SharedHeap,
     SharedHeapReference,
 };
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use crate::config::{LEAF_BYTES, RECORD_BYTES, REFERENCE_BYTES, WORKLOAD_OBJECTS};
 use crate::heap::local_heap;
@@ -42,9 +42,9 @@ impl ObjectGraphWorkload {
 
     /// Allocate this workload in one local heap.
     pub(crate) fn allocate_local(self, heap: &mut Heap) -> ObjectGraph<HeapReference> {
-        let reference_map = local_record_reference_map();
+        let trace_map = local_record_trace_map();
 
-        self.allocate_local_with_map(heap, &reference_map)
+        self.allocate_local_with_map(heap, &trace_map)
     }
 
     /// Allocate this workload in one shared heap.
@@ -54,9 +54,9 @@ impl ObjectGraphWorkload {
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
     ) -> ObjectGraph<SharedHeapReference> {
-        let reference_map = shared_record_reference_map();
+        let trace_map = shared_record_trace_map();
 
-        self.allocate_shared_with_map(shared, worker, allocator, &reference_map)
+        self.allocate_shared_with_map(shared, worker, allocator, &trace_map)
     }
 
     /// Build one local heap with this workload ready to fork.
@@ -67,17 +67,17 @@ impl ObjectGraphWorkload {
         (heap, graph)
     }
 
-    /// Allocate this workload in one local heap with a known reference map.
+    /// Allocate this workload in one local heap with a known trace map.
     fn allocate_local_with_map(
         self,
         heap: &mut Heap,
-        reference_map: &ReferenceMap,
+        trace_map: &TraceMap,
     ) -> ObjectGraph<HeapReference> {
-        let leaf_map = ReferenceMap::None;
+        let leaf_map = TraceMap::Empty;
         let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, &leaf_map);
-        let record_shape = AllocationShape::new(self.record_bytes, REFERENCE_BYTES, reference_map);
-        let leaf_layout = heap.allocation_layout(leaf_shape);
-        let record_layout = heap.allocation_layout(record_shape);
+        let record_shape = AllocationShape::new(self.record_bytes, REFERENCE_BYTES, trace_map);
+        let leaf_layout = heap.allocation_plan(leaf_shape);
+        let record_layout = heap.allocation_plan(record_shape);
         let mut records = Vec::with_capacity(self.objects);
 
         // allocate leaf and record pairs
@@ -98,19 +98,19 @@ impl ObjectGraphWorkload {
         ObjectGraph { records }
     }
 
-    /// Allocate this workload in one shared heap with a known reference map.
+    /// Allocate this workload in one shared heap with a known trace map.
     fn allocate_shared_with_map(
         self,
         shared: &SharedHeap,
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
-        reference_map: &ReferenceMap,
+        trace_map: &TraceMap,
     ) -> ObjectGraph<SharedHeapReference> {
-        let leaf_map = ReferenceMap::None;
+        let leaf_map = TraceMap::Empty;
         let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, &leaf_map);
-        let record_shape = AllocationShape::new(self.record_bytes, REFERENCE_BYTES, reference_map);
-        let leaf_layout = shared.allocation_layout(leaf_shape);
-        let record_layout = shared.allocation_layout(record_shape);
+        let record_shape = AllocationShape::new(self.record_bytes, REFERENCE_BYTES, trace_map);
+        let leaf_layout = shared.allocation_plan(leaf_shape);
+        let record_layout = shared.allocation_plan(record_shape);
         let mut records = Vec::with_capacity(self.objects);
 
         // allocate leaf and record pairs through one worker cache
@@ -132,7 +132,7 @@ impl ObjectGraphWorkload {
     }
 }
 
-/// One reference array workload backed by a repeated reference map.
+/// One reference array workload backed by a repeated trace map.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ReferenceArrayWorkload {
     /// The number of references in the array.
@@ -152,16 +152,13 @@ impl ReferenceArrayWorkload {
 
     /// Allocate this workload in one local heap.
     pub(crate) fn allocate_local(self, heap: &mut Heap) -> ReferenceArray<HeapReference> {
-        let reference_map = local_reference_array_map(self.objects);
-        let leaf_map = ReferenceMap::None;
+        let trace_map = local_reference_array_map(self.objects);
+        let leaf_map = TraceMap::Empty;
         let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, &leaf_map);
-        let array_shape = AllocationShape::new(
-            self.objects * REFERENCE_BYTES,
-            REFERENCE_BYTES,
-            &reference_map,
-        );
-        let leaf_layout = heap.allocation_layout(leaf_shape);
-        let array_layout = heap.allocation_layout(array_shape);
+        let array_shape =
+            AllocationShape::new(self.objects * REFERENCE_BYTES, REFERENCE_BYTES, &trace_map);
+        let leaf_layout = heap.allocation_plan(leaf_shape);
+        let array_layout = heap.allocation_plan(array_shape);
         let mut payload = vec![0u8; self.objects * REFERENCE_BYTES];
 
         // build the array payload from fresh leaf references
@@ -186,16 +183,13 @@ impl ReferenceArrayWorkload {
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
     ) -> ReferenceArray<SharedHeapReference> {
-        let reference_map = shared_reference_array_map(self.objects);
-        let leaf_map = ReferenceMap::None;
+        let trace_map = shared_reference_array_map(self.objects);
+        let leaf_map = TraceMap::Empty;
         let leaf_shape = AllocationShape::new(self.leaf_bytes, 1, &leaf_map);
-        let array_shape = AllocationShape::new(
-            self.objects * REFERENCE_BYTES,
-            REFERENCE_BYTES,
-            &reference_map,
-        );
-        let leaf_layout = shared.allocation_layout(leaf_shape);
-        let array_layout = shared.allocation_layout(array_shape);
+        let array_shape =
+            AllocationShape::new(self.objects * REFERENCE_BYTES, REFERENCE_BYTES, &trace_map);
+        let leaf_layout = shared.allocation_plan(leaf_shape);
+        let array_layout = shared.allocation_plan(array_shape);
         let mut payload = vec![0u8; self.objects * REFERENCE_BYTES];
 
         // build the array payload from fresh leaf references
@@ -220,35 +214,35 @@ fn write_word(bytes: &mut [u8], offset: usize, value: usize) {
 }
 
 /// Build the scan map for one record with a local reference field.
-fn local_record_reference_map() -> ReferenceMap {
-    ReferenceMap::Direct {
+fn local_record_trace_map() -> TraceMap {
+    TraceMap::Fixed {
         local_offsets: Box::new([0]),
         shared_offsets: Box::new([]),
     }
 }
 
 /// Build the scan map for one record with a shared reference field.
-fn shared_record_reference_map() -> ReferenceMap {
-    ReferenceMap::Direct {
+fn shared_record_trace_map() -> TraceMap {
+    TraceMap::Fixed {
         local_offsets: Box::new([]),
         shared_offsets: Box::new([0]),
     }
 }
 
 /// Build the scan map for one local reference array.
-fn local_reference_array_map(objects: usize) -> ReferenceMap {
-    ReferenceMap::Repeat {
+fn local_reference_array_map(objects: usize) -> TraceMap {
+    TraceMap::Repeated {
         count: objects as u32,
         stride: REFERENCE_BYTES as u32,
-        element: Box::new(local_record_reference_map()),
+        element: Box::new(local_record_trace_map()),
     }
 }
 
 /// Build the scan map for one shared reference array.
-fn shared_reference_array_map(objects: usize) -> ReferenceMap {
-    ReferenceMap::Repeat {
+fn shared_reference_array_map(objects: usize) -> TraceMap {
+    TraceMap::Repeated {
         count: objects as u32,
         stride: REFERENCE_BYTES as u32,
-        element: Box::new(shared_record_reference_map()),
+        element: Box::new(shared_record_trace_map()),
     }
 }
