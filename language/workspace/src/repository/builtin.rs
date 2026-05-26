@@ -43,6 +43,10 @@ pub struct BuiltinPackage {
     package: Arc<Package>,
     /// The files shipped in this package.
     files: &'static [BuiltinFile],
+    /// Builtin files keyed by file id.
+    file_by_id: IndexMap<FileId, BuiltinFile>,
+    /// Builtin files keyed by path or URI.
+    file_by_path: IndexMap<&'static str, BuiltinFile>,
     /// The modules shipped in this package.
     modules: Vec<(ModuleId, Arc<Module>)>,
 }
@@ -75,10 +79,22 @@ impl BuiltinPackage {
             .iter()
             .map(|builtin| builtin.module_entry(package.id))
             .collect();
+        let file_by_id = BUILTINS
+            .iter()
+            .copied()
+            .map(|builtin| (builtin.file_id(), builtin))
+            .collect();
+        let file_by_path = BUILTINS
+            .iter()
+            .copied()
+            .flat_map(|builtin| [(builtin.uri, builtin), (builtin.path, builtin)])
+            .collect();
 
         Self {
             package,
             files: BUILTINS,
+            file_by_id,
+            file_by_path,
             modules,
         }
     }
@@ -155,20 +171,14 @@ impl BuiltinPackage {
 
     /// Return one builtin file by file id.
     pub fn file(&self, file_id: FileId) -> Option<BuiltinFile> {
-        self.files
-            .iter()
-            .copied()
-            .find(|builtin| builtin.file_id() == file_id)
+        self.file_by_id.get(&file_id).copied()
     }
 
     /// Return one builtin file by path or URI.
     pub fn file_for_path(&self, path: &Path) -> Option<BuiltinFile> {
         let path = path.to_str()?;
 
-        self.files
-            .iter()
-            .copied()
-            .find(|builtin| builtin.matches_path(path))
+        self.file_by_path.get(path).copied()
     }
 
     /// Return one builtin file id by path or URI.
@@ -275,11 +285,6 @@ impl BuiltinFile {
     /// Return metadata for this builtin file.
     pub fn metadata(self) -> FileMetadata {
         FileMetadata::new(true, false, false, self.content.len() as u64, None)
-    }
-
-    /// Return whether this builtin matches one path or URI.
-    fn matches_path(self, path: &str) -> bool {
-        path == self.uri || path == self.path
     }
 }
 
