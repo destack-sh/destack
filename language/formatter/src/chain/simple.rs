@@ -107,7 +107,6 @@ fn expression_is_simple(
         | Expression::Identifier { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
-        | Expression::NewTarget
         | Expression::This
         | Expression::Super => true,
 

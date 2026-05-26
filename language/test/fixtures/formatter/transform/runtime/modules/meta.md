@@ -1,6 +1,6 @@
-# Meta Expressions
+# Import Meta
 
-Meta expression fixtures cover `import.meta` and `new.target` member chains.
+Import meta fixtures cover `import.meta` member chains.
 
 ## Import Meta
 
@@ -26,18 +26,4 @@ const mode = import.meta.env.MODE
 
 ```ts expected
 const mode = import.meta.env.MODE;
-```
-
-## New Target
-
-### new.target property access
-
-New target property access keeps dots tight.
-
-```ts:main.ts
-const target = new.target
-```
-
-```ts expected
-const target = new.target;
 ```
