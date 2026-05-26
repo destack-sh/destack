@@ -19,7 +19,7 @@ impl SharedHeapSpace {
         }
 
         // cycle state
-        self.clear_mark_bits();
+        self.gc.advance_mark_epoch();
         self.gc.trace_queue.clear();
         self.gc.open_mark_publication();
         self.gc.reset_sweep();
@@ -92,7 +92,7 @@ impl SharedHeapSpace {
                 self.gc.mark_inflight.fetch_sub(unused, Ordering::AcqRel);
             }
 
-            // trace claimed work without collector-side allocation
+            // trace claimed work
             let trace_result = self.trace_batch(worker, &batch, budget_bytes - marked_bytes);
             let (traced_bytes, processed_items) = match trace_result {
                 Ok(result) => result,
@@ -275,32 +275,14 @@ impl SharedHeapSpace {
         // keep draining until this span really goes idle
         while scanned_bytes < budget_bytes {
             let scan_slots = {
-                let marked = span.marked.snapshot();
-                let mut slot_indices = Vec::new();
                 let remaining_bytes = budget_bytes - scanned_bytes;
                 let slot_bytes = span.class.size_class.max(1);
-                let mut claimed_bytes = 0usize;
+                let mark_epoch = self.gc.mark_epoch();
+                let max_slots = (remaining_bytes / slot_bytes).max(1);
+                let slot_indices = span.claim_marked_slots(mark_epoch, max_slots);
 
-                // claim marked slots that were not scanned yet
-                for (start, len) in marked.set_ranges() {
-                    for slot_index in start..start + len {
-                        if !slot_indices.is_empty() && claimed_bytes >= remaining_bytes {
-                            break;
-                        }
-
-                        if span.scanned.try_set(slot_index) {
-                            slot_indices.push(slot_index);
-                            claimed_bytes += slot_bytes;
-                        }
-                    }
-
-                    if !slot_indices.is_empty() && claimed_bytes >= remaining_bytes {
-                        break;
-                    }
-                }
-
+                // no marked slots are currently available
                 if slot_indices.is_empty() {
-                    span.is_queued_for_scan.store(false, Ordering::Release);
                     return Ok(scanned_bytes);
                 }
 

@@ -1,7 +1,7 @@
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
 use destack_mir::TraceMap;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Bitmap, PageRun};
@@ -36,11 +36,15 @@ pub(crate) struct SharedSmallSpan {
     /// The exact shared-reference bits for each occupied slot.
     pub(crate) shared_reference_bits: AtomicBitmap,
     /// The marked slots in this span.
-    pub(crate) marked: AtomicBitmap,
+    marked: AtomicBitmap,
     /// The marked slots whose payloads have already been scanned.
-    pub(crate) scanned: AtomicBitmap,
-    /// Whether this span already has one queued scan work item.
-    pub(crate) is_queued_for_scan: AtomicBool,
+    scanned: AtomicBitmap,
+    /// The next marked slot candidate to scan.
+    scan_cursor: AtomicUsize,
+    /// The mark epoch represented by the collector bitmaps.
+    mark_epoch: AtomicU64,
+    /// The lazy mark reset lock.
+    mark_reset: Mutex<()>,
     /// The allocation list this span belongs to.
     pub(crate) list: AtomicSpanList,
     /// The allocator pages for this span.
@@ -72,7 +76,9 @@ impl SharedSmallSpan {
             shared_reference_bits: AtomicBitmap::with_capacity(slot_count * scan_word_count),
             marked: AtomicBitmap::with_capacity(slot_count),
             scanned: AtomicBitmap::with_capacity(slot_count),
-            is_queued_for_scan: AtomicBool::new(false),
+            scan_cursor: AtomicUsize::new(0),
+            mark_epoch: AtomicU64::new(0),
+            mark_reset: Mutex::new(()),
             list: AtomicSpanList::new(list),
             pages: RwLock::new(pages),
         }
@@ -106,7 +112,9 @@ impl SharedSmallSpan {
             shared_reference_bits: AtomicBitmap::from_bitmap(shared_reference_bits),
             marked: AtomicBitmap::with_capacity(slot_count),
             scanned: AtomicBitmap::with_capacity(slot_count),
-            is_queued_for_scan: AtomicBool::new(false),
+            scan_cursor: AtomicUsize::new(0),
+            mark_epoch: AtomicU64::new(0),
+            mark_reset: Mutex::new(()),
             list: AtomicSpanList::new(list),
             pages: RwLock::new(pages),
         }
@@ -292,12 +300,84 @@ impl SharedSmallSpan {
         )
     }
 
-    /// Clear every mark and scan bit in this span.
-    pub(crate) fn clear_marks(&self) {
-        // reset collector metadata for a new cycle
+    /// Return whether one slot is marked in one cycle.
+    pub(crate) fn is_marked(&self, slot_index: usize, epoch: u64) -> bool {
+        if self.mark_epoch.load(Ordering::Acquire) != epoch {
+            return false;
+        }
+
+        self.marked.contains(slot_index)
+    }
+
+    /// Mark one slot for one cycle and return whether it was newly marked.
+    pub(crate) fn mark_slot(&self, slot_index: usize, epoch: u64) -> bool {
+        self.ensure_mark_epoch(epoch);
+
+        let is_new = self.marked.try_set(slot_index);
+        if is_new {
+            self.scan_cursor.fetch_min(slot_index, Ordering::AcqRel);
+        }
+
+        is_new
+    }
+
+    /// Claim one marked slot for scanning in one cycle.
+    pub(crate) fn claim_marked_slot(&self, slot_index: usize, epoch: u64) -> bool {
+        if self.mark_epoch.load(Ordering::Acquire) != epoch {
+            return false;
+        }
+
+        if !self.marked.contains(slot_index) {
+            return false;
+        }
+
+        self.scanned.try_set(slot_index)
+    }
+
+    /// Claim marked slots for scanning in one cycle.
+    pub(crate) fn claim_marked_slots(&self, epoch: u64, max_slots: usize) -> Vec<usize> {
+        if self.mark_epoch.load(Ordering::Acquire) != epoch {
+            return Vec::new();
+        }
+
+        let mut slots = Vec::new();
+        while slots.len() < max_slots {
+            let start = self.scan_cursor.load(Ordering::Acquire);
+            let Some(slot_index) = self.marked.first_set_from(start) else {
+                break;
+            };
+            let next_slot_index = slot_index + 1;
+            if self
+                .scan_cursor
+                .compare_exchange(start, next_slot_index, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                continue;
+            }
+
+            if self.claim_marked_slot(slot_index, epoch) {
+                slots.push(slot_index);
+            }
+        }
+
+        slots
+    }
+
+    /// Ensure collector bitmaps represent one mark epoch.
+    fn ensure_mark_epoch(&self, epoch: u64) {
+        if self.mark_epoch.load(Ordering::Acquire) == epoch {
+            return;
+        }
+
+        let _reset = self.mark_reset.lock();
+        if self.mark_epoch.load(Ordering::Acquire) == epoch {
+            return;
+        }
+
         self.marked.clear_all();
         self.scanned.clear_all();
-        self.is_queued_for_scan.store(false, Ordering::Release);
+        self.scan_cursor.store(0, Ordering::Release);
+        self.mark_epoch.store(epoch, Ordering::Release);
     }
 
     /// Return the occupied bitmap as an image bitmap.
@@ -594,7 +674,7 @@ impl AtomicBitmap {
     }
 
     /// Clear all bits.
-    pub(crate) fn clear_all(&self) {
+    fn clear_all(&self) {
         for word in &self.words {
             word.store(0, Ordering::Release);
         }
@@ -612,6 +692,33 @@ impl AtomicBitmap {
         (start..self.capacity).find(|bit_index| !self.contains(*bit_index))
     }
 
+    /// Return the first set bit from the given offset.
+    fn first_set_from(&self, start: usize) -> Option<usize> {
+        if start >= self.capacity {
+            return None;
+        }
+
+        let mut word_index = start / ATOMIC_BITMAP_WORD_BITS;
+        let bit_offset = start % ATOMIC_BITMAP_WORD_BITS;
+        let mut word = self.words[word_index].load(Ordering::Acquire) & !low_bit_mask(bit_offset);
+
+        loop {
+            if word != 0 {
+                let first_bit = word.trailing_zeros() as usize;
+                let bit_index = word_index * ATOMIC_BITMAP_WORD_BITS + first_bit;
+
+                return (bit_index < self.capacity).then_some(bit_index);
+            }
+
+            word_index += 1;
+            if word_index >= self.words.len() {
+                return None;
+            }
+
+            word = self.words[word_index].load(Ordering::Acquire);
+        }
+    }
+
     /// Return a bitmap snapshot.
     pub(crate) fn snapshot(&self) -> Bitmap {
         let mut bitmap = Bitmap::with_capacity(self.capacity);
@@ -623,5 +730,16 @@ impl AtomicBitmap {
         }
 
         bitmap
+    }
+}
+
+/// Return one mask with every low bit below the offset set.
+fn low_bit_mask(bit_offset: usize) -> u64 {
+    if bit_offset >= ATOMIC_BITMAP_WORD_BITS {
+        u64::MAX
+    } else if bit_offset == 0 {
+        0
+    } else {
+        (1_u64 << bit_offset) - 1
     }
 }

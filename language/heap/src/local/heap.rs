@@ -197,14 +197,14 @@ impl Heap {
     pub fn take_collection_budget_bytes(&mut self) -> usize {
         self.refresh_gc_request();
 
-        let budget_bytes = self.gc_pacer.budget_bytes(self.options.gc, 1);
-
-        match self.gc_request {
-            Some(GcRequest::Minor | GcRequest::Full) => {
-                budget_bytes.max(self.heap.young.used_bytes())
-            }
-            None => budget_bytes,
+        if !self.heap.major_gc_active() && !self.heap.young_gc_active() && self.gc_request.is_none()
+        {
+            return 0;
         }
+
+        self.ensure_pacer_cycle();
+
+        self.gc_pacer.budget_bytes(self.options.gc, 1)
     }
 
     /// Run one local collection step within one byte budget.
@@ -222,6 +222,16 @@ impl Heap {
 
         self.refresh_gc_request();
 
+        // service young GC work
+        if self.heap.young_gc_active() {
+            let progress = self.heap.step_young_gc(roots, budget_bytes)?;
+            if let Some(stats) = progress.completed_stats() {
+                self.on_after_gc_cycle(stats);
+            }
+
+            return Ok(progress);
+        }
+
         // service major GC work
         if self.heap.major_gc_active() {
             let progress = self.heap.step_major_gc(roots, budget_bytes)?;
@@ -237,54 +247,33 @@ impl Heap {
             return Ok(GcProgress::Idle);
         };
 
-        self.gc_pacer
-            .begin_cycle(self.options.gc, self.heap_allocated_bytes());
+        self.ensure_pacer_cycle();
 
-        // full cycles first drain young space
+        // full cycles run as bounded mark and sweep work
         if gc_request == GcRequest::Full {
-            let mut remaining_bytes = budget_bytes;
-
-            // run one bounded nursery quantum
-            if !self.heap.young.is_empty() {
-                let young_bytes = self.heap.young.used_bytes();
-                if remaining_bytes < young_bytes {
-                    self.gc_request = Some(GcRequest::Full);
-
-                    return Ok(GcProgress::Idle);
-                }
-
-                let _minor = self.heap.collect_minor(roots)?;
-                remaining_bytes -= young_bytes;
-            }
-
-            // begin / service major
             self.heap.start_major_gc(roots)?;
-            if remaining_bytes == 0 {
+            let progress = self.heap.step_major_gc(roots, budget_bytes)?;
+
+            if let Some(stats) = progress.completed_stats() {
+                self.on_after_gc_cycle(stats);
+            } else {
                 self.gc_request = Some(GcRequest::Full);
-
-                Ok(GcProgress::Idle)
-            } else {
-                let progress = self.heap.step_major_gc(roots, remaining_bytes)?;
-
-                if let Some(stats) = progress.completed_stats() {
-                    self.on_after_gc_cycle(stats);
-                } else {
-                    self.gc_request = Some(GcRequest::Full);
-                }
-
-                Ok(progress)
             }
+
+            Ok(progress)
         }
-        // minor cycles keep the steady-state path short
+        // nursery cycles move objects, so drain them at one safepoint
         else {
-            let young_bytes = self.heap.young.used_bytes();
-            if budget_bytes < young_bytes {
-                self.gc_request = Some(GcRequest::Minor);
-                Ok(GcProgress::Idle)
+            self.heap.start_young_gc()?;
+            let progress = self.heap.step_young_gc(roots, budget_bytes)?;
+
+            if let Some(stats) = progress.completed_stats() {
+                self.on_after_gc_cycle(stats);
             } else {
-                let stats = self.collect_minor(roots)?;
-                Ok(GcProgress::Complete(stats))
+                self.gc_request = Some(GcRequest::Minor);
             }
+
+            Ok(progress)
         }
     }
 
@@ -574,12 +563,15 @@ impl Heap {
         // translate pacer pressure into local cycle policy
         match self.gc_pacer.pressure(heap_bytes) {
             GcPressure::Idle => {}
-            GcPressure::Cycle => self.request_gc(GcRequest::Minor),
+            GcPressure::Cycle => self.request_gc(GcRequest::Full),
             GcPressure::Full => self.request_gc(GcRequest::Full),
         }
 
-        // nursery occupancy requests the cheap stop-the-world scavenge
-        if self.heap.young.used_bytes() >= self.young_trigger_bytes {
+        // recycle the nursery only when it fits the hard local quantum
+        let young_bytes = self.heap.young.used_bytes();
+        let nursery_fits_quantum =
+            young_bytes > 0 && young_bytes <= self.options.gc.minimum_work_bytes;
+        if young_bytes >= self.young_trigger_bytes && nursery_fits_quantum {
             self.request_gc(GcRequest::Minor);
         }
     }
@@ -610,6 +602,20 @@ impl Heap {
         self.refresh_gc_request();
     }
 
+    /// Ensure the local pacer has one active cycle budget.
+    fn ensure_pacer_cycle(&mut self) {
+        if self.heap.major_gc_active() || self.heap.young_gc_active() {
+            return;
+        }
+
+        if self.gc_pacer.remaining_work_bytes != 0 {
+            return;
+        }
+
+        self.gc_pacer
+            .begin_cycle(self.options.gc, self.heap_allocated_bytes());
+    }
+
     /// Accrue local collector work from heap allocation pressure.
     fn accrue_assist_debt(&mut self, allocated_bytes: usize) {
         let heap_bytes = self.heap_allocated_bytes();
@@ -625,8 +631,8 @@ impl Heap {
 /// One pending local GC request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum GcRequest {
-    /// Run one minor cycle.
+    /// Run one young mark-and-sweep cycle.
     Minor,
-    /// Run one full cycle.
+    /// Run one full mark-and-sweep cycle.
     Full,
 }

@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{SharedHeapPlace, SharedHeapSpace};
 use crate::{
@@ -161,13 +159,12 @@ impl SharedHeapSpace {
                     });
                 };
 
-                if span.marked.contains(slot.slot_index()) {
+                let mark_epoch = self.gc.mark_epoch();
+                if span.is_marked(slot.slot_index(), mark_epoch) {
                     return Ok(());
                 }
 
-                span.marked.set(slot.slot_index());
-
-                !span.is_queued_for_scan.swap(true, Ordering::AcqRel)
+                span.mark_slot(slot.slot_index(), mark_epoch)
             };
 
             if should_queue {
@@ -198,58 +195,10 @@ impl SharedHeapSpace {
         Ok(())
     }
 
-    /// Clear every collector mark bit in the live shared heap.
-    pub(super) fn clear_mark_bits(&self) {
-        let store = self.state.read();
-
-        // small-span marks
-        for span in &store.small.spans {
-            span.clear_marks();
-        }
-
-        // large-allocation marks
-        for allocation in &store.large.allocations {
-            allocation.write().is_marked = false;
-        }
-    }
-
-    /// Return whether one shared heap place is marked in the active cycle.
-    pub(super) fn is_marked_place(&self, place: SharedHeapPlace) -> HeapResult<bool> {
-        let store = self.state.read();
-
-        // dispatch by physical shared heap place
-        match place {
-            SharedHeapPlace::Small(slot) => {
-                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-
-                Ok(span.marked.contains(slot.slot_index()))
-            }
-            SharedHeapPlace::Large(allocation_id) => {
-                let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned()
-                else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-                let allocation = allocation.read();
-
-                Ok(allocation.is_marked)
-            }
-        }
-    }
-
     /// Mark one shared heap place and return whether this was the first mark.
     pub(super) fn mark_place(&self, place: SharedHeapPlace) -> HeapResult<bool> {
-        // skip already marked places
-        if self.is_marked_place(place)? {
-            return Ok(false);
-        }
-
         let store = self.state.read();
+        let mark_epoch = self.gc.mark_epoch();
 
         // mark by physical shared heap place
         match place {
@@ -259,7 +208,8 @@ impl SharedHeapSpace {
                         span_index: slot.span_index(),
                     });
                 };
-                span.marked.set(slot.slot_index());
+
+                return Ok(span.mark_slot(slot.slot_index(), mark_epoch));
             }
             SharedHeapPlace::Large(allocation_id) => {
                 let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned()
@@ -269,8 +219,11 @@ impl SharedHeapSpace {
                     });
                 };
                 let mut allocation = allocation.write();
+                if allocation.mark_epoch == mark_epoch {
+                    return Ok(false);
+                }
 
-                allocation.is_marked = true;
+                allocation.mark_epoch = mark_epoch;
             }
         }
 

@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 use parking_lot::{Mutex, MutexGuard};
@@ -23,6 +22,8 @@ pub(crate) struct SharedGcState {
     pub(crate) mark_publishers: AtomicUsize,
     /// The number of mark items currently being traced.
     pub(crate) mark_inflight: AtomicUsize,
+    /// The active mark epoch.
+    mark_epoch: AtomicU64,
     /// The active sweep state.
     sweep: Mutex<SharedSweepState>,
 }
@@ -45,31 +46,40 @@ impl SharedGcState {
         self.phase.store(phase.bits(), Ordering::Release);
     }
 
+    /// Advance and return the active shared mark epoch.
+    pub(crate) fn advance_mark_epoch(&self) -> u64 {
+        self.mark_epoch.fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    /// Return the active shared mark epoch.
+    pub(crate) fn mark_epoch(&self) -> u64 {
+        self.mark_epoch.load(Ordering::Acquire)
+    }
+
     /// Reset sweep state for a new mark cycle.
     pub(crate) fn reset_sweep(&self) {
         *self.sweep.lock() = SharedSweepState::default();
     }
 
-    /// Start sweeping one stable reference snapshot.
-    pub(crate) fn start_sweep(&self, references: Vec<SharedHeapReference>) {
+    /// Start sweeping from the beginning of the shared heap.
+    pub(crate) fn start_sweep(&self, small_span_limit: usize, large_limit: usize) {
         *self.sweep.lock() = SharedSweepState {
-            references: Arc::from(references),
+            cursor: SharedSweepCursor {
+                small_span_limit,
+                large_limit,
+                ..SharedSweepCursor::default()
+            },
             ..SharedSweepState::default()
         };
     }
 
-    /// Return the stable sweep reference snapshot.
-    pub(crate) fn sweep_references(&self) -> Arc<[SharedHeapReference]> {
-        self.sweep.lock().references.clone()
-    }
-
-    /// Return the next reference index to sweep.
-    pub(crate) fn sweep_cursor(&self) -> usize {
+    /// Return the current sweep cursor.
+    pub(crate) fn sweep_cursor(&self) -> SharedSweepCursor {
         self.sweep.lock().cursor
     }
 
-    /// Set the next reference index to sweep.
-    pub(crate) fn set_sweep_cursor(&self, cursor: usize) {
+    /// Set the current sweep cursor.
+    pub(crate) fn set_sweep_cursor(&self, cursor: SharedSweepCursor) {
         self.sweep.lock().cursor = cursor;
     }
 
@@ -399,13 +409,26 @@ pub(crate) struct SharedMarkPublication<'a> {
     state: &'a SharedGcState,
 }
 
+/// Active shared sweep cursor.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct SharedSweepCursor {
+    /// The next small span index to sweep.
+    pub(crate) small_span_index: usize,
+    /// The next small slot index to sweep inside the current span.
+    pub(crate) small_slot_index: usize,
+    /// The small span table length captured when sweep started.
+    pub(crate) small_span_limit: usize,
+    /// The next large allocation index to sweep.
+    pub(crate) large_index: usize,
+    /// The large allocation table length captured when sweep started.
+    pub(crate) large_limit: usize,
+}
+
 /// Active shared sweep state.
 #[derive(Debug, Default)]
 struct SharedSweepState {
-    /// The stable shared reference snapshot for the active sweep.
-    references: Arc<[SharedHeapReference]>,
-    /// The next reference index to sweep.
-    cursor: usize,
+    /// The next allocation to sweep.
+    cursor: SharedSweepCursor,
     /// The allocations freed so far in the active cycle.
     freed_allocations: usize,
     /// The bytes freed so far in the active cycle.

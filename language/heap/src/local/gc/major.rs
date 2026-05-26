@@ -1,11 +1,16 @@
 use crate::local::space::{
-    GcKind, GcStats, HeapLocation, HeapPlace, HeapSpace, LargeAllocationId, LocalGcPhase,
-    LocalTraceWork, YoungPlace,
+    GcKind, GcStats, HeapLocation, HeapPlace, HeapSpace, LocalGcPhase, LocalTraceWork,
+    MajorSweepCursor, YoungPlace,
 };
 use crate::{
     GcProgress, HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource,
     scan_heap_references, scan_heap_references_in_range,
 };
+
+/// The budget charged for one metadata-only sweep step.
+const METADATA_STEP_BYTES: usize = 1;
+/// The number of metadata bits skipped by one bitmap word scan.
+const METADATA_WORD_BITS: usize = u64::BITS as usize;
 
 impl HeapSpace {
     /// Return whether one local major collection is active.
@@ -20,11 +25,12 @@ impl HeapSpace {
         place: HeapPlace,
     ) -> HeapResult<()> {
         // inactive collector
-        if self.collector.major_phase != LocalGcPhase::Mark {
+        if self.collector.major_phase == LocalGcPhase::Idle {
             return Ok(());
         }
 
         self.mark_place(place)?;
+
         self.enqueue_location_heap_references(reference, place, 0, usize::MAX)
     }
 
@@ -36,7 +42,7 @@ impl HeapSpace {
         byte_len: usize,
     ) -> HeapResult<()> {
         // inactive collector
-        if self.collector.major_phase != LocalGcPhase::Mark {
+        if self.collector.major_phase == LocalGcPhase::Idle {
             return Ok(());
         }
 
@@ -128,10 +134,10 @@ impl HeapSpace {
         }
 
         // reset cycle state
-        self.clear_mark_bits()?;
+        self.collector.mark_epoch += 1;
+        self.clear_young_mark_bits();
         self.collector.major_queue.clear();
-        self.collector.major_sweep_references.clear();
-        self.collector.major_sweep_cursor = 0;
+        self.collector.major_sweep = MajorSweepCursor::default();
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
         self.collector.major_phase = LocalGcPhase::Mark;
@@ -167,8 +173,7 @@ impl HeapSpace {
 
                 // switch to sweep when mark work drains
                 if self.collector.major_queue.is_empty() {
-                    self.collector.major_sweep_references = self.live_references()?;
-                    self.collector.major_sweep_cursor = 0;
+                    self.start_major_sweep();
                     self.collector.major_phase = LocalGcPhase::Sweep;
 
                     // spend remaining budget in the sweep phase
@@ -181,7 +186,19 @@ impl HeapSpace {
 
                 Ok(GcProgress::Active)
             }
-            LocalGcPhase::Sweep => Ok(self.sweep_unreachable_references_step(budget_bytes)?),
+            LocalGcPhase::Sweep => {
+                let marked_bytes = self.mark_reachable_references_step(budget_bytes)?;
+                if !self.collector.major_queue.is_empty() {
+                    return Ok(GcProgress::Active);
+                }
+                if marked_bytes >= budget_bytes {
+                    return Ok(GcProgress::Active);
+                }
+
+                let remaining_bytes = budget_bytes - marked_bytes;
+
+                Ok(self.sweep_unreachable_references_step(remaining_bytes)?)
+            }
         }
     }
 
@@ -200,10 +217,11 @@ impl HeapSpace {
         })?;
 
         // pins
-        let pins = self.collector.pins.references().collect::<Vec<_>>();
-        for reference in pins {
+        let pins = std::mem::take(&mut self.collector.pins);
+        for reference in pins.references() {
             self.enqueue_major_reference(reference)?;
         }
+        self.collector.pins = pins;
 
         Ok(())
     }
@@ -219,8 +237,7 @@ impl HeapSpace {
         self.gc.record_cycle(GcKind::Full, stats);
         self.collector.major_phase = LocalGcPhase::Idle;
         self.collector.major_queue.clear();
-        self.collector.major_sweep_references.clear();
-        self.collector.major_sweep_cursor = 0;
+        self.collector.major_sweep = MajorSweepCursor::default();
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
         self.collector.is_collecting = false;
@@ -228,44 +245,266 @@ impl HeapSpace {
         Ok(stats)
     }
 
+    /// Start sweeping over the heap tables visible to the active major cycle.
+    fn start_major_sweep(&mut self) {
+        self.young.flush_run_cursor();
+        self.collector.major_sweep = MajorSweepCursor {
+            small_span_limit: self.small.spans.len(),
+            large_limit: self.large.allocations.len(),
+            ..MajorSweepCursor::default()
+        };
+    }
+
     /// Sweep unreachable references within one byte budget.
     fn sweep_unreachable_references_step(&mut self, budget_bytes: usize) -> HeapResult<GcProgress> {
         let mut swept_bytes = 0usize;
 
-        // sweep bounded live-reference candidates
-        while swept_bytes < budget_bytes
-            && self.collector.major_sweep_cursor < self.collector.major_sweep_references.len()
-        {
-            let reference =
-                self.collector.major_sweep_references[self.collector.major_sweep_cursor];
-            self.collector.major_sweep_cursor += 1;
+        self.sweep_major_young_ranges_step(budget_bytes, &mut swept_bytes)?;
+        self.sweep_major_young_runs_step(budget_bytes, &mut swept_bytes)?;
+        self.sweep_major_small_spans_step(budget_bytes, &mut swept_bytes)?;
+        self.sweep_major_large_allocations_step(budget_bytes, &mut swept_bytes)?;
 
-            let Some(location) = self.resolve_location(reference) else {
-                continue;
-            };
-            swept_bytes += location.byte_len.max(1);
-
-            // keep reachable references intact
-            if self.is_marked_place(location.place)? {
-                continue;
-            }
-
-            // free unreachable references and charge the reclaimed bytes
-            self.free(reference)
-                .map_err(|error| HeapError::HeapFreeFailed {
-                    reference,
-                    error: Box::new(error),
-                })?;
-            self.collector.major_freed_allocations += 1;
-            self.collector.major_freed_bytes += location.byte_len as u64;
-        }
-
-        // finish once every candidate has been visited
-        if self.collector.major_sweep_cursor >= self.collector.major_sweep_references.len() {
+        if self.major_sweep_drained() {
             return self.finish_major_gc().map(GcProgress::Complete);
         }
 
         Ok(GcProgress::Active)
+    }
+
+    /// Sweep unreachable young range allocations within one byte budget.
+    fn sweep_major_young_ranges_step(
+        &mut self,
+        budget_bytes: usize,
+        swept_bytes: &mut usize,
+    ) -> HeapResult<()> {
+        while *swept_bytes < budget_bytes
+            && self.collector.major_sweep.young_range_cursor < self.young.live.capacity()
+        {
+            let Some(allocation_index) = self
+                .young
+                .live
+                .first_set_from(self.collector.major_sweep.young_range_cursor)
+            else {
+                self.collector.major_sweep.young_range_cursor = charge_bitmap_skip(
+                    self.collector.major_sweep.young_range_cursor,
+                    self.young.live.capacity(),
+                    budget_bytes,
+                    swept_bytes,
+                );
+
+                return Ok(());
+            };
+
+            self.collector.major_sweep.young_range_cursor = charge_bitmap_skip(
+                self.collector.major_sweep.young_range_cursor,
+                allocation_index,
+                budget_bytes,
+                swept_bytes,
+            );
+            if *swept_bytes >= budget_bytes {
+                return Ok(());
+            }
+            self.collector.major_sweep.young_range_cursor = allocation_index + 1;
+
+            let Some(allocation) = self.young_range(allocation_index) else {
+                return Err(HeapError::InvariantViolation {
+                    context: "live young range missing during major sweep",
+                });
+            };
+            let reference = HeapReference::new(allocation.first_offset);
+            let byte_len = allocation.byte_len;
+
+            if self.young.marked.contains(allocation_index) {
+                *swept_bytes += byte_len.max(1);
+
+                continue;
+            }
+
+            self.free_swept_reference(reference, byte_len)?;
+            *swept_bytes += byte_len.max(1);
+        }
+
+        Ok(())
+    }
+
+    /// Sweep unreachable young run slots within one byte budget.
+    fn sweep_major_young_runs_step(
+        &mut self,
+        budget_bytes: usize,
+        swept_bytes: &mut usize,
+    ) -> HeapResult<()> {
+        while *swept_bytes < budget_bytes
+            && self.collector.major_sweep.young_run_cursor < self.young.runs.len()
+        {
+            let run_index = self.collector.major_sweep.young_run_cursor;
+            let Some(run) = self.young.run(run_index).cloned() else {
+                return Err(HeapError::MissingSpan {
+                    span_index: run_index,
+                });
+            };
+            let reserved_slots = self
+                .young
+                .run_reserved_slot_count(run_index)
+                .unwrap_or(run.slot_count);
+
+            while *swept_bytes < budget_bytes
+                && self.collector.major_sweep.young_slot_cursor < reserved_slots
+            {
+                let slot_index = self.collector.major_sweep.young_slot_cursor;
+                self.collector.major_sweep.young_slot_cursor += 1;
+
+                let Some(bits) = self.young.run_bits_mut(run_index) else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: run_index,
+                    });
+                };
+                if bits.freed.contains(slot_index) {
+                    *swept_bytes += METADATA_STEP_BYTES;
+
+                    continue;
+                }
+
+                if bits.marked.contains(slot_index) {
+                    *swept_bytes += run.size_class.max(1);
+
+                    continue;
+                }
+
+                bits.freed.set(slot_index);
+                bits.marked.clear(slot_index);
+                let reference = HeapReference::new(run.slot_offset(slot_index));
+                self.collector.remove_shared_edge_root(reference);
+                self.record_young_free(run.size_class);
+                self.collector.major_freed_allocations += 1;
+                self.collector.major_freed_bytes += run.size_class as u64;
+                *swept_bytes += run.size_class.max(1);
+            }
+
+            if self.collector.major_sweep.young_slot_cursor >= reserved_slots {
+                self.collector.major_sweep.young_run_cursor += 1;
+                self.collector.major_sweep.young_slot_cursor = 0;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Sweep unreachable small-span slots within one byte budget.
+    fn sweep_major_small_spans_step(
+        &mut self,
+        budget_bytes: usize,
+        swept_bytes: &mut usize,
+    ) -> HeapResult<()> {
+        while *swept_bytes < budget_bytes
+            && self.collector.major_sweep.small_span_cursor
+                < self.collector.major_sweep.small_span_limit
+        {
+            let span_index = self.collector.major_sweep.small_span_cursor;
+            let Some(span) = self.span(span_index) else {
+                return Err(HeapError::MissingSpan { span_index });
+            };
+            let slot_count = span.slot_count;
+            let size_class = span.class.size_class;
+
+            while *swept_bytes < budget_bytes
+                && self.collector.major_sweep.small_slot_cursor < slot_count
+            {
+                let slot_index = self.collector.major_sweep.small_slot_cursor;
+                self.collector.major_sweep.small_slot_cursor += 1;
+
+                let Some(span) = self.span(span_index) else {
+                    return Err(HeapError::MissingSpan { span_index });
+                };
+                if !span.occupied.contains(slot_index) {
+                    *swept_bytes += METADATA_STEP_BYTES;
+
+                    continue;
+                }
+
+                let is_marked = span.mark_epoch == self.collector.mark_epoch
+                    && span.marked.contains(slot_index);
+                if is_marked {
+                    *swept_bytes += size_class.max(1);
+
+                    continue;
+                }
+
+                let reference = HeapReference::new(span.first_offset + slot_index * size_class);
+                self.free_swept_reference(reference, size_class)?;
+                *swept_bytes += size_class.max(1);
+            }
+
+            if self.collector.major_sweep.small_slot_cursor >= slot_count {
+                self.collector.major_sweep.small_span_cursor += 1;
+                self.collector.major_sweep.small_slot_cursor = 0;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Sweep unreachable large allocations within one byte budget.
+    fn sweep_major_large_allocations_step(
+        &mut self,
+        budget_bytes: usize,
+        swept_bytes: &mut usize,
+    ) -> HeapResult<()> {
+        while *swept_bytes < budget_bytes
+            && self.collector.major_sweep.large_cursor < self.collector.major_sweep.large_limit
+        {
+            let allocation_index = self.collector.major_sweep.large_cursor;
+            self.collector.major_sweep.large_cursor += 1;
+
+            let Some(allocation) = self.large.allocations.get(allocation_index) else {
+                return Err(HeapError::MissingLargeAllocation {
+                    allocation_id: allocation_index as u64 + 1,
+                });
+            };
+            if !allocation.is_live {
+                *swept_bytes += METADATA_STEP_BYTES;
+
+                continue;
+            }
+
+            let reference = HeapReference::new(allocation.first_offset);
+            let byte_len = allocation.len;
+            if allocation.mark_epoch == self.collector.mark_epoch {
+                *swept_bytes += byte_len.max(1);
+
+                continue;
+            }
+
+            self.free_swept_reference(reference, byte_len)?;
+            *swept_bytes += byte_len.max(1);
+        }
+
+        Ok(())
+    }
+
+    /// Return whether every active major sweep cursor is drained.
+    fn major_sweep_drained(&self) -> bool {
+        self.collector.major_sweep.young_range_cursor >= self.young.live.capacity()
+            && self.collector.major_sweep.young_run_cursor >= self.young.runs.len()
+            && self.collector.major_sweep.small_span_cursor
+                >= self.collector.major_sweep.small_span_limit
+            && self.collector.major_sweep.large_cursor >= self.collector.major_sweep.large_limit
+    }
+
+    /// Free one unreachable allocation discovered by major sweep.
+    fn free_swept_reference(
+        &mut self,
+        reference: HeapReference,
+        byte_len: usize,
+    ) -> HeapResult<()> {
+        self.free(reference)
+            .map_err(|error| HeapError::HeapFreeFailed {
+                reference,
+                error: Box::new(error),
+            })?;
+        self.collector.major_freed_allocations += 1;
+        self.collector.major_freed_bytes += byte_len as u64;
+
+        Ok(())
     }
 
     /// Mark reachable heap references within one byte budget.
@@ -430,37 +669,12 @@ impl HeapSpace {
         Ok(())
     }
 
-    /// Clear every collector mark bit in the live heap.
-    pub(super) fn clear_mark_bits(&mut self) -> HeapResult<()> {
-        // nursery marks
+    /// Clear every young-space mark bit.
+    pub(super) fn clear_young_mark_bits(&mut self) {
         self.young.marked.clear_all();
         for bits in &mut self.young.run_bits {
             bits.marked.clear_all();
         }
-
-        // small-span marks
-        for span_index in 0..self.small.spans.len() {
-            let Some(span) = self.small.spans.get_mut(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
-            };
-
-            span.clear_marks();
-        }
-
-        // large-allocation marks
-        for allocation_index in 0..self.large.allocations.len() {
-            let Some(allocation) = self.large.allocations.get_mut(allocation_index) else {
-                let allocation_id = LargeAllocationId::new(allocation_index as u64 + 1);
-
-                return Err(HeapError::MissingLargeAllocation {
-                    allocation_id: allocation_id.id(),
-                });
-            };
-
-            allocation.is_marked = false;
-        }
-
-        Ok(())
     }
 
     /// Return whether one heap place is marked in the active cycle.
@@ -492,7 +706,8 @@ impl HeapSpace {
                     });
                 };
 
-                Ok(span.marked.contains(slot.slot_index()))
+                Ok(span.mark_epoch == self.collector.mark_epoch
+                    && span.marked.contains(slot.slot_index()))
             }
             HeapPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
@@ -501,7 +716,7 @@ impl HeapSpace {
                     });
                 };
 
-                Ok(allocation.is_marked)
+                Ok(allocation.mark_epoch == self.collector.mark_epoch)
             }
         }
     }
@@ -534,22 +749,25 @@ impl HeapSpace {
                 bits.marked.set(slot.slot_index());
             }
             HeapPlace::Small(slot) => {
+                let mark_epoch = self.collector.mark_epoch;
                 let Some(span) = self.span_mut(slot.span_index()) else {
                     return Err(HeapError::MissingSpan {
                         span_index: slot.span_index(),
                     });
                 };
 
+                span.ensure_mark_epoch(mark_epoch);
                 span.marked.set(slot.slot_index());
             }
             HeapPlace::Large(allocation_id) => {
+                let mark_epoch = self.collector.mark_epoch;
                 let Some(allocation) = self.large_allocation_mut(allocation_id) else {
                     return Err(HeapError::MissingLargeAllocation {
                         allocation_id: allocation_id.id(),
                     });
                 };
 
-                allocation.is_marked = true;
+                allocation.mark_epoch = mark_epoch;
             }
         }
 
@@ -562,15 +780,37 @@ impl HeapSpace {
         freed_allocations: usize,
         freed_bytes: u64,
     ) -> GcStats {
-        // current live heap usage
-        let (live_allocations, allocated_bytes) = self.live_allocated_usage();
-
         GcStats {
             freed_allocations,
-            live_allocations,
+            live_allocations: self.usage.allocation_count(),
             freed_bytes,
-            allocated_bytes,
+            allocated_bytes: self.usage.allocated_bytes(),
             retained_bytes: self.retained_bytes(),
         }
     }
+}
+
+/// Charge bitmap metadata work and return the cursor reached.
+fn charge_bitmap_skip(
+    start: usize,
+    end: usize,
+    budget_bytes: usize,
+    swept_bytes: &mut usize,
+) -> usize {
+    if start >= end {
+        return end;
+    }
+
+    let skipped_bits = end - start;
+    let skipped_words = skipped_bits.div_ceil(METADATA_WORD_BITS);
+    let remaining_budget = budget_bytes - *swept_bytes;
+    if skipped_words <= remaining_budget {
+        *swept_bytes += skipped_words;
+
+        return end;
+    }
+
+    *swept_bytes = budget_bytes;
+
+    start + remaining_budget * METADATA_WORD_BITS
 }

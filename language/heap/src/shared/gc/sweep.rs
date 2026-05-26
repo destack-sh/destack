@@ -1,6 +1,9 @@
 use crate::shared::gc::SharedGcPhase;
 use crate::shared::space::SharedHeapSpace;
-use crate::{GcKind, GcProgress, GcStats, HeapError, HeapResult};
+use crate::{GcKind, GcProgress, GcStats, HeapError, HeapResult, SharedHeapReference};
+
+/// The budget charged for one metadata-only sweep step.
+const METADATA_STEP_BYTES: usize = 1;
 
 impl SharedHeapSpace {
     /// Transition from concurrent mark into sweeping.
@@ -22,8 +25,11 @@ impl SharedHeapSpace {
         }
 
         // sweep state
-        let references = self.live_references()?;
-        self.gc.start_sweep(references);
+        let store = self.state.read();
+        self.gc
+            .start_sweep(store.small.spans.len(), store.large.allocations.len());
+        drop(store);
+
         self.gc.set_phase(SharedGcPhase::Sweep);
 
         Ok(true)
@@ -39,37 +45,74 @@ impl SharedHeapSpace {
             SharedGcPhase::Mark => return Err(HeapError::SharedCollectionNotSweeping),
         }
 
-        // snapshot active sweep candidates
-        let references = self.gc.sweep_references();
-        let reference_len = references.len();
+        // active cursor
         let mut cursor = self.gc.sweep_cursor();
-
         let mut swept_bytes = 0usize;
         let mut released_references = Vec::new();
+        let is_complete = {
+            let store = self.state.read();
+            let mark_epoch = self.gc.mark_epoch();
 
-        // sweep cursor
-        while swept_bytes < budget_bytes {
-            if cursor >= reference_len {
-                break;
+            // small spans
+            while swept_bytes < budget_bytes && cursor.small_span_index < cursor.small_span_limit {
+                let span = &store.small.spans[cursor.small_span_index];
+                if span.occupied_count() == 0 || span.pages_empty() {
+                    swept_bytes += METADATA_STEP_BYTES;
+                    cursor.small_span_index += 1;
+                    cursor.small_slot_index = 0;
+
+                    continue;
+                }
+
+                while swept_bytes < budget_bytes && cursor.small_slot_index < span.slot_count {
+                    let slot_index = cursor.small_slot_index;
+                    cursor.small_slot_index += 1;
+
+                    if !span.contains_slot(slot_index) {
+                        swept_bytes += METADATA_STEP_BYTES;
+
+                        continue;
+                    }
+
+                    swept_bytes += span.class.size_class.max(1);
+                    if span.is_marked(slot_index, mark_epoch) {
+                        continue;
+                    }
+
+                    let slot_offset = span.class.size_class * slot_index;
+                    let reference = SharedHeapReference::new(span.first_offset + slot_offset);
+                    released_references.push(reference);
+                }
+
+                if cursor.small_slot_index >= span.slot_count {
+                    cursor.small_span_index += 1;
+                    cursor.small_slot_index = 0;
+                }
             }
 
-            let index = cursor;
-            cursor += 1;
-            let Some(reference) = references.get(index).copied() else {
-                continue;
-            };
-            let Some(location) = self.resolve_location(reference) else {
-                continue;
-            };
-            swept_bytes += location.byte_len.max(1);
+            // large allocations
+            while swept_bytes < budget_bytes && cursor.large_index < cursor.large_limit {
+                let allocation_index = cursor.large_index;
+                cursor.large_index += 1;
 
-            // keep reachable allocations
-            if self.is_marked_place(location.place)? {
-                continue;
+                let allocation = store.large.allocations[allocation_index].read();
+                if !allocation.is_live {
+                    swept_bytes += METADATA_STEP_BYTES;
+
+                    continue;
+                }
+
+                swept_bytes += allocation.len.max(1);
+                if allocation.mark_epoch == mark_epoch {
+                    continue;
+                }
+
+                released_references.push(SharedHeapReference::new(allocation.first_offset));
             }
 
-            released_references.push(reference);
-        }
+            cursor.small_span_index >= cursor.small_span_limit
+                && cursor.large_index >= cursor.large_limit
+        };
         self.gc.set_sweep_cursor(cursor);
 
         // reclaimed allocation
@@ -86,7 +129,7 @@ impl SharedHeapSpace {
         }
 
         // end of sweep
-        if cursor >= reference_len {
+        if is_complete {
             return self.finish_collection().map(GcProgress::Complete);
         }
 
@@ -96,17 +139,16 @@ impl SharedHeapSpace {
     /// Finish one completed shared collection cycle.
     fn finish_collection(&self) -> HeapResult<GcStats> {
         let mut store = self.state.write();
-        let retained_bytes = self.live_retained_bytes(&store);
-        let (live_allocations, allocated_bytes) = self.live_allocated_usage(&store);
+        let usage = self.accounting.usage(&store, self.allocator.page_bytes());
 
         // cycle stats
         let (freed_allocations, freed_bytes) = self.gc.sweep_freed();
         let stats = GcStats {
             freed_allocations,
-            live_allocations,
+            live_allocations: usage.allocation_count,
             freed_bytes,
-            allocated_bytes,
-            retained_bytes,
+            allocated_bytes: usage.allocated_bytes,
+            retained_bytes: usage.retained_bytes,
         };
 
         // cycle reset
