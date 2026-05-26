@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_heap::{
     DEFAULT_GC_MINIMUM_WORK_BYTES, GcOptions, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits,
-    SharedHeapLimits, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable,
+    SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable,
 };
 use destack_workspace::{
     HeapLayoutOptions, HeapOptions as WorkspaceHeapOptions, HeapSizeClasses, LocalGcOptions,
@@ -23,7 +23,7 @@ pub struct ResolvedSharedHeapOptions {
     /// The exact retained-byte limits for this heap.
     pub limits: SharedHeapLimits,
     /// The shared heap options for this heap.
-    pub options: HeapOptions,
+    pub options: SharedHeapOptions,
 }
 
 /// Resolve runtime heap options into worker-local heap settings.
@@ -118,15 +118,12 @@ fn resolve_shared_heap_policy(
     gc: &impl HeapGcConfig,
     layout: &HeapLayoutOptions,
     scope: &'static str,
-) -> RuntimeResult<HeapOptions> {
+) -> RuntimeResult<SharedHeapOptions> {
     let size_classes = resolve_size_classes(&layout.size_classes)?;
-    let heap_options = HeapOptions {
+    let heap_options = SharedHeapOptions {
         gc: resolved_gc_options(gc),
         size_classes,
-        heap_young_bytes: 0,
-        max_heap_young_allocation_bytes: 0,
         heap_small_bytes: layout.shared_heap_span_bytes,
-        raw_small_bytes: layout.raw_span_bytes,
         heap_space_bytes: layout.heap_space_bytes,
         raw_space_bytes: layout.raw_space_bytes,
         page_bytes: layout.page_bytes,
@@ -134,7 +131,7 @@ fn resolve_shared_heap_policy(
         small_allocation_alignment_bytes: layout.small_alignment_bytes,
     };
 
-    heap_options.validate_shared().map_err(|error| {
+    heap_options.validate().map_err(|error| {
         RuntimeError::ConfigurationInvalid {
             scope: scope.into(),
             detail: error.to_string(),

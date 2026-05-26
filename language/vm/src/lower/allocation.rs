@@ -1,4 +1,4 @@
-use destack_heap::{AllocationClass, HeapOptions, SmallAllocationPlan};
+use destack_heap::{AllocationClass, HeapOptions, SharedHeapOptions, SmallAllocationPlan};
 use destack_mir as mir;
 
 use crate::program::{
@@ -312,7 +312,7 @@ fn allocation_site(
     pointer_class: PointerClass,
     layout: &Layout,
     heap_options: &HeapOptions,
-    shared_heap_options: &HeapOptions,
+    shared_heap_options: &SharedHeapOptions,
 ) -> Result<(AllocationSite, Option<SmallAllocationPlan>)> {
     // resolve the allocation class from the destination space
     let is_noscan = !layout.trace_map.has_reference();

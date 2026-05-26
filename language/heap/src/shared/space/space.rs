@@ -11,55 +11,12 @@ use super::{
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::shared::gc::{SharedGcPhase, SharedGcState};
 use crate::{
-    AllocationPlan, AllocationShape, GcState, HeapError, HeapOptions, HeapResult,
+    AllocationPlan, AllocationShape, GcState, HeapError, HeapResult, SharedHeapOptions,
     SharedHeapReference, SharedHeapSpaceUsage, SmallSpanClass, allocation_plan,
 };
 
 /// The first non-null shared heap large-allocation id.
 const FIRST_LARGE_ALLOCATION_ID: u64 = 1;
-
-/// One shared heap small space.
-#[derive(Debug)]
-pub(crate) struct SharedSmallSpace {
-    /// The configured size-class table.
-    pub(crate) size_classes: SizeClassTable,
-    /// The configured span width.
-    pub(crate) span_bytes: usize,
-    /// The live shared heap spans.
-    pub(crate) spans: Vec<Arc<SharedSmallSpan>>,
-    /// The reusable non-full spans per size and scan class.
-    pub(crate) partial_spans: Vec<Vec<usize>>,
-}
-
-/// One shared heap large space.
-#[derive(Debug)]
-pub(crate) struct SharedLargeSpace {
-    /// The configured page width for allocations in large space.
-    pub(crate) page_bytes: usize,
-    /// The live shared heap allocations.
-    pub(crate) allocations: Vec<Arc<RwLock<SharedLargeAllocation>>>,
-    /// The free shared heap allocation ids available for reuse.
-    pub(crate) free_large_allocation_ids: Vec<u64>,
-    /// The next shared heap allocation id to allocate.
-    pub(crate) next_unused_large_allocation_id: u64,
-}
-
-/// Shared heap allocator metadata.
-#[derive(Debug)]
-pub(crate) struct SharedHeapState {
-    /// The shared cache of reusable page runs.
-    pub(crate) page_run_cache: PageRunCache,
-    /// The shared heap small space.
-    pub(crate) small: SharedSmallSpace,
-    /// The shared heap large space.
-    pub(crate) large: SharedLargeSpace,
-    /// The owning shared heap metadata for each visible allocator page.
-    pub(crate) page_map: Vec<Option<SharedHeapPageMapEntry>>,
-    /// The next unused byte offset in shared heap space.
-    pub(crate) next_offset: usize,
-    /// The live shared heap collector state.
-    pub(crate) gc: GcState,
-}
 
 /// One shared heap space over a shared allocator.
 #[derive(Debug)]
@@ -83,19 +40,22 @@ impl SharedHeapSpace {
 
     /// Create a new empty shared heap space over one shared allocator.
     pub fn with_allocator(allocator: Arc<Allocator>) -> HeapResult<Self> {
-        let options = HeapOptions {
+        let options = SharedHeapOptions {
             page_bytes: allocator.page_bytes(),
             allocator_chunk_bytes: allocator.chunk_bytes(),
-            ..HeapOptions::shared()
+            ..SharedHeapOptions::default()
         };
 
         Self::with_options(allocator, &options)
     }
 
     /// Create a new empty shared heap space over one shared allocator and options.
-    pub fn with_options(allocator: Arc<Allocator>, options: &HeapOptions) -> HeapResult<Self> {
+    pub fn with_options(
+        allocator: Arc<Allocator>,
+        options: &SharedHeapOptions,
+    ) -> HeapResult<Self> {
         // validate the heap and allocator contract
-        options.validate_shared()?;
+        options.validate()?;
         options.validate_allocator(&allocator)?;
 
         // reserve the shared address space
@@ -453,6 +413,49 @@ impl SharedHeapSpace {
 
         Ok(SharedHeapReference::new(base_offset))
     }
+}
+
+/// Shared heap allocator metadata.
+#[derive(Debug)]
+pub(crate) struct SharedHeapState {
+    /// The shared cache of reusable page runs.
+    pub(crate) page_run_cache: PageRunCache,
+    /// The shared heap small space.
+    pub(crate) small: SharedSmallSpace,
+    /// The shared heap large space.
+    pub(crate) large: SharedLargeSpace,
+    /// The owning shared heap metadata for each visible allocator page.
+    pub(crate) page_map: Vec<Option<SharedHeapPageMapEntry>>,
+    /// The next unused byte offset in shared heap space.
+    pub(crate) next_offset: usize,
+    /// The live shared heap collector state.
+    pub(crate) gc: GcState,
+}
+
+/// One shared heap small space.
+#[derive(Debug)]
+pub(crate) struct SharedSmallSpace {
+    /// The configured size-class table.
+    pub(crate) size_classes: SizeClassTable,
+    /// The configured span width.
+    pub(crate) span_bytes: usize,
+    /// The live shared heap spans.
+    pub(crate) spans: Vec<Arc<SharedSmallSpan>>,
+    /// The reusable non-full spans per size and scan class.
+    pub(crate) partial_spans: Vec<Vec<usize>>,
+}
+
+/// One shared heap large space.
+#[derive(Debug)]
+pub(crate) struct SharedLargeSpace {
+    /// The configured page width for allocations in large space.
+    pub(crate) page_bytes: usize,
+    /// The live shared heap allocations.
+    pub(crate) allocations: Vec<Arc<RwLock<SharedLargeAllocation>>>,
+    /// The free shared heap allocation ids available for reuse.
+    pub(crate) free_large_allocation_ids: Vec<u64>,
+    /// The next shared heap allocation id to allocate.
+    pub(crate) next_unused_large_allocation_id: u64,
 }
 
 /// Return one allocation-local byte offset for one visible range.

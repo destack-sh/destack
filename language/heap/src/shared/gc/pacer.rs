@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::{GcPacer, GcStats, HeapOptions};
+use crate::{GcPacer, GcStats, SharedHeapOptions};
 
 /// Shared collector pacing state.
 #[derive(Debug, Default)]
@@ -17,7 +17,7 @@ pub(crate) struct SharedGcPacer {
 
 impl SharedGcPacer {
     /// Derive shared pacing targets from the current live heap size.
-    pub(crate) fn set_live_bytes(&self, options: &HeapOptions, live_bytes: u64) {
+    pub(crate) fn set_live_bytes(&self, options: &SharedHeapOptions, live_bytes: u64) {
         // derive generic pacer targets
         let mut gc_pacer = GcPacer::default();
         gc_pacer.set_live_bytes(options.gc, live_bytes);
@@ -46,7 +46,7 @@ impl SharedGcPacer {
     }
 
     /// Return one pacer snapshot from current shared heap bytes.
-    pub(crate) fn snapshot(&self, options: &HeapOptions, heap_bytes: u64) -> GcPacer {
+    pub(crate) fn snapshot(&self, options: &SharedHeapOptions, heap_bytes: u64) -> GcPacer {
         // rebuild the generic pacer from atomic shared state
         let live_bytes = self.live_bytes.load(Ordering::Acquire) as u64;
         let mut gc_pacer = GcPacer {
@@ -66,7 +66,7 @@ impl SharedGcPacer {
     }
 
     /// Start one shared collection cycle.
-    pub(crate) fn begin_cycle(&self, options: &HeapOptions, heap_bytes: u64) {
+    pub(crate) fn begin_cycle(&self, options: &SharedHeapOptions, heap_bytes: u64) {
         // derive cycle work from current heap usage
         let mut gc_pacer = self.snapshot(options, heap_bytes);
         gc_pacer.begin_cycle(options.gc, heap_bytes);
@@ -84,7 +84,7 @@ impl SharedGcPacer {
     }
 
     /// Record one completed shared collection cycle.
-    pub(crate) fn record_cycle(&self, options: &HeapOptions, stats: GcStats) {
+    pub(crate) fn record_cycle(&self, options: &SharedHeapOptions, stats: GcStats) {
         // fold completed stats into the generic pacer
         let mut gc_pacer = self.snapshot(options, stats.allocated_bytes);
         gc_pacer.record_cycle(options.gc, stats);
@@ -103,7 +103,7 @@ impl SharedGcPacer {
     /// Charge one shared allocation against current collection runway.
     pub(crate) fn charge_allocation(
         &self,
-        options: &HeapOptions,
+        options: &SharedHeapOptions,
         heap_bytes: u64,
         byte_len: usize,
     ) {
@@ -136,7 +136,7 @@ impl SharedGcPacer {
     /// Return and consume one shared collection work budget.
     pub(crate) fn take_collection_budget_bytes(
         &self,
-        options: &HeapOptions,
+        options: &SharedHeapOptions,
         heap_bytes: u64,
         worker_count: usize,
     ) -> usize {
@@ -155,7 +155,7 @@ impl SharedGcPacer {
     /// Return one shared collector budget without consuming allocation debt.
     pub(crate) fn base_budget_bytes(
         &self,
-        options: &HeapOptions,
+        options: &SharedHeapOptions,
         heap_bytes: u64,
         worker_count: usize,
     ) -> usize {

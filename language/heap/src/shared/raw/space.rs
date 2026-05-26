@@ -6,20 +6,9 @@ use parking_lot::{Mutex, RwLock};
 use super::{SharedRawAllocation, SharedRawLocation, SharedRawPageMapEntry};
 use crate::allocator::{PageRun, PageRunCache};
 use crate::{
-    AllocationUsage, Allocator, HeapError, HeapOptions, HeapResult, Payload, RawAllocationShape,
-    SharedRawPointer, SharedRawSpaceUsage,
+    AllocationUsage, Allocator, HeapError, HeapResult, Payload, RawAllocationShape,
+    SharedHeapOptions, SharedRawPointer, SharedRawSpaceUsage,
 };
-
-/// Mutable shared raw-space state.
-#[derive(Debug, Default)]
-pub(crate) struct SharedRawState {
-    /// The shared cache of reusable page runs.
-    pub(crate) page_run_cache: PageRunCache,
-    /// The exact live shared raw-space usage.
-    pub(crate) usage: AllocationUsage,
-    /// The next unused byte offset in shared raw space.
-    pub(crate) next_offset: usize,
-}
 
 /// One live shared raw space over one allocator.
 #[derive(Debug)]
@@ -47,18 +36,21 @@ impl SharedRawSpace {
 
     /// Create a new empty shared raw space over one shared allocator.
     pub fn with_allocator(allocator: Arc<Allocator>) -> HeapResult<Self> {
-        let options = HeapOptions {
+        let options = SharedHeapOptions {
             page_bytes: allocator.page_bytes(),
             allocator_chunk_bytes: allocator.chunk_bytes(),
-            ..HeapOptions::shared()
+            ..SharedHeapOptions::default()
         };
 
         Self::with_options(allocator, &options)
     }
 
     /// Create a new empty shared raw space over one shared allocator and options.
-    pub fn with_options(allocator: Arc<Allocator>, options: &HeapOptions) -> HeapResult<Self> {
-        options.validate_shared()?;
+    pub fn with_options(
+        allocator: Arc<Allocator>,
+        options: &SharedHeapOptions,
+    ) -> HeapResult<Self> {
+        options.validate()?;
         options.validate_allocator(&allocator)?;
 
         let page_run_cache = PageRunCache::new(allocator.pages_per_chunk());
@@ -243,13 +235,14 @@ impl SharedRawSpace {
         pointer: SharedRawPointer,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<*mut u8> {
+    ) -> HeapResult<*const u8> {
         let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
 
-        self.mapping
+        Ok(self
+            .mapping
             .read()
             .address(location.base.offset() + byte_offset, byte_len)
-            .map_err(HeapError::from)
+            .map_err(HeapError::from)? as *const u8)
     }
 
     /// Return one checked mutable address for a shared raw byte range.
@@ -625,7 +618,7 @@ impl SharedRawSpace {
     fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
         let mapping = self.mapping.write();
 
-        // allocation paths materialize the destination before publishing it
+        // SAFETY: allocation paths materialize the destination before publishing it
         unsafe {
             mapping.write_mapped_bytes(offset, bytes);
         }
@@ -637,11 +630,22 @@ impl SharedRawSpace {
         let mapping = self.mapping.write();
         let address = mapping.base_address() + offset;
 
-        // allocation paths materialize the destination before publishing it
+        // SAFETY: allocation paths materialize the destination before publishing it
         unsafe {
             std::ptr::write_bytes(address as *mut u8, 0, byte_len);
         }
     }
+}
+
+/// Mutable shared raw-space state.
+#[derive(Debug, Default)]
+pub(crate) struct SharedRawState {
+    /// The shared cache of reusable page runs.
+    pub(crate) page_run_cache: PageRunCache,
+    /// The exact live shared raw-space usage.
+    pub(crate) usage: AllocationUsage,
+    /// The next unused byte offset in shared raw space.
+    pub(crate) next_offset: usize,
 }
 
 /// Return the offset rounded up to one allocation boundary.

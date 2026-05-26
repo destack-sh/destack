@@ -31,7 +31,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         layouts: &'a HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
         heap_options: &'a heap::HeapOptions,
-        shared_heap_options: &'a heap::HeapOptions,
+        shared_heap_options: &'a heap::SharedHeapOptions,
         value_types: &'a [ValueType],
         side_table: &'table mut SideTableBuilder,
     ) -> Result<Option<Self>> {
@@ -208,7 +208,7 @@ pub(crate) fn lower_function(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     heap_options: &heap::HeapOptions,
-    shared_heap_options: &heap::HeapOptions,
+    shared_heap_options: &heap::SharedHeapOptions,
     value_types: &[ValueType],
     side_table: &mut SideTableBuilder,
 ) -> Result<Option<Function>> {

@@ -45,7 +45,7 @@ impl Program {
             tree,
             strings,
             heap::HeapOptions::local(),
-            heap::HeapOptions::shared(),
+            heap::SharedHeapOptions::default(),
         )
     }
 
@@ -54,7 +54,7 @@ impl Program {
         tree: mir::Tree,
         strings: StringPool,
         heap_options: heap::HeapOptions,
-        shared_heap_options: heap::HeapOptions,
+        shared_heap_options: heap::SharedHeapOptions,
     ) -> Result<Self> {
         ProgramBuilder::new(tree, strings, heap_options, shared_heap_options).build()
     }
@@ -594,7 +594,7 @@ fn initializer_ranges(
 /// Build one program from one MIR tree and immutable string pool.
 struct ProgramBuilder {
     heap_options: heap::HeapOptions,
-    shared_heap_options: heap::HeapOptions,
+    shared_heap_options: heap::SharedHeapOptions,
     tree: mir::Tree,
     strings: StringPool,
     layout: engine::ProgramLayout,
@@ -607,7 +607,7 @@ impl ProgramBuilder {
         tree: mir::Tree,
         strings: StringPool,
         heap_options: heap::HeapOptions,
-        shared_heap_options: heap::HeapOptions,
+        shared_heap_options: heap::SharedHeapOptions,
     ) -> Self {
         Self {
             heap_options,

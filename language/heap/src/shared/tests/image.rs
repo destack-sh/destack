@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Allocator, HeapOptions, PageRun, Payload, RawAllocationShape, SharedHeapSpace, SharedRawSpace,
-    SizeClassTable, test_allocator, test_layouts,
+    Allocator, PageRun, Payload, RawAllocationShape, SharedHeapOptions, SharedHeapSpace,
+    SharedRawSpace, SizeClassTable, test_layouts, test_shared_allocator,
 };
 use destack_mir::TraceMap;
 
@@ -21,14 +21,14 @@ fn read_page_run_bytes(allocator: &Allocator, page_run: &PageRun, byte_len: usiz
 /// Preserve shared allocation bytes across image and fork boundaries.
 #[test]
 fn test_roundtrip_shared_memory_image_and_fork() {
-    let options = HeapOptions {
+    let options = SharedHeapOptions {
         page_bytes: 4,
         allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
         heap_small_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
-        ..HeapOptions::shared()
+        ..SharedHeapOptions::default()
     };
-    let allocator = test_allocator(&options);
+    let allocator = test_shared_allocator(&options);
     let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
 
     // capture two allocations so only one changes later
@@ -132,14 +132,14 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 /// Preserve shared heap metadata and bytes across image roundtrips.
 #[test]
 fn test_roundtrip_shared_heap_space_image() {
-    let options = HeapOptions {
+    let options = SharedHeapOptions {
         page_bytes: 4,
         allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
         heap_small_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
-        ..HeapOptions::shared()
+        ..SharedHeapOptions::default()
     };
-    let allocator = test_allocator(&options);
+    let allocator = test_shared_allocator(&options);
     let layouts = test_layouts(&[(6, TraceMap::empty()), (6, TraceMap::empty())]);
     let first_layout = &layouts[0];
     let second_layout = &layouts[1];

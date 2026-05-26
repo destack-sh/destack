@@ -11,8 +11,8 @@ use super::{
 };
 use crate::{
     AllocationPlan, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
-    GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload,
-    RawAllocationShape, SharedHeapReference, SharedRawPointer, apply_byte_delta,
+    GcState, GcStats, HeapError, HeapResult, PageId, PageRun, Payload, RawAllocationShape,
+    SharedHeapOptions, SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
 /// One live world-shared heap.
@@ -21,7 +21,7 @@ pub struct SharedHeap {
     /// The shared allocator for both shared heap spaces.
     pub(crate) allocator: Arc<Allocator>,
     /// The configured shared heap options.
-    pub(crate) options: HeapOptions,
+    pub(crate) options: SharedHeapOptions,
 
     /// The traced shared heap space.
     pub(crate) heap: SharedHeapSpace,
@@ -49,7 +49,7 @@ struct SharedHeapImageState {
     /// The allocator backing every captured page.
     allocator: Arc<Allocator>,
     /// The captured shared heap options.
-    options: HeapOptions,
+    options: SharedHeapOptions,
     /// The frozen shared heap space.
     heap: SharedHeapSpaceImage,
     /// The frozen shared raw space.
@@ -64,7 +64,7 @@ pub struct SharedHeapSnapshot {
     /// The serialized allocator pages reachable from this shared heap image.
     allocator: AllocatorImage,
     /// The captured shared heap options.
-    options: HeapOptions,
+    options: SharedHeapOptions,
     /// The frozen shared heap space.
     heap: SharedHeapSpaceImage,
     /// The frozen shared raw space.
@@ -81,7 +81,7 @@ impl SharedHeapImage {
     /// Create one frozen shared heap image.
     pub(crate) fn new(
         allocator: Arc<Allocator>,
-        options: HeapOptions,
+        options: SharedHeapOptions,
         heap: SharedHeapSpaceImage,
         raw: SharedRawSpaceImage,
     ) -> HeapResult<Self> {
@@ -147,7 +147,7 @@ impl SharedHeapImage {
     }
 
     /// Return the captured shared heap options.
-    pub fn options(&self) -> &HeapOptions {
+    pub fn options(&self) -> &SharedHeapOptions {
         &self.state.options
     }
 
@@ -186,9 +186,9 @@ impl SharedHeap {
     pub fn with_allocator_limits_and_options(
         allocator: Arc<Allocator>,
         limits: SharedHeapLimits,
-        options: HeapOptions,
+        options: SharedHeapOptions,
     ) -> HeapResult<Self> {
-        options.validate_shared()?;
+        options.validate()?;
         options.validate_allocator(&allocator)?;
 
         let shared = Self {
@@ -215,7 +215,7 @@ impl SharedHeap {
     }
 
     /// Return the configured shared heap options.
-    pub fn options(&self) -> &HeapOptions {
+    pub fn options(&self) -> &SharedHeapOptions {
         &self.options
     }
 
@@ -360,7 +360,7 @@ impl SharedHeap {
         pointer: SharedRawPointer,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<*mut u8> {
+    ) -> HeapResult<*const u8> {
         self.raw.address(pointer, start, byte_len)
     }
 
@@ -687,7 +687,7 @@ impl SharedHeap {
         let allocator = image.allocator().clone();
         let options = image.options().clone();
 
-        options.validate_shared()?;
+        options.validate()?;
         options.validate_allocator(&allocator)?;
 
         let shared = Self {

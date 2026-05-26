@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
     Allocator, Heap, HeapLimits, HeapOptions, SharedAllocator, SharedGcWorker, SharedHeap,
-    SharedHeapLimits,
+    SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir as mir;
 use destack_source::FileId;
@@ -121,7 +121,7 @@ fn heap() -> Heap {
 
 /// Create one shared heap for benchmark execution.
 fn shared_heap() -> SharedHeap {
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("benchmark shared allocator should build"),

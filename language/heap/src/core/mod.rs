@@ -1,3 +1,4 @@
+mod constants;
 mod error;
 mod gc;
 mod layout;
@@ -7,18 +8,19 @@ mod reference;
 mod root;
 mod table;
 mod usage;
+mod validation;
 
+pub use constants::*;
 pub use error::*;
 pub use gc::*;
-pub(crate) use layout::*;
 pub use layout::*;
 pub(crate) use mark::*;
 pub use payload::*;
-pub(crate) use reference::*;
 pub use reference::*;
 pub use root::*;
 pub(crate) use table::*;
 pub use usage::*;
+pub(crate) use validation::*;
 
 #[cfg(test)]
 mod test;
