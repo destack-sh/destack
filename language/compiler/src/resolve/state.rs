@@ -5,6 +5,7 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::ArtifactReader;
+use indexmap::IndexSet;
 
 use crate::resolve::resolve::ExportLookup;
 use crate::{CompilerResult, ResolveError};
@@ -31,6 +32,12 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) diagnostics: Vec<ResolveError>,
     /// The module clauses collected from active roots.
     pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
+    /// Bare global keys required by active roots.
+    pub(in crate::resolve) required_global_keys: IndexSet<dir::StaticKey>,
+    /// Language items required by syntax in active roots.
+    pub(in crate::resolve) syntax_language_items: IndexSet<dir::LanguageItem>,
+    /// Function contexts visible while walking active roots.
+    pub(in crate::resolve) function_stack: Vec<FunctionContext>,
     /// Export lookups already computed during this provider run.
     pub(in crate::resolve) export_lookups: HashMap<ExportLookupKey, ExportLookupState>,
     /// The DIR visitor options.
@@ -74,6 +81,15 @@ pub(in crate::resolve) enum ModuleClause {
     },
 }
 
+/// Function context visible to syntax-dependent dependency collection.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::resolve) struct FunctionContext {
+    /// The function asynchrony.
+    pub(in crate::resolve) asynchrony: dir::Asynchrony,
+    /// Whether the function is a generator.
+    pub(in crate::resolve) is_generator: bool,
+}
+
 impl<'a> ResolveState<'a> {
     /// Create resolve state for one module.
     pub(in crate::resolve) fn new(
@@ -97,14 +113,85 @@ impl<'a> ResolveState<'a> {
             imports: dir::ImportTable::new(module),
             diagnostics: Vec::new(),
             module_clauses: Vec::new(),
+            required_global_keys: IndexSet::new(),
+            syntax_language_items: IndexSet::new(),
+            function_stack: Vec::new(),
             export_lookups: HashMap::new(),
             options: dir::NodeVisitorOptions::default(),
         }
     }
 
-    /// Record one module clause for later target lookup.
-    pub(in crate::resolve) fn record_module_clause(&mut self, clause: ModuleClause) {
+    /// Add one module clause for later target lookup.
+    pub(in crate::resolve) fn add_module_clause(&mut self, clause: ModuleClause) {
         self.module_clauses.push(clause);
+    }
+
+    /// Require one syntax-required language item.
+    pub(in crate::resolve) fn require_syntax_language_item(&mut self, item: dir::LanguageItem) {
+        self.syntax_language_items.insert(item);
+    }
+
+    /// Enter one function context.
+    pub(in crate::resolve) fn enter_function(&mut self, signature: &dir::FunctionSignature) {
+        self.function_stack.push(FunctionContext {
+            asynchrony: signature.asynchrony,
+            is_generator: signature.is_generator,
+        });
+    }
+
+    /// Leave the current function context.
+    pub(in crate::resolve) fn leave_function(&mut self) {
+        self.function_stack.pop();
+    }
+
+    /// Return the current function context.
+    pub(in crate::resolve) fn current_function(&self) -> Option<FunctionContext> {
+        self.function_stack.last().copied()
+    }
+
+    /// Require a global key when one source reference is not locally resolved.
+    pub(in crate::resolve) fn require_global_reference(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        key: dir::StaticKey,
+        space: dir::SymbolSpace,
+    ) {
+        if self.scope_resolves_key(source, key, space) {
+            return;
+        }
+
+        self.required_global_keys.insert(key);
+    }
+
+    /// Return whether one key is already resolved by lexical or import scope.
+    fn scope_resolves_key(
+        &self,
+        source: dir::LocalNodeIdAny,
+        key: dir::StaticKey,
+        space: dir::SymbolSpace,
+    ) -> bool {
+        let source = source.into_global(self.module);
+        let Some(mut cursor) = self.bindings.scope_for_node(source) else {
+            return false;
+        };
+
+        loop {
+            let scope = self.bindings.get_scope_by_id(cursor.id);
+
+            // check bindings visible at this cursor
+            if scope
+                .find_symbol_up_to(key, cursor.mark)
+                .is_some_and(|symbol| self.bindings.get_symbol(symbol).kind.is_visible_in(space))
+            {
+                return true;
+            }
+
+            let Some(parent) = scope.parent else {
+                return false;
+            };
+
+            cursor = dir::LocalScope::new(parent.id, parent.mark);
+        }
     }
 
     /// Drain recoverable diagnostics.

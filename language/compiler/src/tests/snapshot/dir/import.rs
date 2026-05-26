@@ -30,9 +30,17 @@ impl SnapshotTable for dir::ImportTable {
             builder.push(row);
         }
 
+        for (item, symbol) in &self.language_symbol_by_item {
+            let row = SnapshotRow::new(SnapshotAnchor::End, "import", "language")
+                .field("item", item.to_string())
+                .field("symbol", builder.symbol_path_label(*symbol));
+            builder.push(row);
+        }
+
         let row = SnapshotRow::new(SnapshotAnchor::End, "import", "summary")
             .count_field("symbols", self.target_by_symbol.len())
-            .count_field("globals", self.global_symbol_by_key.len());
+            .count_field("globals", self.global_symbol_by_key.len())
+            .count_field("language", self.language_symbol_by_item.len());
         builder.push(row);
     }
 }

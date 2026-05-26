@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_resolve_records_profile_global_symbols() {
+fn test_resolve_ignores_unreferenced_profile_global_symbols() {
     let compiler = TestSession::new()
         .data(
             "destack.json",
@@ -34,9 +34,8 @@ global {
         DirRows::imports().with_summaries(),
         r#"
 let local = 1;
-/// @import.global key=process symbols=[globals.process]
 
-/// @import.summary globals=1
+/// @import.summary
 "#,
     );
 }
@@ -124,9 +123,218 @@ export type Option = string;
         r#"
 let local = Function;
 /// @import.global key=Function symbols=[types.Function]
-/// @import.global key=Maybe symbols=[types.Option]
 
-/// @import.summary globals=2
+/// @import.summary globals=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_referenced_type_profile_globals() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+let promise: Promise<string>;
+"#,
+        )
+        .module(
+            "globals.ds",
+            r#"
+global {
+    export { Promise } from "./async.ds";
+}
+"#,
+        )
+        .module(
+            "async.ds",
+            r#"
+export class Promise<T> {}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+let promise: Promise<string>;
+/// @import.global key=Promise symbols=[async.Promise]
+
+/// @import.summary globals=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_referenced_builtin_language_symbol_names() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+let promise: Promise<string>;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+let promise: Promise<string>;
+/// @import.global key=Promise symbols=[async.promise.Promise]
+
+/// @import.summary globals=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_async_function_language_item() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+const load = async () => 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+const load = async () => 1;
+/// @import.language item=async.Promise symbol=async.promise.Promise
+
+/// @import.summary language=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_keeps_async_language_item_separate_from_local_promise() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+class Promise {}
+const load = async () => 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+class Promise {}
+const load = async () => 1;
+/// @import.language item=async.Promise symbol=async.promise.Promise
+
+/// @import.summary language=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_import_meta_language_item() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+const runtime = import.meta.runtime;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+const runtime = import.meta.runtime;
+/// @import.language item=module.ImportMeta symbol=module.meta.ImportMeta
+
+/// @import.summary language=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_operator_language_item() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+const left = 1;
+const right = 2;
+const value = left + right;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+const left = 1;
+const right = 2;
+const value = left + right;
+/// @import.language item=ops.Add symbol=ops.plus.Add
+
+/// @import.summary language=1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_does_not_import_shadowed_profile_globals() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+const answer = 1;
+const value = answer;
+"#,
+        )
+        .module(
+            "globals.ds",
+            r#"
+global {
+    const answer: int32 = 42;
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+const answer = 1;
+const value = answer;
+
+/// @import.summary
 "#,
     );
 }
