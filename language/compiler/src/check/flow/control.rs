@@ -23,13 +23,14 @@ impl CheckModuleState {
             result,
             break_values: Vec::new(),
             break_branches: Vec::new(),
+            continue_branches: Vec::new(),
             checkpoint,
         };
 
         self.work.flow.push_target(target);
     }
 
-    /// Leave one break or continue target, define its result, and return break flow.
+    /// Leave one break or continue target, define its result, and return break branch flow.
     pub(in crate::check) fn leave_control_target(
         &mut self,
         fallthrough: Option<TypeTerm>,
@@ -50,7 +51,7 @@ impl CheckModuleState {
                     Vec::with_capacity(values.len() + usize::from(fallthrough.is_some()));
                 elements.extend_from_slice(values);
                 if let Some(fallthrough) = fallthrough {
-                    let variable = self.define_type(target.source, fallthrough);
+                    let variable = self.define_anonymous_type(target.source, fallthrough);
 
                     elements.push(variable);
                 }
@@ -59,7 +60,7 @@ impl CheckModuleState {
             }
         };
 
-        self.define_type_term(target.result, term);
+        self.define_type(target.result, term);
 
         target.break_branches
     }
@@ -93,7 +94,7 @@ impl CheckModuleState {
             }),
         };
 
-        self.define_type_term(target.failure, term);
+        self.define_type(target.failure, term);
 
         Some(target.failure)
     }
@@ -124,20 +125,33 @@ impl CheckModuleState {
         target.break_values.push(value);
         target.break_branches.push(branch);
 
-        self.relate_type(origin, TypeRelation::Assignable, value, result);
+        self.constrain_type(origin, TypeRelation::Assignable, value, result);
     }
 
-    /// Validate one continue against its control target.
-    pub(in crate::check) fn validate_continue_target(
+    /// Record one continue branch in its control target.
+    pub(in crate::check) fn record_continue_branch(
         &mut self,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
     ) {
-        if self.work.flow.find_continue_target(label).is_some() {
-            return;
-        }
+        let Some(index) = self.work.flow.find_continue_target_index(label) else {
+            self.report_invalid_control_flow(source, "continue has no target");
 
-        self.report_invalid_control_flow(source, "continue has no target");
+            return;
+        };
+        let checkpoint = self.work.flow.targets[index].checkpoint;
+        let branch = self.work.flow.branch(checkpoint);
+
+        self.work.flow.targets[index].continue_branches.push(branch);
+    }
+
+    /// Take continue branches collected by the current control target.
+    pub(in crate::check) fn take_current_continue_branches(&mut self) -> Vec<FlowBranch> {
+        let Some(target) = self.work.flow.targets.last_mut() else {
+            return Vec::new();
+        };
+
+        std::mem::take(&mut target.continue_branches)
     }
 
     /// Record one try propagation against catch or the enclosing return type.
@@ -151,7 +165,7 @@ impl CheckModuleState {
             let origin = ConstraintOrigin::Node(source);
             let failure = self.allocate_anonymous_variable(VariableKind::Type, origin);
 
-            self.define_type_term(
+            self.define_type(
                 failure,
                 TypeTerm::TryFailure(TryFailureTerm { source, value }),
             );

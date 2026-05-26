@@ -28,11 +28,19 @@ impl CheckModuleState {
             }
             // <C>
             dir::GenericArgument::Value { value } => {
+                // check static argument value in static context
+                let before_value = self.checkpoint_flow();
+
                 self.walk_expression(tree, *value, tree.get(*value));
+                self.restore_flow(before_value);
             }
             // <...C>
             dir::GenericArgument::SpreadValue { value } => {
+                // check static argument value in static context
+                let before_value = self.checkpoint_flow();
+
                 self.walk_expression(tree, *value, tree.get(*value));
+                self.restore_flow(before_value);
             }
             // ignore damaged syntax
             dir::GenericArgument::Error => {}
@@ -75,20 +83,20 @@ impl CheckModuleState {
         };
     }
 
-    /// Return generic argument terms from argument syntax.
-    pub(in crate::check) fn generic_arguments(
+    /// Build generic argument terms from argument syntax.
+    pub(in crate::check) fn build_generic_arguments(
         &mut self,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
     ) -> Vec<ArgumentTerm> {
         arguments
             .iter()
-            .map(|argument| self.generic_argument_term(*argument, false, tree))
+            .map(|argument| self.build_generic_argument_term(*argument, None, tree))
             .collect()
     }
 
-    /// Return generic argument terms against one applied owner's slots.
-    pub(in crate::check) fn applied_generic_arguments(
+    /// Build generic argument terms against one owner's slots.
+    pub(in crate::check) fn build_generic_arguments_for_owner(
         &mut self,
         owner: dir::GlobalSymbolId,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
@@ -98,28 +106,42 @@ impl CheckModuleState {
             .iter()
             .enumerate()
             .map(|(index, argument)| {
-                let is_static = self.expects_static_generic_argument(owner, index);
+                let is_static = self.generic_argument_is_static_for_owner(owner, index);
 
-                self.generic_argument_term(*argument, is_static, tree)
+                self.build_generic_argument_term(*argument, Some(is_static), tree)
             })
             .collect()
     }
 
     /// Return one generic argument term.
-    fn generic_argument_term(
+    fn build_generic_argument_term(
         &mut self,
         id: dir::LocalNodeId<dir::GenericArgument>,
-        is_static: bool,
+        is_static: Option<bool>,
         tree: &dir::Tree,
     ) -> ArgumentTerm {
         match tree.get(id) {
             // <T> for a static parameter
-            dir::GenericArgument::Type { value } if is_static => {
+            dir::GenericArgument::Type { value } if is_static == Some(true) => {
                 ArgumentTerm::Static(self.static_argument_variable(*value, tree))
             }
             // <...T> for a variadic static parameter
-            dir::GenericArgument::SpreadType { value } if is_static => {
+            dir::GenericArgument::SpreadType { value } if is_static == Some(true) => {
                 ArgumentTerm::SpreadStatic(self.static_argument_variable(*value, tree))
+            }
+            // <T> with no known generic owner
+            dir::GenericArgument::Type { value } if is_static.is_none() => {
+                ArgumentTerm::TypeOrStatic {
+                    ty: self.intern_local_type_variable(*value),
+                    value: self.static_argument_variable(*value, tree),
+                }
+            }
+            // <...T> with no known generic owner
+            dir::GenericArgument::SpreadType { value } if is_static.is_none() => {
+                ArgumentTerm::SpreadTypeOrStatic {
+                    ty: self.intern_local_type_variable(*value),
+                    value: self.static_argument_variable(*value, tree),
+                }
             }
             // <T>
             dir::GenericArgument::Type { value } => {
@@ -148,10 +170,24 @@ impl CheckModuleState {
     }
 
     /// Return whether one generic argument position expects a static term.
-    fn expects_static_generic_argument(&self, owner: dir::GlobalSymbolId, index: usize) -> bool {
+    fn generic_argument_is_static_for_owner(
+        &self,
+        owner: dir::GlobalSymbolId,
+        index: usize,
+    ) -> bool {
         let index = dir::GenericSlotIndex::new(index as u32);
+        let mut variadic = None;
 
-        self.generic_parameters_for_owner(owner)
-            .any(|(_, generic)| generic.slot().index == index && generic.is_static())
+        for (_, generic) in self.generic_parameters_for_owner(owner) {
+            if generic.slot().index == index {
+                return generic.is_static();
+            }
+
+            if generic.is_variadic() && generic.slot().index <= index {
+                variadic = Some(generic.is_static());
+            }
+        }
+
+        variadic.unwrap_or(false)
     }
 }

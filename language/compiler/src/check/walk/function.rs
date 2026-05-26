@@ -7,7 +7,7 @@ use crate::check::{
 
 impl CheckModuleState {
     /// Return one function type term from a function signature.
-    pub(in crate::check) fn function_signature_term(
+    pub(in crate::check) fn build_function_signature_term(
         &mut self,
         signature: &dir::FunctionSignature,
         return_type: Option<VariableId>,
@@ -27,7 +27,7 @@ impl CheckModuleState {
         let parameters = signature
             .parameters
             .iter()
-            .filter_map(|parameter| self.function_parameter_term(*parameter, tree))
+            .filter_map(|parameter| self.build_function_parameter_term(*parameter, tree))
             .collect();
 
         FunctionTerm {
@@ -41,7 +41,7 @@ impl CheckModuleState {
     }
 
     /// Return one function type term from a type-space function declaration.
-    pub(in crate::check) fn function_type_declaration_term(
+    pub(in crate::check) fn build_function_type_declaration_term(
         &mut self,
         declaration: &dir::FunctionTypeDeclaration,
         return_type: Option<VariableId>,
@@ -61,7 +61,7 @@ impl CheckModuleState {
         let parameters = declaration
             .parameters
             .iter()
-            .filter_map(|parameter| self.function_parameter_term(*parameter, tree))
+            .filter_map(|parameter| self.build_function_parameter_term(*parameter, tree))
             .collect();
 
         FunctionTerm {
@@ -75,7 +75,7 @@ impl CheckModuleState {
     }
 
     /// Return one function type term from a type-space constructor declaration.
-    pub(in crate::check) fn constructor_type_declaration_term(
+    pub(in crate::check) fn build_constructor_type_declaration_term(
         &mut self,
         declaration: &dir::ConstructorTypeDeclaration,
         return_type: Option<VariableId>,
@@ -92,7 +92,7 @@ impl CheckModuleState {
         let parameters = declaration
             .parameters
             .iter()
-            .filter_map(|parameter| self.function_parameter_term(*parameter, tree))
+            .filter_map(|parameter| self.build_function_parameter_term(*parameter, tree))
             .collect();
 
         FunctionTerm {
@@ -124,12 +124,7 @@ impl CheckModuleState {
             let source = body.into_global_any(self.input.module_id);
             let origin = ConstraintOrigin::Node(source);
             let completed = self.allocate_anonymous_variable(VariableKind::Type, origin);
-            let Some(symbol) = self
-                .input
-                .environment
-                .language
-                .symbol(dir::LanguageItem::Promise)
-            else {
+            let Some(symbol) = self.language_symbol(dir::LanguageItem::Promise) else {
                 self.report_internal_error(
                     body.into_any(),
                     "missing language item: async.Promise".to_owned(),
@@ -142,9 +137,9 @@ impl CheckModuleState {
                 symbol,
                 arguments: vec![ArgumentTerm::Type(completed)],
             };
-            let promised = self.define_type(origin, promised);
+            let promised = self.define_anonymous_type(origin, promised);
 
-            self.relate_type(origin, TypeRelation::Assignable, promised, return_type);
+            self.constrain_type(origin, TypeRelation::Assignable, promised, return_type);
             body_return_type = completed;
         }
 
@@ -162,7 +157,7 @@ impl CheckModuleState {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
 
-            if let Some(symbol) = self.input.environment.language.symbol(item) {
+            if let Some(symbol) = self.language_symbol(item) {
                 let generated = TypeTerm::Reference {
                     source: Some(source),
                     symbol,
@@ -172,9 +167,9 @@ impl CheckModuleState {
                         ArgumentTerm::Type(resumed),
                     ],
                 };
-                let generated = self.define_type(origin, generated);
+                let generated = self.define_anonymous_type(origin, generated);
 
-                self.relate_type(origin, TypeRelation::Assignable, generated, return_type);
+                self.constrain_type(origin, TypeRelation::Assignable, generated, return_type);
             } else {
                 self.report_internal_error(
                     body.into_any(),
@@ -207,7 +202,7 @@ impl CheckModuleState {
             self.mark_bindings_assigned(tree, parameter.into_any());
         }
 
-        // walk body and relate implicit return
+        // walk body and constrain implicit return
         self.walk_expression(tree, body, tree.get(body));
         if self.expression_can_fall_through(tree, body) {
             self.constrain_function_fallthrough_return(tree, body);
@@ -217,7 +212,7 @@ impl CheckModuleState {
     }
 
     /// Return one runtime function parameter term.
-    fn function_parameter_term(
+    fn build_function_parameter_term(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         tree: &dir::Tree,
@@ -260,19 +255,7 @@ impl CheckModuleState {
     ) -> Option<VariableId> {
         let parameter = tree.get(id);
 
-        match parameter {
-            // <T>, <...T>
-            dir::GenericParameter::Type { .. } | dir::GenericParameter::VariadicType { .. } => self
-                .declaration_symbol(id.into_any())
-                .map(|symbol| self.intern_symbol_type_variable(symbol)),
-            // <comptime C: T>, <comptime ...C: T>
-            dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
-                self.declaration_symbol(id.into_any())
-                    .map(|symbol| self.intern_symbol_static_variable(symbol))
-            }
-            // ignore damaged syntax
-            dir::GenericParameter::Error => None,
-        }
+        self.record_generic_parameter_slot(id, parameter)
     }
 
     /// Return the type variable for one runtime parameter.

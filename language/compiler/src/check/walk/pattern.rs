@@ -36,7 +36,12 @@ impl CheckModuleState {
             // pattern = value
             dir::Pattern::Assign { pattern, value } => {
                 self.walk_pattern(tree, *pattern, tree.get(*pattern));
+
+                // check pattern default in selector context
+                let before_value = self.checkpoint_flow();
+
                 self.walk_expression(tree, *value, tree.get(*value));
+                self.restore_flow(before_value);
             }
             // name: pattern
             dir::Pattern::Binding {
@@ -49,16 +54,28 @@ impl CheckModuleState {
             dir::Pattern::Binding { pattern: None, .. } => {}
             // value
             dir::Pattern::Expression { value } => {
+                // check value pattern in selector context
+                let before_value = self.checkpoint_flow();
+
                 self.walk_expression(tree, *value, tree.get(*value));
+                self.restore_flow(before_value);
             }
             // start..end
             dir::Pattern::Range { start, end, .. } => {
                 if let Some(start) = start {
+                    // check range bound in selector context
+                    let before_start = self.checkpoint_flow();
+
                     self.walk_expression(tree, *start, tree.get(*start));
+                    self.restore_flow(before_start);
                 }
 
                 if let Some(end) = end {
+                    // check range bound in selector context
+                    let before_end = self.checkpoint_flow();
+
                     self.walk_expression(tree, *end, tree.get(*end));
+                    self.restore_flow(before_end);
                 }
             }
             // value is T
@@ -122,7 +139,12 @@ impl CheckModuleState {
             }
             // { [key]: pattern }
             dir::PatternField::Computed { key, pattern } => {
+                // check computed key in selector context
+                let before_key = self.checkpoint_flow();
+
                 self.walk_expression(tree, *key, tree.get(*key));
+                self.restore_flow(before_key);
+
                 self.walk_pattern(tree, *pattern, tree.get(*pattern));
             }
             // [pattern]
@@ -160,7 +182,12 @@ impl CheckModuleState {
             // target = value
             dir::AssignPattern::Assign { pattern, value } => {
                 self.walk_assign_pattern(tree, *pattern, tree.get(*pattern));
+
+                // check destructuring default in conditional assignment context
+                let before_value = self.checkpoint_flow();
+
                 self.walk_expression(tree, *value, tree.get(*value));
+                self.restore_flow(before_value);
             }
             // [a, b]
             dir::AssignPattern::Sequence { fields }
@@ -218,7 +245,7 @@ impl CheckModuleState {
     }
 
     /// Return one pattern term from syntax.
-    pub(in crate::check) fn pattern_term(
+    pub(in crate::check) fn build_pattern_term(
         &mut self,
         id: dir::LocalNodeId<dir::Pattern>,
         tree: &dir::Tree,
@@ -228,31 +255,32 @@ impl CheckModuleState {
             dir::Pattern::Wildcard => PatternTerm::Wildcard,
             // pattern!
             dir::Pattern::Must(pattern) => PatternTerm::Must {
-                pattern: Box::new(self.pattern_term(*pattern, tree)?),
+                pattern: Box::new(self.build_pattern_term(*pattern, tree)?),
             },
             // pattern = value
             dir::Pattern::Assign { pattern, value } => PatternTerm::Assign {
-                pattern: Box::new(self.pattern_term(*pattern, tree)?),
+                pattern: Box::new(self.build_pattern_term(*pattern, tree)?),
                 value: self.intern_local_type_variable(*value),
             },
             // &pattern
             dir::Pattern::BorrowOf { mutability, right } => PatternTerm::BorrowOf {
                 mutability: *mutability,
-                pattern: Box::new(self.pattern_term(*right, tree)?),
+                pattern: Box::new(self.build_pattern_term(*right, tree)?),
             },
             // ^pattern
             dir::Pattern::MoveOf { mutability, right } => PatternTerm::MoveOf {
                 mutability: *mutability,
-                pattern: Box::new(self.pattern_term(*right, tree)?),
+                pattern: Box::new(self.build_pattern_term(*right, tree)?),
             },
             // *pattern
             dir::Pattern::DereferenceOf { right } => PatternTerm::DereferenceOf {
-                pattern: Box::new(self.pattern_term(*right, tree)?),
+                pattern: Box::new(self.build_pattern_term(*right, tree)?),
             },
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => PatternTerm::Binding {
                 symbol: self.declaration_symbol(id.into_any()),
-                pattern: pattern.and_then(|pattern| self.pattern_term(pattern, tree).map(Box::new)),
+                pattern: pattern
+                    .and_then(|pattern| self.build_pattern_term(pattern, tree).map(Box::new)),
             },
             // value
             dir::Pattern::Expression { value } => PatternTerm::Expression {
@@ -276,7 +304,7 @@ impl CheckModuleState {
             dir::Pattern::Tuple { fields } => PatternTerm::Tuple {
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_pattern_field_term(*field, tree))
                     .collect(),
             },
             // T(a, b)
@@ -284,21 +312,21 @@ impl CheckModuleState {
                 ty: self.intern_local_type_variable(*ty),
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_pattern_field_term(*field, tree))
                     .collect(),
             },
             // [...items]
             dir::Pattern::Sequence { fields } => PatternTerm::Sequence {
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_pattern_field_term(*field, tree))
                     .collect(),
             },
             // { name }
             dir::Pattern::Object { fields } => PatternTerm::Object {
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_pattern_field_term(*field, tree))
                     .collect(),
             },
             // T { name }
@@ -306,14 +334,14 @@ impl CheckModuleState {
                 ty: self.intern_local_type_variable(*ty),
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_pattern_field_term(*field, tree))
                     .collect(),
             },
             // a | b
             dir::Pattern::Union { patterns } => PatternTerm::Union {
                 patterns: patterns
                     .iter()
-                    .filter_map(|pattern| self.pattern_term(*pattern, tree))
+                    .filter_map(|pattern| self.build_pattern_term(*pattern, tree))
                     .collect(),
             },
         };
@@ -322,7 +350,7 @@ impl CheckModuleState {
     }
 
     /// Return one pattern field term from syntax.
-    fn pattern_field_term(
+    fn build_pattern_field_term(
         &mut self,
         id: dir::LocalNodeId<dir::PatternField>,
         tree: &dir::Tree,
@@ -331,20 +359,20 @@ impl CheckModuleState {
             // { name: pattern }
             dir::PatternField::Named { name, pattern, .. } => PatternFieldTerm::Named {
                 key: name.static_key(),
-                pattern: pattern.and_then(|pattern| self.pattern_term(pattern, tree)),
+                pattern: pattern.and_then(|pattern| self.build_pattern_term(pattern, tree)),
             },
             // { [key]: pattern }
             dir::PatternField::Computed { key, pattern } => PatternFieldTerm::Computed {
                 key: self.intern_local_type_variable(*key),
-                pattern: self.pattern_term(*pattern, tree)?,
+                pattern: self.build_pattern_term(*pattern, tree)?,
             },
             // [pattern]
             dir::PatternField::Positional { pattern } => PatternFieldTerm::Positional {
-                pattern: self.pattern_term(*pattern, tree)?,
+                pattern: self.build_pattern_term(*pattern, tree)?,
             },
             // { ...pattern }
             dir::PatternField::Spread { pattern } => PatternFieldTerm::Spread {
-                pattern: pattern.and_then(|pattern| self.pattern_term(pattern, tree)),
+                pattern: pattern.and_then(|pattern| self.build_pattern_term(pattern, tree)),
             },
             // [,]
             dir::PatternField::Elision => PatternFieldTerm::Elision,
@@ -354,7 +382,7 @@ impl CheckModuleState {
     }
 
     /// Return one assignment pattern term from syntax.
-    pub(in crate::check) fn assign_pattern_term(
+    pub(in crate::check) fn build_assign_pattern_term(
         &mut self,
         id: dir::LocalNodeId<dir::AssignPattern>,
         tree: &dir::Tree,
@@ -366,21 +394,21 @@ impl CheckModuleState {
             },
             // target = value
             dir::AssignPattern::Assign { pattern, value } => AssignPatternTerm::Assign {
-                pattern: Box::new(self.assign_pattern_term(*pattern, tree)?),
+                pattern: Box::new(self.build_assign_pattern_term(*pattern, tree)?),
                 value: self.intern_local_type_variable(*value),
             },
             // [a, b]
             dir::AssignPattern::Sequence { fields } => AssignPatternTerm::Sequence {
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.assign_pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_assign_pattern_field_term(*field, tree))
                     .collect(),
             },
             // { a, b }
             dir::AssignPattern::Object { fields } => AssignPatternTerm::Object {
                 fields: fields
                     .iter()
-                    .filter_map(|field| self.assign_pattern_field_term(*field, tree))
+                    .filter_map(|field| self.build_assign_pattern_field_term(*field, tree))
                     .collect(),
             },
         };
@@ -389,7 +417,7 @@ impl CheckModuleState {
     }
 
     /// Return one assignment pattern field term from syntax.
-    fn assign_pattern_field_term(
+    fn build_assign_pattern_field_term(
         &mut self,
         id: dir::LocalNodeId<dir::AssignPatternField>,
         tree: &dir::Tree,
@@ -398,22 +426,22 @@ impl CheckModuleState {
             // { name: pattern }
             dir::AssignPatternField::Named { name, pattern, .. } => AssignPatternFieldTerm::Named {
                 key: name.static_key(),
-                pattern: pattern.and_then(|pattern| self.assign_pattern_term(pattern, tree)),
+                pattern: pattern.and_then(|pattern| self.build_assign_pattern_term(pattern, tree)),
             },
             // { [key]: pattern }
             dir::AssignPatternField::Computed { key, pattern } => {
                 AssignPatternFieldTerm::Computed {
                     key: self.intern_local_type_variable(*key),
-                    pattern: self.assign_pattern_term(*pattern, tree)?,
+                    pattern: self.build_assign_pattern_term(*pattern, tree)?,
                 }
             }
             // [pattern]
             dir::AssignPatternField::Positional { pattern } => AssignPatternFieldTerm::Positional {
-                pattern: self.assign_pattern_term(*pattern, tree)?,
+                pattern: self.build_assign_pattern_term(*pattern, tree)?,
             },
             // { ...pattern }
             dir::AssignPatternField::Spread { pattern } => AssignPatternFieldTerm::Spread {
-                pattern: pattern.and_then(|pattern| self.assign_pattern_term(pattern, tree)),
+                pattern: pattern.and_then(|pattern| self.build_assign_pattern_term(pattern, tree)),
             },
             // [,]
             dir::AssignPatternField::Elision => AssignPatternFieldTerm::Elision,

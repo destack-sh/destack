@@ -15,7 +15,7 @@ impl CheckModuleState {
             self.record_this_receiver_resolution(source, receiver);
         } else {
             self.work.flow.capture_receiver(receiver);
-            self.record_name_resolution(source, dir::NameResolution::new(receiver.symbol));
+            self.record_name_resolution(source, receiver.symbol);
         }
 
         Some(receiver)
@@ -47,7 +47,7 @@ impl CheckModuleState {
 
     /// Return whether one symbol is declared in the module scope.
     fn symbol_is_module_scoped(&self, symbol: dir::GlobalSymbolId) -> bool {
-        let bindings = self.binding_table();
+        let bindings = self.input.binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
         let scope = bindings.get_scope(symbol.scope);
 
@@ -97,7 +97,7 @@ impl CheckModuleState {
         receiver: ReceiverCapture,
     ) {
         let Some(owner) = receiver.owner else {
-            self.record_name_resolution(source, dir::NameResolution::new(receiver.symbol));
+            self.record_name_resolution(source, receiver.symbol);
 
             return;
         };

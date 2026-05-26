@@ -26,7 +26,7 @@ impl CheckModuleState {
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             };
 
-            self.define_type_term(variable, term);
+            self.define_type(variable, term);
         }
 
         // walk leading statements
@@ -37,7 +37,7 @@ impl CheckModuleState {
                 self.walk_expression(tree, *expression, tree.get(*expression));
                 is_reachable = self.expression_can_fall_through(tree, *expression);
             }
-            // still check unreachable expressions without leaking their flow
+            // check unreachable expression in isolated flow
             else {
                 let before = self.checkpoint_flow();
 
@@ -52,7 +52,7 @@ impl CheckModuleState {
             if is_reachable {
                 self.walk_expression(tree, expression, tree.get(expression));
             }
-            // still check unreachable tail without leaking its flow
+            // check unreachable tail in isolated flow
             else {
                 let before = self.checkpoint_flow();
 

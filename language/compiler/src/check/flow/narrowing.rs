@@ -89,7 +89,7 @@ impl CheckModuleState {
         excluded: VariableId,
     ) {
         let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
-        let narrowed = self.define_type(
+        let narrowed = self.define_anonymous_type(
             origin,
             TypeTerm::Operation(TypeOperationTerm::Exclude {
                 source: original,

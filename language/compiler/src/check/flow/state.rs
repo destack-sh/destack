@@ -71,6 +71,7 @@ impl FlowState {
             symbol: function.symbol,
             symbols,
             receiver: function.captured_receiver,
+            directive: None,
         };
 
         self.restore(function.checkpoint);
@@ -126,18 +127,22 @@ impl FlowState {
             })
     }
 
-    /// Return the target selected by one continue.
-    pub(in crate::check) fn find_continue_target(
+    /// Return the target index selected by one continue.
+    pub(in crate::check) fn find_continue_target_index(
         &self,
         label: Option<dir::StringId>,
-    ) -> Option<&ControlTarget> {
-        self.targets.iter().rev().find(|target| {
-            if let Some(label) = label {
-                target.label == Some(label) && target.allows_continue
-            } else {
-                target.label.is_none() && target.allows_continue
-            }
-        })
+    ) -> Option<usize> {
+        self.targets
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(index, target)| {
+                if let Some(label) = label {
+                    (target.label == Some(label) && target.allows_continue).then_some(index)
+                } else {
+                    (target.label.is_none() && target.allows_continue).then_some(index)
+                }
+            })
     }
 
     /// Record one symbol captured by the current function body.
