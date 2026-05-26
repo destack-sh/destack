@@ -106,9 +106,6 @@ impl<'a> Printer<'a> {
             Expression::Super => {
                 self.write_keyword(Keyword::Super);
             }
-            Expression::NewTarget => {
-                self.write_punct("new.target");
-            }
             Expression::PrivateIdentifier { name } => {
                 self.write_punct("#");
                 self.write_string_id(*name);

@@ -733,21 +733,10 @@ mod tests {
                 name: strings.intern("url"),
             },
         );
-        let new_target = insert_expression(&mut tree, Expression::NewTarget);
-        let new_target_name = insert_expression(
-            &mut tree,
-            Expression::Member {
-                left: new_target,
-                name: strings.intern("name"),
-            },
-        );
-        let printed = print_javascript_roots_minified(
-            &tree,
-            &[import_meta_url.into_any(), new_target_name.into_any()],
-            &strings,
-        );
+        let printed =
+            print_javascript_roots_minified(&tree, &[import_meta_url.into_any()], &strings);
 
-        assert_eq!(printed, "import.meta.url;new.target.name");
+        assert_eq!(printed, "import.meta.url");
     }
 
     /// Print dynamic import attributes through the direct minified printer.
