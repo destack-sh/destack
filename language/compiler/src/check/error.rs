@@ -258,6 +258,28 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Await expression has an invalid shape for its context.
+    #[diagnostic(code = "EC406", message = "invalid await expression: {message}")]
+    InvalidAwait {
+        /// Report the await expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// Describe why the await expression is invalid.
+        message: String,
+    },
+
+    /// Yield expression has an invalid shape for its context.
+    #[diagnostic(code = "EC407", message = "invalid yield expression: {message}")]
+    InvalidYield {
+        /// Report the yield expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// Describe why the yield expression is invalid.
+        message: String,
+    },
+
     // -------------------------------------------------------------------------
     // 5xx: representation
     // -------------------------------------------------------------------------

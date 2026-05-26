@@ -1,7 +1,11 @@
 mod commit;
+mod constraint;
+mod decorator;
 mod error;
 mod language;
+mod obligation;
 mod provide;
+mod resolve;
 mod solve;
 mod state;
 mod term;
@@ -11,8 +15,11 @@ mod warning;
 pub use error::*;
 pub use warning::*;
 
+pub(in crate::check) use constraint::*;
+pub(in crate::check) use decorator::*;
 pub(in crate::check) use language::*;
-pub(in crate::check) use solve::{Decision, Progress};
+pub(in crate::check) use obligation::*;
+pub(in crate::check) use solve::{Decision, Progress, Reduction};
 pub(in crate::check) use state::*;
 pub(in crate::check) use term::*;
 
