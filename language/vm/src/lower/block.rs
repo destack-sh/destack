@@ -167,7 +167,7 @@ pub(super) struct FunctionContext<'a> {
     /// The worker-local heap allocation geometry.
     pub(super) heap_options: &'a heap::HeapOptions,
     /// The runtime-shared heap allocation geometry.
-    pub(super) shared_heap_options: &'a heap::HeapOptions,
+    pub(super) shared_heap_options: &'a heap::SharedHeapOptions,
     /// The lowered block index by MIR block id.
     pub(super) block_index_by_id: HashMap<mir::LocalNodeId<mir::Block>, usize>,
     /// The lowered block parameter values by block index.

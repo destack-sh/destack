@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_engine::{StaticSpace, Value};
 use destack_heap::{
     Allocator, GcStats, Heap, HeapLimits, HeapOptions, HeapReference, SharedAllocator,
-    SharedGcWorker, SharedHeapLimits,
+    SharedGcWorker, SharedHeapLimits, SharedHeapOptions,
 };
 
 use crate::SharedHeap;
@@ -68,11 +68,11 @@ fn test_local_heap_options() -> HeapOptions {
 }
 
 /// Create heap options for ordinary shared VM tests.
-pub(crate) fn test_shared_heap_options() -> HeapOptions {
-    HeapOptions {
+pub(crate) fn test_shared_heap_options() -> SharedHeapOptions {
+    SharedHeapOptions {
         heap_space_bytes: TEST_LOCAL_SPACE_BYTES,
         raw_space_bytes: TEST_LOCAL_SPACE_BYTES,
-        ..HeapOptions::shared()
+        ..SharedHeapOptions::default()
     }
 }
 

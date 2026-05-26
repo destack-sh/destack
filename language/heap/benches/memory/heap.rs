@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_heap::{
     Allocator, Heap, HeapLimits, HeapOptions, SharedAllocator, SharedGcWorker, SharedHeap,
-    SharedHeapLimits,
+    SharedHeapLimits, SharedHeapOptions,
 };
 
 /// One shared heap with one worker-local allocator.
@@ -29,7 +29,7 @@ pub(crate) fn local_heap() -> Heap {
 
 /// Build one shared heap and worker-local allocator.
 pub(crate) fn shared_worker_heap() -> SharedWorkerHeap {
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),

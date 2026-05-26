@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Allocator, GcKind, GcOptions, GcProgress, HeapError, HeapOptions, Payload, SharedAllocator,
-    SharedGcPhase, SharedGcWorker, SharedHeap, SharedHeapLimits, SharedHeapReference,
+    Allocator, GcKind, GcOptions, GcProgress, HeapError, Payload, SharedAllocator, SharedGcPhase,
+    SharedGcWorker, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedHeapReference,
     SizeClassTable, TestLayout, test_layout, test_layouts,
 };
 use destack_mir::TraceMap;
@@ -13,7 +13,7 @@ use super::{read_mapped_bytes, write_mapped_bytes};
 fn test_shared_heap(
     layouts: &[(usize, TraceMap)],
 ) -> (SharedHeap, SharedAllocator, SharedGcWorker, Vec<TestLayout>) {
-    let options = HeapOptions {
+    let options = SharedHeapOptions {
         gc: GcOptions {
             growth_percent: 0,
             trigger_percent: 75,
@@ -21,7 +21,7 @@ fn test_shared_heap(
             minimum_heap_bytes: Some(0),
             minimum_work_bytes: crate::DEFAULT_GC_MINIMUM_WORK_BYTES,
         },
-        ..HeapOptions::shared()
+        ..SharedHeapOptions::default()
     };
     let layouts = test_layouts(layouts);
 
@@ -144,10 +144,10 @@ fn test_collect_shared_frees_unreachable_entries() {
 /// Clear one reused shared small heap slot before writing a shorter payload.
 #[test]
 fn test_collect_shared_clears_reused_small_slot_tail() {
-    let options = HeapOptions {
+    let options = SharedHeapOptions {
         heap_small_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
-        ..HeapOptions::shared()
+        ..SharedHeapOptions::default()
     };
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
@@ -321,7 +321,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
 /// Scan large shared allocations incrementally by allocator page.
 #[test]
 fn test_collect_shared_scans_large_allocations_incrementally() {
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let first_offset = 0usize;
     let second_offset = options.page_bytes;
     let parent_byte_len = second_offset + SharedHeapReference::BYTE_LEN;
@@ -390,7 +390,7 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
 /// Reject invalid explicit shared heap roots.
 #[test]
 fn test_collect_shared_rejects_invalid_root() {
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
@@ -417,7 +417,7 @@ fn test_collect_shared_rejects_invalid_root() {
 #[test]
 fn test_shared_heap_gc_state_roundtrips_through_image() {
     let layout = test_layout(8, TraceMap::empty());
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
@@ -455,7 +455,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
 #[test]
 fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
     let layout = test_layout(8, TraceMap::empty());
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
@@ -754,7 +754,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
 /// Stay idle when no shared pressure or explicit request exists.
 #[test]
 fn test_collect_step_stays_idle_without_request() {
-    let options = HeapOptions::shared();
+    let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),

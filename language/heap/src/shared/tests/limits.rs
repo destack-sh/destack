@@ -15,7 +15,7 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 /// Return the retained shared heap bytes for one allocation.
 fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
     let layout = test_layout(bytes.len(), TraceMap::empty());
-    let options = crate::HeapOptions::shared();
+    let options = crate::SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
@@ -45,7 +45,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
 #[test]
 fn test_track_shared_small_span_retained_bytes() {
     let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
-    let options = crate::HeapOptions::shared();
+    let options = crate::SharedHeapOptions::default();
     let class_index = options
         .size_classes
         .class_index_for(SMALL_ALLOCATION_BYTES)
@@ -98,7 +98,7 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     let shared = SharedHeap::with_allocator_limits_and_options(
         Arc::new(Allocator::try_default().expect("allocator should build")),
         SharedHeapLimits::default(),
-        crate::HeapOptions::shared(),
+        crate::SharedHeapOptions::default(),
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
@@ -139,10 +139,10 @@ fn test_flush_publishes_worker_shared_small_allocations() {
 #[test]
 fn test_allocate_shared_honors_layout_alignment() {
     let layout = test_aligned_layout(17, 16, TraceMap::empty());
-    let options = crate::HeapOptions {
+    let options = crate::SharedHeapOptions {
         heap_small_bytes: 64,
         size_classes: SizeClassTable::new([8, 24, 32]).expect("size classes should validate"),
-        ..crate::HeapOptions::shared()
+        ..crate::SharedHeapOptions::default()
     };
     let shared = SharedHeap::with_allocator_limits_and_options(
         Arc::new(Allocator::try_default().expect("allocator should build")),
@@ -185,7 +185,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
             heap: SharedHeapSpaceLimits { max_bytes: Some(0) },
             raw: SharedRawLimits { max_bytes: None },
         },
-        crate::HeapOptions::shared(),
+        crate::SharedHeapOptions::default(),
     )
     .expect("shared heap should build");
     let mut allocator = shared.allocator();
@@ -215,7 +215,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
 #[test]
 fn test_reject_shared_raw_replace_when_limit_exceeded() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let options = crate::HeapOptions::shared();
+    let options = crate::SharedHeapOptions::default();
     let shared = SharedHeap::with_allocator_limits_and_options(
         allocator.clone(),
         SharedHeapLimits::default(),
@@ -267,7 +267,7 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
 fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
     let layout = test_layout(1, TraceMap::empty());
-    let options = crate::HeapOptions::shared();
+    let options = crate::SharedHeapOptions::default();
     let shared = SharedHeap::with_allocator_limits_and_options(
         allocator.clone(),
         SharedHeapLimits::default(),
