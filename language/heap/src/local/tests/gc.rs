@@ -52,15 +52,16 @@ fn is_young(heap: &HeapSpace, reference: HeapReference) -> bool {
     )
 }
 
-/// Report whether one heap reference is currently mature.
-fn is_mature(heap: &HeapSpace, reference: HeapReference) -> bool {
-    matches!(
-        heap.place(reference),
-        Some(HeapPlace::Small(_)) | Some(HeapPlace::Large(_))
-    )
+/// Read one heap reference from mapped heap bytes.
+fn read_heap_reference(heap: &HeapSpace, reference: HeapReference) -> HeapReference {
+    let address = heap.base_address() + reference.offset();
+    let bytes = read_mapped_bytes(address, HeapReference::BYTE_LEN);
+    let bits = usize::from_le_bytes(bytes.try_into().expect("heap reference should fit"));
+
+    HeapReference::from_bits(bits)
 }
 
-/// Promote reachable young allocations and clear unreachable young-space state.
+/// Promote reachable young allocations and free unreachable young-space state.
 #[test]
 fn test_collect_minor_promotes_reachable_entries() {
     let options = tiny_heap_options();
@@ -88,31 +89,29 @@ fn test_collect_minor_promotes_reachable_entries() {
     let stats = heap
         .collect_minor(&mut roots)
         .expect("young collection should succeed");
-    let reachable = roots[0];
 
     assert_eq!(stats.freed_allocations, 1);
+    assert_ne!(roots[0], reachable);
     assert!(!heap.is_live(unreachable));
-    assert!(is_mature(&heap, reachable));
-    let address = heap.base_address() + reachable.offset();
+    assert!(!heap.is_live(reachable));
+    assert!(heap.is_live(roots[0]));
+    assert!(!is_young(&heap, roots[0]));
+    let address = heap.base_address() + roots[0].offset();
 
-    let bytes = read_mapped_bytes(address, 16);
+    let bytes = read_mapped_bytes(address, 3);
 
-    assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(bytes, &[1, 2, 3]);
 
     let image = heap.image().expect("heap image should capture");
     let young = image.young();
 
-    assert_eq!(
-        young.next_offset(),
-        options.small_allocation_alignment_bytes
-    );
     assert_eq!(
         young.pages().len(),
         young.capacity_bytes().div_ceil(young.page_bytes())
     );
 }
 
-/// Promote fixed-size young runs and rewrite roots before nursery reset.
+/// Promote reachable fixed-size young run slots.
 #[test]
 fn test_collect_minor_promotes_reachable_noscan_runs() {
     let options = HeapOptions::local();
@@ -134,12 +133,45 @@ fn test_collect_minor_promotes_reachable_noscan_runs() {
     let stats = heap
         .collect_minor(&mut roots)
         .expect("young collection should succeed");
-    let promoted = roots[0];
 
     assert_eq!(stats.freed_allocations, 0);
-    assert_ne!(promoted, reference);
-    assert!(is_mature(&heap.heap, promoted));
-    let address = heap.heap.base_address() + promoted.offset();
+    assert_ne!(roots[0], reference);
+    assert!(!heap.heap.is_live(reference));
+    assert!(heap.heap.is_live(roots[0]));
+    assert!(!is_young(&heap.heap, roots[0]));
+    let address = heap.heap.base_address() + roots[0].offset();
+
+    let bytes = read_mapped_bytes(address, 8);
+
+    assert_eq!(bytes, &[0; 8]);
+}
+
+/// Clear recycled young pages before zeroed allocation reuses them.
+#[test]
+fn test_collect_minor_recycles_young_zeroed_bytes() {
+    let options = HeapOptions::local();
+    let allocator = test_allocator(&options);
+    let layout = test_layout(8, TraceMap::empty());
+    let mut heap =
+        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
+            .expect("heap should build");
+    let reference = heap
+        .allocate(
+            &heap.allocation_plan(layout.allocation()),
+            Payload::Bytes(&[9; 8]),
+        )
+        .expect("heap allocation should succeed");
+    let mut roots = [];
+
+    assert!(is_young(&heap.heap, reference));
+
+    heap.collect_minor(&mut roots)
+        .expect("young collection should succeed");
+
+    let reference = heap
+        .allocate_zeroed(&heap.allocation_plan(layout.allocation()))
+        .expect("zeroed heap allocation should succeed");
+    let address = heap.heap.base_address() + reference.offset();
 
     let bytes = read_mapped_bytes(address, 8);
 
@@ -177,27 +209,24 @@ fn test_collect_minor_promotes_reachable_child_entries() {
     let stats = heap
         .collect_minor(&mut roots)
         .expect("young collection should succeed");
-    let parent = roots[0];
 
     assert_eq!(stats.freed_allocations, 0);
-    assert!(is_mature(&heap, parent));
-    let parent_address = heap.base_address() + parent.offset();
+    assert_ne!(roots[0], parent);
+    assert!(!heap.is_live(parent));
+    assert!(heap.is_live(roots[0]));
+    assert!(!is_young(&heap, roots[0]));
 
-    let child_bytes = read_mapped_bytes(parent_address, HeapReference::BYTE_LEN);
-    let rewritten_child = HeapReference::from_bits(usize::from_le_bytes(
-        child_bytes.try_into().expect("child reference should fit"),
-    ));
+    let traced_child = read_heap_reference(&heap, roots[0]);
 
+    assert_ne!(traced_child, child);
     assert!(!heap.is_live(child));
-    assert!(is_mature(&heap, rewritten_child));
-    let child_address = heap.base_address() + rewritten_child.offset();
+    assert!(heap.is_live(traced_child));
+    assert!(!is_young(&heap, traced_child));
+    let child_address = heap.base_address() + traced_child.offset();
 
-    let bytes = read_mapped_bytes(child_address, 16);
+    let bytes = read_mapped_bytes(child_address, 2);
 
-    assert_eq!(
-        bytes,
-        &[0xC1, 0x1D, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    );
+    assert_eq!(bytes, &[0xC1, 0x1D]);
 }
 
 /// Reject invalid explicit young roots loudly.
@@ -245,9 +274,9 @@ fn test_collect_minor_updates_gc_state() {
     assert_eq!(heap.gc_state().last_stats, Some(stats));
 }
 
-/// Pinning one young reference should tenure it immediately.
+/// Pinning one young reference should preserve it in place.
 #[test]
-fn test_pin_promotes_young_reference() {
+fn test_pin_preserves_young_reference() {
     let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let layout = test_layout(3, TraceMap::empty());
@@ -268,7 +297,7 @@ fn test_pin_promotes_young_reference() {
         heap.collector.pins.references().collect::<Vec<_>>(),
         vec![reference]
     );
-    assert!(is_mature(&heap, reference));
+    assert!(is_young(&heap, reference));
     let address = heap.base_address() + reference.offset();
 
     let bytes = read_mapped_bytes(address, 16);
@@ -276,9 +305,9 @@ fn test_pin_promotes_young_reference() {
     assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 }
 
-/// Pinning an interior young reference preserves its byte offset.
+/// Pinning an interior young reference preserves its byte offset in place.
 #[test]
-fn test_pin_promotes_interior_young_reference() {
+fn test_pin_preserves_interior_young_reference() {
     let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let layout = test_layout(8, TraceMap::empty());
@@ -302,16 +331,16 @@ fn test_pin_promotes_interior_young_reference() {
         heap.collector.pins.references().collect::<Vec<_>>(),
         vec![location.base]
     );
-    assert!(is_mature(&heap, interior));
+    assert!(is_young(&heap, interior));
 
     heap.unpin(interior).expect("interior unpin should succeed");
 
     assert!(heap.collector.pins.references().next().is_none());
 }
 
-/// Minor collection rewrites interior young roots without losing their offset.
+/// Minor collection promotes interior young roots without losing their offset.
 #[test]
-fn test_collect_minor_rewrites_interior_roots() {
+fn test_collect_minor_promotes_interior_roots() {
     let options = tiny_heap_options();
     let allocator = test_allocator(&options);
     let layout = test_layout(8, TraceMap::empty());
@@ -329,14 +358,16 @@ fn test_collect_minor_rewrites_interior_roots() {
         .expect("young collection should succeed");
     let location = heap
         .resolve_location(roots[0])
-        .expect("rewritten interior root should resolve");
+        .expect("interior root should resolve");
 
     assert_eq!(location.byte_offset, 5);
-    assert!(is_mature(&heap, roots[0]));
+    assert_ne!(roots[0], HeapReference::new(reference.offset() + 5));
     assert!(!heap.is_live(reference));
+    assert!(heap.is_live(location.base));
+    assert!(!is_young(&heap, location.base));
 }
 
-/// Pinned mature roots should keep young children alive during minor collection.
+/// Pinned roots should stay in place while young children promote.
 #[test]
 fn test_collect_minor_traces_pinned_roots() {
     let options = tiny_heap_options();
@@ -370,16 +401,75 @@ fn test_collect_minor_traces_pinned_roots() {
         .expect("young collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
-    assert!(is_mature(&heap, parent));
-    let parent_address = heap.base_address() + parent.offset();
+    assert_eq!(
+        heap.collector.pins.references().collect::<Vec<_>>(),
+        vec![parent]
+    );
+    assert!(is_young(&heap, parent));
+    assert!(heap.is_live(parent));
 
-    let child_bytes = read_mapped_bytes(parent_address, HeapReference::BYTE_LEN);
-    let rewritten_child = HeapReference::from_bits(usize::from_le_bytes(
-        child_bytes.try_into().expect("child reference should fit"),
-    ));
+    let traced_child = read_heap_reference(&heap, parent);
 
+    assert_ne!(traced_child, child);
     assert!(!heap.is_live(child));
-    assert!(is_mature(&heap, rewritten_child));
+    assert!(heap.is_live(traced_child));
+    assert!(!is_young(&heap, traced_child));
+}
+
+/// Keep mature dirty cards while they still point at pinned young children.
+#[test]
+fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
+    let options = HeapOptions {
+        max_heap_young_allocation_bytes: 8,
+        ..tiny_heap_options()
+    };
+    let allocator = test_allocator(&options);
+    let trace_map = TraceMap::Fixed {
+        local_offsets: vec![0].into_boxed_slice(),
+        shared_offsets: Vec::new().into_boxed_slice(),
+    };
+    let layouts = test_layouts(&[(4, TraceMap::empty()), (16, trace_map.clone())]);
+    let [child_layout, parent_layout]: [TestLayout; 2] =
+        layouts.try_into().expect("test layouts should match");
+    let mut heap =
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
+    let child = heap
+        .allocate(
+            &heap.allocation_plan(child_layout.allocation()),
+            Payload::Zeroed,
+        )
+        .expect("young child allocation should succeed");
+    let child = heap.pin(child).expect("pin should succeed");
+    let mut parent_bytes = [0u8; 16];
+    parent_bytes[..HeapReference::BYTE_LEN].copy_from_slice(&child.bits().to_le_bytes());
+    let parent = heap
+        .allocate(
+            &heap.allocation_plan(parent_layout.allocation()),
+            Payload::Bytes(&parent_bytes),
+        )
+        .expect("mature parent allocation should succeed");
+    let mut roots = [parent];
+
+    assert!(is_young(&heap, child));
+    assert!(!is_young(&heap, parent));
+
+    heap.collect_minor(&mut roots)
+        .expect("young collection should keep pinned child");
+
+    assert_eq!(read_heap_reference(&heap, roots[0]), child);
+    assert!(heap.is_live(child));
+    assert!(is_young(&heap, child));
+
+    heap.unpin(child).expect("unpin should succeed");
+    heap.collect_minor(&mut roots)
+        .expect("young collection should rescan retained card");
+
+    let promoted_child = read_heap_reference(&heap, roots[0]);
+
+    assert_ne!(promoted_child, child);
+    assert!(!heap.is_live(child));
+    assert!(heap.is_live(promoted_child));
+    assert!(!is_young(&heap, promoted_child));
 }
 
 /// Pinned mature references should stay live during full collection without explicit roots.
@@ -595,9 +685,9 @@ fn test_collect_step_stays_idle_without_request() {
     assert_eq!(progress, GcProgress::Idle);
 }
 
-/// Run one minor cycle after heap allocation pressure.
+/// Run one full bounded cycle after heap allocation pressure.
 #[test]
-fn test_collect_step_runs_minor_after_pressure() {
+fn test_collect_step_runs_full_after_pressure() {
     let (mut heap, layout_ids) = test_heap(&[(64, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let root = heap
@@ -619,7 +709,7 @@ fn test_collect_step_runs_minor_after_pressure() {
 
     assert_eq!(stats.freed_allocations, 0);
     assert!(heap.is_heap_live(root));
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Full));
 }
 
 /// Run one minor cycle after young-space occupancy crosses the configured trigger.
@@ -667,9 +757,9 @@ fn test_collect_step_runs_minor_after_young_occupancy() {
     assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
 }
 
-/// Keep minor collection atomic when the caller supplies a smaller budget.
+/// Drain minor collection at one safepoint even with a small caller budget.
 #[test]
-fn test_collect_step_requires_young_budget_for_minor() {
+fn test_collect_step_drains_minor_at_safepoint() {
     let options = HeapOptions {
         gc: GcOptions {
             growth_percent: 100,
@@ -705,18 +795,49 @@ fn test_collect_step_requires_young_budget_for_minor() {
 
     let progress = heap
         .collect_step(&mut roots, 1)
-        .expect("small-budget collection should not fail");
-
-    assert_eq!(progress, GcProgress::Idle);
-    assert_eq!(heap.gc_state().last_kind, None);
-
-    let budget_bytes = heap.take_collection_budget_bytes();
-    let progress = heap
-        .collect_step(&mut roots, budget_bytes)
-        .expect("budgeted collection should succeed");
+        .expect("small-budget collection should succeed");
 
     assert_eq!(progress.completed_stats().map(|_| ()), Some(()));
     assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+}
+
+/// Avoid expanding local collection budgets to cover a large nursery.
+#[test]
+fn test_collect_budget_does_not_expand_to_large_nursery() {
+    let options = HeapOptions {
+        gc: GcOptions {
+            growth_percent: 100,
+            trigger_percent: 75,
+            soft_limit_bytes: None,
+            minimum_heap_bytes: Some(1024 * 1024),
+            minimum_work_bytes: 64,
+        },
+        heap_young_bytes: 1024,
+        max_heap_young_allocation_bytes: 256,
+        ..HeapOptions::local()
+    };
+    let allocator = Arc::new(
+        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+            .expect("allocator should build"),
+    );
+    let mut heap =
+        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
+            .expect("heap should build");
+    let layout = test_layout(256, TraceMap::empty());
+
+    // fill young space beyond one configured safepoint quantum
+    for _ in 0..3 {
+        let _reference = heap
+            .allocate(
+                &heap.allocation_plan(layout.allocation()),
+                Payload::Bytes(&[1; 256]),
+            )
+            .expect("heap allocation should succeed");
+    }
+
+    let budget_bytes = heap.take_collection_budget_bytes();
+
+    assert_eq!(budget_bytes, 0);
 }
 
 /// Honor one explicit full local collection request below the pacing trigger.
