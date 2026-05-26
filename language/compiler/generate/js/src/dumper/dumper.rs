@@ -874,9 +874,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Expression::Super => {
                 self.node("js::Expression::Super", id.id).end();
             }
-            js::Expression::NewTarget => {
-                self.node("js::Expression::NewTarget", id.id).end();
-            }
             js::Expression::PrivateIdentifier { name } => {
                 self.node("js::Expression::PrivateIdentifier", id.id)
                     .field("name", name)

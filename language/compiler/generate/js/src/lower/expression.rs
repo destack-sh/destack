@@ -638,12 +638,6 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::NewTarget => {
-                let expression = js::Expression::NewTarget;
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
             dir::Expression::This => {
                 let expression = js::Expression::This;
                 self.tree
