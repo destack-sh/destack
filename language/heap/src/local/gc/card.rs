@@ -41,13 +41,22 @@ impl CardSet {
         self.dirty.clear_all();
     }
 
-    /// Return each dirty byte range.
-    pub(crate) fn dirty_ranges(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
-        self.dirty.set_ranges().map(|(start_card, card_count)| {
-            let start = start_card * DEFAULT_CARD_BYTES;
-            let end = ((start_card + card_count) * DEFAULT_CARD_BYTES).min(self.byte_len);
+    /// Return whether this card set has no dirty cards.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.dirty.first_set_from(0).is_none()
+    }
 
-            (start, end - start)
-        })
+    /// Return one dirty card at or after the given card index.
+    pub(crate) fn next_dirty_card_from(&self, card_index: usize) -> Option<(usize, usize, usize)> {
+        let card_index = self.dirty.first_set_from(card_index)?;
+        let start = card_index * DEFAULT_CARD_BYTES;
+        let end = (start + DEFAULT_CARD_BYTES).min(self.byte_len);
+
+        Some((card_index, start, end - start))
+    }
+
+    /// Clear one dirty card.
+    pub(crate) fn clear_card(&mut self, card_index: usize) {
+        self.dirty.clear(card_index);
     }
 }

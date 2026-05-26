@@ -22,23 +22,6 @@ pub(crate) fn shared_reference_offsets(trace_map: &TraceMap) -> Box<[u32]> {
     offsets.into_boxed_slice()
 }
 
-/// Return exact local-reference offsets selected by mapped payload tags.
-pub(crate) fn heap_reference_offsets(
-    trace_map: &TraceMap,
-    base_address: usize,
-) -> HeapResult<Vec<usize>> {
-    let mut offsets = Vec::new();
-    push_reference_offsets_from_memory::<LocalReference>(
-        trace_map,
-        base_address,
-        0,
-        None,
-        &mut offsets,
-    )?;
-
-    Ok(offsets)
-}
-
 /// Append concrete reference offsets from one map.
 fn append_reference_offsets<R: ReferenceScan>(
     trace_map: &TraceMap,
@@ -401,6 +384,24 @@ pub fn visit_heap_root_slots_in_bytes(
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> HeapResult<()> {
     visit_heap_root_slots_from_bytes(trace_map, 0, bytes, 0, None, visit)
+}
+
+/// Visit mutable heap root slots encoded in one byte range.
+pub(crate) fn visit_heap_root_slots_in_bytes_range(
+    trace_map: &TraceMap,
+    bytes_start: usize,
+    start: usize,
+    len: usize,
+    bytes: &mut [u8],
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> HeapResult<()> {
+    let range = ReferenceRange {
+        start,
+        end: start + len,
+        width: HeapReference::BYTE_LEN,
+    };
+
+    visit_heap_root_slots_from_bytes(trace_map, bytes_start, bytes, 0, Some(range), visit)
 }
 
 /// Scan heap references from one mapped allocation base address.
@@ -983,105 +984,6 @@ fn visit_heap_root_slot_variants_from_bytes(
     }
 
     Ok(())
-}
-
-/// Push reference offsets selected by mapped payload tags.
-fn push_reference_offsets_from_memory<R: ReferenceScan>(
-    trace_map: &TraceMap,
-    base_address: usize,
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    offsets: &mut Vec<usize>,
-) -> HeapResult<()> {
-    match trace_map {
-        TraceMap::Empty => {}
-        TraceMap::Fixed { .. } => {
-            push_direct_reference_offsets(R::offsets(trace_map), base_offset, range, offsets);
-        }
-        TraceMap::Nested { byte_offset, map } => {
-            let byte_offset = base_offset + *byte_offset as usize;
-
-            push_reference_offsets_from_memory::<R>(
-                map,
-                base_address,
-                byte_offset,
-                range,
-                offsets,
-            )?;
-        }
-        TraceMap::Composite { maps } => {
-            for map in maps {
-                push_reference_offsets_from_memory::<R>(
-                    map,
-                    base_address,
-                    base_offset,
-                    range,
-                    offsets,
-                )?;
-            }
-        }
-        TraceMap::Repeated {
-            count,
-            stride,
-            element,
-        } => {
-            for index in 0..*count {
-                let element_offset = base_offset + index as usize * *stride as usize;
-
-                push_reference_offsets_from_memory::<R>(
-                    element,
-                    base_address,
-                    element_offset,
-                    range,
-                    offsets,
-                )?;
-            }
-        }
-        TraceMap::Tagged {
-            tag_offset,
-            tag_bytes,
-            variants,
-        } => {
-            // SAFETY: mapped allocation tags are inside live payload memory
-            let tag = unsafe {
-                read_reference_tag(
-                    base_address + base_offset + *tag_offset as usize,
-                    *tag_bytes,
-                )
-            };
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
-                return Ok(());
-            };
-            let variant_offset = base_offset + variant.storage_offset as usize;
-
-            push_reference_offsets_from_memory::<R>(
-                &variant.map,
-                base_address,
-                variant_offset,
-                range,
-                offsets,
-            )?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Push direct reference offsets after applying range filtering.
-fn push_direct_reference_offsets(
-    offsets: &[u32],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    target: &mut Vec<usize>,
-) {
-    for offset in offsets {
-        let offset = base_offset + *offset as usize;
-        if !reference_offset_overlaps_range(offset, range) {
-            continue;
-        }
-
-        target.push(offset);
-    }
 }
 
 /// Return whether one reference offset overlaps an optional byte range.

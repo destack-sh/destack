@@ -185,20 +185,6 @@ pub enum HeapError {
         /// The underlying heap failure.
         error: Box<HeapError>,
     },
-    /// One heap collection promotion could not allocate a mature small slot.
-    HeapPromotionUnavailableSmallSlot {
-        /// The heap reference being promoted.
-        reference: HeapReference,
-        /// The promoted payload length in bytes.
-        byte_len: usize,
-    },
-    /// One heap collection promotion failed.
-    HeapPromotionFailed {
-        /// The heap reference being promoted.
-        reference: HeapReference,
-        /// The underlying heap failure.
-        error: Box<HeapError>,
-    },
     /// One heap collection free failed.
     HeapFreeFailed {
         /// The heap reference being freed.
@@ -569,21 +555,6 @@ impl Display for HeapError {
                     )
                 }
             },
-            Self::HeapPromotionUnavailableSmallSlot {
-                reference,
-                byte_len,
-            } => {
-                write!(
-                    formatter,
-                    "heap promotion could not allocate one mature small slot for reference {reference:?} with {byte_len} bytes"
-                )
-            }
-            Self::HeapPromotionFailed { reference, error } => {
-                write!(
-                    formatter,
-                    "heap promotion failed for reference {reference:?}: {error}"
-                )
-            }
             Self::HeapFreeFailed { reference, error } => {
                 write!(
                     formatter,

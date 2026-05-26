@@ -1,109 +1,231 @@
 use destack_mir::TraceMap;
 
 use crate::allocator::SpanSlot;
-use crate::local::space::{HeapLocation, HeapPlace, HeapSpace, YoungPlace};
-use crate::{HeapError, HeapReference, HeapResult, RootSet, RootSlot, heap_reference_offsets};
-
-/// One planned relocation for a heap reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Promotion {
-    /// The reference whose physical place moves.
-    pub(crate) reference: HeapReference,
-    /// The source physical location.
-    pub(crate) source: HeapPlace,
-    /// The target physical location.
-    pub(crate) target: HeapPlace,
-}
+use crate::local::space::{
+    HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId, YoungPlace,
+};
+use crate::{
+    HeapError, HeapReference, HeapResult, RootSet, RootSlot, visit_heap_root_slots_in_bytes,
+    visit_heap_root_slots_in_bytes_range,
+};
 
 impl HeapSpace {
-    /// Promote one young reference into mature space.
-    pub(crate) fn promote_reference(
-        &mut self,
-        reference: HeapReference,
-    ) -> HeapResult<HeapReference> {
-        // resolve the current live location
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidHeapReference { reference });
-        };
+    /// Relocate eligible young survivors and rewrite their visible references.
+    pub(super) fn relocate_young_survivors<R>(&mut self, roots: &mut R) -> Result<(), R::Error>
+    where
+        R: RootSet,
+    {
+        let mut has_promotions = false;
 
-        // stage the young to mature relocation
-        let mut promotions = Vec::with_capacity(1);
-        match location.place {
-            HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                self.stage_young_promotion(reference, first_offset, &mut promotions)?;
-            }
-            HeapPlace::Young(YoungPlace::Slot(slot)) => {
-                self.stage_young_run_promotion(reference, slot, &mut promotions)?;
-            }
-            _ => return Ok(reference),
-        }
+        // copy eligible survivors before publishing forwarded references
+        has_promotions |= self.promote_young_range_survivors()?;
+        has_promotions |= self.promote_young_run_survivors()?;
 
-        // publish the mature location only after staging succeeds
-        if let Err(error) = self.verify_young_promotions(&promotions) {
-            self.discard_young_promotions(&promotions)?;
-
-            return Err(error);
-        }
-
-        // retire the old nursery source after the promoted reference points at mature place
-        match location.place {
-            HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                let Some((allocation_index, _allocation)) =
-                    self.young_range_by_offset(first_offset)
-                else {
-                    return Err(HeapError::MissingYoungRange { first_offset });
-                };
-                self.young.live.clear(allocation_index);
-            }
-            HeapPlace::Young(YoungPlace::Slot(slot)) => {
-                let Some(bits) = self.young.run_bits_mut(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                bits.freed.set(slot.slot_index());
-            }
-            _ => {}
-        }
-
-        // remember the new mature location conservatively
-        let Some(promotion) = promotions.first().copied() else {
-            return Err(HeapError::InvalidHeapReference { reference });
-        };
-
-        // record mature write metadata for the promoted payload
-        let promoted_reference = self.base_reference(promotion.target)?;
-        let result = self.record_write_barrier(
-            promoted_reference,
-            HeapLocation {
-                place: promotion.target,
-                base: promoted_reference,
-                byte_offset: 0,
-                byte_len: location.byte_len,
-            },
-            0,
-            location.byte_len,
-        );
+        // rewrite every visible local reference before the mutator resumes
+        self.rewrite_promoted_references(roots, has_promotions)?;
         self.young.clear_forwarding();
-        result?;
 
-        Ok(promoted_reference.add_bytes(location.byte_offset))
+        Ok(())
     }
 
-    /// Rewrite roots and traced mature payloads through one completed promotion set.
-    pub(super) fn rewrite_promoted_references<R>(
+    /// Promote reachable young range allocations that reached the promotion age.
+    fn promote_young_range_survivors(&mut self) -> HeapResult<bool> {
+        let promotion_age = self.young_promotion_age.get();
+        let mut has_promotions = false;
+        let mut start = 0usize;
+
+        while let Some(start_index) = self.young.live.first_set_from(start) {
+            start = start_index + 1;
+
+            // only marked survivors can be promoted
+            if !self.young.marked.contains(start_index) {
+                continue;
+            }
+
+            // age live survivors before checking promotion policy
+            self.young.survivor_ages[start_index] =
+                self.young.survivor_ages[start_index].saturating_add(1);
+            if self.young.survivor_ages[start_index] < promotion_age {
+                continue;
+            }
+
+            let Some(range) = self.young.range(start_index) else {
+                return Err(HeapError::MissingYoungRange {
+                    first_offset: self.young.start_offset(start_index),
+                });
+            };
+            let source = HeapReference::new(range.first_offset);
+
+            // pinned young objects keep their stable address
+            if self.collector.pins.contains(source) {
+                continue;
+            }
+
+            let trace_map = self.young_range_trace_map(range.first_offset)?;
+            let bytes = self
+                .mapping
+                .read_bytes(range.first_offset, range.byte_len)?;
+            let target_place =
+                self.allocate_promoted_payload(range.byte_len, &trace_map, &bytes)?;
+            let target = self.base_reference(target_place)?;
+
+            // publish forwarding after the copied payload is tracked
+            self.publish_promoted_payload(target, target_place, range.byte_len, &trace_map)?;
+            self.young.forward_range(start_index, target);
+            self.retire_promoted_young_range(start_index, source, range.byte_len);
+            has_promotions = true;
+        }
+
+        Ok(has_promotions)
+    }
+
+    /// Promote reachable fixed-size young run slots that reached the promotion age.
+    fn promote_young_run_survivors(&mut self) -> HeapResult<bool> {
+        let promotion_age = self.young_promotion_age.get();
+        let mut has_promotions = false;
+
+        self.young.flush_run_cursor();
+
+        for run_index in 0..self.young.runs.len() {
+            let Some(run) = self.young.run(run_index).cloned() else {
+                return Err(HeapError::MissingSpan {
+                    span_index: run_index,
+                });
+            };
+            let reserved_slots = self
+                .young
+                .run_reserved_slot_count(run_index)
+                .unwrap_or(run.slot_count);
+
+            for slot_index in 0..reserved_slots {
+                let slot = SpanSlot::new(run_index, slot_index)?;
+                let Some(bits) = self.young.run_bits_mut(run_index) else {
+                    return Err(HeapError::MissingSpan {
+                        span_index: run_index,
+                    });
+                };
+
+                // only marked occupied slots can be promoted
+                if bits.freed.contains(slot_index) || !bits.marked.contains(slot_index) {
+                    continue;
+                }
+
+                // age live survivors before checking promotion policy
+                bits.survivor_ages[slot_index] = bits.survivor_ages[slot_index].saturating_add(1);
+                if bits.survivor_ages[slot_index] < promotion_age {
+                    continue;
+                }
+
+                let source = HeapReference::new(run.slot_offset(slot_index));
+
+                // pinned young objects keep their stable address
+                if self.collector.pins.contains(source) {
+                    continue;
+                }
+
+                let bytes = self.mapping.read_bytes(source.offset(), run.size_class)?;
+                let trace_map = TraceMap::Empty;
+                let target_place =
+                    self.allocate_promoted_payload(run.size_class, &trace_map, &bytes)?;
+                let target = self.base_reference(target_place)?;
+
+                // fixed-size young slots have no reference payload
+                self.young.forward_run_slot(slot, target);
+                self.retire_promoted_young_slot(slot, source, run.size_class)?;
+                has_promotions = true;
+            }
+        }
+
+        Ok(has_promotions)
+    }
+
+    /// Publish remembered metadata for one promoted mature payload.
+    fn publish_promoted_payload(
+        &mut self,
+        reference: HeapReference,
+        place: HeapPlace,
+        byte_len: usize,
+        trace_map: &TraceMap,
+    ) -> HeapResult<()> {
+        if trace_map.has_shared_reference() {
+            self.collector.track_shared_edge_root(reference);
+        }
+
+        self.record_write_barrier(
+            reference,
+            HeapLocation {
+                place,
+                base: reference,
+                byte_offset: 0,
+                byte_len,
+            },
+            0,
+            byte_len,
+        )
+    }
+
+    /// Retire one promoted young range source.
+    fn retire_promoted_young_range(
+        &mut self,
+        start_index: usize,
+        reference: HeapReference,
+        byte_len: usize,
+    ) {
+        self.young.live.clear(start_index);
+        self.young.marked.clear(start_index);
+        self.collector.remove_shared_edge_root(reference);
+        self.record_young_free(byte_len);
+    }
+
+    /// Retire one promoted fixed-size young run source.
+    fn retire_promoted_young_slot(
+        &mut self,
+        slot: SpanSlot,
+        reference: HeapReference,
+        byte_len: usize,
+    ) -> HeapResult<()> {
+        let Some(bits) = self.young.run_bits_mut(slot.span_index()) else {
+            return Err(HeapError::MissingSpan {
+                span_index: slot.span_index(),
+            });
+        };
+
+        bits.freed.set(slot.slot_index());
+        bits.marked.clear(slot.slot_index());
+        self.collector.remove_shared_edge_root(reference);
+        self.record_young_free(byte_len);
+
+        Ok(())
+    }
+
+    /// Rewrite roots and live payloads through completed forwarding metadata.
+    fn rewrite_promoted_references<R>(
         &mut self,
         roots: &mut R,
-        promotions: &[Promotion],
+        has_promotions: bool,
     ) -> Result<(), R::Error>
     where
         R: RootSet,
     {
-        if promotions.is_empty() {
+        if !has_promotions {
             return Ok(());
         }
 
-        // rewrite root slots first
+        // external roots first
+        self.rewrite_root_references(roots)?;
+
+        // payloads after roots, while forwarding is still live
+        self.rewrite_young_payload_references()?;
+        self.rewrite_remembered_mature_references()?;
+
+        Ok(())
+    }
+
+    /// Rewrite mutable root slots through completed forwarding metadata.
+    fn rewrite_root_references<R>(&self, roots: &mut R) -> Result<(), R::Error>
+    where
+        R: RootSet,
+    {
         roots.visit_root_slots(&mut |mut slot: RootSlot<'_>| {
             let Some(reference) = slot.load_heap_reference()? else {
                 return Ok(());
@@ -114,375 +236,443 @@ impl HeapSpace {
             }
 
             Ok(())
-        })?;
-
-        // then rewrite every pinned reference
-        let mut pins = std::mem::take(&mut self.collector.pins);
-        let rewrite_result = pins.rewrite_with(|reference| self.forwarded_reference(reference));
-        self.collector.pins = pins;
-        rewrite_result?;
-
-        // then rewrite every mature payload that may still contain young references
-        self.rewrite_live_heap_references()?;
-
-        // finally rebuild the auxiliary shared-edge tracking over the new stable refs
-        self.rebuild_shared_edge_roots()?;
-        self.collector.shared_edge_cursor = 0;
-        self.collector.clear_shared_edge_work();
-
-        Ok(())
+        })
     }
 
-    /// Stage one fixed-size young slot relocation into mature space.
-    pub(super) fn stage_young_run_promotion(
-        &mut self,
-        reference: HeapReference,
-        slot: SpanSlot,
-        promotions: &mut Vec<Promotion>,
-    ) -> HeapResult<()> {
-        // resolve the young run and source bytes
-        let Some(run) = self.young.run(slot.span_index()).cloned() else {
-            return Err(HeapError::HeapPromotionFailed {
-                reference,
-                error: Box::new(HeapError::MissingSpan {
-                    span_index: slot.span_index(),
-                }),
-            });
-        };
-        let byte_len = run.size_class;
-        let source_offset = run.slot_offset(slot.slot_index());
-        let bytes = self
-            .mapping
-            .read_bytes(source_offset, byte_len)
-            .map_err(|error| HeapError::HeapPromotionFailed {
-                reference,
-                error: Box::new(error.into()),
-            })?;
-        let trace_map = TraceMap::Empty;
+    /// Rewrite live young payload references through completed forwarding metadata.
+    fn rewrite_young_payload_references(&mut self) -> HeapResult<()> {
+        let mut start = 0usize;
 
-        // keep fixed-size no-scan slots in small space when possible
-        let location = if self.small.size_classes.class_index_for(byte_len).is_some() {
-            let slot = self
-                .allocate_small_payload_from_bytes(&bytes, &trace_map, false)
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                })?
-                .ok_or(HeapError::HeapPromotionUnavailableSmallSlot {
-                    reference,
-                    byte_len,
-                })?;
+        while let Some(start_index) = self.young.live.first_set_from(start) {
+            start = start_index + 1;
 
-            HeapPlace::Small(slot)
-        } else {
-            let pages = self.allocate_page_run(byte_len).map_err(|error| {
-                HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                }
-            })?;
-            let allocation_id = self
-                .insert_large_allocation(
-                    byte_len,
-                    self.allocator().page_bytes(),
-                    pages,
-                    trace_map,
-                    false,
-                )
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                })?;
-            let Some(allocation) = self.large_allocation(allocation_id) else {
-                return Err(HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    }),
-                });
-            };
-            self.mapping
-                .write_bytes(allocation.first_offset, &bytes)
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error.into()),
-                })?;
-
-            HeapPlace::Large(allocation_id)
-        };
-
-        // publish forwarding metadata for later root rewriting
-        let promoted_reference = self.base_reference(location)?;
-        self.young.forward_run_slot(slot, promoted_reference);
-
-        promotions.push(Promotion {
-            reference,
-            source: HeapPlace::Young(YoungPlace::Slot(slot)),
-            target: location,
-        });
-
-        Ok(())
-    }
-
-    /// Stage one live young allocation relocation into mature space.
-    pub(super) fn stage_young_promotion(
-        &mut self,
-        reference: HeapReference,
-        first_offset: usize,
-        promotions: &mut Vec<Promotion>,
-    ) -> HeapResult<()> {
-        // resolve the young allocation and source bytes
-        let Some((allocation_index, allocation)) = self.young_range_by_offset(first_offset) else {
-            return Err(HeapError::HeapPromotionFailed {
-                reference,
-                error: Box::new(HeapError::MissingYoungRange { first_offset }),
-            });
-        };
-
-        // copy the young bytes before relocating the allocation
-        let young_offset = allocation.first_offset;
-        let bytes = self
-            .mapping
-            .read_bytes(young_offset, allocation.byte_len)
-            .map_err(|error| HeapError::HeapPromotionFailed {
-                reference,
-                error: Box::new(error.into()),
-            })?;
-        let trace_map = self.young_range_trace_map(first_offset).map_err(|error| {
-            HeapError::HeapPromotionFailed {
-                reference,
-                error: Box::new(error),
-            }
-        })?;
-
-        // keep small mature payloads in size-class spans
-        let location = if self
-            .small
-            .size_classes
-            .class_index_for(allocation.byte_len)
-            .is_some()
-        {
-            let slot = self
-                .allocate_small_payload_from_bytes(&bytes, &trace_map, false)
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                })?;
-            let Some(slot) = slot else {
-                return Err(HeapError::HeapPromotionUnavailableSmallSlot {
-                    reference,
-                    byte_len: allocation.byte_len,
+            let Some(range) = self.young.range(start_index) else {
+                return Err(HeapError::MissingYoungRange {
+                    first_offset: self.young.start_offset(start_index),
                 });
             };
 
-            HeapPlace::Small(slot)
-        } else {
-            let pages = self
-                .allocate_page_run(allocation.byte_len)
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                })?;
-
-            let allocation_id = self
-                .insert_large_allocation(
-                    allocation.byte_len,
-                    self.allocator().page_bytes(),
-                    pages,
-                    trace_map,
-                    false,
-                )
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error),
-                })?;
-            let Some(allocation) = self.large_allocation(allocation_id) else {
-                return Err(HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    }),
-                });
-            };
-            self.mapping
-                .write_bytes(allocation.first_offset, &bytes)
-                .map_err(|error| HeapError::HeapPromotionFailed {
-                    reference,
-                    error: Box::new(error.into()),
-                })?;
-
-            HeapPlace::Large(allocation_id)
-        };
-
-        // publish forwarding metadata for later root rewriting
-        let promoted_reference = self.base_reference(location)?;
-        self.young
-            .forward_range(allocation_index, promoted_reference);
-
-        promotions.push(Promotion {
-            reference,
-            source: HeapPlace::Young(YoungPlace::Range { first_offset }),
-            target: location,
-        });
-
-        Ok(())
-    }
-
-    /// Verify every staged young relocation still refers to the staged source.
-    pub(super) fn verify_young_promotions(&mut self, promotions: &[Promotion]) -> HeapResult<()> {
-        // verify every source before committing root rewrites
-        for promotion in promotions {
-            let reference = promotion.reference;
-            let Some(location) = self.resolve_location(reference) else {
-                return Err(HeapError::InvalidHeapReference { reference });
-            };
-
-            if location.place != promotion.source {
-                return Err(HeapError::InvalidHeapReference { reference });
-            }
+            // rewrite only payloads that may contain local references
+            let trace_map = self.young_range_trace_map(range.first_offset)?;
+            self.rewrite_payload_references(range.first_offset, range.byte_len, &trace_map)?;
         }
 
         Ok(())
     }
 
-    /// Discard every staged mature relocation target.
-    pub(super) fn discard_young_promotions(&mut self, promotions: &[Promotion]) -> HeapResult<()> {
-        // release targets in reverse staging order
-        for promotion in promotions.iter().rev() {
-            let reference = promotion.reference;
-            let result = match promotion.target {
-                HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                    Err(HeapError::MissingYoungRange { first_offset })
-                }
-                HeapPlace::Young(YoungPlace::Slot(slot)) => Err(HeapError::MissingSpan {
-                    span_index: slot.span_index(),
-                }),
-                HeapPlace::Small(slot) => self.release_small_slot(slot),
-                HeapPlace::Large(allocation_id) => {
-                    let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                        return Err(HeapError::MissingLargeAllocation {
-                            allocation_id: allocation_id.id(),
-                        });
-                    };
+    /// Rewrite remembered mature references through completed forwarding metadata.
+    fn rewrite_remembered_mature_references(&mut self) -> HeapResult<()> {
+        let dirty_span_count = self.collector.dirty_spans.len();
+        let dirty_large_count = self.collector.dirty_large_allocations.len();
 
-                    if !allocation.is_live {
-                        return Err(HeapError::MissingLargeAllocation {
-                            allocation_id: allocation_id.id(),
-                        });
-                    }
-
-                    let pages = allocation.pages;
-                    allocation.retire();
-                    self.large
-                        .free_large_allocation_ids
-                        .push(allocation_id.id());
-
-                    // release the unpublished target pages after discarding the slot
-                    self.release_page_run(pages)?;
-
-                    Ok(())
-                }
-            };
-
-            result.map_err(|error| HeapError::HeapPromotionFailed {
-                reference,
-                error: Box::new(error),
-            })?;
+        for dirty_index in 0..dirty_span_count {
+            let span_index = self.collector.dirty_spans[dirty_index];
+            self.rewrite_dirty_span_references(span_index)?;
         }
 
-        // clear forwarding metadata after every target is gone
-        self.young.clear_forwarding();
+        for dirty_index in 0..dirty_large_count {
+            let allocation_id = self.collector.dirty_large_allocations[dirty_index];
+            self.rewrite_dirty_large_references(allocation_id)?;
+        }
 
         Ok(())
     }
 
-    /// Return the promoted reference for one young reference.
-    fn forwarded_reference(&self, reference: HeapReference) -> HeapResult<Option<HeapReference>> {
-        // non-live references have no forwarding state
-        let Some(location) = self.resolve_location(reference) else {
-            return Ok(None);
-        };
+    /// Rewrite every dirty card on one mature span.
+    fn rewrite_dirty_span_references(&mut self, span_index: usize) -> HeapResult<()> {
+        let mut card_cursor = 0usize;
 
-        // only young places can be forwarded
-        let reference = match location.place {
-            HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                let Some((start_index, _range)) = self.young_range_by_offset(first_offset) else {
-                    return Err(HeapError::MissingYoungRange { first_offset });
-                };
+        loop {
+            let Some(span) = self.span(span_index) else {
+                return Err(HeapError::MissingSpan { span_index });
+            };
+            let Some((card_index, card_start, card_len)) =
+                span.dirty_cards.next_dirty_card_from(card_cursor)
+            else {
+                self.finish_rewritten_dirty_span(span_index)?;
 
-                self.young.forwarded_range(start_index)
-            }
-            HeapPlace::Young(YoungPlace::Slot(slot)) => self.young.forwarded_run_slot(slot),
-            _ => None,
-        };
-
-        Ok(reference.map(|base| base.add_bytes(location.byte_offset)))
-    }
-
-    /// Rewrite every live mature payload through completed forwarding metadata.
-    fn rewrite_live_heap_references(&mut self) -> HeapResult<()> {
-        // snapshot live references before rewriting payloads
-        let live_references = self.live_references()?;
-
-        for reference in live_references {
-            let Some(location) = self.resolve_location(reference) else {
-                continue;
+                return Ok(());
             };
 
-            if matches!(
-                location.place,
-                HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_))
-            ) {
+            let has_young_reference =
+                self.rewrite_dirty_span_card(span_index, card_start, card_len)?;
+            self.finish_rewritten_dirty_span_card(span_index, card_index, has_young_reference)?;
+            card_cursor = card_index + 1;
+        }
+    }
+
+    /// Rewrite one dirty card on one mature span.
+    fn rewrite_dirty_span_card(
+        &mut self,
+        span_index: usize,
+        card_start: usize,
+        card_len: usize,
+    ) -> HeapResult<bool> {
+        let Some(span) = self.span(span_index) else {
+            return Err(HeapError::MissingSpan { span_index });
+        };
+        let card_end = card_start + card_len;
+        let first_offset = span.first_offset;
+        let size_class = span.class.size_class;
+        let slot_count = span.slot_count;
+        let first_slot = card_start / size_class;
+        let last_slot = (card_end - 1) / size_class;
+        let end_slot = (last_slot + 1).min(slot_count);
+        let mut has_young_reference = false;
+
+        for slot_index in first_slot..end_slot {
+            let Some(span) = self.span(span_index) else {
+                return Err(HeapError::MissingSpan { span_index });
+            };
+            if !span.occupied.contains(slot_index) {
                 continue;
             }
 
-            // noscan payloads cannot contain forwarding references
-            let trace_map = self.trace_map_for_place(location.place)?;
+            let trace_map = self.small_slot_trace_map(span_index, slot_index)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
 
-            self.rewrite_location_heap_references(location, &trace_map)?;
+            let slot_start = size_class * slot_index;
+            let slot_end = slot_start + size_class;
+            let overlap_start = card_start.max(slot_start);
+            let overlap_end = card_end.min(slot_end);
+            if overlap_start >= overlap_end {
+                continue;
+            }
+
+            let offset = first_offset + slot_start;
+            let local_start = overlap_start - slot_start;
+            let local_len = overlap_end - overlap_start;
+            has_young_reference |= self.rewrite_payload_reference_range(
+                offset,
+                size_class,
+                &trace_map,
+                local_start,
+                local_len,
+            )?;
         }
 
-        Ok(())
+        Ok(has_young_reference)
     }
 
-    /// Rewrite one traced heap payload through completed forwarding metadata.
-    fn rewrite_location_heap_references(
+    /// Finish one rewritten dirty span card.
+    fn finish_rewritten_dirty_span_card(
         &mut self,
-        location: HeapLocation,
-        trace_map: &TraceMap,
+        span_index: usize,
+        card_index: usize,
+        has_young_reference: bool,
     ) -> HeapResult<()> {
-        let base_address = self.mapping.base_address() + location.base.offset();
-        let offsets = heap_reference_offsets(trace_map, base_address)?;
-
-        for offset in offsets {
-            self.rewrite_location_heap_reference_word(location, offset)?;
-        }
-
-        Ok(())
-    }
-
-    /// Rewrite one direct heap-reference word inside one traced payload.
-    fn rewrite_location_heap_reference_word(
-        &mut self,
-        location: HeapLocation,
-        start: usize,
-    ) -> HeapResult<()> {
-        let mut window = [0u8; HeapReference::BYTE_LEN];
-
-        // read the current reference word
-        self.fill_location_bytes(location, start, &mut window)?;
-
-        let reference = HeapReference::from_bits(usize::from_le_bytes(window));
-        let Some(next_reference) = self.forwarded_reference(reference)? else {
-            return Ok(());
+        let Some(span) = self.span_mut(span_index) else {
+            return Err(HeapError::MissingSpan { span_index });
         };
 
-        // overwrite only forwarded references
-        let next_bytes = next_reference.bits().to_le_bytes();
+        if !has_young_reference {
+            span.dirty_cards.clear_card(card_index);
+        }
+        if span.dirty_cards.is_empty() {
+            span.is_dirty_queued = false;
+        }
 
-        self.write_location_bytes(location, start, &next_bytes)
+        Ok(())
+    }
+
+    /// Finish one rewritten dirty span with no remaining cards to visit.
+    fn finish_rewritten_dirty_span(&mut self, span_index: usize) -> HeapResult<()> {
+        let Some(span) = self.span_mut(span_index) else {
+            return Err(HeapError::MissingSpan { span_index });
+        };
+
+        span.is_dirty_queued = !span.dirty_cards.is_empty();
+
+        Ok(())
+    }
+
+    /// Rewrite every dirty card on one mature large allocation.
+    fn rewrite_dirty_large_references(
+        &mut self,
+        allocation_id: LargeAllocationId,
+    ) -> HeapResult<()> {
+        let mut card_cursor = 0usize;
+
+        loop {
+            let Some(allocation) = self.large_allocation(allocation_id) else {
+                return Err(HeapError::MissingLargeAllocation {
+                    allocation_id: allocation_id.id(),
+                });
+            };
+            let Some((card_index, card_start, card_len)) =
+                allocation.dirty_cards.next_dirty_card_from(card_cursor)
+            else {
+                self.finish_rewritten_dirty_large(allocation_id)?;
+
+                return Ok(());
+            };
+
+            let has_young_reference =
+                self.rewrite_dirty_large_card(allocation_id, card_start, card_len)?;
+            self.finish_rewritten_dirty_large_card(allocation_id, card_index, has_young_reference)?;
+            card_cursor = card_index + 1;
+        }
+    }
+
+    /// Rewrite one dirty card on one mature large allocation.
+    fn rewrite_dirty_large_card(
+        &mut self,
+        allocation_id: LargeAllocationId,
+        card_start: usize,
+        card_len: usize,
+    ) -> HeapResult<bool> {
+        let Some(allocation) = self.large_allocation(allocation_id) else {
+            return Err(HeapError::MissingLargeAllocation {
+                allocation_id: allocation_id.id(),
+            });
+        };
+        let first_offset = allocation.first_offset;
+        let byte_len = allocation.len;
+        let trace_map = allocation.trace_map.clone();
+
+        self.rewrite_payload_reference_range(
+            first_offset,
+            byte_len,
+            &trace_map,
+            card_start,
+            card_len,
+        )
+    }
+
+    /// Finish one rewritten dirty large-allocation card.
+    fn finish_rewritten_dirty_large_card(
+        &mut self,
+        allocation_id: LargeAllocationId,
+        card_index: usize,
+        has_young_reference: bool,
+    ) -> HeapResult<()> {
+        let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+            return Err(HeapError::MissingLargeAllocation {
+                allocation_id: allocation_id.id(),
+            });
+        };
+
+        if !has_young_reference {
+            allocation.dirty_cards.clear_card(card_index);
+        }
+        if allocation.dirty_cards.is_empty() {
+            allocation.is_dirty_queued = false;
+        }
+
+        Ok(())
+    }
+
+    /// Finish one rewritten dirty large allocation with no remaining cards to visit.
+    fn finish_rewritten_dirty_large(&mut self, allocation_id: LargeAllocationId) -> HeapResult<()> {
+        let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+            return Err(HeapError::MissingLargeAllocation {
+                allocation_id: allocation_id.id(),
+            });
+        };
+
+        allocation.is_dirty_queued = !allocation.dirty_cards.is_empty();
+
+        Ok(())
+    }
+
+    /// Rewrite one mapped payload through completed forwarding metadata.
+    fn rewrite_payload_references(
+        &mut self,
+        offset: usize,
+        byte_len: usize,
+        trace_map: &TraceMap,
+    ) -> HeapResult<()> {
+        if !trace_map.has_local_reference() {
+            return Ok(());
+        }
+
+        let mut did_rewrite = false;
+        let mut bytes = self.mapping.read_bytes(offset, byte_len)?;
+        visit_heap_root_slots_in_bytes(trace_map, &mut bytes, &mut |mut slot| {
+            let Some(reference) = slot.load_heap_reference()? else {
+                return Ok(());
+            };
+
+            if let Some(next_reference) = self.forwarded_reference(reference)? {
+                slot.store_heap_reference(next_reference)?;
+                did_rewrite = true;
+            }
+
+            Ok(())
+        })?;
+        if did_rewrite {
+            self.mapping.write_bytes(offset, &bytes)?;
+        }
+
+        Ok(())
+    }
+
+    /// Rewrite one mapped payload byte range through completed forwarding metadata.
+    fn rewrite_payload_reference_range(
+        &mut self,
+        offset: usize,
+        byte_len: usize,
+        trace_map: &TraceMap,
+        range_start: usize,
+        range_len: usize,
+    ) -> HeapResult<bool> {
+        if range_len == 0 || !trace_map.has_local_reference() {
+            return Ok(false);
+        }
+
+        let range_end = (range_start + range_len).min(byte_len);
+        let range_len = range_end.saturating_sub(range_start);
+        if range_len == 0 {
+            return Ok(false);
+        }
+
+        let (window_offset, window_start, window_len) = if trace_map.has_tagged_reference() {
+            (offset, 0, byte_len)
+        } else {
+            let window_start = range_start.saturating_sub(HeapReference::BYTE_LEN - 1);
+            let window_end = (range_end + HeapReference::BYTE_LEN - 1).min(byte_len);
+
+            (
+                offset + window_start,
+                window_start,
+                window_end - window_start,
+            )
+        };
+        let mut has_young_reference = false;
+        let mut did_rewrite = false;
+        let mut bytes = self.mapping.read_bytes(window_offset, window_len)?;
+
+        visit_heap_root_slots_in_bytes_range(
+            trace_map,
+            window_start,
+            range_start,
+            range_len,
+            &mut bytes,
+            &mut |mut slot| {
+                let Some(reference) = slot.load_heap_reference()? else {
+                    return Ok(());
+                };
+                let reference = if let Some(next_reference) = self.forwarded_reference(reference)? {
+                    slot.store_heap_reference(next_reference)?;
+                    did_rewrite = true;
+
+                    next_reference
+                } else {
+                    reference
+                };
+
+                if self.reference_is_young(reference)? {
+                    has_young_reference = true;
+                }
+
+                Ok(())
+            },
+        )?;
+
+        if did_rewrite {
+            self.mapping.write_bytes(window_offset, &bytes)?;
+        }
+
+        Ok(has_young_reference)
+    }
+
+    /// Return whether one reference points into live young space.
+    fn reference_is_young(&self, reference: HeapReference) -> HeapResult<bool> {
+        if reference.is_null() {
+            return Ok(false);
+        }
+
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+
+        Ok(matches!(
+            location.place,
+            HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_))
+        ))
+    }
+
+    /// Return the promoted reference for one young reference.
+    fn forwarded_reference(&self, reference: HeapReference) -> HeapResult<Option<HeapReference>> {
+        if reference.is_null() {
+            return Ok(None);
+        }
+
+        let page_bytes = self.allocator().page_bytes();
+        let page_index = reference.offset() / page_bytes;
+        let page_offset = reference.offset() % page_bytes;
+        let Some(HeapPageMapEntry::Young { logical_page_index }) = self.page_entry(page_index)
+        else {
+            return Ok(None);
+        };
+        let logical_byte_offset = logical_page_index * self.young.page_bytes + page_offset;
+
+        if let Some(run_index) = self
+            .young
+            .page_runs
+            .get(logical_page_index)
+            .copied()
+            .flatten()
+        {
+            return self.forwarded_young_run_reference(run_index, logical_byte_offset, reference);
+        }
+
+        self.forwarded_young_range_reference(logical_byte_offset, reference)
+    }
+
+    /// Return the promoted reference for one young range reference.
+    fn forwarded_young_range_reference(
+        &self,
+        logical_byte_offset: usize,
+        reference: HeapReference,
+    ) -> HeapResult<Option<HeapReference>> {
+        let start_index = self.young.start_index(logical_byte_offset);
+        let Some(range_index) = self.young.starts.last_set_at_or_before(start_index) else {
+            return Ok(None);
+        };
+        let allocation_offset = self.young.start_offset(range_index);
+        let allocation_len = self.young.byte_lens[range_index] as usize;
+        if logical_byte_offset >= allocation_offset + allocation_len {
+            return Ok(None);
+        }
+
+        let Some(target) = self.young.forwarded_range(range_index) else {
+            return Ok(None);
+        };
+        let byte_offset = reference.offset() - allocation_offset;
+
+        Ok(Some(target.add_bytes(byte_offset)))
+    }
+
+    /// Return the promoted reference for one young run slot reference.
+    fn forwarded_young_run_reference(
+        &self,
+        run_index: usize,
+        logical_byte_offset: usize,
+        reference: HeapReference,
+    ) -> HeapResult<Option<HeapReference>> {
+        let Some(run) = self.young.run(run_index) else {
+            return Err(HeapError::MissingSpan {
+                span_index: run_index,
+            });
+        };
+        let Some(run_offset) = logical_byte_offset.checked_sub(run.first_offset) else {
+            return Ok(None);
+        };
+        let slot_index = run_offset / run.size_class;
+        let slot_offset = run_offset % run.size_class;
+        let slot = SpanSlot::new(run_index, slot_index)?;
+        let Some(target) = self.young.forwarded_run_slot(slot) else {
+            return Ok(None);
+        };
+
+        debug_assert_eq!(
+            reference.offset(),
+            run.slot_offset(slot_index) + slot_offset
+        );
+
+        Ok(Some(target.add_bytes(slot_offset)))
     }
 }

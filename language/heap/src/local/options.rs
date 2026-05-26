@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 
+use std::num::NonZeroU8;
+
 use crate::allocator::{
     Allocator, DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, SizeClassTable,
 };
 use crate::{
     AllocationClass, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
     DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES, DEFAULT_SPACE_BYTES,
-    DEFAULT_YOUNG_BYTES, GcOptions, HeapError, allocation_class, validate_allocator_chunk_bytes,
-    validate_page_bytes, validate_size_class_alignment, validate_small_span_bytes,
-    validate_space_bytes,
+    DEFAULT_YOUNG_BYTES, DEFAULT_YOUNG_PROMOTION_AGE, GcOptions, HeapError, allocation_class,
+    validate_allocator_chunk_bytes, validate_page_bytes, validate_size_class_alignment,
+    validate_small_span_bytes, validate_space_bytes,
 };
 
 /// The configuration for one heap instance.
@@ -22,6 +24,8 @@ pub struct HeapOptions {
     pub heap_young_bytes: usize,
     /// The maximum payload size routed to heap young space.
     pub max_heap_young_allocation_bytes: usize,
+    /// The minor-cycle survivor count before young allocations promote.
+    pub young_promotion_age: NonZeroU8,
     /// The byte size for heap small-allocation spans.
     pub heap_small_bytes: usize,
     /// The byte size for raw small-allocation spans.
@@ -64,6 +68,7 @@ impl HeapOptions {
             size_classes: SizeClassTable::default(),
             heap_young_bytes: DEFAULT_YOUNG_BYTES,
             max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
+            young_promotion_age: DEFAULT_YOUNG_PROMOTION_AGE,
             heap_small_bytes: DEFAULT_SMALL_BYTES,
             raw_small_bytes: DEFAULT_SMALL_BYTES,
             heap_space_bytes: DEFAULT_SPACE_BYTES,
