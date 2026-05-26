@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use destack_core::StringPool;
 use destack_dir as dir;
 
@@ -9,6 +11,10 @@ pub(super) struct BindingSnapshotName<'a> {
     tree: Option<&'a dir::Tree>,
     /// The string pool used by source names.
     strings: &'a StringPool,
+    /// Source symbol labels keyed by local symbol.
+    symbol_labels: BTreeMap<dir::LocalSymbolId, String>,
+    /// Semantic symbol path labels keyed by local symbol.
+    symbol_path_labels: BTreeMap<dir::LocalSymbolId, String>,
 }
 
 impl<'a> BindingSnapshotName<'a> {
@@ -18,56 +24,40 @@ impl<'a> BindingSnapshotName<'a> {
         tree: Option<&'a dir::Tree>,
         strings: &'a StringPool,
     ) -> Self {
-        Self {
+        let mut names = Self {
             bindings,
             tree,
             strings,
-        }
+            symbol_labels: BTreeMap::new(),
+            symbol_path_labels: BTreeMap::new(),
+        };
+
+        // build labels once for the whole table
+        names.symbol_labels = names.build_symbol_labels();
+        names.symbol_path_labels = names.build_symbol_path_labels();
+
+        names
     }
 
     /// Return one local symbol label.
     pub(super) fn symbol(&self, symbol_id: dir::LocalSymbolId) -> String {
-        let symbol = self.bindings.get_symbol(symbol_id);
-
-        if let Some(name) = symbol.name() {
-            return self.named_symbol(symbol_id, name);
-        }
-
-        Self::unnamed_symbol(symbol_id, symbol)
+        self.symbol_labels
+            .get(&symbol_id)
+            .cloned()
+            .unwrap_or_else(|| panic!("dir snapshot missing symbol label for {symbol_id:?}"))
     }
 
     /// Return one semantic symbol path label.
     pub(super) fn symbol_path(&self, symbol_id: dir::LocalSymbolId) -> String {
-        let path = self.symbol_path_base(symbol_id);
-        let duplicate_count = self.symbol_path_count(&path);
-        if duplicate_count == 1 {
-            return path;
-        }
-
-        let duplicate_index = self.symbol_path_index(symbol_id, &path);
-        format!("{path}#{duplicate_index}")
+        self.symbol_path_labels
+            .get(&symbol_id)
+            .cloned()
+            .unwrap_or_else(|| panic!("dir snapshot missing symbol path label for {symbol_id:?}"))
     }
 
-    /// Return one semantic symbol path without duplicate suffixes.
-    fn symbol_path_base(&self, symbol_id: dir::LocalSymbolId) -> String {
-        let symbol = self.bindings.get_symbol(symbol_id);
-        let label = self.symbol_base_label(symbol_id, symbol);
-        if !self.symbol_should_qualify(symbol) {
-            return label;
-        }
-
-        let Some(owner) = self.symbol_scope_owner(symbol) else {
-            return label;
-        };
-
-        let owner_symbol = self.bindings.get_symbol(owner);
-        if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
-            return label;
-        }
-
-        let owner = self.symbol_path_base(owner);
-
-        format!("{owner}.{label}")
+    /// Return all semantic symbol path labels.
+    pub(super) fn symbol_path_labels(&self) -> BTreeMap<dir::LocalSymbolId, String> {
+        self.symbol_path_labels.clone()
     }
 
     /// Return one scope label.
@@ -91,16 +81,91 @@ impl<'a> BindingSnapshotName<'a> {
         format!("scope{}", scope_id.0)
     }
 
-    /// Return one named symbol label.
-    fn named_symbol(&self, symbol_id: dir::LocalSymbolId, name: dir::StringId) -> String {
+    /// Build all source symbol labels for this table.
+    fn build_symbol_labels(&self) -> BTreeMap<dir::LocalSymbolId, String> {
+        let symbol_ids = self.bindings.symbol_ids().collect::<Vec<_>>();
+        let mut counts = BTreeMap::<String, usize>::new();
+
+        // count duplicate source names
+        for symbol_id in &symbol_ids {
+            let symbol = self.bindings.get_symbol(*symbol_id);
+            if let Some(name) = symbol.name() {
+                let name = self.strings.get(name).to_string();
+                *counts.entry(name).or_insert(0) += 1;
+            }
+        }
+
+        let mut indexes = BTreeMap::<String, usize>::new();
+        let mut labels = BTreeMap::new();
+
+        // label symbols in stable binding order
+        for symbol_id in symbol_ids {
+            let symbol = self.bindings.get_symbol(symbol_id);
+            let label = if let Some(name) = symbol.name() {
+                self.duplicate_label(name, &counts, &mut indexes)
+            } else {
+                Self::unnamed_symbol(symbol_id, symbol)
+            };
+
+            labels.insert(symbol_id, label);
+        }
+
+        labels
+    }
+
+    /// Build all semantic symbol path labels for this table.
+    fn build_symbol_path_labels(&self) -> BTreeMap<dir::LocalSymbolId, String> {
+        let symbol_ids = self.bindings.symbol_ids().collect::<Vec<_>>();
+        let mut bases = BTreeMap::new();
+
+        // build recursive path bases once
+        for symbol_id in &symbol_ids {
+            self.symbol_path_base(*symbol_id, &mut bases);
+        }
+
+        let mut counts = BTreeMap::<String, usize>::new();
+        for path in bases.values() {
+            *counts.entry(path.clone()).or_insert(0) += 1;
+        }
+
+        let mut indexes = BTreeMap::<String, usize>::new();
+        let mut labels = BTreeMap::new();
+
+        // suffix duplicate paths in stable binding order
+        for symbol_id in symbol_ids {
+            let path = bases.get(&symbol_id).cloned().unwrap_or_else(|| {
+                panic!("dir snapshot missing symbol path base for {symbol_id:?}")
+            });
+            let count = counts.get(&path).copied().unwrap_or(0);
+            if count == 1 {
+                labels.insert(symbol_id, path);
+            } else {
+                let index = indexes.entry(path.clone()).or_insert(0);
+                *index += 1;
+                labels.insert(symbol_id, format!("{path}#{index}"));
+            }
+        }
+
+        labels
+    }
+
+    /// Return one duplicate-aware source name label.
+    fn duplicate_label(
+        &self,
+        name: dir::StringId,
+        counts: &BTreeMap<String, usize>,
+        indexes: &mut BTreeMap<String, usize>,
+    ) -> String {
         let name = self.strings.get(name).to_string();
-        let duplicate_count = self.symbol_name_count(&name);
-        if duplicate_count == 1 {
+        let count = counts.get(&name).copied().unwrap_or(0);
+        if count == 1 {
             return name;
         }
 
-        let duplicate_index = self.symbol_name_index(symbol_id, &name);
-        format!("{name}#{duplicate_index}")
+        let index = indexes.entry(name.clone()).or_insert(0);
+        *index += 1;
+
+        format!("{name}#{index}")
     }
 
     /// Return one symbol label without duplicate suffixes.
@@ -157,62 +222,41 @@ impl<'a> BindingSnapshotName<'a> {
         scope.owner
     }
 
-    /// Count symbols with one source name.
-    fn symbol_name_count(&self, name: &str) -> usize {
-        self.bindings
-            .symbol_ids()
-            .filter(|symbol_id| {
-                let symbol = self.bindings.get_symbol(*symbol_id);
-                symbol
-                    .name()
-                    .is_some_and(|symbol_name| self.strings.get(symbol_name) == name)
-            })
-            .count()
-    }
-
-    /// Return the one-based duplicate index for one symbol name.
-    fn symbol_name_index(&self, target_symbol_id: dir::LocalSymbolId, name: &str) -> usize {
-        let mut index = 0;
-
-        for symbol_id in self.bindings.symbol_ids() {
-            let symbol = self.bindings.get_symbol(symbol_id);
-            if symbol
-                .name()
-                .is_some_and(|symbol_name| self.strings.get(symbol_name) == name)
-            {
-                index += 1;
-            }
-
-            if symbol_id == target_symbol_id {
-                break;
-            }
+    /// Return one semantic symbol path without duplicate suffixes.
+    fn symbol_path_base(
+        &self,
+        symbol_id: dir::LocalSymbolId,
+        bases: &mut BTreeMap<dir::LocalSymbolId, String>,
+    ) -> String {
+        if let Some(path) = bases.get(&symbol_id) {
+            return path.clone();
         }
 
-        index
-    }
+        let symbol = self.bindings.get_symbol(symbol_id);
+        let label = self.symbol_base_label(symbol_id, symbol);
+        if !self.symbol_should_qualify(symbol) {
+            bases.insert(symbol_id, label.clone());
 
-    /// Count symbols with one semantic path.
-    fn symbol_path_count(&self, path: &str) -> usize {
-        self.bindings
-            .symbol_ids()
-            .filter(|symbol_id| self.symbol_path_base(*symbol_id) == path)
-            .count()
-    }
-
-    /// Return the one-based duplicate index for one semantic symbol path.
-    fn symbol_path_index(&self, target_symbol_id: dir::LocalSymbolId, path: &str) -> usize {
-        let mut index = 0;
-
-        for symbol_id in self.bindings.symbol_ids() {
-            if self.symbol_path_base(symbol_id) == path {
-                index += 1;
-            }
-
-            if symbol_id == target_symbol_id {
-                break;
-            }
+            return label;
         }
 
-        index
+        let Some(owner) = self.symbol_scope_owner(symbol) else {
+            bases.insert(symbol_id, label.clone());
+
+            return label;
+        };
+
+        let owner_symbol = self.bindings.get_symbol(owner);
+        if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
+            bases.insert(symbol_id, label.clone());
+
+            return label;
+        }
+
+        let owner = self.symbol_path_base(owner, bases);
+        let path = format!("{owner}.{label}");
+        bases.insert(symbol_id, path.clone());
+
+        path
     }
 }
