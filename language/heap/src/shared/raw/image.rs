@@ -122,6 +122,7 @@ impl SharedRawSpace {
             state: parking_lot::Mutex::new(super::space::SharedRawState {
                 page_run_cache: PageRunCache::new(self.allocator.pages_per_chunk()),
                 usage: state.usage,
+                live_retained_bytes: state.live_retained_bytes,
                 next_offset: state.next_offset,
             }),
             page_map: parking_lot::RwLock::new(Vec::new()),
@@ -186,12 +187,14 @@ impl SharedRawSpace {
                 Ok(allocation)
             })
             .collect::<HeapResult<Vec<_>>>()?;
+        let live_retained_bytes = live_retained_bytes(&allocations, allocator.page_bytes());
         let restored = Self {
             allocator: allocator.clone(),
             base_address,
             state: parking_lot::Mutex::new(super::space::SharedRawState {
                 page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
                 usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
+                live_retained_bytes,
                 next_offset: image.next_offset(),
             }),
             page_map: parking_lot::RwLock::new(Vec::new()),
@@ -273,4 +276,21 @@ fn rebuild_page_map(raw: &SharedRawSpace) {
 
         raw.map_page_run(allocation.first_offset, &allocation.pages, allocation_index);
     }
+}
+
+/// Return the live retained bytes for restored raw allocations.
+fn live_retained_bytes(allocations: &[Arc<RwLock<SharedRawAllocation>>], page_bytes: usize) -> u64 {
+    let mut retained_bytes = 0;
+
+    for allocation in allocations {
+        let allocation = allocation.read();
+
+        if allocation.is_vacant() {
+            continue;
+        }
+
+        retained_bytes += allocation.pages.len() as u64 * page_bytes as u64;
+    }
+
+    retained_bytes
 }

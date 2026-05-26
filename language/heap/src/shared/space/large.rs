@@ -18,8 +18,8 @@ pub(crate) struct SharedLargeAllocation {
     pub(crate) pages: PageRun,
     /// The trace map for this allocation.
     pub(crate) trace_map: TraceMap,
-    /// Whether this allocation is marked in the active cycle.
-    pub(crate) is_marked: bool,
+    /// The last shared collection mark epoch that reached this allocation.
+    pub(crate) mark_epoch: u64,
 }
 
 impl SharedLargeAllocation {
@@ -29,7 +29,7 @@ impl SharedLargeAllocation {
         self.first_offset = 0;
         self.len = 0;
         self.pages = PageRun::empty();
-        self.is_marked = false;
+        self.mark_epoch = 0;
     }
 }
 

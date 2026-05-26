@@ -19,8 +19,8 @@ pub(crate) struct LargeAllocation {
     pub(crate) pages: PageRun,
     /// The trace map for this allocation.
     pub(crate) trace_map: TraceMap,
-    /// Whether this allocation is marked in the active cycle.
-    pub(crate) is_marked: bool,
+    /// The mark epoch when this allocation was last marked.
+    pub(crate) mark_epoch: u64,
     /// The dirty cards remembered for young tracing.
     pub(crate) dirty_cards: CardSet,
     /// Whether this allocation is already queued for dirty-card scanning.
@@ -34,7 +34,7 @@ impl LargeAllocation {
         self.first_offset = 0;
         self.len = 0;
         self.pages = PageRun::empty();
-        self.is_marked = false;
+        self.mark_epoch = 0;
         self.dirty_cards.clear();
         self.is_dirty_queued = false;
     }

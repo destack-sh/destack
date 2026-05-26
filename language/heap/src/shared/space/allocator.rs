@@ -112,7 +112,7 @@ impl SharedAllocator {
 
     /// Reserve one zeroed allocation from a resolved no-scan small class.
     #[inline(always)]
-    pub fn reserve_small_zeroed(
+    pub(crate) fn reserve_small_zeroed(
         &mut self,
         small: SmallAllocationPlan,
     ) -> Option<SharedHeapReference> {
@@ -128,7 +128,7 @@ impl SharedAllocator {
     ///
     /// `bucket_index` must identify the bucket that owns `slot_bytes`.
     #[inline(always)]
-    pub unsafe fn reserve_zeroed_run_slot_unchecked(
+    pub(crate) unsafe fn reserve_zeroed_run_slot_unchecked(
         &mut self,
         bucket_index: usize,
         slot_bytes: usize,

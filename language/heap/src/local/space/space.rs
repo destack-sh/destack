@@ -1,3 +1,4 @@
+use std::num::NonZeroU8;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
@@ -9,8 +10,9 @@ use super::{
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{
-    AllocationPlan, AllocationShape, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
-    HeapSpaceUsage, SmallSpanClass, allocation_plan, allocation_trace_map, slot_trace_map,
+    AllocationPlan, AllocationShape, AllocationUsage, CowTable, HeapError, HeapOptions,
+    HeapReference, HeapResult, HeapSpaceUsage, SmallSpanClass, allocation_plan,
+    allocation_trace_map, slot_trace_map,
 };
 
 /// The first non-null heap large-allocation id.
@@ -36,9 +38,17 @@ pub struct HeapSpace {
     pub(crate) next_offset: usize,
     /// The fixed live byte mapping for heap space.
     pub(crate) mapping: AddressSpace,
+    /// The exact live managed heap usage.
+    pub(crate) usage: AllocationUsage,
+    /// The exact live managed young-space usage.
+    pub(crate) young_usage: AllocationUsage,
+    /// The exact retained allocator-page bytes owned by live heap metadata.
+    pub(crate) retained_page_bytes: u64,
 
     /// The maximum payload size routed to young space.
     pub(crate) max_young_allocation_bytes: usize,
+    /// The minor-cycle survivor count before young allocations promote.
+    pub(crate) young_promotion_age: NonZeroU8,
     /// The completed GC cycle summary.
     pub(crate) gc: GcState,
     /// The active collector state.
@@ -85,10 +95,12 @@ impl HeapSpace {
 
         // build the live space over the shared allocator
         let young_pages = young.pages;
+        let retained_page_bytes = young_pages.len() as u64 * options.page_bytes as u64;
         let mut space = Self {
             allocator,
             page_run_cache,
             max_young_allocation_bytes,
+            young_promotion_age: options.young_promotion_age,
             young,
             small: SmallSpace {
                 size_classes: options.size_classes.clone(),
@@ -108,6 +120,9 @@ impl HeapSpace {
             page_map: Vec::new(),
             next_offset: next_heap_offset,
             mapping,
+            usage: AllocationUsage::default(),
+            young_usage: AllocationUsage::default(),
+            retained_page_bytes,
             gc: GcState::default(),
             collector: LocalGcState::default(),
         };
@@ -126,18 +141,10 @@ impl HeapSpace {
 
     /// Return the exact retained heap allocator-page bytes.
     pub fn retained_bytes(&self) -> u64 {
-        self.allocator.retained_bytes_for_page_runs(
-            std::iter::once(&self.young.pages)
-                .chain(self.small.spans.iter().map(|span| &span.pages))
-                .chain(
-                    self.large
-                        .allocations
-                        .iter()
-                        .map(|allocation| &allocation.pages),
-                ),
-        ) + self
-            .page_run_cache
-            .cached_bytes(self.allocator.page_bytes())
+        self.retained_page_bytes
+            + self
+                .page_run_cache
+                .cached_bytes(self.allocator.page_bytes())
     }
 
     /// Return the current GC state.
@@ -145,14 +152,18 @@ impl HeapSpace {
         &self.gc
     }
 
-    /// Stabilize one heap reference in mature place.
+    /// Validate one heap reference for stable scoped access.
     pub fn stabilize(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
-        self.promote_reference(reference)
+        let Some(_location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+
+        Ok(reference)
     }
 
     /// Pin one heap reference against movement.
     pub fn pin(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
-        // first ensure the reference already points at stable mature place
+        // first validate the reference against live heap state
         let reference = self.stabilize(reference)?;
 
         let Some(location) = self.resolve_location(reference) else {
@@ -176,76 +187,21 @@ impl HeapSpace {
 
     /// Return the number of live heap allocations.
     pub fn allocation_count(&self) -> usize {
-        let (allocation_count, _) = self.live_allocated_usage();
-
-        allocation_count
+        self.usage.allocation_count()
     }
 
     /// Return the number of live heap bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        let (_, allocated_bytes) = self.live_allocated_usage();
-
-        allocated_bytes
+        self.usage.allocated_bytes()
     }
 
     /// Return the exact live usage for this heap space.
     pub fn usage(&self) -> HeapSpaceUsage {
-        let (allocation_count, allocated_bytes) = self.live_allocated_usage();
-
         HeapSpaceUsage {
-            allocation_count,
-            allocated_bytes,
+            allocation_count: self.usage.allocation_count(),
+            allocated_bytes: self.usage.allocated_bytes(),
             retained_bytes: self.retained_bytes(),
         }
-    }
-
-    /// Return exact live allocation usage from heap metadata.
-    pub(crate) fn live_allocated_usage(&self) -> (usize, u64) {
-        let mut allocation_count = 0usize;
-        let mut allocated_bytes = 0u64;
-
-        // young ranges charge their exact logical payload width
-        let mut start = 0;
-        while let Some(start_index) = self.young.live.first_set_from(start) {
-            allocation_count += 1;
-            allocated_bytes += self.young.byte_lens[start_index] as u64;
-            start = start_index + 1;
-        }
-
-        // young runs charge one size-class slot per live slot
-        for (run_index, run) in self.young.runs.iter().enumerate() {
-            let reserved_offset = if self.young.run_cursor.is_active()
-                && self.young.run_cursor.run_index == run_index
-            {
-                self.young.run_cursor.next_offset
-            } else {
-                run.next_offset
-            };
-            let reserved_count = run.reserved_slot_count_with(reserved_offset);
-            let freed_count = self.young.run_bits[run_index].freed.count_ones();
-            let occupied_count = reserved_count - freed_count;
-
-            allocation_count += occupied_count;
-            allocated_bytes += occupied_count as u64 * run.size_class as u64;
-        }
-
-        // small spans charge one size-class slot per occupied slot
-        for span in self.small.spans.iter() {
-            allocation_count += span.occupied_count;
-            allocated_bytes += span.occupied_count as u64 * span.class.size_class as u64;
-        }
-
-        // large allocations charge their logical allocation length
-        for allocation in self.large.allocations.iter() {
-            if !allocation.is_live {
-                continue;
-            }
-
-            allocation_count += 1;
-            allocated_bytes += allocation.len as u64;
-        }
-
-        (allocation_count, allocated_bytes)
     }
 
     /// Flush transient cache state before one exact branch boundary.
@@ -255,14 +211,21 @@ impl HeapSpace {
 
     /// Allocate one page run through the local page-run cache.
     pub(crate) fn allocate_page_run(&mut self, byte_len: usize) -> HeapResult<PageRun> {
-        self.page_run_cache
-            .allocate_pages(&self.allocator, byte_len)
+        let page_run = self
+            .page_run_cache
+            .allocate_pages(&self.allocator, byte_len)?;
+        self.retained_page_bytes += self.page_run_bytes(page_run);
+
+        Ok(page_run)
     }
 
     /// Release one page run through the local page-run cache.
     pub(crate) fn release_page_run(&mut self, page_run: PageRun) -> HeapResult<()> {
         self.page_run_cache
-            .release_page_run(&self.allocator, page_run)
+            .release_page_run(&self.allocator, page_run)?;
+        self.retained_page_bytes -= self.page_run_bytes(page_run);
+
+        Ok(())
     }
 
     /// Rebuild the tracked local references that may contain shared edges.
@@ -278,6 +241,35 @@ impl HeapSpace {
         }
 
         Ok(())
+    }
+
+    /// Record one young managed allocation.
+    pub(crate) fn record_young_allocation(&mut self, byte_len: usize) {
+        self.usage.allocate(byte_len);
+        self.young_usage.allocate(byte_len);
+    }
+
+    /// Record one mature managed allocation.
+    pub(crate) fn record_mature_allocation(&mut self, byte_len: usize) {
+        self.usage.allocate(byte_len);
+    }
+
+    /// Record one young managed allocation free.
+    pub(crate) fn record_young_free(&mut self, byte_len: usize) {
+        let freed_bytes = byte_len as u64;
+
+        self.usage.free(freed_bytes);
+        self.young_usage.free(freed_bytes);
+    }
+
+    /// Record one mature managed allocation free.
+    pub(crate) fn record_mature_free(&mut self, byte_len: usize) {
+        self.usage.free(byte_len as u64);
+    }
+
+    /// Return the retained byte width for one page run.
+    fn page_run_bytes(&self, page_run: PageRun) -> u64 {
+        page_run.len() as u64 * self.allocator.page_bytes() as u64
     }
 
     /// Return one live large allocation by id.

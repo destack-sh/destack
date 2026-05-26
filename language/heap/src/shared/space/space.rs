@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use destack_memory::AddressSpace;
 use destack_mir::TraceMap;
@@ -27,6 +28,8 @@ pub struct SharedHeapSpace {
     pub(crate) mapping: AddressSpace,
     /// The shared heap allocator state.
     pub(crate) state: RwLock<SharedHeapState>,
+    /// The exact shared heap accounting state.
+    pub(crate) accounting: SharedHeapAccounting,
     /// The active shared collection state.
     pub(crate) gc: SharedGcState,
 }
@@ -88,6 +91,7 @@ impl SharedHeapSpace {
             allocator,
             mapping,
             state: RwLock::new(store),
+            accounting: SharedHeapAccounting::default(),
             gc: SharedGcState::default(),
         })
     }
@@ -114,36 +118,25 @@ impl SharedHeapSpace {
     pub fn retained_bytes(&self) -> u64 {
         let store = self.state.read();
 
-        self.live_retained_bytes(&store)
+        self.accounting
+            .retained_bytes(&store, self.allocator.page_bytes())
     }
 
     /// Return the exact usage for this live shared heap space.
     pub fn usage(&self) -> SharedHeapSpaceUsage {
         let store = self.state.read();
-        let retained_bytes = self.live_retained_bytes(&store);
-        let (allocation_count, allocated_bytes) = self.live_allocated_usage(&store);
 
-        SharedHeapSpaceUsage {
-            allocation_count,
-            allocated_bytes,
-            retained_bytes,
-        }
+        self.accounting.usage(&store, self.allocator.page_bytes())
     }
 
     /// Return the number of live shared heap allocations.
     pub fn allocation_count(&self) -> usize {
-        let store = self.state.read();
-        let (allocation_count, _) = self.live_allocated_usage(&store);
-
-        allocation_count
+        self.accounting.allocation_count()
     }
 
     /// Return the number of live shared heap bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        let store = self.state.read();
-        let (_, allocated_bytes) = self.live_allocated_usage(&store);
-
-        allocated_bytes
+        self.accounting.allocated_bytes()
     }
 
     /// Return the current shared heap collector state.
@@ -207,8 +200,10 @@ impl SharedHeapSpace {
                 store
                     .page_run_cache
                     .release_page_run(&self.allocator, pages)?;
+                self.accounting.release_pages(pages, self.page_bytes());
             }
         }
+        self.accounting.free(released_bytes as usize);
 
         Ok(released_bytes)
     }
@@ -252,44 +247,6 @@ impl SharedHeapSpace {
         pages
     }
 
-    /// Return the retained live bytes for the current shared heap state.
-    pub(crate) fn live_retained_bytes(&self, store: &SharedHeapState) -> u64 {
-        // retained pages include live page runs and cached reusable page runs
-        let pages = self.live_page_runs(store);
-        let cached_bytes = store
-            .page_run_cache
-            .cached_bytes(self.allocator.page_bytes());
-
-        self.allocator.retained_bytes_for_page_runs(pages.iter()) + cached_bytes
-    }
-
-    /// Return exact live allocation usage from shared heap metadata.
-    pub(crate) fn live_allocated_usage(&self, store: &SharedHeapState) -> (usize, u64) {
-        let mut allocation_count = 0usize;
-        let mut allocated_bytes = 0u64;
-
-        // small spans charge one size-class slot per occupied slot
-        for span in &store.small.spans {
-            let occupied_count = span.occupied_count();
-
-            allocation_count += occupied_count;
-            allocated_bytes += occupied_count as u64 * span.class.size_class as u64;
-        }
-
-        // large allocations charge their logical allocation length
-        for allocation in &store.large.allocations {
-            let allocation = allocation.read();
-            if !allocation.is_live {
-                continue;
-            }
-
-            allocation_count += 1;
-            allocated_bytes += allocation.len as u64;
-        }
-
-        (allocation_count, allocated_bytes)
-    }
-
     /// Release allocator page runs owned by this shared heap space.
     fn close(&mut self) -> HeapResult<()> {
         // release live page runs through the page-run cache
@@ -327,42 +284,6 @@ impl SharedHeapSpace {
         }
 
         Ok(span.trace_map(slot_index))
-    }
-
-    /// Return every live shared heap reference.
-    pub(crate) fn live_references(&self) -> HeapResult<Vec<SharedHeapReference>> {
-        let store = self.state.read();
-        let mut references = Vec::new();
-
-        // small spans
-        for span in &store.small.spans {
-            if span.occupied_count() == 0 || span.pages_empty() {
-                continue;
-            }
-
-            for slot_index in 0..span.slot_count {
-                if !span.contains_slot(slot_index) {
-                    continue;
-                }
-
-                let slot_offset = span.class.size_class * slot_index;
-                let base_offset = span.first_offset + slot_offset;
-
-                references.push(SharedHeapReference::new(base_offset));
-            }
-        }
-
-        // large allocations
-        for allocation in &store.large.allocations {
-            let allocation = allocation.read();
-            if !allocation.is_live {
-                continue;
-            }
-
-            references.push(SharedHeapReference::new(allocation.first_offset));
-        }
-
-        Ok(references)
     }
 
     /// Return the base reference for one shared heap place.
@@ -430,6 +351,112 @@ pub(crate) struct SharedHeapState {
     pub(crate) next_offset: usize,
     /// The live shared heap collector state.
     pub(crate) gc: GcState,
+}
+
+/// Exact shared heap accounting.
+#[derive(Debug, Default)]
+pub(crate) struct SharedHeapAccounting {
+    /// The number of live shared heap allocations.
+    allocation_count: AtomicUsize,
+    /// The number of live shared heap payload bytes.
+    allocated_bytes: AtomicU64,
+    /// The retained bytes for live shared heap page runs.
+    live_retained_bytes: AtomicU64,
+}
+
+impl SharedHeapAccounting {
+    /// Rebuild exact accounting from shared heap metadata.
+    pub(crate) fn from_state(store: &SharedHeapState, page_bytes: usize) -> Self {
+        let accounting = Self::default();
+
+        // small spans
+        for span in &store.small.spans {
+            let occupied_count = span.occupied_count();
+            accounting.allocate_many(
+                occupied_count,
+                occupied_count as u64 * span.class.size_class as u64,
+            );
+            if occupied_count > 0 && !span.pages_empty() {
+                accounting.retain_pages(span.pages(), page_bytes);
+            }
+        }
+
+        // large allocations
+        for allocation in &store.large.allocations {
+            let allocation = allocation.read();
+            if !allocation.is_live {
+                continue;
+            }
+
+            accounting.allocate(allocation.len);
+            accounting.retain_pages(allocation.pages, page_bytes);
+        }
+
+        accounting
+    }
+
+    /// Return the number of live shared heap allocations.
+    pub(crate) fn allocation_count(&self) -> usize {
+        self.allocation_count.load(Ordering::Acquire)
+    }
+
+    /// Return the number of live shared heap payload bytes.
+    pub(crate) fn allocated_bytes(&self) -> u64 {
+        self.allocated_bytes.load(Ordering::Acquire)
+    }
+
+    /// Return exact retained shared heap bytes.
+    pub(crate) fn retained_bytes(&self, store: &SharedHeapState, page_bytes: usize) -> u64 {
+        let live_bytes = self.live_retained_bytes.load(Ordering::Acquire);
+        let cached_bytes = store.page_run_cache.cached_bytes(page_bytes);
+
+        live_bytes + cached_bytes
+    }
+
+    /// Return exact shared heap usage.
+    pub(crate) fn usage(&self, store: &SharedHeapState, page_bytes: usize) -> SharedHeapSpaceUsage {
+        SharedHeapSpaceUsage {
+            allocation_count: self.allocation_count(),
+            allocated_bytes: self.allocated_bytes(),
+            retained_bytes: self.retained_bytes(store, page_bytes),
+        }
+    }
+
+    /// Record one live allocation.
+    pub(crate) fn allocate(&self, byte_len: usize) {
+        self.allocation_count.fetch_add(1, Ordering::AcqRel);
+        self.allocated_bytes
+            .fetch_add(byte_len as u64, Ordering::AcqRel);
+    }
+
+    /// Record many live allocations.
+    fn allocate_many(&self, allocation_count: usize, allocated_bytes: u64) {
+        self.allocation_count
+            .fetch_add(allocation_count, Ordering::AcqRel);
+        self.allocated_bytes
+            .fetch_add(allocated_bytes, Ordering::AcqRel);
+    }
+
+    /// Record one freed allocation.
+    pub(crate) fn free(&self, byte_len: usize) {
+        self.allocation_count.fetch_sub(1, Ordering::AcqRel);
+        self.allocated_bytes
+            .fetch_sub(byte_len as u64, Ordering::AcqRel);
+    }
+
+    /// Record live retained pages.
+    pub(crate) fn retain_pages(&self, pages: PageRun, page_bytes: usize) {
+        let retained_bytes = pages.len() as u64 * page_bytes as u64;
+        self.live_retained_bytes
+            .fetch_add(retained_bytes, Ordering::AcqRel);
+    }
+
+    /// Record released live pages.
+    pub(crate) fn release_pages(&self, pages: PageRun, page_bytes: usize) {
+        let retained_bytes = pages.len() as u64 * page_bytes as u64;
+        self.live_retained_bytes
+            .fetch_sub(retained_bytes, Ordering::AcqRel);
+    }
 }
 
 /// One shared heap small space.

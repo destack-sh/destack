@@ -1,7 +1,6 @@
 use destack_mir::TraceMap;
 
 use super::{HeapLocation, HeapPlace, HeapSpace, YoungPlace};
-use crate::allocator::SpanSlot;
 use crate::{
     HeapError, HeapReference, HeapResult, SharedHeapReference,
     scan_shared_references_in_bytes_range, scan_shared_references_in_range,
@@ -179,130 +178,6 @@ impl HeapSpace {
 
         self.queue_shared_reference(reference)
     }
-
-    /// Fill one caller-provided buffer from one live heap location.
-    pub(crate) fn fill_location_bytes(
-        &self,
-        location: HeapLocation,
-        byte_offset: usize,
-        target: &mut [u8],
-    ) -> HeapResult<()> {
-        // read through the owning place
-        match location.place {
-            HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                let Some((_allocation_index, allocation)) =
-                    self.young_range_by_offset(first_offset)
-                else {
-                    return Err(HeapError::MissingYoungRange { first_offset });
-                };
-                let read_offset = allocation.first_offset + byte_offset;
-
-                Ok(self.mapping.read_bytes_into(read_offset, target)?)
-            }
-            HeapPlace::Young(YoungPlace::Slot(slot)) => {
-                let read_offset = self.young_run_mapping_offset(slot, byte_offset)?;
-
-                Ok(self.mapping.read_bytes_into(read_offset, target)?)
-            }
-            HeapPlace::Small(slot) => {
-                let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
-                };
-                let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
-                let read_offset = slot_offset + byte_offset;
-
-                Ok(self
-                    .mapping
-                    .read_bytes_into(span.first_offset + read_offset, target)?)
-            }
-            HeapPlace::Large(allocation_id) => {
-                let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-
-                self.mapping
-                    .read_bytes_into(allocation.first_offset + byte_offset, target)
-                    .map_err(HeapError::from)
-            }
-        }
-    }
-
-    /// Overwrite one byte range inside one live heap location.
-    pub(crate) fn write_location_bytes(
-        &mut self,
-        location: HeapLocation,
-        byte_offset: usize,
-        bytes: &[u8],
-    ) -> HeapResult<()> {
-        // write through the owning place
-        match location.place {
-            HeapPlace::Young(YoungPlace::Range { first_offset }) => {
-                let Some((_allocation_index, allocation)) =
-                    self.young_range_by_offset(first_offset)
-                else {
-                    return Err(HeapError::MissingYoungRange { first_offset });
-                };
-                let mapping_offset = allocation.first_offset + byte_offset;
-
-                self.write_mapped_bytes(mapping_offset, bytes);
-
-                Ok(())
-            }
-            HeapPlace::Young(YoungPlace::Slot(slot)) => {
-                let mapping_offset = self.young_run_mapping_offset(slot, byte_offset)?;
-
-                self.write_mapped_bytes(mapping_offset, bytes);
-
-                Ok(())
-            }
-            HeapPlace::Small(slot) => {
-                let mapping_offset = {
-                    let Some(span) = self.span(slot.span_index()) else {
-                        return Err(HeapError::MissingSpan {
-                            span_index: slot.span_index(),
-                        });
-                    };
-                    let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
-                    let write_offset = slot_offset + byte_offset;
-
-                    span.first_offset + write_offset
-                };
-
-                self.write_mapped_bytes(mapping_offset, bytes);
-
-                Ok(())
-            }
-            HeapPlace::Large(allocation_id) => {
-                let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
-                };
-                let mapping_offset = allocation.first_offset + byte_offset;
-
-                self.write_mapped_bytes(mapping_offset, bytes);
-
-                Ok(())
-            }
-        }
-    }
-
-    /// Return the mapping offset for one fixed-size young slot.
-    fn young_run_mapping_offset(&self, slot: SpanSlot, byte_offset: usize) -> HeapResult<usize> {
-        let Some(run) = self.young.run(slot.span_index()) else {
-            return Err(HeapError::MissingSpan {
-                span_index: slot.span_index(),
-            });
-        };
-        let slot_offset = small_slot_offset(run.size_class, slot.slot_index());
-        let read_offset = slot_offset + byte_offset;
-
-        Ok(run.first_offset + read_offset)
-    }
 }
 
 /// Return one allocation-local byte offset for one visible range.
@@ -336,9 +211,4 @@ fn allocation_byte_offset(
     }
 
     Ok(byte_offset)
-}
-
-/// Return one small-slot base offset.
-fn small_slot_offset(size_class: usize, slot_index: usize) -> usize {
-    size_class * slot_index
 }

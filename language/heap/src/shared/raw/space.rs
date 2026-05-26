@@ -64,6 +64,7 @@ impl SharedRawSpace {
             state: Mutex::new(SharedRawState {
                 page_run_cache,
                 usage: AllocationUsage::default(),
+                live_retained_bytes: 0,
                 next_offset,
             }),
             page_map: RwLock::new(Vec::new()),
@@ -81,34 +82,14 @@ impl SharedRawSpace {
     pub fn retained_bytes(&self) -> u64 {
         let state = self.state.lock();
 
-        self.live_retained_bytes(&state)
+        state.retained_bytes(self.allocator.page_bytes())
     }
 
     /// Return the exact usage for this live shared raw space.
     pub fn usage(&self) -> SharedRawSpaceUsage {
         let state = self.state.lock();
-        let allocation_count = state.usage.allocation_count();
-        let allocated_bytes = state.usage.allocated_bytes();
-        let retained_bytes = self.live_retained_bytes(&state);
 
-        drop(state);
-
-        SharedRawSpaceUsage {
-            allocation_count,
-            allocated_bytes,
-            retained_bytes,
-        }
-    }
-
-    /// Return the retained live bytes for the current shared raw state.
-    fn live_retained_bytes(&self, state: &SharedRawState) -> u64 {
-        let allocations = self.allocations.read();
-        let pages = self.live_page_runs(&allocations);
-        let cached_bytes = state
-            .page_run_cache
-            .cached_bytes(self.allocator.page_bytes());
-
-        self.allocator.retained_bytes_for_page_runs(pages.iter()) + cached_bytes
+        state.usage(self.allocator.page_bytes())
     }
 
     /// Return whether one shared raw pointer currently refers to one live allocation slot.
@@ -132,8 +113,16 @@ impl SharedRawSpace {
         }
 
         let pages = self.allocate_pages(shape.byte_len)?;
-        let first_offset =
-            self.reserve_space_range(pages.len() * self.allocator.page_bytes(), shape.alignment)?;
+        let first_offset = match self
+            .reserve_space_range(pages.len() * self.allocator.page_bytes(), shape.alignment)
+        {
+            Ok(first_offset) => first_offset,
+            Err(error) => {
+                self.release_pages(pages)?;
+
+                return Err(error);
+            }
+        };
 
         // materialize the full allocation before publishing it
         if let Err(error) = self
@@ -174,9 +163,12 @@ impl SharedRawSpace {
         let pages = {
             let mut state = self.state.lock();
 
-            state
+            let pages = state
                 .page_run_cache
-                .allocate_pages(&self.allocator, allocated_byte_len)?
+                .allocate_pages(&self.allocator, allocated_byte_len)?;
+            state.retain_pages(pages, self.allocator.page_bytes());
+
+            pages
         };
 
         Ok(pages)
@@ -188,7 +180,10 @@ impl SharedRawSpace {
 
         state
             .page_run_cache
-            .release_page_run(&self.allocator, pages)
+            .release_page_run(&self.allocator, pages)?;
+        state.release_pages(pages, self.allocator.page_bytes());
+
+        Ok(())
     }
 
     /// Return the projected retained-byte delta for one shared allocation.
@@ -294,6 +289,7 @@ impl SharedRawSpace {
             state
                 .page_run_cache
                 .release_page_run(&self.allocator, next_pages)?;
+            state.release_pages(next_pages, self.allocator.page_bytes());
 
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
@@ -311,6 +307,7 @@ impl SharedRawSpace {
             state
                 .page_run_cache
                 .release_page_run(&self.allocator, next_pages)?;
+            state.release_pages(next_pages, self.allocator.page_bytes());
 
             return Err(error.into());
         }
@@ -334,6 +331,7 @@ impl SharedRawSpace {
         state
             .page_run_cache
             .release_page_run(&self.allocator, previous_pages)?;
+        state.release_pages(previous_pages, self.allocator.page_bytes());
 
         Ok(SharedRawPointer::new(first_offset))
     }
@@ -363,6 +361,7 @@ impl SharedRawSpace {
         state
             .page_run_cache
             .release_page_run(&self.allocator, pages)?;
+        state.release_pages(pages, self.allocator.page_bytes());
 
         Ok(())
     }
@@ -644,8 +643,36 @@ pub(crate) struct SharedRawState {
     pub(crate) page_run_cache: PageRunCache,
     /// The exact live shared raw-space usage.
     pub(crate) usage: AllocationUsage,
+    /// The exact retained bytes owned by live raw allocations.
+    pub(crate) live_retained_bytes: u64,
     /// The next unused byte offset in shared raw space.
     pub(crate) next_offset: usize,
+}
+
+impl SharedRawState {
+    /// Return the exact retained bytes owned by live allocations and cached page runs.
+    pub(crate) fn retained_bytes(&self, page_bytes: usize) -> u64 {
+        self.live_retained_bytes + self.page_run_cache.cached_bytes(page_bytes)
+    }
+
+    /// Return the exact raw-space usage.
+    pub(crate) fn usage(&self, page_bytes: usize) -> SharedRawSpaceUsage {
+        SharedRawSpaceUsage {
+            allocation_count: self.usage.allocation_count(),
+            allocated_bytes: self.usage.allocated_bytes(),
+            retained_bytes: self.retained_bytes(page_bytes),
+        }
+    }
+
+    /// Add one live raw allocation page run to retained accounting.
+    pub(crate) fn retain_pages(&mut self, page_run: PageRun, page_bytes: usize) {
+        self.live_retained_bytes += page_run.len() as u64 * page_bytes as u64;
+    }
+
+    /// Remove one live raw allocation page run from retained accounting.
+    pub(crate) fn release_pages(&mut self, page_run: PageRun, page_bytes: usize) {
+        self.live_retained_bytes -= page_run.len() as u64 * page_bytes as u64;
+    }
 }
 
 /// Return the offset rounded up to one allocation boundary.
