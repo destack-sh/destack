@@ -167,9 +167,11 @@ pub(crate) fn copy_frame_range(
 
     // copy each linear-memory page into the contiguous frame range
     for page_offset in 0..page_count {
+        // SAFETY: caller passes a mapped source range covering byte_len bytes
         let source = unsafe { source.add(page_offset * page_bytes) };
         let frame = &mut state.frames[page_frame.index + page_offset];
 
+        // SAFETY: source and frame both cover one full page
         unsafe {
             copy_nonoverlapping(source, frame.as_mut_ptr(), page_bytes);
         }
@@ -311,15 +313,17 @@ fn map_page(
     let source = {
         let state = allocator.state.lock();
         let Some(frame) = state.frames.get(frame.index) else {
-            return Err(MemoryError::AddressSpaceFailed {
-                byte_len: page_bytes,
+            return Err(MemoryError::InvariantViolation {
+                context: "linear memory frame",
             });
         };
 
         frame.as_ptr()
     };
 
+    // SAFETY: page_index is inside the owned linear-memory reservation
     let target = unsafe { base.add(page_index * page_bytes) };
+    // SAFETY: source and target both cover one full page
     unsafe {
         copy_nonoverlapping(source, target, page_bytes);
     }

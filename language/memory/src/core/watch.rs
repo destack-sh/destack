@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
-use crate::{MemoryError, MemoryResult};
+use crate::{MemoryError, MemoryResult, MemoryTable};
 
 /// The maximum number of concurrently watched address spaces.
 const MAX_WRITE_WATCH_ENTRIES: usize = 16 * 1024;
@@ -11,10 +11,79 @@ const WRITE_WATCH_ENTRY_PAGE_LEN: usize = 256;
 const WRITE_WATCH_PAGE_COUNT: usize = MAX_WRITE_WATCH_ENTRIES / WRITE_WATCH_ENTRY_PAGE_LEN;
 
 /// The process-wide write watch pages.
-///
-/// These pages allocate entries lazily, so the first watched space costs one small entry page.
-/// Fault handling remains allocation-free because pages are allocated only during registration.
+/// Unfortunately these have to be process-wide because they're entered via global fault entrypoints.
 static WATCH_PAGES: OnceLock<Box<[WatchPage]>> = OnceLock::new();
+
+/// The process-wide write-watch table.
+pub(crate) struct WriteWatchTable;
+
+impl WriteWatchTable {
+    /// Return the process-wide write-watch pages.
+    pub(crate) fn pages() -> &'static [WatchPage] {
+        WATCH_PAGES.get_or_init(|| {
+            (0..WRITE_WATCH_PAGE_COUNT)
+                .map(|_| WatchPage::empty())
+                .collect::<Vec<_>>()
+                .into_boxed_slice()
+        })
+    }
+
+    /// Register one write-watched virtual range.
+    pub(crate) fn register(
+        base: *mut u8,
+        byte_len: usize,
+        context: *const (),
+    ) -> MemoryResult<WriteWatchRegistration> {
+        let base = base as usize;
+        let end = base + byte_len;
+
+        // reuse already allocated pages before growing the table
+        for (page_index, page) in Self::pages().iter().enumerate() {
+            let Some(entries) = page.entries() else {
+                continue;
+            };
+
+            if let Some(entry_index) = register_entry(entries, base, end, context) {
+                return Ok(WriteWatchRegistration {
+                    page: page_index,
+                    entry: entry_index,
+                });
+            }
+        }
+
+        // allocate exactly one new page when no existing entry is free
+        for (page_index, page) in Self::pages().iter().enumerate() {
+            if page.entries().is_some() {
+                continue;
+            }
+
+            let entries = page.allocate_entries();
+            if let Some(entry_index) = register_entry(entries, base, end, context) {
+                return Ok(WriteWatchRegistration {
+                    page: page_index,
+                    entry: entry_index,
+                });
+            }
+        }
+
+        Err(MemoryError::CapacityExceeded {
+            table: MemoryTable::WriteWatch,
+            capacity: MAX_WRITE_WATCH_ENTRIES,
+        })
+    }
+
+    /// Unregister one write-watched virtual range.
+    pub(crate) fn unregister(registration: &WriteWatchRegistration) {
+        let Some(entries) = Self::pages()[registration.page].entries() else {
+            return;
+        };
+        let entry = &entries[registration.entry];
+
+        entry
+            .state
+            .store(WatchState::Empty.byte(), Ordering::Release);
+    }
+}
 
 /// A write watch entry lifecycle state.
 #[repr(u8)]
@@ -145,69 +214,6 @@ impl WriteWatchEntry {
 
         Some(context as *const ())
     }
-}
-
-/// Return the process-wide write watch pages.
-pub(crate) fn watch_pages() -> &'static [WatchPage] {
-    WATCH_PAGES.get_or_init(|| {
-        (0..WRITE_WATCH_PAGE_COUNT)
-            .map(|_| WatchPage::empty())
-            .collect::<Vec<_>>()
-            .into_boxed_slice()
-    })
-}
-
-/// Register one write watched virtual range.
-pub(crate) fn register(
-    base: *mut u8,
-    byte_len: usize,
-    context: *const (),
-) -> MemoryResult<WriteWatchRegistration> {
-    let base = base as usize;
-    let end = base + byte_len;
-
-    // reuse already allocated pages before growing the table
-    for (page_index, page) in watch_pages().iter().enumerate() {
-        let Some(entries) = page.entries() else {
-            continue;
-        };
-
-        if let Some(entry_index) = register_entry(entries, base, end, context) {
-            return Ok(WriteWatchRegistration {
-                page: page_index,
-                entry: entry_index,
-            });
-        }
-    }
-
-    // allocate exactly one new page when no existing entry is free
-    for (page_index, page) in watch_pages().iter().enumerate() {
-        if page.entries().is_some() {
-            continue;
-        }
-
-        let entries = page.allocate_entries();
-        if let Some(entry_index) = register_entry(entries, base, end, context) {
-            return Ok(WriteWatchRegistration {
-                page: page_index,
-                entry: entry_index,
-            });
-        }
-    }
-
-    Err(MemoryError::AddressSpaceFailed { byte_len })
-}
-
-/// Unregister one write watched virtual range.
-pub(crate) fn unregister(registration: &WriteWatchRegistration) {
-    let Some(entries) = watch_pages()[registration.page].entries() else {
-        return;
-    };
-    let entry = &entries[registration.entry];
-
-    entry
-        .state
-        .store(WatchState::Empty.byte(), Ordering::Release);
 }
 
 /// Register one watched range in the first free entry.

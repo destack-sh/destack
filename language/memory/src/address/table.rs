@@ -208,6 +208,7 @@ impl PageTable {
         if pointer.is_null() {
             None
         } else {
+            // SAFETY: chunks are heap allocated once and reclaimed only when the table drops
             Some(unsafe { &*pointer })
         }
     }
@@ -225,6 +226,7 @@ impl PageTable {
             match slot.compare_exchange(null_mut(), chunk, Ordering::AcqRel, Ordering::Acquire) {
                 Ok(_) => chunk,
                 Err(existing) => {
+                    // SAFETY: this thread still owns the unpublished chunk
                     unsafe {
                         drop(Box::from_raw(chunk));
                     }
@@ -232,6 +234,7 @@ impl PageTable {
                 }
             };
 
+        // SAFETY: the winning chunk remains owned by the table until drop
         unsafe { &*pointer }
     }
 
@@ -286,6 +289,7 @@ impl Drop for PageTable {
                 continue;
             }
 
+            // SAFETY: each non-null slot stores one Box allocated by ensure_chunk
             unsafe {
                 drop(Box::from_raw(pointer));
             }
@@ -313,8 +317,13 @@ impl PageChunk {
 }
 
 /// Mark one watched page modified.
+///
+/// # Safety
+///
+/// The context must be a live page table registered by its owning page map.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) unsafe fn watch_page_write(context: *const (), address: usize) -> bool {
+    // SAFETY: the platform watch table registers only live page-table pointers
     let pages = unsafe { &*(context.cast::<PageTable>()) };
 
     pages.handle_write_watch(address)
@@ -329,10 +338,10 @@ pub(super) struct PageEntry {
     frame: UnsafeCell<MaybeUninit<PageFrame>>,
 }
 
-// frame writes are serialized by the owning page map
+// SAFETY: frame writes are serialized by the owning page map
 unsafe impl Send for PageEntry {}
 
-// frame writes are serialized by the owning page map
+// SAFETY: frame writes are serialized by the owning page map
 unsafe impl Sync for PageEntry {}
 
 impl PageEntry {
@@ -393,6 +402,7 @@ impl PageEntry {
 
     /// Store one mapped frame and state.
     fn set_frame(&self, frame: PageFrame, tag: PageTag) {
+        // SAFETY: callers serialize frame writes with the page-map lock
         unsafe {
             *self.frame.get() = MaybeUninit::new(frame);
         }
@@ -412,6 +422,7 @@ impl PageEntry {
 
     /// Return the mapped page frame.
     fn frame(&self) -> PageFrame {
+        // SAFETY: non-reserved tags are published only after the frame is initialized
         unsafe { (*self.frame.get()).assume_init() }
     }
 }

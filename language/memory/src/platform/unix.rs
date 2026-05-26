@@ -6,8 +6,8 @@ use std::sync::OnceLock;
 use parking_lot::Mutex;
 
 use crate::address::watch_page_write;
-pub(crate) use crate::core::{WriteWatchRegistration, register, unregister, watch_pages};
-use crate::{MemoryError, MemoryResult};
+pub(crate) use crate::core::{WriteWatchRegistration, WriteWatchTable};
+use crate::{MemoryError, MemoryOperation, MemoryResult};
 
 /// Whether mapped spaces can share page frames directly.
 pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = true;
@@ -105,10 +105,10 @@ struct SignalHandlers {
     bus: libc::sigaction,
 }
 
-// signal actions are immutable after installation
+// SAFETY: signal actions are immutable after installation
 unsafe impl Send for SignalHandlers {}
 
-// signal actions are immutable after installation
+// SAFETY: signal actions are immutable after installation
 unsafe impl Sync for SignalHandlers {}
 
 /// Create one page-frame allocator from an owned descriptor.
@@ -239,7 +239,10 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
     // reserve address space without committing mapped pages
     let address = map_anonymous(byte_len, libc::PROT_NONE);
     if address == libc::MAP_FAILED {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(last_system_error(
+            MemoryOperation::ReserveAddressSpace,
+            byte_len,
+        ));
     }
 
     Ok(VirtualSpace {
@@ -314,7 +317,7 @@ pub(crate) fn make_shared_pages_writable(
         return Ok(());
     }
 
-    Err(MemoryError::AddressSpaceFailed { byte_len })
+    Err(last_system_error(MemoryOperation::ProtectPages, byte_len))
 }
 
 /// Register one write watched virtual range.
@@ -323,7 +326,7 @@ pub(crate) fn register_write_watch(
     byte_len: usize,
     context: *const (),
 ) -> MemoryResult<WriteWatchRegistration> {
-    let registration = register(base, byte_len, context)?;
+    let registration = WriteWatchTable::register(base, byte_len, context)?;
 
     install_write_fault_handler();
 
@@ -332,7 +335,7 @@ pub(crate) fn register_write_watch(
 
 /// Unregister one write watched virtual range.
 pub(crate) fn unregister_write_watch(registration: &WriteWatchRegistration) {
-    unregister(registration);
+    WriteWatchTable::unregister(registration);
 }
 
 /// Allocate backing storage for one page-frame range.
@@ -437,6 +440,7 @@ fn merge_free_frame_ranges(ranges: &mut Vec<PageFrameRange>) {
 
 /// Return one byte address inside a raw byte range.
 fn byte_address(base: *mut u8, byte_offset: usize) -> *mut u8 {
+    // SAFETY: callers pass offsets inside a reserved virtual range
     unsafe { base.add(byte_offset) }
 }
 
@@ -447,16 +451,19 @@ fn page_address(base: *mut u8, page_index: usize, page_bytes: usize) -> *mut u8 
 
 /// Return the platform page byte width.
 fn system_page_bytes() -> libc::c_long {
+    // SAFETY: sysconf reads process configuration and does not retain pointers
     unsafe { libc::sysconf(libc::_SC_PAGESIZE) }
 }
 
 /// Close one file descriptor.
 fn close_fd(fd: RawFd) -> libc::c_int {
+    // SAFETY: fd is owned by the page-frame allocator
     unsafe { libc::close(fd) }
 }
 
 /// Reserve one anonymous virtual address range.
 fn map_anonymous(byte_len: usize, protection: libc::c_int) -> *mut libc::c_void {
+    // SAFETY: null address lets the kernel choose a range, result is checked by caller
     unsafe {
         libc::mmap(
             null_mut(),
@@ -478,6 +485,7 @@ fn map_frame_fixed(
     fd: RawFd,
     offset: u64,
 ) -> *mut libc::c_void {
+    // SAFETY: address is reserved by this address space and the fd owns frame storage
     unsafe {
         libc::mmap(
             address.cast(),
@@ -492,6 +500,7 @@ fn map_frame_fixed(
 
 /// Map one frame range at any available address.
 fn map_frame_anywhere(fd: RawFd, offset: u64, byte_len: usize) -> *mut libc::c_void {
+    // SAFETY: fd owns frame storage and result is checked by caller
     unsafe {
         libc::mmap(
             null_mut(),
@@ -506,16 +515,19 @@ fn map_frame_anywhere(fd: RawFd, offset: u64, byte_len: usize) -> *mut libc::c_v
 
 /// Update page protection for one range.
 fn protect_pages(address: *mut u8, byte_len: usize, protection: libc::c_int) -> libc::c_int {
+    // SAFETY: address and length describe mapped pages owned by this address space
     unsafe { libc::mprotect(address.cast(), byte_len, protection) }
 }
 
 /// Unmap one virtual range.
 fn unmap_virtual(address: *mut u8, byte_len: usize) -> libc::c_int {
+    // SAFETY: address and length describe a mapping owned by this address space
     unsafe { libc::munmap(address.cast(), byte_len) }
 }
 
 /// Fill one byte range with zero.
 fn write_zero_bytes(address: *mut u8, byte_len: usize) {
+    // SAFETY: caller maps the scratch frame range writable before zeroing
     unsafe {
         write_bytes(address, 0, byte_len);
     }
@@ -523,11 +535,13 @@ fn write_zero_bytes(address: *mut u8, byte_len: usize) {
 
 /// Write bytes at one file offset.
 fn write_at(fd: RawFd, source: *mut u8, byte_len: usize, offset: u64) -> isize {
+    // SAFETY: source is a mapped byte range and fd owns frame storage
     unsafe { libc::pwrite(fd, source.cast(), byte_len, offset as libc::off_t) }
 }
 
 /// Truncate one file to the given byte length.
 fn truncate_file(fd: RawFd, byte_len: u64) -> libc::c_int {
+    // SAFETY: fd is owned by the page-frame allocator
     unsafe { libc::ftruncate(fd, byte_len as libc::off_t) }
 }
 
@@ -553,7 +567,7 @@ fn map_frame_range(
         frame.offset,
     );
     if mapped == libc::MAP_FAILED {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(last_system_error(MemoryOperation::MapFrameRange, byte_len));
     }
 
     Ok(())
@@ -567,7 +581,7 @@ fn map_frame_range_anywhere(
 ) -> MemoryResult<*mut u8> {
     let address = map_frame_anywhere(allocator.fd, frame.offset, byte_len);
     if address == libc::MAP_FAILED {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(last_system_error(MemoryOperation::MapFrameRange, byte_len));
     }
 
     Ok(address.cast())
@@ -606,7 +620,10 @@ fn write_frame_range(
         let result = write_at(fd, source, remaining, offset);
 
         if result <= 0 {
-            return Err(MemoryError::AddressSpaceFailed { byte_len });
+            return Err(last_system_error(
+                MemoryOperation::CopyFrameStorage,
+                byte_len,
+            ));
         }
 
         written += result as usize;
@@ -618,9 +635,10 @@ fn write_frame_range(
 /// Extend one page-frame file to the requested byte length.
 fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> MemoryResult<()> {
     if byte_len > libc::off_t::MAX as u64 {
-        return Err(MemoryError::AddressSpaceFailed {
-            byte_len: page_bytes,
-        });
+        return Err(MemoryError::system(
+            MemoryOperation::ExtendFrameAllocator,
+            page_bytes,
+        ));
     }
 
     let result = truncate_file(fd, byte_len);
@@ -628,21 +646,35 @@ fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> MemoryResul
         return Ok(());
     }
 
-    Err(MemoryError::AddressSpaceFailed {
-        byte_len: page_bytes,
-    })
+    Err(last_system_error(
+        MemoryOperation::ExtendFrameAllocator,
+        page_bytes,
+    ))
+}
+
+/// Return one system error from the last platform error code.
+fn last_system_error(operation: MemoryOperation, byte_len: usize) -> MemoryError {
+    MemoryError::system_with_code(
+        operation,
+        std::io::Error::last_os_error().raw_os_error(),
+        byte_len,
+    )
 }
 
 /// Install the write fault handler once.
 fn install_write_fault_handler() {
     SIGNAL_HANDLERS.get_or_init(|| {
         // install one process-level handler for protected pages
+        // SAFETY: zeroed sigaction is filled before installation
         let mut action = unsafe { zeroed::<libc::sigaction>() };
+        // SAFETY: zeroed storage is passed to sigaction as an out parameter
         let mut segmentation = unsafe { zeroed::<libc::sigaction>() };
+        // SAFETY: zeroed storage is passed to sigaction as an out parameter
         let mut bus = unsafe { zeroed::<libc::sigaction>() };
         action.sa_flags = libc::SA_SIGINFO;
         action.sa_sigaction = handle_write_watch as *const () as usize;
 
+        // SAFETY: action contains a valid SA_SIGINFO handler
         unsafe {
             libc::sigemptyset(&mut action.sa_mask);
             libc::sigaction(libc::SIGSEGV, &action, &mut segmentation);
@@ -656,6 +688,7 @@ fn install_write_fault_handler() {
 /// Restore the previous signal handler and raise the signal again.
 fn raise_unhandled_signal(signal: libc::c_int) {
     let Some(handlers) = SIGNAL_HANDLERS.get() else {
+        // SAFETY: restoring the default handler before re-raising delegates the fault
         unsafe {
             libc::signal(signal, libc::SIG_DFL);
             libc::raise(signal);
@@ -668,6 +701,7 @@ fn raise_unhandled_signal(signal: libc::c_int) {
         libc::SIGSEGV => &handlers.segmentation,
         libc::SIGBUS => &handlers.bus,
         _ => {
+            // SAFETY: restoring the default handler before re-raising delegates the fault
             unsafe {
                 libc::signal(signal, libc::SIG_DFL);
                 libc::raise(signal);
@@ -677,6 +711,7 @@ fn raise_unhandled_signal(signal: libc::c_int) {
         }
     };
 
+    // SAFETY: previous was captured from sigaction during handler installation
     unsafe {
         libc::sigaction(signal, previous, null_mut());
         libc::raise(signal);
@@ -689,10 +724,11 @@ unsafe extern "C" fn handle_write_watch(
     signal_info: *mut libc::siginfo_t,
     _context: *mut libc::c_void,
 ) {
+    // SAFETY: SA_SIGINFO delivers a valid siginfo pointer for this handler
     let address = unsafe { (*signal_info).si_addr() as usize };
 
     // scan watched ranges without signal-unsafe locks
-    for page in watch_pages() {
+    for page in WriteWatchTable::pages() {
         let Some(entries) = page.entries() else {
             continue;
         };
@@ -702,6 +738,7 @@ unsafe extern "C" fn handle_write_watch(
                 continue;
             };
 
+            // SAFETY: context comes from the write-watch table registration
             if unsafe { watch_page_write(context, address) } {
                 return;
             }

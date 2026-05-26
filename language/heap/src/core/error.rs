@@ -126,10 +126,10 @@ pub enum HeapError {
         /// The maximum configured chunk count.
         max_chunks: usize,
     },
-    /// One address-space operation failed.
-    AddressSpaceFailed {
-        /// The requested address space byte length.
-        byte_len: usize,
+    /// One lower memory operation failed.
+    MemoryFailed {
+        /// The lower memory failure.
+        error: MemoryError,
     },
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
@@ -486,11 +486,8 @@ impl Display for HeapError {
                     "allocator chunk limit exceeded: required {required_chunks} chunks with maximum {max_chunks}"
                 )
             }
-            Self::AddressSpaceFailed { byte_len } => {
-                write!(
-                    formatter,
-                    "address space operation failed: {byte_len} bytes"
-                )
+            Self::MemoryFailed { error } => {
+                write!(formatter, "memory operation failed: {error}")
             }
             Self::LimitExceeded {
                 region,
@@ -709,7 +706,6 @@ impl Error for HeapError {}
 impl From<MemoryError> for HeapError {
     fn from(error: MemoryError) -> Self {
         match error {
-            MemoryError::AddressSpaceFailed { byte_len } => Self::AddressSpaceFailed { byte_len },
             MemoryError::InvalidByteRange {
                 start,
                 len,
@@ -720,6 +716,7 @@ impl From<MemoryError> for HeapError {
                 capacity,
             },
             MemoryError::InvariantViolation { context } => Self::InvariantViolation { context },
+            error => Self::MemoryFailed { error },
         }
     }
 }

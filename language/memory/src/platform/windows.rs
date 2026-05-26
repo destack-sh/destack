@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{
-    CloseHandle, EXCEPTION_ACCESS_VIOLATION, HANDLE, INVALID_HANDLE_VALUE,
+    CloseHandle, EXCEPTION_ACCESS_VIOLATION, GetLastError, HANDLE, INVALID_HANDLE_VALUE,
 };
 use windows_sys::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, EXCEPTION_POINTERS,
@@ -19,8 +19,8 @@ use windows_sys::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
 use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use crate::address::watch_page_write;
-pub(crate) use crate::core::{WriteWatchRegistration, register, unregister, watch_pages};
-use crate::{MemoryError, MemoryResult};
+pub(crate) use crate::core::{WriteWatchRegistration, WriteWatchTable};
+use crate::{MemoryError, MemoryOperation, MemoryResult};
 
 /// Whether mapped spaces can share page frames directly.
 pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = true;
@@ -66,6 +66,7 @@ impl VirtualSpace {
         for page_index in mapped_pages {
             release_virtual_gap(self.base, next_page, page_index, page_bytes);
 
+            // SAFETY: page_index comes from this address space page table
             let address = unsafe { self.base.add(page_index * page_bytes) };
             unmap_page_view(address);
             release_placeholder(address);
@@ -101,6 +102,7 @@ impl Drop for PageFrameAllocator {
 
         // cleanup cannot report errors from Drop
         for section in state.sections.drain(..) {
+            // SAFETY: section handles are owned by this allocator
             let _ = unsafe { CloseHandle(section.handle) };
         }
     }
@@ -111,7 +113,9 @@ impl PageFrameAllocator {
     fn section(&self, frame: PageFrame) -> MemoryResult<HANDLE> {
         let state = self.state.lock();
         let Some(section) = state.sections.get(frame.section_index) else {
-            return Err(MemoryError::AddressSpaceFailed { byte_len: 0 });
+            return Err(MemoryError::InvariantViolation {
+                context: "page frame section",
+            });
         };
 
         Ok(section.handle)
@@ -263,6 +267,7 @@ pub(crate) fn copy_frame_range(
     let (frame, _) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
     let target = map_frame_range_anywhere(allocator, frame, byte_len)?;
 
+    // SAFETY: source and target are mapped for byte_len bytes
     unsafe {
         copy_nonoverlapping(source, target, byte_len);
     }
@@ -276,10 +281,12 @@ pub(crate) fn copy_frame_range(
 pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
     let mut system = MaybeUninit::<SYSTEM_INFO>::uninit();
 
+    // SAFETY: GetSystemInfo initializes the provided SYSTEM_INFO storage
     unsafe {
         GetSystemInfo(system.as_mut_ptr());
     }
 
+    // SAFETY: GetSystemInfo initialized the structure above
     let system = unsafe { system.assume_init() };
     let frame_bytes = system.dwPageSize as usize;
     if frame_bytes == 0 {
@@ -378,8 +385,10 @@ pub(crate) fn make_shared_pages_writable(
     // each mapped view is currently page-granular on Windows
     for page_offset in 0..page_count {
         let page_index = first_page + page_offset;
+        // SAFETY: page_index is inside the reserved address space
         let address = unsafe { base.add(page_index * page_bytes) };
         let mut old_protection = 0;
+        // SAFETY: address and length describe one mapped page view
         let result = unsafe {
             VirtualProtect(
                 address.cast(),
@@ -389,7 +398,7 @@ pub(crate) fn make_shared_pages_writable(
             )
         };
         if result == 0 {
-            return Err(MemoryError::AddressSpaceFailed { byte_len });
+            return Err(last_system_error(MemoryOperation::ProtectPages, byte_len));
         }
     }
 
@@ -402,7 +411,7 @@ pub(crate) fn register_write_watch(
     byte_len: usize,
     context: *const (),
 ) -> MemoryResult<WriteWatchRegistration> {
-    let registration = register(base, byte_len, context)?;
+    let registration = WriteWatchTable::register(base, byte_len, context)?;
 
     install_write_fault_handler();
 
@@ -411,7 +420,7 @@ pub(crate) fn register_write_watch(
 
 /// Unregister one write watched virtual range.
 pub(crate) fn unregister_write_watch(registration: &WriteWatchRegistration) {
-    unregister(registration);
+    WriteWatchTable::unregister(registration);
 }
 
 /// Allocate backing storage for one page-frame range.
@@ -465,6 +474,7 @@ fn map_frame_range(
 
 /// Install the write fault handler once.
 fn install_write_fault_handler() {
+    // SAFETY: the handler has the system calling convention and remains loaded
     WRITE_FAULT_HANDLER.get_or_init(|| unsafe {
         // register before regular handlers so watched writes are handled first
         AddVectoredExceptionHandler(1, Some(handle_write_watch));
@@ -473,22 +483,26 @@ fn install_write_fault_handler() {
 
 /// Handle one watched page write.
 unsafe extern "system" fn handle_write_watch(exception: *mut EXCEPTION_POINTERS) -> i32 {
+    // SAFETY: vectored exception handlers receive a valid exception pointer
     let record = unsafe { (*exception).ExceptionRecord };
 
     // only access violations can come from protected shared pages
+    // SAFETY: record is owned by the exception currently being handled
     if unsafe { (*record).ExceptionCode } != EXCEPTION_ACCESS_VIOLATION {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
+    // SAFETY: access violation records carry access kind at index 0
     let access = unsafe { (*record).ExceptionInformation[0] };
     if access != ACCESS_VIOLATION_WRITE {
         return EXCEPTION_CONTINUE_SEARCH;
     }
 
+    // SAFETY: access violation records carry fault address at index 1
     let address = unsafe { (*record).ExceptionInformation[1] };
 
     // scan watched ranges without exception-unsafe locks
-    for page in watch_pages() {
+    for page in WriteWatchTable::pages() {
         let Some(entries) = page.entries() else {
             continue;
         };
@@ -498,6 +512,7 @@ unsafe extern "system" fn handle_write_watch(exception: *mut EXCEPTION_POINTERS)
                 continue;
             };
 
+            // SAFETY: context comes from the write-watch table registration
             if unsafe { watch_page_write(context, address) } {
                 return EXCEPTION_CONTINUE_EXECUTION;
             }
@@ -517,12 +532,14 @@ fn map_page(
     protection: u32,
 ) -> MemoryResult<()> {
     // replace one placeholder page with one section view
+    // SAFETY: page_index is inside the reserved address space
     let address = unsafe { base.add(page_index * page_bytes) };
     let section = allocator.section(frame)?;
 
     split_placeholder(address, page_bytes);
     unmap_page_view(address);
 
+    // SAFETY: the placeholder was split to the exact page before replacement
     let view = unsafe {
         MapViewOfFile3(
             section,
@@ -537,9 +554,10 @@ fn map_page(
         )
     };
     if view.Value.is_null() {
-        return Err(MemoryError::AddressSpaceFailed {
-            byte_len: page_bytes,
-        });
+        return Err(last_system_error(
+            MemoryOperation::MapFrameRange,
+            page_bytes,
+        ));
     }
 
     Ok(())
@@ -547,6 +565,7 @@ fn map_page(
 
 /// Reserve one Windows placeholder range.
 fn reserve_placeholder(byte_len: usize) -> MemoryResult<*mut u8> {
+    // SAFETY: null base lets the kernel choose the placeholder reservation
     let address = unsafe {
         VirtualAlloc2(
             GetCurrentProcess(),
@@ -559,7 +578,10 @@ fn reserve_placeholder(byte_len: usize) -> MemoryResult<*mut u8> {
         )
     };
     if address.is_null() {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(last_system_error(
+            MemoryOperation::ReserveAddressSpace,
+            byte_len,
+        ));
     }
 
     Ok(address.cast())
@@ -568,6 +590,7 @@ fn reserve_placeholder(byte_len: usize) -> MemoryResult<*mut u8> {
 /// Split out one exact placeholder range when it is part of a larger placeholder.
 fn split_placeholder(address: *mut u8, byte_len: usize) {
     // the call fails when the range is already exact or not a placeholder
+    // SAFETY: address and length are within the placeholder reservation
     let _ = unsafe {
         VirtualFree(
             address.cast(),
@@ -580,6 +603,7 @@ fn split_placeholder(address: *mut u8, byte_len: usize) {
 /// Release one exact placeholder range.
 fn release_placeholder(address: *mut u8) {
     // cleanup cannot report errors from Drop
+    // SAFETY: address is an exact placeholder range
     let _ = unsafe { VirtualFree(address.cast(), 0, MEM_RELEASE) };
 }
 
@@ -589,12 +613,14 @@ fn release_virtual_gap(base: *mut u8, first_page: usize, end_page: usize, page_b
         return;
     }
 
+    // SAFETY: first_page and end_page describe a gap in the placeholder range
     let address = unsafe { base.add(first_page * page_bytes) };
     release_placeholder(address);
 }
 
 /// Unmap one page view back into an exact placeholder.
 fn unmap_page_view(address: *mut u8) {
+    // SAFETY: address is either a mapped page view or this cleanup is a no-op failure
     let _ = unsafe {
         UnmapViewOfFile2(
             GetCurrentProcess(),
@@ -608,6 +634,7 @@ fn unmap_page_view(address: *mut u8) {
 
 /// Unmap one scratch view that was not mapped over a placeholder.
 fn unmap_scratch_view(address: *mut u8) {
+    // SAFETY: address is a scratch mapping returned by MapViewOfFile3
     let _ = unsafe {
         UnmapViewOfFile2(
             GetCurrentProcess(),
@@ -627,6 +654,7 @@ fn map_frame_range_anywhere(
 ) -> MemoryResult<*mut u8> {
     let section = allocator.section(frame)?;
 
+    // SAFETY: null base asks the kernel for a scratch mapping
     let view = unsafe {
         MapViewOfFile3(
             section,
@@ -641,7 +669,7 @@ fn map_frame_range_anywhere(
         )
     };
     if view.Value.is_null() {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(last_system_error(MemoryOperation::MapFrameRange, byte_len));
     }
 
     Ok(view.Value.cast())
@@ -655,6 +683,7 @@ fn zero_frame_range(
 ) -> MemoryResult<()> {
     let target = map_frame_range_anywhere(allocator, frame, byte_len)?;
 
+    // SAFETY: target is a writable scratch mapping for byte_len bytes
     unsafe {
         write_bytes(target, 0, byte_len);
     }
@@ -693,7 +722,9 @@ fn allocate_new_frame_range(
         frame_ref_counts: Vec::new(),
     };
     let Some(offset) = section.reserve(byte_len) else {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(MemoryError::InvariantViolation {
+            context: "page frame section reserve",
+        });
     };
 
     state.sections.push(section);
@@ -716,6 +747,7 @@ fn create_section(byte_len: usize) -> MemoryResult<HANDLE> {
     let max_size = byte_len as u64;
     let max_size_high = (max_size >> 32) as u32;
     let max_size_low = max_size as u32;
+    // SAFETY: INVALID_HANDLE_VALUE requests page-file backed storage
     let section = unsafe {
         CreateFileMappingW(
             INVALID_HANDLE_VALUE,
@@ -727,10 +759,21 @@ fn create_section(byte_len: usize) -> MemoryResult<HANDLE> {
         )
     };
     if section == 0 {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
+        return Err(last_system_error(
+            MemoryOperation::CreateFrameAllocator,
+            byte_len,
+        ));
     }
 
     Ok(section)
+}
+
+/// Return one system error from the last platform error code.
+fn last_system_error(operation: MemoryOperation, byte_len: usize) -> MemoryError {
+    // SAFETY: GetLastError reads thread-local Windows error state
+    let code = unsafe { GetLastError() } as i32;
+
+    MemoryError::system_with_code(operation, Some(code), byte_len)
 }
 
 /// Allocate one free frame range when a large enough range exists.
