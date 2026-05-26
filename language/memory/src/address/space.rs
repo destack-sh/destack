@@ -13,10 +13,10 @@ pub struct AddressSpace {
     map: PageMap,
 }
 
-// SAFETY: mappings are synchronized by their owning space
+// SAFETY: page-table mutations are synchronized inside the address space
 unsafe impl Send for AddressSpace {}
 
-// SAFETY: mappings are synchronized by their owning space
+// SAFETY: exposed raw writes are caller-synchronized via safepoints
 unsafe impl Sync for AddressSpace {}
 
 impl AddressSpace {
@@ -128,6 +128,91 @@ mod tests {
 
     use super::AddressSpace;
     use crate::platform;
+
+    /// Reserved pages read as zeroes before materialization.
+    #[test]
+    fn test_read_reserved_pages_returns_zeroes() {
+        let frame_bytes = platform::system_frame_bytes().expect("frame size should resolve");
+        let address_space = AddressSpace::reserve(frame_bytes * 2, frame_bytes)
+            .expect("address space should reserve");
+
+        let bytes = address_space
+            .read_bytes(frame_bytes - 2, 4)
+            .expect("bytes should read");
+
+        assert_eq!(bytes, [0, 0, 0, 0]);
+    }
+
+    /// Eager forks isolate selected mapped pages before raw pointer writes.
+    #[test]
+    fn test_fork_eager_isolates_selected_pages() {
+        let frame_bytes = platform::system_frame_bytes().expect("frame size should resolve");
+        let parent = AddressSpace::reserve(frame_bytes * 3, frame_bytes)
+            .expect("address space should reserve");
+        let initial = vec![1; frame_bytes * 3];
+
+        // initialize every page before forking
+        parent
+            .write_bytes(0, &initial)
+            .expect("parent write should succeed");
+
+        let child = parent
+            .fork_eager(frame_bytes..frame_bytes * 2)
+            .expect("eager fork should succeed");
+        let child_address = child
+            .address(frame_bytes, 4)
+            .expect("child address should resolve");
+
+        // SAFETY: child_address points at four materialized bytes in the eager range
+        unsafe {
+            copy_nonoverlapping([9, 8, 7, 6].as_ptr(), child_address, 4);
+        }
+
+        let parent_bytes = parent
+            .read_bytes(frame_bytes, 4)
+            .expect("parent bytes should read");
+        let child_bytes = child
+            .read_bytes(frame_bytes, 4)
+            .expect("child bytes should read");
+
+        assert_eq!(parent_bytes, [1, 1, 1, 1]);
+        assert_eq!(child_bytes, [9, 8, 7, 6]);
+    }
+
+    /// Lazy fork writes isolate multi-page byte ranges.
+    #[test]
+    fn test_fork_lazy_write_bytes_isolates_multi_page_range() {
+        let frame_bytes = platform::system_frame_bytes().expect("frame size should resolve");
+        let parent = AddressSpace::reserve(frame_bytes * 3, frame_bytes)
+            .expect("address space should reserve");
+        let initial = vec![1; frame_bytes * 3];
+        let replacement = vec![7; frame_bytes + 8];
+        let write_offset = frame_bytes - 4;
+
+        // initialize every page before forking
+        parent
+            .write_bytes(0, &initial)
+            .expect("parent write should succeed");
+
+        let child = parent
+            .fork_lazy()
+            .expect("address space fork should succeed");
+
+        // write across two page boundaries in the child
+        child
+            .write_bytes(write_offset, &replacement)
+            .expect("child write should succeed");
+
+        let parent_bytes = parent
+            .read_bytes(write_offset, replacement.len())
+            .expect("parent bytes should read");
+        let child_bytes = child
+            .read_bytes(write_offset, replacement.len())
+            .expect("child bytes should read");
+
+        assert_eq!(parent_bytes, vec![1; replacement.len()]);
+        assert_eq!(child_bytes, replacement);
+    }
 
     /// Raw pointer writes after fork stay isolated from the parent mapping.
     #[test]
