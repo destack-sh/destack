@@ -533,7 +533,6 @@ fn expression_is_known_pure_statement(expression: &dir::Expression) -> bool {
             | dir::Expression::TemplateExpression { .. }
             | dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::ImportMeta
-            | dir::Expression::NewTarget
             | dir::Expression::This
             | dir::Expression::Super
     )

@@ -43,41 +43,6 @@ pub fn assign_pattern_target_symbol(
     expression_target_symbol(ctx, expression_id)
 }
 
-/// Return true when one expression is exactly `new.target`.
-pub fn expression_is_new_target(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    new_name: StringId,
-    target_name: StringId,
-) -> bool {
-    // normalize wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-    let expression = tree.get(expression_id);
-
-    // match direct `new.target` path forms first
-    if let Some(path) = expression_path_without_generic_arguments(expression) {
-        return path.segments.len() >= 2
-            && path.segments[0] == new_name
-            && path.segments[1] == target_name;
-    }
-
-    // then match split member forms like `new.target.extra`
-    let dir::Expression::Member { left, name } = expression else {
-        return false;
-    };
-    if *name != Some(target_name) {
-        return false;
-    }
-
-    let left_id = expression_unwrap_transparent(tree, *left);
-    let left_expression = tree.get(left_id);
-    let Some(path) = expression_path_without_generic_arguments(left_expression) else {
-        return false;
-    };
-
-    path.segments.len() == 1 && path.segments[0] == new_name
-}
-
 /// Resolve a reference path for member expressions.
 pub fn expression_reference_path(
     ctx: &LintModuleContext<'_>,
