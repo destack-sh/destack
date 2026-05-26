@@ -238,7 +238,7 @@ fn unused_named_parameter_fix(
 /// Return true when this symbol is a value space binding.
 fn symbol_is_value_binding(ctx: &LintModuleContext<'_>, symbol_id: dir::LocalSymbolId) -> bool {
     let symbol = ctx.symbols.get_symbol(symbol_id);
-    symbol.form.is_visible_in(dir::SymbolSpace::Value)
+    symbol.kind.is_visible_in(dir::SymbolSpace::Value)
 }
 
 /// Return true when the parameter belongs to a declaration or member body.

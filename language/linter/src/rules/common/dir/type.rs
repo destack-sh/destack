@@ -160,11 +160,11 @@ enum TypeBooleanQuery<'a> {
         promise_symbol: dir::GlobalSymbolId,
     },
     /// Check reference symbol type compatibility.
-    ReferenceSymbolForm {
-        /// Local symbol table for declaration form reads.
+    ReferenceSymbolKind {
+        /// Local symbol table for declaration kind reads.
         symbols: &'a dir::BindingTable<'a>,
         /// Required symbol type.
-        symbol_form: dir::SymbolForm,
+        symbol_kind: dir::SymbolKind,
     },
     /// Check Promise spread element compatibility.
     PromiseSpreadElementCompatible {
@@ -328,7 +328,7 @@ fn type_query_composition_policy(
             TypeBooleanQuery::Any
             | TypeBooleanQuery::ExplicitAny
             | TypeBooleanQuery::PromiseOrAny { .. }
-            | TypeBooleanQuery::ReferenceSymbolForm { .. }
+            | TypeBooleanQuery::ReferenceSymbolKind { .. }
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
             | TypeBooleanQuery::HasThisParameter
@@ -339,7 +339,7 @@ fn type_query_composition_policy(
         dir::Type::Intersection(_) => match query {
             TypeBooleanQuery::Promise { .. }
             | TypeBooleanQuery::PromiseOrAny { .. }
-            | TypeBooleanQuery::ReferenceSymbolForm { .. }
+            | TypeBooleanQuery::ReferenceSymbolKind { .. }
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
             | TypeBooleanQuery::HasThisParameter
@@ -403,12 +403,12 @@ fn evaluate_reference_boolean_type_query(
                 return true;
             }
         }
-        TypeBooleanQuery::ReferenceSymbolForm {
+        TypeBooleanQuery::ReferenceSymbolKind {
             symbols,
-            symbol_form,
+            symbol_kind,
         } => {
             if symbol.module_id == symbols.module_id
-                && symbols.get_symbol(symbol.local_id).form == symbol_form
+                && symbols.get_symbol(symbol.local_id).kind == symbol_kind
             {
                 return true;
             }
@@ -487,7 +487,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Function(function) => function.this_parameter.is_some(),
             _ => false,
         },
-        TypeBooleanQuery::ReferenceSymbolForm { .. } => false,
+        TypeBooleanQuery::ReferenceSymbolKind { .. } => false,
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol } => match ty {
             dir::Type::Any | dir::Type::Unknown => true,
             dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
@@ -998,18 +998,18 @@ pub fn is_function_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
 }
 
 /// Return true when one type may resolve to one symbol type.
-pub fn is_reference_symbol_form(
+pub fn is_reference_symbol_kind(
     types: &dir::TypeTable<'_>,
     symbols: &dir::BindingTable<'_>,
     type_id: dir::LocalTypeId,
-    symbol_form: dir::SymbolForm,
+    symbol_kind: dir::SymbolKind,
 ) -> bool {
     evaluate_boolean_type_query(
         types,
         type_id,
-        TypeBooleanQuery::ReferenceSymbolForm {
+        TypeBooleanQuery::ReferenceSymbolKind {
             symbols,
-            symbol_form,
+            symbol_kind,
         },
     )
 }
@@ -1669,7 +1669,9 @@ fn function_parameter_type_at_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Function(function) => function.parameters.get(index).map(|parameter| parameter.ty),
+        dir::Type::Function(function) => {
+            function.parameters.get(index).map(|parameter| parameter.ty)
+        }
         dir::Type::Shape(object) => {
             object
                 .call_signatures
@@ -1713,7 +1715,8 @@ fn function_parameter_types_at_inner(
     let ty = types.get_type(type_id);
     match ty {
         dir::Type::Function(function) => {
-            if let Some(parameter_type_id) = function.parameters.get(index).map(|parameter| parameter.ty)
+            if let Some(parameter_type_id) =
+                function.parameters.get(index).map(|parameter| parameter.ty)
                 && !results.contains(&parameter_type_id)
             {
                 results.push(parameter_type_id);

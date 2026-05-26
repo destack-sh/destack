@@ -1,4 +1,4 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolForm, walk_expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolKind, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{symbol_declaration_for, symbol_for};
@@ -82,7 +82,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             &self.ctx.symbols,
             target_symbol,
         )
-        .is_some_and(|symbol| symbol.form == SymbolForm::Struct)
+        .is_some_and(|symbol| symbol.kind == SymbolKind::Struct)
     }
 
     /// Collect struct field names in constructor order for one constructor type.
@@ -99,7 +99,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             &self.ctx.symbols,
             target_symbol,
         )?;
-        if target_symbol_entry.form != SymbolForm::Struct {
+        if target_symbol_entry.kind != SymbolKind::Struct {
             return None;
         }
 
