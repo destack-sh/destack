@@ -234,24 +234,28 @@ pub fn format_local_variable_hover(
 }
 
 /// Format a simple symbol signature without additional metadata.
-pub fn format_simple_signature(symbol_form: dir::SymbolForm, name: Option<&str>) -> String {
+pub fn format_simple_signature(symbol_kind: dir::SymbolKind, name: Option<&str>) -> String {
     // resolve the display name
     let name = name.unwrap_or("<anonymous>");
 
-    match symbol_form {
-        dir::SymbolForm::Variable => format!("let {name}"),
-        dir::SymbolForm::Class => format!("class {name}"),
-        dir::SymbolForm::Struct => format!("struct {name}"),
-        dir::SymbolForm::Interface => format!("interface {name}"),
-        dir::SymbolForm::NewtypeInterface => format!("newtype interface {name}"),
-        dir::SymbolForm::Enum => format!("enum {name}"),
-        dir::SymbolForm::EnumField => format!("enum field {name}"),
-        dir::SymbolForm::Function => format!("function {name}"),
-        dir::SymbolForm::Label => format!("label {name}"),
-        dir::SymbolForm::Import => format!("import {name}"),
-        dir::SymbolForm::Extension => format!("extension {name}"),
-        dir::SymbolForm::TypeAlias => format!("type {name}"),
-        dir::SymbolForm::Newtype => format!("newtype {name}"),
+    match symbol_kind {
+        dir::SymbolKind::Variable => format!("let {name}"),
+        dir::SymbolKind::Class => format!("class {name}"),
+        dir::SymbolKind::Struct => format!("struct {name}"),
+        dir::SymbolKind::Interface => format!("interface {name}"),
+        dir::SymbolKind::NewtypeInterface => format!("newtype interface {name}"),
+        dir::SymbolKind::Enum => format!("enum {name}"),
+        dir::SymbolKind::EnumField => format!("enum field {name}"),
+        dir::SymbolKind::Function => format!("function {name}"),
+        dir::SymbolKind::Label => format!("label {name}"),
+        dir::SymbolKind::Import => format!("import {name}"),
+        dir::SymbolKind::Extension => format!("extension {name}"),
+        dir::SymbolKind::AssociatedConst => format!("const {name}"),
+        dir::SymbolKind::AssociatedType => format!("type {name}"),
+        dir::SymbolKind::GenericValueParameter => format!("comptime {name}"),
+        dir::SymbolKind::TypeAlias => format!("type {name}"),
+        dir::SymbolKind::GenericTypeParameter => format!("type {name}"),
+        dir::SymbolKind::Newtype => format!("newtype {name}"),
     }
 }
 

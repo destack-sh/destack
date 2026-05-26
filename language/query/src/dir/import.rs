@@ -3,7 +3,7 @@ use std::path::Path;
 use destack_core::StringId;
 use destack_dir::{
     DependencyBinding, DependencyForm, DependencyItem, DependencyItem as DirDependencyItem,
-    Expression, LocalNodeId, LocalSymbolId, NodeType, SymbolForm, SymbolSpace, TokenType,
+    Expression, LocalNodeId, LocalSymbolId, NodeType, SymbolKind, SymbolSpace, TokenType,
 };
 use destack_source::{Edit, FileId, PathExt, Span};
 
@@ -54,29 +54,31 @@ fn dependency_item_binding(item: &DependencyItem) -> Option<DependencyBinding> {
 }
 
 /// Check whether a symbol type participates in the type namespace.
-pub(crate) fn is_type_symbol(symbol_form: SymbolForm) -> bool {
+pub(crate) fn is_type_symbol(symbol_kind: SymbolKind) -> bool {
     matches!(
-        symbol_form,
-        SymbolForm::Class
-            | SymbolForm::Struct
-            | SymbolForm::Interface
-            | SymbolForm::Enum
-            | SymbolForm::TypeAlias
-            | SymbolForm::Newtype
+        symbol_kind,
+        SymbolKind::Class
+            | SymbolKind::Struct
+            | SymbolKind::Interface
+            | SymbolKind::Enum
+            | SymbolKind::AssociatedType
+            | SymbolKind::TypeAlias
+            | SymbolKind::GenericTypeParameter
+            | SymbolKind::Newtype
     )
 }
 
 /// Check whether a symbol matches a requested symbol space filter.
 pub(crate) fn matches_symbol_space_filter(
-    symbol_form: SymbolForm,
+    symbol_kind: SymbolKind,
     filter: Option<SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
     };
 
-    symbol_form.is_visible_in(filter)
-        || (filter == SymbolSpace::Type && is_type_symbol(symbol_form))
+    symbol_kind.is_visible_in(filter)
+        || (filter == SymbolSpace::Type && is_type_symbol(symbol_kind))
 }
 
 /// Check whether an exported lookup space matches a requested symbol space filter.
@@ -93,14 +95,14 @@ pub(crate) fn matches_export_space_filter(
 
 /// Check whether a symbol matches an explicit import-clause space filter.
 pub(crate) fn matches_import_clause_space_filter(
-    symbol_form: SymbolForm,
+    symbol_kind: SymbolKind,
     filter: Option<SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
     };
 
-    matches_symbol_space_filter(symbol_form, Some(filter))
+    matches_symbol_space_filter(symbol_kind, Some(filter))
 }
 
 /// Return one dependency item's string key when present.

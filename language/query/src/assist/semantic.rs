@@ -289,7 +289,7 @@ pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
                 let target_symbols = target_ctx.dir().symbols();
                 let symbol = target_symbols.get_symbol(target_symbol.local_id);
 
-                let token_type = symbol_form_to_token_type(symbol.form);
+                let token_type = symbol_kind_to_token_type(symbol.kind);
                 tokens.push(SemanticToken::new(span, token_type));
             }
 
@@ -498,7 +498,7 @@ pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
             };
             let target_symbols = target_ctx.dir().symbols();
             let symbol = target_symbols.get_symbol(target_symbol.local_id);
-            symbol_form_to_token_type(symbol.form)
+            symbol_kind_to_token_type(symbol.kind)
         } else {
             SemanticTokenType::Variable
         };
@@ -568,23 +568,27 @@ fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
     }
 }
 
-/// Map SymbolForm to SemanticTokenType.
-fn symbol_form_to_token_type(symbol_form: dir::SymbolForm) -> SemanticTokenType {
-    match symbol_form {
-        dir::SymbolForm::Variable => SemanticTokenType::Variable,
-        dir::SymbolForm::Class => SemanticTokenType::Class,
-        dir::SymbolForm::Struct => SemanticTokenType::Struct,
-        dir::SymbolForm::Interface | dir::SymbolForm::NewtypeInterface => {
+/// Map SymbolKind to SemanticTokenType.
+fn symbol_kind_to_token_type(symbol_kind: dir::SymbolKind) -> SemanticTokenType {
+    match symbol_kind {
+        dir::SymbolKind::Variable
+        | dir::SymbolKind::AssociatedConst
+        | dir::SymbolKind::GenericValueParameter => SemanticTokenType::Variable,
+        dir::SymbolKind::Class => SemanticTokenType::Class,
+        dir::SymbolKind::Struct => SemanticTokenType::Struct,
+        dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface => {
             SemanticTokenType::Interface
         }
-        dir::SymbolForm::Enum => SemanticTokenType::Enum,
-        dir::SymbolForm::EnumField => SemanticTokenType::EnumMember,
-        dir::SymbolForm::Function => SemanticTokenType::Function,
-        dir::SymbolForm::Label => SemanticTokenType::Label,
-        dir::SymbolForm::Import => SemanticTokenType::Variable,
-        dir::SymbolForm::Extension => SemanticTokenType::Type,
-        dir::SymbolForm::TypeAlias => SemanticTokenType::Type,
-        dir::SymbolForm::Newtype => SemanticTokenType::Type,
+        dir::SymbolKind::Enum => SemanticTokenType::Enum,
+        dir::SymbolKind::EnumField => SemanticTokenType::EnumMember,
+        dir::SymbolKind::Function => SemanticTokenType::Function,
+        dir::SymbolKind::Label => SemanticTokenType::Label,
+        dir::SymbolKind::Import => SemanticTokenType::Variable,
+        dir::SymbolKind::Extension => SemanticTokenType::Type,
+        dir::SymbolKind::AssociatedType
+        | dir::SymbolKind::TypeAlias
+        | dir::SymbolKind::GenericTypeParameter => SemanticTokenType::Type,
+        dir::SymbolKind::Newtype => SemanticTokenType::Type,
     }
 }
 
