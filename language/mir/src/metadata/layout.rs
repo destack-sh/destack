@@ -117,18 +117,32 @@ pub struct Layout {
     /// Alignment requirement in bytes.
     pub alignment: u32,
     /// Managed-reference metadata for this layout.
-    pub reference_map: ReferenceMap,
-    /// Field layouts in concrete memory order.
-    pub fields: Vec<LayoutField>,
+    pub trace_map: TraceMap,
+}
+
+impl Layout {
+    /// Return the byte offset of a dynamic table pointer.
+    pub const fn dynamic_table_offset(&self) -> Option<u32> {
+        match self.shape {
+            LayoutShape::Dynamic => Some(self.alignment),
+            _ => None,
+        }
+    }
 }
 
 /// Aggregate layout shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LayoutShape {
     /// Plain struct layout.
-    Struct,
+    Struct {
+        /// Field layouts in concrete memory order.
+        fields: Vec<LayoutField>,
+    },
     /// Tuple layout with ordered elements.
-    Tuple,
+    Tuple {
+        /// Element layouts in concrete memory order.
+        fields: Vec<LayoutField>,
+    },
     /// Slice header layout with data and length fields.
     Slice,
     /// Array layout with stride and optional fixed count.
@@ -140,42 +154,57 @@ pub enum LayoutShape {
         /// The fixed element count when known.
         element_count: Option<u32>,
     },
-    /// Variant layout with tag and payload offsets.
+    /// Variant layout with tag and storage offsets.
     Variant {
         /// The byte offset of the tag field.
         tag_offset: u32,
-        /// The payload storage type.
-        payload_type: LocalNodeId<Type>,
-        /// The byte offset of the payload field.
-        payload_offset: u32,
-        /// The payload storage strategy.
-        payload: VariantPayload,
+        /// The byte offset of the storage field.
+        storage_offset: u32,
     },
     /// Object layout with a class dispatch table header.
     Object {
         /// The byte offset of the class dispatch table pointer.
         table_offset: u32,
+        /// Field layouts in concrete memory order.
+        fields: Vec<LayoutField>,
     },
-    /// Erased Any value layout with value and table offsets.
-    Any {
-        /// The byte offset of the erased value pointer.
-        value_offset: u32,
-        /// The byte offset of the table pointer.
-        table_offset: u32,
-    },
-    /// Function environment layout.
-    CallableEnvironment,
-    /// Function value layout.
-    Callable,
+    /// Runtime dynamic value layout.
+    Dynamic,
+    /// Closure object layout.
+    Closure,
 }
 
-/// Payload storage strategy for one variant layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum VariantPayload {
-    /// Store the active variant inline in the payload field.
-    Inline,
-    /// Store the active variant behind a managed heap reference.
-    Boxed,
+impl LayoutShape {
+    /// Return field layouts for field-addressable shapes.
+    pub fn fields(&self) -> &[LayoutField] {
+        match self {
+            Self::Struct { fields } | Self::Tuple { fields } | Self::Object { fields, .. } => {
+                fields
+            }
+            Self::Slice
+            | Self::Array { .. }
+            | Self::Variant { .. }
+            | Self::Dynamic
+            | Self::Closure => &[],
+        }
+    }
+
+    /// Return this shape with field layouts attached when supported.
+    pub fn with_fields(self, fields: Vec<LayoutField>) -> Self {
+        match self {
+            Self::Struct { .. } => Self::Struct { fields },
+            Self::Tuple { .. } => Self::Tuple { fields },
+            Self::Object { table_offset, .. } => Self::Object {
+                table_offset,
+                fields,
+            },
+            Self::Slice
+            | Self::Array { .. }
+            | Self::Variant { .. }
+            | Self::Dynamic
+            | Self::Closure => self,
+        }
+    }
 }
 
 /// Memory layout for a single field.
@@ -195,65 +224,65 @@ pub struct LayoutField {
     pub source_index: Option<u32>,
 }
 
-/// Heap-reference metadata for one runtime payload.
+/// Heap trace metadata for one runtime payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ReferenceMap {
+pub enum TraceMap {
     /// Payload contains no heap references.
-    None,
-    /// Payload stores direct heap-reference words at fixed byte offsets.
-    Direct {
+    Empty,
+    /// Payload stores heap-reference words at fixed byte offsets.
+    Fixed {
         /// Byte offsets of encoded local heap references.
         local_offsets: Box<[u32]>,
         /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
     },
     /// Payload stores one nested map at a byte offset.
-    Offset {
+    Nested {
         /// The byte offset of the nested payload.
         byte_offset: u32,
-        /// The nested reference map.
-        map: Box<ReferenceMap>,
+        /// The nested trace map.
+        map: Box<TraceMap>,
     },
     /// Payload stores multiple nested maps.
-    Group {
-        /// The nested reference maps.
-        maps: Box<[ReferenceMap]>,
+    Composite {
+        /// The nested trace maps.
+        maps: Box<[TraceMap]>,
     },
-    /// Payload stores repeated elements with one nested reference map.
-    Repeat {
+    /// Payload stores repeated elements with one nested trace map.
+    Repeated {
         /// The number of elements in the payload.
         count: u32,
         /// The element byte stride.
         stride: u32,
-        /// The per-element reference map.
-        element: Box<ReferenceMap>,
+        /// The per-element trace map.
+        element: Box<TraceMap>,
     },
-    /// Payload stores a tagged variant with case-specific reference maps.
+    /// Payload stores a tagged variant with variant-specific trace maps.
     Tagged {
         /// The byte offset of the variant tag.
         tag_offset: u32,
         /// The byte width of the variant tag.
         tag_bytes: u8,
-        /// Case reference maps keyed by normalized tag value.
-        variants: Box<[ReferenceVariant]>,
+        /// Variant trace maps keyed by normalized tag value.
+        variants: Box<[TraceVariant]>,
     },
 }
 
-/// One tagged reference-map case.
+/// One tag-selected trace variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ReferenceVariant {
-    /// The normalized numeric tag value selecting this case.
+pub struct TraceVariant {
+    /// The normalized numeric tag value selecting this variant.
     pub tag: u64,
-    /// The byte offset of the case payload.
-    pub payload_offset: u32,
-    /// The payload reference map for this variant.
-    pub map: ReferenceMap,
+    /// The byte offset of the variant storage.
+    pub storage_offset: u32,
+    /// The storage trace map for this variant.
+    pub map: TraceMap,
 }
 
-impl ReferenceMap {
-    /// Return the empty reference map.
+impl TraceMap {
+    /// Return the empty trace map.
     pub const fn empty() -> Self {
-        Self::None
+        Self::Empty
     }
 
     /// Report whether this map can reach heap references.
@@ -264,11 +293,11 @@ impl ReferenceMap {
     /// Report whether this map can reach local heap references.
     pub fn has_local_reference(&self) -> bool {
         match self {
-            Self::None => false,
-            Self::Direct { local_offsets, .. } => !local_offsets.is_empty(),
-            Self::Offset { map, .. } => map.has_local_reference(),
-            Self::Group { maps } => maps.iter().any(Self::has_local_reference),
-            Self::Repeat { count, element, .. } => *count > 0 && element.has_local_reference(),
+            Self::Empty => false,
+            Self::Fixed { local_offsets, .. } => !local_offsets.is_empty(),
+            Self::Nested { map, .. } => map.has_local_reference(),
+            Self::Composite { maps } => maps.iter().any(Self::has_local_reference),
+            Self::Repeated { count, element, .. } => *count > 0 && element.has_local_reference(),
             Self::Tagged { variants, .. } => variants
                 .iter()
                 .any(|variant| variant.map.has_local_reference()),
@@ -278,11 +307,11 @@ impl ReferenceMap {
     /// Report whether this map can reach shared heap references.
     pub fn has_shared_reference(&self) -> bool {
         match self {
-            Self::None => false,
-            Self::Direct { shared_offsets, .. } => !shared_offsets.is_empty(),
-            Self::Offset { map, .. } => map.has_shared_reference(),
-            Self::Group { maps } => maps.iter().any(Self::has_shared_reference),
-            Self::Repeat { count, element, .. } => *count > 0 && element.has_shared_reference(),
+            Self::Empty => false,
+            Self::Fixed { shared_offsets, .. } => !shared_offsets.is_empty(),
+            Self::Nested { map, .. } => map.has_shared_reference(),
+            Self::Composite { maps } => maps.iter().any(Self::has_shared_reference),
+            Self::Repeated { count, element, .. } => *count > 0 && element.has_shared_reference(),
             Self::Tagged { variants, .. } => variants
                 .iter()
                 .any(|variant| variant.map.has_shared_reference()),
@@ -292,10 +321,10 @@ impl ReferenceMap {
     /// Report whether this map requires reading payload tags while scanning.
     pub fn has_tagged_reference(&self) -> bool {
         match self {
-            Self::None | Self::Direct { .. } => false,
-            Self::Offset { map, .. } => map.has_tagged_reference(),
-            Self::Group { maps } => maps.iter().any(Self::has_tagged_reference),
-            Self::Repeat { element, .. } => element.has_tagged_reference(),
+            Self::Empty | Self::Fixed { .. } => false,
+            Self::Nested { map, .. } => map.has_tagged_reference(),
+            Self::Composite { maps } => maps.iter().any(Self::has_tagged_reference),
+            Self::Repeated { element, .. } => element.has_tagged_reference(),
             Self::Tagged { variants, .. } => {
                 variants.iter().any(|variant| variant.map.has_reference())
             }

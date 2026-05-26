@@ -143,12 +143,11 @@ impl<'a> FunctionBuilder<'a> {
                 .copied()
                 .map(|element| concrete_type_reference(element, "tuple field type"))
                 .unwrap_or_else(|| panic!("field index out of bounds")),
-            Type::Variant { .. } => self
-                .tree
-                .type_layout(aggregate_type)
-                .and_then(|layout| layout.fields.get(index as usize))
-                .map(|field| field.ty)
-                .unwrap_or_else(|| panic!("field index out of bounds")),
+            Type::Variant { tag, storage, .. } => match index {
+                0 => concrete_type_reference(*tag, "variant tag type"),
+                1 => concrete_type_reference(*storage, "variant storage type"),
+                _ => panic!("field index out of bounds"),
+            },
             Type::Closure { .. } => panic!("field access does not support closures"),
             _ => panic!("field access expects struct or tuple"),
         }
