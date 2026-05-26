@@ -1,4 +1,4 @@
-use destack_dir::{LocalSymbolId, SymbolForm, SymbolSpace};
+use destack_dir::{LocalSymbolId, SymbolKind, SymbolSpace};
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -48,8 +48,8 @@ impl ImportIndex {
 pub struct ImportEntry {
     /// The exported symbol name.
     pub name: String,
-    /// The exported symbol declaration form.
-    pub form: SymbolForm,
+    /// The exported symbol kind.
+    pub kind: SymbolKind,
     /// The exported symbol space.
     pub space: SymbolSpace,
     /// The module that exports this symbol.
