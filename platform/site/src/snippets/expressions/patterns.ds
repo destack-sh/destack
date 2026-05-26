@@ -1,28 +1,28 @@
 /**
-* `match` accepts literals, structs, arrays, ranges, and guards.
-* Match expressions return the joined type of their arms.
+* Destructuring uses the same pattern families as match arms.
+* Irrefutable patterns bind names directly in let declarations.
 */
 
-struct Point {
-    x: int32;
-    y: int32;
+struct Header {
+    requestId: string;
+    retries: uint8;
 }
 
-declare const point: Point;
-declare const bytes: [uint8];
+struct Packet {
+    header: Header;
+    bytes: [uint8; 4];
+}
 
-// struct patterns bind fields by name
-const label = match (point) {
-    Point { x: 0, y: 0 } => "origin"
-    Point { x, y } if (x == y) => "diagonal"
-    Point { x: 0, y } => `vertical ${y}`
-    Point { x, y: 0 } => `horizontal ${x}`
-    _ => "point"
-};
+declare const packet: Packet;
 
-// sequence patterns can match prefixes and rest slices
-const kind = match (bytes) {
-    [0x89, 0x50, 0x4e, 0x47, ...rest] => "png"
-    [0xff, 0xd8, ...rest] => "jpeg"
-    _ => "unknown"
-};
+// struct patterns keep nominal identity explicit
+let Packet {
+    header: Header { requestId, retries },
+    bytes: [tag, ...payload],
+} = packet;
+
+// bindings inherit precise field and element types
+requestId satisfies string;
+retries satisfies uint8;
+tag satisfies uint8;
+payload satisfies [uint8; 3];

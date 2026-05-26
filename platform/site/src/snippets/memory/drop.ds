@@ -1,25 +1,34 @@
 /**
-* `Drop` follows ownership lifetime while `using` is lexical cleanup.
-* The compiler can run drops eagerly after last use.
+* Drop follows ownership lifetime, not lexical scope.
+* It is for memory-shaped finalization and owned fields.
 */
 
-import { Result } from "destack:error";
-import { Dispose } from "destack:memory";
+import { Drop, ManuallyDrop, drop, forget } from "destack:memory";
 
-class FileHandle implements Dispose {
-    descriptor: int32;
+struct Buffer implements Drop {
+    pointer: *uint8;
+    length: usize;
 
-    // dispose is lexical cleanup
-    dispose(): void {}
+    // release owned allocation storage
+    drop(): void {
+        free(pointer, length);
+    }
 }
 
-declare function open(path: string): Result<FileHandle, IOError>;
-declare function copy(input: FileHandle, output: FileHandle): Result<void, IOError>;
+declare function allocate(length: usize): ^Buffer;
+declare function free(pointer: *uint8, length: usize): void;
+declare function process(buffer: &readonly Buffer): void;
 
-// `using` runs dispose even when `?` returns early
-function copyFile(inputPath: string, outputPath: string): Result<void, IOError> {
-    using input = open(inputPath)?;
-    using output = open(outputPath)?;
+function run(): void {
+    let buffer = allocate(4096);
+    process(&buffer);
 
-    copy(input, output)
+    // ownership can end before scope exit
+    drop(buffer);
 }
+
+// low-level code can suppress automatic drop
+let staged = ManuallyDrop.new(allocate(1024));
+let leaked = staged.intoInner();
+
+forget(leaked);
