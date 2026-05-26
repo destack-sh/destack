@@ -552,6 +552,7 @@ fn push_references_from_memory<R: ReferenceScan>(
             tag_bytes,
             variants,
         } => {
+            // SAFETY: mapped allocation tags are inside live payload memory
             let tag = unsafe {
                 read_reference_tag(
                     base_address + base_offset + *tag_offset as usize,
@@ -759,6 +760,7 @@ fn push_direct_references<R: ReferenceScan>(
             continue;
         }
 
+        // SAFETY: mapped allocation references are aligned native words at trace-map offsets
         let bits = unsafe { read_reference_bits(base_address + offset) };
         references.push(R::from_bits(bits));
     }
@@ -934,14 +936,7 @@ fn visit_direct_heap_root_slots_from_bytes(
             continue;
         }
 
-        let local_start = offset - start;
-        let local_end = local_start + HeapReference::BYTE_LEN;
-        let Some(slot) = bytes.get_mut(local_start..local_end) else {
-            return Err(HeapError::TruncatedReferenceBytes {
-                start: local_start,
-                width: HeapReference::BYTE_LEN,
-            });
-        };
+        let slot = reference_bytes_mut(bytes, start, offset, HeapReference::BYTE_LEN)?;
 
         visit(RootSlot::HeapBytes(slot))?;
     }
@@ -964,14 +959,7 @@ fn visit_direct_shared_root_slots_from_bytes(
             continue;
         }
 
-        let local_start = offset - start;
-        let local_end = local_start + SharedHeapReference::BYTE_LEN;
-        let Some(slot) = bytes.get_mut(local_start..local_end) else {
-            return Err(HeapError::TruncatedReferenceBytes {
-                start: local_start,
-                width: SharedHeapReference::BYTE_LEN,
-            });
-        };
+        let slot = reference_bytes_mut(bytes, start, offset, SharedHeapReference::BYTE_LEN)?;
 
         visit(RootSlot::SharedHeapBytes(slot))?;
     }
@@ -1054,6 +1042,7 @@ fn push_reference_offsets_from_memory<R: ReferenceScan>(
             tag_bytes,
             variants,
         } => {
+            // SAFETY: mapped allocation tags are inside live payload memory
             let tag = unsafe {
                 read_reference_tag(
                     base_address + base_offset + *tag_offset as usize,
@@ -1109,6 +1098,7 @@ unsafe fn read_reference_bits(address: usize) -> usize {
     // heap layouts guarantee pointer-width reference fields
     debug_assert_eq!(address % std::mem::align_of::<usize>(), 0);
 
+    // SAFETY: callers provide mapped payload addresses for pointer-width fields
     unsafe { (address as *const usize).read() }
 }
 
@@ -1117,6 +1107,7 @@ unsafe fn read_reference_tag(address: usize, width: u8) -> u64 {
     let mut raw = [0u8; std::mem::size_of::<u64>()];
 
     for (index, byte) in raw.iter_mut().take(width as usize).enumerate() {
+        // SAFETY: callers provide mapped payload addresses for tag bytes
         *byte = unsafe { (address as *const u8).add(index).read() };
     }
 
@@ -1141,21 +1132,56 @@ fn reference_tag_from_bytes(bytes: &[u8], start: usize, offset: usize, width: u8
 
 /// Return one native-width reference payload from caller-provided bytes.
 fn reference_bits_from_bytes(bytes: &[u8], start: usize, offset: usize) -> HeapResult<usize> {
-    // project the absolute reference offset into the byte window
-    let local_start = offset - start;
-    let local_end = local_start + std::mem::size_of::<usize>();
-    let Some(window) = bytes.get(local_start..local_end) else {
-        return Err(HeapError::TruncatedReferenceBytes {
-            start: local_start,
-            width: std::mem::size_of::<usize>(),
-        });
-    };
+    let window = reference_bytes(bytes, start, offset, std::mem::size_of::<usize>())?;
 
     // decode the native-width reference payload
     let mut raw = [0u8; std::mem::size_of::<usize>()];
     raw.copy_from_slice(window);
 
     Ok(usize::from_le_bytes(raw))
+}
+
+/// Return one immutable reference byte window.
+fn reference_bytes(bytes: &[u8], start: usize, offset: usize, width: usize) -> HeapResult<&[u8]> {
+    let Some(local_start) = offset.checked_sub(start) else {
+        return Err(HeapError::TruncatedReferenceBytes {
+            start: offset,
+            width,
+        });
+    };
+    let local_end = local_start + width;
+    let Some(window) = bytes.get(local_start..local_end) else {
+        return Err(HeapError::TruncatedReferenceBytes {
+            start: local_start,
+            width,
+        });
+    };
+
+    Ok(window)
+}
+
+/// Return one mutable reference byte window.
+fn reference_bytes_mut(
+    bytes: &mut [u8],
+    start: usize,
+    offset: usize,
+    width: usize,
+) -> HeapResult<&mut [u8]> {
+    let Some(local_start) = offset.checked_sub(start) else {
+        return Err(HeapError::TruncatedReferenceBytes {
+            start: offset,
+            width,
+        });
+    };
+    let local_end = local_start + width;
+    let Some(window) = bytes.get_mut(local_start..local_end) else {
+        return Err(HeapError::TruncatedReferenceBytes {
+            start: local_start,
+            width,
+        });
+    };
+
+    Ok(window)
 }
 
 /// Encode one exact trace map into one bitmap range.
@@ -1195,5 +1221,31 @@ fn set_reference_offsets(reference_bits: &mut Bitmap, bit_start: usize, offsets:
         let bit_index = bit_start + word_index;
 
         reference_bits.set(bit_index);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reject partial byte windows that overlap one encoded shared reference.
+    #[test]
+    fn test_rejects_truncated_shared_reference_window() {
+        let trace_map = TraceMap::Fixed {
+            local_offsets: Vec::new().into_boxed_slice(),
+            shared_offsets: vec![0].into_boxed_slice(),
+        };
+        let mut references = Vec::new();
+
+        let error = scan_shared_references_in_bytes_range(&trace_map, 4, 1, &[0], &mut references)
+            .expect_err("partial reference windows should fail loudly");
+
+        assert_eq!(
+            error,
+            HeapError::TruncatedReferenceBytes {
+                start: 0,
+                width: SharedHeapReference::BYTE_LEN,
+            }
+        );
     }
 }
