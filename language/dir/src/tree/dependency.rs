@@ -2,7 +2,7 @@ use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportKey, ExportSelector, Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolForm,
+    ExportKey, ExportSelector, Expression, LocalNodeId, Name, Node, NodeType, StaticKey, SymbolKind,
 };
 
 /// How one dependency item binds into the local module.
@@ -84,13 +84,13 @@ impl DependencyItem {
         }
     }
 
-    /// Return the symbol form introduced by this dependency item.
-    pub fn symbol_form(&self) -> Option<SymbolForm> {
+    /// Return the symbol kind introduced by this dependency item.
+    pub fn symbol_kind(&self) -> Option<SymbolKind> {
         let Self::Binding { .. } = self else {
             return None;
         };
 
-        Some(SymbolForm::Import)
+        Some(SymbolKind::Import)
     }
 
     /// Return the local binding key selected by this export item.

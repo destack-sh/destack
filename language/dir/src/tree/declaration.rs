@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ExportKind, Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId,
-    Member, Mutability, Name, Node, NodeType, ScopeKind, SymbolForm, SymbolRole, TypeExpression,
+    Member, Mutability, Name, Node, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression,
     TypeMember, WhereClause,
 };
 
@@ -245,29 +245,29 @@ impl Declaration {
         }
     }
 
-    /// Return the symbol form introduced by this declaration.
-    pub fn symbol_form(&self) -> Option<SymbolForm> {
+    /// Return the symbol kind introduced by this declaration.
+    pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
             Declaration::Global(_) | Declaration::Module(_) => None,
             Declaration::Type(declaration) => {
                 if declaration.is_nominal {
-                    Some(SymbolForm::Newtype)
+                    Some(SymbolKind::Newtype)
                 } else {
-                    Some(SymbolForm::TypeAlias)
+                    Some(SymbolKind::TypeAlias)
                 }
             }
-            Declaration::Struct(_) => Some(SymbolForm::Struct),
-            Declaration::Class(_) => Some(SymbolForm::Class),
-            Declaration::Enum(_) => Some(SymbolForm::Enum),
+            Declaration::Struct(_) => Some(SymbolKind::Struct),
+            Declaration::Class(_) => Some(SymbolKind::Class),
+            Declaration::Enum(_) => Some(SymbolKind::Enum),
             Declaration::Interface(declaration) => {
                 if declaration.is_nominal {
-                    Some(SymbolForm::NewtypeInterface)
+                    Some(SymbolKind::NewtypeInterface)
                 } else {
-                    Some(SymbolForm::Interface)
+                    Some(SymbolKind::Interface)
                 }
             }
-            Declaration::Extension(_) => Some(SymbolForm::Extension),
-            Declaration::Function(_) => Some(SymbolForm::Function),
+            Declaration::Extension(_) => Some(SymbolKind::Extension),
+            Declaration::Function(_) => Some(SymbolKind::Function),
         }
     }
 

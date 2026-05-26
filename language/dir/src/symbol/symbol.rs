@@ -8,8 +8,8 @@ use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, Stati
 pub struct Symbol {
     /// The scope lookup role of the symbol.
     pub role: SymbolRole,
-    /// The declaration form of the symbol.
-    pub form: SymbolForm,
+    /// The declaration kind of the symbol.
+    pub kind: SymbolKind,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
 
@@ -99,12 +99,12 @@ impl SymbolOrigin {
     }
 }
 
-/// The declaration form of a symbol.
+/// The declaration kind of a symbol.
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
 )]
-pub enum SymbolForm {
-    /// Plain variable-like value symbol without a more specific form.
+pub enum SymbolKind {
+    /// Plain variable-like value symbol without a more specific kind.
     #[default]
     Variable,
     /// Imported dependency binding before target resolution.
@@ -127,51 +127,66 @@ pub enum SymbolForm {
     Label,
     /// Extension symbol.
     Extension,
-    /// Transparent type alias symbol.
+    /// Type alias declaration symbol.
     TypeAlias,
+    /// Generic type parameter symbol.
+    GenericTypeParameter,
+    /// Generic value parameter symbol.
+    GenericValueParameter,
+    /// Associated type declaration symbol.
+    AssociatedType,
+    /// Associated constant declaration symbol.
+    AssociatedConst,
     /// Concrete nominal newtype symbol.
     Newtype,
 }
 
-impl SymbolForm {
+impl SymbolKind {
     /// Check if this is an interface.
     #[inline]
     pub fn is_interface(self) -> bool {
         matches!(self, Self::Interface | Self::NewtypeInterface)
     }
 
-    /// Check whether this form satisfies one requested form.
-    pub fn matches_form(self, form: SymbolForm) -> bool {
-        if form == Self::Interface {
+    /// Check whether this kind satisfies one requested kind.
+    pub fn matches_kind(self, kind: SymbolKind) -> bool {
+        if kind == Self::Interface {
             self.is_interface()
         } else {
-            self == form
+            self == kind
         }
     }
 
-    /// Return the symbol space normally introduced by this symbol form.
+    /// Return the symbol space normally introduced by this symbol kind.
     pub fn symbol_space(self) -> SymbolSpace {
         match self {
-            Self::Interface | Self::NewtypeInterface | Self::TypeAlias => SymbolSpace::Type,
+            Self::AssociatedType
+            | Self::Interface
+            | Self::NewtypeInterface
+            | Self::TypeAlias
+            | Self::GenericTypeParameter => SymbolSpace::Type,
             Self::Label => SymbolSpace::Label,
             Self::Class
+            | Self::AssociatedConst
             | Self::Enum
             | Self::EnumField
             | Self::Extension
             | Self::Function
             | Self::Import
             | Self::Newtype
+            | Self::GenericValueParameter
             | Self::Struct
             | Self::Variable => SymbolSpace::Value,
         }
     }
 
-    /// Check whether this symbol form is visible in one lookup space.
+    /// Check whether this symbol kind is visible in one lookup space.
     pub fn is_visible_in(self, space: SymbolSpace) -> bool {
         match space {
             SymbolSpace::Type => matches!(
                 self,
-                Self::Class
+                Self::AssociatedType
+                    | Self::Class
                     | Self::Enum
                     | Self::EnumField
                     | Self::Extension
@@ -181,15 +196,18 @@ impl SymbolForm {
                     | Self::NewtypeInterface
                     | Self::Struct
                     | Self::TypeAlias
+                    | Self::GenericTypeParameter
             ),
             SymbolSpace::Value => matches!(
                 self,
                 Self::Class
+                    | Self::AssociatedConst
                     | Self::Enum
                     | Self::EnumField
                     | Self::Function
                     | Self::Import
                     | Self::Newtype
+                    | Self::GenericValueParameter
                     | Self::Struct
                     | Self::Variable
             ),
