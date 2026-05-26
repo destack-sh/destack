@@ -20,7 +20,6 @@
         "bridge/typescript/aliases/destack-ts",
         "bridge/vscode",
         "bridge/wasm",
-        "language/builtin",
         "language/grammar",
         "language/grammar/destack",
         "language/grammar/mir",

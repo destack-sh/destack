@@ -1,0 +1,26 @@
+/**
+* Enums are nominal discriminants with attached constants and methods.
+* The underlying representation is still a compact scalar value.
+*/
+
+enum Priority {
+    Low = 1,
+    Medium = 2,
+    High = 3,
+
+    // enum declarations can carry static members
+    static Default = Priority.Medium;
+
+    label(): string {
+        match (this) {
+            Low => "low"
+            Medium => "medium"
+            High => "high"
+        }
+    }
+}
+
+// enum methods preserve nominal type identity
+const priority = Priority.Default;
+priority.label() satisfies string;
+priority as uint8;

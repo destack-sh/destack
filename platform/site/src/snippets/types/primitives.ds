@@ -1,0 +1,30 @@
+/**
+* Destack has fixed-width numeric primitives in addition to TypeScript-shaped values.
+* Literal bounds are checked statically when the target type is known.
+*/
+
+// integers can use exact widths
+const flag: uint3 = 7;
+const byte: uint8 = 255;
+const offset: int17 = -32768;
+const index: usize = 1024;
+
+// floats keep explicit target precision
+const ratio: float32 = 0.5;
+const total: float = 100.25;
+total satisfies float64;
+
+// strings and chars stay TypeScript-shaped
+const initial: char = 'D';
+const name: string = "destack";
+
+declare function readInput(): unknown;
+declare function abort(message: string): never;
+
+// unknown must be narrowed before useful access
+const input: unknown = readInput();
+
+// `never` represents code that does not continue
+function fail(message: string): never {
+    abort(message)
+}

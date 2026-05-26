@@ -1,0 +1,25 @@
+/**
+* `import.meta` exposes target, mode, runtime, and module metadata.
+* The fields are typed by the active compiler configuration.
+*/
+
+module {
+    // custom metadata joins builtin fields
+    const product = "studio";
+    const labels = {
+        feature: ["editor"],
+    };
+}
+
+// builtin fields describe the active target
+import.meta.url satisfies string;
+import.meta.platform satisfies Platform;
+import.meta.host satisfies Host;
+import.meta.runtime satisfies Runtime;
+import.meta.modes satisfies readonly Mode[];
+import.meta.features satisfies readonly Feature[];
+import.meta.product satisfies "studio";
+import.meta.labels.feature satisfies readonly ["editor"];
+
+// convenience flags stay derived from modes
+const debug = import.meta.dev || import.meta.test;

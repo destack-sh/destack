@@ -77,6 +77,8 @@ coverage
 .cache
 .parcel-cache
 .next
+.output/
+.vinxi/
 out
 .nuxt
 dist
@@ -120,9 +122,11 @@ bridge/elixir/*.tar
 
 # Infrastructure
 destack-infra/.*
+.sst/
 *.tfstate
 *.tfstate.*
 *.tfvars
+platform/site/public/brand/
 .DS_Store
 
 *.destack

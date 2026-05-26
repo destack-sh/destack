@@ -1,0 +1,23 @@
+/**
+* Regular closures capture the surrounding lexical environment.
+* Capture decorators expose copy, borrow, and move control when needed.
+*/
+
+// regular lexical capture of 'count' in a managed frame
+let count = 0;
+const next = () => {
+    count += 1;
+    count
+};
+
+// copy count into the snapshot capture (by value)
+@capture("copy")
+const snapshot = () => count;
+
+// borrow count from the containing frame
+@capture("borrow")
+const borrowed: &Function<(), int32> = () => count;
+
+// move count into the closure by value
+@capture("move")
+const owned: ^Function<(), int32> = () => count;

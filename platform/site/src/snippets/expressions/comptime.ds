@@ -1,0 +1,29 @@
+/**
+* Destack supports a `comptime` execution environment.
+* `comptime` modifier / expression evaluates during compilation.
+*/
+
+import { assert } from "destack:assert";
+
+// this function can run at compile time or runtime
+function crc(value: uint8): uint8 {
+    value.reverseBits()
+}
+
+// comptime expressions return ordinary values
+const CRC_TABLE: uint8[] = comptime {
+    let table: uint8[] = [];
+    for (let i = 0; i < 256; i++) {
+        table.push(crc(i as uint8));
+    }
+    table
+};
+
+// comptime blocks can validate generic values
+struct Buffer<comptime Size: uint> {
+    comptime {
+        assert(Size > 0 && Size <= 65536);
+    }
+
+    data: [uint8; Size];
+}

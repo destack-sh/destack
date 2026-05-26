@@ -1,0 +1,27 @@
+/**
+* Static terms are known during inference and can shape declarations.
+* `@if` removes fields or statements once generic values are known.
+*/
+
+struct InlineIndex {}
+struct ExternalIndex {}
+
+// the mode value controls the stored shape
+struct Buffer<T, comptime Mode: "inline" | "external"> {
+    @if(Mode == "inline")
+    index: InlineIndex;
+
+    @if(Mode == "external")
+    index: ExternalIndex;
+
+    data: T[];
+}
+
+// branches collapse once the static value is known
+function width<comptime Wide: boolean>(): Wide extends true ? 8 : 4 {
+    @if(Wide)
+    return 8;
+
+    @if(!Wide)
+    return 4;
+}

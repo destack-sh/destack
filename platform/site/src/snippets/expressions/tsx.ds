@@ -1,0 +1,21 @@
+/**
+* TSX is a syntax for tree-shaped values.
+* The active tree builder comes from module metadata.
+*/
+
+import { HtmlTree } from "destack:ui/html";
+import { Log, Panel, Status } from "../components";
+import { build, events } from "../state";
+
+module {
+    // this module uses the html tree builder
+    const tree = HtmlTree;
+}
+
+// jsx syntax lowers into tree builder calls
+const view = (
+    <Panel title="build">
+        <Status state={build.state} />
+        <Log lines={events} />
+    </Panel>
+);

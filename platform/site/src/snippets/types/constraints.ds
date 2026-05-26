@@ -1,0 +1,29 @@
+/**
+* Constraints describe the interfaces needed by a generic declaration.
+* `where` keeps larger constraint sets readable.
+*/
+
+interface Comparable<T> {
+    compare(other: T): int32;
+}
+
+interface Encoder {
+    encode(): [uint8];
+}
+
+// `where` keeps larger bounds grouped with the declaration
+function chooseStable<T>(left: T, right: T): T where (
+    T: Comparable<T>,
+    T: Encoder,
+) {
+    if (left.compare(right) <= 0) {
+        left
+    } else {
+        right
+    }
+}
+
+// concrete arguments select the required implementations
+declare const a: Version;
+declare const b: Version;
+chooseStable<Version>(a, b) satisfies Version;

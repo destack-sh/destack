@@ -1,0 +1,26 @@
+/**
+* `value is T` asks whether the runtime representation carries `T`.
+* The check returns `boolean` and narrows the current branch.
+*/
+
+struct User {
+    name: string;
+}
+
+// a successful check narrows to User in this branch
+function label(value: User | string): string {
+    if (value is User) {
+        value.name
+    } else {
+        value
+    }
+}
+
+const value: string | int32 = 1;
+
+// scalar checks narrow ordinary unions too
+if (value is string) {
+    value satisfies string;
+} else {
+    value satisfies int32;
+}

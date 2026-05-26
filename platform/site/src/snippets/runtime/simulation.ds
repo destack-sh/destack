@@ -1,0 +1,31 @@
+/**
+* Simulations replay runtime faults deterministically.
+* Distributed behavior can be tested against a controlled world.
+*/
+
+import { AsyncResult } from "destack:error";
+import { Fault, World } from "destack:runtime";
+import { case } from "destack:simulation";
+import { expect } from "destack:test";
+
+newtype Key = string;
+
+struct StoreError {
+    message: string;
+}
+
+struct Store {
+    write(key: Key, value: string): AsyncResult<void, StoreError>;
+    read(key: Key): AsyncResult<string, StoreError>;
+}
+declare function start(world: World): AsyncResult<Store, StoreError>;
+
+// the world injects deterministic runtime faults
+case("store survives stale reads", async (ctx) => {
+    ctx.fault(Fault.StaleRead, { probabilityPpm: 250000 });
+    const store = await? start(ctx.world);
+
+    // assertions run after the simulated schedule
+    await? store.write(Key("doc:1"), "ok");
+    expect(await? store.read(Key("doc:1"))).toBe("ok");
+});

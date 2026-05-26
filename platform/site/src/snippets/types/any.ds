@@ -1,0 +1,33 @@
+/**
+* Native `.ds` rejects `any`.
+* Use `unknown` for untrusted values and `Any<T>` for explicit runtime erasure.
+*/
+
+import { Result } from "destack:error";
+
+struct IOError {
+    message: string;
+}
+
+declare function readInput(): unknown;
+
+let value: any = readInput();
+            ~~~
+            error: 'any' is not available in .ds files
+
+// unknown keeps the boundary explicit
+let input: unknown = readInput();
+
+if (input is string) {
+    input satisfies string;
+}
+
+interface Writer {
+    write(bytes: [uint8]): Result<uint, IOError>;
+}
+
+// erased interfaces are explicit runtime wrappers
+struct RuntimeLogger {
+    // explicit erasure is visible in the type
+    writer: Any<Writer>;
+}

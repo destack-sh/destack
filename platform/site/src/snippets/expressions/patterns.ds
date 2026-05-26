@@ -1,0 +1,28 @@
+/**
+* `match` accepts literals, structs, arrays, ranges, and guards.
+* Match expressions return the joined type of their arms.
+*/
+
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const point: Point;
+declare const bytes: [uint8];
+
+// struct patterns bind fields by name
+const label = match (point) {
+    Point { x: 0, y: 0 } => "origin"
+    Point { x, y } if (x == y) => "diagonal"
+    Point { x: 0, y } => `vertical ${y}`
+    Point { x, y: 0 } => `horizontal ${x}`
+    _ => "point"
+};
+
+// sequence patterns can match prefixes and rest slices
+const kind = match (bytes) {
+    [0x89, 0x50, 0x4e, 0x47, ...rest] => "png"
+    [0xff, 0xd8, ...rest] => "jpeg"
+    _ => "unknown"
+};

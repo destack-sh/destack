@@ -1,0 +1,42 @@
+/**
+* Native Destack code is Result-first and does not use exceptions.
+* `?`, `!`, and `try` open explicit error and absence values.
+*/
+
+import { Result } from "destack:error";
+
+struct Config {
+    source: string;
+}
+
+struct IOError {
+    path: string;
+}
+
+struct ParseError {
+    line: uint32;
+}
+
+declare function readConfig(path: string): Result<string, IOError>;
+declare function parseConfig(text: string): Result<Config, ParseError>;
+declare function defaultConfig(): Config;
+
+function loadConfig(path: string): Result<Config, IOError | ParseError> {
+    // Result values cannot be used until opened
+    const text = readConfig(path);
+                 ~~~~~~~~~~~~~~~~
+                 error: Result<string, IOError> is not string
+
+    // `?` opens success and propagates failure
+    const config = parseConfig(text)?;
+
+    Result.ok(config)
+}
+
+// `try` scopes the propagation and matches the error
+const config = try {
+    loadConfig("destack.json")?
+} catch match (error) {
+    IOError { path: _ } => defaultConfig()
+    ParseError { line: _ } => defaultConfig()
+};

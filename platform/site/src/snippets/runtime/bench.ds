@@ -1,0 +1,26 @@
+/**
+* Bench cases measure useful work and resource units together.
+* The benchmark runner receives typed results from the measured function.
+*/
+
+import { case } from "destack:bench";
+import { Result } from "destack:error";
+
+type Page = [uint8; 4096];
+
+struct DecodeError {
+    offset: uint64;
+}
+
+declare function fixture(name: string): Page;
+declare function decode(page: Page): Result<uint64, DecodeError>;
+
+// fixtures stay outside the measured loop
+case("decode page", { minDuration: "2s" }, (ctx) => {
+    const page = fixture("index.page");
+
+    // iteration count and bytes feed the report
+    const result = ctx.iter(() => decode(page));
+
+    ctx.bytes(4096 * result.iterations);
+});

@@ -1,0 +1,24 @@
+/**
+* Ownership decides who keeps a value alive and when it is freed.
+* Managed values are the default, explicit owners use `^T`.
+*/
+
+class User {
+    name: string = "";
+}
+
+// managed is default, owned is explicit
+let managed: User = new User();
+let owned: ^User = new User();
+
+// borrows choose their access mode
+let borrowed: &User = &managed;
+let readonlyBorrow: &readonly User = &readonly managed;
+let ownedBorrow: &exclusive User = &exclusive owned;
+let raw: *User = &managed;
+
+// access controls mutation through the reference
+borrowed.name = "Ada";
+readonlyBorrow.name satisfies string;
+ownedBorrow.name = "Grace";
+raw satisfies *User;
