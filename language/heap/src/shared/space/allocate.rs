@@ -81,6 +81,8 @@ impl SharedHeapSpace {
                 bucket.clear(run);
             }
 
+            self.accounting.allocate(small.class.size_class);
+
             return Ok(Some(reference));
         }
 
@@ -96,6 +98,8 @@ impl SharedHeapSpace {
                 bucket.finish(run);
                 bucket.clear(run);
             }
+
+            self.accounting.allocate(small.class.size_class);
 
             return Ok(Some(reference));
         }
@@ -123,6 +127,8 @@ impl SharedHeapSpace {
             bucket.finish(run);
             bucket.clear(run);
         }
+
+        self.accounting.allocate(small.class.size_class);
 
         Ok(Some(allocation.reference))
     }
@@ -244,6 +250,7 @@ impl SharedHeapSpace {
             store
                 .page_run_cache
                 .release_page_run(&self.allocator, pages)?;
+            self.accounting.release_pages(pages, self.page_bytes());
         }
 
         Ok(())
@@ -270,6 +277,8 @@ impl SharedHeapSpace {
                 should_keep_worker_bucket,
             )?;
 
+            self.accounting.allocate(class.size_class);
+
             return Ok(SharedHeapPlace::Small(slot));
         }
 
@@ -292,6 +301,8 @@ impl SharedHeapSpace {
         let first_offset = allocation.read().first_offset;
 
         self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
+        self.accounting.allocate(layout.byte_len);
+        self.accounting.retain_pages(pages, self.page_bytes());
 
         Ok(SharedHeapPlace::Large(allocation_id))
     }
@@ -363,6 +374,7 @@ impl SharedHeapSpace {
                     });
 
                     span.set_pages(pages);
+                    self.accounting.retain_pages(pages, self.page_bytes());
                 }
 
                 span.list.store(SpanList::Worker);
@@ -392,6 +404,7 @@ impl SharedHeapSpace {
         });
 
         store.small.spans.push(Arc::new(span));
+        self.accounting.retain_pages(pages, self.page_bytes());
 
         Ok((span_index, true))
     }
@@ -765,15 +778,32 @@ impl SharedHeapSpace {
             });
         }
 
-        let first_offset = self.reserve_space_range_aligned(
+        let first_offset = match self.reserve_space_range_aligned(
             store,
             pages.len() * self.allocator.page_bytes(),
             alignment,
-        )?;
+        ) {
+            Ok(first_offset) => first_offset,
+            Err(error) => {
+                store
+                    .page_run_cache
+                    .release_page_run(&self.allocator, pages)?;
+
+                return Err(error);
+            }
+        };
 
         // materialize the full large range before publishing it
-        self.mapping
-            .materialize(first_offset, pages.len() * self.allocator.page_bytes())?;
+        if let Err(error) = self
+            .mapping
+            .materialize(first_offset, pages.len() * self.allocator.page_bytes())
+        {
+            store
+                .page_run_cache
+                .release_page_run(&self.allocator, pages)?;
+
+            return Err(error.into());
+        }
 
         self.map_page_run(store, first_offset, &pages, |logical_page_index| {
             SharedHeapPageMapEntry::Large {
@@ -788,7 +818,7 @@ impl SharedHeapSpace {
             len,
             pages,
             trace_map,
-            is_marked: false,
+            mark_epoch: 0,
         };
         let allocation = Arc::new(RwLock::new(allocation));
 

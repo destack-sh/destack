@@ -25,6 +25,8 @@ pub(crate) struct SmallSpan {
     pub(crate) shared_reference_bits: Bitmap,
     /// The marked slots in this span.
     pub(crate) marked: Bitmap,
+    /// The mark epoch represented by this span's mark bitmap.
+    pub(crate) mark_epoch: u64,
     /// The allocator pages for this span.
     pub(crate) pages: PageRun,
     /// The dirty cards remembered for young tracing.
@@ -34,9 +36,14 @@ pub(crate) struct SmallSpan {
 }
 
 impl SmallSpan {
-    /// Clear every mark bit in this span.
-    pub(crate) fn clear_marks(&mut self) {
+    /// Ensure the mark bitmap represents one mark epoch.
+    pub(crate) fn ensure_mark_epoch(&mut self, mark_epoch: u64) {
+        if self.mark_epoch == mark_epoch {
+            return;
+        }
+
         self.marked.clear_all();
+        self.mark_epoch = mark_epoch;
     }
 }
 

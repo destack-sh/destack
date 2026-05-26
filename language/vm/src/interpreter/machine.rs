@@ -316,12 +316,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         unsafe { &mut *self.heap }
     }
 
-    /// Borrow the shared allocation cache mutably.
-    #[inline(always)]
-    fn shared_allocator_mut(&mut self) -> &mut SharedAllocator {
-        unsafe { &mut *self.shared_allocator }
-    }
-
     /// Allocate one zeroed local heap payload from one pooled allocation site.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_allocation(
@@ -437,8 +431,11 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         slot_bytes: usize,
     ) -> Option<SharedHeapReference> {
         unsafe {
-            self.shared_allocator_mut()
-                .reserve_zeroed_run_slot_unchecked(bucket_index, slot_bytes)
+            (&*self.shared).reserve_zeroed_small_unchecked(
+                &mut *self.shared_allocator,
+                bucket_index,
+                slot_bytes,
+            )
         }
     }
 

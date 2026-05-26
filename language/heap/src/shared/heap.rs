@@ -443,10 +443,34 @@ impl SharedHeap {
             && let Some(small) = layout.class.small()
             && let Some(reference) = allocator.reserve_small_zeroed(small)
         {
+            self.heap.accounting.allocate(small.slot_bytes());
+
             return Ok(reference);
         }
 
         self.allocate_zeroed_refill(worker, allocator, layout)
+    }
+
+    /// Reserve one zeroed worker-local shared small allocation from trusted instruction fields.
+    ///
+    /// The caller must pass a bucket index and slot byte width from the same resolved small allocation.
+    ///
+    /// # Safety
+    ///
+    /// `bucket_index` must identify the bucket that owns `slot_bytes`.
+    #[inline(always)]
+    pub unsafe fn reserve_zeroed_small_unchecked(
+        &self,
+        allocator: &mut SharedAllocator,
+        bucket_index: usize,
+        slot_bytes: usize,
+    ) -> Option<SharedHeapReference> {
+        // SAFETY: caller resolved both values from the same small allocation plan
+        let reference =
+            unsafe { allocator.reserve_zeroed_run_slot_unchecked(bucket_index, slot_bytes)? };
+        self.heap.accounting.allocate(slot_bytes);
+
+        Some(reference)
     }
 
     /// Refill zeroed allocation state or allocate from published space.

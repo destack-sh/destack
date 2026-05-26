@@ -1,15 +1,17 @@
 use serde::{Deserialize, Serialize};
 
+use std::num::NonZeroU8;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
 
 use super::{
     CardSet, GcState, HeapPageMapEntry, HeapSpace, LargeAllocation, LargeAllocationId,
-    LargeAllocationImage, SmallSpan, SmallSpanImage, YoungImage, YoungRunCursor, YoungSpace,
+    LargeAllocationImage, SmallSpan, SmallSpanImage, YoungForwarding, YoungImage, YoungRunCursor,
+    YoungSpace,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
-use crate::{Bitmap, CowTable, HeapError, HeapResult, SmallSpanClass};
+use crate::{AllocationUsage, Bitmap, CowTable, HeapError, HeapResult, SmallSpanClass};
 
 /// One frozen heap-space image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +36,8 @@ pub(crate) struct HeapSpaceImage {
     young_bytes: usize,
     /// The configured maximum payload size routed to young space.
     max_young_allocation_bytes: usize,
+    /// The minor-cycle survivor count before young allocations promote.
+    young_promotion_age: NonZeroU8,
     /// The next heap allocation id to allocate in large space.
     next_unused_large_allocation_id: u64,
     /// The next unused byte offset in heap space.
@@ -60,6 +64,7 @@ impl HeapSpaceImage {
         allocations: Box<[LargeAllocationImage]>,
         young_bytes: usize,
         max_young_allocation_bytes: usize,
+        young_promotion_age: NonZeroU8,
         next_unused_large_allocation_id: u64,
         next_offset: usize,
         allocated_count: usize,
@@ -76,6 +81,7 @@ impl HeapSpaceImage {
             allocations,
             young_bytes,
             max_young_allocation_bytes,
+            young_promotion_age,
             next_unused_large_allocation_id,
             next_offset,
             allocated_count,
@@ -132,6 +138,11 @@ impl HeapSpaceImage {
         self.max_young_allocation_bytes
     }
 
+    /// Return the minor-cycle survivor count before young allocations promote.
+    pub(crate) const fn young_promotion_age(&self) -> NonZeroU8 {
+        self.young_promotion_age
+    }
+
     /// Return the next heap allocation id in large space.
     pub(crate) const fn next_unused_large_allocation_id(&self) -> u64 {
         self.next_unused_large_allocation_id
@@ -143,7 +154,6 @@ impl HeapSpaceImage {
     }
 
     /// Return the allocated heap reference count.
-    #[cfg(test)]
     pub(crate) const fn allocated_count(&self) -> usize {
         self.allocated_count
     }
@@ -226,7 +236,6 @@ impl HeapSpace {
         let young = self.capture_young_image()?;
         let spans = self.capture_span_images()?;
         let allocations = self.capture_large_allocation_images()?;
-        let (allocated_count, allocated_bytes) = self.live_allocated_usage();
 
         // freeze the current heap image
         Ok(HeapSpaceImage::new(
@@ -239,10 +248,11 @@ impl HeapSpace {
             allocations,
             self.young.capacity_bytes,
             self.max_young_allocation_bytes,
+            self.young_promotion_age,
             self.large.next_unused_large_allocation_id,
             self.next_offset,
-            allocated_count,
-            allocated_bytes,
+            self.usage.allocation_count(),
+            self.usage.allocated_bytes(),
             self.gc.clone(),
         ))
     }
@@ -303,8 +313,6 @@ impl HeapSpace {
                 *page_run = Some(run_index);
             }
         }
-        let run_forwarded = YoungSpace::empty_run_forwarding(&runs);
-
         Ok(YoungSpace {
             generation: image.young().generation(),
             capacity_bytes: image.young().capacity_bytes(),
@@ -317,12 +325,12 @@ impl HeapSpace {
             byte_lens,
             live,
             marked: Bitmap::with_capacity(start_bit_capacity),
-            forwarded: vec![0; start_bit_capacity].into_boxed_slice(),
+            survivor_ages: vec![0; start_bit_capacity].into_boxed_slice(),
+            forwarding: YoungForwarding::with_runs(start_bit_capacity, image.young().runs()),
             local_reference_bits: image.young().local_reference_bits().clone(),
             shared_reference_bits: image.young().shared_reference_bits().clone(),
             runs,
             run_bits,
-            run_forwarded,
             run_buckets,
             run_cursor: YoungRunCursor::inactive(),
             page_runs,
@@ -345,12 +353,15 @@ impl HeapSpace {
             byte_lens: space.young.byte_lens.clone(),
             live: space.young.live.clone(),
             marked: Bitmap::with_capacity(space.young.marked.capacity()),
-            forwarded: vec![0; space.young.forwarded.len()].into_boxed_slice(),
+            survivor_ages: space.young.survivor_ages.clone(),
+            forwarding: YoungForwarding::with_runs(
+                space.young.forwarding.range_capacity(),
+                &space.young.runs,
+            ),
             local_reference_bits: space.young.local_reference_bits.clone(),
             shared_reference_bits: space.young.shared_reference_bits.clone(),
             runs: space.young.cloned_runs(),
             run_bits: space.young.run_bits.clone(),
-            run_forwarded: YoungSpace::empty_run_forwarding(&space.young.runs),
             run_buckets: space.young.run_buckets.clone(),
             run_cursor: space.young.run_cursor,
             page_runs: space.young.page_runs.clone(),
@@ -368,12 +379,16 @@ impl HeapSpace {
             allocator: space.allocator.clone(),
             page_run_cache: PageRunCache::new(space.allocator.pages_per_chunk()),
             max_young_allocation_bytes: space.max_young_allocation_bytes,
+            young_promotion_age: space.young_promotion_age,
             young,
             small,
             large,
             page_map: Vec::new(),
             next_offset: space.next_offset,
             mapping,
+            usage: space.usage,
+            young_usage: space.young_usage,
+            retained_page_bytes: space.retained_page_bytes,
             gc: space.gc.clone(),
             collector: super::LocalGcState::default(),
         })
@@ -396,12 +411,16 @@ impl HeapSpace {
             allocator: allocator.clone(),
             page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
             max_young_allocation_bytes,
+            young_promotion_age: image.young_promotion_age(),
             young,
             small,
             large,
             page_map: Vec::new(),
             next_offset: image.next_offset(),
             mapping,
+            usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
+            young_usage: restored_young_usage(image),
+            retained_page_bytes: image_retained_page_bytes(image, allocator.page_bytes()),
             gc: image.gc_state().clone(),
             collector: super::LocalGcState::default(),
         })
@@ -498,6 +517,7 @@ impl HeapSpace {
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
             marked: Bitmap::with_capacity(span.slot_count),
+            mark_epoch: 0,
             pages,
             dirty_cards: CardSet::with_len(dirty_card_bytes),
             is_dirty_queued: false,
@@ -518,6 +538,7 @@ impl HeapSpace {
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
             marked: Bitmap::with_capacity(span.slot_count),
+            mark_epoch: 0,
             pages,
             dirty_cards: span.dirty_cards.clone(),
             is_dirty_queued: span.is_dirty_queued,
@@ -582,7 +603,7 @@ impl HeapSpace {
             len: allocation.len,
             pages,
             trace_map: allocation.trace_map.clone(),
-            is_marked: false,
+            mark_epoch: 0,
             dirty_cards: CardSet::with_len(allocation.len),
             is_dirty_queued: false,
         })
@@ -605,7 +626,7 @@ impl HeapSpace {
             len: allocation.len,
             pages,
             trace_map: allocation.trace_map.clone(),
-            is_marked: allocation.is_marked,
+            mark_epoch: allocation.mark_epoch,
             dirty_cards: allocation.dirty_cards.clone(),
             is_dirty_queued: allocation.is_dirty_queued,
         })
@@ -723,6 +744,38 @@ fn image_page_runs(image: &HeapSpaceImage) -> impl DoubleEndedIterator<Item = Pa
                 .map(|allocation| allocation.pages),
         )
         .chain(std::iter::once(*image.young().pages()))
+}
+
+/// Return the retained live page bytes in one heap-space image.
+fn image_retained_page_bytes(image: &HeapSpaceImage, page_bytes: usize) -> u64 {
+    image_page_runs(image)
+        .map(|page_run| page_run.len() as u64 * page_bytes as u64)
+        .sum()
+}
+
+/// Return the young live usage in one heap-space image.
+fn restored_young_usage(image: &HeapSpaceImage) -> AllocationUsage {
+    let mut usage = AllocationUsage::default();
+
+    // range allocations
+    for (range_index, range) in image.young().ranges().iter().enumerate() {
+        if image.young().live().contains(range_index) {
+            usage.allocate(range.byte_len);
+        }
+    }
+
+    // fixed-size run allocations
+    for (run, bits) in image.young().runs().iter().zip(image.young().run_bits()) {
+        let reserved_count = run.reserved_slot_count_with(run.next_offset);
+        let freed_count = bits.freed.count_ones();
+        let occupied_count = reserved_count - freed_count;
+
+        for _ in 0..occupied_count {
+            usage.allocate(run.size_class);
+        }
+    }
+
+    usage
 }
 
 /// Restore one heap mapping from one image.

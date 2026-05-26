@@ -10,7 +10,9 @@ use super::{
 };
 use crate::allocator::PageRunCache;
 use crate::shared::gc::SharedGcState;
-use crate::shared::space::{SharedHeapState, SharedLargeSpace, SharedSmallSpace};
+use crate::shared::space::{
+    SharedHeapAccounting, SharedHeapState, SharedLargeSpace, SharedSmallSpace,
+};
 use crate::{Allocator, GcState, HeapResult, PageId, PageRun, SizeClassTable, SmallSpanClass};
 
 /// One frozen shared heap-space image.
@@ -245,6 +247,10 @@ impl SharedHeapSpace {
         Ok(Self {
             allocator: self.allocator.clone(),
             mapping,
+            accounting: SharedHeapAccounting::from_state(
+                &cloned_store,
+                self.allocator.page_bytes(),
+            ),
             state: RwLock::new(cloned_store),
             gc: SharedGcState::default(),
         })
@@ -262,6 +268,7 @@ impl SharedHeapSpace {
         Self::rebuild_page_map(&mut store);
 
         let space = Self {
+            accounting: SharedHeapAccounting::from_state(&store, allocator.page_bytes()),
             allocator,
             mapping,
             state: RwLock::new(store),
@@ -318,7 +325,8 @@ impl SharedHeapSpace {
             });
         }
 
-        let (allocation_count, allocated_bytes) = self.live_allocated_usage(&store);
+        let allocation_count = self.accounting.allocation_count();
+        let allocated_bytes = self.accounting.allocated_bytes();
 
         Ok(SharedHeapSpaceImage::new(
             store.small.size_classes.clone(),
@@ -408,7 +416,7 @@ impl SharedHeapSpace {
                                 len: allocation.len,
                                 pages,
                                 trace_map: allocation.trace_map.clone(),
-                                is_marked: false,
+                                mark_epoch: 0,
                             })))
                         },
                     )
