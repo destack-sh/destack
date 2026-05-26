@@ -127,11 +127,11 @@ match (config) {
 }
 ```
 
-## struct patterns
+## nominal object patterns
 
-### match struct patterns bind fields
+### match nominal object patterns bind struct fields
 
-Struct patterns require the type name.
+Nominal object patterns use the nominal tag.
 
 ```ds
 struct Point {
@@ -146,9 +146,47 @@ function sum(value: Point): int32 {
 }
 ```
 
-### match struct patterns reject bare object patterns
+### match nominal object patterns bind class fields
 
-Bare object patterns do not match nominal structs.
+Class patterns use the class tag and bind stored fields.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function read(user: User): string {
+    match (user) {
+        User { name } => name
+    }
+}
+```
+
+### match nominal object patterns reject getters
+
+Object patterns bind stored fields, not getters.
+
+```ds
+class User {
+    name: string = "";
+
+    get displayName(): string {
+        return this.name;
+    }
+}
+
+function read(user: User): string {
+    match (user) {
+        User { displayName } => displayName
+    }
+}
+```
+
+- contains: stored field
+
+### match nominal object patterns reject bare object patterns
+
+Bare object patterns do not match nominal values.
 
 ```ds
 struct Point {

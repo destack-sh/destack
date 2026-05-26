@@ -75,6 +75,22 @@ function read(config: Config): boolean {
 }
 ```
 
+### object newtype patterns reject nominal object syntax
+
+Object-backed newtypes unwrap through the wrapper pattern.
+
+```ds
+newtype Config = { debug: boolean };
+
+function read(config: Config): boolean {
+    match (config) {
+        Config { debug } => debug
+    }
+}
+```
+
+- contains: not assignable
+
 ### object newtype patterns reject bare objects
 
 Untagged object patterns do not match object newtypes.
