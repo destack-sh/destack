@@ -3,8 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_enters_nested_declaration_scope, expression_is_new_target,
-    expression_unwrap_parenthesized, signature_declares_value_name,
+    expression_enters_nested_declaration_scope, expression_unwrap_parenthesized,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -115,18 +114,8 @@ fn check_callback_argument(
             continue;
         };
         let function_name = declaration.name.map(|name| name.string());
-        let body_usage = callback_body_usage(
-            ctx,
-            declaration.body,
-            &declaration.signature,
-            function_symbol,
-            function_name,
-        );
-        if body_usage.uses_super
-            || body_usage.uses_new_target
-            || body_usage.uses_arguments
-            || body_usage.uses_recursive_name
-        {
+        let body_usage = callback_body_usage(ctx, declaration.body, function_symbol, function_name);
+        if body_usage.uses_super || body_usage.uses_recursive_name {
             continue;
         }
 
@@ -415,10 +404,6 @@ struct CallbackBodyUsage {
     uses_this: bool,
     /// Whether the callback body references `super`.
     uses_super: bool,
-    /// Whether the callback body references `new.target`.
-    uses_new_target: bool,
-    /// Whether the callback body references function-local `arguments`.
-    uses_arguments: bool,
     /// Whether the callback body references its own function symbol.
     uses_recursive_name: bool,
 }
@@ -427,19 +412,12 @@ struct CallbackBodyUsage {
 fn callback_body_usage(
     ctx: &LintModuleContext<'_>,
     body_expression_id: Option<dir::LocalNodeId<dir::Expression>>,
-    signature: &dir::FunctionSignature,
     function_symbol: dir::GlobalSymbolId,
     function_name: Option<dir::StringId>,
 ) -> CallbackBodyUsage {
     let Some(body_expression_id) = body_expression_id else {
         return CallbackBodyUsage::default();
     };
-
-    let arguments_name = ctx.string_id("arguments");
-    let new_name = ctx.string_id("new");
-    let target_name = ctx.string_id("target");
-    let ignore_arguments_reference =
-        signature_declares_value_name(ctx.dir.tree(), &ctx.symbols, signature, arguments_name);
 
     // walk only the current callback body
     let mut visitor = CallbackBodyUsageVisitor {
@@ -448,10 +426,6 @@ fn callback_body_usage(
         resolutions: ctx.resolutions,
         function_symbol,
         function_name,
-        arguments_name,
-        new_name,
-        target_name,
-        ignore_arguments_reference,
         usage: CallbackBodyUsage::default(),
         options: NodeVisitorOptions::default(),
     };
@@ -473,14 +447,6 @@ struct CallbackBodyUsageVisitor<'a> {
     function_symbol: dir::GlobalSymbolId,
     /// The callback function name when present.
     function_name: Option<dir::StringId>,
-    /// The string id for `arguments`.
-    arguments_name: dir::StringId,
-    /// The string id for `new`.
-    new_name: dir::StringId,
-    /// The string id for `target`.
-    target_name: dir::StringId,
-    /// Whether one parameter shadows `arguments`.
-    ignore_arguments_reference: bool,
     /// Collected body usage flags.
     usage: CallbackBodyUsage,
     /// The visitor options.
@@ -518,17 +484,7 @@ impl NodeVisitor for CallbackBodyUsageVisitor<'_> {
             _ => {}
         }
 
-        // detect `new.target` directly from the current expression
-        if expression_is_new_target(tree, expression_id, self.new_name, self.target_name) {
-            self.usage.uses_new_target = true;
-        }
-
-        // detect `arguments` and recursive function references semantically
-        if !self.ignore_arguments_reference
-            && expression_is_single_name_reference(tree, expression_id, self.arguments_name)
-        {
-            self.usage.uses_arguments = true;
-        }
+        // detect recursive function references semantically
         if self
             .resolutions
             .symbol_resolution(expression_id.into_global_any(self.module_id))
@@ -731,30 +687,25 @@ items.map(function(x) { this.log(x); return x })
         test.result(result).assert_no_lint("prefer-arrow-callback");
     }
 
-    /// Allow callbacks that use function-local `arguments`.
+    /// Rewrite callbacks that use an ordinary `arguments` identifier.
     #[test]
-    fn test_allows_callback_using_arguments() {
+    fn test_flags_callback_using_arguments_identifier() {
         let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
         let result = test.lint_dir(
-            "prefer_arrow_callback/test_allows_callback_using_arguments.ds",
+            "prefer_arrow_callback/test_flags_callback_using_arguments_identifier.ds",
             r#"
 items.map(function(x) { return arguments[0] })
 "#,
         );
-        test.result(result).assert_no_lint("prefer-arrow-callback");
-    }
-
-    /// Allow callbacks that use `new.target`.
-    #[test]
-    fn test_allows_callback_using_new_target() {
-        let test = TestProgram::for_rule_without_prelude(PreferArrowCallback);
-        let result = test.lint_dir(
-            "prefer_arrow_callback/test_allows_callback_using_new_target.ds",
-            r#"
-items.map(function(x) { return new.target ?? x })
+        test.result(result)
+            .assert_lint("prefer-arrow-callback")
+            .assert_safe_fixed(
+                r#"
+items.map((x) => {
+    return arguments[0]
+})
 "#,
-        );
-        test.result(result).assert_no_lint("prefer-arrow-callback");
+            );
     }
 
     /// Allow generator callbacks because arrows cannot express them.

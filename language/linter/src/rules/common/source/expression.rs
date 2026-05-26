@@ -2026,7 +2026,6 @@ pub fn expression_has_side_effects(
         dir::Expression::Identifier { .. }
         | dir::Expression::QualifiedReference { .. }
         | dir::Expression::ImportMeta
-        | dir::Expression::NewTarget
         | dir::Expression::This
         | dir::Expression::Super => false,
 
