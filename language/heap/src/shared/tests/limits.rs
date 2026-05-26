@@ -5,7 +5,7 @@ use crate::{
     SharedHeapLimits, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable, test_aligned_layout,
     test_layout,
 };
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::read_mapped_bytes;
 
@@ -14,7 +14,7 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 
 /// Return the retained shared heap bytes for one allocation.
 fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
-    let layout = test_layout(bytes.len(), ReferenceMap::empty());
+    let layout = test_layout(bytes.len(), TraceMap::empty());
     let options = crate::HeapOptions::shared();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
@@ -33,7 +33,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
         .allocate(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
             Payload::Bytes(bytes),
         )
         .expect("shared heap allocation should succeed");
@@ -44,7 +44,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
 /// Track retained bytes for shared small-span allocation.
 #[test]
 fn test_track_shared_small_span_retained_bytes() {
-    let layout = test_layout(SMALL_ALLOCATION_BYTES, ReferenceMap::empty());
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
     let options = crate::HeapOptions::shared();
     let class_index = options
         .size_classes
@@ -74,7 +74,7 @@ fn test_track_shared_small_span_retained_bytes() {
             .allocate(
                 &worker,
                 &mut allocator,
-                &shared.allocation_layout(layout.allocation()),
+                &shared.allocation_plan(layout.allocation()),
                 Payload::Zeroed,
             )
             .expect("shared heap allocation should succeed");
@@ -94,7 +94,7 @@ fn test_track_shared_small_span_retained_bytes() {
 /// Publish worker-local shared allocations on allocator flush.
 #[test]
 fn test_flush_publishes_worker_shared_small_allocations() {
-    let layout = test_layout(SMALL_ALLOCATION_BYTES, ReferenceMap::empty());
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
     let shared = SharedHeap::with_allocator_limits_and_options(
         Arc::new(Allocator::try_default().expect("allocator should build")),
         SharedHeapLimits::default(),
@@ -108,14 +108,14 @@ fn test_flush_publishes_worker_shared_small_allocations() {
         .allocate_zeroed(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
         )
         .expect("shared heap allocation should succeed");
     let second = shared
         .allocate_zeroed(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
         )
         .expect("shared heap allocation should succeed");
 
@@ -138,7 +138,7 @@ fn test_flush_publishes_worker_shared_small_allocations() {
 /// Keep over-aligned shared allocations on aligned small slots.
 #[test]
 fn test_allocate_shared_honors_layout_alignment() {
-    let layout = test_aligned_layout(17, 16, ReferenceMap::empty());
+    let layout = test_aligned_layout(17, 16, TraceMap::empty());
     let options = crate::HeapOptions {
         heap_small_bytes: 64,
         size_classes: SizeClassTable::new([8, 24, 32]).expect("size classes should validate"),
@@ -157,14 +157,14 @@ fn test_allocate_shared_honors_layout_alignment() {
         .allocate_zeroed(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
         )
         .expect("first shared heap allocation should succeed");
     let second = shared
         .allocate_zeroed(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
         )
         .expect("second shared heap allocation should succeed");
 
@@ -177,7 +177,7 @@ fn test_allocate_shared_honors_layout_alignment() {
 #[test]
 fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     let expected_used_bytes = shared_heap_retained_bytes_after_allocate(&[1]);
-    let layout = test_layout(1, ReferenceMap::empty());
+    let layout = test_layout(1, TraceMap::empty());
     let shared = SharedHeap::with_allocator_limits_and_options(
         Arc::new(Allocator::try_default().expect("allocator should build")),
         SharedHeapLimits {
@@ -195,7 +195,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
         .allocate(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
             Payload::Bytes(&[1]),
         )
         .expect_err("shared heap allocation should be rejected");
@@ -266,7 +266,7 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
 #[test]
 fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let layout = test_layout(1, ReferenceMap::empty());
+    let layout = test_layout(1, TraceMap::empty());
     let options = crate::HeapOptions::shared();
     let shared = SharedHeap::with_allocator_limits_and_options(
         allocator.clone(),
@@ -280,7 +280,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
         .allocate(
             &worker,
             &mut allocator,
-            &shared.allocation_layout(layout.allocation()),
+            &shared.allocation_plan(layout.allocation()),
             Payload::Bytes(&[1]),
         )
         .expect("shared heap allocation should succeed");

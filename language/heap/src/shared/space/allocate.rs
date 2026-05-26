@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{
@@ -10,7 +10,7 @@ use super::{
 };
 use crate::allocator::{PageRun, SpanSlot};
 use crate::{
-    AllocationLayout, HeapError, HeapResult, Payload, SharedHeapReference, SmallAllocationLayout,
+    AllocationPlan, HeapError, HeapResult, Payload, SharedHeapReference, SmallAllocationPlan,
     SmallSpanClass,
 };
 
@@ -19,7 +19,7 @@ impl SharedHeapSpace {
     pub fn allocate(
         &self,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
         should_keep_worker_bucket: bool,
     ) -> HeapResult<SharedHeapReference> {
@@ -54,7 +54,7 @@ impl SharedHeapSpace {
     pub(crate) fn try_allocate_worker_small(
         &self,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<Option<SharedHeapReference>> {
         // worker buckets only handle small allocations
@@ -108,7 +108,7 @@ impl SharedHeapSpace {
             Payload::Bytes(bytes) if layout.is_noscan => {
                 self.try_allocate_bytes_noscan_slot(bucket, run, bytes)?
             }
-            _ => self.try_allocate_small_slot(bucket, run, layout.reference_map, payload)?,
+            _ => self.try_allocate_small_slot(bucket, run, layout.trace_map, payload)?,
         };
         let Some(allocation) = allocation else {
             // exhausted buckets leave worker ownership immediately
@@ -159,7 +159,7 @@ impl SharedHeapSpace {
     pub(crate) fn retained_byte_delta(
         &self,
         allocator: &SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
     ) -> HeapResult<i64> {
         // heap allocations must have a physical payload
         if layout.is_empty() {
@@ -253,7 +253,7 @@ impl SharedHeapSpace {
     fn allocate_place(
         &self,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
         should_keep_worker_bucket: bool,
     ) -> HeapResult<SharedHeapPlace> {
@@ -265,7 +265,7 @@ impl SharedHeapSpace {
                 allocator,
                 bucket_index,
                 &class,
-                layout.reference_map,
+                layout.trace_map,
                 payload,
                 should_keep_worker_bucket,
             )?;
@@ -282,7 +282,7 @@ impl SharedHeapSpace {
             layout.byte_len,
             layout.alignment,
             pages,
-            layout.reference_map.clone(),
+            layout.trace_map.clone(),
         )?;
         let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned() else {
             return Err(HeapError::MissingLargeAllocation {
@@ -314,7 +314,7 @@ impl SharedHeapSpace {
     fn has_available_small_slot(
         &self,
         store: &SharedHeapState,
-        small: &SmallAllocationLayout,
+        small: &SmallAllocationPlan,
     ) -> bool {
         let bucket_index = small.bucket_index;
 
@@ -422,7 +422,7 @@ impl SharedHeapSpace {
         allocator: &mut SharedAllocator,
         bucket_index: usize,
         class: &SmallSpanClass,
-        reference_map: &ReferenceMap,
+        trace_map: &TraceMap,
         payload: Payload<'_>,
         should_keep_worker_bucket: bool,
     ) -> HeapResult<SpanSlot> {
@@ -432,8 +432,7 @@ impl SharedHeapSpace {
             let allocated_slot = {
                 let run = &mut allocator.runs[bucket_index];
                 let bucket = &mut allocator.small[bucket_index];
-                let allocation =
-                    self.try_allocate_small_slot(bucket, run, reference_map, payload)?;
+                let allocation = self.try_allocate_small_slot(bucket, run, trace_map, payload)?;
 
                 if let Some(allocation) = allocation {
                     let slot = allocation.slot;
@@ -486,13 +485,13 @@ impl SharedHeapSpace {
         let run = &mut allocator.runs[bucket_index];
         let bucket = &mut allocator.small[bucket_index];
         let allocation = match payload {
-            Payload::Zeroed if !reference_map.has_reference() => {
+            Payload::Zeroed if !trace_map.has_reference() => {
                 self.try_allocate_zeroed_noscan_slot(bucket, run)?
             }
-            Payload::Bytes(bytes) if !reference_map.has_reference() => {
+            Payload::Bytes(bytes) if !trace_map.has_reference() => {
                 self.try_allocate_bytes_noscan_slot(bucket, run, bytes)?
             }
-            _ => self.try_allocate_small_slot(bucket, run, reference_map, payload)?,
+            _ => self.try_allocate_small_slot(bucket, run, trace_map, payload)?,
         };
         let Some(allocation) = allocation else {
             return Err(HeapError::MissingSpan {
@@ -652,7 +651,7 @@ impl SharedHeapSpace {
         &self,
         bucket: &mut SmallBucket,
         run: &mut SmallRun,
-        reference_map: &ReferenceMap,
+        trace_map: &TraceMap,
         payload: Payload<'_>,
     ) -> HeapResult<Option<SmallAllocation>> {
         let Some(slot) = bucket.reserve_slot(run) else {
@@ -686,7 +685,7 @@ impl SharedHeapSpace {
                 span.clear_needs_zero(slot_index);
             }
 
-            span.write_reference_bits(slot_index, reference_map);
+            span.write_reference_bits(slot_index, trace_map);
         }
 
         // publish initialized slots before returning the reference
@@ -719,7 +718,7 @@ impl SharedHeapSpace {
         len: usize,
         alignment: usize,
         pages: PageRun,
-        reference_map: ReferenceMap,
+        trace_map: TraceMap,
     ) -> HeapResult<SharedLargeAllocationId> {
         // reuse retired large-allocation ids before growing the table
         let (allocation_id, reused_allocation_id) =
@@ -788,7 +787,7 @@ impl SharedHeapSpace {
             first_offset,
             len,
             pages,
-            reference_map,
+            trace_map,
             is_marked: false,
         };
         let allocation = Arc::new(RwLock::new(allocation));

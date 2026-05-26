@@ -613,7 +613,7 @@ impl HeapSpace {
             first_offset: allocation.first_offset,
             len: allocation.len,
             pages,
-            reference_map: allocation.reference_map.clone(),
+            trace_map: allocation.trace_map.clone(),
             is_marked: false,
             dirty_cards: CardSet::with_len(allocation.len),
             is_dirty_queued: false,
@@ -636,7 +636,7 @@ impl HeapSpace {
             first_offset: allocation.first_offset,
             len: allocation.len,
             pages,
-            reference_map: allocation.reference_map.clone(),
+            trace_map: allocation.trace_map.clone(),
             is_marked: allocation.is_marked,
             dirty_cards: allocation.dirty_cards.clone(),
             is_dirty_queued: allocation.is_dirty_queued,
@@ -737,7 +737,7 @@ impl HeapSpace {
             first_offset: allocation.first_offset,
             len: allocation.len,
             pages,
-            reference_map: allocation.reference_map.clone(),
+            trace_map: allocation.trace_map.clone(),
         })
     }
 }

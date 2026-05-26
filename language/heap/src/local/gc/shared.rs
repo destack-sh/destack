@@ -93,9 +93,9 @@ impl HeapSpace {
         };
 
         // layout metadata decides whether scanning is needed
-        let reference_map = self.reference_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place)?;
 
-        Ok(reference_map.has_shared_reference())
+        Ok(trace_map.has_shared_reference())
     }
 
     /// Return the next tracked local reference that may contain shared edges.
@@ -126,23 +126,22 @@ impl HeapSpace {
         };
 
         // load exact shared-reference layout
-        let reference_map = self
-            .reference_map_for_place(location.place)
-            .map_err(|error| HeapError::HeapScanFailed {
+        let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
+            HeapError::HeapScanFailed {
                 source: ScanSource::Reference(reference),
                 error: Box::new(error),
-            })?;
+            }
+        })?;
 
         // noscan payloads still consume their byte budget
-        if !reference_map.has_shared_reference() {
+        if !trace_map.has_shared_reference() {
             return Ok(location.byte_len);
         }
 
         // scan mapped heap memory directly
         let base_address = self.mapping.base_address() + location.base.offset();
         let mut reference_buffer = Vec::new();
-        let result =
-            scan_shared_heap_references(&reference_map, base_address, &mut reference_buffer);
+        let result = scan_shared_heap_references(&trace_map, base_address, &mut reference_buffer);
 
         if let Err(error) = result {
             return Err(HeapError::HeapScanFailed {

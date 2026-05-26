@@ -1,4 +1,4 @@
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::{HeapSpace, LargeAllocationId};
 use crate::{HeapError, HeapResult, overlaps_heap_range, overlaps_shared_range};
@@ -22,8 +22,8 @@ impl HeapSpace {
                     continue;
                 }
 
-                let reference_map = self.small_slot_reference_map(span_index, slot_index)?;
-                if !reference_map.has_reference() {
+                let trace_map = self.small_slot_trace_map(span_index, slot_index)?;
+                if !trace_map.has_reference() {
                     continue;
                 }
 
@@ -37,7 +37,7 @@ impl HeapSpace {
             let Some(allocation) = self.large_allocation(allocation_id) else {
                 continue;
             };
-            if !allocation.reference_map.has_reference() {
+            if !allocation.trace_map.has_reference() {
                 continue;
             }
 
@@ -65,8 +65,8 @@ impl HeapSpace {
             });
         }
 
-        let reference_map = self.small_slot_reference_map(span_index, slot_index)?;
-        let is_overlapping = overlaps_heap_range(&reference_map, byte_offset, byte_len);
+        let trace_map = self.small_slot_trace_map(span_index, slot_index)?;
+        let is_overlapping = overlaps_heap_range(&trace_map, byte_offset, byte_len);
         if !is_overlapping {
             return Ok(());
         }
@@ -104,7 +104,7 @@ impl HeapSpace {
                 allocation_id: allocation_id.id(),
             });
         };
-        let is_overlapping = overlaps_heap_range(&allocation.reference_map, byte_offset, byte_len);
+        let is_overlapping = overlaps_heap_range(&allocation.trace_map, byte_offset, byte_len);
         if !is_overlapping {
             return Ok(());
         }
@@ -132,10 +132,10 @@ impl HeapSpace {
     /// Return whether one local write range may overlap shared heap roots.
     pub(crate) fn overlaps_shared_roots(
         &self,
-        reference_map: &ReferenceMap,
+        trace_map: &TraceMap,
         byte_offset: usize,
         byte_len: usize,
     ) -> bool {
-        overlaps_shared_range(reference_map, byte_offset, byte_len)
+        overlaps_shared_range(trace_map, byte_offset, byte_len)
     }
 }

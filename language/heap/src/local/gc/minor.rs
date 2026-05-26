@@ -5,7 +5,7 @@ use crate::local::space::{
 };
 use crate::{
     HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource, TraceQueue,
-    scan_heap_references, scan_heap_references_in_range, slot_reference_map,
+    scan_heap_references, scan_heap_references_in_range, slot_trace_map,
 };
 
 /// Collector queue for heap references.
@@ -230,18 +230,18 @@ impl HeapSpace {
             }
 
             // load exact reference layout for this allocation
-            let reference_map = self
-                .reference_map_for_place(location.place)
-                .map_err(|error| HeapError::HeapScanFailed {
+            let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
+                HeapError::HeapScanFailed {
                     source: ScanSource::Reference(reference),
                     error: Box::new(error),
-                })?;
+                }
+            })?;
 
             let mut references = Vec::new();
 
             // enqueue every local reference discovered in this payload
             let base_address = self.mapping.base_address() + location.base.offset();
-            let trace_result = scan_heap_references(&reference_map, base_address, &mut references);
+            let trace_result = scan_heap_references(&trace_map, base_address, &mut references);
 
             if let Err(error) = trace_result {
                 return Err(HeapError::HeapScanFailed {
@@ -341,14 +341,14 @@ impl HeapSpace {
                     continue;
                 }
 
-                let reference_map = slot_reference_map(
+                let trace_map = slot_trace_map(
                     &local_reference_bits,
                     &shared_reference_bits,
                     slot_index,
                     size_class,
                     size_class,
                 );
-                if !reference_map.has_local_reference() {
+                if !trace_map.has_local_reference() {
                     continue;
                 }
 
@@ -369,7 +369,7 @@ impl HeapSpace {
                 // scan only the dirty byte intersection
                 let base_address = self.mapping.base_address() + span_offset + slot_start;
                 scan_heap_references_in_range(
-                    &reference_map,
+                    &trace_map,
                     local_start,
                     local_len,
                     base_address,
@@ -412,7 +412,7 @@ impl HeapSpace {
         };
         let allocation_offset = allocation.first_offset;
         let dirty_cards = allocation.dirty_cards.clone();
-        let reference_map = allocation.reference_map.clone();
+        let trace_map = allocation.trace_map.clone();
 
         // scan each dirty card window directly against the large allocation
         for (card_start, card_len) in dirty_cards.dirty_ranges() {
@@ -421,7 +421,7 @@ impl HeapSpace {
             // scan only the dirty byte range
             let base_address = self.mapping.base_address() + allocation_offset;
             scan_heap_references_in_range(
-                &reference_map,
+                &trace_map,
                 card_start,
                 card_len,
                 base_address,

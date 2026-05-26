@@ -30,10 +30,10 @@ impl SharedHeapSpace {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidSharedHeapReference { reference });
         };
-        let reference_map = self.reference_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place)?;
         let base_address = self.mapping.base_address() + location.base.offset();
         scan_shared_references_in_range(
-            &reference_map,
+            &trace_map,
             byte_offset,
             bytes.len(),
             base_address,
@@ -42,7 +42,7 @@ impl SharedHeapSpace {
 
         // inserted bytes
         scan_shared_references_in_bytes_range(
-            &reference_map,
+            &trace_map,
             byte_offset,
             bytes.len(),
             bytes,

@@ -210,8 +210,8 @@ impl SharedHeapSpace {
         };
 
         // skip empty ranges and noscan payloads
-        let reference_map = self.reference_map_for_place(location.place)?;
-        if !reference_map.has_shared_reference() {
+        let trace_map = self.trace_map_for_place(location.place)?;
+        if !trace_map.has_shared_reference() {
             return Ok(location.byte_len);
         }
 
@@ -228,7 +228,7 @@ impl SharedHeapSpace {
         // payload scan
         let base_address = self.mapping.base_address() + location.base.offset();
         scan_shared_references_in_range(
-            &reference_map,
+            &trace_map,
             start,
             range_len,
             base_address,
@@ -311,12 +311,12 @@ impl SharedHeapSpace {
 
                 for slot_index in slot_indices {
                     let slot_offset = small_slot_offset(span.class.size_class, slot_index);
-                    let reference_map = span.reference_map(slot_index);
+                    let trace_map = span.trace_map(slot_index);
                     scan_slots.push((
                         span.first_offset,
                         slot_offset,
                         span.class.size_class,
-                        reference_map,
+                        trace_map,
                     ));
                 }
 
@@ -325,17 +325,17 @@ impl SharedHeapSpace {
 
             // scan claimed slots
             let mut reference_buffer = Vec::new();
-            for (span_offset, slot_offset, slot_bytes, reference_map) in scan_slots {
+            for (span_offset, slot_offset, slot_bytes, trace_map) in scan_slots {
                 scanned_bytes += slot_bytes.max(1);
 
                 // noscan slots cost one claimed unit only
-                if !reference_map.has_shared_reference() {
+                if !trace_map.has_shared_reference() {
                     continue;
                 }
 
                 // payload scan
                 let base_address = self.mapping.base_address() + span_offset + slot_offset;
-                scan_shared_references(&reference_map, base_address, &mut reference_buffer)?;
+                scan_shared_references(&trace_map, base_address, &mut reference_buffer)?;
             }
 
             // discovered references

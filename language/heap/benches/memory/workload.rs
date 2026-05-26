@@ -54,7 +54,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
         );
     });
 
-    // local repeated reference maps model fixed pointer arrays
+    // local repeated trace maps model fixed pointer arrays
     group.bench_function("local_reference_array", |bencher| {
         bencher.iter_batched(
             local_heap,
@@ -63,7 +63,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
         );
     });
 
-    // shared repeated reference maps model fixed pointer arrays
+    // shared repeated trace maps model fixed pointer arrays
     group.bench_function("shared_reference_array", |bencher| {
         bencher.iter_batched(
             shared_worker_heap,

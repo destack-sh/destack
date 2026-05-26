@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use crate::allocator::PageRun;
 use crate::{HeapError, HeapResult};
@@ -16,8 +16,8 @@ pub struct SharedHeapLargeAllocationImage {
     pub len: usize,
     /// The allocator pages for this allocation.
     pub pages: PageRun,
-    /// The reference map for this allocation.
-    pub reference_map: ReferenceMap,
+    /// The trace map for this allocation.
+    pub trace_map: TraceMap,
 }
 
 /// One stable shared heap large-allocation identifier.
@@ -56,8 +56,8 @@ pub(crate) struct SharedLargeAllocation {
     pub(crate) len: usize,
     /// The allocator pages for this allocation.
     pub(crate) pages: PageRun,
-    /// The reference map for this allocation.
-    pub(crate) reference_map: ReferenceMap,
+    /// The trace map for this allocation.
+    pub(crate) trace_map: TraceMap,
     /// Whether this allocation is marked in the active cycle.
     pub(crate) is_marked: bool,
 }

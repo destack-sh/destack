@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{SharedSmallSpan, SpanList};
 use crate::allocator::{SizeClassTable, SpanSlot};
-use crate::{AllocationLayout, SharedHeapReference, SmallAllocationLayout, SmallSpanClass};
+use crate::{AllocationPlan, SharedHeapReference, SmallAllocationPlan, SmallSpanClass};
 
 /// One worker-local shared heap allocator.
 #[derive(Debug)]
@@ -101,7 +101,7 @@ impl SharedAllocator {
 
     /// Return the byte charge for acquiring an allocation run.
     #[inline(always)]
-    pub(crate) fn layout_run_charge_bytes(&self, layout: &AllocationLayout<'_>) -> usize {
+    pub(crate) fn plan_run_charge_bytes(&self, layout: &AllocationPlan<'_>) -> usize {
         // small allocations acquire one span at a time
         if let Some(small) = layout.class.small() {
             return self.small[small.bucket_index].class.span_bytes;
@@ -114,7 +114,7 @@ impl SharedAllocator {
     #[inline(always)]
     pub fn reserve_small_zeroed(
         &mut self,
-        small: SmallAllocationLayout,
+        small: SmallAllocationPlan,
     ) -> Option<SharedHeapReference> {
         // forward the resolved layout facts to the trusted hot path
         unsafe { self.reserve_zeroed_run_slot_unchecked(small.bucket_index(), small.slot_bytes()) }

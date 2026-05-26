@@ -1,4 +1,4 @@
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use crate::allocator::SpanSlot;
 use crate::local::space::{HeapLocation, HeapPlace, HeapSpace, YoungPlace};
@@ -159,12 +159,12 @@ impl HeapSpace {
                 reference,
                 error: Box::new(error.into()),
             })?;
-        let reference_map = ReferenceMap::None;
+        let trace_map = TraceMap::Empty;
 
         // keep fixed-size no-scan slots in small space when possible
         let location = if self.small.size_classes.class_index_for(byte_len).is_some() {
             let slot = self
-                .allocate_small_payload_from_bytes(&bytes, &reference_map, false)
+                .allocate_small_payload_from_bytes(&bytes, &trace_map, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -187,7 +187,7 @@ impl HeapSpace {
                     byte_len,
                     self.allocator().page_bytes(),
                     pages,
-                    reference_map,
+                    trace_map,
                     false,
                 )
                 .map_err(|error| HeapError::HeapPromotionFailed {
@@ -249,12 +249,12 @@ impl HeapSpace {
                 reference,
                 error: Box::new(error.into()),
             })?;
-        let reference_map = self
-            .young_range_reference_map(first_offset)
-            .map_err(|error| HeapError::HeapPromotionFailed {
+        let trace_map = self.young_range_trace_map(first_offset).map_err(|error| {
+            HeapError::HeapPromotionFailed {
                 reference,
                 error: Box::new(error),
-            })?;
+            }
+        })?;
 
         // keep small mature payloads in size-class spans
         let location = if self
@@ -264,7 +264,7 @@ impl HeapSpace {
             .is_some()
         {
             let slot = self
-                .allocate_small_payload_from_bytes(&bytes, &reference_map, false)
+                .allocate_small_payload_from_bytes(&bytes, &trace_map, false)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -290,7 +290,7 @@ impl HeapSpace {
                     allocation.byte_len,
                     self.allocator().page_bytes(),
                     pages,
-                    reference_map,
+                    trace_map,
                     false,
                 )
                 .map_err(|error| HeapError::HeapPromotionFailed {
@@ -438,12 +438,12 @@ impl HeapSpace {
             }
 
             // noscan payloads cannot contain forwarding references
-            let reference_map = self.reference_map_for_place(location.place)?;
-            if !reference_map.has_local_reference() {
+            let trace_map = self.trace_map_for_place(location.place)?;
+            if !trace_map.has_local_reference() {
                 continue;
             }
 
-            self.rewrite_location_heap_references(location, &reference_map)?;
+            self.rewrite_location_heap_references(location, &trace_map)?;
         }
 
         Ok(())
@@ -453,10 +453,10 @@ impl HeapSpace {
     fn rewrite_location_heap_references(
         &mut self,
         location: HeapLocation,
-        reference_map: &ReferenceMap,
+        trace_map: &TraceMap,
     ) -> HeapResult<()> {
         let base_address = self.mapping.base_address() + location.base.offset();
-        let offsets = heap_reference_offsets(reference_map, base_address)?;
+        let offsets = heap_reference_offsets(trace_map, base_address)?;
 
         for offset in offsets {
             self.rewrite_location_heap_reference_word(location, offset)?;

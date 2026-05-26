@@ -1,4 +1,4 @@
-use destack_mir::{ReferenceMap, ReferenceVariant};
+use destack_mir::{TraceMap, TraceVariant};
 
 use crate::allocator::Bitmap;
 use crate::{HeapError, HeapReference, HeapResult, RootSlot, SharedHeapReference};
@@ -7,29 +7,29 @@ use crate::{HeapError, HeapReference, HeapResult, RootSlot, SharedHeapReference}
 const REFERENCE_BYTES: usize = std::mem::size_of::<usize>();
 
 /// Return conservative local reference offsets from one map.
-pub(crate) fn local_reference_offsets(reference_map: &ReferenceMap) -> Box<[u32]> {
+pub(crate) fn local_reference_offsets(trace_map: &TraceMap) -> Box<[u32]> {
     let mut offsets = Vec::new();
-    append_reference_offsets::<LocalReference>(reference_map, 0, &mut offsets);
+    append_reference_offsets::<LocalReference>(trace_map, 0, &mut offsets);
 
     offsets.into_boxed_slice()
 }
 
 /// Return conservative shared reference offsets from one map.
-pub(crate) fn shared_reference_offsets(reference_map: &ReferenceMap) -> Box<[u32]> {
+pub(crate) fn shared_reference_offsets(trace_map: &TraceMap) -> Box<[u32]> {
     let mut offsets = Vec::new();
-    append_reference_offsets::<SharedReference>(reference_map, 0, &mut offsets);
+    append_reference_offsets::<SharedReference>(trace_map, 0, &mut offsets);
 
     offsets.into_boxed_slice()
 }
 
 /// Return exact local-reference offsets selected by mapped payload tags.
 pub(crate) fn heap_reference_offsets(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     base_address: usize,
 ) -> HeapResult<Vec<usize>> {
     let mut offsets = Vec::new();
     push_reference_offsets_from_memory::<LocalReference>(
-        reference_map,
+        trace_map,
         base_address,
         0,
         None,
@@ -41,28 +41,28 @@ pub(crate) fn heap_reference_offsets(
 
 /// Append concrete reference offsets from one map.
 fn append_reference_offsets<R: ReferenceScan>(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     base_offset: u32,
     offsets: &mut Vec<u32>,
 ) {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct { .. } => {
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed { .. } => {
             offsets.extend(
-                R::offsets(reference_map)
+                R::offsets(trace_map)
                     .iter()
                     .map(|offset| base_offset + *offset),
             );
         }
-        ReferenceMap::Offset { byte_offset, map } => {
+        TraceMap::Nested { byte_offset, map } => {
             append_reference_offsets::<R>(map, base_offset + *byte_offset, offsets);
         }
-        ReferenceMap::Group { maps } => {
+        TraceMap::Composite { maps } => {
             for map in maps {
                 append_reference_offsets::<R>(map, base_offset, offsets);
             }
         }
-        ReferenceMap::Repeat {
+        TraceMap::Repeated {
             count,
             stride,
             element,
@@ -73,9 +73,9 @@ fn append_reference_offsets<R: ReferenceScan>(
                 append_reference_offsets::<R>(element, element_offset, offsets);
             }
         }
-        ReferenceMap::Tagged { variants, .. } => {
+        TraceMap::Tagged { variants, .. } => {
             for variant in variants {
-                let variant_offset = base_offset + variant.payload_offset;
+                let variant_offset = base_offset + variant.storage_offset;
 
                 append_reference_offsets::<R>(&variant.map, variant_offset, offsets);
             }
@@ -85,7 +85,7 @@ fn append_reference_offsets<R: ReferenceScan>(
 
 /// Return whether one byte range overlaps flattened reference offsets.
 fn reference_offsets_overlap<R: ReferenceScan>(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     len: usize,
 ) -> bool {
@@ -96,7 +96,7 @@ fn reference_offsets_overlap<R: ReferenceScan>(
     // tagged maps are conservatively flattened for write barriers
     let end = start + len;
     let mut offsets = Vec::new();
-    append_reference_offsets::<R>(reference_map, 0, &mut offsets);
+    append_reference_offsets::<R>(trace_map, 0, &mut offsets);
 
     offsets
         .iter()
@@ -114,7 +114,7 @@ struct ReferenceRange {
     width: usize,
 }
 
-/// Reference class selected from one reference map.
+/// Reference class selected from one trace map.
 trait ReferenceScan {
     /// Concrete reference type produced by the scan.
     type Reference;
@@ -122,7 +122,7 @@ trait ReferenceScan {
     const BYTE_LEN: usize;
 
     /// Return the offsets for this reference class.
-    fn offsets(reference_map: &ReferenceMap) -> &[u32];
+    fn offsets(trace_map: &TraceMap) -> &[u32];
 
     /// Decode one reference from native bits.
     fn from_bits(bits: usize) -> Self::Reference;
@@ -135,8 +135,8 @@ impl ReferenceScan for LocalReference {
     type Reference = HeapReference;
     const BYTE_LEN: usize = HeapReference::BYTE_LEN;
 
-    fn offsets(reference_map: &ReferenceMap) -> &[u32] {
-        let ReferenceMap::Direct { local_offsets, .. } = reference_map else {
+    fn offsets(trace_map: &TraceMap) -> &[u32] {
+        let TraceMap::Fixed { local_offsets, .. } = trace_map else {
             return &[];
         };
 
@@ -155,8 +155,8 @@ impl ReferenceScan for SharedReference {
     type Reference = SharedHeapReference;
     const BYTE_LEN: usize = SharedHeapReference::BYTE_LEN;
 
-    fn offsets(reference_map: &ReferenceMap) -> &[u32] {
-        let ReferenceMap::Direct { shared_offsets, .. } = reference_map else {
+    fn offsets(trace_map: &TraceMap) -> &[u32] {
+        let TraceMap::Fixed { shared_offsets, .. } = trace_map else {
             return &[];
         };
 
@@ -177,19 +177,19 @@ pub enum HeapEdge {
     Shared(SharedHeapReference),
 }
 
-/// Return the exact reference map encoded for one small slot.
-pub(crate) fn slot_reference_map(
+/// Return the exact trace map encoded for one small slot.
+pub(crate) fn slot_trace_map(
     local_reference_bits: &Bitmap,
     shared_reference_bits: &Bitmap,
     slot_index: usize,
     size_class: usize,
     byte_len: usize,
-) -> ReferenceMap {
+) -> TraceMap {
     // locate this slot in the span reference bitmaps
     let word_count = size_class.div_ceil(REFERENCE_BYTES);
     let bit_start = slot_index * word_count;
 
-    direct_reference_map(
+    direct_trace_map(
         local_reference_bits,
         shared_reference_bits,
         bit_start,
@@ -198,14 +198,14 @@ pub(crate) fn slot_reference_map(
     )
 }
 
-/// Return the exact reference map encoded in one bitmap range.
-fn direct_reference_map(
+/// Return the exact trace map encoded in one bitmap range.
+fn direct_trace_map(
     local_reference_bits: &Bitmap,
     shared_reference_bits: &Bitmap,
     bit_start: usize,
     word_count: usize,
     byte_len: usize,
-) -> ReferenceMap {
+) -> TraceMap {
     let mut local_offsets = Vec::new();
     let mut shared_offsets = Vec::new();
 
@@ -229,41 +229,37 @@ fn direct_reference_map(
 
     // empty maps collapse to the noscan form
     if local_offsets.is_empty() && shared_offsets.is_empty() {
-        return ReferenceMap::None;
+        return TraceMap::Empty;
     }
 
-    ReferenceMap::Direct {
+    TraceMap::Fixed {
         local_offsets: local_offsets.into_boxed_slice(),
         shared_offsets: shared_offsets.into_boxed_slice(),
     }
 }
 
 /// Return whether one write range may overlap any local reference bytes.
-pub(crate) fn overlaps_heap_range(reference_map: &ReferenceMap, start: usize, len: usize) -> bool {
-    reference_offsets_overlap::<LocalReference>(reference_map, start, len)
+pub(crate) fn overlaps_heap_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
+    reference_offsets_overlap::<LocalReference>(trace_map, start, len)
 }
 
 /// Return whether one write range may overlap any shared reference bytes.
-pub(crate) fn overlaps_shared_range(
-    reference_map: &ReferenceMap,
-    start: usize,
-    len: usize,
-) -> bool {
-    reference_offsets_overlap::<SharedReference>(reference_map, start, len)
+pub(crate) fn overlaps_shared_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
+    reference_offsets_overlap::<SharedReference>(trace_map, start, len)
 }
 
-/// Return the exact reference map encoded for one allocation byte range.
-pub(crate) fn allocation_reference_map(
+/// Return the exact trace map encoded for one allocation byte range.
+pub(crate) fn allocation_trace_map(
     local_reference_bits: &Bitmap,
     shared_reference_bits: &Bitmap,
     byte_offset: usize,
     byte_len: usize,
-) -> ReferenceMap {
+) -> TraceMap {
     // locate this allocation in the side bitmaps
     let bit_start = byte_offset / REFERENCE_BYTES;
     let word_count = byte_len.div_ceil(REFERENCE_BYTES);
 
-    direct_reference_map(
+    direct_trace_map(
         local_reference_bits,
         shared_reference_bits,
         bit_start,
@@ -333,18 +329,18 @@ fn clear_reference_bits(
     shared_reference_bits.clear_range(bit_start, bit_len);
 }
 
-/// Encode one exact reference map into one small-slot bit range.
+/// Encode one exact trace map into one small-slot bit range.
 pub(crate) fn write_slot_reference_bits(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     local_reference_bits: &mut Bitmap,
     shared_reference_bits: &mut Bitmap,
     slot_index: usize,
     size_class: usize,
 ) {
-    debug_assert!(!reference_map.has_tagged_reference());
+    debug_assert!(!trace_map.has_tagged_reference());
 
     // noscan layouts have no side bits
-    if !reference_map.has_reference() {
+    if !trace_map.has_reference() {
         return;
     }
 
@@ -353,7 +349,7 @@ pub(crate) fn write_slot_reference_bits(
     let bit_start = slot_index * bit_len;
 
     write_direct_reference_bits(
-        reference_map,
+        trace_map,
         local_reference_bits,
         shared_reference_bits,
         bit_start,
@@ -361,18 +357,18 @@ pub(crate) fn write_slot_reference_bits(
     );
 }
 
-/// Encode one exact reference map into one allocation byte range.
+/// Encode one exact trace map into one allocation byte range.
 pub(crate) fn write_allocation_reference_bits(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     local_reference_bits: &mut Bitmap,
     shared_reference_bits: &mut Bitmap,
     byte_offset: usize,
     byte_len: usize,
 ) {
-    debug_assert!(!reference_map.has_tagged_reference());
+    debug_assert!(!trace_map.has_tagged_reference());
 
     // noscan layouts have no side bits
-    if !reference_map.has_reference() {
+    if !trace_map.has_reference() {
         return;
     }
 
@@ -381,7 +377,7 @@ pub(crate) fn write_allocation_reference_bits(
     let bit_len = byte_len.div_ceil(REFERENCE_BYTES);
 
     write_direct_reference_bits(
-        reference_map,
+        trace_map,
         local_reference_bits,
         shared_reference_bits,
         bit_start,
@@ -391,43 +387,43 @@ pub(crate) fn write_allocation_reference_bits(
 
 /// Visit heap edges encoded in the given payload bytes.
 pub fn visit_heap_edges_in_bytes(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     bytes: &[u8],
     visit: &mut dyn FnMut(HeapEdge) -> HeapResult<()>,
 ) -> HeapResult<()> {
-    visit_heap_edges_from_bytes(reference_map, 0, bytes, 0, None, visit)
+    visit_heap_edges_from_bytes(trace_map, 0, bytes, 0, None, visit)
 }
 
 /// Visit mutable local heap reference slots encoded in the given payload bytes.
 pub fn visit_heap_root_slots_in_bytes(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     bytes: &mut [u8],
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> HeapResult<()> {
-    visit_heap_root_slots_from_bytes(reference_map, 0, bytes, 0, None, visit)
+    visit_heap_root_slots_from_bytes(trace_map, 0, bytes, 0, None, visit)
 }
 
 /// Scan heap references from one mapped allocation base address.
 pub(crate) fn scan_heap_references(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     base_address: usize,
     references: &mut Vec<HeapReference>,
 ) -> HeapResult<()> {
-    push_references_from_memory::<LocalReference>(reference_map, base_address, 0, None, references)
+    push_references_from_memory::<LocalReference>(trace_map, base_address, 0, None, references)
 }
 
 /// Scan shared heap references from one mapped allocation base address.
 pub(crate) fn scan_shared_references(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     base_address: usize,
     references: &mut Vec<SharedHeapReference>,
 ) -> HeapResult<()> {
-    push_references_from_memory::<SharedReference>(reference_map, base_address, 0, None, references)
+    push_references_from_memory::<SharedReference>(trace_map, base_address, 0, None, references)
 }
 
 /// Scan overlapping heap references from one mapped allocation base address.
 pub(crate) fn scan_heap_references_in_range(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     len: usize,
     base_address: usize,
@@ -440,7 +436,7 @@ pub(crate) fn scan_heap_references_in_range(
     };
 
     push_references_from_memory::<LocalReference>(
-        reference_map,
+        trace_map,
         base_address,
         0,
         Some(range),
@@ -450,7 +446,7 @@ pub(crate) fn scan_heap_references_in_range(
 
 /// Scan overlapping shared heap references from one mapped allocation base address.
 pub(crate) fn scan_shared_references_in_range(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     len: usize,
     base_address: usize,
@@ -463,7 +459,7 @@ pub(crate) fn scan_shared_references_in_range(
     };
 
     push_references_from_memory::<SharedReference>(
-        reference_map,
+        trace_map,
         base_address,
         0,
         Some(range),
@@ -473,7 +469,7 @@ pub(crate) fn scan_shared_references_in_range(
 
 /// Scan overlapping shared heap references from one byte window.
 pub(crate) fn scan_shared_references_in_bytes_range(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     len: usize,
     bytes: &[u8],
@@ -486,7 +482,7 @@ pub(crate) fn scan_shared_references_in_bytes_range(
     };
 
     visit_references_from_bytes::<SharedReference>(
-        reference_map,
+        trace_map,
         start,
         bytes,
         0,
@@ -501,29 +497,29 @@ pub(crate) fn scan_shared_references_in_bytes_range(
 
 /// Push references from mapped payload memory.
 fn push_references_from_memory<R: ReferenceScan>(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     base_address: usize,
     base_offset: usize,
     range: Option<ReferenceRange>,
     references: &mut Vec<R::Reference>,
 ) -> HeapResult<()> {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct { .. } => {
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed { .. } => {
             push_direct_references::<R>(
-                R::offsets(reference_map),
+                R::offsets(trace_map),
                 base_address,
                 base_offset,
                 range,
                 references,
             );
         }
-        ReferenceMap::Offset { byte_offset, map } => {
+        TraceMap::Nested { byte_offset, map } => {
             let byte_offset = base_offset + *byte_offset as usize;
 
             push_references_from_memory::<R>(map, base_address, byte_offset, range, references)?;
         }
-        ReferenceMap::Group { maps } => {
+        TraceMap::Composite { maps } => {
             for map in maps {
                 push_references_from_memory::<R>(
                     map,
@@ -534,7 +530,7 @@ fn push_references_from_memory<R: ReferenceScan>(
                 )?;
             }
         }
-        ReferenceMap::Repeat {
+        TraceMap::Repeated {
             count,
             stride,
             element,
@@ -551,7 +547,7 @@ fn push_references_from_memory<R: ReferenceScan>(
                 )?;
             }
         }
-        ReferenceMap::Tagged {
+        TraceMap::Tagged {
             tag_offset,
             tag_bytes,
             variants,
@@ -565,7 +561,7 @@ fn push_references_from_memory<R: ReferenceScan>(
             let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
                 return Ok(());
             };
-            let variant_offset = base_offset + variant.payload_offset as usize;
+            let variant_offset = base_offset + variant.storage_offset as usize;
 
             push_references_from_memory::<R>(
                 &variant.map,
@@ -582,18 +578,18 @@ fn push_references_from_memory<R: ReferenceScan>(
 
 /// Visit references from caller-provided bytes.
 fn visit_references_from_bytes<R: ReferenceScan>(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     bytes: &[u8],
     base_offset: usize,
     range: Option<ReferenceRange>,
     visit: &mut dyn FnMut(R::Reference) -> HeapResult<()>,
 ) -> HeapResult<()> {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct { .. } => {
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed { .. } => {
             visit_direct_references_from_bytes::<R>(
-                R::offsets(reference_map),
+                R::offsets(trace_map),
                 start,
                 bytes,
                 base_offset,
@@ -601,17 +597,17 @@ fn visit_references_from_bytes<R: ReferenceScan>(
                 visit,
             )?;
         }
-        ReferenceMap::Offset { byte_offset, map } => {
+        TraceMap::Nested { byte_offset, map } => {
             let byte_offset = base_offset + *byte_offset as usize;
 
             visit_references_from_bytes::<R>(map, start, bytes, byte_offset, range, visit)?;
         }
-        ReferenceMap::Group { maps } => {
+        TraceMap::Composite { maps } => {
             for map in maps {
                 visit_references_from_bytes::<R>(map, start, bytes, base_offset, range, visit)?;
             }
         }
-        ReferenceMap::Repeat {
+        TraceMap::Repeated {
             count,
             stride,
             element,
@@ -629,7 +625,7 @@ fn visit_references_from_bytes<R: ReferenceScan>(
                 )?;
             }
         }
-        ReferenceMap::Tagged {
+        TraceMap::Tagged {
             tag_offset,
             tag_bytes,
             variants,
@@ -650,7 +646,7 @@ fn visit_references_from_bytes<R: ReferenceScan>(
             let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
                 return Ok(());
             };
-            let variant_offset = base_offset + variant.payload_offset as usize;
+            let variant_offset = base_offset + variant.storage_offset as usize;
 
             visit_references_from_bytes::<R>(
                 &variant.map,
@@ -668,16 +664,16 @@ fn visit_references_from_bytes<R: ReferenceScan>(
 
 /// Visit heap edges from caller-provided bytes.
 fn visit_heap_edges_from_bytes(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     bytes: &[u8],
     base_offset: usize,
     range: Option<ReferenceRange>,
     visit: &mut dyn FnMut(HeapEdge) -> HeapResult<()>,
 ) -> HeapResult<()> {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct {
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed {
             local_offsets,
             shared_offsets,
         } => {
@@ -698,17 +694,17 @@ fn visit_heap_edges_from_bytes(
                 &mut |reference| visit(HeapEdge::Shared(reference)),
             )?;
         }
-        ReferenceMap::Offset { byte_offset, map } => {
+        TraceMap::Nested { byte_offset, map } => {
             let byte_offset = base_offset + *byte_offset as usize;
 
             visit_heap_edges_from_bytes(map, start, bytes, byte_offset, range, visit)?;
         }
-        ReferenceMap::Group { maps } => {
+        TraceMap::Composite { maps } => {
             for map in maps {
                 visit_heap_edges_from_bytes(map, start, bytes, base_offset, range, visit)?;
             }
         }
-        ReferenceMap::Repeat {
+        TraceMap::Repeated {
             count,
             stride,
             element,
@@ -719,7 +715,7 @@ fn visit_heap_edges_from_bytes(
                 visit_heap_edges_from_bytes(element, start, bytes, element_offset, range, visit)?;
             }
         }
-        ReferenceMap::Tagged {
+        TraceMap::Tagged {
             tag_offset,
             tag_bytes,
             variants,
@@ -740,7 +736,7 @@ fn visit_heap_edges_from_bytes(
             let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
                 return Ok(());
             };
-            let variant_offset = base_offset + variant.payload_offset as usize;
+            let variant_offset = base_offset + variant.storage_offset as usize;
 
             visit_heap_edges_from_bytes(&variant.map, start, bytes, variant_offset, range, visit)?;
         }
@@ -792,7 +788,7 @@ fn visit_direct_references_from_bytes<R: ReferenceScan>(
 
 /// Visit references from all tagged variants in one byte window.
 fn visit_reference_variants_from_bytes<R: ReferenceScan>(
-    variants: &[ReferenceVariant],
+    variants: &[TraceVariant],
     start: usize,
     bytes: &[u8],
     base_offset: usize,
@@ -800,7 +796,7 @@ fn visit_reference_variants_from_bytes<R: ReferenceScan>(
     visit: &mut dyn FnMut(R::Reference) -> HeapResult<()>,
 ) -> HeapResult<()> {
     for variant in variants {
-        let variant_offset = base_offset + variant.payload_offset as usize;
+        let variant_offset = base_offset + variant.storage_offset as usize;
 
         visit_references_from_bytes::<R>(&variant.map, start, bytes, variant_offset, range, visit)?;
     }
@@ -810,7 +806,7 @@ fn visit_reference_variants_from_bytes<R: ReferenceScan>(
 
 /// Visit heap edges from all tagged variants in one byte window.
 fn visit_heap_edge_variants_from_bytes(
-    variants: &[ReferenceVariant],
+    variants: &[TraceVariant],
     start: usize,
     bytes: &[u8],
     base_offset: usize,
@@ -818,7 +814,7 @@ fn visit_heap_edge_variants_from_bytes(
     visit: &mut dyn FnMut(HeapEdge) -> HeapResult<()>,
 ) -> HeapResult<()> {
     for variant in variants {
-        let variant_offset = base_offset + variant.payload_offset as usize;
+        let variant_offset = base_offset + variant.storage_offset as usize;
 
         visit_heap_edges_from_bytes(&variant.map, start, bytes, variant_offset, range, visit)?;
     }
@@ -828,16 +824,16 @@ fn visit_heap_edge_variants_from_bytes(
 
 /// Visit mutable heap root slots selected by caller-provided bytes.
 fn visit_heap_root_slots_from_bytes(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     start: usize,
     bytes: &mut [u8],
     base_offset: usize,
     range: Option<ReferenceRange>,
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> HeapResult<()> {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct {
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed {
             local_offsets,
             shared_offsets,
         } => {
@@ -858,17 +854,17 @@ fn visit_heap_root_slots_from_bytes(
                 visit,
             )?;
         }
-        ReferenceMap::Offset { byte_offset, map } => {
+        TraceMap::Nested { byte_offset, map } => {
             let byte_offset = base_offset + *byte_offset as usize;
 
             visit_heap_root_slots_from_bytes(map, start, bytes, byte_offset, range, visit)?;
         }
-        ReferenceMap::Group { maps } => {
+        TraceMap::Composite { maps } => {
             for map in maps {
                 visit_heap_root_slots_from_bytes(map, start, bytes, base_offset, range, visit)?;
             }
         }
-        ReferenceMap::Repeat {
+        TraceMap::Repeated {
             count,
             stride,
             element,
@@ -886,7 +882,7 @@ fn visit_heap_root_slots_from_bytes(
                 )?;
             }
         }
-        ReferenceMap::Tagged {
+        TraceMap::Tagged {
             tag_offset,
             tag_bytes,
             variants,
@@ -907,7 +903,7 @@ fn visit_heap_root_slots_from_bytes(
             let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
                 return Ok(());
             };
-            let variant_offset = base_offset + variant.payload_offset as usize;
+            let variant_offset = base_offset + variant.storage_offset as usize;
 
             visit_heap_root_slots_from_bytes(
                 &variant.map,
@@ -985,7 +981,7 @@ fn visit_direct_shared_root_slots_from_bytes(
 
 /// Visit mutable heap root slots from all tagged variants in one byte window.
 fn visit_heap_root_slot_variants_from_bytes(
-    variants: &[ReferenceVariant],
+    variants: &[TraceVariant],
     start: usize,
     bytes: &mut [u8],
     base_offset: usize,
@@ -993,7 +989,7 @@ fn visit_heap_root_slot_variants_from_bytes(
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> HeapResult<()> {
     for variant in variants {
-        let variant_offset = base_offset + variant.payload_offset as usize;
+        let variant_offset = base_offset + variant.storage_offset as usize;
 
         visit_heap_root_slots_from_bytes(&variant.map, start, bytes, variant_offset, range, visit)?;
     }
@@ -1003,18 +999,18 @@ fn visit_heap_root_slot_variants_from_bytes(
 
 /// Push reference offsets selected by mapped payload tags.
 fn push_reference_offsets_from_memory<R: ReferenceScan>(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     base_address: usize,
     base_offset: usize,
     range: Option<ReferenceRange>,
     offsets: &mut Vec<usize>,
 ) -> HeapResult<()> {
-    match reference_map {
-        ReferenceMap::None => {}
-        ReferenceMap::Direct { .. } => {
-            push_direct_reference_offsets(R::offsets(reference_map), base_offset, range, offsets);
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed { .. } => {
+            push_direct_reference_offsets(R::offsets(trace_map), base_offset, range, offsets);
         }
-        ReferenceMap::Offset { byte_offset, map } => {
+        TraceMap::Nested { byte_offset, map } => {
             let byte_offset = base_offset + *byte_offset as usize;
 
             push_reference_offsets_from_memory::<R>(
@@ -1025,7 +1021,7 @@ fn push_reference_offsets_from_memory<R: ReferenceScan>(
                 offsets,
             )?;
         }
-        ReferenceMap::Group { maps } => {
+        TraceMap::Composite { maps } => {
             for map in maps {
                 push_reference_offsets_from_memory::<R>(
                     map,
@@ -1036,7 +1032,7 @@ fn push_reference_offsets_from_memory<R: ReferenceScan>(
                 )?;
             }
         }
-        ReferenceMap::Repeat {
+        TraceMap::Repeated {
             count,
             stride,
             element,
@@ -1053,7 +1049,7 @@ fn push_reference_offsets_from_memory<R: ReferenceScan>(
                 )?;
             }
         }
-        ReferenceMap::Tagged {
+        TraceMap::Tagged {
             tag_offset,
             tag_bytes,
             variants,
@@ -1067,7 +1063,7 @@ fn push_reference_offsets_from_memory<R: ReferenceScan>(
             let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
                 return Ok(());
             };
-            let variant_offset = base_offset + variant.payload_offset as usize;
+            let variant_offset = base_offset + variant.storage_offset as usize;
 
             push_reference_offsets_from_memory::<R>(
                 &variant.map,
@@ -1162,9 +1158,9 @@ fn reference_bits_from_bytes(bytes: &[u8], start: usize, offset: usize) -> HeapR
     Ok(usize::from_le_bytes(raw))
 }
 
-/// Encode one exact reference map into one bitmap range.
+/// Encode one exact trace map into one bitmap range.
 fn write_direct_reference_bits(
-    reference_map: &ReferenceMap,
+    trace_map: &TraceMap,
     local_reference_bits: &mut Bitmap,
     shared_reference_bits: &mut Bitmap,
     bit_start: usize,
@@ -1182,12 +1178,12 @@ fn write_direct_reference_bits(
     set_reference_offsets(
         local_reference_bits,
         bit_start,
-        &local_reference_offsets(reference_map),
+        &local_reference_offsets(trace_map),
     );
     set_reference_offsets(
         shared_reference_bits,
         bit_start,
-        &shared_reference_offsets(reference_map),
+        &shared_reference_offsets(trace_map),
     );
 }
 

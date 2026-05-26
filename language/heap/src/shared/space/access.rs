@@ -1,4 +1,4 @@
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::space::{allocation_byte_offset, small_slot_offset};
 use super::{SharedHeapLocation, SharedHeapPlace, SharedHeapSpace};
@@ -17,11 +17,11 @@ impl SharedHeapSpace {
         self.fill_location_bytes(location, byte_offset, target)
     }
 
-    /// Return the reference map for one shared heap reference.
-    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<ReferenceMap> {
+    /// Return the trace map for one shared heap reference.
+    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TraceMap> {
         let (location, _) = self.resolve_range(reference, 0, 0)?;
 
-        self.reference_map_for_place(location.place)
+        self.trace_map_for_place(location.place)
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -66,12 +66,12 @@ impl SharedHeapSpace {
         }
 
         // scan inserted shared references in mapped heap memory
-        let reference_map = self.reference_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place)?;
         let mut edges = Vec::new();
 
         let base_address = self.mapping.base_address() + location.base.offset();
         scan_shared_references_in_range(
-            &reference_map,
+            &trace_map,
             byte_offset,
             byte_len,
             base_address,
@@ -101,18 +101,15 @@ impl SharedHeapSpace {
         Ok((location, byte_offset))
     }
 
-    /// Return the reference map for one shared heap location.
-    pub(crate) fn reference_map_for_place(
-        &self,
-        place: SharedHeapPlace,
-    ) -> HeapResult<ReferenceMap> {
+    /// Return the trace map for one shared heap location.
+    pub(crate) fn trace_map_for_place(&self, place: SharedHeapPlace) -> HeapResult<TraceMap> {
         // dispatch by physical shared heap place
         match place {
             SharedHeapPlace::Small(slot) => {
-                self.small_slot_reference_map(slot.span_index(), slot.slot_index())
+                self.small_slot_trace_map(slot.span_index(), slot.slot_index())
             }
             SharedHeapPlace::Large(allocation_id) => {
-                let reference_map = self
+                let trace_map = self
                     .state
                     .read()
                     .large
@@ -123,10 +120,10 @@ impl SharedHeapSpace {
                         allocation_id: allocation_id.id(),
                     })?
                     .read()
-                    .reference_map
+                    .trace_map
                     .clone();
 
-                Ok(reference_map)
+                Ok(trace_map)
             }
         }
     }

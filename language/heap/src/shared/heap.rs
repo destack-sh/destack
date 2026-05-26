@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -10,7 +10,7 @@ use super::{
     SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    AllocationLayout, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
+    AllocationPlan, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
     GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload,
     RawAllocationShape, SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
@@ -405,7 +405,7 @@ impl SharedHeap {
         &self,
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
         self.allocate_payload(worker, allocator, layout, allocation)
@@ -417,7 +417,7 @@ impl SharedHeap {
         &self,
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         bytes: &[u8],
     ) -> HeapResult<SharedHeapReference> {
         self.allocate_payload(worker, allocator, layout, Payload::Bytes(bytes))
@@ -429,7 +429,7 @@ impl SharedHeap {
         &self,
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
     ) -> HeapResult<SharedHeapReference> {
         if layout.is_empty() {
             return Err(HeapError::ZeroSizeAllocation);
@@ -456,7 +456,7 @@ impl SharedHeap {
         &self,
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
     ) -> HeapResult<SharedHeapReference> {
         self.allocate_payload(worker, allocator, layout, Payload::Zeroed)
     }
@@ -467,7 +467,7 @@ impl SharedHeap {
         &self,
         worker: &SharedGcWorker,
         allocator: &mut SharedAllocator,
-        layout: &AllocationLayout<'_>,
+        layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
         if layout.is_empty() {
@@ -502,7 +502,7 @@ impl SharedHeap {
         let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
         self.check_heap_retained_byte_delta(retained_byte_delta)?;
 
-        let pressure_bytes = allocator.layout_run_charge_bytes(layout);
+        let pressure_bytes = allocator.plan_run_charge_bytes(layout);
 
         // mark assist before acquiring another shared allocation run
         self.assist_allocation(worker, pressure_bytes)?;
@@ -520,8 +520,8 @@ impl SharedHeap {
 
     /// Resolve one allocation shape against this shared heap.
     #[inline(always)]
-    pub fn allocation_layout<'a>(&self, shape: AllocationShape<'a>) -> AllocationLayout<'a> {
-        self.heap.allocation_layout(shape)
+    pub fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
+        self.heap.allocation_plan(shape)
     }
 
     /// Return whether one shared heap reference currently refers to one live allocation.
@@ -547,7 +547,7 @@ impl SharedHeap {
     }
 
     /// Return the scan metadata for one shared heap reference.
-    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<ReferenceMap> {
+    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TraceMap> {
         self.heap.scan(reference)
     }
 

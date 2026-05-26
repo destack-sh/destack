@@ -2,7 +2,7 @@ use crate::{
     HeapOptions, HeapSpace, Payload, RawAllocationShape, RawSpace, SizeClassTable, test_allocator,
     test_layout,
 };
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 /// The allocator chunk size for small-page cache fixtures.
 const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
@@ -48,12 +48,12 @@ fn test_release_heap_large_pages_into_page_run_cache() {
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
-    let layout = test_layout(9, ReferenceMap::empty());
+    let layout = test_layout(9, TraceMap::empty());
     let mut heap =
         HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
     let reference = heap
         .allocate(
-            &heap.allocation_layout(layout.allocation()),
+            &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[9; 9]),
         )
         .expect("heap allocation should succeed");

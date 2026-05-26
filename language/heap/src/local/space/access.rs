@@ -1,4 +1,4 @@
-use destack_mir::ReferenceMap;
+use destack_mir::TraceMap;
 
 use super::{HeapLocation, HeapPlace, HeapSpace, YoungPlace};
 use crate::allocator::SpanSlot;
@@ -25,13 +25,13 @@ impl HeapSpace {
         Some(self.resolve_location(reference)?.place)
     }
 
-    /// Return the reference map for one heap reference.
-    pub fn scan(&self, reference: HeapReference) -> HeapResult<ReferenceMap> {
+    /// Return the trace map for one heap reference.
+    pub fn scan(&self, reference: HeapReference) -> HeapResult<TraceMap> {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
         };
 
-        self.reference_map_for_place(location.place)
+        self.trace_map_for_place(location.place)
     }
 
     /// Record one heap write barrier for one live heap allocation.
@@ -66,8 +66,8 @@ impl HeapSpace {
         bytes: &[u8],
     ) -> HeapResult<Vec<SharedHeapReference>> {
         // skip ranges that cannot contain shared references
-        let reference_map = self.reference_map_for_place(location.place)?;
-        if !self.overlaps_shared_roots(&reference_map, byte_offset, bytes.len()) {
+        let trace_map = self.trace_map_for_place(location.place)?;
+        if !self.overlaps_shared_roots(&trace_map, byte_offset, bytes.len()) {
             return Ok(Vec::new());
         }
 
@@ -76,7 +76,7 @@ impl HeapSpace {
         // overwritten references
         let base_address = self.mapping.base_address() + location.base.offset();
         scan_shared_references_in_range(
-            &reference_map,
+            &trace_map,
             byte_offset,
             bytes.len(),
             base_address,
@@ -85,7 +85,7 @@ impl HeapSpace {
 
         // inserted references
         scan_shared_references_in_bytes_range(
-            &reference_map,
+            &trace_map,
             byte_offset,
             bytes.len(),
             bytes,
@@ -172,8 +172,8 @@ impl HeapSpace {
         }
 
         // skip writes that cannot touch shared references
-        let reference_map = self.reference_map_for_place(location.place)?;
-        if !self.overlaps_shared_roots(&reference_map, byte_offset, byte_len) {
+        let trace_map = self.trace_map_for_place(location.place)?;
+        if !self.overlaps_shared_roots(&trace_map, byte_offset, byte_len) {
             return Ok(());
         }
 

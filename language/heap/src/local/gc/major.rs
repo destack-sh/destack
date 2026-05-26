@@ -52,8 +52,8 @@ impl HeapSpace {
         byte_len: usize,
     ) -> HeapResult<()> {
         // skip noscan payloads
-        let reference_map = self.reference_map_for_place(place)?;
-        if !reference_map.has_local_reference() {
+        let trace_map = self.trace_map_for_place(place)?;
+        if !trace_map.has_local_reference() {
             return Ok(());
         }
 
@@ -70,7 +70,7 @@ impl HeapSpace {
         // scan local reference slots in mapped heap memory
         let base_address = self.mapping.base_address() + location.base.offset();
         let result = scan_heap_references_in_range(
-            &reference_map,
+            &trace_map,
             byte_offset,
             scan_len,
             base_address,
@@ -293,19 +293,19 @@ impl HeapSpace {
                     marked_bytes += location.byte_len.max(1);
 
                     // read layout side metadata for this payload
-                    let reference_map =
-                        self.reference_map_for_place(location.place)
-                            .map_err(|error| HeapError::HeapScanFailed {
-                                source: ScanSource::Reference(reference),
-                                error: Box::new(error),
-                            })?;
+                    let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
+                        HeapError::HeapScanFailed {
+                            source: ScanSource::Reference(reference),
+                            error: Box::new(error),
+                        }
+                    })?;
 
                     let mut references = Vec::new();
 
                     // scan every local reference discovered in this payload
                     let base_address = self.mapping.base_address() + location.base.offset();
                     let trace_result =
-                        scan_heap_references(&reference_map, base_address, &mut references);
+                        scan_heap_references(&trace_map, base_address, &mut references);
 
                     if let Err(error) = trace_result {
                         return Err(HeapError::HeapScanFailed {
@@ -340,13 +340,13 @@ impl HeapSpace {
         };
 
         // skip empty ranges and noscan payloads
-        let reference_map = self
-            .reference_map_for_place(location.place)
-            .map_err(|error| HeapError::HeapScanFailed {
+        let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
+            HeapError::HeapScanFailed {
                 source: ScanSource::Reference(reference),
                 error: Box::new(error),
-            })?;
-        if !reference_map.has_local_reference() || start >= location.byte_len {
+            }
+        })?;
+        if !trace_map.has_local_reference() || start >= location.byte_len {
             return Ok(0);
         }
 
@@ -355,7 +355,7 @@ impl HeapSpace {
         let mut references = Vec::new();
         let base_address = self.mapping.base_address() + location.base.offset();
         let trace_result = scan_heap_references_in_range(
-            &reference_map,
+            &trace_map,
             start,
             range_len,
             base_address,
@@ -403,8 +403,8 @@ impl HeapSpace {
 
         if self.mark_place(location.place)? {
             // marked noscan allocations need no queued scan work
-            let reference_map = self.reference_map_for_place(location.place)?;
-            if !reference_map.has_local_reference() {
+            let trace_map = self.trace_map_for_place(location.place)?;
+            if !trace_map.has_local_reference() {
                 return Ok(());
             }
 
