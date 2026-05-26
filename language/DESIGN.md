@@ -1069,7 +1069,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Tuple | `(x, y)` | destructure a tuple value |
 | Array, slice, fixed array | `[head, ...tail]` | destructure indexed elements |
 | Object | `{ kind: "ok", value }` | destructure a structural object |
-| Struct | `Point { x, y }` | destructure a nominal struct |
+| Nominal object | `Point { x, y }`, `User { name }` | match a nominal object-shaped value and destructure stored fields |
 | Newtype | `UserId(value)`, `Config({ debug })` | unwrap a nominal newtype |
 | Enum | `State.Ready` | match a nominal enum variant |
 | Union | `0 | 1 | 2` | accept any listed pattern |
@@ -1081,7 +1081,7 @@ TypeScript has pattern based destructuring for arguments and assignment-like exp
 | Dereference | `*Point { x, y }` | dereference the selected place before matching |
 | Guard | `pattern if (condition)` | require an extra boolean condition |
 
-For exhaustive pattern matching, Destack supports the `match` expression:
+For exhaustive matching with those patterns, Destack supports the `match` expression:
 
 ```ds
 match (result /* Result<T, E> */) {
@@ -1116,6 +1116,32 @@ declare const maybe: Option<int32>;
 let value! = maybe else {
     return Result.err("missing value");
 };
+```
+
+It should be noted that unlike with construction (`{ ... }` for objects, `T { ...}` for structs, `new T(...)` for classes), the pattern _desconstruction_ unifies structs and classes into a single nominal object pattern (`T { ... }`).
+
+```ds
+class User {
+    name: string = "";
+
+    get displayName(): string {
+        return this.name;
+    }
+}
+
+declare const user: User;
+
+match (user) {
+    User { name } => name
+}
+```
+
+The patterns match only real fields, not getters or setters:
+
+```ds
+match (user) {
+    User { displayName } => displayName // ERROR: getter
+}
 ```
 
 ### Guards
