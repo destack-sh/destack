@@ -28,8 +28,8 @@ impl CheckModuleState {
 
         // read bind outputs for real generic parameters
         let source = id.into_any();
-        let owner = self.scope_owner_symbol_maybe(source);
-        let symbol = self.declaration_symbol_maybe(source);
+        let owner = self.scope_owner_symbol(source);
+        let symbol = self.declaration_symbol(source);
 
         match generic_parameter {
             // <T>
@@ -41,7 +41,7 @@ impl CheckModuleState {
             } => {
                 // record the declared slot
                 if let (Some(owner), Some(symbol)) = (owner, symbol) {
-                    let slot = self.explicit_generic_slot(owner, symbol);
+                    let slot = self.allocate_explicit_generic_slot(owner, symbol);
                     let slot_id = slot.id();
                     let variable = self.intern_symbol_type_variable(symbol);
                     let constraint_variable =
@@ -75,7 +75,7 @@ impl CheckModuleState {
             } => {
                 // record the declared variadic slot
                 if let (Some(owner), Some(symbol)) = (owner, symbol) {
-                    let slot = self.explicit_generic_slot(owner, symbol);
+                    let slot = self.allocate_explicit_generic_slot(owner, symbol);
                     let slot_id = slot.id();
                     let variable = self.intern_symbol_type_variable(symbol);
                     let constraint_variable =
@@ -113,7 +113,7 @@ impl CheckModuleState {
 
                 // record the declared static slot
                 if let (Some(owner), Some(symbol)) = (owner, symbol) {
-                    let slot = self.explicit_generic_slot(owner, symbol);
+                    let slot = self.allocate_explicit_generic_slot(owner, symbol);
                     let variable = self.intern_symbol_static_variable(symbol);
                     let constraint_variable =
                         declared_type.map(|id| self.intern_local_type_variable(id));
@@ -153,7 +153,7 @@ impl CheckModuleState {
 
                 // record the declared variadic static slot
                 if let (Some(owner), Some(symbol)) = (owner, symbol) {
-                    let slot = self.explicit_generic_slot(owner, symbol);
+                    let slot = self.allocate_explicit_generic_slot(owner, symbol);
                     let variable = self.intern_symbol_static_variable(symbol);
                     let constraint_variable =
                         declared_type.map(|id| self.intern_local_type_variable(id));
@@ -182,7 +182,7 @@ impl CheckModuleState {
             }
             // ignore damaged syntax
             dir::GenericParameter::Error => {}
-        }
+        };
     }
 
     /// Walk one parameter.
@@ -217,7 +217,7 @@ impl CheckModuleState {
                 default,
                 ..
             } => {
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 let parameter_type = self.intern_parameter_type_variable(id, tree);
 
                 // bind the parameter symbol to its declared or contextual type
@@ -250,7 +250,7 @@ impl CheckModuleState {
             }
             // (p: ...T)
             dir::Parameter::VariadicNamed { declared_type, .. } => {
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 let parameter_type = self.intern_parameter_type_variable(id, tree);
 
                 // bind the variadic parameter symbol
@@ -331,7 +331,7 @@ impl CheckModuleState {
             }
             // ignore damaged syntax
             dir::Parameter::Error => {}
-        }
+        };
     }
 
     /// Constrain one parameter default value to its declared type.
@@ -341,7 +341,7 @@ impl CheckModuleState {
         declared_type: VariableId,
     ) {
         let value = self.intern_local_type_variable(default);
-        let origin = ConstraintOrigin::Node(default.into_global_any(self.input.module));
+        let origin = ConstraintOrigin::Node(default.into_global_any(self.input.module_id));
 
         self.relate_type(origin, TypeRelation::Assignable, value, declared_type);
     }

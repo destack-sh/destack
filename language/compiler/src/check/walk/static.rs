@@ -52,7 +52,7 @@ impl CheckModuleState {
     ) -> bool {
         let context = StaticContext::new(
             self.input.view(),
-            self.input.workspace_module.as_ref(),
+            self.input.module.as_ref(),
             &self.input.profile,
             &self.input.profile.conditions,
             &self.input.strings,
@@ -131,7 +131,7 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::TypeExpression>,
         tree: &dir::Tree,
     ) -> VariableId {
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
         let variable = self.intern_node_static_variable(source);
 
         if let Some(term) = self.static_argument_term(id, tree) {
@@ -177,7 +177,12 @@ impl CheckModuleState {
                 path,
                 generic_arguments,
             } if generic_arguments.is_empty() => {
-                let symbol = self.reference_value_symbol(id.into_any(), path)?;
+                let [name] = path.segments.as_slice() else {
+                    return None;
+                };
+                let symbol = self
+                    .lookup_name(id.into_any(), *name, dir::SymbolSpace::Value)
+                    .unique_symbol()?;
                 if self.is_static_generic_symbol(symbol) {
                     let variable = self.intern_symbol_static_variable(symbol);
 

@@ -36,7 +36,7 @@ impl CheckModuleState {
 
                 self.walk_block(tree, *body, tree.get(*body));
             }
-        }
+        };
     }
 
     /// Walk one match selector into arm-local flow state.
@@ -72,6 +72,6 @@ impl CheckModuleState {
             }
             // default
             dir::MatchSelector::Default => {}
-        }
+        };
     }
 }

@@ -1,12 +1,11 @@
 use destack_dir as dir;
 use std::sync::Arc;
 
-use crate::CompilerResult;
 use crate::check::CheckModuleState;
 
 impl CheckModuleState {
     /// Visit DIR and collect check constraints and obligations.
-    pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
+    pub(in crate::check) fn walk(&mut self) {
         let parsed = Arc::clone(&self.input.parsed);
         let expanded = Arc::clone(&self.input.expanded);
         let tree = &parsed.tree;
@@ -15,8 +14,6 @@ impl CheckModuleState {
         for root in &expanded.roots {
             self.walk_expression(tree, *root, tree.get(*root));
         }
-
-        Ok(())
     }
 }
 

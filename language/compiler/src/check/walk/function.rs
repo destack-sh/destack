@@ -121,9 +121,9 @@ impl CheckModuleState {
 
         // build async result channel
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let source = body.into_global_any(self.input.module);
+            let source = body.into_global_any(self.input.module_id);
             let origin = ConstraintOrigin::Node(source);
-            let completed = self.push_anonymous_variable(VariableKind::Type, origin);
+            let completed = self.allocate_anonymous_variable(VariableKind::Type, origin);
             let Some(symbol) = self
                 .input
                 .environment
@@ -150,11 +150,11 @@ impl CheckModuleState {
 
         // build generator channels
         if signature.is_generator {
-            let source = body.into_global_any(self.input.module);
+            let source = body.into_global_any(self.input.module_id);
             let origin = ConstraintOrigin::Node(source);
-            let yielded = self.push_anonymous_variable(VariableKind::Type, origin);
-            let completed = self.push_anonymous_variable(VariableKind::Type, origin);
-            let resumed = self.push_anonymous_variable(VariableKind::Type, origin);
+            let yielded = self.allocate_anonymous_variable(VariableKind::Type, origin);
+            let completed = self.allocate_anonymous_variable(VariableKind::Type, origin);
+            let resumed = self.allocate_anonymous_variable(VariableKind::Type, origin);
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -190,7 +190,7 @@ impl CheckModuleState {
         }
 
         // enter function flow
-        self.push_function_frame(
+        self.enter_function_frame(
             symbol,
             body_return_type,
             yield_type,
@@ -213,7 +213,7 @@ impl CheckModuleState {
             self.constrain_function_fallthrough_return(tree, body);
         }
 
-        self.pop_function_frame();
+        self.leave_function_frame();
     }
 
     /// Return one runtime function parameter term.
@@ -263,11 +263,11 @@ impl CheckModuleState {
         match parameter {
             // <T>, <...T>
             dir::GenericParameter::Type { .. } | dir::GenericParameter::VariadicType { .. } => self
-                .declaration_symbol_maybe(id.into_any())
+                .declaration_symbol(id.into_any())
                 .map(|symbol| self.intern_symbol_type_variable(symbol)),
             // <comptime C: T>, <comptime ...C: T>
             dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
-                self.declaration_symbol_maybe(id.into_any())
+                self.declaration_symbol(id.into_any())
                     .map(|symbol| self.intern_symbol_static_variable(symbol))
             }
             // ignore damaged syntax

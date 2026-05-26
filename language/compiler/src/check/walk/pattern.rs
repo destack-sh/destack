@@ -91,7 +91,7 @@ impl CheckModuleState {
                     self.walk_pattern(tree, *pattern, tree.get(*pattern));
                 }
             }
-        }
+        };
     }
 
     /// Walk one pattern field.
@@ -135,7 +135,7 @@ impl CheckModuleState {
             | dir::PatternField::Spread { pattern: None }
             // [,]
             | dir::PatternField::Elision => {}
-        }
+        };
     }
 
     /// Walk one assignment pattern.
@@ -170,7 +170,7 @@ impl CheckModuleState {
                     self.walk_assign_pattern_field(tree, *field, tree.get(*field));
                 }
             }
-        }
+        };
     }
 
     /// Walk one assignment pattern field.
@@ -214,7 +214,7 @@ impl CheckModuleState {
             | dir::AssignPatternField::Spread { pattern: None }
             // [,]
             | dir::AssignPatternField::Elision => {}
-        }
+        };
     }
 
     /// Return one pattern term from syntax.
@@ -251,7 +251,7 @@ impl CheckModuleState {
             },
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => PatternTerm::Binding {
-                symbol: self.declaration_symbol_maybe(id.into_any()),
+                symbol: self.declaration_symbol(id.into_any()),
                 pattern: pattern.and_then(|pattern| self.pattern_term(pattern, tree).map(Box::new)),
             },
             // value

@@ -36,7 +36,7 @@ impl CheckModuleState {
             }
             // ignore damaged syntax
             dir::GenericArgument::Error => {}
-        }
+        };
     }
 
     /// Walk one runtime argument.
@@ -72,7 +72,7 @@ impl CheckModuleState {
             }
             // ignore damaged syntax
             dir::Argument::Error => {}
-        }
+        };
     }
 
     /// Return generic argument terms from argument syntax.
@@ -139,7 +139,7 @@ impl CheckModuleState {
             }
             // keep the argument arity visible to solve
             dir::GenericArgument::Error => {
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let variable = self.intern_node_type_variable(source);
 
                 ArgumentTerm::Type(variable)

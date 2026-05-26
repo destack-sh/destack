@@ -120,7 +120,7 @@ impl CheckModuleState {
             }
             // struct User {}
             dir::TypeExpression::Declaration { declaration } => {
-                if let Some(symbol) = self.declaration_symbol_maybe((*declaration).into_any()) {
+                if let Some(symbol) = self.declaration_symbol((*declaration).into_any()) {
                     let term = TypeTerm::Variable(self.intern_symbol_type_variable(symbol));
 
                     self.define_type_expression_type(id, term);
@@ -171,7 +171,7 @@ impl CheckModuleState {
             } => {
                 let arguments = self.generic_arguments(generic_arguments, tree);
                 let term = TypeTerm::Member(MemberTerm {
-                    source: Some(id.into_global_any(self.input.module)),
+                    source: Some(id.into_global_any(self.input.module_id)),
                     owner: self.intern_local_type_variable(*left),
                     key: dir::StaticKey::Name(*name),
                     arguments,
@@ -402,7 +402,7 @@ impl CheckModuleState {
 
                 if let Some(declared_type) = declared_type {
                     if key.direct_static_key().is_some() {
-                        if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                        if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                             let variable = self.intern_symbol_type_variable(symbol);
                             let declared_type = self.intern_local_type_variable(*declared_type);
 
@@ -427,7 +427,7 @@ impl CheckModuleState {
                 self.walk_key(tree, key);
 
                 let receiver = self.type_member_receiver(tree, id, signature, *is_static);
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     let variable = self.intern_symbol_type_variable(symbol);
                     let return_type =
@@ -500,7 +500,7 @@ impl CheckModuleState {
                 ..
             } => {
                 if let Some(value) = value {
-                    if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                    if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                         let variable = self.intern_symbol_type_variable(symbol);
                         let value = self.intern_local_type_variable(*value);
 
@@ -538,7 +538,7 @@ impl CheckModuleState {
                     self.report_missing_type_annotation(id.into_any());
                 }
 
-                if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     // associated const type lives in type space
                     if let Some(declared_type) = declared_type {
                         let variable = self.intern_symbol_type_variable(symbol);
@@ -559,7 +559,7 @@ impl CheckModuleState {
                 // defaults must fit the declared associated const type
                 if let (Some(declared_type), Some(value)) = (declared_type, value) {
                     let origin =
-                        ConstraintOrigin::Node((*value).into_global_any(self.input.module));
+                        ConstraintOrigin::Node((*value).into_global_any(self.input.module_id));
                     let value = self.intern_local_type_variable(*value);
                     let declared_type = self.intern_local_type_variable(*declared_type);
 
@@ -745,7 +745,7 @@ impl CheckModuleState {
         if is_static {
             return None;
         }
-        let Some(symbol) = self.implicit_receiver_symbol_maybe(id.into_any()) else {
+        let Some(symbol) = self.implicit_receiver_symbol(id.into_any()) else {
             return None;
         };
         let Some((owner, ty)) = self.type_member_receiver_type(id) else {
@@ -767,7 +767,7 @@ impl CheckModuleState {
         }
 
         let declaration = self.enclosing_declaration(id.into_any())?;
-        let Some(owner) = self.declaration_symbol_maybe(declaration.into_any()) else {
+        let Some(owner) = self.declaration_symbol(declaration.into_any()) else {
             return None;
         };
         let ty = self.intern_symbol_type_variable(owner);
@@ -786,7 +786,7 @@ impl CheckModuleState {
 
         let declaration = self.enclosing_declaration(id.into_any())?;
 
-        self.declaration_symbol_maybe(declaration.into_any())
+        self.declaration_symbol(declaration.into_any())
     }
 
     /// Return the enclosing object type expression.
@@ -835,10 +835,13 @@ impl CheckModuleState {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
 
         if generic_arguments.is_empty()
-            && let Some(symbol) = self.reference_value_symbol(id.into_any(), path)
+            && let [name] = path.segments.as_slice()
+            && let Some(symbol) = self
+                .lookup_name(id.into_any(), *name, dir::SymbolSpace::Value)
+                .unique_symbol()
             && self.is_static_generic_symbol(symbol)
         {
             let slot_id = self.generic_slot_for_symbol(symbol)?;
@@ -846,7 +849,12 @@ impl CheckModuleState {
             return Some(TypeTerm::Parameter(slot_id));
         }
 
-        let symbol = self.require_reference_type_symbol(id.into_any(), path)?;
+        let [name] = path.segments.as_slice() else {
+            self.report_unresolved_reference(id.into_any(), path);
+
+            return None;
+        };
+        let symbol = self.require_name(id.into_any(), *name, dir::SymbolSpace::Type)?;
 
         if generic_arguments.is_empty() && self.is_type_generic_symbol(symbol) {
             let variable = self.intern_symbol_type_variable(symbol);
@@ -878,11 +886,11 @@ impl CheckModuleState {
 
     /// Define one type expression from the imported or prechecked type table.
     fn define_materialized_type_expression(&mut self, id: dir::LocalNodeId<dir::TypeExpression>) {
-        let source = id.into_global_any(self.input.module);
-        let Some(type_id) = self.input_type_table().get_node_type_id(source) else {
+        let source = id.into_global_any(self.input.module_id);
+        let Some(type_id) = self.input.type_table().get_node_type_id(source) else {
             return;
         };
-        let materialized = self.materialize_type(type_id.into_global(self.input.module));
+        let materialized = self.materialize_type(type_id.into_global(self.input.module_id));
 
         self.define_type_expression_type(id, TypeTerm::Variable(materialized));
     }
@@ -990,7 +998,7 @@ impl CheckModuleState {
                 ..
             } => {
                 let key = key.static_key(tree)?;
-                let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) else {
+                let Some(symbol) = self.declaration_symbol(id.into_any()) else {
                     return None;
                 };
                 let ty = self.intern_symbol_type_variable(symbol);
@@ -1053,7 +1061,7 @@ impl CheckModuleState {
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
         let mapped_parameter = tree.get(parameter);
-        let symbol = self.declaration_symbol_maybe(parameter.into_any())?;
+        let symbol = self.declaration_symbol(parameter.into_any())?;
         let value = value?;
         let parameter = MappedParameterTerm {
             name: mapped_parameter.name,

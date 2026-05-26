@@ -29,6 +29,6 @@ impl CheckModuleState {
             dir::DependencyItem::Binding { value: None, .. } => {}
             // ignore damaged syntax
             dir::DependencyItem::Error => {}
-        }
+        };
     }
 }

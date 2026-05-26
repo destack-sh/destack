@@ -9,15 +9,12 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::Expression>,
         tree: &dir::Tree,
     ) -> Option<Place> {
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
         let ty = self.intern_local_type_variable(id);
         let target = match tree.get(id) {
             // x
             dir::Expression::Identifier { name } => {
-                let path = dir::Path {
-                    segments: smallvec::smallvec![*name],
-                };
-                let symbol = self.require_reference_value_symbol(id.into_any(), &path)?;
+                let symbol = self.require_name(id.into_any(), *name, dir::SymbolSpace::Value)?;
 
                 self.record_name_resolution(source, dir::NameResolution::new(symbol));
 
@@ -25,7 +22,12 @@ impl CheckModuleState {
             }
             // namespace.x
             dir::Expression::QualifiedReference { path, .. } => {
-                let symbol = self.require_reference_value_symbol(id.into_any(), path)?;
+                let [name] = path.segments.as_slice() else {
+                    self.report_unresolved_reference(id.into_any(), path);
+
+                    return None;
+                };
+                let symbol = self.require_name(id.into_any(), *name, dir::SymbolSpace::Value)?;
 
                 self.record_name_resolution(source, dir::NameResolution::new(symbol));
 
