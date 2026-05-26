@@ -4,7 +4,7 @@ use dir::NodeVisitor as _;
 use crate::check::{
     ArgumentTerm, AwaitTerm, CallCandidate, CallTerm, CheckModuleState, ConstraintOrigin,
     ConstructTerm, FormTerm, IdentityTerm, ImportMetaTerm, IndexSetTerm, IndexTerm,
-    InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm, MemberTerm, NewTargetTerm, OperatorTerm,
+    InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm, MemberTerm, OperatorTerm,
     OperatorTermKind, PatternRelation, RangeValueTerm, ShapeMemberTerm, SuperTerm,
     TaggedTemplateTerm, TemplateTerm, TreeTerm, TryTerm, TryTermKind, TupleElementTerm,
     TypeLiteralTerm, TypeOperationTerm, TypeRelation, TypeTerm, TypeValueTerm, VariableId,
@@ -42,7 +42,7 @@ impl CheckModuleState {
 
             if let (Some(failure), Some(ty)) = (failure, catch.ty) {
                 let expected = self.intern_local_type_variable(ty);
-                let origin = ConstraintOrigin::Node(ty.into_global_any(self.input.module));
+                let origin = ConstraintOrigin::Node(ty.into_global_any(self.input.module_id));
 
                 self.relate_type(origin, TypeRelation::Assignable, failure, expected);
             }
@@ -102,7 +102,7 @@ impl CheckModuleState {
             // function f() {}
             dir::Expression::Declaration(declaration) => {
                 if tree.get(*declaration).symbol_form().is_some() {
-                    if let Some(symbol) = self.declaration_symbol_maybe((*declaration).into_any()) {
+                    if let Some(symbol) = self.declaration_symbol((*declaration).into_any()) {
                         let term = TypeTerm::Variable(self.intern_symbol_type_variable(symbol));
 
                         self.define_expression_type(id, term);
@@ -170,6 +170,7 @@ impl CheckModuleState {
                 }
                 self.restore_flow(before_else);
                 self.mark_declarator_assigned(tree, tree.get(*declarator));
+                self.apply_declarator_pattern_narrowings(tree, *declarator);
             }
             // if condition { then } else { otherwise }
             dir::Expression::If {
@@ -281,16 +282,16 @@ impl CheckModuleState {
             // continue
             dir::Expression::Continue { label } => {
                 self.define_expression_type(id, TypeTerm::Literal(TypeLiteralTerm::Never));
-                self.record_continue(id.into_any(), *label);
+                self.validate_continue_target(id.into_any(), *label);
             }
             // await value
             dir::Expression::Await {
                 expression: awaited,
             } => {
-                self.record_await(id.into_any());
+                self.validate_await_context(id.into_any());
 
                 let term = TypeTerm::Await(AwaitTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     value: self.intern_local_type_variable(*awaited),
                 });
 
@@ -317,11 +318,11 @@ impl CheckModuleState {
             }
             // yield value
             dir::Expression::Yield { cardinality, value } => {
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let origin = ConstraintOrigin::Node(source);
                 let value_type = value.map(|value| self.intern_local_type_variable(value));
                 let delegate_return_type = if *cardinality == dir::YieldCardinality::Generator {
-                    Some(self.push_anonymous_variable(VariableKind::Type, origin))
+                    Some(self.allocate_anonymous_variable(VariableKind::Type, origin))
                 } else {
                     None
                 };
@@ -366,7 +367,7 @@ impl CheckModuleState {
             }
             // super
             dir::Expression::Super => {
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let receiver = self
                     .resolve_this_receiver(source)
                     .map(|receiver| receiver.ty);
@@ -377,16 +378,7 @@ impl CheckModuleState {
             // import.meta
             dir::Expression::ImportMeta => {
                 let term = TypeTerm::ImportMeta(ImportMetaTerm {
-                    source: id.into_global_any(self.input.module),
-                });
-
-                self.define_expression_type(id, term);
-            }
-            // new.target
-            dir::Expression::NewTarget => {
-                let term = TypeTerm::NewTarget(NewTargetTerm {
-                    source: id.into_global_any(self.input.module),
-                    function_return: self.current_return_type(),
+                    source: id.into_global_any(self.input.module_id),
                 });
 
                 self.define_expression_type(id, term);
@@ -423,7 +415,7 @@ impl CheckModuleState {
                 end_kind,
             } => {
                 let term = TypeTerm::RangeValue(RangeValueTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     start: start.map(|start| self.intern_local_type_variable(start)),
                     end: end.map(|end| self.intern_local_type_variable(end)),
                     end_kind: *end_kind,
@@ -442,7 +434,7 @@ impl CheckModuleState {
             dir::Expression::TemplateExpression { value } => {
                 let (strings, spans) = self.template_parts(value, tree);
                 let term = TypeTerm::Template(TemplateTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     strings,
                     spans,
                 });
@@ -459,7 +451,7 @@ impl CheckModuleState {
                 let (strings, spans) = self.template_parts(value, tree);
                 let generic_arguments_term = self.generic_arguments(generic_arguments, tree);
                 let term = TypeTerm::TaggedTemplate(TaggedTemplateTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     tag: self.intern_local_type_variable(*tag),
                     generic_arguments: generic_arguments_term,
                     strings,
@@ -477,9 +469,9 @@ impl CheckModuleState {
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
-                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
                 let element_types = self.argument_value_type_variables(elements, tree);
-                let element = self.push_anonymous_variable(VariableKind::Type, origin);
+                let element = self.allocate_anonymous_variable(VariableKind::Type, origin);
                 let length = dir::StaticTerm::ScalarLiteral {
                     value: dir::ScalarLiteral::Integer(element_types.len() as i64),
                 };
@@ -592,7 +584,7 @@ impl CheckModuleState {
                                 continue;
                             };
                             let ty = self
-                                .declaration_symbol_maybe((*property).into_any())
+                                .declaration_symbol((*property).into_any())
                                 .map(|symbol| self.intern_symbol_type_variable(symbol))
                                 .unwrap_or_else(|| self.intern_local_type_variable(*property));
 
@@ -621,7 +613,7 @@ impl CheckModuleState {
             }
             // Type { key: value }
             dir::Expression::StructExpression { ty, properties } => {
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let owner = self.intern_local_type_variable(*ty);
 
                 for property in properties {
@@ -661,7 +653,7 @@ impl CheckModuleState {
                 elements,
             } => {
                 let term = TypeTerm::Tree(TreeTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     tag: left.map(|left| self.intern_local_type_variable(left)),
                     generic_arguments: self.generic_arguments(generic_arguments, tree),
                     arguments: arguments
@@ -703,7 +695,7 @@ impl CheckModuleState {
             // type T
             dir::Expression::Type { value } => {
                 let term = TypeTerm::TypeValue(TypeValueTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     ty: self.intern_local_type_variable(*value),
                 });
 
@@ -724,7 +716,7 @@ impl CheckModuleState {
             } => {
                 let child_type = self.intern_local_type_variable(*child);
                 let target_type_variable = self.intern_local_type_variable(*target_type);
-                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
 
                 self.define_expression_type(id, TypeTerm::Variable(target_type_variable));
                 self.relate_type(
@@ -743,7 +735,7 @@ impl CheckModuleState {
             } => {
                 let child_type = self.intern_local_type_variable(*child);
                 let target_type_variable = self.intern_local_type_variable(*target_type);
-                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
 
                 self.define_expression_type(id, TypeTerm::Variable(child_type));
                 self.relate_type(
@@ -764,7 +756,7 @@ impl CheckModuleState {
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
                 let term = TypeTerm::InstanceCheck(InstanceCheckTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     value: self.intern_local_type_variable(*value),
                     target: self.intern_local_type_variable(*target),
                 });
@@ -799,7 +791,7 @@ impl CheckModuleState {
                 }
 
                 let term = TypeTerm::Operator(OperatorTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     kind: OperatorTermKind::Unary(*operator),
                     receiver: self.intern_local_type_variable(*right),
                     argument: None,
@@ -822,13 +814,13 @@ impl CheckModuleState {
             dir::Expression::BorrowOf {
                 mutability, right, ..
             } => {
-                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+                let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
                 let access = mutability
                     .map(dir::Mutability::access)
                     .unwrap_or(dir::Access::Mutable);
                 let access = dir::StaticTerm::Access { access };
                 let access = self.define_static_literal(origin, access);
-                let lifetime = self.push_anonymous_variable(VariableKind::Static, origin);
+                let lifetime = self.allocate_anonymous_variable(VariableKind::Static, origin);
                 let term = TypeTerm::Form {
                     form: FormTerm::Borrowed { lifetime, access },
                     payload: self.intern_local_type_variable(*right),
@@ -846,7 +838,7 @@ impl CheckModuleState {
                         TypeTerm::Variable(narrowed)
                     } else {
                         TypeTerm::Member(MemberTerm {
-                            source: Some(id.into_global_any(self.input.module)),
+                            source: Some(id.into_global_any(self.input.module_id)),
                             owner: self.intern_local_type_variable(*left),
                             key: dir::StaticKey::Name(*name),
                             arguments: Vec::new(),
@@ -865,7 +857,7 @@ impl CheckModuleState {
                         TypeTerm::Variable(narrowed)
                     } else {
                         TypeTerm::Index(IndexTerm {
-                            source: id.into_global_any(self.input.module),
+                            source: id.into_global_any(self.input.module_id),
                             receiver: self.intern_local_type_variable(*left),
                             index: self.intern_local_type_variable(*index),
                             key: tree.get(*index).static_key(),
@@ -887,7 +879,7 @@ impl CheckModuleState {
                 generic_arguments,
             } => {
                 if let Some(symbol) = self.resolve_call_candidate_symbol(*left, tree) {
-                    let source = id.into_global_any(self.input.module);
+                    let source = id.into_global_any(self.input.module_id);
                     let arguments = self.applied_generic_arguments(symbol, generic_arguments, tree);
                     let term = TypeTerm::Reference {
                         source: Some(source),
@@ -911,7 +903,7 @@ impl CheckModuleState {
                 arguments,
                 ..
             } => {
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let callee = self.intern_local_type_variable(*left);
 
                 // value.member()
@@ -978,7 +970,7 @@ impl CheckModuleState {
                 arguments,
             } => {
                 let term = TypeTerm::Construct(ConstructTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     callee: self.intern_local_type_variable(*left),
                     generic_arguments: self.generic_arguments(generic_arguments, tree),
                     arguments: self.argument_value_type_variables(arguments, tree),
@@ -999,11 +991,11 @@ impl CheckModuleState {
             dir::Expression::AwaitMaybe {
                 expression: awaited,
             } => {
-                self.record_await(id.into_any());
+                self.validate_await_context(id.into_any());
 
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let origin = ConstraintOrigin::Node(source);
-                let awaited_type = self.push_anonymous_variable(VariableKind::Type, origin);
+                let awaited_type = self.allocate_anonymous_variable(VariableKind::Type, origin);
                 let value = self.intern_local_type_variable(*awaited);
 
                 self.define_type_term(awaited_type, TypeTerm::Await(AwaitTerm { source, value }));
@@ -1011,7 +1003,7 @@ impl CheckModuleState {
                 let term = TryTerm {
                     source,
                     value: awaited_type,
-                    kind: TryTermKind::Propagate,
+                    kind: TryTermKind::Maybe,
                 };
 
                 self.define_expression_type(id, TypeTerm::Try(term.clone()));
@@ -1023,11 +1015,11 @@ impl CheckModuleState {
             dir::Expression::AwaitMust {
                 expression: awaited,
             } => {
-                self.record_await(id.into_any());
+                self.validate_await_context(id.into_any());
 
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let origin = ConstraintOrigin::Node(source);
-                let awaited_type = self.push_anonymous_variable(VariableKind::Type, origin);
+                let awaited_type = self.allocate_anonymous_variable(VariableKind::Type, origin);
                 let value = self.intern_local_type_variable(*awaited);
 
                 self.define_type_term(awaited_type, TypeTerm::Await(AwaitTerm { source, value }));
@@ -1035,7 +1027,7 @@ impl CheckModuleState {
                 let term = TryTerm {
                     source,
                     value: awaited_type,
-                    kind: TryTermKind::Trap,
+                    kind: TryTermKind::Must,
                 };
 
                 self.define_expression_type(id, TypeTerm::Try(term));
@@ -1044,9 +1036,9 @@ impl CheckModuleState {
             // value?
             dir::Expression::Maybe { left, .. } => {
                 let tried = TryTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     value: self.intern_local_type_variable(*left),
-                    kind: TryTermKind::Propagate,
+                    kind: TryTermKind::Maybe,
                 };
 
                 self.define_expression_type(id, TypeTerm::Try(tried.clone()));
@@ -1057,9 +1049,9 @@ impl CheckModuleState {
             // value!
             dir::Expression::Must { left, .. } => {
                 let term = TypeTerm::Try(TryTerm {
-                    source: id.into_global_any(self.input.module),
+                    source: id.into_global_any(self.input.module_id),
                     value: self.intern_local_type_variable(*left),
-                    kind: TryTermKind::Trap,
+                    kind: TryTermKind::Must,
                 });
 
                 self.define_expression_type(id, term);
@@ -1071,7 +1063,7 @@ impl CheckModuleState {
                 operator,
                 right,
             } => {
-                let source = id.into_global_any(self.input.module);
+                let source = id.into_global_any(self.input.module_id);
                 let left_type = self.intern_local_type_variable(*left);
                 let right_type = self.intern_local_type_variable(*right);
                 let term = match operator {
@@ -1142,7 +1134,7 @@ impl CheckModuleState {
                         // target
                         dir::AssignPattern::Expression { value: place } => {
                             let receiver = self.intern_local_type_variable(*place);
-                            let source = id.into_global_any(self.input.module);
+                            let source = id.into_global_any(self.input.module_id);
                             let term = if let Some(binary_operator) = operator.binary_operator() {
                                 TypeTerm::Operator(OperatorTerm {
                                     source,
@@ -1155,7 +1147,7 @@ impl CheckModuleState {
                                     elements: vec![receiver, value],
                                 })
                             };
-                            let result = self.push_anonymous_variable(
+                            let result = self.allocate_anonymous_variable(
                                 VariableKind::Type,
                                 ConstraintOrigin::Node(source),
                             );
@@ -1185,7 +1177,7 @@ impl CheckModuleState {
                             } = tree.get(*place)
                             {
                                 TypeTerm::IndexSet(IndexSetTerm {
-                                    source: id.into_global_any(self.input.module),
+                                    source: id.into_global_any(self.input.module_id),
                                     receiver: self.intern_local_type_variable(*left),
                                     index: self.intern_local_type_variable(*index),
                                     value: assigned_value,
@@ -1264,11 +1256,8 @@ impl CheckModuleState {
         name: dir::StringId,
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
-        let path = dir::Path {
-            segments: smallvec::smallvec![name],
-        };
-        let symbol = self.require_reference_value_symbol(id.into_any(), &path)?;
-        let source = id.into_global_any(self.input.module);
+        let symbol = self.require_name(id.into_any(), name, dir::SymbolSpace::Value)?;
+        let source = id.into_global_any(self.input.module_id);
 
         self.capture_symbol_reference(symbol);
         self.record_name_resolution(source, dir::NameResolution::new(symbol));
@@ -1284,7 +1273,7 @@ impl CheckModuleState {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<TypeTerm> {
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
         let receiver = self.resolve_this_receiver(source)?;
 
         Some(TypeTerm::Variable(receiver.ty))
@@ -1298,8 +1287,13 @@ impl CheckModuleState {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
-        let symbol = self.require_reference_value_symbol(id.into_any(), path)?;
-        let source = id.into_global_any(self.input.module);
+        let [name] = path.segments.as_slice() else {
+            self.report_unresolved_reference(id.into_any(), path);
+
+            return None;
+        };
+        let symbol = self.require_name(id.into_any(), *name, dir::SymbolSpace::Value)?;
+        let source = id.into_global_any(self.input.module_id);
 
         self.capture_symbol_reference(symbol);
         self.record_name_resolution(source, dir::NameResolution::new(symbol));
@@ -1328,11 +1322,10 @@ impl CheckModuleState {
         let dir::Expression::Identifier { name } = tree.get(left) else {
             return None;
         };
-        let path = dir::Path {
-            segments: smallvec::smallvec![*name],
-        };
-        let symbol = self.reference_value_symbol(left.into_any(), &path)?;
-        let source = left.into_global_any(self.input.module);
+        let symbol = self
+            .lookup_name(left.into_any(), *name, dir::SymbolSpace::Value)
+            .unique_symbol()?;
+        let source = left.into_global_any(self.input.module_id);
 
         self.record_name_resolution(source, dir::NameResolution::new(symbol));
 
@@ -1352,7 +1345,7 @@ impl CheckModuleState {
             return None;
         };
 
-        self.declaration_symbol_maybe((*value).into_any())
+        self.declaration_symbol((*value).into_any())
     }
 
     /// Return template literal parts.
@@ -1460,8 +1453,8 @@ impl CheckModuleState {
         // enter labeled control target
         let result = self.intern_local_type_variable(id);
         let allows_continue = Self::expression_allows_continue_label(tree.get(body));
-        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
-        self.push_control_target(origin, Some(label), allows_continue, result);
+        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
+        self.enter_control_target(origin, Some(label), allows_continue, result);
 
         // walk body with isolated flow
         let before_body = self.checkpoint_flow();
@@ -1473,13 +1466,15 @@ impl CheckModuleState {
         };
 
         // merge fallthrough and break branches
-        let body_flow = fallthrough.is_some().then(|| self.branch_flow(before_body));
-        let mut branches = self.pop_control_target_flow(fallthrough);
+        let body_flow = fallthrough
+            .is_some()
+            .then(|| self.collect_flow_branch(before_body));
+        let mut branches = self.leave_control_target(fallthrough);
         if let Some(body_flow) = body_flow {
             branches.push(body_flow);
         }
 
-        self.restore_merged_flow_branches(before_body, branches);
+        self.merge_flow_branches_from(before_body, &branches);
     }
 
     /// Walk one if expression with isolated branch flow.
@@ -1496,31 +1491,31 @@ impl CheckModuleState {
         self.restore_flow(before);
         self.apply_condition_narrowings(tree, condition, ConditionBranch::True);
         self.walk_expression(tree, then_expression, tree.get(then_expression));
-        let then_flow = self.branch_flow(before);
+        let then_flow = self.collect_flow_branch(before);
         let then_can_fall_through = self.expression_can_fall_through(tree, then_expression);
 
         if let Some(else_expression) = else_expression {
             self.restore_flow(before);
             self.apply_condition_narrowings(tree, condition, ConditionBranch::False);
             self.walk_expression(tree, else_expression, tree.get(else_expression));
-            let else_flow = self.branch_flow(before);
+            let else_flow = self.collect_flow_branch(before);
             let else_can_fall_through = self.expression_can_fall_through(tree, else_expression);
 
             match (then_can_fall_through, else_can_fall_through) {
-                (true, true) => self.merge_flow_branches(before, then_flow, else_flow),
-                (true, false) => self.restore_flow_branch(before, then_flow),
-                (false, true) => self.restore_flow_branch(before, else_flow),
+                (true, true) => self.merge_flow_branches(before, &then_flow, &else_flow),
+                (true, false) => self.apply_flow_branch(before, &then_flow),
+                (false, true) => self.apply_flow_branch(before, &else_flow),
                 (false, false) => self.restore_flow(before),
             }
         } else {
             self.restore_flow(before);
             self.apply_condition_narrowings(tree, condition, ConditionBranch::False);
-            let else_flow = self.branch_flow(before);
+            let else_flow = self.collect_flow_branch(before);
 
             if then_can_fall_through {
-                self.merge_flow_branches(before, else_flow, then_flow);
+                self.merge_flow_branches(before, &else_flow, &then_flow);
             } else {
-                self.restore_flow_branch(before, else_flow);
+                self.apply_flow_branch(before, &else_flow);
             }
         }
     }
@@ -1557,6 +1552,7 @@ impl CheckModuleState {
             // if let pattern = value
             dir::IfCondition::Let { declarator, .. } if branch == ConditionBranch::True => {
                 self.mark_declarator_assigned(tree, tree.get(*declarator));
+                self.apply_declarator_pattern_narrowings(tree, *declarator);
             }
             // if let pattern = value
             dir::IfCondition::Let { .. } => {}
@@ -1714,7 +1710,7 @@ impl CheckModuleState {
         let Some(key) = tree.get(key).static_key() else {
             return;
         };
-        let source = value.into_global_any(self.input.module);
+        let source = value.into_global_any(self.input.module_id);
         let origin = ConstraintOrigin::Node(source);
         let ty = self.define_type(origin, TypeTerm::Literal(TypeLiteralTerm::Unknown));
         let member = ShapeMemberTerm::Field {
@@ -1791,7 +1787,7 @@ impl CheckModuleState {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<VariableId> {
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
         let origin = ConstraintOrigin::Node(source);
         let term = match tree.get(id) {
             // literal
@@ -1837,7 +1833,7 @@ impl CheckModuleState {
             // unsupported typeof string
             _ => return None,
         };
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
         let origin = ConstraintOrigin::Node(source);
         let term = TypeTerm::Literal(literal);
 
@@ -1877,9 +1873,9 @@ impl CheckModuleState {
         self.constrain_condition(condition.into_any(), condition_type);
 
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
         let result = self.intern_local_type_variable(id);
-        self.push_control_target(origin, None, true, result);
+        self.enter_control_target(origin, None, true, result);
 
         // walk body under true condition facts
         let before_body = self.checkpoint_flow();
@@ -1889,13 +1885,13 @@ impl CheckModuleState {
 
         // collect normal exit through false condition
         self.apply_expression_narrowings(tree, condition, ConditionBranch::False);
-        let normal_flow = self.branch_flow(before_body);
+        let normal_flow = self.collect_flow_branch(before_body);
         let mut branches =
-            self.pop_control_target_flow(Some(TypeTerm::Literal(TypeLiteralTerm::Void)));
+            self.leave_control_target(Some(TypeTerm::Literal(TypeLiteralTerm::Void)));
 
         // merge break branches with normal exit
         branches.push(normal_flow);
-        self.restore_merged_flow_branches(before_body, branches);
+        self.merge_flow_branches_from(before_body, &branches);
     }
 
     /// Walk one for each expression.
@@ -1918,9 +1914,9 @@ impl CheckModuleState {
         self.constrain_for_each_binding(id, operator, pattern, iterator, tree);
 
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
         let result = self.intern_local_type_variable(id);
-        self.push_control_target(origin, None, true, result);
+        self.enter_control_target(origin, None, true, result);
 
         // walk body with iteration binding assigned
         let before_body = self.checkpoint_flow();
@@ -1929,13 +1925,13 @@ impl CheckModuleState {
         self.restore_flow(before_body);
 
         // collect normal loop exit
-        let normal_flow = self.branch_flow(before_body);
+        let normal_flow = self.collect_flow_branch(before_body);
         let mut branches =
-            self.pop_control_target_flow(Some(TypeTerm::Literal(TypeLiteralTerm::Void)));
+            self.leave_control_target(Some(TypeTerm::Literal(TypeLiteralTerm::Void)));
 
         // merge break branches with normal exit
         branches.push(normal_flow);
-        self.restore_merged_flow_branches(before_body, branches);
+        self.merge_flow_branches_from(before_body, &branches);
     }
 
     /// Walk one traditional for expression.
@@ -1962,9 +1958,9 @@ impl CheckModuleState {
         }
 
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
         let result = self.intern_local_type_variable(id);
-        self.push_control_target(origin, None, true, result);
+        self.enter_control_target(origin, None, true, result);
 
         // walk body and increment under true condition facts
         let before_body = self.checkpoint_flow();
@@ -1981,17 +1977,17 @@ impl CheckModuleState {
         let normal_flow = condition.map(|condition| {
             self.apply_expression_narrowings(tree, condition, ConditionBranch::False);
 
-            self.branch_flow(before_body)
+            self.collect_flow_branch(before_body)
         });
         let fallthrough = condition.map(|_| TypeTerm::Literal(TypeLiteralTerm::Void));
-        let mut branches = self.pop_control_target_flow(fallthrough);
+        let mut branches = self.leave_control_target(fallthrough);
 
         // merge break branches with normal exit
         if let Some(normal_flow) = normal_flow {
             branches.push(normal_flow);
         }
 
-        self.restore_merged_flow_branches(before_body, branches);
+        self.merge_flow_branches_from(before_body, &branches);
     }
 
     /// Constrain one for each binding to its iterated value.
@@ -2003,13 +1999,13 @@ impl CheckModuleState {
         iterator: dir::LocalNodeId<dir::Expression>,
         tree: &dir::Tree,
     ) {
-        let source = id.into_global_any(self.input.module);
+        let source = id.into_global_any(self.input.module_id);
         let origin = ConstraintOrigin::Node(source);
         let iterator_type = self.intern_local_type_variable(iterator);
         let value = match operator {
             // for (const item of iterable)
             dir::ForEachOperator::Of => {
-                let value = self.push_anonymous_variable(VariableKind::Type, origin);
+                let value = self.allocate_anonymous_variable(VariableKind::Type, origin);
                 let unknown = self.define_type(origin, TypeTerm::Literal(TypeLiteralTerm::Unknown));
                 let Some(symbol) = self
                     .input
@@ -2062,9 +2058,9 @@ impl CheckModuleState {
         body: dir::LocalNodeId<dir::Block>,
     ) {
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module));
+        let origin = ConstraintOrigin::Node(id.into_global_any(self.input.module_id));
         let result = self.intern_local_type_variable(id);
-        self.push_control_target(origin, None, true, result);
+        self.enter_control_target(origin, None, true, result);
 
         // walk body with isolated flow
         let before_body = self.checkpoint_flow();
@@ -2072,8 +2068,8 @@ impl CheckModuleState {
         self.restore_flow(before_body);
 
         // restore only branches that leave the loop
-        let branches = self.pop_control_target_flow(None);
-        self.restore_merged_flow_branches(before_body, branches);
+        let branches = self.leave_control_target(None);
+        self.merge_flow_branches_from(before_body, &branches);
     }
 
     /// Walk one try expression with branch flow for catch.
@@ -2090,11 +2086,11 @@ impl CheckModuleState {
         // walk the body branch from the incoming facts
         self.restore_flow(before);
         if catch.is_some() {
-            self.push_try_target(id.into_any());
+            self.enter_try_target(id.into_any());
         }
         self.walk_expression(tree, body, tree.get(body));
-        let catch_failure = catch.and_then(|_| self.pop_try_target());
-        let body_flow = self.branch_flow(before);
+        let catch_failure = catch.and_then(|_| self.leave_try_target());
+        let body_flow = self.collect_flow_branch(before);
         let body_can_fall_through = self.expression_can_fall_through(tree, body);
 
         // merge only branches that can continue normally
@@ -2103,21 +2099,21 @@ impl CheckModuleState {
 
             self.restore_flow(before);
             self.walk_catch(tree, catch, tree.get(catch), catch_failure);
-            let catch_flow = self.branch_flow(before);
+            let catch_flow = self.collect_flow_branch(before);
 
             match (body_can_fall_through, catch_can_fall_through) {
                 (true, true) => {
-                    self.merge_flow_branches(before, body_flow, catch_flow);
+                    self.merge_flow_branches(before, &body_flow, &catch_flow);
 
                     true
                 }
                 (true, false) => {
-                    self.restore_flow_branch(before, body_flow);
+                    self.apply_flow_branch(before, &body_flow);
 
                     true
                 }
                 (false, true) => {
-                    self.restore_flow_branch(before, catch_flow);
+                    self.apply_flow_branch(before, &catch_flow);
 
                     true
                 }
@@ -2128,7 +2124,7 @@ impl CheckModuleState {
                 }
             }
         } else if body_can_fall_through {
-            self.restore_flow_branch(before, body_flow);
+            self.apply_flow_branch(before, &body_flow);
 
             true
         } else {
@@ -2171,18 +2167,18 @@ impl CheckModuleState {
             if !self.match_case_can_fall_through(tree, tree.get(*case)) {
                 continue;
             }
-            let case_flow = self.branch_flow(before);
+            let case_flow = self.collect_flow_branch(before);
 
-            if let Some(previous) = merged {
-                self.merge_flow_branches(before, previous, case_flow);
-                merged = Some(self.branch_flow(before));
+            if let Some(previous) = &merged {
+                self.merge_flow_branches(before, previous, &case_flow);
+                merged = Some(self.collect_flow_branch(before));
             } else {
                 merged = Some(case_flow);
             }
         }
 
         if let Some(merged) = merged {
-            self.restore_flow_branch(before, merged);
+            self.apply_flow_branch(before, &merged);
         } else {
             self.restore_flow(before);
         }
@@ -2277,7 +2273,6 @@ impl CheckModuleState {
             | dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::Super
             | dir::Expression::ImportMeta
-            | dir::Expression::NewTarget
             | dir::Expression::Debugger
             | dir::Expression::Missing
             | dir::Expression::Stub

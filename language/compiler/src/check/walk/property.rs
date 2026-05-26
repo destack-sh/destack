@@ -46,7 +46,7 @@ impl CheckModuleState {
                     self.walk_key(tree, key);
                 }
 
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 let return_type =
                     self.intern_signature_return_type_variable(id.into_any(), signature, *body);
                 if let Some(symbol) = symbol {
@@ -68,7 +68,7 @@ impl CheckModuleState {
             }
             // ignore damaged syntax
             dir::Property::Error => {}
-        }
+        };
     }
 
     /// Walk one member.
@@ -97,7 +97,7 @@ impl CheckModuleState {
             } => {
                 // value
                 if let Some(value) = value
-                    && let Some(symbol) = self.declaration_symbol_maybe(id.into_any())
+                    && let Some(symbol) = self.declaration_symbol(id.into_any())
                 {
                     let variable = self.intern_symbol_type_variable(symbol);
                     let value = self.intern_local_type_variable(*value);
@@ -140,7 +140,7 @@ impl CheckModuleState {
                     self.report_missing_type_annotation(id.into_any());
                 }
 
-                if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     // associated const type lives in type space
                     if let Some(declared_type) = declared_type {
                         let variable = self.intern_symbol_type_variable(symbol);
@@ -161,7 +161,7 @@ impl CheckModuleState {
                 // defaults must fit the declared type
                 if let (Some(declared_type), Some(value)) = (declared_type, value) {
                     let origin =
-                        ConstraintOrigin::Node((*value).into_global_any(self.input.module));
+                        ConstraintOrigin::Node((*value).into_global_any(self.input.module_id));
                     let value = self.intern_local_type_variable(*value);
                     let declared_type = self.intern_local_type_variable(*declared_type);
 
@@ -191,7 +191,7 @@ impl CheckModuleState {
 
                 if let Some(declared_type) = declared_type {
                     if key.direct_static_key().is_some() {
-                        if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                        if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                             let variable = self.intern_symbol_type_variable(symbol);
                             let declared_type = self.intern_local_type_variable(*declared_type);
 
@@ -203,7 +203,7 @@ impl CheckModuleState {
                 // defaults must fit the declared field type
                 if let (Some(declared_type), Some(default)) = (declared_type, default) {
                     let origin =
-                        ConstraintOrigin::Node((*default).into_global_any(self.input.module));
+                        ConstraintOrigin::Node((*default).into_global_any(self.input.module_id));
                     let value = self.intern_local_type_variable(*default);
                     let declared_type = self.intern_local_type_variable(*declared_type);
 
@@ -232,7 +232,7 @@ impl CheckModuleState {
 
                 let receiver =
                     self.member_receiver(tree, id, signature, *is_static, receiver_context);
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     let variable = self.intern_symbol_type_variable(symbol);
                     let return_type = self.method_return_type(id, signature, *body, receiver);
@@ -268,7 +268,7 @@ impl CheckModuleState {
             }
             // ignore damaged syntax
             dir::Member::Error => {}
-        }
+        };
     }
 
     /// Return the lexical receiver visible inside one method body.
@@ -295,7 +295,7 @@ impl CheckModuleState {
         let Some(context) = receiver_context else {
             return None;
         };
-        let Some(symbol) = self.implicit_receiver_symbol_maybe(id.into_any()) else {
+        let Some(symbol) = self.implicit_receiver_symbol(id.into_any()) else {
             return None;
         };
 

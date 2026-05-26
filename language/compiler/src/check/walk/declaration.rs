@@ -36,7 +36,7 @@ impl CheckModuleState {
             // type X = T
             dir::Declaration::Type(declaration) => {
                 // define the declaration symbol output
-                if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     if declaration.is_nominal {
                         self.define_declaration_self_type(
                             symbol,
@@ -64,7 +64,7 @@ impl CheckModuleState {
             }
             // struct S { ... }
             dir::Declaration::Struct(declaration) => {
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     self.define_declaration_self_type(
                         symbol,
@@ -98,7 +98,7 @@ impl CheckModuleState {
             }
             // class C { ... }
             dir::Declaration::Class(declaration) => {
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     self.define_declaration_self_type(
                         symbol,
@@ -135,7 +135,7 @@ impl CheckModuleState {
             }
             // enum E { ... }
             dir::Declaration::Enum(declaration) => {
-                let symbol = self.declaration_symbol_maybe(id.into_any());
+                let symbol = self.declaration_symbol(id.into_any());
                 if let Some(symbol) = symbol {
                     self.define_declaration_self_type(
                         symbol,
@@ -173,7 +173,7 @@ impl CheckModuleState {
             // interface I { ... }
             dir::Declaration::Interface(declaration) => {
                 // define the interface symbol output
-                if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     if declaration.is_nominal {
                         self.define_declaration_self_type(
                             symbol,
@@ -206,7 +206,7 @@ impl CheckModuleState {
             }
             // extension T { ... }
             dir::Declaration::Extension(declaration) => {
-                if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     self.intern_symbol_type_variable(symbol);
                 }
 
@@ -243,7 +243,7 @@ impl CheckModuleState {
                 let return_type = self.intern_function_return_type_variable(id, declaration, tree);
 
                 // define the callable symbol output
-                if let Some(symbol) = self.declaration_symbol_maybe(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
                     let variable = self.intern_symbol_type_variable(symbol);
                     let term =
                         self.function_signature_term(&declaration.signature, return_type, tree);
@@ -262,7 +262,7 @@ impl CheckModuleState {
                     self.walk_function_signature(tree, &declaration.signature);
                 }
             }
-        }
+        };
     }
 
     /// Walk one enum field.
@@ -300,7 +300,7 @@ impl CheckModuleState {
                 continue;
             }
 
-            let Some(parameter_symbol) = self.declaration_symbol_maybe(parameter.into_any()) else {
+            let Some(parameter_symbol) = self.declaration_symbol(parameter.into_any()) else {
                 continue;
             };
 
@@ -385,7 +385,7 @@ impl CheckModuleState {
 
                 self.constrain_return_value(body.into_any(), value);
             }
-        }
+        };
     }
 
     /// Walk one function signature without entering the function body.
@@ -461,7 +461,7 @@ impl CheckModuleState {
     ) -> Option<ReceiverCapture> {
         // no `this` parameter means no lexical receiver
         let parameter = this_parameter?;
-        let Some(symbol) = self.declaration_symbol_maybe(parameter.into_any()) else {
+        let Some(symbol) = self.declaration_symbol(parameter.into_any()) else {
             return None;
         };
 
@@ -487,6 +487,6 @@ impl CheckModuleState {
         body?;
 
         // otherwise use the declaration node as the inferred output
-        Some(self.intern_node_type_variable(source.into_global(self.input.module)))
+        Some(self.intern_node_type_variable(source.into_global(self.input.module_id)))
     }
 }
