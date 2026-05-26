@@ -85,7 +85,9 @@ impl AddressSpaceShape {
     /// Fork one materialized address space eagerly and return its first word address.
     pub(crate) fn fork_eager_word(self) -> (AddressSpace, AddressSpace, *mut usize) {
         let parent = self.materialize();
-        let child = parent.fork_eager(..).expect("eager fork should succeed");
+        let child = parent
+            .fork_eager(0..parent.byte_len())
+            .expect("eager fork should succeed");
         let address = child
             .address(0, size_of::<usize>())
             .expect("forked address should resolve")

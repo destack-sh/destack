@@ -1,5 +1,4 @@
-use std::ops::RangeBounds;
-use std::ptr::copy_nonoverlapping;
+use std::ops::Range;
 
 use super::page::PageMap;
 use crate::MemoryResult;
@@ -13,10 +12,10 @@ pub struct AddressSpace {
     map: PageMap,
 }
 
-// SAFETY: page-table mutations are synchronized inside the address space
+// SAFETY: page table mutations are synchronized inside the address space
 unsafe impl Send for AddressSpace {}
 
-// SAFETY: exposed raw writes are caller-synchronized via safepoints
+// SAFETY: exposed raw writes are caller synchronized via safepoints
 unsafe impl Sync for AddressSpace {}
 
 impl AddressSpace {
@@ -43,10 +42,7 @@ impl AddressSpace {
     /// Fork this address space and eagerly isolate mapped pages in one byte range.
     ///
     /// Reserved pages inside the range stay unmaterialized.
-    pub fn fork_eager<R>(&self, range: R) -> MemoryResult<Self>
-    where
-        R: RangeBounds<usize>,
-    {
+    pub fn fork_eager(&self, range: Range<usize>) -> MemoryResult<Self> {
         let mapping = Self {
             map: self.map.fork_eager(range)?,
         };
@@ -59,7 +55,7 @@ impl AddressSpace {
         self.map.byte_len()
     }
 
-    /// Return the native page-frame width used by this address space.
+    /// Return the native page frame width used by this address space.
     pub const fn frame_bytes(&self) -> usize {
         self.map.frame_bytes()
     }
@@ -74,7 +70,7 @@ impl AddressSpace {
         self.map.zero(offset, byte_len)
     }
 
-    /// Read bytes into a caller-provided buffer.
+    /// Read bytes into a caller provided buffer.
     pub fn read_bytes_into(&self, offset: usize, target: &mut [u8]) -> MemoryResult<()> {
         self.map.read_bytes_into(offset, target)
     }
@@ -101,7 +97,7 @@ impl AddressSpace {
         self.map.make_writable(offset, byte_len)
     }
 
-    /// Write caller-provided bytes into this address space.
+    /// Write caller provided bytes into this address space.
     pub fn write_bytes(&self, offset: usize, bytes: &[u8]) -> MemoryResult<()> {
         self.map.write_bytes(offset, bytes)
     }
@@ -113,12 +109,8 @@ impl AddressSpace {
     /// The byte range must be live and fully materialized in this address space.
     #[inline(always)]
     pub unsafe fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
-        let target = (self.base_address() + offset) as *mut u8;
-
         // SAFETY: caller owns the mapped range invariant
-        unsafe {
-            copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
-        }
+        unsafe { self.map.write_mapped_bytes(offset, bytes) }
     }
 }
 
@@ -179,7 +171,7 @@ mod tests {
         assert_eq!(child_bytes, [9, 8, 7, 6]);
     }
 
-    /// Lazy fork writes isolate multi-page byte ranges.
+    /// Lazy fork writes isolate multi page byte ranges.
     #[test]
     fn test_fork_lazy_write_bytes_isolates_multi_page_range() {
         let frame_bytes = platform::system_frame_bytes().expect("frame size should resolve");
@@ -273,7 +265,7 @@ mod tests {
         assert_eq!(grandchild_bytes, [9, 8, 7, 6]);
     }
 
-    /// Modified re-forks keep later writes isolated.
+    /// Modified reforks keep later writes isolated.
     #[test]
     fn test_fork_isolates_modified_child_page() {
         let frame_bytes = platform::system_frame_bytes().expect("frame size should resolve");

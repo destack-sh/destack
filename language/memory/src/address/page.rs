@@ -1,4 +1,4 @@
-use std::ops::{Bound, RangeBounds};
+use std::ops::Range;
 use std::ptr::{copy_nonoverlapping, read_volatile, write_bytes, write_volatile};
 use std::sync::Arc;
 
@@ -15,7 +15,7 @@ pub(super) struct PageMap {
     space: VirtualSpace,
     /// The reserved byte length.
     byte_len: usize,
-    /// The fixed platform page-frame width.
+    /// The fixed platform page frame width.
     frame_bytes: usize,
     /// The platform allocator for mapped page frames.
     frames: Arc<PageFrameAllocator>,
@@ -23,7 +23,7 @@ pub(super) struct PageMap {
     pages: Arc<PageTable>,
     /// The write watch registration for this map.
     write_watch: Option<WriteWatchRegistration>,
-    /// The page-table mutation lock.
+    /// The page table mutation lock.
     lock: Mutex<()>,
 }
 
@@ -48,11 +48,11 @@ impl PageMap {
         let space = platform::reserve_virtual_space(self.byte_len)?;
         let fork = Self::new(space, self.byte_len, self.frame_bytes, self.frames.clone())?;
 
-        // native targets use read-only cow mappings for shared pages
+        // native targets use read only cow mappings for shared pages
         if platform::SUPPORTS_SHARED_PAGE_FRAMES {
             self.fork_shared_frames(&fork)?;
         }
-        // wasm copies materialized linear-memory pages
+        // wasm copies materialized linear memory pages
         else {
             self.fork_copied_frames(&fork)?;
         }
@@ -61,15 +61,12 @@ impl PageMap {
     }
 
     /// Fork this page map and eagerly isolate mapped pages in one byte range.
-    pub(super) fn fork_eager<R>(&self, range: R) -> MemoryResult<Self>
-    where
-        R: RangeBounds<usize>,
-    {
+    pub(super) fn fork_eager(&self, range: Range<usize>) -> MemoryResult<Self> {
+        let (first_frame, end_frame) = self.range_frames(range)?;
         let fork = self.fork_lazy()?;
-        let (offset, byte_len) = self.byte_range(range)?;
 
         // prepare only pages that already exist in the fork
-        fork.make_mapped_writable(offset, byte_len)?;
+        fork.make_mapped_frame_range_writable(first_frame, end_frame)?;
 
         Ok(fork)
     }
@@ -79,7 +76,7 @@ impl PageMap {
         self.byte_len
     }
 
-    /// Return the native page-frame width used by this map.
+    /// Return the native page frame width used by this map.
     pub(super) const fn frame_bytes(&self) -> usize {
         self.frame_bytes
     }
@@ -103,7 +100,7 @@ impl PageMap {
         Ok(())
     }
 
-    /// Read bytes into a caller-provided buffer.
+    /// Read bytes into a caller provided buffer.
     pub(super) fn read_bytes_into(&self, offset: usize, target: &mut [u8]) -> MemoryResult<()> {
         let (first_frame, end_frame) = self.frame_range(offset, target.len())?;
 
@@ -112,14 +109,14 @@ impl PageMap {
             return Ok(());
         }
 
-        let mut written = 0;
+        let read_end = offset + target.len();
 
         // copy mapped pages and synthesize zeroes for reserved pages
         for page_index in first_frame..end_frame {
             let page_start = page_index * self.frame_bytes;
             let page_end = page_start + self.frame_bytes;
             let copy_start = offset.max(page_start);
-            let copy_end = (offset + target.len()).min(page_end);
+            let copy_end = read_end.min(page_end);
             let copy_len = copy_end - copy_start;
             let target_start = copy_start - offset;
 
@@ -127,16 +124,12 @@ impl PageMap {
             if self.pages.is_mapped(page_index) {
                 self.copy_mapped_bytes_to(copy_start, &mut target[target_start..][..copy_len]);
 
-                written += copy_len;
                 continue;
             }
 
             // reserved pages are logically zero
             target[target_start..target_start + copy_len].fill(0);
-            written += copy_len;
         }
-
-        debug_assert_eq!(written, target.len());
 
         Ok(())
     }
@@ -217,19 +210,7 @@ impl PageMap {
         self.make_mapped_frame_range_writable(first_frame, end_frame)
     }
 
-    /// Make already mapped pages in one byte range writable.
-    fn make_mapped_writable(&self, offset: usize, byte_len: usize) -> MemoryResult<()> {
-        let (first_frame, end_frame) = self.frame_range(offset, byte_len)?;
-
-        // empty ranges only validate the range
-        if byte_len == 0 {
-            return Ok(());
-        }
-
-        self.make_mapped_frame_range_writable(first_frame, end_frame)
-    }
-
-    /// Write caller-provided bytes directly into this page map.
+    /// Write caller provided bytes directly into this page map.
     pub(super) fn write_bytes(&self, offset: usize, bytes: &[u8]) -> MemoryResult<()> {
         self.make_writable(offset, bytes.len())?;
 
@@ -238,7 +219,17 @@ impl PageMap {
         Ok(())
     }
 
-    /// Make already mapped shared pages in one page-frame range writable.
+    /// Copy bytes into a range the caller knows is already mapped.
+    ///
+    /// # Safety
+    ///
+    /// The byte range must be live and fully materialized in this page map.
+    #[inline(always)]
+    pub(super) unsafe fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
+        self.copy_bytes_to_mapped(offset, bytes);
+    }
+
+    /// Make already mapped shared pages in one page frame range writable.
     fn make_mapped_frame_range_writable(
         &self,
         first_frame: usize,
@@ -372,7 +363,7 @@ impl PageMap {
                 PageState::Reserved => {
                     page_offset += 1;
                 }
-                // owned pages become read-only cow frames in both maps
+                // owned pages become read only cow frames in both maps
                 PageState::Owned(frame) => {
                     parent_frames.push((page_index, frame));
                     child_frames.push((page_index, frame));
@@ -585,7 +576,7 @@ impl PageMap {
         )
     }
 
-    /// Return the half-open page-frame range touched by one byte range.
+    /// Return the half open page frame range touched by one byte range.
     fn frame_range(&self, offset: usize, byte_len: usize) -> MemoryResult<(usize, usize)> {
         // reject ranges that start outside the reservation
         if offset > self.byte_len {
@@ -606,7 +597,7 @@ impl PageMap {
             });
         }
 
-        // convert byte bounds to page-frame bounds
+        // convert byte bounds to page frame bounds
         let end = offset + byte_len;
         let first_frame = offset / self.frame_bytes;
         let end_frame = end.div_ceil(self.frame_bytes);
@@ -614,23 +605,12 @@ impl PageMap {
         Ok((first_frame, end_frame))
     }
 
-    /// Return one byte range from Rust range bounds.
-    fn byte_range<R>(&self, range: R) -> MemoryResult<(usize, usize)>
-    where
-        R: RangeBounds<usize>,
-    {
-        let start = match range.start_bound() {
-            Bound::Included(start) => *start,
-            Bound::Excluded(start) => *start + 1,
-            Bound::Unbounded => 0,
-        };
-        let end = match range.end_bound() {
-            Bound::Included(end) => *end + 1,
-            Bound::Excluded(end) => *end,
-            Bound::Unbounded => self.byte_len,
-        };
+    /// Return the frame range for one validated byte range.
+    fn range_frames(&self, range: Range<usize>) -> MemoryResult<(usize, usize)> {
+        let start = range.start;
+        let end = range.end;
 
-        // reject reversed ranges through the normal byte-range error
+        // reject reversed ranges through the normal byte range error
         if end < start {
             return Err(MemoryError::InvalidByteRange {
                 start,
@@ -639,7 +619,8 @@ impl PageMap {
             });
         }
 
-        Ok((start, end - start))
+        let byte_len = end - start;
+        self.frame_range(start, byte_len)
     }
 }
 

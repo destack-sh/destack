@@ -10,61 +10,6 @@ use crate::platform::PageFrame;
 /// The number of page entries stored in one sparse table chunk.
 const PAGE_CHUNK_LEN: usize = 1024;
 
-/// The atomic state tag for one mapped page.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PageTag {
-    /// Virtual address space is reserved, but no frame is mapped.
-    Reserved = 0,
-    /// One writable owner has current bytes in the backing frame.
-    Owned = 1,
-    /// One fork-shared page has current bytes in the backing frame.
-    Shared = 2,
-    /// One fork-shared page may have private bytes outside the backing frame.
-    Modified = 3,
-}
-
-impl PageTag {
-    /// Return the atomic byte representation.
-    const fn byte(self) -> u8 {
-        self as u8
-    }
-
-    /// Return the page tag represented by one atomic byte.
-    fn from_byte(byte: u8) -> Self {
-        match byte {
-            0 => Self::Reserved,
-            1 => Self::Owned,
-            2 => Self::Shared,
-            3 => Self::Modified,
-            _ => unreachable!("invalid page tag"),
-        }
-    }
-}
-
-/// The mapping state for one materialized page.
-#[derive(Debug, Clone, Copy)]
-pub(super) enum PageState {
-    /// The page is reserved but not mapped.
-    Reserved,
-    /// The page is writable by this map and the backing frame is current.
-    Owned(PageFrame),
-    /// The page is fork-shared and the backing frame is current.
-    Shared(PageFrame),
-    /// The page is writable by this map and may differ from the backing frame.
-    Modified(PageFrame),
-}
-
-impl PageState {
-    /// Return the backing frame for mapped page states.
-    pub(super) fn frame(self) -> Option<PageFrame> {
-        match self {
-            Self::Reserved => None,
-            Self::Owned(frame) | Self::Shared(frame) | Self::Modified(frame) => Some(frame),
-        }
-    }
-}
-
 /// Atomic page metadata for one address map.
 #[derive(Debug)]
 pub(super) struct PageTable {
@@ -74,7 +19,7 @@ pub(super) struct PageTable {
     /// The reserved byte length.
     #[cfg(not(target_arch = "wasm32"))]
     byte_len: usize,
-    /// The native page-frame width.
+    /// The native page frame width.
     #[cfg(not(target_arch = "wasm32"))]
     frame_bytes: usize,
     /// The number of pages covered by the table.
@@ -106,22 +51,6 @@ impl PageTable {
             page_count,
             chunks,
         }
-    }
-
-    /// Return one page entry by index when its chunk exists.
-    fn entry(&self, page_index: usize) -> Option<&PageEntry> {
-        let (chunk_index, entry_index) = self.chunk_location(page_index);
-        let chunk = self.chunk(chunk_index)?;
-
-        Some(&chunk.entries[entry_index])
-    }
-
-    /// Return one page entry by index, creating its chunk when needed.
-    fn ensure_entry(&self, page_index: usize) -> &PageEntry {
-        let (chunk_index, entry_index) = self.chunk_location(page_index);
-        let chunk = self.ensure_chunk(chunk_index);
-
-        &chunk.entries[entry_index]
     }
 
     /// Return one page state.
@@ -177,8 +106,7 @@ impl PageTable {
                     .enumerate()
                     .filter_map(move |(entry_index, entry)| {
                         let page_index = page_start + entry_index;
-                        let is_inside_table = page_index < page_count;
-                        if !is_inside_table {
+                        if page_index >= page_count {
                             return None;
                         }
 
@@ -188,6 +116,22 @@ impl PageTable {
                         }
                     })
             })
+    }
+
+    /// Return one page entry by index when its chunk exists.
+    fn entry(&self, page_index: usize) -> Option<&PageEntry> {
+        let (chunk_index, entry_index) = self.chunk_location(page_index);
+        let chunk = self.chunk(chunk_index)?;
+
+        Some(&chunk.entries[entry_index])
+    }
+
+    /// Return one page entry by index, creating its chunk when needed.
+    fn ensure_entry(&self, page_index: usize) -> &PageEntry {
+        let (chunk_index, entry_index) = self.chunk_location(page_index);
+        let chunk = self.ensure_chunk(chunk_index);
+
+        &chunk.entries[entry_index]
     }
 
     /// Return one chunk and entry index for a page index.
@@ -250,11 +194,16 @@ impl PageTable {
     /// Mark the watched shared page modified and writable.
     #[cfg(not(target_arch = "wasm32"))]
     fn handle_write_watch(&self, address: usize) -> bool {
-        if address < self.base_address || address >= self.base_address + self.byte_len {
+        if address < self.base_address {
             return false;
         }
 
-        let page_index = (address - self.base_address) / self.frame_bytes;
+        let offset = address - self.base_address;
+        if offset >= self.byte_len {
+            return false;
+        }
+
+        let page_index = offset / self.frame_bytes;
         let Some(entry) = self.entry(page_index) else {
             return false;
         };
@@ -263,15 +212,13 @@ impl PageTable {
         }
 
         let base = self.base_address as *mut u8;
-
-        if platform::make_shared_pages_writable(
+        let result = platform::make_shared_pages_writable(
             base,
             page_index,
             self.frame_bytes,
             self.frame_bytes,
-        )
-        .is_err()
-        {
+        );
+        if result.is_err() {
             return false;
         }
 
@@ -289,10 +236,33 @@ impl Drop for PageTable {
                 continue;
             }
 
-            // SAFETY: each non-null slot stores one Box allocated by ensure_chunk
+            // SAFETY: each non null slot stores one Box allocated by ensure_chunk
             unsafe {
                 drop(Box::from_raw(pointer));
             }
+        }
+    }
+}
+
+/// The mapping state for one materialized page.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum PageState {
+    /// The page is reserved but not mapped.
+    Reserved,
+    /// The page is writable by this map and the backing frame is current.
+    Owned(PageFrame),
+    /// The page is fork shared and the backing frame is current.
+    Shared(PageFrame),
+    /// The page is writable by this map and may differ from the backing frame.
+    Modified(PageFrame),
+}
+
+impl PageState {
+    /// Return the backing frame for mapped page states.
+    pub(super) fn frame(self) -> Option<PageFrame> {
+        match self {
+            Self::Reserved => None,
+            Self::Owned(frame) | Self::Shared(frame) | Self::Modified(frame) => Some(frame),
         }
     }
 }
@@ -316,22 +286,9 @@ impl PageChunk {
     }
 }
 
-/// Mark one watched page modified.
-///
-/// # Safety
-///
-/// The context must be a live page table registered by its owning page map.
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) unsafe fn watch_page_write(context: *const (), address: usize) -> bool {
-    // SAFETY: the platform watch table registers only live page-table pointers
-    let pages = unsafe { &*(context.cast::<PageTable>()) };
-
-    pages.handle_write_watch(address)
-}
-
 /// One page entry in a forkable address map.
 #[derive(Debug)]
-pub(super) struct PageEntry {
+struct PageEntry {
     /// The current page state.
     state: AtomicU8,
     /// The backing frame for mapped page states.
@@ -355,7 +312,7 @@ impl PageEntry {
 
     /// Return the current page state.
     pub(super) fn state(&self) -> PageState {
-        let tag = PageTag::from_byte(self.state.load(Ordering::Acquire));
+        let tag = self.tag();
 
         match tag {
             PageTag::Reserved => PageState::Reserved,
@@ -363,11 +320,6 @@ impl PageEntry {
             PageTag::Shared => PageState::Shared(self.frame()),
             PageTag::Modified => PageState::Modified(self.frame()),
         }
-    }
-
-    /// Return true when a page frame is mapped.
-    fn is_mapped(&self) -> bool {
-        self.tag() != PageTag::Reserved
     }
 
     /// Store one page state.
@@ -388,13 +340,18 @@ impl PageEntry {
         }
     }
 
-    /// Return true when this page is fork-shared.
+    /// Return true when a page frame is mapped.
+    fn is_mapped(&self) -> bool {
+        self.tag() != PageTag::Reserved
+    }
+
+    /// Return true when this page is fork shared.
     #[cfg(not(target_arch = "wasm32"))]
     fn is_shared(&self) -> bool {
         self.tag() == PageTag::Shared
     }
 
-    /// Mark one fork-shared page modified.
+    /// Mark one fork shared page modified.
     #[cfg(not(target_arch = "wasm32"))]
     fn mark_modified(&self) {
         self.set_tag(PageTag::Modified);
@@ -402,7 +359,7 @@ impl PageEntry {
 
     /// Store one mapped frame and state.
     fn set_frame(&self, frame: PageFrame, tag: PageTag) {
-        // SAFETY: callers serialize frame writes with the page-map lock
+        // SAFETY: callers serialize frame writes with the page map lock
         unsafe {
             *self.frame.get() = MaybeUninit::new(frame);
         }
@@ -422,9 +379,54 @@ impl PageEntry {
 
     /// Return the mapped page frame.
     fn frame(&self) -> PageFrame {
-        // SAFETY: non-reserved tags are published only after the frame is initialized
+        // SAFETY: non reserved tags are published only after the frame is initialized
         unsafe { (*self.frame.get()).assume_init() }
     }
+}
+
+/// The atomic state tag for one mapped page.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PageTag {
+    /// Virtual address space is reserved, but no frame is mapped.
+    Reserved = 0,
+    /// One writable owner has current bytes in the backing frame.
+    Owned = 1,
+    /// One fork shared page has current bytes in the backing frame.
+    Shared = 2,
+    /// One fork shared page may have private bytes outside the backing frame.
+    Modified = 3,
+}
+
+impl PageTag {
+    /// Return the atomic byte representation.
+    const fn byte(self) -> u8 {
+        self as u8
+    }
+
+    /// Return the page tag represented by one atomic byte.
+    fn from_byte(byte: u8) -> Self {
+        match byte {
+            0 => Self::Reserved,
+            1 => Self::Owned,
+            2 => Self::Shared,
+            3 => Self::Modified,
+            _ => unreachable!("invalid page tag"),
+        }
+    }
+}
+
+/// Mark one watched page modified.
+///
+/// # Safety
+///
+/// The context must be a live page table registered by its owning page map.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) unsafe fn watch_page_write(context: *const (), address: usize) -> bool {
+    // SAFETY: the platform watch table registers only live page table pointers
+    let pages = unsafe { &*(context.cast::<PageTable>()) };
+
+    pages.handle_write_watch(address)
 }
 
 #[cfg(test)]
@@ -445,8 +447,8 @@ mod tests {
     #[test]
     fn test_set_state_allocates_touched_chunks() {
         let table = PageTable::new(0, PAGE_CHUNK_LEN * 4 * 4096, 4096);
-        let first = PageFrame { offset: 0 };
-        let second = PageFrame { offset: 4096 };
+        let first = test_page_frame(0);
+        let second = test_page_frame(4096);
         let page_index = PAGE_CHUNK_LEN + 3;
 
         table.set_state(0, PageState::Owned(first));
@@ -461,5 +463,28 @@ mod tests {
         assert!(
             matches!(states[1], (index, PageState::Shared(frame)) if index == page_index && frame == second)
         );
+    }
+
+    /// Create a test frame for the active platform.
+    #[cfg(unix)]
+    fn test_page_frame(offset: u64) -> PageFrame {
+        PageFrame { offset }
+    }
+
+    /// Create a test frame for the active platform.
+    #[cfg(windows)]
+    fn test_page_frame(offset: u64) -> PageFrame {
+        PageFrame {
+            section_index: 0,
+            offset,
+        }
+    }
+
+    /// Create a test frame for the active platform.
+    #[cfg(target_arch = "wasm32")]
+    fn test_page_frame(index: u64) -> PageFrame {
+        PageFrame {
+            index: index as usize,
+        }
     }
 }
