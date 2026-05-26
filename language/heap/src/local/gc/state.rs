@@ -4,19 +4,45 @@ use crate::local::gc::PinSet;
 use crate::local::space::LargeAllocationId;
 use crate::{HeapReference, TraceQueue, TraceReference};
 
+/// The budget charged for one metadata-only GC step.
+pub(crate) const GC_METADATA_STEP_BYTES: usize = 1;
+
+/// The number of metadata bits skipped by one bitmap word scan.
+pub(crate) const GC_METADATA_WORD_BITS: usize = u64::BITS as usize;
+
 /// Active local collector state.
 #[derive(Debug, Default)]
 pub(crate) struct LocalGcState {
     /// The reusable minor collector trace queue.
     pub(crate) minor_queue: HeapTraceQueue,
+    /// The current local young collection phase.
+    pub(crate) young_phase: YoungGcPhase,
+    /// The next young range start bit to sweep.
+    pub(crate) young_sweep_range_cursor: usize,
+    /// The next young run index to sweep.
+    pub(crate) young_sweep_run_cursor: usize,
+    /// The next slot inside the current young run to sweep.
+    pub(crate) young_sweep_slot_cursor: usize,
+    /// The next dirty mature span queued for young marking.
+    pub(crate) young_dirty_span_cursor: usize,
+    /// The next dirty card inside the current mature span.
+    pub(crate) young_dirty_span_card_cursor: usize,
+    /// The next dirty mature large allocation queued for young marking.
+    pub(crate) young_dirty_large_cursor: usize,
+    /// The next dirty card inside the current mature large allocation.
+    pub(crate) young_dirty_large_card_cursor: usize,
+    /// The number of allocations freed by the active young cycle.
+    pub(crate) young_freed_allocations: usize,
+    /// The number of bytes freed by the active young cycle.
+    pub(crate) young_freed_bytes: u64,
     /// The current local major collection phase.
     pub(crate) major_phase: LocalGcPhase,
     /// The persistent trace queue for an active local major cycle.
     pub(crate) major_queue: LocalTraceQueue,
-    /// The stable sweep reference snapshot for an active local major cycle.
-    pub(crate) major_sweep_references: Vec<HeapReference>,
-    /// The next sweep snapshot index to visit.
-    pub(crate) major_sweep_cursor: usize,
+    /// The active local mark epoch.
+    pub(crate) mark_epoch: u64,
+    /// The active major sweep cursor.
+    pub(crate) major_sweep: MajorSweepCursor,
     /// The number of allocations freed by the active local major cycle.
     pub(crate) major_freed_allocations: usize,
     /// The number of bytes freed by the active local major cycle.
@@ -186,6 +212,18 @@ pub(crate) type LocalTraceQueue = TraceQueue<LocalTraceWork>;
 /// Collector queue for local-to-shared edge work.
 pub(crate) type SharedEdgeQueue = TraceQueue<SharedEdgeWork>;
 
+/// The current local young collection phase.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum YoungGcPhase {
+    /// No young collection is active.
+    #[default]
+    Idle,
+    /// The young collector is marking reachable nursery allocations.
+    Mark,
+    /// The young collector is reclaiming unreachable nursery allocations.
+    Sweep,
+}
+
 /// The current local major collection phase.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LocalGcPhase {
@@ -196,6 +234,27 @@ pub(crate) enum LocalGcPhase {
     Mark,
     /// The major collector is reclaiming unreachable allocations.
     Sweep,
+}
+
+/// Active local major sweep cursor.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct MajorSweepCursor {
+    /// The next young range start bit to sweep.
+    pub(crate) young_range_cursor: usize,
+    /// The next young run index to sweep.
+    pub(crate) young_run_cursor: usize,
+    /// The next young run slot index to sweep.
+    pub(crate) young_slot_cursor: usize,
+    /// The next mature small span index to sweep.
+    pub(crate) small_span_cursor: usize,
+    /// The next mature small span slot index to sweep.
+    pub(crate) small_slot_cursor: usize,
+    /// The mature small span table length captured when sweep started.
+    pub(crate) small_span_limit: usize,
+    /// The next mature large allocation index to sweep.
+    pub(crate) large_cursor: usize,
+    /// The mature large allocation table length captured when sweep started.
+    pub(crate) large_limit: usize,
 }
 
 /// One queued unit of local major mark work.

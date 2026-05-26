@@ -9,5 +9,4 @@ mod state;
 
 pub(crate) use card::*;
 pub(crate) use pin::*;
-pub(crate) use promotion::*;
 pub(crate) use state::*;

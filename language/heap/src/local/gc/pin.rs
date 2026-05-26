@@ -51,34 +51,14 @@ impl PinSet {
         !self.counts.is_empty()
     }
 
+    /// Return whether one heap reference is currently pinned.
+    pub(crate) fn contains(&self, reference: HeapReference) -> bool {
+        self.counts.contains_key(&reference)
+    }
+
     /// Return every currently pinned heap reference.
     pub(crate) fn references(&self) -> impl Iterator<Item = HeapReference> + '_ {
         self.counts.keys().copied()
-    }
-
-    /// Rewrite every pinned reference through one relocation lookup.
-    pub(crate) fn rewrite_with(
-        &mut self,
-        mut rewrite: impl FnMut(HeapReference) -> HeapResult<Option<HeapReference>>,
-    ) -> HeapResult<()> {
-        let previous_counts = std::mem::take(&mut self.counts);
-        let mut next_counts: BTreeMap<HeapReference, NonZeroUsize> = BTreeMap::new();
-
-        for (reference, count) in previous_counts {
-            let reference = rewrite(reference)?.unwrap_or(reference);
-
-            if let Some(previous_count) = next_counts.get_mut(&reference) {
-                *previous_count = Self::checked_add_nonzero(*previous_count, count)?;
-
-                continue;
-            }
-
-            next_counts.insert(reference, count);
-        }
-
-        self.counts = next_counts;
-
-        Ok(())
     }
 
     /// Add two non-zero pin counts.
