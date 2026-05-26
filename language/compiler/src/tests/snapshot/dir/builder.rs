@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
@@ -29,6 +30,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) strings: &'a StringPool,
     /// The binding table used for human-readable symbol labels.
     pub(super) bindings: Option<&'a dir::BindingTable<'a>>,
+    /// The local binding name index.
+    pub(super) binding_names: Option<BindingSnapshotName<'a>>,
     /// The checked generic table.
     pub(super) generics: Option<dir::GenericTable<'static>>,
     /// The visible type table used by layout anchors.
@@ -37,8 +40,11 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) statics: Option<dir::StaticTable<'static>>,
     /// Module paths used in multi-module snapshots.
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
+    /// Foreign binding tables keyed by module.
+    pub(super) foreign_bindings: BTreeMap<ModuleId, dir::BindingTable<'a>>,
     /// Foreign symbol labels keyed by module and local symbol.
-    pub(super) foreign_symbol_labels: BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>,
+    pub(super) foreign_symbol_labels:
+        RefCell<BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>>,
     /// Semantic type labels keyed by local type id.
     pub(super) type_labels: BTreeMap<dir::LocalTypeId, String>,
     /// Semantic static labels keyed by local static id.
@@ -61,11 +67,13 @@ impl<'a> DirSnapshotBuilder<'a> {
             tree,
             strings,
             bindings: None,
+            binding_names: None,
             generics: None,
             types: None,
             statics: None,
             module_path_by_id: None,
-            foreign_symbol_labels: BTreeMap::new(),
+            foreign_bindings: BTreeMap::new(),
+            foreign_symbol_labels: RefCell::new(BTreeMap::new()),
             type_labels: BTreeMap::new(),
             static_labels: BTreeMap::new(),
             binding_nodes: false,
@@ -78,6 +86,12 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Set the binding table used for symbol labels.
     pub(crate) fn with_bindings(mut self, bindings: &'a dir::BindingTable<'a>) -> Self {
         self.bindings = Some(bindings);
+        self.binding_names = Some(BindingSnapshotName::new(
+            bindings,
+            Some(self.tree),
+            self.strings,
+        ));
+
         self
     }
 
@@ -95,15 +109,8 @@ impl<'a> DirSnapshotBuilder<'a> {
         mut self,
         foreign_bindings: Vec<dir::BindingTable<'a>>,
     ) -> Self {
-        for bindings in &foreign_bindings {
-            let names = BindingSnapshotName::new(bindings, None, self.strings);
-            let labels = bindings
-                .symbol_ids()
-                .map(|symbol_id| (symbol_id, names.symbol_path(symbol_id)))
-                .collect::<BTreeMap<_, _>>();
-
-            self.foreign_symbol_labels
-                .insert(bindings.module_id, labels);
+        for bindings in foreign_bindings {
+            self.foreign_bindings.insert(bindings.module_id, bindings);
         }
 
         self
@@ -910,8 +917,10 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Return the binding snapshot names.
-    fn binding_names(&self) -> BindingSnapshotName<'a> {
-        BindingSnapshotName::new(self.binding_table(), Some(self.tree), self.strings)
+    fn binding_names(&self) -> &BindingSnapshotName<'a> {
+        self.binding_names
+            .as_ref()
+            .unwrap_or_else(|| panic!("dir snapshot needs binding names"))
     }
 
     /// Return the active binding table.
@@ -931,14 +940,34 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one foreign symbol label.
     fn foreign_symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
         let module = self.module_label(symbol_id.module_id);
-        let symbol = self
-            .foreign_symbol_labels
+        let symbol = if let Some(symbol) = self.cached_foreign_symbol_label(symbol_id) {
+            symbol
+        } else if let Some(bindings) = self.foreign_bindings.get(&symbol_id.module_id) {
+            let names = BindingSnapshotName::new(bindings, None, self.strings);
+            let labels = names.symbol_path_labels();
+            let symbol = labels
+                .get(&symbol_id.local_id)
+                .cloned()
+                .unwrap_or_else(|| BindingSnapshotName::local_symbol(symbol_id.local_id));
+            self.foreign_symbol_labels
+                .borrow_mut()
+                .insert(symbol_id.module_id, labels);
+
+            symbol
+        } else {
+            BindingSnapshotName::local_symbol(symbol_id.local_id)
+        };
+
+        format!("{module}.{symbol}")
+    }
+
+    /// Return one cached foreign symbol label.
+    fn cached_foreign_symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        self.foreign_symbol_labels
+            .borrow()
             .get(&symbol_id.module_id)
             .and_then(|labels| labels.get(&symbol_id.local_id))
             .cloned()
-            .unwrap_or_else(|| BindingSnapshotName::local_symbol(symbol_id.local_id));
-
-        format!("{module}.{symbol}")
     }
 
     /// Render one module path as a compact qualifier.
