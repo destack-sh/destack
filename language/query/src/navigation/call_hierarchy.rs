@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_dir::{GlobalSymbolId, SymbolForm};
+use destack_dir::{GlobalSymbolId, SymbolKind};
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -185,7 +185,7 @@ pub fn outgoing_calls(
         let is_function = {
             let target_symbols = target_ctx.dir().symbols();
             let target_symbol = target_symbols.get_symbol(target_symbol_id.local_id);
-            target_symbol.form == SymbolForm::Function
+            target_symbol.kind == SymbolKind::Function
         };
         if !is_function {
             continue;
@@ -243,7 +243,7 @@ fn call_hierarchy_item_from_symbol(
     let name = {
         let symbols = canonical_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        if symbol.form != SymbolForm::Function {
+        if symbol.kind != SymbolKind::Function {
             return None;
         }
         canonical_ctx.symbol_name(canonical_id)?

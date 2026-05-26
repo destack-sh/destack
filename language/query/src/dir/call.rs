@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_dir::{
     CallTarget as DirCallTarget, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    SymbolForm,
+    SymbolKind,
 };
 
 use crate::core::{CallEntry, DirQueryContext, ModuleQueryContext};
@@ -82,7 +82,7 @@ fn symbol_is_function(dir: DirQueryContext<'_>, symbol_id: GlobalSymbolId) -> bo
 
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
-    symbol.form == SymbolForm::Function
+    symbol.kind == SymbolKind::Function
 }
 
 /// Build call index entries for one module.

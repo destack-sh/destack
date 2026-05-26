@@ -244,7 +244,7 @@ pub(crate) fn type_definition_span(
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         (
-            matches_symbol_space_filter(symbol.form, Some(SymbolSpace::Type)),
+            matches_symbol_space_filter(symbol.kind, Some(SymbolSpace::Type)),
             symbol.declaration,
         )
     };

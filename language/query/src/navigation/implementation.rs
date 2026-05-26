@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolForm};
+use destack_dir::{Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolKind};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
@@ -89,8 +89,8 @@ pub fn goto_implementation(
         let symbols = target_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         (
-            symbol.form == SymbolForm::Interface,
-            symbol.form == SymbolForm::Class,
+            symbol.kind == SymbolKind::Interface,
+            symbol.kind == SymbolKind::Class,
         )
     };
 
@@ -248,5 +248,5 @@ fn symbol_is_implementable(ctx: &ModuleQueryContext<'_>, symbol_id: GlobalSymbol
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // return whether the symbol is implementable
-    symbol.form == SymbolForm::Interface || symbol.form == SymbolForm::Class
+    symbol.kind == SymbolKind::Interface || symbol.kind == SymbolKind::Class
 }

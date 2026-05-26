@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_dir::{
     BindingTable, Declaration, GlobalSymbolId, LanguageItem, LocalSymbolId, LocalTypeId, Member,
-    ScalarLiteral, StaticKey, SymbolForm, Type, TypeTable,
+    ScalarLiteral, StaticKey, SymbolKind, Type, TypeTable,
 };
 
 use super::for_each_visible_extension;
@@ -171,7 +171,7 @@ fn resolve_type_members_inner(
                         if let Some(ctx) = ctx.module_context(reference.symbol.module_id) {
                             let symbols_table = ctx.dir().symbols();
                             let sym = symbols_table.get_symbol(reference.symbol.local_id);
-                            return sym.form == SymbolForm::Enum;
+                            return sym.kind == SymbolKind::Enum;
                         }
                     }
                 }
@@ -302,7 +302,7 @@ fn resolve_local_symbol_members(
 
     // check if this symbol is an enum (for member kind detection)
     let symbol = symbols.get_symbol(symbol_id);
-    let is_enum = symbol.form == SymbolForm::Enum;
+    let is_enum = symbol.kind == SymbolKind::Enum;
 
     // read fields from the symbol type when available
     if let Some(type_id) = types.get_symbol_type_id(global_symbol_id) {

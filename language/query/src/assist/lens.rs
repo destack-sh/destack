@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_dir::{GlobalSymbolId, SymbolForm};
+use destack_dir::{GlobalSymbolId, SymbolKind};
 use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
@@ -164,21 +164,21 @@ pub fn code_lenses(
                         .get_side_span_by_id(source_node_id, NodeSpanType::Main);
                     let name = dir.symbol_name(global_symbol_id);
                     let is_test = has_decorator_named(dir, source_node_id, "test");
-                    let symbol_form = symbols.get_symbol(symbol_id).form;
+                    let symbol_kind = symbols.get_symbol(symbol_id).kind;
                     Some((
                         decl.clone(),
                         global_symbol_id,
                         main_span,
                         is_test,
                         name,
-                        symbol_form,
+                        symbol_kind,
                     ))
                 },
             )
             .collect()
     };
 
-    for (declaration, global_symbol_id, main_span, is_test, name, symbol_form) in declarations {
+    for (declaration, global_symbol_id, main_span, is_test, name, symbol_kind) in declarations {
         let Some(span) = main_span else {
             continue;
         };
@@ -199,7 +199,7 @@ pub fn code_lenses(
         }
 
         // count implementations for interfaces
-        if symbol_form == SymbolForm::Interface {
+        if symbol_kind == SymbolKind::Interface {
             let impl_count = count_implementations(ctx, workspace, global_symbol_id);
             if impl_count > 0 {
                 lenses.push(CodeLens::implementations(span, impl_count));
@@ -207,7 +207,7 @@ pub fn code_lenses(
         }
 
         // count subclasses for classes
-        if symbol_form == SymbolForm::Class {
+        if symbol_kind == SymbolKind::Class {
             let subclass_count = count_subclasses(ctx, workspace, global_symbol_id);
             if subclass_count > 0 {
                 lenses.push(CodeLens::implementations(span, subclass_count));
