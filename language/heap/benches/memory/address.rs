@@ -222,7 +222,11 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 bencher.iter_batched(
                     || AddressSpaceShape::materialized_pages(*page_count).materialize(),
                     |space| {
-                        black_box(space.fork_eager(..).expect("eager fork should succeed"));
+                        black_box(
+                            space
+                                .fork_eager(0..space.byte_len())
+                                .expect("eager fork should succeed"),
+                        );
                     },
                     BatchSize::SmallInput,
                 );
