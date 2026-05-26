@@ -1,0 +1,356 @@
+use destack_dir as dir;
+use destack_source::ModuleId;
+
+use crate::CompilerResult;
+use crate::check::{
+    CheckComponentState, CheckError, CheckModuleState, Decision, Obligation, PatternFieldTerm,
+    PatternTerm, TypeLiteralTerm, TypeRelation, TypeTerm, VariableId,
+};
+
+impl CheckModuleState {
+    /// Require one binding pattern to cover its matched value type.
+    pub(in crate::check) fn require_irrefutable_pattern(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        pattern: PatternTerm,
+        value: VariableId,
+    ) {
+        let obligation = Obligation::IrrefutablePattern {
+            source: source.into_global(self.input.module_id),
+            pattern,
+            value,
+        };
+
+        self.add_obligation(obligation);
+    }
+}
+
+impl CheckComponentState<'_> {
+    /// Check whether one pattern is irrefutable for its matched value type.
+    pub(in crate::check) fn check_irrefutable_pattern(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        pattern: &PatternTerm,
+        value: VariableId,
+    ) -> CompilerResult<()> {
+        let decision = self.pattern_covers_variable(pattern, value)?;
+        let diagnostic = match decision {
+            Decision::Yes => return Ok(()),
+            Decision::No => {
+                let (module, anchor) = self.source_anchor(source)?;
+
+                CheckError::RefutablePattern { anchor, module }
+            }
+            Decision::Undecidable => {
+                let (module, anchor) = self.source_anchor(source)?;
+
+                CheckError::CannotSolve { anchor, module }
+            }
+        };
+
+        self.module_mut(source.module_id)?
+            .work
+            .diagnostics
+            .push(diagnostic);
+
+        Ok(())
+    }
+
+    /// Return whether one pattern covers every value in one variable type.
+    fn pattern_covers_variable(
+        &mut self,
+        pattern: &PatternTerm,
+        value: VariableId,
+    ) -> CompilerResult<Decision> {
+        let module = value.module;
+        let Some(value) = self.solved_type_term(value)? else {
+            return Ok(Decision::Undecidable);
+        };
+
+        self.pattern_covers_type(module, pattern, &value)
+    }
+
+    /// Return whether one pattern covers every value in one type term.
+    fn pattern_covers_type(
+        &mut self,
+        module: ModuleId,
+        pattern: &PatternTerm,
+        value: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        if let TypeTerm::Union { elements } = value {
+            return self.pattern_covers_union(pattern, elements);
+        }
+        if let Some(values) = finite_scalar_values(value) {
+            return self.pattern_covers_scalars(module, pattern, &values);
+        }
+
+        let decision = match pattern {
+            PatternTerm::Wildcard | PatternTerm::Binding { pattern: None, .. } => Decision::Yes,
+            PatternTerm::Must { pattern }
+            | PatternTerm::BorrowOf { pattern, .. }
+            | PatternTerm::MoveOf { pattern, .. }
+            | PatternTerm::DereferenceOf { pattern }
+            | PatternTerm::Assign { pattern, .. }
+            | PatternTerm::Binding {
+                pattern: Some(pattern),
+                ..
+            } => {
+                return self.pattern_covers_type(module, pattern, value);
+            }
+            PatternTerm::Expression { value: expected } => {
+                self.expression_pattern_covers_type(*expected, value)?
+            }
+            PatternTerm::Range {
+                start,
+                end,
+                end_kind,
+            } => self.range_pattern_covers_type(*start, *end, *end_kind, value)?,
+            PatternTerm::Type { ty } => self.decide_type_term_relation(
+                TypeRelation::Assignable,
+                value,
+                &TypeTerm::Variable(*ty),
+            )?,
+            PatternTerm::Tuple { fields }
+            | PatternTerm::Sequence { fields }
+            | PatternTerm::Object { fields } => {
+                self.pattern_fields_cover_type(module, fields, value)?
+            }
+            PatternTerm::TaggedTuple { ty, fields } | PatternTerm::TaggedObject { ty, fields } => {
+                let tag = self.decide_type_term_relation(
+                    TypeRelation::Assignable,
+                    value,
+                    &TypeTerm::Variable(*ty),
+                )?;
+                let fields = self.pattern_fields_cover_type(module, fields, value)?;
+
+                tag.and(fields)
+            }
+            PatternTerm::Union { patterns } => {
+                self.pattern_union_covers_type(module, patterns, value)?
+            }
+        };
+
+        Ok(decision)
+    }
+
+    /// Return whether one pattern covers every scalar value listed.
+    fn pattern_covers_scalars(
+        &mut self,
+        module: ModuleId,
+        pattern: &PatternTerm,
+        values: &[dir::ScalarLiteral],
+    ) -> CompilerResult<Decision> {
+        let mut decision = Decision::Yes;
+
+        for value in values {
+            let value = TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()));
+
+            decision = decision.and(self.pattern_covers_type(module, pattern, &value)?);
+        }
+
+        Ok(decision)
+    }
+
+    /// Return whether one pattern covers every member in a union.
+    fn pattern_covers_union(
+        &mut self,
+        pattern: &PatternTerm,
+        elements: &[VariableId],
+    ) -> CompilerResult<Decision> {
+        let mut decision = Decision::Yes;
+
+        for element in elements {
+            decision = decision.and(self.pattern_covers_variable(pattern, *element)?);
+        }
+
+        Ok(decision)
+    }
+
+    /// Return whether pattern alternatives cover every value in one type.
+    fn pattern_union_covers_type(
+        &mut self,
+        module: ModuleId,
+        patterns: &[PatternTerm],
+        value: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        let mut decision = Decision::No;
+
+        for pattern in patterns {
+            decision = decision.or(self.pattern_covers_type(module, pattern, value)?);
+        }
+
+        Ok(decision)
+    }
+
+    /// Return whether one expression pattern covers every value in one type.
+    fn expression_pattern_covers_type(
+        &mut self,
+        expected: VariableId,
+        value: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        let Some(expected) = self.solved_type_term(expected)? else {
+            return Ok(Decision::Undecidable);
+        };
+
+        self.decide_type_term_relation(TypeRelation::Assignable, value, &expected)
+    }
+
+    /// Return whether one range pattern covers every value in one type.
+    fn range_pattern_covers_type(
+        &mut self,
+        start: Option<VariableId>,
+        end: Option<VariableId>,
+        end_kind: dir::RangeEnd,
+        value: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        let TypeTerm::Literal(TypeLiteralTerm::Scalar(value)) = value else {
+            return Ok(Decision::Undecidable);
+        };
+        let start = self.solved_scalar_literal(start)?;
+        let end = self.solved_scalar_literal(end)?;
+        let Some(is_in_range) = scalar_in_range(value, start.as_ref(), end.as_ref(), end_kind)
+        else {
+            return Ok(Decision::Undecidable);
+        };
+
+        Ok(if is_in_range {
+            Decision::Yes
+        } else {
+            Decision::No
+        })
+    }
+
+    /// Return one solved scalar literal.
+    fn solved_scalar_literal(
+        &self,
+        variable: Option<VariableId>,
+    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+        let Some(variable) = variable else {
+            return Ok(None);
+        };
+        let Some(term) = self.solved_type_term(variable)? else {
+            return Ok(None);
+        };
+        let TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) = term else {
+            return Ok(None);
+        };
+
+        Ok(Some(literal))
+    }
+
+    /// Return whether field patterns cover every value in one type.
+    fn pattern_fields_cover_type(
+        &mut self,
+        module: ModuleId,
+        fields: &[PatternFieldTerm],
+        value: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        let mut decision = Decision::Yes;
+
+        for field in fields {
+            decision = decision.and(self.pattern_field_covers_type(module, field, value)?);
+        }
+
+        Ok(decision)
+    }
+
+    /// Return whether one field pattern covers every value in one type.
+    fn pattern_field_covers_type(
+        &mut self,
+        module: ModuleId,
+        field: &PatternFieldTerm,
+        value: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        let decision = match field {
+            PatternFieldTerm::Named { key, pattern } => {
+                let Some(pattern) = pattern else {
+                    return Ok(Decision::Yes);
+                };
+                let Some(field) = self.member_type_term(module, value, key)? else {
+                    return Ok(Decision::No);
+                };
+
+                self.pattern_covers_type(module, pattern, &field)?
+            }
+            PatternFieldTerm::Computed { pattern, .. }
+            | PatternFieldTerm::Positional { pattern } => {
+                self.pattern_covers_type(module, pattern, value)?
+            }
+            PatternFieldTerm::Spread { pattern } => {
+                if let Some(pattern) = pattern {
+                    self.pattern_covers_type(module, pattern, value)?
+                } else {
+                    Decision::Yes
+                }
+            }
+            PatternFieldTerm::Elision => Decision::Yes,
+        };
+
+        Ok(decision)
+    }
+}
+
+/// Return whether one scalar literal is inside one scalar range.
+fn scalar_in_range(
+    value: &dir::ScalarLiteral,
+    start: Option<&dir::ScalarLiteral>,
+    end: Option<&dir::ScalarLiteral>,
+    end_kind: dir::RangeEnd,
+) -> Option<bool> {
+    let value = scalar_order(value)?;
+    let start = match start {
+        Some(start) => Some(scalar_order(start)?),
+        None => None,
+    };
+    let end = match end {
+        Some(end) => Some(scalar_order(end)?),
+        None => None,
+    };
+
+    // check lower bound
+    if let Some(start) = start
+        && value < start
+    {
+        return Some(false);
+    }
+
+    // check upper bound
+    if let Some(end) = end {
+        let is_above = match end_kind {
+            dir::RangeEnd::Open => value >= end,
+            dir::RangeEnd::Inclusive => value > end,
+        };
+        if is_above {
+            return Some(false);
+        }
+    }
+
+    Some(true)
+}
+
+/// Return one comparable scalar value.
+fn scalar_order(value: &dir::ScalarLiteral) -> Option<f64> {
+    let value = match value {
+        dir::ScalarLiteral::Integer(value) => *value as f64,
+        dir::ScalarLiteral::Bigint(value) => *value as f64,
+        dir::ScalarLiteral::Float(value) => *value,
+        _ => return None,
+    };
+
+    Some(value)
+}
+
+/// Return known finite scalar values for one type.
+fn finite_scalar_values(value: &TypeTerm) -> Option<Vec<dir::ScalarLiteral>> {
+    let values = match value {
+        TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::Boolean)) => {
+            vec![
+                dir::ScalarLiteral::Boolean(false),
+                dir::ScalarLiteral::Boolean(true),
+            ]
+        }
+        _ => return None,
+    };
+
+    Some(values)
+}
