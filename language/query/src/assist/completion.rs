@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use destack_dir as dir;
-use destack_dir::{FloatType, IntegerType, Keyword, SymbolForm, SymbolSpace};
+use destack_dir::{FloatType, IntegerType, Keyword, SymbolKind, SymbolSpace};
 use destack_source::{Edit, File, FileType, Loader, ModuleId, PackageId};
 use serde::{Deserialize, Serialize};
 
@@ -87,22 +87,26 @@ struct CompletionValueShape {
     is_constructable: bool,
 }
 
-impl From<SymbolForm> for CompletionKind {
+impl From<SymbolKind> for CompletionKind {
     /// Convert a symbol type into a completion kind.
-    fn from(ty: SymbolForm) -> Self {
+    fn from(ty: SymbolKind) -> Self {
         match ty {
-            SymbolForm::Variable => CompletionKind::Variable,
-            SymbolForm::Class => CompletionKind::Class,
-            SymbolForm::Struct => CompletionKind::Struct,
-            SymbolForm::Interface | SymbolForm::NewtypeInterface => CompletionKind::Interface,
-            SymbolForm::Enum => CompletionKind::Enum,
-            SymbolForm::EnumField => CompletionKind::EnumMember,
-            SymbolForm::Function => CompletionKind::Function,
-            SymbolForm::Label => CompletionKind::Reference,
-            SymbolForm::Import => CompletionKind::Reference,
-            SymbolForm::Extension => CompletionKind::Class,
-            SymbolForm::TypeAlias => CompletionKind::TypeParameter,
-            SymbolForm::Newtype => CompletionKind::TypeParameter,
+            SymbolKind::Variable
+            | SymbolKind::AssociatedConst
+            | SymbolKind::GenericValueParameter => CompletionKind::Variable,
+            SymbolKind::Class => CompletionKind::Class,
+            SymbolKind::Struct => CompletionKind::Struct,
+            SymbolKind::Interface | SymbolKind::NewtypeInterface => CompletionKind::Interface,
+            SymbolKind::Enum => CompletionKind::Enum,
+            SymbolKind::EnumField => CompletionKind::EnumMember,
+            SymbolKind::Function => CompletionKind::Function,
+            SymbolKind::Label => CompletionKind::Reference,
+            SymbolKind::Import => CompletionKind::Reference,
+            SymbolKind::Extension => CompletionKind::Class,
+            SymbolKind::TypeAlias
+            | SymbolKind::AssociatedType
+            | SymbolKind::GenericTypeParameter => CompletionKind::TypeParameter,
+            SymbolKind::Newtype => CompletionKind::TypeParameter,
         }
     }
 }
@@ -626,7 +630,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
     }
 
     /// Format a type detail string for a symbol's declared or inferred type.
-    fn format_symbol_form_detail(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    fn format_symbol_kind_detail(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
         let ctx = self.ctx.module_context(symbol_id.module_id)?;
 
         let symbols = ctx.dir().symbols();
@@ -713,7 +717,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
 
             completion = completion.with_type_symbols(self.type_symbols_for_symbol(symbol_id));
 
-            if let Some(type_text) = self.format_symbol_form_detail(symbol_id) {
+            if let Some(type_text) = self.format_symbol_kind_detail(symbol_id) {
                 completion = completion.with_detail(type_text);
             }
         }
@@ -877,7 +881,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                     continue;
                 }
 
-                let kind = CompletionKind::from(visible.symbol.form);
+                let kind = CompletionKind::from(visible.symbol.kind);
                 results.push(
                     Completion::new(name, kind)
                         .with_sort_order(SORT_BUILTIN)
@@ -902,9 +906,9 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         let mut seen_names = HashSet::new();
 
         // normalize void aliases through their canonical exported type
-        let resolve_symbol_form = |symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol| {
-            if symbol.form != SymbolForm::Variable {
-                return symbol.form;
+        let resolve_symbol_kind = |symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol| {
+            if symbol.kind != SymbolKind::Variable {
+                return symbol.kind;
             }
 
             let global_id = dir::GlobalSymbolId {
@@ -912,17 +916,17 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 local_id: symbol_id,
             };
             let Some(canonical_id) = self.canonical_symbol(global_id) else {
-                return symbol.form;
+                return symbol.kind;
             };
             if canonical_id == global_id {
-                return symbol.form;
+                return symbol.kind;
             }
 
             let Some(ctx) = self.ctx.module_context(canonical_id.module_id) else {
-                return symbol.form;
+                return symbol.kind;
             };
             let canonical_symbol = ctx.dir().symbols().get_symbol(canonical_id.local_id);
-            canonical_symbol.form
+            canonical_symbol.kind
         };
 
         let visible_scope_id = scope_id.unwrap_or(self.ctx.dir().namespace_scope());
@@ -939,7 +943,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 continue;
             }
 
-            let kind = CompletionKind::from(resolve_symbol_form(visible.id, visible.symbol));
+            let kind = CompletionKind::from(resolve_symbol_kind(visible.id, visible.symbol));
             let completion = Completion::new(name, kind)
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
@@ -958,7 +962,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             };
 
             let symbol = symbols.get_symbol(symbol_id);
-            if !symbol.form.is_visible_in(dir::SymbolSpace::Type) {
+            if !symbol.kind.is_visible_in(dir::SymbolSpace::Type) {
                 continue;
             }
 
@@ -971,7 +975,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 continue;
             }
 
-            let kind = CompletionKind::from(resolve_symbol_form(symbol_id, symbol));
+            let kind = CompletionKind::from(resolve_symbol_kind(symbol_id, symbol));
             let completion = Completion::new(name, kind)
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
@@ -1002,7 +1006,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         let mut results = Vec::new();
 
         // snapshot the visible value-space symbols before building completions
-        let symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolForm)> = {
+        let symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolKind)> = {
             let symbols = self.ctx.dir().symbols();
             let mut symbols_to_process = Vec::new();
             let mut seen_names = HashSet::new();
@@ -1023,15 +1027,15 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                     continue;
                 }
 
-                symbols_to_process.push((visible.id, name, visible.symbol.form));
+                symbols_to_process.push((visible.id, name, visible.symbol.kind));
             }
 
             symbols_to_process
         };
 
         // build one completion per visible symbol
-        for (local_id, name, symbol_form) in symbols_to_process {
-            let kind = CompletionKind::from(symbol_form);
+        for (local_id, name, symbol_kind) in symbols_to_process {
+            let kind = CompletionKind::from(symbol_kind);
             let mut completion = Completion::new(&name, kind)
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
@@ -1049,7 +1053,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             }
             completion = completion.with_type_symbols(self.type_symbols_for_symbol(symbol_id));
 
-            if symbol_form == SymbolForm::Function
+            if symbol_kind == SymbolKind::Function
                 && let Some(param_names) = get_function_param_names(self.ctx, symbol_id)
             {
                 let (snippet, is_snippet) = generate_call_snippet(&name, &param_names);
@@ -1088,7 +1092,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
             for visible in visible_symbols(symbols, scope_id, mark, None) {
-                if !is_constructable_symbol(visible.symbol.form) {
+                if !is_constructable_symbol(visible.symbol.kind) {
                     continue;
                 }
 
@@ -1105,7 +1109,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                     continue;
                 }
 
-                let kind = CompletionKind::from(visible.symbol.form);
+                let kind = CompletionKind::from(visible.symbol.kind);
                 let completion = Completion::new(name, kind)
                     .with_sort_order(SORT_LOCAL_SYMBOL)
                     .as_local();
@@ -1135,7 +1139,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         if results.is_empty() {
             for symbol_id in symbols.symbol_ids() {
                 let symbol = symbols.get_symbol(symbol_id);
-                if !is_constructable_symbol(symbol.form) {
+                if !is_constructable_symbol(symbol.kind) {
                     continue;
                 }
 
@@ -1151,7 +1155,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                     continue;
                 }
 
-                let kind = CompletionKind::from(symbol.form);
+                let kind = CompletionKind::from(symbol.kind);
                 let completion = Completion::new(name, kind)
                     .with_sort_order(SORT_LOCAL_SYMBOL)
                     .as_local();
@@ -1305,7 +1309,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
         local_id: dir::LocalSymbolId,
         module_path: &str,
         export_name: &str,
-        symbol_form: SymbolForm,
+        symbol_kind: SymbolKind,
         expected_space: Option<SymbolSpace>,
         symbol_space: SymbolSpace,
         import_form: ImportEditSpace,
@@ -1334,7 +1338,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
 
         let sort_text = import_sort_text(&relevance, &display_path, export_name);
         let import_sort_key = import_sort_key(&relevance, &display_path, export_name);
-        let kind = CompletionKind::from(symbol_form);
+        let kind = CompletionKind::from(symbol_kind);
         let detail = format!("Auto import from {display_path}");
         let mut completion = Completion::new(export_name, kind)
             .with_detail(detail)
@@ -1342,7 +1346,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
             .with_import_sort_key(import_sort_key)
             .with_sort_text(sort_text)
             .with_additional_edits(import_edits)
-            .with_value_shape(CompletionValueShape::for_symbol_form(symbol_form))
+            .with_value_shape(CompletionValueShape::for_symbol_kind(symbol_kind))
             .as_auto_import();
 
         let symbol_id = dir::GlobalSymbolId {
@@ -1384,7 +1388,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 continue;
             };
 
-            if !matches_import_clause_space_filter(symbol.form, space_filter) {
+            if !matches_import_clause_space_filter(symbol.kind, space_filter) {
                 continue;
             }
 
@@ -1393,7 +1397,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 continue;
             }
 
-            let kind = CompletionKind::from(symbol.form);
+            let kind = CompletionKind::from(symbol.kind);
             results.push(
                 Completion::new(name, kind)
                     .with_sort_order(SORT_LOCAL_SYMBOL)
@@ -1638,8 +1642,8 @@ fn primitive_type_completions() -> Vec<Completion> {
 }
 
 /// Check whether one symbol type is constructable with `new`.
-fn is_constructable_symbol(symbol_form: SymbolForm) -> bool {
-    matches!(symbol_form, SymbolForm::Class | SymbolForm::Struct)
+fn is_constructable_symbol(symbol_kind: SymbolKind) -> bool {
+    matches!(symbol_kind, SymbolKind::Class | SymbolKind::Struct)
 }
 
 /// Check whether one completion entry is constructable with `new`.
@@ -2252,13 +2256,13 @@ impl CompletionContext {
 
 impl CompletionValueShape {
     /// Build one coarse callable and constructable shape from one symbol type.
-    fn for_symbol_form(symbol_form: SymbolForm) -> Self {
-        match symbol_form {
-            SymbolForm::Function => Self {
+    fn for_symbol_kind(symbol_kind: SymbolKind) -> Self {
+        match symbol_kind {
+            SymbolKind::Function => Self {
                 is_callable: true,
                 is_constructable: false,
             },
-            SymbolForm::Class | SymbolForm::Struct => Self {
+            SymbolKind::Class | SymbolKind::Struct => Self {
                 is_callable: false,
                 is_constructable: true,
             },

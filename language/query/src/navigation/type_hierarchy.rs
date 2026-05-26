@@ -1,4 +1,4 @@
-use destack_dir::{GlobalSymbolId, SymbolForm};
+use destack_dir::{GlobalSymbolId, SymbolKind};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
@@ -36,14 +36,16 @@ pub enum TypeHierarchyKind {
 }
 
 impl TypeHierarchyKind {
-    /// Convert from SymbolForm if it's a type kind.
-    fn from_symbol_form(ty: SymbolForm) -> Option<Self> {
+    /// Convert from SymbolKind if it's a type kind.
+    fn from_symbol_kind(ty: SymbolKind) -> Option<Self> {
         match ty {
-            SymbolForm::Class => Some(Self::Class),
-            SymbolForm::Interface => Some(Self::Interface),
-            SymbolForm::Struct => Some(Self::Struct),
-            SymbolForm::Enum => Some(Self::Enum),
-            SymbolForm::TypeAlias => Some(Self::TypeAlias),
+            SymbolKind::Class => Some(Self::Class),
+            SymbolKind::Interface => Some(Self::Interface),
+            SymbolKind::Struct => Some(Self::Struct),
+            SymbolKind::Enum => Some(Self::Enum),
+            SymbolKind::AssociatedType
+            | SymbolKind::TypeAlias
+            | SymbolKind::GenericTypeParameter => Some(Self::TypeAlias),
             _ => None,
         }
     }
@@ -174,7 +176,7 @@ fn type_hierarchy_item_from_symbol(
     let (kind, name) = {
         let symbols = canonical_ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        let kind = TypeHierarchyKind::from_symbol_form(symbol.form)?;
+        let kind = TypeHierarchyKind::from_symbol_kind(symbol.kind)?;
         let name = canonical_ctx.symbol_name(canonical_id)?;
         Some((kind, name))
     }?;
