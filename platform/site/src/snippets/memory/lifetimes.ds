@@ -1,0 +1,28 @@
+/**
+* Lifetimes describe the relationship between owners and borrowed access.
+* Inference joins the lifetimes of all possible returned branches.
+*/
+
+struct Node {
+    name: string;
+    parent?: &Node;
+}
+
+// returned borrows inherit the input lifetime
+function first(left: &Node, right: &Node): &Node {
+    left
+}
+
+// branch joins preserve the live owner relation
+function choose(left: &Node, right: &Node, useLeft: boolean): &Node {
+    if (useLeft) {
+        left
+    } else {
+        right
+    }
+}
+
+// nested access can borrow from the selected node
+function selectedName(left: &Node, right: &Node, useLeft: boolean): &string {
+    &choose(left, right, useLeft).name
+}

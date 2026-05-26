@@ -1,0 +1,143 @@
+@import "@fontsource-variable/jetbrains-mono";
+@import "tailwindcss";
+
+@theme {
+    --color-destack-accent: #e08b48;
+    --color-destack-ink: #052e40;
+    --color-destack-page: #f7f1e6;
+    --color-destack-panel: #fffdf7;
+    --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular",
+        Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+a,
+button {
+    cursor: pointer;
+}
+
+.code-block {
+    min-height: 0;
+    overflow: auto;
+    padding: 1.5rem 1.25rem;
+    color: #0a0a0a;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.25rem;
+}
+
+.code-block .hljs-built_in,
+.code-block .hljs-title,
+.code-block span[data-k="type"] {
+    color: #0369a1;
+}
+
+.code-block .hljs-comment,
+.code-block .hljs-meta,
+.code-block span[data-k="comment"],
+.code-block span[data-k="punct"] {
+    color: #737373;
+}
+
+.code-block .hljs-keyword,
+.code-block span[data-k="keyword"] {
+    color: #c2410c;
+}
+
+.code-block .hljs-literal,
+.code-block .hljs-number,
+.code-block span[data-k="literal"] {
+    color: #b45309;
+}
+
+.code-block .hljs-string,
+.code-block span[data-k="string"] {
+    color: #047857;
+}
+
+.code-block .hljs-section,
+.code-block .hljs-symbol,
+.code-block .hljs-variable,
+.code-block span[data-k="name"] {
+    color: var(--color-destack-accent);
+}
+
+.code-block .hljs-params {
+    color: #404040;
+}
+
+.code-block span[data-k="diagnostic-shadow"],
+.code-block span[data-k="inline-diagnostic-shadow"] {
+    display: inline-block;
+    max-width: calc(100% - 0.375rem);
+    padding-right: 0.375rem;
+    padding-bottom: 0.375rem;
+    background-image: radial-gradient(
+        circle,
+        rgb(220 38 38 / 0.58) 0 1px,
+        transparent 1.3px
+    );
+    background-size: 4px 4px;
+    vertical-align: top;
+}
+
+.code-block span[data-k="inline-diagnostic-shadow"] {
+    margin: 0.5rem 0;
+}
+
+.code-block span[data-k="diagnostic-box"],
+.code-block span[data-k="inline-diagnostic-box"] {
+    display: block;
+    box-sizing: border-box;
+    max-width: 100%;
+    border: 2.5px solid #b91c1c;
+    background: var(--color-destack-panel);
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.code-block span[data-k="diagnostic-box"] {
+    padding: 0.75rem;
+}
+
+.code-block span[data-k="inline-diagnostic-box"] {
+    padding: 0.5rem 0.625rem;
+}
+
+.code-block span[data-k="diagnostic-header"] {
+    display: block;
+    border-left: 4px solid #b91c1c;
+    background: #fef2f2;
+    padding: 0.5rem 0.75rem;
+}
+
+.code-block span[data-k="diagnostic-location"],
+.code-block span[data-k="diagnostic-marker"],
+.code-block span[data-k="diagnostic-source"] {
+    display: block;
+}
+
+.code-block span[data-k="diagnostic-caret"],
+.code-block span[data-k="diagnostic-code"],
+.code-block span[data-k="diagnostic-level"],
+.code-block span[data-k="diagnostic-note"],
+.code-block span[data-k="message"],
+.code-block span[data-k="squiggle"] {
+    color: #b91c1c;
+}
+
+.code-block span[data-k="diagnostic-line"],
+.code-block span[data-k="diagnostic-pipe"] {
+    color: #737373;
+}
+
+.code-block span[data-k="diagnostic-location"] {
+    color: #525252;
+}
+
+.code-block span[data-k="diagnostic-path"] {
+    color: #262626;
+}
+
+.code-block span[data-k="squiggle"] {
+    font-weight: 900;
+}

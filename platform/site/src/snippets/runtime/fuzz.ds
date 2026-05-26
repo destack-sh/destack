@@ -1,0 +1,25 @@
+/**
+* Fuzz cases combine typed generators with ordinary assertions.
+* Shrinking and corpus handling stay integrated with the test runtime.
+*/
+
+import { Result } from "destack:error";
+import { Generator, case } from "destack:fuzz";
+import { expect } from "destack:test";
+
+newtype DocumentId = uint64;
+
+struct DecodeError {
+    message: string;
+}
+
+declare function encode(id: DocumentId): [uint8];
+declare function decode(bytes: [uint8]): Result<DocumentId, DecodeError>;
+
+// generators can map raw primitives into domain newtypes
+const ids = Generator.uint64(1..=1000000).map((value) => DocumentId(value));
+
+// each generated value checks a full roundtrip
+case("document id roundtrip", ids, { samples: 10000 }, (id) => {
+    expect(decode(encode(id))?).toBe(id);
+});

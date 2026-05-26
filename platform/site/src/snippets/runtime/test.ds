@@ -1,0 +1,24 @@
+/**
+* Tests exercise typed outcomes inside the same toolchain.
+* Assertions can depend on Destack types, not stringly compiler output.
+*/
+
+import { Result } from "destack:error";
+import { expect, test } from "destack:test";
+
+type UserPort = 1024..=65535;
+
+struct ParseError {
+    message: string;
+}
+
+declare function parsePort(raw: string): Result<UserPort, ParseError>;
+
+// typed results can be opened inside tests
+test("parsePort accepts user ports", () => {
+    const port = parsePort("8080")?;
+
+    // assertions can keep static type guarantees nearby
+    expect(port).toBe(8080);
+    port satisfies UserPort;
+});

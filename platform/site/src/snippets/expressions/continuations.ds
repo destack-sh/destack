@@ -1,0 +1,25 @@
+/**
+* Async functions and generators lower through stackful continuations.
+* Managed values can remain in parked frames across `await` and `yield`.
+*/
+
+struct User {
+    name: string;
+}
+
+declare function tick(): Promise<void>;
+declare function stream(): AsyncGenerator<string, void, void>;
+
+// live managed values remain in the parked frame
+async function read(user: User): Promise<string> {
+    const name = user.name;
+    await tick();
+    name
+}
+
+// generators park and resume through the same continuation model
+async function* lines(): AsyncGenerator<string, void, void> {
+    for await (const line of stream()) {
+        yield line.trim();
+    }
+}

@@ -1,0 +1,25 @@
+/**
+* `Drop` follows ownership lifetime while `using` is lexical cleanup.
+* The compiler can run drops eagerly after last use.
+*/
+
+import { Result } from "destack:error";
+import { Dispose } from "destack:memory";
+
+class FileHandle implements Dispose {
+    descriptor: int32;
+
+    // dispose is lexical cleanup
+    dispose(): void {}
+}
+
+declare function open(path: string): Result<FileHandle, IOError>;
+declare function copy(input: FileHandle, output: FileHandle): Result<void, IOError>;
+
+// `using` runs dispose even when `?` returns early
+function copyFile(inputPath: string, outputPath: string): Result<void, IOError> {
+    using input = open(inputPath)?;
+    using output = open(outputPath)?;
+
+    copy(input, output)
+}

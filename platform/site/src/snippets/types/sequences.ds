@@ -1,0 +1,33 @@
+/**
+* Arrays, slices, fixed arrays, and tuples are distinct first-class shapes.
+* Fixed lengths and tuple arity are part of the type.
+*/
+
+import { Result } from "destack:error";
+
+struct Image {
+    bytes: [uint8];
+}
+
+let dynamic: int32[] = [1, 2, 3];
+let slice: [int32] = [1, 2, 3];
+let fixed: [uint8; 3] = [255, 128, 0];
+let tuple: (int32, string) = (1, "one");
+
+type Block = [uint8; 4096];
+type Vec3 = [float32; 3];
+
+declare const bytes: [uint8];
+declare function parsePng(bytes: [uint8]): Image;
+declare function parseJpeg(bytes: [uint8]): Image;
+
+// destructuring preserves fixed sequence types
+const [r, g, b] = fixed;
+const (index, label) = tuple;
+
+// sequence patterns work in match arms
+match (bytes) {
+    [0x89, 0x50, 0x4e, 0x47, ...rest] => parsePng(rest)
+    [0xff, 0xd8, ...rest] => parseJpeg(rest)
+    _ => Result.err("unknown image")
+}

@@ -1,0 +1,40 @@
+/**
+* Placement decides where values live.
+* `shared` is memory placement, not synchronization.
+*/
+
+struct Header {
+    traceId: string;
+}
+
+struct JsonBody {
+    text: string;
+}
+
+class World {}
+
+struct Request<Body> {
+    header: Header;
+    body: Body;
+}
+
+// ordinary managed values live in local worker memory
+let localRequest: Request<JsonBody>;
+
+// shared values are visible to workers in the same runtime
+let sharedRequest: shared Request<JsonBody>;
+
+shared const world = new World();
+
+struct RegistryStats {
+    reads: AtomicU64;
+    writes: AtomicU64;
+}
+
+shared const stats = RegistryStats {
+    reads: AtomicU64(0),
+    writes: AtomicU64(0),
+};
+
+// synchronization still comes from explicit atomic fields
+stats.reads.add(1);

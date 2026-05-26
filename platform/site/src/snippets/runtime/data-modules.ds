@@ -1,0 +1,25 @@
+/**
+* Data, text, and binary modules stay in the static graph.
+* Import attributes select the desired module representation.
+*/
+
+import config from "./config.json";
+import readme from "./README.md";
+import icon from "./icon.png";
+import schema from "./schema.sql" with { type: "text" };
+import wasm from "./parser.wasm" with { type: "binary" };
+
+// imported data can be checked against local types
+struct Config {
+    server: {
+        host: string;
+        port: uint16;
+    };
+}
+
+// each imported module has an inferred representation
+config satisfies Config;
+readme satisfies string;
+icon satisfies uint8[];
+schema satisfies string;
+wasm satisfies uint8[];

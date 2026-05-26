@@ -30,6 +30,7 @@ update:
 # build everything
 build:
     just language/build
+    just -f platform/justfile build
     just service/build
     just app/build
     just bridge/build
@@ -38,6 +39,7 @@ build:
 format:
     just language/format
     just library/format
+    just -f platform/justfile format
     just service/format
     just app/format
     just bridge/format
@@ -46,6 +48,7 @@ format:
 format-check:
     just language/format-check
     just library/format-check
+    just -f platform/justfile format
     just service/format-check
     just app/format-check
     just bridge/format-check
@@ -62,6 +65,7 @@ check:
     just check-hygiene
     just language/check
     just library/check
+    just -f platform/justfile check
     just service/check
     just app/check
     just bridge/check
@@ -70,6 +74,7 @@ check:
 test:
     just language/test
     just library/test
+    just -f platform/justfile test
     just service/test
     just app/test
     just bridge/test
@@ -79,6 +84,7 @@ quick:
     just check-hygiene
     just language/quick
     just library/quick
+    just -f platform/justfile quick
     just service/quick
     just app/quick
     just bridge/quick
@@ -88,6 +94,7 @@ full:
     just check-hygiene
     just language/full
     just library/full
+    just -f platform/justfile full
     just service/full
     just app/full
     just bridge/full

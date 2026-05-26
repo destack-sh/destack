@@ -1,0 +1,35 @@
+/**
+* Capability interfaces express movement, cloning, and sharing rules.
+* APIs can require `Send` and `Sync` without hard-coding storage forms.
+*/
+
+import { Clone, Copy, Send, Sync } from "destack:memory";
+
+struct Job implements Send {
+    id: uint64;
+}
+
+struct SharedJob implements Send, Sync {
+    id: AtomicU64;
+}
+
+// Copy permits duplication without user code
+function duplicate<T: Copy>(value: T): (T, T) {
+    (value, value)
+}
+
+// Clone delegates to explicit clone behavior
+function clone<T: Clone>(value: T): T {
+    value.clone()
+}
+
+// concurrency APIs state the required capability
+declare function post<T: Send>(worker: Worker, value: T): void;
+declare function publish<T: Sync>(value: shared T): void;
+
+declare const worker: Worker;
+declare const job: Job;
+declare const sharedJob: shared SharedJob;
+
+post(worker, job);
+publish(sharedJob);

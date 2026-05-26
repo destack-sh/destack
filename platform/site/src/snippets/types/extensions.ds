@@ -1,0 +1,27 @@
+/**
+* Extensions attach logic to a type without changing its stored shape.
+* Extensions in the same file are visible wherever the type is used.
+*/
+
+class Vector2 {
+    x: float32;
+    y: float32;
+
+    constructor(x: float32, y: float32) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+// methods and statics attach outside the stored shape
+extension of Vector2 {
+    static ZERO = new Vector2(0.0, 0.0);
+
+    magnitude(): float32 {
+        (this.x * this.x + this.y * this.y).sqrt()
+    }
+}
+
+// extension members read as ordinary members
+const origin = Vector2.ZERO;
+origin.magnitude() satisfies float32;

@@ -54,7 +54,7 @@ runs:
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
         path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-${{ steps.versions.outputs.bun_version }}-${{ hashFiles('bun.lock', 'package.json', 'app/**/package.json', 'bridge/**/package.json', 'library/**/package.json', 'template/**/package.json') }}
+        key: ${{ runner.os }}-bun-${{ steps.versions.outputs.bun_version }}-${{ hashFiles('bun.lock', 'package.json', 'app/**/package.json', 'bridge/**/package.json', 'library/**/package.json', 'platform/**/package.json', 'template/**/package.json') }}
         restore-keys: |
           ${{ runner.os }}-bun-${{ steps.versions.outputs.bun_version }}-
 

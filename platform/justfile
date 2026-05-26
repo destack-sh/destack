@@ -1,0 +1,29 @@
+set shell := ["bash", "-cu"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+
+_default:
+    @just --list --unsorted
+
+# build platform packages
+build:
+    cd site && bun run build
+
+# format platform packages
+format:
+    cd site && bun run format
+
+# check platform packages
+check:
+    cd site && bun run check
+
+# test platform packages
+test:
+    just check
+
+# run the platform quick gate
+quick:
+    just check
+
+# run the platform full gate
+full:
+    just quick

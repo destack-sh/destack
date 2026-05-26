@@ -1,0 +1,33 @@
+/**
+* Conditions gate sources, dependencies, and code paths.
+* Condition aliases compose through the module graph and target config.
+*/
+
+struct Renderer {
+    name: string;
+}
+
+struct Transport {
+    protocol: string;
+}
+
+declare function newRenderer(): Renderer;
+declare function oldRenderer(): Renderer;
+declare function browserTransport(): Transport;
+declare function nativeTransport(): Transport;
+
+// feature gates can select implementations
+function renderer(): Renderer {
+    if (import.meta.features.includes("rendererv2")) {
+        newRenderer()
+    } else {
+        oldRenderer()
+    }
+}
+
+// host gates can select platform integrations
+const transport = if (import.meta.host == "browser") {
+    browserTransport()
+} else {
+    nativeTransport()
+};

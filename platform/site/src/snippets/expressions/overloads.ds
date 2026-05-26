@@ -1,0 +1,29 @@
+/**
+* Dispatch selects calls and operators using TypeScript-shaped overload rules.
+* Operators resolve through the corresponding nominal interface.
+*/
+
+import { Add } from "destack:ops";
+
+struct Vector2 {
+    x: float32;
+    y: float32;
+}
+
+// the left operand is the receiver implementation
+extension of Vector2 implements Add<Vector2> {
+    type Output = Vector2;
+
+    add(other: Vector2): this.Output {
+        Vector2 {
+            x: this.x + other.x,
+            y: this.y + other.y,
+        }
+    }
+}
+
+// operator syntax dispatches through Add
+declare const position: Vector2;
+declare const offset: Vector2;
+const moved = position + offset;
+moved satisfies Vector2;
