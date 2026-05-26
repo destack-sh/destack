@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
-use crate::lower::r#type::VariantPayload;
+use crate::lower::r#type::VariantStorage;
 
 #[allow(clippy::too_many_arguments)]
 impl FunctionLowerer<'_> {
@@ -672,7 +672,7 @@ impl FunctionLowerer<'_> {
     /// ->
     /// ```mir
     /// v1: uint8 = const 0
-    /// v2: [usize; 1] = <payload>
+    /// v2: [usize; 1] = <storage>
     /// v3: Union = struct Union (v1, v2)
     /// ```
     pub(crate) fn lower_union_upcast(
@@ -749,39 +749,39 @@ impl FunctionLowerer<'_> {
             .builder
             .iconst(tag_index as i128, tag_width, tag_signed);
 
-        // resolve literals that do not carry payload data
+        // resolve literals that do not carry storage data
         let is_nullish_literal = matches!(
             self.context.types.get_type(source_type_id),
             dir::Type::Null | dir::Type::Undefined
         );
 
-        // build the union payload
+        // build the union storage
         let node = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
-        let payload = if is_nullish_literal {
-            // zero payload for null or undefined
-            self.union_payload_zero_value(layout, node)?
+        let storage = if is_nullish_literal {
+            // zero storage for null or undefined
+            self.union_storage_zero_value(layout, node)?
         } else {
-            // lower the source value into the payload
+            // lower the source value into storage
             let (value, source_mir_type) = self.lower_value_expression(value_id)?;
-            match layout.payload {
-                VariantPayload::Inline => self.inline_union_payload_from_value(
-                    layout.payload_type,
+            match layout.storage {
+                VariantStorage::Inline => self.inline_union_storage_from_value(
+                    layout.storage_type,
                     value,
                     source_mir_type,
                     node,
                 )?,
-                VariantPayload::Boxed => {
+                VariantStorage::Boxed => {
                     let boxed = self.box_value(value, source_mir_type);
-                    self.state.builder.bitcast(boxed, layout.payload_type)
+                    self.state.builder.bitcast(boxed, layout.storage_type)
                 }
             }
         };
 
         // assemble the union value
-        let mut fields = vec![tag_value, payload];
-        if layout.tag_field_index > layout.payload_field_index {
+        let mut fields = vec![tag_value, storage];
+        if layout.tag_field_index > layout.storage_field_index {
             fields.swap(0, 1);
         }
         let union_value = self.state.builder.struct_(target_mir_type, fields);
@@ -790,7 +790,7 @@ impl FunctionLowerer<'_> {
         Ok((union_value, target_mir_type))
     }
 
-    /// Lower a union downcast as an unchecked payload extraction.
+    /// Lower a union downcast as an unchecked storage extraction.
     ///
     /// ```ds
     /// function take(value: int32 | boolean): int32 {
@@ -799,8 +799,8 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: [usize; 1] = <payload>
-    /// v2: i32 = <payload_extract>
+    /// v1: [usize; 1] = <storage>
+    /// v2: i32 = <storage_extract>
     /// ```
     pub(crate) fn lower_union_downcast(
         &mut self,
@@ -822,24 +822,24 @@ impl FunctionLowerer<'_> {
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
-        // extract the payload value
-        let payload_value = self
+        // extract the storage value
+        let storage_value = self
             .state
             .builder
-            .field_get(value, layout.payload_field_index);
+            .field_get(value, layout.storage_field_index);
 
-        // load the payload as the target type
+        // load the storage as the target type
         let node = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
-        let value = match layout.payload {
-            VariantPayload::Inline => self.inline_union_payload_to_value(
-                layout.payload_type,
-                payload_value,
+        let value = match layout.storage {
+            VariantStorage::Inline => self.inline_union_storage_to_value(
+                layout.storage_type,
+                storage_value,
                 target_mir_type,
                 node,
             )?,
-            VariantPayload::Boxed => {
+            VariantStorage::Boxed => {
                 let reference_type = self.state.builder.type_reference(
                     mir::ReferenceKind::Managed,
                     target_mir_type,
@@ -847,12 +847,12 @@ impl FunctionLowerer<'_> {
                     mir::Space::Local,
                     mir::Nullability::None,
                 );
-                let casted = self.state.builder.bitcast(payload_value, reference_type);
+                let casted = self.state.builder.bitcast(storage_value, reference_type);
                 self.state.builder.load(casted, target_mir_type)
             }
         };
 
-        // return the payload value and type
+        // return the storage value and type
         Ok((value, target_mir_type))
     }
 
@@ -918,7 +918,7 @@ impl FunctionLowerer<'_> {
             .into());
         };
 
-        // handle null literals without lowering a payload value
+        // handle null literals without lowering a storage value
         let is_null_literal =
             matches!(self.context.types.get_type(source_type_id), dir::Type::Null);
         let value = if is_null_literal {

@@ -81,7 +81,7 @@ impl ModuleLowerer<'_> {
                 };
                 let layout_id = self.insert_layout_metadata(
                     ty,
-                    mir::LayoutShape::Tuple,
+                    mir::LayoutShape::Tuple { fields: Vec::new() },
                     size,
                     alignment,
                     fields,
@@ -132,13 +132,15 @@ impl ModuleLowerer<'_> {
         alignment: u32,
         fields: Vec<mir::LayoutField>,
     ) -> mir::LayoutId {
+        // attach fields to field-addressable shapes
+        let layout_shape = layout_shape.with_fields(fields);
+
         // build the mir layout entry
         let layout_entry = mir::Layout {
             shape: layout_shape,
             size,
             alignment,
-            reference_map: mir::ReferenceMap::empty(),
-            fields,
+            trace_map: mir::TraceMap::empty(),
         };
 
         // attach layout metadata to the type table
@@ -249,45 +251,41 @@ impl ModuleLowerer<'_> {
                     message: "missing union tag field".to_string(),
                 }
             })?;
-            let payload_index =
+            let storage_index =
                 layout
-                    .field(union_layout.payload_field_index)
+                    .field(union_layout.storage_field_index)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(anchor),
-                        message: "missing union payload field".to_string(),
+                        message: "missing union storage field".to_string(),
                     })?;
 
             mir::LayoutShape::Variant {
                 tag_offset: tag_index.offset,
-                payload_type: union_layout.payload_type,
-                payload_offset: payload_index.offset,
-                payload: match union_layout.payload {
-                    crate::lower::r#type::VariantPayload::Inline => mir::VariantPayload::Inline,
-                    crate::lower::r#type::VariantPayload::Boxed => mir::VariantPayload::Boxed,
-                },
+                storage_offset: storage_index.offset,
             }
         }
-        // prefer Any layouts when present
+        // prefer dynamic layouts when present
         else if let Some(type_id) = type_id
             && let Some(any_layout) = self.type_lowerer.any_value_layout(type_id)
         {
-            let value_field = layout.field(any_layout.value_field_index).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
+            // validate the canonical dynamic fields
+            if layout.field(any_layout.value_field_index).is_none() {
+                return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
-                    message: "missing Any value field".to_string(),
+                    message: "missing dynamic value field".to_string(),
                 }
-            })?;
-            let table_field = layout.field(any_layout.table_field_index).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
+                .into());
+            }
+
+            if layout.field(any_layout.table_field_index).is_none() {
+                return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
                     message: "missing interface table field".to_string(),
                 }
-            })?;
-
-            mir::LayoutShape::Any {
-                value_offset: value_field.offset,
-                table_offset: table_field.offset,
+                .into());
             }
+
+            mir::LayoutShape::Dynamic
         }
         // preserve object dispatch headers as first-class layout metadata
         else if let Some(vtable_field) = layout
@@ -297,25 +295,43 @@ impl ModuleLowerer<'_> {
         {
             mir::LayoutShape::Object {
                 table_offset: vtable_field.offset,
+                fields: Vec::new(),
             }
         }
-        // use function value layouts for function types
+        // use closure layouts for function values
         else if type_id.is_some_and(|type_id| {
             matches!(self.types.get_type(type_id), dir::Type::Function { .. })
         }) {
-            mir::LayoutShape::Callable
+            // validate the canonical closure fields
+            if layout.field_by_source(0).is_none() {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(anchor),
+                    message: "missing closure function field".to_string(),
+                }
+                .into());
+            }
+
+            if layout.field_by_source(1).is_none() {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(anchor),
+                    message: "missing closure environment field".to_string(),
+                }
+                .into());
+            }
+
+            mir::LayoutShape::Closure
         }
-        // mark function environments explicitly when present
+        // environment records use ordinary aggregate layout
         else if self
             .function_environment_layouts
             .values()
             .any(|env_layout| env_layout.env_type == mir_type)
         {
-            mir::LayoutShape::CallableEnvironment
+            mir::LayoutShape::Struct { fields: Vec::new() }
         }
         // default to plain struct layout
         else {
-            mir::LayoutShape::Struct
+            mir::LayoutShape::Struct { fields: Vec::new() }
         };
 
         Ok(layout_shape)

@@ -134,6 +134,13 @@ impl StructLayout {
     pub(crate) fn field(&self, index: u32) -> Option<&FieldLayout> {
         self.fields.get(index as usize)
     }
+
+    /// Get a field by its original source index.
+    pub(crate) fn field_by_source(&self, source_index: u32) -> Option<&FieldLayout> {
+        let index = self.field_index_by_source(source_index)?;
+
+        self.field(index)
+    }
 }
 
 impl TypeLowerer<'_> {

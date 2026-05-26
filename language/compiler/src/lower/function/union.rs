@@ -6,7 +6,7 @@ use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::{
     DiscriminantKey, DiscriminantLiteral, DiscriminantValue, UnionDiscriminantField, UnionLayout,
-    VariantPayload,
+    VariantStorage,
 };
 
 /// Literal values used for union literal comparisons.
@@ -43,47 +43,47 @@ pub(crate) struct UnionTagComparison {
 }
 
 impl FunctionLowerer<'_> {
-    /// Build a zero payload for a union variant without data.
-    pub(crate) fn union_payload_zero_value(
+    /// Build zero storage for a union variant without data.
+    pub(crate) fn union_storage_zero_value(
         &mut self,
         layout: &UnionLayout,
         node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::Value> {
-        // build the zero value based on the payload strategy
-        match layout.payload {
-            VariantPayload::Inline => {
-                self.inline_union_payload_zero_value(layout.payload_type, node)
+        // build the zero value based on the storage strategy
+        match layout.storage {
+            VariantStorage::Inline => {
+                self.inline_union_storage_zero_value(layout.storage_type, node)
             }
-            VariantPayload::Boxed => self.zero_value_for_type(layout.payload_type, node),
+            VariantStorage::Boxed => self.zero_value_for_type(layout.storage_type, node),
         }
     }
 
-    /// Build an inline union payload by storing the value into scratch memory.
-    pub(crate) fn inline_union_payload_from_value(
+    /// Build an inline union storage by storing the value into scratch memory.
+    pub(crate) fn inline_union_storage_from_value(
         &mut self,
-        payload_type: mir::LocalNodeId<mir::Type>,
+        storage_type: mir::LocalNodeId<mir::Type>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::Value> {
-        // allocate payload storage on the stack
-        let payload_ref_type = self.state.builder.type_reference(
+        // allocate storage on the stack
+        let storage_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
-            payload_type,
+            storage_type,
             mir::Access::Mutable,
             mir::Space::Frame,
             mir::Nullability::None,
         );
-        let payload_ptr = self
+        let storage_pointer = self
             .state
             .builder
-            .frame_alloc(payload_type, payload_ref_type);
+            .frame_alloc(storage_type, storage_ref_type);
 
-        // zero initialize the payload storage
-        let payload_zero = self.inline_union_payload_zero_value(payload_type, node)?;
-        self.state.builder.store(payload_ptr, payload_zero);
+        // zero initialize the storage
+        let storage_zero = self.inline_union_storage_zero_value(storage_type, node)?;
+        self.state.builder.store(storage_pointer, storage_zero);
 
-        // store the source value into the payload storage
+        // store the source value into the storage
         let value_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             value_type,
@@ -91,38 +91,38 @@ impl FunctionLowerer<'_> {
             mir::Space::Frame,
             mir::Nullability::None,
         );
-        let value_ptr = self.state.builder.bitcast(payload_ptr, value_ref_type);
+        let value_ptr = self.state.builder.bitcast(storage_pointer, value_ref_type);
         self.state.builder.store(value_ptr, value);
 
-        // load the payload value
-        Ok(self.state.builder.load(payload_ptr, payload_type))
+        // load the storage value
+        Ok(self.state.builder.load(storage_pointer, storage_type))
     }
 
-    /// Extract a value from an inline union payload.
-    pub(crate) fn inline_union_payload_to_value(
+    /// Extract a value from an inline union storage.
+    pub(crate) fn inline_union_storage_to_value(
         &mut self,
-        payload_type: mir::LocalNodeId<mir::Type>,
-        payload_value: mir::Value,
+        storage_type: mir::LocalNodeId<mir::Type>,
+        storage_value: mir::Value,
         target_type: mir::LocalNodeId<mir::Type>,
         _node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::Value> {
-        // use stack scratch storage for payload reinterpretation
-        let payload_ref_type = self.state.builder.type_reference(
+        // use stack scratch storage for storage reinterpretation
+        let storage_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
-            payload_type,
+            storage_type,
             mir::Access::Mutable,
             mir::Space::Frame,
             mir::Nullability::None,
         );
-        let payload_ptr = self
+        let storage_pointer = self
             .state
             .builder
-            .frame_alloc(payload_type, payload_ref_type);
+            .frame_alloc(storage_type, storage_ref_type);
 
-        // store the payload into the scratch memory
-        self.state.builder.store(payload_ptr, payload_value);
+        // store the storage into the scratch memory
+        self.state.builder.store(storage_pointer, storage_value);
 
-        // load the target value from the payload storage
+        // load the target value from the storage
         let target_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             target_type,
@@ -130,11 +130,11 @@ impl FunctionLowerer<'_> {
             mir::Space::Frame,
             mir::Nullability::None,
         );
-        let target_ptr = self.state.builder.bitcast(payload_ptr, target_ref_type);
+        let target_ptr = self.state.builder.bitcast(storage_pointer, target_ref_type);
         Ok(self.state.builder.load(target_ptr, target_type))
     }
 
-    /// Build a union value from a concrete variant payload.
+    /// Build a union value from a concrete variant value.
     pub(crate) fn union_value_from_variant(
         &mut self,
         layout: &UnionLayout,
@@ -158,35 +158,35 @@ impl FunctionLowerer<'_> {
         // build the tag constant
         let tag_value = self.union_tag_constant(layout, tag_index)?;
 
-        // build the union payload
-        let payload = match layout.payload {
-            VariantPayload::Inline => self.inline_union_payload_from_value(
-                layout.payload_type,
+        // build the union storage
+        let storage = match layout.storage {
+            VariantStorage::Inline => self.inline_union_storage_from_value(
+                layout.storage_type,
                 variant_value,
                 variant_mir_type,
                 node,
             )?,
-            VariantPayload::Boxed => {
+            VariantStorage::Boxed => {
                 let boxed = self.box_value(variant_value, variant_mir_type);
-                self.state.builder.bitcast(boxed, layout.payload_type)
+                self.state.builder.bitcast(boxed, layout.storage_type)
             }
         };
 
         // assemble the union value
-        let mut fields = vec![tag_value, payload];
-        if layout.tag_field_index > layout.payload_field_index {
+        let mut fields = vec![tag_value, storage];
+        if layout.tag_field_index > layout.storage_field_index {
             fields.swap(0, 1);
         }
         Ok(self.state.builder.struct_(union_type, fields))
     }
 
-    /// Build a zero value for inline payload storage.
-    fn inline_union_payload_zero_value(
+    /// Build a zero value for inline storage.
+    fn inline_union_storage_zero_value(
         &mut self,
-        payload_type: mir::LocalNodeId<mir::Type>,
+        storage_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::Value> {
-        let (element, length) = match self.state.builder.tree().get(payload_type) {
+        let (element, length) = match self.state.builder.tree().get(storage_type) {
             mir::Type::Array {
                 element, length, ..
             } => (
@@ -202,21 +202,21 @@ impl FunctionLowerer<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node),
-                    message: "inline union payload must be an array".to_string(),
+                    message: "inline union storage must be an array".to_string(),
                 }
                 .into());
             }
         };
 
         // create a zero element value
-        let zero_element = self.inline_union_payload_zero_element(element, node)?;
+        let zero_element = self.inline_union_storage_zero_element(element, node)?;
         let elements = vec![zero_element; length as usize];
 
-        Ok(self.state.builder.array(payload_type, elements))
+        Ok(self.state.builder.array(storage_type, elements))
     }
 
-    /// Build a zero element for inline payload arrays.
-    fn inline_union_payload_zero_element(
+    /// Build a zero element for inline storage arrays.
+    fn inline_union_storage_zero_element(
         &mut self,
         element_type: mir::LocalNodeId<mir::Type>,
         node: dir::AnchoredGlobalNodeId,
@@ -240,7 +240,7 @@ impl FunctionLowerer<'_> {
             mir::Type::Boolean => Ok(self.state.builder.bconst(false)),
             _ => Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(node),
-                message: "inline union payload element must be scalar".to_string(),
+                message: "inline union storage element must be scalar".to_string(),
             }
             .into()),
         }
@@ -797,7 +797,7 @@ impl FunctionLowerer<'_> {
             })
             .map_err(CompilerError::from)?;
 
-        // build the literal payload
+        // build the literal storage
         let node = self
             .context
             .types
@@ -807,24 +807,24 @@ impl FunctionLowerer<'_> {
         let (literal_value, literal_type) =
             self.lower_value_for_discriminant_literal(literal, node)?;
 
-        // build the payload for the union
-        let payload = match union_layout.payload {
-            VariantPayload::Inline => self.inline_union_payload_from_value(
-                union_layout.payload_type,
+        // build the storage for the union
+        let storage = match union_layout.storage {
+            VariantStorage::Inline => self.inline_union_storage_from_value(
+                union_layout.storage_type,
                 literal_value,
                 literal_type,
                 node,
             )?,
-            VariantPayload::Boxed => {
+            VariantStorage::Boxed => {
                 let boxed = self.box_value(literal_value, literal_type);
-                self.state.builder.bitcast(boxed, union_layout.payload_type)
+                self.state.builder.bitcast(boxed, union_layout.storage_type)
             }
         };
 
         // assemble the union value
         let tag_value = self.union_tag_constant(union_layout, tag_index)?;
-        let mut fields = vec![tag_value, payload];
-        if union_layout.tag_field_index > union_layout.payload_field_index {
+        let mut fields = vec![tag_value, storage];
+        if union_layout.tag_field_index > union_layout.storage_field_index {
             fields.swap(0, 1);
         }
         Ok(self.state.builder.struct_(union_mir_type, fields))

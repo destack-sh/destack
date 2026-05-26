@@ -11,33 +11,33 @@ use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::{LowerError, LowerResult};
 
 const UNION_TAG_FIELD_NAME: &str = "tag";
-const UNION_PAYLOAD_FIELD_NAME: &str = "payload";
+const UNION_STORAGE_FIELD_NAME: &str = "storage";
 
 /// Layout metadata for a lowered union type.
 #[derive(Debug, Clone)]
 pub(crate) struct UnionLayout {
     /// The tag field type.
     pub(crate) tag_type: mir::LocalNodeId<mir::Type>,
-    /// The payload field type.
-    pub(crate) payload_type: mir::LocalNodeId<mir::Type>,
-    /// The payload storage strategy.
-    pub(crate) payload: VariantPayload,
+    /// The storage field type.
+    pub(crate) storage_type: mir::LocalNodeId<mir::Type>,
+    /// The storage strategy.
+    pub(crate) storage: VariantStorage,
     /// The source union type ids in tag order.
     pub(crate) source_types: Vec<dir::LocalTypeId>,
     /// The tag field index in layout order.
     pub(crate) tag_field_index: u32,
-    /// The payload field index in layout order.
-    pub(crate) payload_field_index: u32,
+    /// The storage field index in layout order.
+    pub(crate) storage_field_index: u32,
     /// Discriminant field metadata when present.
     pub(crate) discriminant: Option<UnionDiscriminant>,
 }
 
-/// Payload storage strategy for union layouts.
+/// Storage strategy for union layouts.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum VariantPayload {
-    /// Store the payload inline inside the union struct.
+pub(crate) enum VariantStorage {
+    /// Store the value inline inside the union struct.
     Inline,
-    /// Store the payload as a managed box.
+    /// Store the value as a managed box.
     Boxed,
 }
 
@@ -158,8 +158,8 @@ impl TypeLowerer<'_> {
         // lower union element types for copy and layout bounds
         let mut element_types = Vec::with_capacity(source_types.len());
         let mut copy = mir::Copy::Yes;
-        let mut max_payload_size = 0;
-        let mut max_payload_alignment = 1;
+        let mut max_storage_size = 0;
+        let mut max_storage_alignment = 1;
         for element_id in &source_types {
             // null and undefined are tag-only variants
             let element_type = match types.get_type(*element_id) {
@@ -178,19 +178,19 @@ impl TypeLowerer<'_> {
                     ty: element_id.into_global(module_id),
                     message: "union layout requires concrete nested types".to_string(),
                 })?;
-            max_payload_size = max_payload_size.max(size);
-            max_payload_alignment = max_payload_alignment.max(alignment);
+            max_storage_size = max_storage_size.max(size);
+            max_storage_alignment = max_storage_alignment.max(alignment);
         }
 
-        // define tag and payload field types
+        // define tag and storage field types
         let tag_name = builder.intern(UNION_TAG_FIELD_NAME);
-        let payload_name = builder.intern(UNION_PAYLOAD_FIELD_NAME);
+        let storage_name = builder.intern(UNION_STORAGE_FIELD_NAME);
         let tag_width = self.tag_width_for_discriminant_count(source_types.len(), node)?;
         let tag_type = self.union_tag_type(tag_width, builder);
-        let payload = self.union_payload(copy, max_payload_size, max_payload_alignment);
-        let payload_type = match payload {
-            VariantPayload::Inline => self.inline_union_payload_type(max_payload_size, builder),
-            VariantPayload::Boxed => builder.type_managed_reference(self.ty_void),
+        let storage = self.union_storage(copy, max_storage_size, max_storage_alignment);
+        let storage_type = match storage {
+            VariantStorage::Inline => self.inline_union_storage_type(max_storage_size, builder),
+            VariantStorage::Boxed => builder.type_managed_reference(self.ty_void),
         };
 
         // compute field sizes and alignments
@@ -200,8 +200,8 @@ impl TypeLowerer<'_> {
                 anchor: self.diagnostic_anchor(node),
                 message: "union layout requires concrete nested types".to_string(),
             })?;
-        let (payload_size, payload_alignment) = self
-            .size_and_align_of_type(builder.tree().get(payload_type), builder.tree())
+        let (storage_size, storage_alignment) = self
+            .size_and_align_of_type(builder.tree().get(storage_type), builder.tree())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(node),
                 message: "union layout requires concrete nested types".to_string(),
@@ -218,10 +218,10 @@ impl TypeLowerer<'_> {
                 kind: FieldLayoutKind::Synthetic,
             },
             FieldInput {
-                name: payload_name,
-                ty: payload_type,
-                size: payload_size,
-                alignment: payload_alignment,
+                name: storage_name,
+                ty: storage_type,
+                size: storage_size,
+                alignment: storage_alignment,
                 source_index: Some(1),
                 kind: FieldLayoutKind::Synthetic,
             },
@@ -243,12 +243,12 @@ impl TypeLowerer<'_> {
                 )
             })
             .collect();
-        let mir_type = builder.type_variant(tag_type, payload_type, cases, copy);
+        let mir_type = builder.type_variant(tag_type, storage_type, cases, copy);
 
         // cache layout for later field lookups
         self.layout_cache.insert(mir_type, layout.clone());
 
-        // resolve tag and payload field indices
+        // resolve tag and storage field indices
         let tag_field_index =
             layout
                 .field_index(tag_name)
@@ -256,12 +256,12 @@ impl TypeLowerer<'_> {
                     anchor: self.diagnostic_anchor(node),
                     message: "missing union tag field".to_string(),
                 })?;
-        let payload_field_index =
+        let storage_field_index =
             layout
-                .field_index(payload_name)
+                .field_index(storage_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node),
-                    message: "missing union payload field".to_string(),
+                    message: "missing union storage field".to_string(),
                 })?;
 
         // cache union layout metadata
@@ -269,11 +269,11 @@ impl TypeLowerer<'_> {
             type_id,
             UnionLayout {
                 tag_type,
-                payload_type,
-                payload,
+                storage_type,
+                storage,
                 source_types,
                 tag_field_index,
-                payload_field_index,
+                storage_field_index,
                 discriminant,
             },
         );
@@ -298,41 +298,41 @@ impl TypeLowerer<'_> {
         }
     }
 
-    /// Select the payload storage strategy for a union layout.
-    fn union_payload(
+    /// Select the storage strategy for a union layout.
+    fn union_storage(
         &self,
         copy: mir::Copy,
-        payload_size: u32,
-        payload_alignment: u32,
-    ) -> VariantPayload {
-        // require trivial copy for inline payloads
+        storage_size: u32,
+        storage_alignment: u32,
+    ) -> VariantStorage {
+        // require trivial copy for inline storage
         if self.layout_policy.inline_union_requires_trivial_copyability && copy != mir::Copy::Yes {
-            return VariantPayload::Boxed;
+            return VariantStorage::Boxed;
         }
 
-        // keep inline payloads aligned within the policy
-        if payload_alignment > self.layout_policy.inline_union_max_alignment {
-            return VariantPayload::Boxed;
+        // keep inline storage aligned within the policy
+        if storage_alignment > self.layout_policy.inline_union_max_alignment {
+            return VariantStorage::Boxed;
         }
-        if payload_size <= self.layout_policy.inline_union_budget_bytes {
-            return VariantPayload::Inline;
+        if storage_size <= self.layout_policy.inline_union_budget_bytes {
+            return VariantStorage::Inline;
         }
 
-        VariantPayload::Boxed
+        VariantStorage::Boxed
     }
 
-    /// Build the inline payload type for a union.
-    fn inline_union_payload_type(
+    /// Build the inline storage type for a union.
+    fn inline_union_storage_type(
         &mut self,
-        payload_size: u32,
+        storage_size: u32,
         builder: &mut mir::ModuleBuilder,
     ) -> mir::LocalNodeId<mir::Type> {
-        // store inline payloads as pointer sized words
+        // store inline values as pointer sized words
         let pointer_size = u32::from(self.pointer_bytes()).max(1);
-        let slot_count = if payload_size == 0 {
+        let slot_count = if storage_size == 0 {
             0
         } else {
-            payload_size.div_ceil(pointer_size)
+            storage_size.div_ceil(pointer_size)
         };
         builder.type_array(self.ty_usize, slot_count as u64, mir::Copy::Yes)
     }
