@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckState, ConcreteLayout, FunctionTerm, LayoutQuery, OperatorTermKind, Solution,
+    CheckState, FunctionTerm, Layout, LayoutQuery, OperatorTermKind, Solution, TypeOperand,
 };
 
 use super::{GenericInstance, VariableBounds, VariableId};
@@ -22,7 +22,7 @@ pub(in crate::check) struct SolutionTable {
     pub(in crate::check) operator: IndexMap<dir::GlobalNodeIdAny, OperatorDecision>,
     /// Runtime identity checks resolved or rejected by solve.
     pub(in crate::check) identity: IndexMap<dir::GlobalNodeIdAny, IdentityDecision>,
-    /// Concrete layout queries resolved or rejected by solve.
+    /// Layout queries resolved or rejected by solve.
     pub(in crate::check) layout: IndexMap<dir::GlobalNodeIdAny, LayoutDecision>,
     /// Runtime members resolved or rejected by solve.
     pub(in crate::check) member: IndexMap<dir::GlobalNodeIdAny, MemberDecision>,
@@ -155,10 +155,10 @@ pub(in crate::check) enum CallFailure {
     NoMatch,
     /// One selected callable target rejected an argument type.
     ArgumentType {
-        /// The incompatible argument type variable.
-        argument: VariableId,
-        /// The expected parameter type variable.
-        parameter: VariableId,
+        /// The incompatible argument type operand.
+        argument: TypeOperand,
+        /// The expected parameter type operand.
+        parameter: TypeOperand,
     },
 }
 
@@ -287,7 +287,7 @@ pub(in crate::check) enum IdentityDecision {
     Rejected(IdentityFailure),
 }
 
-/// Solved concrete layout query resolved by the solver.
+/// Solved layout query resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct LayoutResolution {
     /// The source layout query expression.
@@ -296,11 +296,11 @@ pub(in crate::check) struct LayoutResolution {
     pub(in crate::check) target: VariableId,
     /// The requested layout property.
     pub(in crate::check) query: LayoutQuery,
-    /// The resolved concrete layout.
-    pub(in crate::check) layout: ConcreteLayout,
+    /// The resolved layout.
+    pub(in crate::check) layout: Layout,
 }
 
-/// Concrete layout query failure resolved by the solver.
+/// Layout query failure resolved by the solver.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct LayoutFailure {
     /// The source layout query expression.
@@ -311,12 +311,12 @@ pub(in crate::check) struct LayoutFailure {
     pub(in crate::check) query: LayoutQuery,
 }
 
-/// Concrete layout query decision resolved by the solver.
+/// Layout query decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum LayoutDecision {
-    /// One concrete layout resolved.
+    /// One layout resolved.
     Resolved(LayoutResolution),
-    /// Concrete layout resolution failed.
+    /// Layout resolution failed.
     Rejected(LayoutFailure),
 }
 
@@ -412,7 +412,7 @@ impl CheckState<'_> {
     }
 
     /// Record one member decision.
-    pub(in crate::check) fn record_member_solution(
+    pub(in crate::check) fn record_member_decision(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: MemberDecision,

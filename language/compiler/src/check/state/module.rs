@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, FlowState, StaticCondition};
 use crate::CheckError;
+use crate::check::{CheckState, FlowState, StaticCondition};
 
 use super::{CheckInputState, CheckOutputState, ImportTable};
 
@@ -79,17 +79,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return static availability for one module.
-    pub(in crate::check) fn availability(
-        &self,
-        module: ModuleId,
-    ) -> &indexmap::IndexMap<dir::GlobalSymbolId, StaticCondition> {
-        match self.availability.get(&module) {
-            Some(availability) => availability,
-            None => panic!("check availability {module:?} was not loaded"),
-        }
-    }
-
     /// Return static availability for one module mutably.
     pub(in crate::check) fn availability_mut(
         &mut self,
@@ -122,7 +111,9 @@ impl CheckState<'_> {
             }
         }
 
-        self.output_mut(module).types.insert_type_from_any(ty, source)
+        self.output_mut(module)
+            .types
+            .insert_type_from_any(ty, source)
     }
 
     /// Add or reuse one checked static value.
@@ -173,7 +164,10 @@ impl CheckState<'_> {
             return term.clone();
         }
 
-        self.input(module).static_table().get_static(static_id).clone()
+        self.input(module)
+            .static_table()
+            .get_static(static_id)
+            .clone()
     }
 }
 

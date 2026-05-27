@@ -3,36 +3,36 @@ use std::collections::VecDeque;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{Constraint, Progress, VariableId};
+use crate::check::{CheckState, Constraint, Definition, Progress, VariableId};
 
-/// Component constraint solver queue.
-pub(in crate::check) struct ConstraintQueue {
-    /// Constraints in component solve order.
-    constraints: Vec<Constraint>,
-    /// Constraint indexes keyed by variables that wake them.
+/// Component solver queue.
+pub(in crate::check) struct SolverQueue {
+    /// Items in component solve order.
+    items: Vec<SolverItem>,
+    /// Item indexes keyed by watched variables.
     dependents: IndexMap<VariableId, SmallVec<[usize; 4]>>,
-    /// Queued constraint indexes.
+    /// Queued item indexes.
     pending: VecDeque<usize>,
-    /// Whether a constraint index is currently queued.
+    /// Whether an item index is currently queued.
     queued: Vec<bool>,
 }
 
-impl ConstraintQueue {
+impl SolverQueue {
     /// Create a queue containing every work item.
-    pub(in crate::check) fn from(constraints: Vec<Constraint>) -> Self {
-        let pending = (0..constraints.len()).collect::<VecDeque<_>>();
-        let queued = vec![true; constraints.len()];
+    pub(in crate::check) fn from(items: Vec<SolverItem>, state: &CheckState<'_>) -> Self {
+        let pending = (0..items.len()).collect::<VecDeque<_>>();
+        let queued = vec![true; items.len()];
         let mut dependents = IndexMap::<VariableId, SmallVec<[usize; 4]>>::new();
 
-        // index constraints by the variables that wake them
-        for (index, constraint) in constraints.iter().enumerate() {
-            for variable in constraint.wake_variables() {
+        // index items by watched variables
+        for (index, item) in items.iter().enumerate() {
+            for variable in item.watched_variables(state) {
                 dependents.entry(variable).or_default().push(index);
             }
         }
 
         Self {
-            constraints,
+            items,
             dependents,
             pending,
             queued,
@@ -40,14 +40,14 @@ impl ConstraintQueue {
     }
 
     /// Return the next queued work item.
-    pub(in crate::check) fn next(&mut self) -> Option<Constraint> {
+    pub(in crate::check) fn next(&mut self) -> Option<SolverItem> {
         let index = self.pending.pop_front()?;
         self.queued[index] = false;
 
-        Some(self.constraints[index].clone())
+        Some(self.items[index].clone())
     }
 
-    /// Wake constraints affected by one reduction.
+    /// Wake items affected by one reduction.
     pub(in crate::check) fn wake(&mut self, progress: Progress) {
         match progress {
             Progress::Unchanged => {}
@@ -55,10 +55,10 @@ impl ConstraintQueue {
         }
     }
 
-    /// Wake every constraint.
+    /// Wake every item.
     pub(in crate::check) fn wake_all(&mut self) {
-        // global bound solving can solve variables created after the queue index
-        for index in 0..self.constraints.len() {
+        // bound solving can satisfy variables watched by earlier items
+        for index in 0..self.items.len() {
             if !self.queued[index] {
                 self.pending.push_back(index);
                 self.queued[index] = true;
@@ -66,7 +66,7 @@ impl ConstraintQueue {
         }
     }
 
-    /// Enqueue constraints that depend on changed variables.
+    /// Enqueue items that depend on changed variables.
     fn enqueue_dependents(&mut self, variables: &[VariableId]) {
         for variable in variables {
             let Some(dependents) = self.dependents.get(variable) else {
@@ -80,6 +80,25 @@ impl ConstraintQueue {
                     self.queued[*index] = true;
                 }
             }
+        }
+    }
+}
+
+/// One queued solver item.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum SolverItem {
+    /// Variable definition.
+    Definition(Definition),
+    /// Relation constraint.
+    Constraint(Constraint),
+}
+
+impl SolverItem {
+    /// Return variables watched by this item.
+    fn watched_variables(&self, state: &CheckState<'_>) -> SmallVec<[VariableId; 4]> {
+        match self {
+            Self::Definition(definition) => definition.watched_variables(state),
+            Self::Constraint(constraint) => constraint.watched_variables(state),
         }
     }
 }

@@ -9,11 +9,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
     Capture, CheckInputState, CheckOutputState, ExportLookupKey, ExportLookupState, FlowState,
-    ImportTable, SolutionTable, StaticCondition, Term, TermId, TermTable, VariableId,
-    VariableTable,
+    ImportTable, SolutionTable, StaticCondition, TermTable, VariableId, VariableTable,
 };
-use crate::CheckError;
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{CheckError, Compiler, CompilerError, CompilerResult};
 
 /// State for checking one resolved component.
 pub(in crate::check) struct CheckState<'a> {
@@ -153,19 +151,6 @@ impl<'a> CheckState<'a> {
         }
 
         Ok(())
-    }
-
-    /// Add one term to the component term table.
-    pub(in crate::check) fn intern_term<T: Term>(&mut self, term: T) -> TermId<T> {
-        self.terms.push(term)
-    }
-
-    /// Return one term from the component term table.
-    pub(in crate::check) fn term<T: Term>(&self, id: TermId<T>) -> T
-    where
-        T: Clone,
-    {
-        self.terms.get(id).clone()
     }
 
     /// Load one module.
@@ -428,13 +413,9 @@ impl<'a> CheckState<'a> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<VariableId>> {
-        let _module = if self.inputs.contains_key(&symbol.module_id) {
-            symbol.module_id
-        } else {
+        if !self.inputs.contains_key(&symbol.module_id) {
             self.require_symbol_module_imported(module, symbol)?;
-
-            module
-        };
+        }
 
         Ok(self.generic_static_variable_for_symbol(symbol))
     }
@@ -486,5 +467,4 @@ impl<'a> CheckState<'a> {
             extensions,
         })
     }
-
 }

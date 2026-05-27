@@ -95,50 +95,37 @@ impl CheckState<'_> {
                 progress: _,
             } => owner,
         };
-        self.record_member_decision(source, receiver, &key, &owner)?;
+        // record solved member selection for commit and diagnostics
+        if let Some(source) = source {
+            let decision =
+                if let Some(member) = self.member_type_candidate(receiver.module, &owner, &key)? {
+                    let target = MemberResolutionTarget::Symbol {
+                        symbol: member.symbol,
+                        instance: member.instance,
+                    };
+                    let member = MemberResolution {
+                        source,
+                        receiver,
+                        target,
+                    };
+
+                    MemberDecision::Resolved(member)
+                } else if self.type_term_has_field(receiver.module, &owner, &key)? {
+                    let member = MemberResolution {
+                        source,
+                        receiver,
+                        target: MemberResolutionTarget::Field(key),
+                    };
+
+                    MemberDecision::Resolved(member)
+                } else {
+                    MemberDecision::Rejected(MemberFailure::Missing)
+                };
+
+            self.record_member_decision(source, decision);
+        }
 
         self.resolve_member_type(module, &owner, &key, arguments)
-    }
-
-    /// Record one member decision for commit and diagnostics.
-    fn record_member_decision(
-        &mut self,
-        source: Option<dir::GlobalNodeIdAny>,
-        receiver: VariableId,
-        key: &dir::StaticKey,
-        owner: &TypeTerm,
-    ) -> CompilerResult<()> {
-        let Some(source) = source else {
-            return Ok(());
-        };
-        let decision =
-            if let Some(member) = self.member_type_candidate(receiver.module, owner, key)? {
-                let target = MemberResolutionTarget::Symbol {
-                    symbol: member.symbol,
-                    instance: member.instance,
-                };
-                let member = MemberResolution {
-                    source,
-                    receiver,
-                    target,
-                };
-
-                MemberDecision::Resolved(member)
-            } else if self.type_term_has_field(receiver.module, owner, key)? {
-                let member = MemberResolution {
-                    source,
-                    receiver,
-                    target: MemberResolutionTarget::Field(*key),
-                };
-
-                MemberDecision::Resolved(member)
-            } else {
-                MemberDecision::Rejected(MemberFailure::Missing)
-            };
-
-        self.record_member_solution(source, decision);
-
-        Ok(())
     }
 
     /// Resolve a member type from one reduced type term.

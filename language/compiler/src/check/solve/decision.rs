@@ -10,7 +10,7 @@ pub(in crate::check) enum Decision {
 }
 
 impl Decision {
-    /// Combine decisions that must both hold.
+    /// Combine solutions that must both hold.
     pub(in crate::check) fn and(self, other: Self) -> Self {
         match (self, other) {
             (Self::No, _) | (_, Self::No) => Self::No,
@@ -19,7 +19,7 @@ impl Decision {
         }
     }
 
-    /// Combine decisions where either one may hold.
+    /// Combine solutions where either one may hold.
     pub(in crate::check) fn or(self, other: Self) -> Self {
         match (self, other) {
             (Self::Yes, _) | (_, Self::Yes) => Self::Yes,

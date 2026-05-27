@@ -1,6 +1,7 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
-use crate::check::{ArgumentTerm, CheckState, ConstraintOrigin, TermId};
+use crate::check::{CheckState, ConstraintOrigin, GenericArgument};
 
 use super::{VariableId, VariableOutput};
 
@@ -32,7 +33,7 @@ pub(in crate::check) struct GenericInstance {
     /// The instantiated symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The solved arguments.
-    pub(in crate::check) arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) arguments: SmallVec<[GenericArgument; 4]>,
 }
 
 /// Generic slot identity shared by explicit and induced generic parameters.

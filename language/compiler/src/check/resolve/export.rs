@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::CheckComponentState;
+use crate::check::CheckState;
 use crate::{CompilerError, CompilerResult};
 
 use super::lookup::NameLookup;
@@ -36,9 +36,9 @@ pub(in crate::check) enum ExportLookupState {
     Resolved(ExportLookup),
 }
 
-impl CheckComponentState<'_> {
-    /// Resolve one static path that starts from lexical name lookup.
-    pub(in crate::check) fn resolve_static_path_symbol(
+impl CheckState<'_> {
+    /// Resolve one source path that starts from lexical name lookup.
+    pub(in crate::check) fn resolve_path_symbol(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -48,7 +48,7 @@ impl CheckComponentState<'_> {
         let Some((name, tail)) = path.segments.split_first() else {
             return Ok(ExportLookup::Missing);
         };
-        let symbol = match self.module(module)?.lookup_name(source, *name, space) {
+        let symbol = match self.lookup_symbol_by_name(module, source, *name, space) {
             // exactly one root symbol
             NameLookup::Found(symbol) => symbol,
             // no root symbol
@@ -82,13 +82,12 @@ impl CheckComponentState<'_> {
             return Ok(lookup);
         }
 
-        self.export_lookups
-            .insert(cache_key, ExportLookupState::Resolving);
+        self.exports.insert(cache_key, ExportLookupState::Resolving);
 
         let lookup = self.compute_export_symbol(module, key)?;
 
         // cache the lookup without consuming the returned value
-        self.export_lookups
+        self.exports
             .insert(cache_key, ExportLookupState::Resolved(lookup.clone()));
 
         Ok(lookup)
@@ -96,7 +95,7 @@ impl CheckComponentState<'_> {
 
     /// Return the cached export lookup when it is already known.
     fn cached_export_lookup(&self, key: ExportLookupKey) -> Option<ExportLookup> {
-        match self.export_lookups.get(&key).cloned() {
+        match self.exports.get(&key).cloned() {
             Some(ExportLookupState::Resolved(lookup)) => Some(lookup),
 
             // break export cycles without hiding other star branches
@@ -150,12 +149,7 @@ impl CheckComponentState<'_> {
         }
 
         let local = symbol.local_id;
-        let target = self
-            .module(module)?
-            .input
-            .resolved
-            .imports
-            .symbol_target(local);
+        let target = self.input(module).resolved.imports.symbol_target(local);
         let target = match target {
             Some(dir::ImportTarget::Namespace(module)) => Some(module),
             Some(dir::ImportTarget::Symbol(_)) | None => None,

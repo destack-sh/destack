@@ -13,10 +13,7 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::MissingTypeAnnotation {
-            anchor,
-            module,
-        };
+        let diagnostic = CheckError::MissingTypeAnnotation { anchor, module };
 
         self.diagnostics_mut(module).push(diagnostic);
     }
@@ -72,23 +69,6 @@ impl CheckState<'_> {
         self.diagnostics_mut(module).push(diagnostic);
     }
 
-    /// Report an internal error at one source node.
-    pub(in crate::check) fn report_internal_error(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        message: String,
-    ) {
-        let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::Internal {
-            anchor,
-            module,
-            message,
-        };
-
-        self.diagnostics_mut(module).push(diagnostic);
-    }
-
     /// Report an invalid static condition at one source node.
     pub(in crate::check) fn report_invalid_static_condition(
         &mut self,
@@ -96,10 +76,7 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::InvalidStaticCondition {
-            anchor,
-            module,
-        };
+        let diagnostic = CheckError::InvalidStaticCondition { anchor, module };
 
         self.diagnostics_mut(module).push(diagnostic);
     }
@@ -138,6 +115,23 @@ impl CheckState<'_> {
         self.diagnostics_mut(module).push(diagnostic);
     }
 
+    /// Report an internal check failure at one source node.
+    pub(in crate::check) fn report_internal(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        message: String,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::Internal {
+            anchor,
+            module,
+            message,
+        };
+
+        self.diagnostics_mut(module).push(diagnostic);
+    }
+
     /// Report an invalid writable place at one source node.
     pub(in crate::check) fn report_not_writable(
         &mut self,
@@ -145,10 +139,7 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::NotWritable {
-            anchor,
-            module,
-        };
+        let diagnostic = CheckError::NotWritable { anchor, module };
 
         self.diagnostics_mut(module).push(diagnostic);
     }

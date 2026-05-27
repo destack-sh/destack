@@ -1,53 +1,74 @@
 use destack_dir as dir;
 
-use crate::check::{CheckModuleState, ReceiverCapture, ReceiverResolution};
+use crate::check::{CheckState, ReceiverCapture, ReceiverResolution};
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Resolve `this` at the current walk point.
     pub(in crate::check) fn resolve_this_receiver(
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> Option<ReceiverCapture> {
-        let (index, receiver) = self.work.flow.lexical_receiver()?;
-        let is_current = self.work.flow.is_current_function(index);
+        let module = source.module_id;
+        if let Some((index, receiver)) = self.flow(module).lexical_receiver() {
+            let is_current = self.flow(module).is_current_function(index);
 
-        if is_current {
-            self.record_this_receiver_resolution(source, receiver);
-        } else {
-            self.work.flow.capture_receiver(receiver);
-            self.record_name_resolution(source, receiver.symbol);
+            if is_current {
+                self.record_this_receiver_resolution(source, receiver);
+            } else {
+                self.flow_mut(module).capture_receiver(receiver);
+                self.record_name_resolution(source, receiver.symbol);
+            }
+
+            return Some(receiver);
         }
 
-        Some(receiver)
+        if let Some(receiver) = self.flow(module).current_receiver() {
+            self.record_this_receiver_resolution(source, receiver);
+
+            return Some(receiver);
+        }
+
+        None
     }
 
     /// Record one lexical value reference for capture analysis.
-    pub(in crate::check) fn capture_symbol_reference(&mut self, symbol: dir::GlobalSymbolId) {
-        if symbol.module_id != self.input.module_id {
+    pub(in crate::check) fn capture_symbol_reference(
+        &mut self,
+        module: destack_source::ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) {
+        if symbol.module_id != module {
             return;
         }
-        if self.is_import_symbol(symbol) {
+        if !self.inputs.contains_key(&module) {
             return;
         }
-        let Some(function) = self.work.flow.current_function() else {
+        if self.is_import_symbol(module, symbol) {
+            return;
+        }
+        let Some(function) = self.flow(module).current_function() else {
             return;
         };
         if symbol == function.symbol {
             return;
         }
-        if self.symbol_is_module_scoped(symbol) {
+        if self.symbol_is_module_scoped(module, symbol) {
             return;
         }
-        if self.symbol_is_owned_by_function(symbol, function.symbol) {
+        if self.symbol_is_owned_by_function(module, symbol, function.symbol) {
             return;
         }
 
-        self.work.flow.capture_symbol(symbol);
+        self.flow_mut(module).capture_symbol(symbol);
     }
 
     /// Return whether one symbol is declared in the module scope.
-    fn symbol_is_module_scoped(&self, symbol: dir::GlobalSymbolId) -> bool {
-        let bindings = self.input.binding_table();
+    fn symbol_is_module_scoped(
+        &self,
+        module: destack_source::ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> bool {
+        let bindings = self.input(module).binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
         let scope = bindings.get_scope(symbol.scope);
 
@@ -57,34 +78,25 @@ impl CheckModuleState {
     /// Return whether one symbol is declared under one function source node.
     fn symbol_is_owned_by_function(
         &self,
+        module: destack_source::ModuleId,
         symbol: dir::GlobalSymbolId,
         function: dir::GlobalSymbolId,
     ) -> bool {
-        let Some(symbol_source) = self.symbol_source_node(symbol) else {
+        if symbol.module_id != module || function.module_id != module {
             return false;
-        };
-        let Some(function_source) = self.symbol_source_node(function) else {
-            return false;
-        };
+        }
+        let bindings = self.input(module).binding_table();
+        let symbol = bindings.get_symbol(symbol.local_id);
+        let mut scope = Some(symbol.scope.id);
 
-        self.node_is_descendant_of(symbol_source, function_source)
-    }
-
-    /// Return whether one node is inside another source node.
-    fn node_is_descendant_of(
-        &self,
-        node: dir::LocalNodeIdAny,
-        ancestor: dir::LocalNodeIdAny,
-    ) -> bool {
-        let mut current = Some(node);
-        let view = self.input.view();
-
-        while let Some(node) = current {
-            if node == ancestor {
+        // walk lexical scope owners
+        while let Some(scope_id) = scope {
+            let current = bindings.get_scope_by_id(scope_id);
+            if current.owner == Some(function.local_id) {
                 return true;
             }
 
-            current = view.get_parent(node.id);
+            scope = current.parent.map(|parent| parent.id);
         }
 
         false

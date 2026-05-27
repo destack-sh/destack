@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckModuleState, ConstraintOrigin, FlowPath, TypeOperationTerm, TypeTerm, VariableId,
+    CheckState, ConstraintOrigin, FlowPath, TypeOperationTerm, TypeTerm, VariableId, VariableKind,
 };
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Return the stable flow path for one expression.
     pub(in crate::check) fn flow_path(
         &self,
@@ -15,7 +15,12 @@ impl CheckModuleState {
             // value
             dir::Expression::Identifier { name } => {
                 let symbol = self
-                    .lookup_name(id.into_any(), *name, dir::SymbolSpace::Value)
+                    .lookup_symbol_by_name(
+                        tree.module_id,
+                        id.into_any(),
+                        *name,
+                        dir::SymbolSpace::Value,
+                    )
                     .unique_symbol()?;
 
                 Some(FlowPath::symbol(symbol))
@@ -24,7 +29,12 @@ impl CheckModuleState {
             dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
                 let name = path.segments[0];
                 let symbol = self
-                    .lookup_name(id.into_any(), name, dir::SymbolSpace::Value)
+                    .lookup_symbol_by_name(
+                        tree.module_id,
+                        id.into_any(),
+                        name,
+                        dir::SymbolSpace::Value,
+                    )
                     .unique_symbol()?;
 
                 Some(FlowPath::symbol(symbol))
@@ -72,12 +82,12 @@ impl CheckModuleState {
     ) -> Option<VariableId> {
         let path = self.flow_path(tree, id)?;
 
-        self.work.flow.narrowings.get(&path).copied()
+        self.flow(tree.module_id).narrowings.get(&path).copied()
     }
 
     /// Narrow one flow path to an exact type variable.
     pub(in crate::check) fn narrow_flow_path(&mut self, path: FlowPath, ty: VariableId) {
-        self.work.flow.narrow(path, ty);
+        self.flow_mut(ty.module).narrow(path, ty);
     }
 
     /// Narrow one flow path by excluding one tested type.
@@ -88,16 +98,16 @@ impl CheckModuleState {
         original: VariableId,
         excluded: VariableId,
     ) {
-        let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
-        let narrowed = self.define_anonymous_type(
-            origin,
-            TypeTerm::Operation(TypeOperationTerm::Exclude {
-                source: original,
-                target: excluded,
-            }),
-        );
+        let origin = ConstraintOrigin::Node(source.into_global(original.module));
+        let operation = self.terms.push(TypeOperationTerm::Exclude {
+            source: original.into(),
+            target: excluded.into(),
+        });
+        let narrowed =
+            self.allocate_intermediate_variable(original.module, VariableKind::Type, origin);
+        self.define_type(original.module, narrowed, TypeTerm::Operation(operation));
 
-        self.work.flow.narrow(path, narrowed);
+        self.flow_mut(original.module).narrow(path, narrowed);
     }
 
     /// Clear flow narrowings invalidated by a write expression.
@@ -110,6 +120,6 @@ impl CheckModuleState {
             return;
         };
 
-        self.work.flow.clear_narrowings_under(&path);
+        self.flow_mut(tree.module_id).clear_narrowings_under(&path);
     }
 }

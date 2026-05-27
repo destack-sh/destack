@@ -2353,7 +2353,7 @@ impl CheckState<'_> {
         let Some(term) = self.solved_type_term(value)? else {
             return Ok(Reduction::pending());
         };
-        if !arguments.is_empty() && !self.variables.is_open {
+        if !arguments.is_empty() && self.variables.is_closed {
             return Ok(Reduction::value(TypeTerm::Reference {
                 source,
                 symbol,

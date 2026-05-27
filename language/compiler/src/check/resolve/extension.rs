@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use indexmap::IndexSet;
 
 use crate::check::{
-    ArgumentTerm, CheckComponentState, Decision, GenericSubstitution, MemberProtocol, TypeRelation,
+    CheckState, Decision, GenericArgument, GenericSubstitution, MemberProtocol, TypeRelation,
     TypeTerm, VariableId,
 };
 use crate::{CompilerError, CompilerResult};
@@ -32,13 +32,13 @@ struct ExtensionWhereClause {
     right: VariableId,
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Return an applicable extension member for one applied nominal receiver.
     pub(in crate::check) fn extension_member(
         &mut self,
         module: ModuleId,
         target: dir::GlobalSymbolId,
-        arguments: &[ArgumentTerm],
+        arguments: &[GenericArgument],
         key: dir::StaticKey,
         protocol: Option<&MemberProtocol>,
     ) -> CompilerResult<
@@ -95,8 +95,7 @@ impl CheckComponentState<'_> {
         }
 
         let imports = self
-            .module(module)?
-            .input
+            .input(module)
             .resolved
             .imports
             .symbol_targets()
@@ -120,21 +119,21 @@ impl CheckComponentState<'_> {
         candidates: &mut Vec<ExtensionCandidate>,
     ) -> CompilerResult<()> {
         let symbols = {
-            let check_module = self.module(module)?;
-            let view = check_module.input.view();
+            let view = self.input(module).view();
             let mut symbols = Vec::new();
 
             // collect extension symbols before creating variables
             for (id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+                let id: dir::LocalNodeId<dir::Declaration> = id;
                 let dir::Declaration::Extension(_) = declaration else {
                     continue;
                 };
-                let symbol = check_module
-                    .declaration_symbol(id.into_any())
+                let symbol = self
+                    .declaration_symbol(module, id.into_any())
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!("extension declaration {id:?} has no symbol"),
                     })?;
-                if check_module.member_symbol(symbol, key).is_none() {
+                if self.member_symbol(module, symbol, key).is_none() {
                     continue;
                 }
 
@@ -160,7 +159,7 @@ impl CheckComponentState<'_> {
         seen: &mut IndexSet<dir::GlobalSymbolId>,
         candidates: &mut Vec<ExtensionCandidate>,
     ) -> CompilerResult<()> {
-        if self.modules.contains_key(&target.module_id) {
+        if self.inputs.contains_key(&target.module_id) {
             self.collect_component_extension_candidates(target.module_id, key, seen, candidates)?;
 
             return Ok(());
@@ -197,7 +196,7 @@ impl CheckComponentState<'_> {
         seen: &mut IndexSet<dir::GlobalSymbolId>,
         candidates: &mut Vec<ExtensionCandidate>,
     ) -> CompilerResult<()> {
-        let candidate = if self.modules.contains_key(&symbol.module_id) {
+        let candidate = if self.inputs.contains_key(&symbol.module_id) {
             self.component_extension_candidate(symbol, key)?
         } else {
             self.dependency_extension_candidate(module, symbol, key)?
@@ -219,35 +218,37 @@ impl CheckComponentState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Option<ExtensionCandidate>> {
         let (extension, member) = {
-            let check_module = self.module(symbol.module_id)?;
-            let Some(source) = check_module.symbol_source_node(symbol) else {
+            let Some(source) = self.symbol_source_node(symbol.module_id, symbol) else {
                 return Ok(None);
             };
             if source.ty != dir::NodeType::Declaration {
                 return Ok(None);
             }
             let declaration = dir::LocalNodeId::<dir::Declaration>::new(source.id);
-            let declaration = check_module.input.view().get(declaration).clone();
+            let declaration = self.input(symbol.module_id).view().get(declaration).clone();
             let dir::Declaration::Extension(extension) = declaration else {
                 return Ok(None);
             };
-            let Some(member) = check_module.member_symbol(symbol, key) else {
+            let Some(member) = self.member_symbol(symbol.module_id, symbol, key) else {
                 return Ok(None);
             };
 
             (extension, member)
         };
 
-        let check_module = self.module_mut(symbol.module_id)?;
-        let target = check_module.intern_local_type_variable(extension.target_type);
+        let target = self.intern_local_type_variable(symbol.module_id, extension.target_type);
         let where_clauses = extension
             .where_clauses
             .into_iter()
             .map(|where_clause| {
                 let source = where_clause.into_global_any(symbol.module_id);
-                let where_clause = check_module.input.view().get(where_clause).clone();
-                let left = check_module.intern_local_type_variable(where_clause.left);
-                let right = check_module.intern_local_type_variable(where_clause.right);
+                let where_clause = self
+                    .input(symbol.module_id)
+                    .view()
+                    .get(where_clause)
+                    .clone();
+                let left = self.intern_local_type_variable(symbol.module_id, where_clause.left);
+                let right = self.intern_local_type_variable(symbol.module_id, where_clause.right);
 
                 ExtensionWhereClause {
                     source,
@@ -272,7 +273,7 @@ impl CheckComponentState<'_> {
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<ExtensionCandidate>> {
-        let data = {
+        let dependency_candidate = {
             let dependency = self.load_dependency_input(symbol.module_id)?;
             let Some(extension_id) = dependency.extensions.symbol_extension_id(symbol) else {
                 return Ok(None);
@@ -337,35 +338,37 @@ impl CheckComponentState<'_> {
 
             (extension, member, where_clauses, types, statics, generics)
         };
-        let (extension, member, where_clauses, types, statics, generics) = data;
-        let check_module = self.module_mut(module)?;
-        let target_type = check_module.import_dependency_type(
+        let (extension, member, where_clauses, types, statics, generics) = dependency_candidate;
+        let target_type = self.import_dependency_type(
+            module,
             symbol.module_id,
             extension.target_type,
             &types,
             &statics,
             &generics,
         );
-        let target = check_module.materialize_type(target_type.into_global(module));
+        let target = self.materialize_type_id(target_type.into_global(module));
         let where_clauses = where_clauses
             .into_iter()
             .map(|(source, left, right)| {
-                let left = check_module.import_dependency_type(
+                let left = self.import_dependency_type(
+                    module,
                     symbol.module_id,
                     left,
                     &types,
                     &statics,
                     &generics,
                 );
-                let left = check_module.materialize_type(left.into_global(module));
-                let right = check_module.import_dependency_type(
+                let left = self.materialize_type_id(left.into_global(module));
+                let right = self.import_dependency_type(
+                    module,
                     symbol.module_id,
                     right,
                     &types,
                     &statics,
                     &generics,
                 );
-                let right = check_module.materialize_type(right.into_global(module));
+                let right = self.materialize_type_id(right.into_global(module));
 
                 ExtensionWhereClause {
                     source,
@@ -389,7 +392,7 @@ impl CheckComponentState<'_> {
         extension: dir::GlobalSymbolId,
         target_variable: VariableId,
         receiver: dir::GlobalSymbolId,
-        arguments: &[ArgumentTerm],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<Option<GenericSubstitution>> {
         let Some(pattern) = self.solved_type_term(target_variable)? else {
             return Ok(None);
@@ -397,7 +400,7 @@ impl CheckComponentState<'_> {
         let actual = TypeTerm::Reference {
             source: None,
             symbol: receiver,
-            arguments: arguments.to_vec(),
+            arguments: arguments.to_vec().into(),
         };
         let mut substitution = GenericSubstitution::empty();
         let is_match = self.match_type_pattern(

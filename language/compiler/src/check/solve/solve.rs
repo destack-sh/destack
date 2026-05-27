@@ -1,20 +1,24 @@
 use crate::CompilerResult;
 use crate::check::{
-    CheckComponentState, Constraint, PatternRelation, StaticTerm, TypeTerm, VariableId,
+    CheckState, Constraint, Decision, Definition, PatternRelation, StaticTerm, TypeOperationTerm,
+    TypeTerm, VariableId,
 };
 
 use super::Progress;
-use super::queue::ConstraintQueue;
+use super::queue::{SolverItem, SolverQueue};
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        let mut queue = ConstraintQueue::from(self.collect_constraints());
+        self.variables.close();
+
+        let items = self.collect_solve_items();
+        let mut queue = SolverQueue::from(items, self);
 
         loop {
-            // step queued constraints until no variable changes
-            while let Some(constraint) = queue.next() {
-                let progress = self.step_constraint(&constraint)?;
+            // step queued work until no variable changes
+            while let Some(item) = queue.next() {
+                let progress = self.step_solve_item(&item)?;
 
                 queue.wake(progress);
             }
@@ -29,44 +33,114 @@ impl CheckComponentState<'_> {
         Ok(())
     }
 
+    /// Collect all component solver items in stable module order.
+    fn collect_solve_items(&self) -> Vec<SolverItem> {
+        let mut items = Vec::new();
+
+        let variables = &self.variables;
+
+        items.extend(
+            variables
+                .definitions
+                .iter()
+                .cloned()
+                .map(SolverItem::Definition),
+        );
+        items.extend(
+            variables
+                .constraints
+                .iter()
+                .cloned()
+                .map(SolverItem::Constraint),
+        );
+
+        items
+    }
+
+    /// Collect all component definitions in stable module order.
+    pub(in crate::check) fn collect_definitions(&self) -> Vec<Definition> {
+        self.variables.definitions.clone()
+    }
+
     /// Collect all component constraints in stable module order.
     pub(in crate::check) fn collect_constraints(&self) -> Vec<Constraint> {
-        let mut constraints = Vec::new();
+        self.variables.constraints.clone()
+    }
 
-        // preserve module order and then local walk order
-        for check_module in self.modules.values() {
-            constraints.extend(check_module.work.constraints.iter().cloned());
+    /// Step one solver item once.
+    fn step_solve_item(&mut self, item: &SolverItem) -> CompilerResult<Progress> {
+        match item {
+            SolverItem::Definition(definition) => self.step_definition(definition),
+            SolverItem::Constraint(constraint) => self.step_constraint(constraint),
         }
+    }
 
-        constraints
+    /// Step one definition once.
+    fn step_definition(&mut self, definition: &Definition) -> CompilerResult<Progress> {
+        match definition {
+            Definition::Type {
+                result,
+                term,
+                condition,
+                ..
+            } => match self.decide_static_condition(condition)? {
+                Decision::No => Ok(Progress::Unchanged),
+                Decision::Yes | Decision::Undecidable => {
+                    let term = self.terms.get(*term).clone();
+                    self.step_type_definition(*result, &term)
+                }
+            },
+            Definition::Static {
+                result,
+                term,
+                condition,
+                ..
+            } => match self.decide_static_condition(condition)? {
+                Decision::No => Ok(Progress::Unchanged),
+                Decision::Yes | Decision::Undecidable => {
+                    let term = self.terms.get(*term).clone();
+                    self.step_static_definition(*result, &term)
+                }
+            },
+        }
     }
 
     /// Step one constraint once.
     fn step_constraint(&mut self, constraint: &Constraint) -> CompilerResult<Progress> {
         match constraint {
-            Constraint::DefineType { result, term, .. } => self.step_type_definition(*result, term),
-            Constraint::DefineStatic { result, term, .. } => {
-                self.step_static_definition(*result, term)
-            }
-            Constraint::RelateType {
+            Constraint::Type {
                 relation,
                 left,
                 right,
+                condition,
                 ..
-            } => self.solve_type_relation(*relation, *left, *right),
-            Constraint::RelateStatic {
+            } => match self.decide_static_condition(condition)? {
+                Decision::Yes => self.solve_type_relation(*relation, *left, *right),
+                Decision::No | Decision::Undecidable => Ok(Progress::Unchanged),
+            },
+            Constraint::Static {
                 relation,
                 left,
                 right,
+                condition,
                 ..
-            } => self.solve_static_relation(*relation, *left, *right),
-            Constraint::RelatePattern {
-                relation, value, ..
-            } => match relation {
-                PatternRelation::Match(pattern) => self.propagate_pattern_relation(*value, pattern),
-                PatternRelation::Assign(pattern) => {
-                    self.propagate_assign_pattern_relation(*value, pattern)
-                }
+            } => match self.decide_static_condition(condition)? {
+                Decision::Yes => self.solve_static_relation(*relation, *left, *right),
+                Decision::No | Decision::Undecidable => Ok(Progress::Unchanged),
+            },
+            Constraint::Pattern {
+                relation,
+                value,
+                condition,
+                ..
+            } => match self.decide_static_condition(condition)? {
+                Decision::Yes => match relation {
+                    PatternRelation::Match(pattern) => self.expect_pattern_term(*value, *pattern),
+                    PatternRelation::Assign(pattern) => {
+                        self.expect_assign_pattern_term(*value, *pattern)
+                    }
+                },
+                Decision::No | Decision::Undecidable => Ok(Progress::Unchanged),
             },
         }
     }
@@ -80,23 +154,49 @@ impl CheckComponentState<'_> {
         let reduction = self.reduce_type_term(result.module, term)?;
         let forward = match reduction.value {
             Some(term) => self.solve_type_variable(result, term)?,
+            None if self.type_term_is_durable(term) => {
+                self.solve_type_variable(result, term.clone())?
+            }
             None => Progress::Unchanged,
         };
-        let backward = self.propagate_type_expectation(result, term)?;
+        let backward = self.expect_type_term(result, term)?;
 
         Ok(reduction.progress.merge(forward).merge(backward))
     }
 
-    /// Step one static definition constraint.
+    /// Return whether an unreduced type term can be committed as type structure.
+    fn type_term_is_durable(&self, term: &TypeTerm) -> bool {
+        let TypeTerm::Operation(operation) = term else {
+            return false;
+        };
+
+        matches!(
+            self.terms.get(*operation),
+            TypeOperationTerm::Conditional { .. }
+                | TypeOperationTerm::Index { .. }
+                | TypeOperationTerm::TemplateLiteral { .. }
+                | TypeOperationTerm::Infer { .. }
+                | TypeOperationTerm::KeyOf { .. }
+                | TypeOperationTerm::Mapped { .. }
+        )
+    }
+
+    /// Step one static definition.
     fn step_static_definition(
         &mut self,
         result: VariableId,
         term: &StaticTerm,
     ) -> CompilerResult<Progress> {
-        let Some(term) = self.reduce_static_term(result.module, term)? else {
-            return Ok(Progress::Unchanged);
-        };
+        if let Some(term) = self.reduce_static_term(result.module, term)? {
+            return self.solve_static_variable(result, term);
+        }
 
-        self.solve_static_variable(result, term)
+        match term {
+            // preserve parametric static source for generic substitution
+            StaticTerm::Expression(_) | StaticTerm::Variable(_) => {
+                self.solve_static_variable(result, term.clone())
+            }
+            _ => Ok(Progress::Unchanged),
+        }
     }
 }

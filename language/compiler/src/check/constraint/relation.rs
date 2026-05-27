@@ -1,7 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, Constraint, ConstraintOrigin, TypeLiteralTerm, TypeTerm, VariableId,
+    CheckState, Constraint, ConstraintOrigin, StaticOperand, TypeLiteralTerm, TypeOperand,
+    TypeTerm, VariableId,
 };
 
 /// A relation between two type variables.
@@ -34,34 +35,35 @@ impl CheckState<'_> {
         &mut self,
         origin: ConstraintOrigin,
         relation: TypeRelation,
-        left: VariableId,
-        right: VariableId,
+        left: impl Into<TypeOperand>,
+        right: impl Into<TypeOperand>,
     ) {
-        let constraint = Constraint::RelateType {
+        let constraint = Constraint::Type {
             relation,
-            left,
-            right,
+            left: left.into(),
+            right: right.into(),
             origin,
-            condition: self.active_static_condition(),
+            condition: self.active_static_condition(origin.module()),
         };
 
         self.add_constraint(constraint);
     }
 
     /// Constrain two static variables.
+    #[allow(dead_code)]
     pub(in crate::check) fn constrain_static(
         &mut self,
         origin: ConstraintOrigin,
         relation: StaticRelation,
-        left: VariableId,
-        right: VariableId,
+        left: impl Into<StaticOperand>,
+        right: impl Into<StaticOperand>,
     ) {
-        let constraint = Constraint::RelateStatic {
+        let constraint = Constraint::Static {
             relation,
-            left,
-            right,
+            left: left.into(),
+            right: right.into(),
             origin,
-            condition: self.active_static_condition(),
+            condition: self.active_static_condition(origin.module()),
         };
 
         self.add_constraint(constraint);
@@ -73,9 +75,10 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
         condition: VariableId,
     ) {
-        let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
-        let expected =
-            self.define_anonymous_type(origin, TypeTerm::Literal(TypeLiteralTerm::boolean()));
+        let origin = ConstraintOrigin::Node(source.into_global(condition.module));
+        let expected = self
+            .terms
+            .push(TypeTerm::Literal(TypeLiteralTerm::boolean()));
 
         self.constrain_type(origin, TypeRelation::Assignable, condition, expected);
     }

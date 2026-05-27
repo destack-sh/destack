@@ -29,8 +29,6 @@ pub(in crate::check) struct CheckInputState {
     pub(in crate::check) expanded: Arc<DirExpanded>,
     /// The active global environment.
     pub(in crate::check) environment: Arc<GlobalEnvironment>,
-    /// The visitor options used while walking this module.
-    pub(in crate::check) options: dir::NodeVisitorOptions,
 }
 
 impl CheckInputState {
@@ -56,7 +54,6 @@ impl CheckInputState {
             resolved,
             expanded,
             environment,
-            options: dir::NodeVisitorOptions::default(),
         }
     }
 

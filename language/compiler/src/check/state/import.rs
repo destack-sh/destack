@@ -150,10 +150,9 @@ impl CheckState<'_> {
     ) {
         let value = self.import_static_id(module, source, import);
         let variable = self.intern_symbol_static_variable(module, symbol);
-        let term = StaticTerm::Variable(self.materialize_static_id(
-            ConstraintOrigin::Symbol(symbol),
-            value.into_global(module),
-        ));
+        let term = StaticTerm::Variable(
+            self.materialize_static_id(ConstraintOrigin::Symbol(symbol), value.into_global(module)),
+        );
 
         self.define_static(module, variable, term);
     }
@@ -181,9 +180,7 @@ impl CheckState<'_> {
             .insert_imported_type_from_any(ty, source_node);
 
         import.imported_types.insert(source, target);
-        self.imports_mut(module)
-            .types
-            .insert(source_id, target);
+        self.imports_mut(module).types.insert(source_id, target);
         if let dir::Type::Parameter(parameter) = source_ty {
             self.record_imported_type_parameter(module, target, parameter, import);
         }
@@ -221,7 +218,7 @@ impl CheckState<'_> {
 
         match self.variable(variable).kind {
             VariableKind::Type => {
-                let term = self.intern_term(TypeTerm::Parameter(slot_id));
+                let term = self.terms.push(TypeTerm::Parameter(slot_id));
                 self.solve_variable(variable, Solution::Type(term));
             }
             VariableKind::Static => {
@@ -311,10 +308,7 @@ impl CheckState<'_> {
     ) -> VariableId {
         let target = self.import_static_id(module, source, import);
 
-        self.materialize_static_id(
-            ConstraintOrigin::Symbol(owner),
-            target.into_global(module),
-        )
+        self.materialize_static_id(ConstraintOrigin::Symbol(owner), target.into_global(module))
     }
 
     /// Return a variable for one imported generic parameter.
@@ -337,7 +331,7 @@ impl CheckState<'_> {
             dir::GenericSlotKey::Generated(_) => {
                 let source = ConstraintOrigin::Symbol(generic.slot().owner);
 
-                self.allocate_anonymous_variable(module, kind, source)
+                self.allocate_intermediate_variable(module, kind, source)
             }
         }
     }
@@ -352,7 +346,7 @@ impl CheckState<'_> {
             return;
         };
         let term = StaticTerm::Literal(dir::StaticTerm::Symbol { symbol });
-        let term = self.intern_term(term);
+        let term = self.terms.push(term);
 
         self.solve_variable(variable, Solution::Static(term));
     }
@@ -573,7 +567,9 @@ impl CheckState<'_> {
             }
             dir::TypeOperation::Infer(infer) => dir::TypeOperation::Infer(dir::InferType {
                 name: infer.name,
-                constraint: infer.constraint.map(|ty| self.import_type_id(module, ty, import)),
+                constraint: infer
+                    .constraint
+                    .map(|ty| self.import_type_id(module, ty, import)),
             }),
             dir::TypeOperation::KeyOf(key) => dir::TypeOperation::KeyOf(dir::UnaryType {
                 target: self.import_type_id(module, key.target, import),
@@ -613,9 +609,7 @@ impl CheckState<'_> {
         let target = self.intern_static(module, term);
 
         import.imported_statics.insert(source, target);
-        self.imports_mut(module)
-            .statics
-            .insert(source_id, target);
+        self.imports_mut(module).statics.insert(source_id, target);
 
         target
     }
@@ -759,7 +753,7 @@ impl CheckState<'_> {
         }
 
         let kind = bindings.get_symbol(symbol.local_id).kind;
-        self.module_mut(module)?.imports.symbol_kinds.insert(symbol, kind);
+        self.imports_mut(module).symbol_kinds.insert(symbol, kind);
         self.import_symbol(module, symbol, symbol, types, statics, generics);
 
         let owned_symbols = Self::dependency_owned_symbols(bindings, symbol);
@@ -830,7 +824,7 @@ impl CheckState<'_> {
 
         // import every namespace-visible checked symbol value
         for (symbol, kind) in symbols {
-            self.module_mut(module)?.imports.symbol_kinds.insert(symbol, kind);
+            self.imports_mut(module).symbol_kinds.insert(symbol, kind);
             self.import_symbol(module, symbol, symbol, &types, &statics, &generics);
         }
 

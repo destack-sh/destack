@@ -30,8 +30,11 @@ pub(in crate::check) enum StaticCondition {
 
 impl StaticPredicate {
     /// Return variables whose changes can decide this predicate.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
-        self.term.referenced_variables()
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
+        self.term.referenced_variables(state)
     }
 
     /// Substitute generic arguments through this predicate.
@@ -75,12 +78,15 @@ impl StaticCondition {
     }
 
     /// Return variables whose changes can decide this condition.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 2]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
         match self {
             Self::Always | Self::Never => SmallVec::new(),
             Self::When { conditions } => conditions
                 .iter()
-                .flat_map(StaticPredicate::referenced_variables)
+                .flat_map(|condition| condition.referenced_variables(state))
                 .collect(),
         }
     }

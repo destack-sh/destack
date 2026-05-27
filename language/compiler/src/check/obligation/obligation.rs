@@ -3,7 +3,23 @@ use destack_source::ModuleId;
 
 use crate::{CompilerError, CompilerResult, DiagnosticAnchor};
 
-use crate::check::{CheckComponentState, CheckModuleState, PatternTerm, Place, VariableId};
+use crate::check::{
+    CheckError, CheckState, Decision, PatternTerm, Place, StaticCondition, TermId, VariableId,
+};
+
+/// Selector for one active match case.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum MatchCase {
+    /// Default selector.
+    Default,
+    /// Pattern selector.
+    PatternTerm {
+        /// The pattern checked for this case.
+        pattern: TermId<PatternTerm>,
+        /// The optional guard type.
+        guard: Option<VariableId>,
+    },
+}
 
 /// User-facing check that requires solved terms or whole-expression context.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,8 +37,10 @@ pub(in crate::check) enum Obligation {
         source: dir::GlobalNodeIdAny,
         /// The matched value type.
         value: VariableId,
-        /// The match cases in source order.
-        cases: Vec<dir::LocalNodeId<dir::MatchCase>>,
+        /// The active match cases in source order.
+        cases: Vec<MatchCase>,
+        /// The static condition under which this obligation exists.
+        condition: StaticCondition,
     },
     /// Binding patterns in non-matching positions must always succeed.
     ///
@@ -33,9 +51,11 @@ pub(in crate::check) enum Obligation {
         /// The checked pattern source.
         source: dir::GlobalNodeIdAny,
         /// The checked pattern term.
-        pattern: PatternTerm,
+        pattern: TermId<PatternTerm>,
         /// The matched value type.
         value: VariableId,
+        /// The static condition under which this obligation exists.
+        condition: StaticCondition,
     },
     /// Try propagation must fit the enclosing return type.
     ///
@@ -49,6 +69,8 @@ pub(in crate::check) enum Obligation {
         value: VariableId,
         /// The enclosing function return type.
         return_type: Option<VariableId>,
+        /// The static condition under which this obligation exists.
+        condition: StaticCondition,
     },
     /// A place assignment must target writable storage.
     ///
@@ -58,28 +80,26 @@ pub(in crate::check) enum Obligation {
     WritablePlace {
         /// The place being written.
         place: Place,
+        /// The static condition under which this obligation exists.
+        condition: StaticCondition,
     },
 }
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Add one check obligation.
     pub(in crate::check) fn add_obligation(&mut self, obligation: Obligation) {
-        self.work.obligations.push(obligation);
+        self.variables.obligations.push(obligation);
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Check solved obligations for diagnostics.
     pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<()> {
-        let modules = self.component_modules.clone();
+        let obligations = self.variables.obligations.clone();
 
-        // check obligations in stable module order
-        for module in modules {
-            let obligations = self.module(module)?.work.obligations.clone();
-
-            for obligation in obligations {
-                self.check_obligation(obligation)?;
-            }
+        // check obligations in collection order
+        for obligation in obligations {
+            self.check_obligation(obligation)?;
         }
 
         Ok(())
@@ -92,21 +112,62 @@ impl CheckComponentState<'_> {
                 source,
                 value,
                 cases,
-            } => self.check_match_exhaustive(source, value, &cases)?,
+                condition,
+            } => {
+                if self.check_obligation_condition(source, &condition)? {
+                    self.check_match_exhaustive(source, value, &cases)?;
+                }
+            }
             Obligation::IrrefutablePattern {
                 source,
                 pattern,
                 value,
-            } => self.check_irrefutable_pattern(source, &pattern, value)?,
+                condition,
+            } => {
+                if self.check_obligation_condition(source, &condition)? {
+                    self.check_irrefutable_pattern(source, pattern, value)?;
+                }
+            }
             Obligation::TryPropagation {
                 source,
                 value,
                 return_type,
-            } => self.check_try_propagates(source, value, return_type)?,
-            Obligation::WritablePlace { place } => self.check_writable_place(place)?,
+                condition,
+            } => {
+                if self.check_obligation_condition(source, &condition)? {
+                    self.check_try_propagates(source, value, return_type)?;
+                }
+            }
+            Obligation::WritablePlace { place, condition } => {
+                if self.check_obligation_condition(place.source, &condition)? {
+                    self.check_writable_place(place)?;
+                }
+            }
         }
 
         Ok(())
+    }
+
+    /// Report undecidable guards and return whether an obligation is active.
+    fn check_obligation_condition(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        condition: &StaticCondition,
+    ) -> CompilerResult<bool> {
+        let is_active = match self.decide_static_condition(condition)? {
+            Decision::Yes => true,
+            Decision::No => false,
+            Decision::Undecidable => {
+                let (module, anchor) = self.source_anchor(source)?;
+                let diagnostic = CheckError::CannotSolve { anchor, module };
+
+                self.diagnostics_mut(source.module_id).push(diagnostic);
+
+                false
+            }
+        };
+
+        Ok(is_active)
     }
 
     /// Return the diagnostic anchor for one source node.
@@ -115,9 +176,8 @@ impl CheckComponentState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
         let module = source.module_id;
-        let check_module = self.module(module)?;
-        let Some(span) = check_module
-            .input
+        let Some(span) = self
+            .input(module)
             .parsed
             .tree
             .get_span_by_id(source.local_id.id)

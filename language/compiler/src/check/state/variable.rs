@@ -4,7 +4,8 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckState, Constraint, ConstraintOrigin, Definition, Obligation, StaticTerm, TermId, TypeTerm,
+    CheckState, Constraint, ConstraintOrigin, Definition, Obligation, StaticOperand, StaticTerm,
+    TermId, TypeOperand, TypeTerm,
 };
 
 use super::{GenericArgumentKey, GenericParameter};
@@ -48,17 +49,21 @@ pub(in crate::check) struct Variable {
 /// Variable relation bounds collected by the solver.
 #[derive(Debug)]
 pub(in crate::check) struct VariableBounds {
-    /// Variables that must be assignable to this variable.
-    pub(in crate::check) lower: IndexMap<VariableId, Vec<VariableId>>,
-    /// Variables that this variable must be assignable to.
-    pub(in crate::check) upper: IndexMap<VariableId, Vec<VariableId>>,
+    /// Type operands that must be assignable to this variable.
+    pub(in crate::check) type_lower: IndexMap<VariableId, Vec<TypeOperand>>,
+    /// Type operands that this variable must be assignable to.
+    pub(in crate::check) type_upper: IndexMap<VariableId, Vec<TypeOperand>>,
+    /// Static operands that must be assignable to this variable.
+    pub(in crate::check) static_lower: IndexMap<VariableId, Vec<StaticOperand>>,
+    /// Static operands that this variable must be assignable to.
+    pub(in crate::check) static_upper: IndexMap<VariableId, Vec<StaticOperand>>,
 }
 
 /// Variables and variable indexes for one checked component.
 #[derive(Debug)]
 pub(in crate::check) struct VariableTable {
-    /// Whether new variables may still be allocated.
-    pub(in crate::check) is_open: bool,
+    /// Whether the table rejects new variables.
+    pub(in crate::check) is_closed: bool,
     /// Check variables in allocation order.
     pub(in crate::check) variables: Vec<Variable>,
     /// Variable definitions in collection order.
@@ -92,7 +97,7 @@ impl VariableTable {
     /// Create empty variable state.
     pub(in crate::check) fn new() -> Self {
         Self {
-            is_open: true,
+            is_closed: false,
             variables: Vec::new(),
             definitions: Vec::new(),
             constraints: Vec::new(),
@@ -109,9 +114,9 @@ impl VariableTable {
         }
     }
 
-    /// Close the variable graph before solving.
+    /// Close the variable table before solving.
     pub(in crate::check) fn close(&mut self) {
-        self.is_open = false;
+        self.is_closed = true;
     }
 }
 
@@ -119,8 +124,10 @@ impl VariableBounds {
     /// Create empty variable bounds.
     pub(in crate::check) fn new() -> Self {
         Self {
-            lower: IndexMap::new(),
-            upper: IndexMap::new(),
+            type_lower: IndexMap::new(),
+            type_upper: IndexMap::new(),
+            static_lower: IndexMap::new(),
+            static_upper: IndexMap::new(),
         }
     }
 }
@@ -213,10 +220,7 @@ impl CheckState<'_> {
         output: VariableOutput,
     ) -> VariableId {
         let source = output.source();
-        assert!(
-            self.variables.is_open,
-            "check variable graph is closed before solve"
-        );
+        assert!(!self.variables.is_closed, "check variable table is closed");
         let id = VariableId::new(module, self.variables.variables.len() as u32);
         let variable = Variable::new(id, kind, source, Some(output));
         self.variables.variables.push(variable);
@@ -224,17 +228,14 @@ impl CheckState<'_> {
         id
     }
 
-    /// Allocate one anonymous check variable.
-    pub(in crate::check) fn allocate_anonymous_variable(
+    /// Allocate one intermediate check variable.
+    pub(in crate::check) fn allocate_intermediate_variable(
         &mut self,
         module: ModuleId,
         kind: VariableKind,
         source: ConstraintOrigin,
     ) -> VariableId {
-        assert!(
-            self.variables.is_open,
-            "check variable graph is closed before solve"
-        );
+        assert!(!self.variables.is_closed, "check variable table is closed");
         let id = VariableId::new(module, self.variables.variables.len() as u32);
         let variable = Variable::new(id, kind, source, None);
         self.variables.variables.push(variable);
@@ -263,13 +264,13 @@ impl CheckState<'_> {
         false
     }
 
-    /// Add one lower bound to a variable.
-    pub(in crate::check) fn add_lower_bound(
+    /// Add one lower type bound to a variable.
+    pub(in crate::check) fn add_lower_type_bound(
         &mut self,
         variable: VariableId,
-        lower_bound: VariableId,
+        lower_bound: TypeOperand,
     ) -> bool {
-        let bounds = self.solutions.bound.lower.entry(variable).or_default();
+        let bounds = self.solutions.bound.type_lower.entry(variable).or_default();
         if bounds.contains(&lower_bound) {
             return false;
         }
@@ -279,13 +280,13 @@ impl CheckState<'_> {
         true
     }
 
-    /// Add one upper bound to a variable.
-    pub(in crate::check) fn add_upper_bound(
+    /// Add one upper type bound to a variable.
+    pub(in crate::check) fn add_upper_type_bound(
         &mut self,
         variable: VariableId,
-        upper_bound: VariableId,
+        upper_bound: TypeOperand,
     ) -> bool {
-        let bounds = self.solutions.bound.upper.entry(variable).or_default();
+        let bounds = self.solutions.bound.type_upper.entry(variable).or_default();
         if bounds.contains(&upper_bound) {
             return false;
         }
@@ -295,21 +296,73 @@ impl CheckState<'_> {
         true
     }
 
-    /// Return lower bounds for one variable.
-    pub(in crate::check) fn lower_bounds(&self, variable: VariableId) -> Vec<VariableId> {
+    /// Add one lower static bound to a variable.
+    pub(in crate::check) fn add_lower_static_bound(
+        &mut self,
+        variable: VariableId,
+        lower_bound: StaticOperand,
+    ) -> bool {
+        let bounds = self
+            .solutions
+            .bound
+            .static_lower
+            .entry(variable)
+            .or_default();
+        if bounds.contains(&lower_bound) {
+            return false;
+        }
+
+        bounds.push(lower_bound);
+
+        true
+    }
+
+    /// Add one upper static bound to a variable.
+    pub(in crate::check) fn add_upper_static_bound(
+        &mut self,
+        variable: VariableId,
+        upper_bound: StaticOperand,
+    ) -> bool {
+        let bounds = self
+            .solutions
+            .bound
+            .static_upper
+            .entry(variable)
+            .or_default();
+        if bounds.contains(&upper_bound) {
+            return false;
+        }
+
+        bounds.push(upper_bound);
+
+        true
+    }
+
+    /// Return lower type bounds for one variable.
+    pub(in crate::check) fn lower_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
         self.solutions
             .bound
-            .lower
+            .type_lower
             .get(&variable)
             .cloned()
             .unwrap_or_default()
     }
 
-    /// Return upper bounds for one variable.
-    pub(in crate::check) fn upper_bounds(&self, variable: VariableId) -> Vec<VariableId> {
+    /// Return upper type bounds for one variable.
+    pub(in crate::check) fn upper_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
         self.solutions
             .bound
-            .upper
+            .type_upper
+            .get(&variable)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Return lower static bounds for one variable.
+    pub(in crate::check) fn lower_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
+        self.solutions
+            .bound
+            .static_lower
             .get(&variable)
             .cloned()
             .unwrap_or_default()
@@ -334,7 +387,7 @@ impl CheckState<'_> {
     /// Return the solved type for one variable.
     pub(in crate::check) fn variable_type_solution(&self, id: VariableId) -> Option<TypeTerm> {
         match self.solutions.solution.get(&id).cloned() {
-            Some(Solution::Type(term)) => Some(self.term(term)),
+            Some(Solution::Type(term)) => Some(self.terms.get(term).clone()),
             _ => None,
         }
     }
@@ -432,39 +485,10 @@ impl CheckState<'_> {
 
         variable
     }
-
-    /// Define one type variable from one term.
-    pub(in crate::check) fn define_anonymous_type(
-        &mut self,
-        module: ModuleId,
-        origin: ConstraintOrigin,
-        term: TypeTerm,
-    ) -> VariableId {
-        let variable = self.allocate_anonymous_variable(module, VariableKind::Type, origin);
-
-        self.define_type(module, variable, term);
-
-        variable
-    }
-
-    /// Define one static literal variable.
-    pub(in crate::check) fn define_static_literal(
-        &mut self,
-        module: ModuleId,
-        origin: ConstraintOrigin,
-        value: dir::StaticTerm,
-    ) -> VariableId {
-        let variable = self.allocate_anonymous_variable(module, VariableKind::Static, origin);
-
-        self.define_static(module, variable, StaticTerm::Literal(value));
-
-        variable
-    }
-
     /// Return the solved static value for one variable.
     pub(in crate::check) fn variable_static_solution(&self, id: VariableId) -> Option<StaticTerm> {
         match self.solutions.solution.get(&id).cloned() {
-            Some(Solution::Static(term)) => Some(self.term(term)),
+            Some(Solution::Static(term)) => Some(self.terms.get(term).clone()),
             _ => None,
         }
     }
