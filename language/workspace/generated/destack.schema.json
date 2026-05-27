@@ -20,6 +20,18 @@
       ],
       "default": null
     },
+    "stage": {
+      "description": "Package release stage.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Stage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "private": {
       "description": "Whether the package is private.",
       "type": [
@@ -220,6 +232,7 @@
           "tags": [],
           "target": null,
           "product": null,
+          "stage": null,
           "platform": null,
           "host": null,
           "runtime": null
@@ -615,6 +628,31 @@
     }
   },
   "$defs": {
+    "Stage": {
+      "description": "Package release stage.",
+      "oneOf": [
+        {
+          "description": "Experimental package surface.",
+          "type": "string",
+          "const": "experimental"
+        },
+        {
+          "description": "Alpha package surface.",
+          "type": "string",
+          "const": "alpha"
+        },
+        {
+          "description": "Beta package surface.",
+          "type": "string",
+          "const": "beta"
+        },
+        {
+          "description": "Stable package surface.",
+          "type": "string",
+          "const": "stable"
+        }
+      ]
+    },
     "WorkspaceLayout": {
       "description": "Workspace package layout.",
       "type": "object",
@@ -662,7 +700,7 @@
           "description": "Condition predicate required for this export.",
           "anyOf": [
             {
-              "$ref": "#/$defs/ConditionPredicate"
+              "$ref": "#/$defs/ConditionRef"
             },
             {
               "type": "null"
@@ -712,11 +750,11 @@
         }
       ]
     },
-    "ConditionPredicate": {
-      "description": "Predicate selecting one active condition set.",
+    "ConditionRef": {
+      "description": "Source-level reference to one active condition predicate.",
       "anyOf": [
         {
-          "description": "Named active condition.",
+          "description": "Named condition alias or `axis:name` reference.",
           "type": "string"
         },
         {
@@ -801,6 +839,18 @@
           ],
           "default": null
         },
+        "stage": {
+          "description": "Active package release stage selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "platform": {
           "description": "Active target platform selector.",
           "anyOf": [
@@ -869,6 +919,31 @@
           },
           "required": [
             "source"
+          ]
+        },
+        {
+          "description": "Package resolved from the configured package registry.",
+          "type": "object",
+          "properties": {
+            "registry": {
+              "description": "Registry name.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "version": {
+              "description": "Exact package version.",
+              "type": "string"
+            },
+            "source": {
+              "type": "string",
+              "const": "registry"
+            }
+          },
+          "required": [
+            "source",
+            "version"
           ]
         },
         {
@@ -943,7 +1018,7 @@
       "properties": {
         "when": {
           "description": "Condition predicate enabling these dependencies.",
-          "$ref": "#/$defs/ConditionPredicate",
+          "$ref": "#/$defs/ConditionRef",
           "default": {
             "mode": null,
             "role": null,
@@ -951,6 +1026,7 @@
             "tag": null,
             "target": null,
             "product": null,
+            "stage": null,
             "platform": null,
             "host": null,
             "runtime": null
@@ -1823,6 +1899,7 @@
             "tags": [],
             "target": null,
             "product": null,
+            "stage": null,
             "platform": null,
             "host": null,
             "runtime": null
@@ -2077,6 +2154,14 @@
         },
         "product": {
           "description": "Active product.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "stage": {
+          "description": "Active package release stage.",
           "type": [
             "string",
             "null"
@@ -5281,6 +5366,18 @@
           ],
           "default": null
         },
+        "stage": {
+          "description": "Release stage for this target.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "modes": {
           "description": "Active source graph modes for this target.",
           "type": "array",
@@ -5671,6 +5768,7 @@
               "tags": [],
               "target": null,
               "product": null,
+              "stage": null,
               "platform": null,
               "host": null,
               "runtime": null
@@ -6777,6 +6875,50 @@
       "description": "Product assembled from one or more build targets.",
       "type": "object",
       "properties": {
+        "stage": {
+          "description": "Release stage for this product.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "modes": {
+          "description": "Active source graph modes for this product.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "roles": {
+          "description": "Active source graph roles for this product.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "features": {
+          "description": "Active source graph features for this product.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "tags": {
+          "description": "Active source graph tags for this product.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
         "targets": {
           "description": "Target names keyed by product role.",
           "type": "object",
@@ -7408,6 +7550,18 @@
       "description": "Normalized profile options.",
       "type": "object",
       "properties": {
+        "stage": {
+          "description": "Release stage for this profile.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "runtime": {
           "description": "Runtime contract for this profile.",
           "anyOf": [
@@ -7564,7 +7718,7 @@
           "default": {}
         },
         "aliases": {
-          "description": "Named file condition aliases.",
+          "description": "Named condition aliases.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/ConditionGate"

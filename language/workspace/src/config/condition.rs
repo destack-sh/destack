@@ -177,6 +177,7 @@ impl ConditionCatalog {
             ConditionAxis::Tag => Some(&self.tags),
             ConditionAxis::Target
             | ConditionAxis::Product
+            | ConditionAxis::Stage
             | ConditionAxis::Platform
             | ConditionAxis::Host
             | ConditionAxis::Runtime => None,
@@ -250,6 +251,8 @@ pub struct ConditionGate {
     pub target: Option<ConditionSelector>,
     /// Active product selector.
     pub product: Option<ConditionSelector>,
+    /// Active package release stage selector.
+    pub stage: Option<ConditionSelector>,
     /// Active target platform selector.
     pub platform: Option<ConditionSelector>,
     /// Active host environment selector.
@@ -272,6 +275,10 @@ impl ConditionGate {
             },
             ConditionAxis::Product => Self {
                 product: Some(ConditionSelector::exact(name)),
+                ..Self::default()
+            },
+            ConditionAxis::Stage => Self {
+                stage: Some(ConditionSelector::exact(name)),
                 ..Self::default()
             },
             ConditionAxis::Platform => Self {
@@ -335,6 +342,7 @@ impl ConditionGate {
                 .product
                 .as_ref()
                 .is_none_or(ConditionSelector::is_empty)
+            && self.stage.as_ref().is_none_or(ConditionSelector::is_empty)
             && self
                 .platform
                 .as_ref()
@@ -357,6 +365,7 @@ impl ConditionGate {
         // profile selectors
         let profile_matches = self.matches_optional(&self.target, conditions.target.as_deref())
             && self.matches_optional(&self.product, conditions.product.as_deref())
+            && self.matches_optional(&self.stage, conditions.stage.as_deref())
             && self.matches_optional(
                 &self.platform,
                 conditions.platform.map(|platform| platform.canonical_tag()),
@@ -424,6 +433,8 @@ pub enum ConditionAxis {
     Target,
     /// Deliverable product.
     Product,
+    /// Package release stage.
+    Stage,
     /// Target platform.
     Platform,
     /// Host environment.
@@ -442,6 +453,7 @@ impl ConditionAxis {
             "tag" => Some(Self::Tag),
             "target" => Some(Self::Target),
             "product" => Some(Self::Product),
+            "stage" => Some(Self::Stage),
             "platform" => Some(Self::Platform),
             "host" => Some(Self::Host),
             "runtime" => Some(Self::Runtime),
@@ -458,6 +470,7 @@ impl ConditionAxis {
             Self::Tag => "tag",
             Self::Target => "target",
             Self::Product => "product",
+            Self::Stage => "stage",
             Self::Platform => "platform",
             Self::Host => "host",
             Self::Runtime => "runtime",

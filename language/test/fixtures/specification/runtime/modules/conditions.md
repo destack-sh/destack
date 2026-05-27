@@ -64,6 +64,51 @@ internalName satisfies "user.internal";
 }
 ```
 
+### explicit aliases can target release stage
+
+Stage aliases match the configured release stage.
+
+```ds:user.ds
+export const base = "user";
+```
+
+```ds:user.alpha.ds
+export const alphaName = `${base}.alpha`;
+```
+
+```ds:main.ds
+import { alphaName, base } from "./user";
+
+base satisfies "user";
+alphaName satisfies "user.alpha";
+```
+
+```json:destack.json
+{
+    "version": "2026.5.27-alpha.1",
+    "conditions": {
+        "aliases": {
+            "alpha": { "stage": "alpha" }
+        }
+    },
+    "products": {
+        "cli": {
+            "stage": "alpha",
+            "targets": {
+                "main": "default"
+            }
+        }
+    },
+    "targets": {
+        "default": {
+            "emit": "js"
+        }
+    },
+    "defaultProduct": "cli",
+    "defaultTarget": "default"
+}
+```
+
 ### inactive condition files are ignored
 
 Conditional files only contribute when their alias gate matches.

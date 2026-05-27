@@ -1,8 +1,8 @@
 use destack_artifact::ProfileKey;
 
 use crate::{
-    CompilerOptions, ConditionSelection, ConditionSet, Destack, Environment, ProfileOptions,
-    Target, profile_flags_for_compiler_options,
+    CompilerOptions, ConditionSelection, ConditionSet, Destack, Environment, Product,
+    ProfileOptions, Stage, Target, profile_flags_for_compiler_options,
 };
 
 /// Build one profile key for one target.
@@ -14,13 +14,22 @@ pub(crate) fn profile_key_for_target(
     config: Option<&Destack>,
     environment: &Environment,
     product: Option<&str>,
+    product_config: Option<&Product>,
     product_role: Option<&str>,
 ) -> ProfileKey {
-    let compiler_options =
-        profile_compiler_options_for_target(target, compiler_options, profile_config, product_role);
+    let compiler_options = profile_compiler_options_for_target(
+        target,
+        compiler_options,
+        profile_config,
+        product_config,
+        product_role,
+    );
     let conditions = condition_set_from_compiler_options(
         target_name,
+        target,
         &compiler_options,
+        profile_config,
+        product_config,
         config,
         &environment.selection,
         product,
@@ -78,7 +87,10 @@ pub(crate) fn profile_key_for_target(
 /// Build one condition set from already resolved compiler options.
 fn condition_set_from_compiler_options(
     target_name: &str,
+    target: &Target,
     compiler_options: &CompilerOptions,
+    profile_config: Option<&ProfileOptions>,
+    product_config: Option<&Product>,
     config: Option<&Destack>,
     selection: &ConditionSelection,
     product: Option<&str>,
@@ -134,6 +146,8 @@ fn condition_set_from_compiler_options(
         ),
         target: Some(target_name.to_string()),
         product: product.map(str::to_string),
+        stage: resolved_stage(config, profile_config, product_config, target)
+            .map(|stage| stage.name().to_string()),
         platform: None,
         host: None,
         runtime: None,
@@ -145,6 +159,7 @@ fn profile_compiler_options_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
+    product_config: Option<&Product>,
     product_role: Option<&str>,
 ) -> CompilerOptions {
     let mut compiler_options = compiler_options.clone();
@@ -170,11 +185,33 @@ fn profile_compiler_options_for_target(
             .restrictions
             .tighten_with(&profile_config.restrictions);
     }
+    if let Some(product_config) = product_config {
+        compiler_options.modes.extend(product_config.modes.clone());
+        compiler_options.roles.extend(product_config.roles.clone());
+        compiler_options
+            .features
+            .extend(product_config.features.clone());
+        compiler_options.tags.extend(product_config.tags.clone());
+    }
     if let Some(product_role) = product_role {
         compiler_options.roles.push(product_role.to_string());
     }
 
     target.compiler_options(&compiler_options)
+}
+
+/// Resolve the active scalar release stage.
+fn resolved_stage(
+    config: Option<&Destack>,
+    profile_config: Option<&ProfileOptions>,
+    product_config: Option<&Product>,
+    target: &Target,
+) -> Option<Stage> {
+    target
+        .stage
+        .or_else(|| product_config.and_then(|product| product.stage))
+        .or_else(|| profile_config.and_then(|profile| profile.stage))
+        .or_else(|| config.and_then(|config| config.stage))
 }
 
 /// Expand selected source graph names through declared parents.

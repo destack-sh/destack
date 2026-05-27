@@ -5,7 +5,7 @@ use destack_artifact::{EmitFormat, Host, Platform, Runtime, TargetAbi, TargetArc
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CompilerOptions, CompilerRestrictions, Policy};
+use crate::{CompilerOptions, CompilerRestrictions, Policy, Stage};
 
 use super::super::runtime::RuntimeOptions;
 use super::codegen::*;
@@ -52,6 +52,8 @@ pub struct Target {
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
+    /// Release stage for this target.
+    pub stage: Option<Stage>,
     /// Active source graph modes for this target.
     pub modes: Vec<String>,
     /// Active source graph roles for this target.
@@ -191,6 +193,7 @@ impl Target {
             module: JsModuleFormat::default(),
             es_target: EsTarget::default(),
             profile: None,
+            stage: None,
             modes: Vec::new(),
             roles: Vec::new(),
             features: Vec::new(),

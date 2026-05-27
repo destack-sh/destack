@@ -227,6 +227,8 @@ impl Repository {
     ) -> Arc<Profile> {
         let profile_config =
             Self::profile_options_for_target(target, compiler_options, config, environment);
+        let product_config =
+            product.and_then(|product| config.and_then(|config| config.products.get(product)));
         let key = profile_key_for_target(
             target_name,
             target,
@@ -235,6 +237,7 @@ impl Repository {
             config,
             environment,
             product,
+            product_config,
             product_role,
         );
 

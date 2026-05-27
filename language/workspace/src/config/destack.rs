@@ -10,7 +10,8 @@ use serde_json::Value;
 use crate::config::{
     CompilerOptions, ConditionCatalog, ConditionalDependencies, Dependency, DiagnosticPolicy,
     Export, FormatterOptions, LinterOptions, PackagePatch, Policy, Product, ProfileOptions,
-    RuntimeOptions, Target, Task, Topology, Vendor, builtin_modes, builtin_roles, parse_jsonc_file,
+    RuntimeOptions, Stage, Target, Task, Topology, Vendor, builtin_modes, builtin_roles,
+    parse_jsonc_file,
 };
 
 /// Destack configuration document.
@@ -24,6 +25,8 @@ pub struct Destack {
     pub name: Option<String>,
     /// Package version.
     pub version: Option<String>,
+    /// Package release stage.
+    pub stage: Option<Stage>,
     /// Whether the package is private.
     pub r#private: Option<bool>,
     /// Package description.
