@@ -1,18 +1,18 @@
 use destack_dir as dir;
 
 use crate::check::{
-    ArgumentTerm, CheckModuleState, ConstraintOrigin, FunctionParameterTerm, FunctionTerm,
-    ReceiverCapture, TypeRelation, TypeTerm, VariableId, VariableKind,
+    CheckState, ConstraintOrigin, FunctionParameter, FunctionTerm, GenericArgument,
+    ReceiverCapture, TermId, TypeRelation, TypeTerm, VariableId, VariableKind,
 };
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Return one function type term from a function signature.
     pub(in crate::check) fn build_function_signature_term(
         &mut self,
         signature: &dir::FunctionSignature,
         return_type: Option<VariableId>,
         tree: &dir::Tree,
-    ) -> FunctionTerm {
+    ) -> TermId<FunctionTerm> {
         // collect generic and receiver parameters
         let generic_parameters = signature
             .generic_parameters
@@ -30,14 +30,16 @@ impl CheckModuleState {
             .filter_map(|parameter| self.build_function_parameter_term(*parameter, tree))
             .collect();
 
-        FunctionTerm {
+        let function = FunctionTerm {
             asynchrony: signature.asynchrony,
             generic_parameters,
             this_parameter,
             parameters,
             return_type,
             is_generator: signature.is_generator,
-        }
+        };
+
+        self.terms.push(function)
     }
 
     /// Return one function type term from a type-space function declaration.
@@ -46,7 +48,7 @@ impl CheckModuleState {
         declaration: &dir::FunctionTypeDeclaration,
         return_type: Option<VariableId>,
         tree: &dir::Tree,
-    ) -> FunctionTerm {
+    ) -> TermId<FunctionTerm> {
         // collect generic and receiver parameters
         let generic_parameters = declaration
             .generic_parameters
@@ -64,14 +66,16 @@ impl CheckModuleState {
             .filter_map(|parameter| self.build_function_parameter_term(*parameter, tree))
             .collect();
 
-        FunctionTerm {
+        let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
             generic_parameters,
             this_parameter,
             parameters,
             return_type,
             is_generator: false,
-        }
+        };
+
+        self.terms.push(function)
     }
 
     /// Return one function type term from a type-space constructor declaration.
@@ -80,7 +84,7 @@ impl CheckModuleState {
         declaration: &dir::ConstructorTypeDeclaration,
         return_type: Option<VariableId>,
         tree: &dir::Tree,
-    ) -> FunctionTerm {
+    ) -> TermId<FunctionTerm> {
         // collect constructor generic parameters
         let generic_parameters = declaration
             .generic_parameters
@@ -95,14 +99,16 @@ impl CheckModuleState {
             .filter_map(|parameter| self.build_function_parameter_term(*parameter, tree))
             .collect();
 
-        FunctionTerm {
+        let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
             generic_parameters,
             this_parameter: None,
             parameters,
             return_type,
             is_generator: false,
-        }
+        };
+
+        self.terms.push(function)
     }
 
     /// Walk one function body inside a function flow frame.
@@ -121,35 +127,43 @@ impl CheckModuleState {
 
         // build async result channel
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let source = body.into_global_any(self.input.module_id);
+            let source = body.into_global_any(tree.module_id);
             let origin = ConstraintOrigin::Node(source);
-            let completed = self.allocate_anonymous_variable(VariableKind::Type, origin);
-            let Some(symbol) = self.language_symbol(dir::LanguageItem::Promise) else {
-                self.report_internal_error(
-                    body.into_any(),
-                    "missing language item: async.Promise".to_owned(),
-                );
-
+            let completed =
+                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+            let Ok(symbol) = self.language_symbol(tree.module_id, dir::LanguageItem::Promise)
+            else {
                 return;
             };
+            let argument = GenericArgument::Type(completed.into());
             let promised = TypeTerm::Reference {
                 source: Some(source),
                 symbol,
-                arguments: vec![ArgumentTerm::Type(completed)],
+                arguments: vec![argument].into(),
             };
-            let promised = self.define_anonymous_type(origin, promised);
+            let promised_variable =
+                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+            self.define_type(tree.module_id, promised_variable, promised);
 
-            self.constrain_type(origin, TypeRelation::Assignable, promised, return_type);
+            self.constrain_type(
+                origin,
+                TypeRelation::Assignable,
+                promised_variable,
+                return_type,
+            );
             body_return_type = completed;
         }
 
         // build generator channels
         if signature.is_generator {
-            let source = body.into_global_any(self.input.module_id);
+            let source = body.into_global_any(tree.module_id);
             let origin = ConstraintOrigin::Node(source);
-            let yielded = self.allocate_anonymous_variable(VariableKind::Type, origin);
-            let completed = self.allocate_anonymous_variable(VariableKind::Type, origin);
-            let resumed = self.allocate_anonymous_variable(VariableKind::Type, origin);
+            let yielded =
+                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+            let completed =
+                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+            let resumed =
+                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -157,25 +171,26 @@ impl CheckModuleState {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
 
-            if let Some(symbol) = self.language_symbol(item) {
+            if let Ok(symbol) = self.language_symbol(tree.module_id, item) {
+                let yielded = GenericArgument::Type(yielded.into());
+                let completed = GenericArgument::Type(completed.into());
+                let resumed = GenericArgument::Type(resumed.into());
                 let generated = TypeTerm::Reference {
                     source: Some(source),
                     symbol,
-                    arguments: vec![
-                        ArgumentTerm::Type(yielded),
-                        ArgumentTerm::Type(completed),
-                        ArgumentTerm::Type(resumed),
-                    ],
+                    arguments: vec![yielded, completed, resumed].into(),
                 };
-                let generated = self.define_anonymous_type(origin, generated);
+                let generated_variable =
+                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+                self.define_type(tree.module_id, generated_variable, generated);
 
-                self.constrain_type(origin, TypeRelation::Assignable, generated, return_type);
-            } else {
-                self.report_internal_error(
-                    body.into_any(),
-                    format!("missing language item: {}", item.key()),
+                self.constrain_type(
+                    origin,
+                    TypeRelation::Assignable,
+                    generated_variable,
+                    return_type,
                 );
-
+            } else {
                 return;
             }
 
@@ -204,11 +219,20 @@ impl CheckModuleState {
 
         // walk body and constrain implicit return
         self.walk_expression(tree, body, tree.get(body));
-        if self.expression_can_fall_through(tree, body) {
+        if !Self::function_is_constructor(signature) && self.expression_can_fall_through(tree, body)
+        {
             self.constrain_function_fallthrough_return(tree, body);
         }
 
-        self.leave_function_frame();
+        self.leave_function_frame(tree.module_id);
+    }
+
+    /// Return whether one signature is a constructor body.
+    fn function_is_constructor(signature: &dir::FunctionSignature) -> bool {
+        matches!(
+            signature.role,
+            Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
+        )
     }
 
     /// Return one runtime function parameter term.
@@ -216,7 +240,7 @@ impl CheckModuleState {
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         tree: &dir::Tree,
-    ) -> Option<FunctionParameterTerm> {
+    ) -> Option<FunctionParameter> {
         let parameter = tree.get(id);
         let ty = self.intern_parameter_type_variable(id, tree)?;
 
@@ -240,11 +264,13 @@ impl CheckModuleState {
             dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
         );
 
-        Some(FunctionParameterTerm {
-            ty,
+        let parameter = FunctionParameter {
+            ty: ty.into(),
             is_optional,
             is_rest,
-        })
+        };
+
+        Some(parameter)
     }
 
     /// Return the variable for one generic parameter.
@@ -255,7 +281,7 @@ impl CheckModuleState {
     ) -> Option<VariableId> {
         let parameter = tree.get(id);
 
-        self.record_generic_parameter_slot(id, parameter)
+        self.record_generic_parameter_slot(tree.module_id, id, parameter)
     }
 
     /// Return the type variable for one runtime parameter.
@@ -274,9 +300,9 @@ impl CheckModuleState {
 
         // contextual lambdas can receive a parameter type later
         let Some(declared_type) = parameter.declared_type() else {
-            return Some(self.intern_local_type_variable(id));
+            return Some(self.intern_local_type_variable(tree.module_id, id));
         };
 
-        Some(self.intern_local_type_variable(declared_type))
+        Some(self.intern_local_type_variable(tree.module_id, declared_type))
     }
 }

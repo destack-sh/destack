@@ -1,12 +1,11 @@
 use destack_dir as dir;
-use dir::NodeVisitor as _;
 
 use crate::check::{
-    CheckModuleState, ConstraintOrigin, FlowPath, PatternRelation, TypeOperationTerm, TypeRelation,
+    CheckState, ConstraintOrigin, FlowPath, PatternRelation, TypeOperationTerm, TypeRelation,
     TypeTerm,
 };
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Walk one declarator.
     pub(in crate::check) fn walk_declarator(
         &mut self,
@@ -14,24 +13,24 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
     ) {
-        // apply static owner guards
-        if !self.static_allows(tree, id.into_any()) {
+        if !self.push_static_condition_for(tree, id.into_any(), None) {
             return;
         }
 
-        self.visit_any(tree, dir::NodeType::Declarator, id.id);
-
         // define the direct binding type from its annotation or initializer
-        let symbol = self.declaration_symbol(declarator.pattern.into_any());
-        let binding_type = symbol.map(|symbol| self.intern_symbol_type_variable(symbol));
+        let symbol = self.declaration_symbol(tree.module_id, declarator.pattern.into_any());
+        let binding_type =
+            symbol.map(|symbol| self.intern_symbol_type_variable(tree.module_id, symbol));
         if let Some(variable) = binding_type {
             // let x: T
             let term = if let Some(ty) = declarator.ty {
-                Some(TypeTerm::Variable(self.intern_local_type_variable(ty)))
+                Some(TypeTerm::Variable(
+                    self.intern_local_type_variable(tree.module_id, ty),
+                ))
             }
             // let x = value
             else if let Some(value) = declarator.value {
-                let source = self.intern_local_type_variable(value);
+                let source = self.intern_local_type_variable(tree.module_id, value);
 
                 // keep const bindings exact
                 if Self::declarator_is_const_binding(tree, id) {
@@ -39,7 +38,9 @@ impl CheckModuleState {
                 }
                 // widen mutable bindings
                 else {
-                    Some(TypeTerm::Operation(TypeOperationTerm::Widen { source }))
+                    let operation = self.terms.push(TypeOperationTerm::Widen { source });
+
+                    Some(TypeTerm::Operation(operation))
                 }
             }
             // let x
@@ -47,15 +48,16 @@ impl CheckModuleState {
                 None
             };
 
+            // : T
             if let Some(term) = term {
-                self.define_type(variable, term);
+                self.define_type(tree.module_id, variable, term);
             }
 
             // check initializers against explicit annotations
             if let (Some(ty), Some(value)) = (declarator.ty, declarator.value) {
-                let origin = ConstraintOrigin::Node(value.into_global_any(self.input.module_id));
-                let value = self.intern_local_type_variable(value);
-                let target = self.intern_local_type_variable(ty);
+                let origin = ConstraintOrigin::Node(value.into_global_any(tree.module_id));
+                let value = self.intern_local_type_variable(tree.module_id, value);
+                let target = self.intern_local_type_variable(tree.module_id, ty);
 
                 self.constrain_type(origin, TypeRelation::Assignable, value, target);
             }
@@ -66,22 +68,28 @@ impl CheckModuleState {
             .or_else(|| {
                 declarator
                     .value
-                    .map(|value| self.intern_local_type_variable(value))
+                    .map(|value| self.intern_local_type_variable(tree.module_id, value))
             })
-            .or_else(|| declarator.ty.map(|ty| self.intern_local_type_variable(ty)));
+            .or_else(|| {
+                declarator
+                    .ty
+                    .map(|ty| self.intern_local_type_variable(tree.module_id, ty))
+            });
 
         if let Some(value) = matched_value
-            && let Some(pattern) = self.build_pattern_term(declarator.pattern, tree)
+            && let Some(pattern) = self.build_pattern_term(tree.module_id, declarator.pattern, tree)
         {
             if Self::declarator_requires_irrefutable_pattern(tree, id) {
                 self.require_irrefutable_pattern(
+                    tree.module_id,
                     declarator.pattern.into_any(),
-                    pattern.clone(),
+                    pattern,
                     value,
                 );
             }
 
             self.constrain_pattern(
+                tree.module_id,
                 PatternRelation::Match(pattern),
                 declarator.pattern.into_any(),
                 value,
@@ -97,6 +105,8 @@ impl CheckModuleState {
         if let Some(value) = declarator.value {
             self.walk_expression(tree, value, tree.get(value));
         }
+
+        self.pop_static_condition(tree.module_id);
     }
 
     /// Return whether one declarator belongs to a `const` binding.
@@ -197,20 +207,20 @@ impl CheckModuleState {
             }
             // value
             dir::Pattern::Expression { value } => {
-                let ty = self.intern_local_type_variable(*value);
+                let ty = self.intern_local_type_variable(tree.module_id, *value);
 
                 self.narrow_flow_path(path, ty);
             }
             // value is T
             dir::Pattern::TypeExpression { value } => {
-                let ty = self.intern_local_type_variable(*value);
+                let ty = self.intern_local_type_variable(tree.module_id, *value);
 
                 self.narrow_flow_path(path, ty);
             }
             // T(a, b), T { name }
             dir::Pattern::TaggedTuple { ty, fields }
             | dir::Pattern::TaggedObject { ty, fields } => {
-                let narrowed = self.intern_local_type_variable(*ty);
+                let narrowed = self.intern_local_type_variable(tree.module_id, *ty);
 
                 self.narrow_flow_path(path.clone(), narrowed);
                 self.apply_pattern_field_success_narrowings(tree, path, fields);
