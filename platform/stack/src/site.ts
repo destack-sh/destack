@@ -3,7 +3,7 @@
 import { siteDomain } from "./domains";
 
 export function site(stage: string) {
-    const site = new sst.aws.StaticSite("destack.sh", {
+    const website = new sst.aws.StaticSite("Website", {
         path: "../site",
         build: {
             command: "bun run build",
@@ -37,6 +37,6 @@ export function site(stage: string) {
     });
 
     return {
-        site: site.url,
+        website: website.url,
     };
 }
