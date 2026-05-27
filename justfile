@@ -8,19 +8,11 @@ _default:
 
 # --- setup ---
 
-# link this worktree .env.local to the primary repo .env.local
-link-env:
-    bash dev/ci/link-worktree-env-local.sh here
-
-# link all worktree .env.local files to the primary repo .env.local
-link-env-all:
-    bash dev/ci/link-worktree-env-local.sh all
-
-# install all dependencies
+# install dependencies
 install:
     bun install
 
-# update all dependencies
+# update dependencies
 update:
     bun update
     cargo update
@@ -30,16 +22,16 @@ update:
 # build everything
 build:
     just language/build
-    just -f platform/justfile build
+    just platform/build
     just service/build
     just app/build
     just bridge/build
 
-# format all code
+# format code
 format:
     just language/format
     just library/format
-    just -f platform/justfile format
+    just platform/format
     just service/format
     just app/format
     just bridge/format
@@ -48,7 +40,7 @@ format:
 format-check:
     just language/format-check
     just library/format-check
-    just -f platform/justfile format
+    just platform/format-check
     just service/format-check
     just app/format-check
     just bridge/format-check
@@ -60,56 +52,55 @@ alias fmt := format
 tokei *args:
     command tokei . {{args}} -e target -e node_modules -e .pnpm-store -e .nx -e language/test/fixtures/conformance -e '*.generated.rs' -e '*.generated.ts' -e '*.generated.js' -e '*.generated.cpp' -e '*.generated.h' -e '*.generated.kt' -e '*.generated.swift' -e 'language/grammar/**/src/parser.c' -e 'language/grammar/**/src/grammar.json' -e 'language/grammar/**/src/node-types.json' -e language/grammar/destack/node_modules -e language/workspace/generated -e app/cli/generated -e bridge/vscode/destack.schema.json
 
-# run repository static checks
-check:
+# run static checks
+lint:
     just check-hygiene
-    just language/check
-    just library/check
-    just -f platform/justfile check
-    just service/check
-    just app/check
-    just bridge/check
+    just language/lint
+    just library/lint
+    just platform/lint
+    just service/lint
+    just app/lint
+    just bridge/lint
 
-# run area test aggregates
+# run tests
 test:
     just language/test
     just library/test
-    just -f platform/justfile test
+    just platform/test
     just service/test
     just app/test
     just bridge/test
 
-# run the repository quick gate
-quick:
-    just check-hygiene
-    just language/quick
-    just library/quick
-    just -f platform/justfile quick
-    just service/quick
-    just app/quick
-    just bridge/quick
+# default check
+check:
+    just check-quick
 
-# run the repository full gate
-full:
+# normal check
+check-quick:
     just check-hygiene
-    just language/full
-    just library/full
-    just -f platform/justfile full
-    just service/full
-    just app/full
-    just bridge/full
+    just language/check-quick
+    just library/check-quick
+    just platform/check-quick
+    just service/check-quick
+    just app/check-quick
+    just bridge/check-quick
 
-# lint workflows and shell scripts with strict policy checks
+# check with slow suites
+check-full:
+    just check-hygiene
+    just language/check-full
+    just library/check-full
+    just platform/check-full
+    just service/check-full
+    just app/check-full
+    just bridge/check-full
+
+# lint workflows and shell scripts
 check-hygiene:
     just ensure-hygiene-toolchain
     PATH="${HOME}/.local/bin:${PATH}" actionlint
-    shellcheck -x .github/scripts/*.sh dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
-    shfmt -d .github/scripts/*.sh dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh language/scripts/*.sh
-    just check-workflow-policy
-
-# validate ci workflow and target policy architecture
-check-workflow-policy:
-    bash dev/ci/check-workflow-policy.sh
+    shellcheck -x dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh
+    shfmt -d dev/toolchain/*.sh dev/toolchain/lib/*.sh dev/ci/*.sh app/scripts/*.sh bridge/scripts/*.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:
@@ -141,14 +132,11 @@ ensure-toolchain:
     just bridge/ensure-toolchain
     just ensure-hygiene-toolchain
 
-# apply github branch protection for tier 1 runtime checks
-apply-branch-protection *args:
-    bash dev/ci/apply-branch-protection.sh {{args}}
-
-# clean all build artifacts
+# clean build artifacts
 clean:
     just language/clean
     just library/clean
+    just platform/clean
     just service/clean
     just app/clean
     just bridge/clean
@@ -167,7 +155,7 @@ bump kind="patch":
 validate-release tag="":
     bash dev/ci/validate-release.sh "{{tag}}"
 
-# publish all packages (dry-run by default)
+# publish packages, dry run by default
 publish dry="--dry-run":
     just build
     just library/publish "{{dry}}"
@@ -175,7 +163,7 @@ publish dry="--dry-run":
     just bridge/publish "{{dry}}"
     just template/publish-create-destack "{{dry}}"
 
-# publish all packages live
+# publish packages
 publish-release:
     just build
     just app/validate-cli-publish
@@ -184,7 +172,7 @@ publish-release:
     just bridge/publish ""
     just template/publish-create-destack-live
 
-# publish all packages live with local cli binary staging
+# publish packages with local cli binary staging
 publish-release-local:
     bash dev/ci/publish-release-local.sh
 
@@ -194,4 +182,11 @@ release kind="patch":
 
 # push the current release commit and tag
 release-push:
-    bash dev/ci/release-push.sh
+    version="$(cat VERSION.txt)"; \
+    if ! git rev-parse --verify "v${version}" >/dev/null 2>&1; then \
+        echo "error: missing local release tag v${version}" >&2; \
+        echo "run: just release <major|minor|patch>" >&2; \
+        exit 1; \
+    fi; \
+    git push origin main; \
+    git push origin "v${version}"

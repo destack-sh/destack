@@ -1,0 +1,51 @@
+set shell := ["bash", "-cu"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+
+_default:
+    @just --list --unsorted
+
+# build production output
+build:
+    bun scripts/sync-assets.mjs
+    bun scripts/generate-snippets.mjs
+    bun x vinxi build
+    bun scripts/postbuild.mjs
+
+# regenerate generated files
+format:
+    bun scripts/generate-snippets.mjs
+
+# check generated files
+format-check:
+    bun scripts/generate-snippets.mjs --check
+
+# run static checks
+lint:
+    just build
+
+# run tests
+test:
+    @echo "No site tests defined"
+
+# default check
+check:
+    just check-quick
+
+# normal check
+check-quick:
+    just format-check
+    just lint
+
+# check with slow suites
+check-full:
+    just check-quick
+
+# run dev server
+dev:
+    bun scripts/sync-assets.mjs
+    bun scripts/generate-snippets.mjs
+    bun x vinxi dev
+
+# clean build artifacts
+clean:
+    rm -rf .vinxi .output dist

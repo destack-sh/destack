@@ -3,7 +3,7 @@ set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
-# all bridge crates
+# selected crates
 packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
 format-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
 test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
@@ -11,35 +11,31 @@ test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p dest
 _default:
     @just --list --unsorted
 
-# keep rust test concurrency on one repo wide knob when configured
-_run-rust-test *args:
-    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; "${cargo_bin}" test {{args}}
-
 # --- setup ---
 
-# validate supported bridge toolchains for this host
+# validate supported toolchains
 install-toolchain:
     bash scripts/language-bridge-toolchain.sh install
 
-# inspect supported bridge toolchain readiness on this host
+# inspect supported toolchains
 doctor-toolchain:
     bash scripts/language-bridge-toolchain.sh doctor
 
-# ensure supported bridge toolchains are present
+# ensure supported toolchains
 ensure-toolchain:
     bash scripts/language-bridge-toolchain.sh ensure
 
 # --- build ---
 
-# run bridge static checks
-check:
+# run static checks
+lint:
     cargo clippy --release {{ packages }}
     bun x tsc --noEmit -p napi/tsconfig.json
     bun x tsc --noEmit -p wasm/tsconfig.json
     bun x tsc -p typescript/tsconfig.json
     bun x biome lint napi wasm typescript
 
-# build all bridge packages
+# build packages
 build:
     cargo build --release {{ packages }}
     just build-napi
@@ -93,25 +89,29 @@ clean:
 
 # --- test ---
 
-# run the bridge test aggregate
+# run tests
 test:
-    just _run-rust-test --release --all-targets {{ test-packages }}
+    cargo test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
     bun run --cwd wasm test
     bun run --cwd typescript test
     just test-vscode
     just test-zed
 
-# run the bridge quick gate
-quick *args:
+# default check
+check *args:
+    just check-quick {{args}}
+
+# normal check
+check-quick *args:
     just format-check
-    just check
+    just lint
     just test
     just validate-zed-grammars-strict {{args}}
 
-# run the bridge full gate
-full *args:
-    just quick {{args}}
+# check with slow suites
+check-full *args:
+    just check-quick {{args}}
     just test-language-bridges
     just test-vscode-bridge
 
@@ -125,17 +125,11 @@ test-vscode-bridge:
 
 # test zed extension and shared tree sitter overlays
 test-zed:
-    # keep rust test concurrency on the repo wide knob inside zed
-    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; \
-    if [ -n "${test_threads}" ]; then \
-        cd zed && RUST_TEST_THREADS="${test_threads}" cargo test --release; \
-    else \
-        cd zed && cargo test --release; \
-    fi
+    cd zed && cargo test --release
     cd zed && cargo build --target wasm32-wasip2 --release
     bun ../language/grammar/scripts/check-overlay.mjs
 
-# test supported language bridge clients
+# test supported clients
 test-language-bridges:
     just ensure-toolchain
     bash scripts/test-language-bridges.sh
@@ -144,7 +138,7 @@ test-language-bridges:
 validate-zed-grammars *args:
     python3 zed/scripts/check_grammar_sources.py {{args}}
 
-# validate zed grammar references in strict release mode
+# validate zed grammar references strictly
 validate-zed-grammars-strict *args:
     python3 zed/scripts/check_grammar_sources.py --require-pinned {{args}}
 
@@ -229,7 +223,7 @@ publish-vscode dry="--dry-run":
 publish-zed dry="--dry-run" version="":
     bash zed/scripts/create-registry-pr.sh "{{dry}}" "{{version}}"
 
-# publish all bridge packages dry by default
+# publish packages dry by default
 publish dry="--dry-run":
     just publish-npm "{{dry}}"
     just publish-cargo "{{dry}}"

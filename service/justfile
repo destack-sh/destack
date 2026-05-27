@@ -3,7 +3,7 @@ set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
-# all service crates
+# selected crates
 packages := "-p destack_daemon"
 format-packages := "-p destack_daemon"
 test-packages := "-p destack_daemon"
@@ -11,17 +11,13 @@ test-packages := "-p destack_daemon"
 _default:
     @just --list --unsorted
 
-# keep rust test concurrency on one repo wide knob when configured
-_run-rust-test *args:
-    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; "${cargo_bin}" test {{args}}
-
 # --- build ---
 
-# run service static checks
-check:
+# run static checks
+lint:
     cargo clippy --release {{ packages }}
 
-# build all service crates
+# build packages
 build:
     cargo build --release {{ packages }}
 
@@ -42,16 +38,20 @@ clean:
 
 # --- test ---
 
-# run the service test aggregate
+# run tests
 test:
-    just _run-rust-test --release --all-targets {{ test-packages }}
+    cargo test --release --all-targets {{ test-packages }}
 
-# run the service quick gate
-quick:
+# default check
+check:
+    just check-quick
+
+# normal check
+check-quick:
     just format-check
-    just check
+    just lint
     just test
 
-# run the service full gate
-full:
-    just quick
+# check with slow suites
+check-full:
+    just check-quick

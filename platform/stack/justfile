@@ -4,30 +4,30 @@ set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 _default:
     @just --list --unsorted
 
-# build packages
-build:
-    just site/build
-    just stack/build
+# install provider bindings
+install:
+    bun x sst install
 
-# format packages
+# build provider bindings
+build:
+    just install
+
+# format code
 format:
-    just site/format
-    just stack/format
+    @echo "No stack formatting defined"
 
 # check formatting
 format-check:
-    just site/format-check
-    just stack/format-check
+    @echo "No stack formatting checks defined"
 
 # run static checks
 lint:
-    just site/lint
-    just stack/lint
+    just install
+    bun x sst version
 
 # run tests
 test:
-    just site/test
-    just stack/test
+    @echo "No stack tests defined"
 
 # default check
 check:
@@ -37,7 +37,6 @@ check:
 check-quick:
     just format-check
     just lint
-    just test
 
 # check with slow suites
 check-full:
@@ -45,17 +44,19 @@ check-full:
 
 # preview production changes
 diff:
-    just stack/diff
+    just install
+    bun x sst diff --stage production
 
 # deploy production
 deploy:
-    just stack/deploy
+    just install
+    bun x sst deploy --stage production
 
 # remove production
 remove:
-    just stack/remove
+    just install
+    bun x sst remove --stage production
 
 # clean build artifacts
 clean:
-    just site/clean
-    just stack/clean
+    rm -rf .sst
