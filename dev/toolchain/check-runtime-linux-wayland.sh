@@ -8,8 +8,13 @@ source "${script_directory}/lib/runtime-common.sh"
 
 runtime_set_standard_environment
 
+if [ "$(runtime_host_kernel)" != "Linux" ]; then
+	echo "linux wayland runtime checks must run on a linux host"
+	exit 1
+fi
+
 ensure_weston() {
-	runtime_require_or_auto_install_linux_command \
+	runtime_require_or_auto_install_command \
 		weston \
 		weston \
 		"missing weston: install weston to run the runtime wayland lane" \

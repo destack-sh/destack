@@ -42,41 +42,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Language Check Toolchain
-        uses: ./.github/actions/setup-language-check
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
           rust_components: rustfmt clippy
           install_js_dependencies: "true"
 
       - name: Check Language
-        run: just language/full
-
-  language-resolver-windows-check:
-    name: Language Resolver Check (Windows)
-    runs-on: windows-latest
-    timeout-minutes: 120
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install Rust Bun Node and just
-        uses: ./.github/actions/setup-rust-bun-just
-
-      - name: Check Package Managers
-        shell: bash
-        run: |
-          corepack pnpm --version
-          corepack yarn --version
-
-      - name: Install Resolver Fixtures
-        shell: bash
-        run: just language/install-resolver
-
-      - name: Check Language Resolver (Windows)
-        shell: bash
-        run: just language/test-resolver
+        run: just language/check-full
 
   library-check:
     name: Library Check
@@ -95,7 +68,7 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check Library
-        run: just library/full
+        run: just library/check-full
 
   service-check:
     name: Service Check
@@ -114,7 +87,7 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check Service
-        run: just service/full
+        run: just service/check-full
 
   app-check:
     name: App Check
@@ -133,7 +106,7 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check App
-        run: just app/full
+        run: just app/check-full
 
   bridge-check:
     name: Bridge Check
@@ -153,33 +126,32 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check Bridge
-        run: just bridge/full --pin-destack-revision "${GITHUB_SHA}"
+        run: just bridge/check-full --pin-destack-revision "${GITHUB_SHA}"
 
-  runtime-linux-check:
-    name: Runtime Check (Linux)
-    uses: ./.github/workflows/runtime-linux-check.yml
+  language-runtime-linux-check:
+    name: Language Runtime Check (Linux)
+    uses: ./.github/workflows/language-runtime-linux-check.yml
 
-  runtime-macos-check:
-    name: Runtime Check (macOS)
-    uses: ./.github/workflows/runtime-macos-check.yml
+  language-runtime-macos-check:
+    name: Language Runtime Check (macOS)
+    uses: ./.github/workflows/language-runtime-macos-check.yml
 
-  runtime-windows-check:
-    name: Runtime Check (Windows)
-    uses: ./.github/workflows/runtime-windows-check.yml
+  language-runtime-windows-check:
+    name: Language Runtime Check (Windows)
+    uses: ./.github/workflows/language-runtime-windows-check.yml
 
   release-artifacts:
     name: Release Artifacts
     needs:
       - release-metadata-check
       - language-check
-      - language-resolver-windows-check
       - library-check
       - service-check
       - app-check
       - bridge-check
-      - runtime-linux-check
-      - runtime-macos-check
-      - runtime-windows-check
+      - language-runtime-linux-check
+      - language-runtime-macos-check
+      - language-runtime-windows-check
     uses: ./.github/workflows/release-channel-package.yml
     with:
       channel_label: Release

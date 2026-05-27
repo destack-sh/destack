@@ -1,4 +1,4 @@
-name: Runtime Check (Linux)
+name: Language Runtime Check (Linux)
 
 on:
   workflow_call:
@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  runtime-linux-check:
-    name: Runtime Check (Linux, ${{ matrix.arch }})
+  language-runtime-linux-check:
+    name: Language Runtime Check (Linux, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
@@ -34,14 +34,14 @@ jobs:
         if: matrix.arch == 'x86_64'
         uses: ./.github/actions/setup-zig
 
-      - name: Check Runtime (Linux)
+      - name: Check Language Runtime (Linux)
         run: just language/check-runtime-linux
 
-      - name: Check Runtime (Windows GNU)
+      - name: Check Language Runtime (Windows GNU)
         if: matrix.arch == 'x86_64'
         run: just language/check-runtime-windows-gnu
 
-      - name: Check Runtime (Linux Wayland)
+      - name: Check Language Runtime (Linux Wayland)
         run: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/check-runtime-linux-wayland
 
       - name: Show sccache Stats

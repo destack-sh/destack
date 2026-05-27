@@ -1,4 +1,4 @@
-name: Runtime Check (Windows)
+name: Language Runtime Check (Windows)
 
 on:
   workflow_call:
@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  runtime-windows-check:
-    name: Runtime Check (Windows)
+  language-runtime-windows-check:
+    name: Language Runtime Check (Windows)
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -22,20 +22,20 @@ jobs:
         with:
           rust_components: clippy
 
-      - name: Install Windows Runtime Build Dependencies
+      - name: Install Language Runtime Build Dependencies
         shell: powershell
         run: |
           choco install strawberryperl nasm -y --no-progress
           Add-Content -Path $env:GITHUB_PATH -Value 'C:\Strawberry\perl\bin'
           Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\NASM'
 
-      - name: Check Windows Runtime Build Dependencies
+      - name: Check Language Runtime Build Dependencies
         shell: powershell
         run: |
           perl -v
           nasm -v
 
-      - name: Check Runtime (Windows)
+      - name: Check Language Runtime (Windows)
         run: just language/check-runtime-windows-msvc
 
       - name: Show sccache Stats
