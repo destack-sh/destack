@@ -39,6 +39,16 @@ else {
   ...
 }
 ```
+- The logic block treatment also applies just as well to TSX and tree-like structures, so for example:
+```tsx
+<div>
+    {/* Top button */}
+    <button /> ... </button>
+
+    {/* Side panel */}
+    <div> ... </div>
+</div>
+```
 - For ===-like separators for large comment blocks, you may use upper case sentences:
 ```text
 // ================================================================================
