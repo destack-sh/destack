@@ -1,6 +1,7 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
 import { siteDomain } from "./domains";
+import { redirects } from "./redirects";
 
 export function site(stage: string) {
     const website = new sst.aws.StaticSite("Website", {
@@ -35,6 +36,8 @@ export function site(stage: string) {
         },
         domain: siteDomain(stage),
     });
+
+    redirects(stage);
 
     return {
         website: website.url,
