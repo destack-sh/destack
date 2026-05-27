@@ -316,10 +316,22 @@ fn format_file(
         .unwrap_or_else(|_| panic!("formatter received non-code file type: {:?}", file.ty));
     let mut parser = Parser::lex_file(file.clone(), language_type, strings);
     let expressions = parser.parse();
-    let diagnostics = parser.diagnostics.clone();
+    let diagnostics = parser.diagnostics();
+    let diagnostic_collector = DiagnosticCollector::new();
+    for diagnostic in diagnostics.iter() {
+        diagnostic_collector.insert(diagnostic.clone());
+    }
 
     let side_span = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
+    let tokens = tokens
+        .into_iter()
+        .map(|token| token.with_file(file.id))
+        .collect::<Vec<_>>();
+    let side_tokens = side_tokens
+        .into_iter()
+        .map(|token| token.with_file(file.id))
+        .collect::<Vec<_>>();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
         language_type,
@@ -348,7 +360,7 @@ fn format_file(
         result.push('\n');
     }
 
-    (result, diagnostics)
+    (result, diagnostic_collector)
 }
 
 /// Collect all formattable files in a directory.

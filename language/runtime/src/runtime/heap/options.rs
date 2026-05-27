@@ -1,7 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_heap::{
-    DEFAULT_GC_MINIMUM_WORK_BYTES, GcOptions, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits,
-    SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable,
+    DEFAULT_GC_MINIMUM_WORK_BYTES, DEFAULT_YOUNG_PROMOTION_AGE, GcOptions, HeapLimits, HeapOptions,
+    HeapSpaceLimits, RawLimits, SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits,
+    SharedRawLimits, SizeClassTable,
 };
 use destack_workspace::{
     HeapLayoutOptions, HeapOptions as WorkspaceHeapOptions, HeapSizeClasses, LocalGcOptions,
@@ -93,6 +94,7 @@ fn resolve_local_heap_policy(
         size_classes,
         heap_young_bytes: layout.heap_young_bytes,
         max_heap_young_allocation_bytes: layout.max_heap_young_allocation_bytes,
+        young_promotion_age: DEFAULT_YOUNG_PROMOTION_AGE,
         heap_small_bytes: layout.heap_span_bytes,
         raw_small_bytes: layout.raw_span_bytes,
         heap_space_bytes: layout.heap_space_bytes,

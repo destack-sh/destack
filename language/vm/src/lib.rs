@@ -1,6 +1,5 @@
 #![feature(default_field_values)]
 #![feature(explicit_tail_calls)]
-#![feature(if_let_guard)]
 #![feature(str_as_str)]
 #![allow(incomplete_features)]
 #![allow(

@@ -47,3 +47,8 @@ check-cfg = [
 [[example]]
 name = "profiler-html"
 required-features = ["disas", "interp", "profile"]
+
+[[test]]
+name = "all"
+path = "tests/all/main.rs"
+required-features = ["encode"]
