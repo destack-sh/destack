@@ -3,10 +3,11 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    ArgumentTerm, CallFailure, CallOutcome, CallResolution, CallResolutionTarget,
-    CheckComponentState, ConstructCandidates, FunctionTerm, GenericArgumentKey, GenericInstance,
-    GenericSlot, GenericSubstitution, GenericSubstitutionEntry, Progress, ShapeMemberTerm,
-    TypeLiteralTerm, TypeRelation, TypeTerm, VariableId, VariableKind, VariableOrigin,
+    ArgumentTerm, CallDecision, CallFailure, CallResolution, CallResolutionTarget, CheckState,
+    ConstraintOrigin, ConstructCandidates, FunctionParameterTerm, FunctionTerm, GenericArgumentKey,
+    GenericInstance, GenericParameter, GenericSlot, GenericSubstitution, GenericSubstitutionEntry,
+    Progress, Reduction, ShapeMemberTerm, StaticTerm, TermId, TypeLiteralTerm, TypeRelation,
+    TypeTerm, VariableId, VariableKind, VariableOutput,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -24,11 +25,11 @@ pub(in crate::check) struct CallTerm {
     /// The called expression type.
     pub(in crate::check) callee: VariableId,
     /// The member projection that produced this callee.
-    pub(in crate::check) member: Option<MemberCallTerm>,
+    pub(in crate::check) member: Option<TermId<MemberCallTerm>>,
     /// The symbol-backed candidates visible at the call site.
-    pub(in crate::check) candidates: Vec<CallCandidateTerm>,
+    pub(in crate::check) candidates: Vec<CallCandidate>,
     /// The explicit call generic arguments.
-    pub(in crate::check) generic_arguments: Vec<ArgumentTerm>,
+    pub(in crate::check) generic_arguments: Vec<TermId<ArgumentTerm>>,
     /// The argument expression types.
     pub(in crate::check) arguments: Vec<VariableId>,
 }
@@ -39,7 +40,7 @@ pub(in crate::check) struct CallTerm {
 /// value.toString()
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct CallCandidateTerm {
+pub(in crate::check) struct CallCandidate {
     /// The selected callable target.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The candidate callable type.
@@ -58,7 +59,7 @@ pub(in crate::check) struct MemberCallTerm {
     /// The selected member key.
     pub(in crate::check) key: dir::StaticKey,
     /// The applied static arguments.
-    pub(in crate::check) arguments: Vec<ArgumentTerm>,
+    pub(in crate::check) arguments: Vec<TermId<ArgumentTerm>>,
     /// The protocol that must own the resolved method.
     pub(in crate::check) protocol: Option<MemberProtocol>,
 }
@@ -69,12 +70,15 @@ pub(in crate::check) struct MemberProtocol {
     /// The protocol language item.
     pub(in crate::check) item: dir::LanguageItem,
     /// The required protocol arguments.
-    pub(in crate::check) arguments: Vec<ArgumentTerm>,
+    pub(in crate::check) arguments: Vec<TermId<ArgumentTerm>>,
 }
 
 impl CallTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
         let mut variables = SmallVec::new();
 
         if self.member.is_none() && self.candidates.is_empty() {
@@ -83,11 +87,22 @@ impl CallTerm {
         if !self.candidates.is_empty() {
             variables.extend(self.candidates.iter().map(|candidate| candidate.ty));
         }
-        if let Some(member) = &self.member {
+        if let Some(member) = self.member {
+            let member = state.terms.get(member);
+
             variables.push(member.receiver);
-            variables.extend(member.arguments.iter().map(ArgumentTerm::variable));
+            variables.extend(
+                member
+                    .arguments
+                    .iter()
+                    .flat_map(|argument| state.argument_variables(*argument)),
+            );
         }
-        variables.extend(self.generic_arguments.iter().map(ArgumentTerm::variable));
+        variables.extend(
+            self.generic_arguments
+                .iter()
+                .flat_map(|argument| state.argument_variables(*argument)),
+        );
         variables.extend(self.arguments.iter().copied());
 
         variables
@@ -107,18 +122,56 @@ pub(in crate::check) enum CallableSignature {
 /// Transient callable selection while reducing call-like syntax.
 pub(in crate::check) enum CallableSelection {
     /// Call resolution is waiting for solver input.
-    Pending,
-    /// The callee has no callable candidates.
-    NotCallable,
-    /// No callable candidate accepts the arguments.
-    NoMatch,
+    Pending {
+        /// The variable changes made before resolution became pending.
+        progress: Progress,
+    },
+    /// Call resolution failed.
+    Rejected(CallFailure),
     /// One callable candidate resolved.
     Resolved {
         /// The resolved call target.
         target: CallResolutionTarget,
         /// The resolved function signature.
         function: FunctionTerm,
+        /// The variable changes made while resolving.
+        progress: Progress,
     },
+}
+
+impl CallableSelection {
+    /// Return a pending selection with no side progress.
+    pub(in crate::check) fn pending() -> Self {
+        Self::Pending {
+            progress: Progress::Unchanged,
+        }
+    }
+
+    /// Return a resolved selection with side progress.
+    pub(in crate::check) fn resolved(
+        target: CallResolutionTarget,
+        function: FunctionTerm,
+        progress: Progress,
+    ) -> Self {
+        Self::Resolved {
+            target,
+            function,
+            progress,
+        }
+    }
+
+    /// Return a rejected selection.
+    pub(in crate::check) fn rejected(failure: CallFailure) -> Self {
+        Self::Rejected(failure)
+    }
+
+    /// Return progress made while selecting.
+    pub(in crate::check) fn progress(&self) -> Progress {
+        match self {
+            Self::Pending { progress } | Self::Resolved { progress, .. } => progress.clone(),
+            Self::Rejected(_) => Progress::Unchanged,
+        }
+    }
 }
 
 /// Callable target selected before generic instantiation.
@@ -132,16 +185,19 @@ pub(in crate::check) enum CallTarget {
         /// The resolved receiver type for method calls.
         receiver: Option<VariableId>,
     },
-    /// Constructible nominal selected through call syntax.
-    Construct {
-        /// The resolved constructible symbol.
+    /// Constructor selected through call syntax.
+    Constructor {
+        /// The resolved constructor symbol.
         symbol: dir::GlobalSymbolId,
     },
 }
 
 impl CallTarget {
     /// Convert this selected target into a resolved call target.
-    fn into_resolution_target(self, instance: Option<GenericInstance>) -> CallResolutionTarget {
+    pub(in crate::check) fn into_resolution_target(
+        self,
+        instance: Option<GenericInstance>,
+    ) -> CallResolutionTarget {
         match self {
             Self::Value => CallResolutionTarget::Value,
             Self::Symbol { symbol, receiver } => CallResolutionTarget::Symbol {
@@ -149,82 +205,133 @@ impl CallTarget {
                 instance,
                 receiver,
             },
-            Self::Construct { symbol } => CallResolutionTarget::Construct { symbol, instance },
+            Self::Constructor { symbol } => CallResolutionTarget::Constructor { symbol, instance },
         }
     }
 }
 
-/// Constructible callee selected through call syntax.
-struct ConstructibleCallee {
+/// Newtype callee selected through call syntax.
+struct NewtypeCallee {
     /// The constructed nominal type.
     ty: VariableId,
     /// The selected type symbol.
     symbol: dir::GlobalSymbolId,
 }
 
-impl CheckComponentState<'_> {
+/// Function signature after call generic substitution.
+struct CallInstantiation {
+    /// The instantiated function signature.
+    function: FunctionTerm,
+    /// The resolved generic instance.
+    instance: Option<GenericInstance>,
+    /// The substitution used for this call.
+    substitution: GenericSubstitution,
+    /// The original generic parameters.
+    generic_parameters: Vec<VariableId>,
+}
+
+impl CheckState<'_> {
+    /// Reduce one generic function value reference to its specialized function type.
+    pub(in crate::check) fn reduce_function_reference_term(
+        &mut self,
+        module: ModuleId,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        generic_arguments: &[TermId<ArgumentTerm>],
+    ) -> CompilerResult<Reduction<TypeTerm>> {
+        let value = self.symbol_type_variable(module, symbol)?;
+        let Some(term) = self.solved_type_term(value)? else {
+            return Ok(Reduction::pending());
+        };
+        let function = match self.call_signature(module, &term)? {
+            CallableSignature::Pending => return Ok(Reduction::pending()),
+            CallableSignature::Absent => {
+                return Ok(Reduction::value(TypeTerm::Reference {
+                    source: Some(source),
+                    symbol,
+                    arguments: generic_arguments.to_vec(),
+                }));
+            }
+            CallableSignature::Present(function) => function,
+        };
+        let instantiation = self.instantiate_call_signature(
+            module,
+            source,
+            Some(symbol),
+            None,
+            function,
+            generic_arguments,
+        )?;
+
+        let function = self.terms.push(instantiation.function);
+
+        Ok(Reduction::value(TypeTerm::Function(function)))
+    }
+
     /// Reduce one runtime call to its return type.
-    pub(in crate::check) fn reduce_call_type(
+    pub(in crate::check) fn reduce_call_term(
         &mut self,
         module: ModuleId,
         call: &CallTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Reduction<TypeTerm>> {
         let result = self.resolve_call(call, None)?;
+        let progress = result.progress();
         let function = match &result {
-            CallableSelection::Resolved { target, function } => {
+            CallableSelection::Resolved {
+                target, function, ..
+            } => {
                 self.record_call_resolution(call, target.clone(), function)?;
 
                 function
             }
-            CallableSelection::NotCallable => {
-                self.record_call_rejection(call, CallFailure::NotCallable)?;
+            CallableSelection::Rejected(failure) => {
+                self.record_call_rejection(call, failure.clone())?;
 
-                return Ok(None);
+                return Ok(Reduction::progress(progress));
             }
-            CallableSelection::NoMatch => {
-                self.record_call_rejection(call, CallFailure::NoMatch)?;
-
-                return Ok(None);
-            }
-            CallableSelection::Pending => return Ok(None),
+            CallableSelection::Pending { .. } => return Ok(Reduction::progress(progress)),
         };
 
         let term = match function.return_type {
             Some(return_type) => TypeTerm::Variable(return_type),
             None => TypeTerm::Literal(TypeLiteralTerm::Void),
         };
-        let term = self.push_solved_type_variable(module, term)?;
+        let origin = ConstraintOrigin::Node(call.source);
+        let term = self.solve_anonymous_type(module, origin, term)?;
 
-        Ok(Some(TypeTerm::Variable(term)))
+        Ok(Reduction {
+            value: Some(TypeTerm::Variable(term)),
+            progress,
+        })
     }
 
-    /// Apply an expected call result to resolved call candidates.
-    pub(in crate::check) fn expect_call_result(
+    /// Expect resolved call candidates to produce the expected result.
+    pub(in crate::check) fn expect_call_term(
         &mut self,
         call: &CallTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
         let resolved = self.resolve_call(call, Some(result))?;
+        let progress = resolved.progress();
         let progress = match &resolved {
-            CallableSelection::Resolved { target, function } => {
+            CallableSelection::Resolved {
+                target, function, ..
+            } => {
                 self.record_call_resolution(call, target.clone(), function)?;
 
                 match function.return_type {
-                    Some(return_type) => self.relate_type_assignable(return_type, result)?,
-                    None => Progress::Unchanged,
+                    Some(return_type) => {
+                        progress.merge(self.solve_type_assignability(return_type, result)?)
+                    }
+                    None => progress,
                 }
             }
-            CallableSelection::NotCallable => {
-                self.record_call_rejection(call, CallFailure::NotCallable)?;
+            CallableSelection::Rejected(failure) => {
+                self.record_call_rejection(call, failure.clone())?;
 
-                Progress::Unchanged
+                progress
             }
-            CallableSelection::NoMatch => {
-                self.record_call_rejection(call, CallFailure::NoMatch)?;
-
-                Progress::Unchanged
-            }
-            CallableSelection::Pending => Progress::Unchanged,
+            CallableSelection::Pending { .. } => progress,
         };
 
         Ok(progress)
@@ -236,10 +343,9 @@ impl CheckComponentState<'_> {
         call: &CallTerm,
         failure: CallFailure,
     ) -> CompilerResult<()> {
-        let outcome = CallOutcome::Rejected(failure);
+        let decision = CallDecision::Rejected(failure);
 
-        self.module_mut(call.source.module_id)?
-            .record_call_outcome(call.source, outcome);
+        self.record_call_decision(call.source, decision);
 
         Ok(())
     }
@@ -251,12 +357,8 @@ impl CheckComponentState<'_> {
         target: CallResolutionTarget,
         function: &FunctionTerm,
     ) -> CompilerResult<()> {
-        let member_source = match self
-            .module(call.callee.module)?
-            .variable(call.callee)
-            .origin
-        {
-            VariableOrigin::Node(node) if call.member.is_some() => Some(node),
+        let member_source = match self.variable(call.callee).output {
+            Some(VariableOutput::Node(node)) if call.member.is_some() => Some(node),
             _ => None,
         };
         let resolution = CallResolution {
@@ -266,10 +368,9 @@ impl CheckComponentState<'_> {
             function: function.clone(),
         };
 
-        let outcome = CallOutcome::Resolved(resolution);
+        let decision = CallDecision::Resolved(resolution);
 
-        self.module_mut(call.source.module_id)?
-            .record_call_outcome(call.source, outcome);
+        self.record_call_decision(call.source, decision);
 
         Ok(())
     }
@@ -280,10 +381,13 @@ impl CheckComponentState<'_> {
         call: &CallTerm,
         expected: Option<VariableId>,
     ) -> CompilerResult<CallableSelection> {
+        if let Some(selection) = self.recorded_call_selection(call)? {
+            return Ok(selection);
+        }
         if let Some(result) = self.resolve_member_call(call, expected)? {
             return Ok(result);
         }
-        if let Some(result) = self.resolve_construct_call(call, expected)? {
+        if let Some(result) = self.resolve_newtype_call(call, expected)? {
             return Ok(result);
         }
         if call.candidates.is_empty() {
@@ -292,6 +396,7 @@ impl CheckComponentState<'_> {
 
         let mut saw_callable = false;
         let mut saw_pending = false;
+        let mut argument_failure = None;
 
         // choose the first compatible declaration-order candidate
         for candidate in &call.candidates {
@@ -320,21 +425,54 @@ impl CheckComponentState<'_> {
                     )?;
                     match result {
                         CallableSelection::Resolved { .. } => return Ok(result),
-                        CallableSelection::Pending => saw_pending = true,
-                        CallableSelection::NoMatch => {}
-                        CallableSelection::NotCallable => {}
+                        CallableSelection::Pending { .. } => saw_pending = true,
+                        CallableSelection::Rejected(CallFailure::ArgumentType {
+                            argument,
+                            parameter,
+                        }) => {
+                            argument_failure.get_or_insert((argument, parameter));
+                        }
+                        CallableSelection::Rejected(CallFailure::NoMatch) => {}
+                        CallableSelection::Rejected(CallFailure::NotCallable) => {}
                     }
                 }
             }
         }
 
         if saw_pending {
-            Ok(CallableSelection::Pending)
+            Ok(CallableSelection::pending())
+        } else if let Some((argument, parameter)) = argument_failure {
+            Ok(CallableSelection::rejected(CallFailure::ArgumentType {
+                argument,
+                parameter,
+            }))
         } else if saw_callable {
-            Ok(CallableSelection::NoMatch)
+            Ok(CallableSelection::rejected(CallFailure::NoMatch))
         } else {
-            Ok(CallableSelection::NotCallable)
+            Ok(CallableSelection::rejected(CallFailure::NotCallable))
         }
+    }
+
+    /// Return the already chosen decision for one call.
+    fn recorded_call_selection(
+        &self,
+        call: &CallTerm,
+    ) -> CompilerResult<Option<CallableSelection>> {
+        let Some(decision) = self.solutions.call.get(&call.source).cloned()
+        else {
+            return Ok(None);
+        };
+
+        let selection = match decision {
+            CallDecision::Resolved(resolution) => CallableSelection::resolved(
+                resolution.target,
+                resolution.function,
+                Progress::Unchanged,
+            ),
+            CallDecision::Rejected(failure) => CallableSelection::rejected(failure),
+        };
+
+        Ok(Some(selection))
     }
 
     /// Select a call whose callee is an arbitrary value expression.
@@ -344,11 +482,13 @@ impl CheckComponentState<'_> {
         expected: Option<VariableId>,
     ) -> CompilerResult<CallableSelection> {
         let Some(term) = self.solved_type_term(call.callee)? else {
-            return Ok(CallableSelection::Pending);
+            return Ok(CallableSelection::pending());
         };
         let function = match self.call_signature(call.callee.module, &term)? {
-            CallableSignature::Pending => return Ok(CallableSelection::Pending),
-            CallableSignature::Absent => return Ok(CallableSelection::NotCallable),
+            CallableSignature::Pending => return Ok(CallableSelection::pending()),
+            CallableSignature::Absent => {
+                return Ok(CallableSelection::rejected(CallFailure::NotCallable));
+            }
             CallableSignature::Present(function) => function,
         };
         self.resolve_call_signature(
@@ -364,26 +504,26 @@ impl CheckComponentState<'_> {
         )
     }
 
-    /// Select a nominal constructor exposed through call syntax.
-    fn resolve_construct_call(
+    /// Select a newtype constructor exposed through call syntax.
+    fn resolve_newtype_call(
         &mut self,
         call: &CallTerm,
         expected: Option<VariableId>,
     ) -> CompilerResult<Option<CallableSelection>> {
-        let Some(callee) = self.constructible_callee(call)? else {
+        let Some(callee) = self.newtype_callee(call)? else {
             return Ok(None);
         };
         let Some(term) = self.solved_type_term(callee.ty)? else {
-            return Ok(Some(CallableSelection::Pending));
+            return Ok(Some(CallableSelection::pending()));
         };
         let candidates = match self.construct_candidates(call.callee.module, callee.ty, &term)? {
-            ConstructCandidates::Pending => return Ok(Some(CallableSelection::Pending)),
+            ConstructCandidates::Pending => return Ok(Some(CallableSelection::pending())),
             ConstructCandidates::Absent => return Ok(None),
             ConstructCandidates::Present(candidates) => candidates,
         };
         let mut saw_pending = false;
 
-        // choose the first compatible declaration-order construct candidate
+        // choose the first compatible declaration-order newtype candidate
         for candidate in candidates {
             let target_symbol = match candidate.symbol {
                 Some(symbol) => symbol,
@@ -398,55 +538,50 @@ impl CheckComponentState<'_> {
                 &call.generic_arguments,
                 &call.arguments,
                 expected,
-                CallTarget::Construct {
+                CallTarget::Constructor {
                     symbol: target_symbol,
                 },
             )?;
             match result {
                 CallableSelection::Resolved { .. } => return Ok(Some(result)),
-                CallableSelection::Pending => saw_pending = true,
-                CallableSelection::NoMatch | CallableSelection::NotCallable => {}
+                CallableSelection::Pending { .. } => saw_pending = true,
+                CallableSelection::Rejected(_) => {}
             }
         }
 
         let result = if saw_pending {
-            CallableSelection::Pending
+            CallableSelection::pending()
         } else {
-            CallableSelection::NoMatch
+            CallableSelection::rejected(CallFailure::NoMatch)
         };
 
         Ok(Some(result))
     }
 
-    /// Return a constructible type selected by one call callee.
-    fn constructible_callee(&self, call: &CallTerm) -> CompilerResult<Option<ConstructibleCallee>> {
+    /// Return the newtype selected by one call callee.
+    fn newtype_callee(&self, call: &CallTerm) -> CompilerResult<Option<NewtypeCallee>> {
         let candidates = call
             .candidates
             .iter()
             .filter_map(|candidate| {
-                let symbol = self.module(candidate.symbol.module_id).ok()?;
-                let binding = symbol.binding_table();
+                let input = self.inputs.get(&candidate.symbol.module_id)?;
+                let binding = input.binding_table();
                 let symbol = binding.get_symbol(candidate.symbol.local_id);
 
-                Self::symbol_constructible(symbol.form).then_some(ConstructibleCallee {
+                matches!(symbol.kind, dir::SymbolKind::Newtype).then_some(NewtypeCallee {
                     ty: candidate.ty,
                     symbol: candidate.symbol,
                 })
             })
             .collect::<Vec<_>>();
 
-        let construct = if candidates.len() == 1 {
+        let callee = if candidates.len() == 1 {
             candidates.into_iter().next()
         } else {
             None
         };
 
-        Ok(construct)
-    }
-
-    /// Return whether one symbol form can construct through call syntax.
-    fn symbol_constructible(form: dir::SymbolForm) -> bool {
-        matches!(form, dir::SymbolForm::Newtype)
+        Ok(callee)
     }
 
     /// Select a call whose callee is a member projection.
@@ -455,11 +590,12 @@ impl CheckComponentState<'_> {
         call: &CallTerm,
         expected: Option<VariableId>,
     ) -> CompilerResult<Option<CallableSelection>> {
-        let Some(member) = &call.member else {
+        let Some(member) = call.member else {
             return Ok(None);
         };
+        let member = self.terms.get(member);
         let Some(receiver) = self.solved_type_term(member.receiver)? else {
-            return Ok(Some(CallableSelection::Pending));
+            return Ok(Some(CallableSelection::pending()));
         };
         let member_match = if let Some(protocol) = &member.protocol {
             self.member_type_candidate_for_protocol(
@@ -472,14 +608,17 @@ impl CheckComponentState<'_> {
             self.member_type_candidate(member.receiver.module, &receiver, &member.key)?
         };
         let Some(member_match) = member_match else {
-            return Ok(Some(CallableSelection::Pending));
+            return Ok(Some(CallableSelection::pending()));
         };
-        let Some(term) = self.solved_type_term(member_match.ty)? else {
-            return Ok(Some(CallableSelection::Pending));
+        let reduction = self.reduce_type_term(member.receiver.module, &member_match.ty)?;
+        let Some(term) = reduction.value else {
+            return Ok(Some(CallableSelection::pending()));
         };
-        let function = match self.call_signature(member_match.ty.module, &term)? {
-            CallableSignature::Pending => return Ok(Some(CallableSelection::Pending)),
-            CallableSignature::Absent => return Ok(Some(CallableSelection::NotCallable)),
+        let function = match self.call_signature(member.receiver.module, &term)? {
+            CallableSignature::Pending => return Ok(Some(CallableSelection::pending())),
+            CallableSignature::Absent => {
+                return Ok(Some(CallableSelection::rejected(CallFailure::NotCallable)));
+            }
             CallableSignature::Present(function) => function,
         };
         let result = self.resolve_call_signature(
@@ -508,7 +647,7 @@ impl CheckComponentState<'_> {
         owner: Option<dir::GlobalSymbolId>,
         instance: Option<GenericInstance>,
         function: FunctionTerm,
-        generic_arguments: &[ArgumentTerm],
+        generic_arguments: &[TermId<ArgumentTerm>],
         arguments: &[VariableId],
         expected: Option<VariableId>,
         target: CallTarget,
@@ -517,9 +656,9 @@ impl CheckComponentState<'_> {
         if generic_arguments.len() > function.generic_parameters.len()
             || (!is_generic && !generic_arguments.is_empty())
         {
-            return Ok(CallableSelection::NoMatch);
+            return Ok(CallableSelection::rejected(CallFailure::NoMatch));
         }
-        let (function, instance) = self.instantiate_call_signature(
+        let instantiation = self.instantiate_call_signature(
             module,
             source,
             owner,
@@ -527,25 +666,46 @@ impl CheckComponentState<'_> {
             function,
             generic_arguments,
         )?;
+        let function = instantiation.function;
+        let mut progress = Progress::Unchanged;
 
         // push argument types into fresh call generic variables
         if is_generic {
-            self.expect_call_arguments(arguments, &function.parameters)?;
-            self.expect_call_return(&function, expected)?;
+            progress = progress.merge(self.expect_call_arguments(arguments, &function.parameters)?);
+            progress = progress.merge(self.expect_call_return(&function, expected)?);
+            self.solve_defaulted_generic_arguments(
+                module,
+                &instantiation.substitution,
+                &instantiation.generic_parameters,
+                generic_arguments.len(),
+            )?;
         }
 
         let argument_decision = self.decide_call_arguments(arguments, &function.parameters)?;
         let return_type = self.decide_call_return(&function, expected)?;
         match argument_decision.and(return_type) {
             Decision::Yes => {
-                self.expect_call_arguments(arguments, &function.parameters)?;
-                self.expect_call_return(&function, expected)?;
-                let target = target.into_resolution_target(instance);
+                progress =
+                    progress.merge(self.expect_call_arguments(arguments, &function.parameters)?);
+                progress = progress.merge(self.expect_call_return(&function, expected)?);
+                let target = target.into_resolution_target(instantiation.instance);
 
-                Ok(CallableSelection::Resolved { target, function })
+                Ok(CallableSelection::resolved(target, function, progress))
             }
-            Decision::Undecidable => Ok(CallableSelection::Pending),
-            Decision::No => Ok(CallableSelection::NoMatch),
+            Decision::Undecidable => Ok(CallableSelection::Pending { progress }),
+            Decision::No if !progress.is_unchanged() => Ok(CallableSelection::Pending { progress }),
+            Decision::No => {
+                if let Some((argument, parameter)) =
+                    self.call_argument_type_failure(arguments, &function.parameters)?
+                {
+                    Ok(CallableSelection::rejected(CallFailure::ArgumentType {
+                        argument,
+                        parameter,
+                    }))
+                } else {
+                    Ok(CallableSelection::rejected(CallFailure::NoMatch))
+                }
+            }
         }
     }
 
@@ -557,27 +717,37 @@ impl CheckComponentState<'_> {
         owner: Option<dir::GlobalSymbolId>,
         instance: Option<GenericInstance>,
         function: FunctionTerm,
-        generic_arguments: &[ArgumentTerm],
-    ) -> CompilerResult<(FunctionTerm, Option<GenericInstance>)> {
+        generic_arguments: &[TermId<ArgumentTerm>],
+    ) -> CompilerResult<CallInstantiation> {
         if function.generic_parameters.is_empty() {
-            return Ok((function, instance));
+            return Ok(CallInstantiation {
+                function,
+                instance,
+                substitution: GenericSubstitution::empty(),
+                generic_parameters: Vec::new(),
+            });
         }
         let mut substitution = GenericSubstitution::empty();
         let mut arguments = Vec::with_capacity(function.generic_parameters.len());
+        let generic_parameters = function.generic_parameters.clone();
 
         // use explicit arguments first, then infer the remaining call generics
         for (index, parameter) in function.generic_parameters.iter().enumerate() {
+            let slot = self.generic_parameter_slot(*parameter)?;
             let argument = if let Some(argument) = generic_arguments.get(index) {
-                argument.clone()
+                self.select_argument_for_static_slot(
+                    *argument,
+                    self.generic_parameter_is_static(*parameter)?,
+                )
             } else {
                 self.instantiation_argument(module, source, *parameter)?
             };
-            let symbol = self.generic_parameter_symbol(*parameter)?;
+            let slot = slot.id();
 
             arguments.push(argument.clone());
             substitution.entries.push(GenericSubstitutionEntry {
                 variable: *parameter,
-                symbol,
+                slot,
                 argument,
             });
         }
@@ -587,7 +757,93 @@ impl CheckComponentState<'_> {
         let instance =
             instance.or_else(|| owner.map(|symbol| GenericInstance { symbol, arguments }));
 
-        Ok((function, instance))
+        Ok(CallInstantiation {
+            function,
+            instance,
+            substitution,
+            generic_parameters,
+        })
+    }
+
+    /// Solve omitted generic arguments from their defaults when inference has no input.
+    fn solve_defaulted_generic_arguments(
+        &mut self,
+        module: ModuleId,
+        substitution: &GenericSubstitution,
+        parameters: &[VariableId],
+        explicit_count: usize,
+    ) -> CompilerResult<()> {
+        for parameter in parameters.iter().skip(explicit_count) {
+            self.solve_defaulted_generic_argument(module, substitution, *parameter)?;
+        }
+
+        Ok(())
+    }
+
+    /// Solve one omitted generic argument from its default.
+    fn solve_defaulted_generic_argument(
+        &mut self,
+        module: ModuleId,
+        substitution: &GenericSubstitution,
+        parameter: VariableId,
+    ) -> CompilerResult<()> {
+        let variable = self.variable(parameter);
+        let Some(VariableOutput::Generic(generic)) = &variable.output else {
+            return Err(CompilerError::Internal {
+                message: format!("generic parameter {parameter:?} is not a generic slot"),
+            });
+        };
+
+        match generic {
+            GenericParameter::Type {
+                default: Some(default),
+                ..
+            }
+            | GenericParameter::VariadicType {
+                default: Some(default),
+                ..
+            } => {
+                let Some(argument) = self.substitution_type_variable(substitution, parameter) else {
+                    return Ok(());
+                };
+                if !self.lower_bounds(argument).is_empty()
+                    || self.variable_solution(argument)?.is_some()
+                {
+                    return Ok(());
+                }
+                let default = self.substitute_type_variable(module, substitution, *default)?;
+                let term = TypeTerm::Variable(default);
+
+                self.solve_type_variable(argument, term)?;
+            }
+            GenericParameter::Static {
+                default: Some(default),
+                ..
+            }
+            | GenericParameter::VariadicStatic {
+                default: Some(default),
+                ..
+            } => {
+                let Some(argument) = self.substitution_static_variable(substitution, parameter) else {
+                    return Ok(());
+                };
+                if !self.lower_bounds(argument).is_empty()
+                    || self.variable_solution(argument)?.is_some()
+                {
+                    return Ok(());
+                }
+                let default = self.substitute_static_variable(module, substitution, *default)?;
+                let term = StaticTerm::Variable(default);
+
+                self.solve_static_variable(argument, term)?;
+            }
+            GenericParameter::Type { .. }
+            | GenericParameter::VariadicType { .. }
+            | GenericParameter::Static { .. }
+            | GenericParameter::VariadicStatic { .. } => {}
+        };
+
+        Ok(())
     }
 
     /// Create one inferred generic argument variable.
@@ -596,13 +852,14 @@ impl CheckComponentState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         parameter: VariableId,
-    ) -> CompilerResult<ArgumentTerm> {
+    ) -> CompilerResult<TermId<ArgumentTerm>> {
         let variable = self.instantiation_variable(module, source, parameter)?;
-        let kind = self.module(variable.module)?.variable(variable).kind;
+        let kind = self.variable(variable).kind;
         let argument = match kind {
             VariableKind::Type => ArgumentTerm::Type(variable),
             VariableKind::Static => ArgumentTerm::Static(variable),
         };
+        let argument = self.terms.push(argument);
 
         Ok(argument)
     }
@@ -620,23 +877,31 @@ impl CheckComponentState<'_> {
             owner: slot.owner,
             index: slot.index,
         };
-        let kind = self.module(parameter.module)?.variable(parameter).kind;
-        let module = self.module_mut(module)?;
+        let kind = self.variable(parameter).kind;
 
-        if let Some(variable) = module.work.variables.generic_argument.get(&key).copied() {
+        if let Some(variable) = self
+            .variables
+            .generic_argument
+            .get(&key)
+            .copied()
+        {
             return Ok(variable);
         }
-        let variable = module.push_variable(kind, VariableOrigin::generated());
+        let origin = ConstraintOrigin::Node(source);
+        let variable = self.allocate_anonymous_variable(module, kind, origin);
 
-        module.work.variables.generic_argument.insert(key, variable);
+        self
+            .variables
+            .generic_argument
+            .insert(key, variable);
 
         Ok(variable)
     }
 
     /// Return the generic slot for one generic parameter.
     fn generic_parameter_slot(&self, parameter: VariableId) -> CompilerResult<GenericSlot> {
-        let variable = self.module(parameter.module)?.variable(parameter);
-        let VariableOrigin::Generic(generic) = &variable.origin else {
+        let variable = self.variable(parameter);
+        let Some(VariableOutput::Generic(generic)) = &variable.output else {
             return Err(CompilerError::Internal {
                 message: format!("generic parameter {parameter:?} is not a generic slot"),
             });
@@ -645,21 +910,16 @@ impl CheckComponentState<'_> {
         Ok(generic.slot().clone())
     }
 
-    /// Return the source symbol for one explicit generic parameter.
-    fn generic_parameter_symbol(
-        &self,
-        parameter: VariableId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let variable = self.module(parameter.module)?.variable(parameter);
-        let symbol = match &variable.origin {
-            VariableOrigin::Generic(generic) => match generic.slot().key {
-                dir::GenericSlotKey::Symbol(symbol) => Some(symbol),
-                dir::GenericSlotKey::Generated(_) => None,
-            },
-            _ => None,
+    /// Return whether one generic parameter expects a static argument.
+    fn generic_parameter_is_static(&self, parameter: VariableId) -> CompilerResult<bool> {
+        let variable = self.variable(parameter);
+        let Some(VariableOutput::Generic(generic)) = &variable.output else {
+            return Err(CompilerError::Internal {
+                message: format!("generic parameter {parameter:?} is not a generic slot"),
+            });
         };
 
-        Ok(symbol)
+        Ok(generic.is_static())
     }
 
     /// Return the callable signature represented by one type term.
@@ -676,7 +936,9 @@ impl CheckComponentState<'_> {
 
                 return self.call_signature(variable.module, &term);
             }
-            TypeTerm::Function(function) => CallableSignature::Present(function.clone()),
+            TypeTerm::Function(function) => {
+                CallableSignature::Present(self.terms.get(*function).clone())
+            }
             TypeTerm::Reference {
                 source: _,
                 symbol,
@@ -693,15 +955,15 @@ impl CheckComponentState<'_> {
     fn named_call_signature(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        arguments: &[ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<CallableSignature> {
         if self.environment.language.item(symbol) != Some(dir::LanguageItem::Function) {
             return Ok(CallableSignature::Absent);
         }
-        let Some(parameters) = Self::type_argument(arguments, 0) else {
+        let Some(parameters) = self.generic_argument_type_variable(arguments, 0) else {
             return Ok(CallableSignature::Pending);
         };
-        let Some(return_type) = Self::type_argument(arguments, 1) else {
+        let Some(return_type) = self.generic_argument_type_variable(arguments, 1) else {
             return Ok(CallableSignature::Pending);
         };
 
@@ -734,9 +996,10 @@ impl CheckComponentState<'_> {
     fn shape_call_signature(
         &mut self,
         module: ModuleId,
-        members: &[ShapeMemberTerm],
+        members: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<CallableSignature> {
         for member in members {
+            let member = self.terms.get(*member);
             let ShapeMemberTerm::CallSignature { ty } = member else {
                 continue;
             };
@@ -754,12 +1017,24 @@ impl CheckComponentState<'_> {
     fn call_parameters_from_tuple(
         &mut self,
         variable: VariableId,
-    ) -> CompilerResult<Option<Vec<VariableId>>> {
+    ) -> CompilerResult<Option<Vec<TermId<FunctionParameterTerm>>>> {
         let Some(term) = self.solved_type_term(variable)? else {
             return Ok(None);
         };
         let parameters = match term {
-            TypeTerm::Tuple { elements, .. } => elements.iter().map(|element| element.ty).collect(),
+            TypeTerm::Tuple { elements, .. } => elements
+                .iter()
+                .map(|element| {
+                    let element = self.terms.get(*element);
+                    let parameter = FunctionParameterTerm {
+                        ty: element.ty,
+                        is_optional: element.is_optional,
+                        is_rest: element.is_rest,
+                    };
+
+                    self.terms.push(parameter)
+                })
+                .collect(),
             TypeTerm::Literal(TypeLiteralTerm::Void) => Vec::new(),
             _ => return Ok(None),
         };
@@ -771,19 +1046,21 @@ impl CheckComponentState<'_> {
     fn decide_call_arguments(
         &self,
         arguments: &[VariableId],
-        parameters: &[VariableId],
+        parameters: &[TermId<FunctionParameterTerm>],
     ) -> CompilerResult<Decision> {
-        if arguments.len() != parameters.len() {
+        if !self.call_arity_accepts(arguments, parameters) {
             return Ok(Decision::No);
         }
         let mut decision = Decision::Yes;
 
         // every argument must be assignable to the corresponding parameter
         for (argument, parameter) in arguments.iter().zip(parameters) {
+            let parameter = self.terms.get(*parameter).ty;
+
             decision = decision.and(self.decide_type_relation(
                 TypeRelation::Assignable,
                 *argument,
-                *parameter,
+                parameter,
             )?);
             if decision == Decision::No {
                 return Ok(decision);
@@ -791,6 +1068,29 @@ impl CheckComponentState<'_> {
         }
 
         Ok(decision)
+    }
+
+    /// Return the first solved argument type failure.
+    fn call_argument_type_failure(
+        &self,
+        arguments: &[VariableId],
+        parameters: &[TermId<FunctionParameterTerm>],
+    ) -> CompilerResult<Option<(VariableId, VariableId)>> {
+        if !self.call_arity_accepts(arguments, parameters) {
+            return Ok(None);
+        }
+
+        for (argument, parameter) in arguments.iter().zip(parameters) {
+            let parameter = self.terms.get(*parameter).ty;
+
+            let decision =
+                self.decide_type_relation(TypeRelation::Assignable, *argument, parameter)?;
+            if decision == Decision::No {
+                return Ok(Some((*argument, parameter)));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Decide whether the return type can flow into the expected result.
@@ -814,20 +1114,43 @@ impl CheckComponentState<'_> {
         self.decide_type_relation(TypeRelation::Assignable, return_type, expected)
     }
 
-    /// Apply expected parameter types to accepted call arguments.
+    /// Expect accepted call arguments to satisfy parameter types.
     fn expect_call_arguments(
         &mut self,
         arguments: &[VariableId],
-        parameters: &[VariableId],
-    ) -> CompilerResult<()> {
+        parameters: &[TermId<FunctionParameterTerm>],
+    ) -> CompilerResult<Progress> {
+        let mut progress = Progress::Unchanged;
+
         for (argument, parameter) in arguments.iter().zip(parameters) {
-            self.relate_type_assignable(*argument, *parameter)?;
+            let parameter = self.terms.get(*parameter).ty;
+
+            progress = progress.merge(self.solve_type_assignability(*argument, parameter)?);
         }
 
-        Ok(())
+        Ok(progress)
     }
 
-    /// Apply expected result type to an accepted call return.
+    /// Return whether runtime arguments fit one function parameter list.
+    fn call_arity_accepts(
+        &self,
+        arguments: &[VariableId],
+        parameters: &[TermId<FunctionParameterTerm>],
+    ) -> bool {
+        let required = parameters
+            .iter()
+            .map(|parameter| self.terms.get(*parameter))
+            .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
+            .count();
+        let has_rest = parameters
+            .iter()
+            .map(|parameter| self.terms.get(*parameter))
+            .any(|parameter| parameter.is_rest);
+
+        arguments.len() >= required && (has_rest || arguments.len() <= parameters.len())
+    }
+
+    /// Expect an accepted call return to satisfy the result type.
     fn expect_call_return(
         &mut self,
         function: &FunctionTerm,
@@ -838,11 +1161,12 @@ impl CheckComponentState<'_> {
         };
         let Some(return_type) = function.return_type else {
             let void = TypeTerm::Literal(TypeLiteralTerm::Void);
-            let void = self.push_solved_type_variable(expected.module, void)?;
+            let origin = self.variable_origin(expected)?;
+            let void = self.solve_anonymous_type(expected.module, origin, void)?;
 
-            return self.relate_type_assignable(void, expected);
+            return self.solve_type_assignability(void, expected);
         };
 
-        self.relate_type_assignable(return_type, expected)
+        self.solve_type_assignability(return_type, expected)
     }
 }

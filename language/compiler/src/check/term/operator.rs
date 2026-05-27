@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    ArgumentTerm, CallableSignature, CheckComponentState, FunctionTerm, MemberProtocol,
-    OperatorFailure, OperatorFailureReason, OperatorOutcome, OperatorProtocol,
+    ArgumentTerm, CallableSignature, CheckState, ConstraintOrigin, FunctionTerm, MemberProtocol,
+    OperatorDecision, OperatorFailure, OperatorFailureReason, OperatorProtocol,
     OperatorProtocolArgument, OperatorResolution, OperatorType, Progress, TypeLiteralTerm,
     TypeRelation, TypeTerm, VariableId, binary_operator_protocols, unary_operator_protocols,
 };
@@ -103,31 +103,25 @@ struct NumericBinarySelection {
     return_type: TypeTerm,
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Reduce one runtime operator to its result type.
-    pub(in crate::check) fn reduce_operator_type(
+    pub(in crate::check) fn reduce_operator_term(
         &mut self,
         operator: &OperatorTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
         let result = self.resolve_operator(operator, None)?;
         match &result {
             OperatorSelection::Builtin { return_type } => {
-                let result =
-                    self.push_solved_type_variable(operator.receiver.module, return_type.clone())?;
-                self.record_builtin_operator_resolution(operator, result)?;
-
-                return Ok(Some(TypeTerm::Variable(result)));
+                return Ok(Some(return_type.clone()));
             }
             OperatorSelection::Method {
                 symbol,
                 function,
                 return_type,
             } => {
-                let result =
-                    self.push_solved_type_variable(operator.receiver.module, return_type.clone())?;
                 self.record_operator_method_resolution(operator, *symbol, function)?;
 
-                return Ok(Some(TypeTerm::Variable(result)));
+                return Ok(Some(return_type.clone()));
             }
             OperatorSelection::NoMatch { reason } => {
                 self.record_operator_rejection(operator, *reason)?;
@@ -138,8 +132,8 @@ impl CheckComponentState<'_> {
         }
     }
 
-    /// Apply an expected operator result to resolved operator candidates.
-    pub(in crate::check) fn expect_operator_result(
+    /// Expect resolved operator candidates to produce the expected result.
+    pub(in crate::check) fn expect_operator_term(
         &mut self,
         operator: &OperatorTerm,
         result: VariableId,
@@ -147,22 +141,18 @@ impl CheckComponentState<'_> {
         let resolved = self.resolve_operator(operator, Some(result))?;
         let progress = match &resolved {
             OperatorSelection::Builtin { return_type } => {
-                let return_type =
-                    self.push_solved_type_variable(operator.receiver.module, return_type.clone())?;
-                self.record_builtin_operator_resolution(operator, return_type)?;
+                self.record_builtin_operator_resolution(operator, result)?;
 
-                self.relate_type_assignable(return_type, result)?
+                self.expect_operator_return_type(return_type, result)?
             }
             OperatorSelection::Method {
                 symbol,
                 function,
                 return_type,
             } => {
-                let return_type =
-                    self.push_solved_type_variable(operator.receiver.module, return_type.clone())?;
                 self.record_operator_method_resolution(operator, *symbol, function)?;
 
-                self.relate_type_assignable(return_type, result)?
+                self.expect_operator_return_type(return_type, result)?
             }
             OperatorSelection::NoMatch { reason } => {
                 self.record_operator_rejection(operator, *reason)?;
@@ -173,6 +163,19 @@ impl CheckComponentState<'_> {
         };
 
         Ok(progress)
+    }
+
+    /// Expect one selected operator return type to satisfy the result variable.
+    fn expect_operator_return_type(
+        &mut self,
+        return_type: &TypeTerm,
+        result: VariableId,
+    ) -> CompilerResult<Progress> {
+        let Some(expected) = self.solved_type_term(result)? else {
+            return Ok(Progress::Unchanged);
+        };
+
+        self.constrain_solved_type_assignable(return_type, &expected)
     }
 
     /// Record one rejected operator for diagnostics.
@@ -186,10 +189,9 @@ impl CheckComponentState<'_> {
             kind: operator.kind,
             reason,
         };
-        let outcome = OperatorOutcome::Rejected(failure);
+        let decision = OperatorDecision::Rejected(failure);
 
-        self.module_mut(operator.source.module_id)?
-            .record_operator_outcome(outcome);
+        self.record_operator_decision(decision);
 
         Ok(())
     }
@@ -208,10 +210,9 @@ impl CheckComponentState<'_> {
             result,
         };
 
-        let outcome = OperatorOutcome::Resolved(resolution);
+        let decision = OperatorDecision::Resolved(resolution);
 
-        self.module_mut(operator.source.module_id)?
-            .record_operator_outcome(outcome);
+        self.record_operator_decision(decision);
 
         Ok(())
     }
@@ -230,10 +231,9 @@ impl CheckComponentState<'_> {
             function: function.clone(),
         };
 
-        let outcome = OperatorOutcome::Resolved(resolution);
+        let decision = OperatorDecision::Resolved(resolution);
 
-        self.module_mut(operator.source.module_id)?
-            .record_operator_outcome(outcome);
+        self.record_operator_decision(decision);
 
         Ok(())
     }
@@ -298,7 +298,7 @@ impl CheckComponentState<'_> {
         let result = match kind {
             dir::UnaryOperator::Not => {
                 let target = Self::boolean_type_term();
-                self.expect_literal_type(operator.receiver, receiver, &target)?;
+                self.expect_literal_term(operator.receiver, receiver, &target)?;
 
                 Some(target)
             }
@@ -318,7 +318,7 @@ impl CheckComponentState<'_> {
                     return Ok(None);
                 }
                 let target = self.unary_numeric_result_type(kind, &numeric, expected)?;
-                self.expect_literal_type(operator.receiver, receiver, &target)?;
+                self.expect_literal_term(operator.receiver, receiver, &target)?;
 
                 Some(target)
             }
@@ -378,8 +378,8 @@ impl CheckComponentState<'_> {
             && let Some(right) = self.numeric_operand(&argument_type)?
             && let Some(selection) = self.resolve_numeric_binary(kind, &left, &right, expected)?
         {
-            self.expect_literal_type(operator.receiver, receiver, &selection.operand_type)?;
-            self.expect_literal_type(argument, &argument_type, &selection.operand_type)?;
+            self.expect_literal_term(operator.receiver, receiver, &selection.operand_type)?;
+            self.expect_literal_term(argument, &argument_type, &selection.operand_type)?;
 
             if self.decide_expected_type(&selection.return_type, expected)? == Decision::No {
                 return Ok(Some(Self::operator_no_match()));
@@ -397,8 +397,8 @@ impl CheckComponentState<'_> {
         {
             let target = Self::boolean_type_term();
 
-            self.expect_literal_type(operator.receiver, receiver, &target)?;
-            self.expect_literal_type(argument, &argument_type, &target)?;
+            self.expect_literal_term(operator.receiver, receiver, &target)?;
+            self.expect_literal_term(argument, &argument_type, &target)?;
             if self.decide_expected_type(&target, expected)? == Decision::No {
                 return Ok(Some(Self::operator_no_match()));
             }
@@ -504,8 +504,10 @@ impl CheckComponentState<'_> {
     ) -> CompilerResult<OperatorSelection> {
         let key = protocol
             .method
-            .key(&self.module(operator.receiver.module)?.input.strings);
-        let member_protocol = self.operator_member_protocol(operator.receiver.module, &protocol)?;
+            .key(&self.input(operator.receiver.module).strings);
+        let origin = ConstraintOrigin::Node(operator.source);
+        let member_protocol =
+            self.operator_member_protocol(operator.receiver.module, origin, &protocol)?;
         let Some(member) = self.member_type_candidate_for_protocol(
             operator.receiver.module,
             receiver,
@@ -515,10 +517,11 @@ impl CheckComponentState<'_> {
         else {
             return Ok(Self::operator_no_match());
         };
-        let Some(term) = self.solved_type_term(member.ty)? else {
+        let reduction = self.reduce_type_term(operator.receiver.module, &member.ty)?;
+        let Some(term) = reduction.value else {
             return Ok(OperatorSelection::Pending);
         };
-        let function = match self.call_signature(member.ty.module, &term)? {
+        let function = match self.call_signature(operator.receiver.module, &term)? {
             CallableSignature::Pending => return Ok(OperatorSelection::Pending),
             CallableSignature::Absent => return Ok(Self::operator_no_match()),
             CallableSignature::Present(function) => function,
@@ -568,10 +571,12 @@ impl CheckComponentState<'_> {
         }
 
         if let Some(argument) = operator.argument {
+            let parameter = self.terms.get(function.parameters[0]);
+
             decision = decision.and(self.decide_type_relation(
                 TypeRelation::Assignable,
                 argument,
-                function.parameters[0],
+                parameter.ty,
             )?);
         }
 
@@ -618,9 +623,15 @@ impl CheckComponentState<'_> {
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             },
             OperatorType::Boolean => TypeTerm::Literal(TypeLiteralTerm::boolean()),
-            OperatorType::LanguageItem(item) => self.language_item_type_term(item)?,
+            OperatorType::LanguageItem(item) => {
+                let module = self.operator_type_module(function)?;
+                self.language_item_type_term(module, item)?
+            }
             OperatorType::NullableLanguageItem(item) => {
-                self.nullable_operator_type_term(function, self.language_item_type_term(item)?)?
+                let module = self.operator_type_module(function)?;
+                let value = self.language_item_type_term(module, item)?;
+
+                self.nullable_operator_type_term(function, value)?
             }
         };
 
@@ -640,12 +651,13 @@ impl CheckComponentState<'_> {
             return Ok(Progress::Unchanged);
         };
         let target = self.operator_type_term(function, operator_type)?;
-        let target = self.push_solved_type_variable(return_type.module, target)?;
+        let origin = self.variable_origin(return_type)?;
+        let target = self.solve_anonymous_type(return_type.module, origin, target)?;
 
-        self.relate_type_assignable(return_type, target)
+        self.solve_type_assignability(return_type, target)
     }
 
-    /// Apply expected operator method types to accepted operands.
+    /// Expect accepted operands to satisfy operator method types.
     fn expect_operator_method_arguments(
         &mut self,
         operator: &OperatorTerm,
@@ -655,13 +667,17 @@ impl CheckComponentState<'_> {
             && let Some(source) = self.solved_type_term(operator.receiver)?
             && let Some(target) = self.solved_type_term(this_parameter)?
         {
-            self.expect_literal_type(operator.receiver, &source, &target)?;
+            self.expect_literal_term(operator.receiver, &source, &target)?;
         }
         if let Some(argument) = operator.argument
             && let Some(source) = self.solved_type_term(argument)?
-            && let Some(target) = self.solved_type_term(function.parameters[0])?
         {
-            self.expect_literal_type(argument, &source, &target)?;
+            let parameter = self.terms.get(function.parameters[0]);
+            let Some(target) = self.solved_type_term(parameter.ty)? else {
+                return Ok(());
+            };
+
+            self.expect_literal_term(argument, &source, &target)?;
         }
 
         Ok(())
@@ -925,13 +941,12 @@ impl CheckComponentState<'_> {
 
     /// Return whether one nominal symbol carries reference identity.
     fn symbol_supports_strict_identity(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
-        let module = self.module(symbol.module_id)?;
-        let binding_table = module.binding_table();
+        let binding_table = self.input(symbol.module_id).binding_table();
         let symbol = binding_table.get_symbol(symbol.local_id);
 
         Ok(matches!(
-            symbol.form,
-            dir::SymbolForm::Class | dir::SymbolForm::Function
+            symbol.kind,
+            dir::SymbolKind::Class | dir::SymbolKind::Function
         ))
     }
 
@@ -941,12 +956,12 @@ impl CheckComponentState<'_> {
     }
 
     /// Return a nominal language item type term.
-    fn language_item_type_term(&self, item: dir::LanguageItem) -> CompilerResult<TypeTerm> {
-        let Some(symbol) = self.environment.language.symbol(item) else {
-            return Err(CompilerError::Internal {
-                message: format!("missing operator language item: {item}"),
-            });
-        };
+    fn language_item_type_term(
+        &self,
+        module: ModuleId,
+        item: dir::LanguageItem,
+    ) -> CompilerResult<TypeTerm> {
+        let symbol = self.language_symbol(module, item)?;
 
         Ok(TypeTerm::Reference {
             source: None,
@@ -961,10 +976,11 @@ impl CheckComponentState<'_> {
         function: &FunctionTerm,
         value: TypeTerm,
     ) -> CompilerResult<TypeTerm> {
-        let module = Self::operator_type_module(function)?;
-        let value = self.push_solved_type_variable(module, value)?;
+        let module = self.operator_type_module(function)?;
+        let origin = self.operator_function_origin(function)?;
+        let value = self.solve_anonymous_type(module, origin, value)?;
         let null =
-            self.push_solved_type_variable(module, TypeTerm::Literal(TypeLiteralTerm::Null))?;
+            self.solve_anonymous_type(module, origin, TypeTerm::Literal(TypeLiteralTerm::Null))?;
 
         Ok(TypeTerm::Union {
             elements: vec![value, null],
@@ -972,7 +988,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Return the module used for synthetic operator type pieces.
-    fn operator_type_module(function: &FunctionTerm) -> CompilerResult<ModuleId> {
+    fn operator_type_module(&self, function: &FunctionTerm) -> CompilerResult<ModuleId> {
         if let Some(return_type) = function.return_type {
             return Ok(return_type.module);
         }
@@ -980,7 +996,9 @@ impl CheckComponentState<'_> {
             return Ok(parameter.module);
         }
         if let Some(parameter) = function.parameters.first() {
-            return Ok(parameter.module);
+            let parameter = self.terms.get(*parameter);
+
+            return Ok(parameter.ty.module);
         }
 
         let Some(parameter) = function.generic_parameters.first() else {
@@ -996,6 +1014,7 @@ impl CheckComponentState<'_> {
     fn operator_member_protocol(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         protocol: &OperatorProtocol,
     ) -> CompilerResult<MemberProtocol> {
         let mut arguments = Vec::with_capacity(protocol.arguments.len());
@@ -1004,9 +1023,9 @@ impl CheckComponentState<'_> {
             let argument = match argument {
                 OperatorProtocolArgument::Access(access) => {
                     let value = dir::StaticTerm::Access { access: *access };
-                    let variable = self.push_solved_static_value_variable(module, value)?;
+                    let variable = self.solve_anonymous_static_value(module, origin, value)?;
 
-                    ArgumentTerm::Static(variable)
+                    self.terms.push(ArgumentTerm::Static(variable))
                 }
             };
 
@@ -1017,6 +1036,32 @@ impl CheckComponentState<'_> {
             item: protocol.item,
             arguments,
         })
+    }
+
+    /// Return the diagnostic origin for operator protocol pieces.
+    fn operator_function_origin(
+        &self,
+        function: &FunctionTerm,
+    ) -> CompilerResult<ConstraintOrigin> {
+        if let Some(return_type) = function.return_type {
+            return self.variable_origin(return_type);
+        }
+        if let Some(parameter) = function.this_parameter {
+            return self.variable_origin(parameter);
+        }
+        if let Some(parameter) = function.parameters.first() {
+            let parameter = self.terms.get(*parameter);
+
+            return self.variable_origin(parameter.ty);
+        }
+
+        let Some(parameter) = function.generic_parameters.first() else {
+            return Err(CompilerError::Internal {
+                message: "operator function has no typed variable anchor".to_owned(),
+            });
+        };
+
+        self.variable_origin(*parameter)
     }
 }
 

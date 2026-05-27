@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckComponentState, Decision, GenericInstance, StaticRelation, TypeRelation,
-    TypeTerm, VariableId, VariableOrigin,
+    ArgumentTerm, CheckState, Decision, GenericInstance, GenericSlotId, Reduction, StaticRelation,
+    StaticTerm, TermId, TypeRelation, TypeTerm, VariableId, VariableOutput,
 };
 
 /// One generic argument substitution entry.
@@ -12,10 +12,10 @@ use crate::check::{
 pub(in crate::check) struct GenericSubstitutionEntry {
     /// The generic variable being substituted.
     pub(in crate::check) variable: VariableId,
-    /// The source symbol for explicit generic slots.
-    pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
+    /// The generic slot being substituted.
+    pub(in crate::check) slot: GenericSlotId,
     /// The applied argument.
-    pub(in crate::check) argument: ArgumentTerm,
+    pub(in crate::check) argument: TermId<ArgumentTerm>,
 }
 
 /// Generic argument substitution for one applied owner.
@@ -38,13 +38,18 @@ impl GenericSubstitution {
         self.entries.is_empty()
     }
 
+}
+
+impl CheckState<'_> {
     /// Return the type argument for one generic variable.
-    pub(in crate::check) fn type_variable(&self, variable: VariableId) -> Option<VariableId> {
-        self.entries.iter().find_map(|entry| {
-            if entry.variable == variable
-                && let ArgumentTerm::Type(variable) = entry.argument
-            {
-                Some(variable)
+    pub(in crate::check) fn substitution_type_variable(
+        &self,
+        substitution: &GenericSubstitution,
+        variable: VariableId,
+    ) -> Option<VariableId> {
+        substitution.entries.iter().find_map(|entry| {
+            if entry.variable == variable {
+                self.argument_type_variable(entry.argument)
             } else {
                 None
             }
@@ -52,12 +57,44 @@ impl GenericSubstitution {
     }
 
     /// Return the static argument for one generic variable.
-    pub(in crate::check) fn static_variable(&self, variable: VariableId) -> Option<VariableId> {
-        self.entries.iter().find_map(|entry| {
-            if entry.variable == variable
-                && let ArgumentTerm::Static(variable) = entry.argument
-            {
-                Some(variable)
+    pub(in crate::check) fn substitution_static_variable(
+        &self,
+        substitution: &GenericSubstitution,
+        variable: VariableId,
+    ) -> Option<VariableId> {
+        substitution.entries.iter().find_map(|entry| {
+            if entry.variable == variable {
+                self.argument_static_variable(entry.argument)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Return the type argument for one generic slot.
+    pub(in crate::check) fn substitution_type_slot(
+        &self,
+        substitution: &GenericSubstitution,
+        slot: GenericSlotId,
+    ) -> Option<VariableId> {
+        substitution.entries.iter().find_map(|entry| {
+            if entry.slot == slot {
+                self.argument_type_variable(entry.argument)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Return the static argument for one generic slot.
+    pub(in crate::check) fn substitution_static_slot(
+        &self,
+        substitution: &GenericSubstitution,
+        slot: GenericSlotId,
+    ) -> Option<VariableId> {
+        substitution.entries.iter().find_map(|entry| {
+            if entry.slot == slot {
+                self.argument_static_variable(entry.argument)
             } else {
                 None
             }
@@ -65,12 +102,14 @@ impl GenericSubstitution {
     }
 
     /// Return the type argument for one explicit generic symbol.
-    pub(in crate::check) fn type_symbol(&self, symbol: dir::GlobalSymbolId) -> Option<VariableId> {
-        self.entries.iter().find_map(|entry| {
-            if entry.symbol == Some(symbol)
-                && let ArgumentTerm::Type(variable) = entry.argument
-            {
-                Some(variable)
+    pub(in crate::check) fn substitution_type_symbol(
+        &self,
+        substitution: &GenericSubstitution,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<VariableId> {
+        substitution.entries.iter().find_map(|entry| {
+            if entry.slot.key == dir::GenericSlotKey::Symbol(symbol) {
+                self.argument_type_variable(entry.argument)
             } else {
                 None
             }
@@ -78,58 +117,52 @@ impl GenericSubstitution {
     }
 
     /// Return the static argument for one explicit generic symbol.
-    pub(in crate::check) fn static_symbol(
+    pub(in crate::check) fn substitution_static_symbol(
         &self,
+        substitution: &GenericSubstitution,
         symbol: dir::GlobalSymbolId,
     ) -> Option<VariableId> {
-        self.entries.iter().find_map(|entry| {
-            if entry.symbol == Some(symbol)
-                && let ArgumentTerm::Static(variable) = entry.argument
-            {
-                Some(variable)
+        substitution.entries.iter().find_map(|entry| {
+            if entry.slot.key == dir::GenericSlotKey::Symbol(symbol) {
+                self.argument_static_variable(entry.argument)
             } else {
                 None
             }
         })
     }
-}
 
-impl CheckComponentState<'_> {
     /// Return the generic substitution for one applied symbol.
     pub(in crate::check) fn generic_substitution(
-        &self,
+        &mut self,
         owner: dir::GlobalSymbolId,
-        arguments: &[ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<GenericSubstitution> {
         if arguments.is_empty() {
             return Ok(GenericSubstitution::empty());
         }
-        let Some(module) = self.modules.get(&owner.module_id) else {
+        let Some(module) = self.inputs.get(&owner.module_id) else {
             return Ok(GenericSubstitution::empty());
         };
         let mut slots = module
             .generic_parameters()
             .filter(|(_, generic)| generic.slot().owner == owner)
             .map(|(variable, generic)| {
-                let symbol = match generic.slot().key {
-                    dir::GenericSlotKey::Symbol(symbol) => Some(symbol),
-                    dir::GenericSlotKey::Generated(_) => None,
-                };
+                let slot = generic.slot().id();
 
-                (generic.slot().index, variable, symbol)
+                (generic.slot().index, variable, slot, generic.is_static())
             })
             .collect::<Vec<_>>();
 
-        slots.sort_by_key(|(index, _, _)| *index);
+        slots.sort_by_key(|(index, _, _, _)| *index);
 
         let entries = slots
             .into_iter()
             .zip(arguments.iter().cloned())
             .map(
-                |((_, variable, symbol), argument)| GenericSubstitutionEntry {
+                |((_, variable, slot, is_static), argument)| GenericSubstitutionEntry {
                     variable,
-                    symbol,
-                    argument,
+                    slot,
+                    argument: self.select_argument_for_static_slot(argument, is_static),
                 },
             )
             .collect();
@@ -139,26 +172,31 @@ impl CheckComponentState<'_> {
 
     /// Return the concrete instance described by one substitution.
     pub(in crate::check) fn substitution_instance(
-        &self,
+        &mut self,
         owner: dir::GlobalSymbolId,
         substitution: &GenericSubstitution,
     ) -> CompilerResult<Option<GenericInstance>> {
-        let Some(module) = self.modules.get(&owner.module_id) else {
+        let Some(module) = self.inputs.get(&owner.module_id) else {
             return Ok(None);
         };
-        let mut arguments = module
+        let slots = module
             .generic_parameters()
             .filter(|(_, generic)| generic.slot().owner == owner)
-            .filter_map(|(variable, generic)| {
-                let argument = if generic.is_type() {
-                    substitution.type_variable(variable).map(ArgumentTerm::Type)
+            .map(|(variable, generic)| (variable, generic.slot().index, generic.is_type()))
+            .collect::<Vec<_>>();
+        let mut arguments = slots
+            .into_iter()
+            .filter_map(|(variable, index, is_type)| {
+                let argument = if is_type {
+                    self.substitution_type_variable(substitution, variable)
+                        .map(ArgumentTerm::Type)
                 } else {
-                    substitution
-                        .static_variable(variable)
+                    self.substitution_static_variable(substitution, variable)
                         .map(ArgumentTerm::Static)
                 }?;
+                let argument = self.terms.push(argument);
 
-                Some((generic.slot().index, argument))
+                Some((index, argument))
             })
             .collect::<Vec<_>>();
 
@@ -184,8 +222,8 @@ impl CheckComponentState<'_> {
         substitution: &GenericSubstitution,
         variable: VariableId,
     ) -> CompilerResult<VariableId> {
-        if let Some(argument) = substitution.type_variable(variable) {
-            return Ok(argument);
+        if let Some(argument) = self.substitution_type_variable(substitution, variable) {
+            return self.localize_type_variable(module, argument);
         }
         let Some(term) = self.solved_type_term(variable)? else {
             return Ok(variable);
@@ -194,13 +232,44 @@ impl CheckComponentState<'_> {
             return Ok(variable);
         };
         if let TypeTerm::Variable(variable) = substituted {
+            return self.localize_type_variable(module, variable);
+        }
+        if substituted == term && variable.module == module {
             return Ok(variable);
         }
-        if substituted == term {
-            return Ok(variable);
-        }
+        let substituted = match self.reduce_type_term(module, &substituted)? {
+            Reduction {
+                value: Some(value),
+                progress: _,
+            } => value,
+            Reduction {
+                value: None,
+                progress: _,
+            } => substituted,
+        };
+        let origin = self.variable_origin(variable)?;
 
-        self.push_solved_type_variable(module, substituted)
+        self.solve_anonymous_type(module, origin, substituted)
+    }
+
+    /// Return a variable owned by the target module for one solved type variable.
+    fn localize_type_variable(
+        &mut self,
+        module: ModuleId,
+        variable: VariableId,
+    ) -> CompilerResult<VariableId> {
+        if variable.module == module {
+            return Ok(variable);
+        }
+        let Some(term) = self.solved_type_term(variable)? else {
+            return Ok(variable);
+        };
+        let Some(term) = term.substitute(module, &GenericSubstitution::empty(), self)? else {
+            return Ok(variable);
+        };
+        let origin = self.variable_origin(variable)?;
+
+        self.solve_anonymous_type(module, origin, term)
     }
 
     /// Substitute type variables into variables.
@@ -223,18 +292,42 @@ impl CheckComponentState<'_> {
         substitution: &GenericSubstitution,
         variable: VariableId,
     ) -> CompilerResult<VariableId> {
-        if let Some(argument) = substitution.static_variable(variable) {
+        if let Some(argument) = self.substitution_static_variable(substitution, variable) {
             return Ok(argument);
         }
-        let Some(term) = self.solved_static_term(variable)? else {
+        let Some(term) = self.static_substitution_source(variable)? else {
             return Ok(variable);
         };
         let substituted = term.substitute(module, substitution, self)?;
         if substituted == term {
             return Ok(variable);
         }
+        let origin = self.variable_origin(variable)?;
 
-        self.push_solved_static_term_variable(module, substituted)
+        self.solve_anonymous_static(module, origin, substituted)
+    }
+
+    /// Return the solved or source static term available for substitution.
+    fn static_substitution_source(
+        &self,
+        variable: VariableId,
+    ) -> CompilerResult<Option<StaticTerm>> {
+        if let Some(term) = self.solved_static_term(variable)? {
+            return Ok(Some(term));
+        }
+        let variable_state = self.module(variable.module)?.variable(variable);
+        let Some(VariableOutput::Node(node)) = variable_state.output else {
+            return Ok(None);
+        };
+        if node.local_id.ty != dir::NodeType::Expression {
+            return Ok(None);
+        }
+        let expression = dir::GlobalNodeId::<dir::Expression> {
+            module_id: node.module_id,
+            local_id: dir::LocalNodeId::new(node.local_id.id),
+        };
+
+        Ok(Some(StaticTerm::Expression(expression)))
     }
 
     /// Substitute static variables into variables.
@@ -259,14 +352,14 @@ impl CheckComponentState<'_> {
         actual: &TypeTerm,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
-        if let Some((variable, symbol)) = self.type_pattern_generic(owner, pattern)? {
-            return self.match_type_generic(module, variable, symbol, actual, substitution);
+        if let Some((variable, slot)) = self.type_pattern_generic(owner, pattern)? {
+            return self.match_type_generic(module, variable, slot, actual, substitution);
         }
 
-        let pattern = self.reduce_pattern_type(pattern)?;
-        let actual = self.reduce_pattern_type(actual)?;
-        if let Some((variable, symbol)) = self.type_pattern_generic(owner, &pattern)? {
-            return self.match_type_generic(module, variable, symbol, &actual, substitution);
+        let pattern = self.normalize_type_pattern_term(pattern)?;
+        let actual = self.normalize_type_pattern_term(actual)?;
+        if let Some((variable, slot)) = self.type_pattern_generic(owner, &pattern)? {
+            return self.match_type_generic(module, variable, slot, &actual, substitution);
         }
 
         let is_match = match (&pattern, &actual) {
@@ -287,8 +380,13 @@ impl CheckComponentState<'_> {
                 } else {
                     let mut is_match = true;
                     for (left, right) in left_arguments.iter().zip(right_arguments) {
-                        is_match =
-                            self.match_argument_pattern(module, owner, left, right, substitution)?;
+                        is_match = self.match_argument_pattern(
+                            module,
+                            owner,
+                            *left,
+                            *right,
+                            substitution,
+                        )?;
                         if !is_match {
                             break;
                         }
@@ -310,24 +408,46 @@ impl CheckComponentState<'_> {
         &mut self,
         module: ModuleId,
         owner: dir::GlobalSymbolId,
-        pattern: &ArgumentTerm,
-        actual: &ArgumentTerm,
+        pattern: TermId<ArgumentTerm>,
+        actual: TermId<ArgumentTerm>,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
+        let pattern = self.terms.get(pattern);
+        let actual = self.terms.get(actual);
         let is_match = match (pattern, actual) {
             (ArgumentTerm::Type(pattern), ArgumentTerm::Type(actual))
             | (ArgumentTerm::SpreadType(pattern), ArgumentTerm::SpreadType(actual)) => {
-                let pattern = TypeTerm::Variable(*pattern);
-                let actual = TypeTerm::Variable(*actual);
+                let pattern = TypeTerm::Variable(pattern);
+                let actual = TypeTerm::Variable(actual);
 
                 self.match_type_pattern(module, owner, &pattern, &actual, substitution)?
             }
             (ArgumentTerm::Static(pattern), ArgumentTerm::Static(actual))
             | (ArgumentTerm::SpreadStatic(pattern), ArgumentTerm::SpreadStatic(actual)) => {
-                if let Some((variable, symbol)) = self.variable_static_generic(owner, *pattern)? {
-                    self.match_static_generic(variable, symbol, *actual, substitution)?
+                if let Some((variable, slot)) = self.variable_static_generic(owner, pattern)? {
+                    self.match_static_generic(variable, slot, actual, substitution)?
                 } else {
-                    self.decide_static_relation(StaticRelation::Equal, *pattern, *actual)?
+                    self.decide_static_relation(StaticRelation::Equal, pattern, actual)?
+                        == Decision::Yes
+                }
+            }
+            (pattern, actual)
+                if let (Some(pattern), Some(actual)) =
+                    (pattern.type_variable(), actual.type_variable()) =>
+            {
+                let pattern = TypeTerm::Variable(pattern);
+                let actual = TypeTerm::Variable(actual);
+
+                self.match_type_pattern(module, owner, &pattern, &actual, substitution)?
+            }
+            (pattern, actual)
+                if let (Some(pattern), Some(actual)) =
+                    (pattern.static_variable(), actual.static_variable()) =>
+            {
+                if let Some((variable, slot)) = self.variable_static_generic(owner, pattern)? {
+                    self.match_static_generic(variable, slot, actual, substitution)?
+                } else {
+                    self.decide_static_relation(StaticRelation::Equal, pattern, actual)?
                         == Decision::Yes
                 }
             }
@@ -338,7 +458,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce variables and forms while matching type patterns.
-    pub(in crate::check) fn reduce_pattern_type(
+    pub(in crate::check) fn normalize_type_pattern_term(
         &self,
         term: &TypeTerm,
     ) -> CompilerResult<TypeTerm> {
@@ -368,15 +488,19 @@ impl CheckComponentState<'_> {
         &mut self,
         module: ModuleId,
         variable: VariableId,
-        symbol: Option<dir::GlobalSymbolId>,
+        slot: GenericSlotId,
         actual: &TypeTerm,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
         let actual = match actual {
             TypeTerm::Variable(variable) => *variable,
-            term => self.push_solved_type_variable(module, term.clone())?,
+            term => {
+                let origin = self.variable_origin(variable)?;
+
+                self.solve_anonymous_type(module, origin, term.clone())?
+            }
         };
-        if let Some(existing) = substitution.type_variable(variable) {
+        if let Some(existing) = self.substitution_type_variable(substitution, variable) {
             let decision = self.decide_type_relation(TypeRelation::Equal, existing, actual)?;
 
             return Ok(decision != Decision::No);
@@ -384,8 +508,8 @@ impl CheckComponentState<'_> {
 
         substitution.entries.push(GenericSubstitutionEntry {
             variable,
-            symbol,
-            argument: ArgumentTerm::Type(actual),
+            slot,
+            argument: self.terms.push(ArgumentTerm::Type(actual)),
         });
 
         Ok(true)
@@ -395,11 +519,11 @@ impl CheckComponentState<'_> {
     fn match_static_generic(
         &mut self,
         variable: VariableId,
-        symbol: Option<dir::GlobalSymbolId>,
+        slot: GenericSlotId,
         actual: VariableId,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
-        if let Some(existing) = substitution.static_variable(variable) {
+        if let Some(existing) = self.substitution_static_variable(substitution, variable) {
             let decision = self.decide_static_relation(StaticRelation::Equal, existing, actual)?;
 
             return Ok(decision != Decision::No);
@@ -407,8 +531,8 @@ impl CheckComponentState<'_> {
 
         substitution.entries.push(GenericSubstitutionEntry {
             variable,
-            symbol,
-            argument: ArgumentTerm::Static(actual),
+            slot,
+            argument: self.terms.push(ArgumentTerm::Static(actual)),
         });
 
         Ok(true)
@@ -419,7 +543,7 @@ impl CheckComponentState<'_> {
         &self,
         owner: dir::GlobalSymbolId,
         term: &TypeTerm,
-    ) -> CompilerResult<Option<(VariableId, Option<dir::GlobalSymbolId>)>> {
+    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
         let slot = match term {
             TypeTerm::Variable(variable) => self.variable_type_generic(owner, *variable)?,
             TypeTerm::Reference {
@@ -427,7 +551,10 @@ impl CheckComponentState<'_> {
                 symbol,
                 arguments,
             } if arguments.is_empty() => self.symbol_type_generic(owner, *symbol)?,
-            TypeTerm::Parameter { symbol } => self.symbol_type_generic(owner, *symbol)?,
+            TypeTerm::Parameter(slot_id) if slot_id.owner == owner => {
+                self.slot_type_generic(*slot_id)?
+            }
+            TypeTerm::Parameter(_) => None,
             _ => None,
         };
 
@@ -439,20 +566,16 @@ impl CheckComponentState<'_> {
         &self,
         owner: dir::GlobalSymbolId,
         variable: VariableId,
-    ) -> CompilerResult<Option<(VariableId, Option<dir::GlobalSymbolId>)>> {
+    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
         let module = self.module(variable.module)?;
-        let VariableOrigin::Generic(generic) = &module.variable(variable).origin else {
+        let Some(VariableOutput::Generic(generic)) = &module.variable(variable).output else {
             return Ok(None);
         };
         if generic.slot().owner != owner || !generic.is_type() {
             return Ok(None);
         }
-        let symbol = match generic.slot().key {
-            dir::GenericSlotKey::Symbol(symbol) => Some(symbol),
-            dir::GenericSlotKey::Generated(_) => None,
-        };
 
-        Ok(Some((variable, symbol)))
+        Ok(Some((variable, generic.slot().id())))
     }
 
     /// Return a generic static slot represented by a variable.
@@ -460,20 +583,16 @@ impl CheckComponentState<'_> {
         &self,
         owner: dir::GlobalSymbolId,
         variable: VariableId,
-    ) -> CompilerResult<Option<(VariableId, Option<dir::GlobalSymbolId>)>> {
+    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
         let module = self.module(variable.module)?;
-        let VariableOrigin::Generic(generic) = &module.variable(variable).origin else {
+        let Some(VariableOutput::Generic(generic)) = &module.variable(variable).output else {
             return Ok(None);
         };
         if generic.slot().owner != owner || !generic.is_static() {
             return Ok(None);
         }
-        let symbol = match generic.slot().key {
-            dir::GenericSlotKey::Symbol(symbol) => Some(symbol),
-            dir::GenericSlotKey::Generated(_) => None,
-        };
 
-        Ok(Some((variable, symbol)))
+        Ok(Some((variable, generic.slot().id())))
     }
 
     /// Return a generic type slot represented by a symbol.
@@ -481,14 +600,31 @@ impl CheckComponentState<'_> {
         &self,
         owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<(VariableId, Option<dir::GlobalSymbolId>)>> {
+    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
         let module = self.module(symbol.module_id)?;
         let slot = module.generic_parameters().find_map(|(variable, generic)| {
             if generic.slot().owner == owner
                 && generic.slot().key == dir::GenericSlotKey::Symbol(symbol)
                 && generic.is_type()
             {
-                Some((variable, Some(symbol)))
+                Some((variable, generic.slot().id()))
+            } else {
+                None
+            }
+        });
+
+        Ok(slot)
+    }
+
+    /// Return a generic type slot represented by a slot id.
+    fn slot_type_generic(
+        &self,
+        slot_id: GenericSlotId,
+    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
+        let module = self.module(slot_id.owner.module_id)?;
+        let slot = module.generic_parameters().find_map(|(variable, generic)| {
+            if generic.slot().id() == slot_id && generic.is_type() {
+                Some((variable, slot_id))
             } else {
                 None
             }

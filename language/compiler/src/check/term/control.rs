@@ -1,10 +1,11 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckComponentState, Decision, Progress, TypeRelation, TypeTerm, VariableId,
+    ArgumentTerm, CheckState, ConstraintOrigin, Decision, Progress, TypeLiteralTerm, TypeRelation,
+    TypeTerm, VariableId,
 };
-use crate::{CompilerError, CompilerResult};
 
 /// Runtime await expression term.
 ///
@@ -44,18 +45,75 @@ impl TryTerm {
     }
 }
 
+/// Runtime try failure projection.
+///
+/// ```ts
+/// value?
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) struct TryFailureTerm {
+    /// The source try expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The tried expression type.
+    pub(in crate::check) value: VariableId,
+}
+
+impl TryFailureTerm {
+    /// Return variables referenced by this term.
+    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+        let mut variables = smallvec::SmallVec::new();
+        variables.push(self.value);
+        variables
+    }
+}
+
+/// Runtime yield expression term.
+///
+/// ```ts
+/// yield value
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) struct YieldTerm {
+    /// The source yield expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The yielded value type.
+    pub(in crate::check) value: Option<VariableId>,
+    /// The current generator yield channel.
+    pub(in crate::check) yield_type: Option<VariableId>,
+    /// The value received when the generator resumes.
+    pub(in crate::check) resume_type: Option<VariableId>,
+    /// The completion value of a delegated generator.
+    pub(in crate::check) delegate_return_type: Option<VariableId>,
+    /// The yield cardinality.
+    pub(in crate::check) cardinality: dir::YieldCardinality,
+}
+
+impl YieldTerm {
+    /// Return variables referenced by this term.
+    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+        let mut variables = smallvec::SmallVec::new();
+
+        variables.extend(self.value);
+        variables.extend(self.yield_type);
+        variables.extend(self.resume_type);
+        variables.extend(self.delegate_return_type);
+
+        variables
+    }
+}
+
 /// Try operator behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TryTermKind {
     /// Propagate failure through the enclosing return type.
-    Propagate,
+    Maybe,
     /// Trap failure and produce the successful value.
-    Trap,
+    Must,
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Reduce one await term.
-    pub(in crate::check) fn reduce_await_type(
+    pub(in crate::check) fn reduce_await_term(
         &mut self,
         awaited: &AwaitTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -66,29 +124,43 @@ impl CheckComponentState<'_> {
         self.promise_value_type(&term)
     }
 
-    /// Apply an expected await result to its promise operand.
-    pub(in crate::check) fn expect_await_result(
+    /// Reduce one yield expression result from the active generator channel.
+    pub(in crate::check) fn reduce_yield_term(
+        &self,
+        yielded: &YieldTerm,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let ty = match yielded.cardinality {
+            dir::YieldCardinality::Scalar => yielded.resume_type,
+            dir::YieldCardinality::Generator => yielded.delegate_return_type,
+        };
+
+        Ok(Some(match ty {
+            Some(ty) => TypeTerm::Variable(ty),
+            None => TypeTerm::Literal(TypeLiteralTerm::Error),
+        }))
+    }
+
+    /// Expect an awaited operand to produce the expected result.
+    pub(in crate::check) fn expect_await_term(
         &mut self,
         awaited: &AwaitTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
-        let Some(symbol) = self.environment.language.symbol(dir::LanguageItem::Promise) else {
-            return Err(CompilerError::Internal {
-                message: "missing language item: async.Promise".to_owned(),
-            });
-        };
+        let symbol = self.language_symbol(awaited.source.module_id, dir::LanguageItem::Promise)?;
+        let argument = self.terms.push(ArgumentTerm::Type(result));
         let expected = TypeTerm::Reference {
             source: Some(awaited.source),
             symbol,
-            arguments: vec![ArgumentTerm::Type(result)],
+            arguments: vec![argument],
         };
-        let expected = self.push_solved_type_variable(result.module, expected)?;
+        let origin = ConstraintOrigin::Node(awaited.source);
+        let expected = self.solve_anonymous_type(result.module, origin, expected)?;
 
-        self.relate_type_assignable(awaited.value, expected)
+        self.solve_type_assignability(awaited.value, expected)
     }
 
     /// Reduce one try operator term.
-    pub(in crate::check) fn reduce_try_type(
+    pub(in crate::check) fn reduce_try_term(
         &mut self,
         module: ModuleId,
         tried: &TryTerm,
@@ -98,8 +170,19 @@ impl CheckComponentState<'_> {
         Ok(value.map(TypeTerm::Variable))
     }
 
-    /// Apply an expected try result to the `Try.Value` projection.
-    pub(in crate::check) fn expect_try_result(
+    /// Reduce one try failure projection.
+    pub(in crate::check) fn reduce_try_failure_term(
+        &mut self,
+        module: ModuleId,
+        tried: &TryFailureTerm,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let failure = self.try_associated_type_variable(module, tried.value, "Failure")?;
+
+        Ok(failure.map(TypeTerm::Variable))
+    }
+
+    /// Expect a `Try.Value` projection to produce the expected result.
+    pub(in crate::check) fn expect_try_term(
         &mut self,
         tried: &TryTerm,
         result: VariableId,
@@ -108,7 +191,41 @@ impl CheckComponentState<'_> {
         else {
             return Ok(Progress::Unchanged);
         };
-        let progress = self.relate_type_assignable(value, result)?;
+        let progress = self.solve_type_assignability(value, result)?;
+
+        Ok(progress)
+    }
+
+    /// Expect a `Try.Failure` projection to produce the expected result.
+    pub(in crate::check) fn expect_try_failure_term(
+        &mut self,
+        tried: &TryFailureTerm,
+        result: VariableId,
+    ) -> CompilerResult<Progress> {
+        let Some(failure) =
+            self.try_associated_type_variable(result.module, tried.value, "Failure")?
+        else {
+            return Ok(Progress::Unchanged);
+        };
+        let progress = self.solve_type_assignability(failure, result)?;
+
+        Ok(progress)
+    }
+
+    /// Expect a yield expression result to match its resume channel.
+    pub(in crate::check) fn expect_yield_term(
+        &mut self,
+        yielded: &YieldTerm,
+        result: VariableId,
+    ) -> CompilerResult<Progress> {
+        let source = match yielded.cardinality {
+            dir::YieldCardinality::Scalar => yielded.resume_type,
+            dir::YieldCardinality::Generator => yielded.delegate_return_type,
+        };
+        let Some(source) = source else {
+            return Ok(Progress::Unchanged);
+        };
+        let progress = self.solve_type_assignability(source, result)?;
 
         Ok(progress)
     }
@@ -148,7 +265,7 @@ impl CheckComponentState<'_> {
                 symbol,
                 arguments,
             } if self.environment.language.item(*symbol) == Some(dir::LanguageItem::Promise) => {
-                let Some(value) = Self::type_argument(arguments, 0) else {
+                let Some(value) = self.generic_argument_type_variable(arguments, 0) else {
                     return Ok(None);
                 };
 
@@ -168,7 +285,7 @@ impl CheckComponentState<'_> {
         let Some(receiver) = self.solved_type_term(value)? else {
             return Ok(None);
         };
-        let name = self.module(module)?.input.strings.intern(name);
+        let name = self.input(module).strings.intern(name);
         let key = dir::StaticKey::Name(name);
         let Some(member) = self.member_type_candidate(module, &receiver, &key)? else {
             return Ok(None);
@@ -177,30 +294,26 @@ impl CheckComponentState<'_> {
             return Ok(None);
         }
 
-        Ok(Some(member.ty))
+        match member.ty {
+            TypeTerm::Variable(variable) => Ok(Some(variable)),
+            _ => Ok(None),
+        }
     }
 
     /// Return the `FromFailure<F>` protocol type.
     pub(in crate::check) fn from_failure_type(
-        &self,
+        &mut self,
         source: dir::GlobalNodeIdAny,
-        _module: ModuleId,
+        module: ModuleId,
         failure: VariableId,
     ) -> CompilerResult<TypeTerm> {
-        let Some(symbol) = self
-            .environment
-            .language
-            .symbol(dir::LanguageItem::FromFailure)
-        else {
-            return Err(CompilerError::Internal {
-                message: "missing language item: ops.FromFailure".to_owned(),
-            });
-        };
+        let symbol = self.language_symbol(module, dir::LanguageItem::FromFailure)?;
+        let argument = self.terms.push(ArgumentTerm::Type(failure));
 
         Ok(TypeTerm::Reference {
             source: Some(source),
             symbol,
-            arguments: vec![ArgumentTerm::Type(failure)],
+            arguments: vec![argument],
         })
     }
 }

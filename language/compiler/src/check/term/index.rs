@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallTerm, CheckComponentState, MemberCallTerm, MemberProtocol, Progress, SubscriptMethod,
-    TypeTerm, VariableId,
+    CallTerm, CheckState, ConstraintOrigin, MemberCallTerm, MemberProtocol, Progress, Reduction,
+    SubscriptMethod, TypeTerm, VariableId,
 };
 
 /// Runtime index access term.
@@ -25,20 +25,20 @@ pub(in crate::check) struct IndexTerm {
     pub(in crate::check) key: Option<dir::StaticKey>,
 }
 
-/// Runtime index write term.
+/// Runtime index set term.
 ///
 /// ```ts
 /// values[index] = value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) struct IndexWriteTerm {
+pub(in crate::check) struct IndexSetTerm {
     /// The source assignment expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The indexed receiver type.
     pub(in crate::check) receiver: VariableId,
     /// The index expression type.
     pub(in crate::check) index: VariableId,
-    /// The written value type.
+    /// The assigned value type.
     pub(in crate::check) value: VariableId,
     /// The direct structural key when syntax makes it obvious.
     pub(in crate::check) key: Option<dir::StaticKey>,
@@ -56,7 +56,7 @@ impl IndexTerm {
     }
 }
 
-impl IndexWriteTerm {
+impl IndexSetTerm {
     /// Return variables referenced by this term.
     pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
         let mut variables = smallvec::SmallVec::new();
@@ -69,63 +69,68 @@ impl IndexWriteTerm {
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Reduce one runtime index operation.
-    pub(in crate::check) fn reduce_index_type(
+    pub(in crate::check) fn reduce_index_term(
         &mut self,
         module: ModuleId,
         index: &IndexTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Reduction<TypeTerm>> {
         if let Some(term) = self.reduce_structural_index_type(module, index)? {
-            return Ok(Some(term));
+            return Ok(Reduction::value(term));
         }
 
         let call = self.index_call_term(index)?;
 
-        self.reduce_call_type(module, &call)
+        self.reduce_call_term(module, &call)
     }
 
-    /// Reduce one runtime index write operation.
-    pub(in crate::check) fn reduce_index_write_type(
+    /// Reduce one runtime index set operation.
+    pub(in crate::check) fn reduce_index_set_term(
         &mut self,
         module: ModuleId,
-        write: &IndexWriteTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        if self.reduce_structural_index_write(module, write)? {
-            return Ok(Some(TypeTerm::Variable(write.value)));
+        set: &IndexSetTerm,
+    ) -> CompilerResult<Reduction<TypeTerm>> {
+        if self.reduce_structural_index_set(module, set)? {
+            return Ok(Reduction::value(TypeTerm::Variable(set.value)));
         }
 
-        let call = self.index_write_call_term(write)?;
-        let Some(_) = self.reduce_call_type(module, &call)? else {
-            return Ok(None);
+        let call = self.index_set_call_term(set)?;
+        let reduction = self.reduce_call_term(module, &call)?;
+        if reduction.value.is_none() {
+            return Ok(Reduction::progress(reduction.progress));
         };
 
-        Ok(Some(TypeTerm::Variable(write.value)))
+        Ok(Reduction {
+            value: Some(TypeTerm::Variable(set.value)),
+            progress: reduction.progress,
+        })
     }
 
-    /// Apply an expected index result to structural or protocol selection.
-    pub(in crate::check) fn expect_index_result(
+    /// Expect structural or protocol index selection to produce the expected result.
+    pub(in crate::check) fn expect_index_term(
         &mut self,
         index: &IndexTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
         if let Some(term) = self.reduce_structural_index_type(result.module, index)? {
-            let term = self.push_solved_type_variable(result.module, term)?;
+            let origin = ConstraintOrigin::Node(index.source);
+            let term = self.solve_anonymous_type(result.module, origin, term)?;
 
-            return self.relate_type_assignable(term, result);
+            return self.solve_type_assignability(term, result);
         }
         let call = self.index_call_term(index)?;
 
-        self.expect_call_result(&call, result)
+        self.expect_call_term(&call, result)
     }
 
-    /// Apply an expected index write result to the written value.
-    pub(in crate::check) fn expect_index_write_result(
+    /// Expect an index set value to satisfy the assigned value type.
+    pub(in crate::check) fn expect_index_set_term(
         &mut self,
-        write: &IndexWriteTerm,
+        set: &IndexSetTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
-        self.relate_type_assignable(write.value, result)
+        self.solve_type_assignability(set.value, result)
     }
 
     /// Reduce one structural tuple or shape index.
@@ -141,34 +146,35 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
 
-        self.member_type_term(module, &receiver, &key)
+        self.resolve_member_type(module, &receiver, &key, &[])
     }
 
-    /// Return whether one structural index write is accepted.
-    fn reduce_structural_index_write(
+    /// Return whether one structural index set is accepted.
+    fn reduce_structural_index_set(
         &mut self,
         module: ModuleId,
-        write: &IndexWriteTerm,
+        set: &IndexSetTerm,
     ) -> CompilerResult<bool> {
-        let Some(key) = write.key else {
+        let Some(key) = set.key else {
             return Ok(false);
         };
-        let Some(receiver) = self.solved_type_term(write.receiver)? else {
+        let Some(receiver) = self.solved_type_term(set.receiver)? else {
             return Ok(false);
         };
-        let Some(term) = self.member_type_term(module, &receiver, &key)? else {
+        let Some(term) = self.resolve_member_type(module, &receiver, &key, &[])? else {
             return Ok(false);
         };
-        let term = self.push_solved_type_variable(module, term)?;
-        self.relate_type_assignable(write.value, term)?;
+        let origin = ConstraintOrigin::Node(set.source);
+        let term = self.solve_anonymous_type(module, origin, term)?;
+        self.solve_type_assignability(set.value, term)?;
 
         Ok(true)
     }
 
     /// Return the protocol call represented by one index operation.
-    fn index_call_term(&self, index: &IndexTerm) -> CompilerResult<CallTerm> {
+    fn index_call_term(&mut self, index: &IndexTerm) -> CompilerResult<CallTerm> {
         let key = {
-            let strings = &self.module(index.source.module_id)?.input.strings;
+            let strings = &self.input(index.source.module_id).strings;
 
             SubscriptMethod::Index.key(strings)
         };
@@ -181,6 +187,7 @@ impl CheckComponentState<'_> {
                 arguments: Vec::new(),
             }),
         };
+        let member = self.terms.push(member);
 
         Ok(CallTerm {
             source: index.source,
@@ -192,15 +199,15 @@ impl CheckComponentState<'_> {
         })
     }
 
-    /// Return the protocol call represented by one index write.
-    fn index_write_call_term(&self, write: &IndexWriteTerm) -> CompilerResult<CallTerm> {
+    /// Return the protocol call represented by one index set.
+    fn index_set_call_term(&mut self, set: &IndexSetTerm) -> CompilerResult<CallTerm> {
         let key = {
-            let strings = &self.module(write.source.module_id)?.input.strings;
+            let strings = &self.input(set.source.module_id).strings;
 
             SubscriptMethod::IndexSet.key(strings)
         };
         let member = MemberCallTerm {
-            receiver: write.receiver,
+            receiver: set.receiver,
             key,
             arguments: Vec::new(),
             protocol: Some(MemberProtocol {
@@ -208,14 +215,15 @@ impl CheckComponentState<'_> {
                 arguments: Vec::new(),
             }),
         };
+        let member = self.terms.push(member);
 
         Ok(CallTerm {
-            source: write.source,
-            callee: write.receiver,
+            source: set.source,
+            callee: set.receiver,
             member: Some(member),
             candidates: Vec::new(),
             generic_arguments: Vec::new(),
-            arguments: vec![write.index, write.value],
+            arguments: vec![set.index, set.value],
         })
     }
 }

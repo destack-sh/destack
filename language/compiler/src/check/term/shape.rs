@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckComponentState, Decision, GenericSubstitution, Progress, TypeRelation, VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, TermId, TypeRelation, VariableId,
 };
 
 /// Shape member term.
@@ -80,7 +80,7 @@ impl ShapeMemberTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let member = match self {
             Self::Field {
@@ -118,26 +118,33 @@ impl ShapeMemberTerm {
         Ok(member)
     }
 
-    /// Substitute generic arguments through shape members.
-    pub(in crate::check) fn substitute_all(
-        members: &[Self],
-        module: ModuleId,
-        substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
-    ) -> CompilerResult<Vec<Self>> {
-        members
-            .iter()
-            .map(|member| member.substitute(module, substitution, state))
-            .collect()
-    }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
+    /// Substitute generic arguments through shape members.
+    pub(in crate::check) fn substitute_shape_members(
+        &mut self,
+        module: ModuleId,
+        substitution: &GenericSubstitution,
+        members: &[TermId<ShapeMemberTerm>],
+    ) -> CompilerResult<Vec<TermId<ShapeMemberTerm>>> {
+        members
+            .iter()
+            .map(|member| {
+                let member = self.terms.get(*member);
+                let member = member.substitute(module, substitution, self)?;
+                let member = self.terms.push(member);
+
+                Ok(member)
+            })
+            .collect()
+    }
+
     /// Decide exact equality for shape members.
     pub(in crate::check) fn decide_shape_members_equal(
         &self,
-        left: &[ShapeMemberTerm],
-        right: &[ShapeMemberTerm],
+        left: &[TermId<ShapeMemberTerm>],
+        right: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<Decision> {
         if left.len() != right.len() {
             return Ok(Decision::No);
@@ -146,6 +153,9 @@ impl CheckComponentState<'_> {
 
         // compare shape members in source order
         for (left, right) in left.iter().zip(right) {
+            let left = self.terms.get(*left);
+            let right = self.terms.get(*right);
+
             decision = decision.and(self.decide_shape_member_equal(left, right)?);
             if decision == Decision::No {
                 return Ok(decision);
@@ -158,14 +168,14 @@ impl CheckComponentState<'_> {
     /// Decide structural shape assignability.
     pub(in crate::check) fn decide_shape_assignable(
         &self,
-        source: &[ShapeMemberTerm],
-        target: &[ShapeMemberTerm],
+        source: &[TermId<ShapeMemberTerm>],
+        target: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         // require each target member from the source shape
         for target in target {
-            decision = decision.and(self.decide_shape_member_assignable(source, target)?);
+            decision = decision.and(self.decide_shape_member_assignable(source, *target)?);
             if decision == Decision::No {
                 return Ok(decision);
             }
@@ -175,69 +185,72 @@ impl CheckComponentState<'_> {
     }
 
     /// Relate matching shape fields by equality.
-    pub(in crate::check) fn relate_shape_members_equal(
+    pub(in crate::check) fn constrain_shape_members_equal(
         &mut self,
-        left: &[ShapeMemberTerm],
-        right: &[ShapeMemberTerm],
+        left: &[TermId<ShapeMemberTerm>],
+        right: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
-        // propagate common fields in both directions
+        // constrain common fields in both directions
         for left in left {
+            let left = self.terms.get(*left);
             let Some((left_key, left_ty)) = shape_field(left) else {
                 continue;
             };
-            let Some(right_ty) = shape_field_type(right, left_key) else {
+            let Some(right_ty) = self.shape_field_type(right, left_key) else {
                 continue;
             };
 
-            progress = progress.merge(self.relate_type_equal(left_ty, right_ty)?);
+            progress = progress.merge(self.solve_type_equality(left_ty, right_ty)?);
         }
 
         Ok(progress)
     }
 
     /// Relate matching shape fields by assignability.
-    pub(in crate::check) fn relate_shape_members_assignable(
+    pub(in crate::check) fn constrain_shape_members_assignable(
         &mut self,
-        source: &[ShapeMemberTerm],
-        target: &[ShapeMemberTerm],
+        source: &[TermId<ShapeMemberTerm>],
+        target: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // push target field types into source fields
         for target in target {
+            let target = self.terms.get(*target);
             let Some((target_key, target_ty)) = shape_field(target) else {
                 continue;
             };
-            let Some(source_ty) = shape_field_type(source, target_key) else {
+            let Some(source_ty) = self.shape_field_type(source, target_key) else {
                 continue;
             };
 
-            progress = progress.merge(self.relate_type_assignable(source_ty, target_ty)?);
+            progress = progress.merge(self.solve_type_assignability(source_ty, target_ty)?);
         }
 
         Ok(progress)
     }
 
-    /// Apply expected shape fields to a shape term.
-    pub(in crate::check) fn expect_shape_members(
+    /// Expect shape fields to satisfy expected fields.
+    pub(in crate::check) fn expect_shape_member_terms(
         &mut self,
-        members: &[ShapeMemberTerm],
-        targets: &[ShapeMemberTerm],
+        members: &[TermId<ShapeMemberTerm>],
+        targets: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
-        // apply expected types to common fields
+        // expect common fields to satisfy expected types
         for target in targets {
+            let target = self.terms.get(*target);
             let Some((target_key, target_ty)) = shape_field(target) else {
                 continue;
             };
-            let Some(member_ty) = shape_field_type(members, target_key) else {
+            let Some(member_ty) = self.shape_field_type(members, target_key) else {
                 continue;
             };
 
-            progress = progress.merge(self.relate_type_assignable(member_ty, target_ty)?);
+            progress = progress.merge(self.solve_type_assignability(member_ty, target_ty)?);
         }
 
         Ok(progress)
@@ -320,9 +333,10 @@ impl CheckComponentState<'_> {
     /// Decide assignability for one target shape member.
     fn decide_shape_member_assignable(
         &self,
-        source: &[ShapeMemberTerm],
-        target: &ShapeMemberTerm,
+        source: &[TermId<ShapeMemberTerm>],
+        target: TermId<ShapeMemberTerm>,
     ) -> CompilerResult<Decision> {
+        let target = self.terms.get(target);
         let Some(source) = self.find_shape_member(source, target) else {
             return Ok(if Self::shape_member_is_optional(target) {
                 Decision::Yes
@@ -337,11 +351,12 @@ impl CheckComponentState<'_> {
     /// Return a source member matching one target member.
     fn find_shape_member<'a>(
         &self,
-        source: &'a [ShapeMemberTerm],
+        source: &'a [TermId<ShapeMemberTerm>],
         target: &ShapeMemberTerm,
     ) -> Option<&'a ShapeMemberTerm> {
         source
             .iter()
+            .map(|source| self.terms.get(*source))
             .find(|source| Self::shape_member_matches(source, target))
     }
 
@@ -448,6 +463,20 @@ impl CheckComponentState<'_> {
 
         Ok(decision)
     }
+
+    /// Return one shape field type by key.
+    pub(in crate::check) fn shape_field_type(
+        &self,
+        members: &[TermId<ShapeMemberTerm>],
+        key: dir::StaticKey,
+    ) -> Option<VariableId> {
+        members.iter().find_map(|member| {
+            let member = self.terms.get(*member);
+            let (member_key, ty) = shape_field(member)?;
+
+            member_key.matches(&key).then_some(ty)
+        })
+    }
 }
 
 /// Return one shape field key and type.
@@ -471,16 +500,4 @@ pub(in crate::check) fn shape_field(
             is_readonly: _,
         } => None,
     }
-}
-
-/// Return one shape field type by key.
-pub(in crate::check) fn shape_field_type(
-    members: &[ShapeMemberTerm],
-    key: dir::StaticKey,
-) -> Option<VariableId> {
-    members.iter().find_map(|member| {
-        let (member_key, ty) = shape_field(member)?;
-
-        member_key.matches(&key).then_some(ty)
-    })
 }
