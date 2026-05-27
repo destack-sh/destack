@@ -2,14 +2,19 @@ use destack_dir as dir;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    Capture, ControlTarget, FlowPath, FunctionFrame, ReceiverCapture, TryTarget, VariableId,
+    Capture, ControlTarget, FlowPath, FunctionFrame, ReceiverCapture, StaticCondition, TryTarget,
+    VariableId,
 };
 
 /// Flow state while walking one module.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(in crate::check) struct FlowState {
     /// Function bodies currently being walked.
     pub(in crate::check) functions: Vec<FunctionFrame>,
+    /// Static conditions currently guarding walked work.
+    pub(in crate::check) static_conditions: Vec<StaticCondition>,
+    /// Contextual receivers currently visible outside function bodies.
+    pub(in crate::check) receivers: Vec<ReceiverCapture>,
     /// Control targets currently visible to `break` and `continue`.
     pub(in crate::check) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
@@ -20,6 +25,22 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check) narrowings: IndexMap<FlowPath, VariableId>,
     /// Flow mutations made since walking started.
     changes: Vec<FlowChange>,
+}
+
+impl Default for FlowState {
+    /// Create empty flow state.
+    fn default() -> Self {
+        Self {
+            functions: Vec::new(),
+            static_conditions: Vec::new(),
+            receivers: Vec::new(),
+            targets: Vec::new(),
+            tries: Vec::new(),
+            assigned_symbols: IndexSet::new(),
+            narrowings: IndexMap::new(),
+            changes: Vec::new(),
+        }
+    }
 }
 
 /// A checkpoint in the flow mutation log.
@@ -58,14 +79,44 @@ enum FlowChange {
 }
 
 impl FlowState {
+    /// Push one static condition while walking.
+    pub(in crate::check) fn push_static_condition(&mut self, condition: StaticCondition) {
+        let condition = self.current_static_condition().and(condition);
+
+        self.static_conditions.push(condition);
+    }
+
+    /// Pop the current static condition.
+    pub(in crate::check) fn pop_static_condition(&mut self) {
+        if self.static_conditions.pop().is_none() {
+            panic!("static condition stack underflow");
+        }
+    }
+
+    /// Return the current static condition.
+    pub(in crate::check) fn current_static_condition(&self) -> StaticCondition {
+        self.static_conditions
+            .last()
+            .cloned()
+            .unwrap_or(StaticCondition::Always)
+    }
+
     /// Enter one function body while walking.
     pub(in crate::check) fn push_function(&mut self, function: FunctionFrame) {
         self.functions.push(function);
     }
 
     /// Leave the current function body.
-    pub(in crate::check) fn pop_function(&mut self) -> Option<Capture> {
-        let function = self.functions.pop()?;
+    pub(in crate::check) fn pop_function(&mut self) -> Capture {
+        let Some(function) = self.functions.pop() else {
+            panic!("function stack underflow");
+        };
+        if self.targets.len() != function.target_start {
+            panic!("control target stack leaked out of function");
+        }
+        if self.tries.len() != function.try_start {
+            panic!("try target stack leaked out of function");
+        }
         let symbols = function.captured_symbols.iter().copied().collect();
         let capture = Capture {
             symbol: function.symbol,
@@ -76,12 +127,29 @@ impl FlowState {
 
         self.restore(function.checkpoint);
 
-        Some(capture)
+        capture
     }
 
     /// Return the current function body.
     pub(in crate::check) fn current_function(&self) -> Option<&FunctionFrame> {
         self.functions.last()
+    }
+
+    /// Enter one contextual receiver.
+    pub(in crate::check) fn push_receiver(&mut self, receiver: ReceiverCapture) {
+        self.receivers.push(receiver);
+    }
+
+    /// Leave the current contextual receiver.
+    pub(in crate::check) fn pop_receiver(&mut self) {
+        if self.receivers.pop().is_none() {
+            panic!("receiver stack underflow");
+        }
+    }
+
+    /// Return the current contextual receiver.
+    pub(in crate::check) fn current_receiver(&self) -> Option<ReceiverCapture> {
+        self.receivers.last().copied()
     }
 
     /// Enter one break or continue target.
@@ -90,8 +158,12 @@ impl FlowState {
     }
 
     /// Leave the current break or continue target.
-    pub(in crate::check) fn pop_target(&mut self) -> Option<ControlTarget> {
-        self.targets.pop()
+    pub(in crate::check) fn pop_target(&mut self) -> ControlTarget {
+        let Some(target) = self.targets.pop() else {
+            panic!("control target stack underflow");
+        };
+
+        target
     }
 
     /// Enter one try failure target.
@@ -100,12 +172,21 @@ impl FlowState {
     }
 
     /// Leave the current try failure target.
-    pub(in crate::check) fn pop_try(&mut self) -> Option<TryTarget> {
-        self.tries.pop()
+    pub(in crate::check) fn pop_try(&mut self) -> TryTarget {
+        let Some(target) = self.tries.pop() else {
+            panic!("try target stack underflow");
+        };
+
+        target
     }
 
     /// Return the current try failure target.
     pub(in crate::check) fn current_try_mut(&mut self) -> Option<&mut TryTarget> {
+        let start = self.current_try_start();
+        if self.tries.len() == start {
+            return None;
+        }
+
         self.tries.last_mut()
     }
 
@@ -114,15 +195,18 @@ impl FlowState {
         &self,
         label: Option<dir::StringId>,
     ) -> Option<usize> {
+        let start = self.current_target_start();
+
         self.targets
             .iter()
             .enumerate()
+            .skip(start)
             .rev()
             .find_map(|(index, target)| {
                 if let Some(label) = label {
                     (target.label == Some(label)).then_some(index)
                 } else {
-                    (target.label.is_none() && target.allows_continue).then_some(index)
+                    target.allows_continue.then_some(index)
                 }
             })
     }
@@ -132,15 +216,18 @@ impl FlowState {
         &self,
         label: Option<dir::StringId>,
     ) -> Option<usize> {
+        let start = self.current_target_start();
+
         self.targets
             .iter()
             .enumerate()
+            .skip(start)
             .rev()
             .find_map(|(index, target)| {
                 if let Some(label) = label {
                     (target.label == Some(label) && target.allows_continue).then_some(index)
                 } else {
-                    (target.label.is_none() && target.allows_continue).then_some(index)
+                    target.allows_continue.then_some(index)
                 }
             })
     }
@@ -171,6 +258,22 @@ impl FlowState {
     /// Return whether one function frame is the innermost active function.
     pub(in crate::check) fn is_current_function(&self, index: usize) -> bool {
         index + 1 == self.functions.len()
+    }
+
+    /// Return the first control target visible to the current function.
+    fn current_target_start(&self) -> usize {
+        self.functions
+            .last()
+            .map(|function| function.target_start)
+            .unwrap_or(0)
+    }
+
+    /// Return the first try target visible to the current function.
+    fn current_try_start(&self) -> usize {
+        self.functions
+            .last()
+            .map(|function| function.try_start)
+            .unwrap_or(0)
     }
 
     /// Mark one local symbol as definitely assigned.

@@ -10,10 +10,12 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
-        self.input(module)
+        let symbol = self
+            .input(module)
             .binding_table()
-            .symbol_for_declaration(node.into_global(module))
-            .map(|symbol| symbol.into_global(module))
+            .symbol_for_declaration(node.into_global(module))?;
+
+        Some(symbol.into_global(module))
     }
 
     /// Return the implicit receiver symbol introduced for one member node.
@@ -22,10 +24,12 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
-        self.input(module)
+        let symbol = self
+            .input(module)
             .binding_table()
-            .implicit_receiver_symbol(node.into_global(module))
-            .map(|symbol| symbol.into_global(module))
+            .implicit_receiver_symbol(node.into_global(module))?;
+
+        Some(symbol.into_global(module))
     }
 
     /// Return the symbol selected by a nominal member key.
@@ -44,9 +48,9 @@ impl CheckState<'_> {
                 continue;
             }
 
-            return scope
-                .find_symbol(key)
-                .map(|symbol| symbol.into_global(module));
+            let symbol = scope.find_symbol(key)?;
+
+            return Some(symbol.into_global(module));
         }
 
         None
@@ -126,10 +130,7 @@ impl CheckState<'_> {
             return Some(symbol.kind);
         }
 
-        self.imports(module)
-            .symbol_kinds
-            .get(&symbol)
-            .copied()
+        self.imports(module).symbol_kinds.get(&symbol).copied()
     }
 
     /// Return whether one symbol names a transparent type constraint.
@@ -158,9 +159,12 @@ impl CheckState<'_> {
         let view = self.input(module).view();
         match view.get(expression) {
             // Interface
-            dir::Expression::Identifier { name } => {
-                self.require_name(module, expression.into_any(), *name, dir::SymbolSpace::Type)
-            }
+            dir::Expression::Identifier { name } => self.require_symbol_by_name(
+                module,
+                expression.into_any(),
+                *name,
+                dir::SymbolSpace::Type,
+            ),
             // Namespace.Interface
             dir::Expression::QualifiedReference {
                 path,
@@ -170,7 +174,12 @@ impl CheckState<'_> {
                     return None;
                 };
 
-                self.require_name(module, expression.into_any(), *name, dir::SymbolSpace::Type)
+                self.require_symbol_by_name(
+                    module,
+                    expression.into_any(),
+                    *name,
+                    dir::SymbolSpace::Type,
+                )
             }
             // not a heritage reference
             _ => None,

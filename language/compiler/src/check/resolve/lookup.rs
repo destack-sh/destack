@@ -1,7 +1,8 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::CheckModuleState;
+use crate::check::CheckState;
 
 /// Result of looking up one source name.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,19 +25,20 @@ impl NameLookup {
     }
 }
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Return the nearest lexical scope visible at one node.
     pub(in crate::check) fn visible_scope(
         &self,
+        module: ModuleId,
         bindings: &dir::BindingTable<'_>,
         node: dir::LocalNodeIdAny,
     ) -> dir::LocalScope {
         let mut current = Some(node);
-        let view = self.input.view();
+        let view = self.input(module).view();
 
         // find nearest parent with a scope
         while let Some(node) = current {
-            let global = node.into_global(self.input.module_id);
+            let global = node.into_global(module);
             if let Some(scope) = bindings.scope_for_node(global) {
                 return scope;
             }
@@ -44,12 +46,16 @@ impl CheckModuleState {
         }
 
         // use module namespace when no child scope owns the node
-        dir::LocalScope::new(self.input.bound.namespace_scope, dir::LocalScopeMark::end())
+        dir::LocalScope::new(
+            self.input(module).bound.namespace_scope,
+            dir::LocalScopeMark::end(),
+        )
     }
 
     /// Return lexical symbols visible from one scope.
     pub(in crate::check) fn visible_scope_symbols(
         &self,
+        module: ModuleId,
         bindings: &dir::BindingTable<'_>,
         mut scope: dir::LocalScope,
         key: dir::StaticKey,
@@ -61,8 +67,8 @@ impl CheckModuleState {
 
             // collect matching symbols in the current scope
             for (binding_key, symbol) in current.named_symbols_up_to(scope.mark) {
-                if binding_key == key && bindings.get_symbol(symbol).form.is_visible_in(space) {
-                    symbols.push(self.binding_target_symbol(symbol));
+                if binding_key == key && bindings.get_symbol(symbol).kind.is_visible_in(space) {
+                    symbols.push(self.binding_target_symbol(module, symbol));
                 }
             }
 
@@ -83,34 +89,34 @@ impl CheckModuleState {
     /// Return the declaration symbol selected by one local binding.
     pub(in crate::check) fn binding_target_symbol(
         &self,
+        module: ModuleId,
         symbol: dir::LocalSymbolId,
     ) -> dir::GlobalSymbolId {
-        match self.input.resolved.imports.symbol_target(symbol) {
+        match self.input(module).resolved.imports.symbol_target(symbol) {
             // imported aliases use their resolved target
             Some(dir::ImportTarget::Symbol(symbol)) => symbol,
 
             // local and namespace bindings keep their local symbol
-            Some(dir::ImportTarget::Namespace(_)) | None => {
-                symbol.into_global(self.input.module_id)
-            }
+            Some(dir::ImportTarget::Namespace(_)) | None => symbol.into_global(module),
         }
     }
 
     /// Require one source name in the requested symbol space.
-    pub(in crate::check) fn require_name(
+    pub(in crate::check) fn require_symbol_by_name(
         &mut self,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
         name: dir::StringId,
         space: dir::SymbolSpace,
     ) -> Option<dir::GlobalSymbolId> {
-        match self.lookup_name(source, name, space) {
+        match self.lookup_symbol_by_name(module, source, name, space) {
             NameLookup::Found(symbol) => Some(symbol),
             NameLookup::Missing => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
 
-                self.report_unresolved_reference(source, &path);
+                self.report_unresolved_reference(module, source, &path);
 
                 None
             }
@@ -119,7 +125,7 @@ impl CheckModuleState {
                     segments: smallvec::smallvec![name],
                 };
 
-                self.report_ambiguous_reference(source, &path);
+                self.report_ambiguous_reference(module, source, &path);
 
                 None
             }
@@ -127,18 +133,19 @@ impl CheckModuleState {
     }
 
     /// Look up one source name in the requested symbol space.
-    pub(in crate::check) fn lookup_name(
+    pub(in crate::check) fn lookup_symbol_by_name(
         &self,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
         name: dir::StringId,
         space: dir::SymbolSpace,
     ) -> NameLookup {
         let key = dir::StaticKey::Name(name);
-        let bindings = self.input.binding_table();
-        let scope = self.visible_scope(&bindings, source);
-        let symbols = self.visible_scope_symbols(&bindings, scope, key, space);
+        let bindings = self.input(module).binding_table();
+        let scope = self.visible_scope(module, &bindings, source);
+        let symbols = self.visible_scope_symbols(module, &bindings, scope, key, space);
         let symbols = if symbols.is_empty() {
-            self.input
+            self.input(module)
                 .resolved
                 .imports
                 .global_symbols(key)

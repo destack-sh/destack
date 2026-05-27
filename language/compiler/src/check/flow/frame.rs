@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use indexmap::IndexSet;
 
-use crate::check::{ConstraintOrigin, FlowBranch, FlowCheckpoint, ReceiverCapture, VariableId};
+use crate::check::{FlowBranch, FlowCheckpoint, ReceiverCapture, VariableId};
 
 /// A function body currently being walked.
 #[derive(Debug)]
@@ -10,6 +10,10 @@ pub(in crate::check) struct FunctionFrame {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The flow position before entering the function.
     pub(in crate::check) checkpoint: FlowCheckpoint,
+    /// The first control target visible inside this function.
+    pub(in crate::check) target_start: usize,
+    /// The first try target visible inside this function.
+    pub(in crate::check) try_start: usize,
     /// The lexical receiver visible inside this function.
     pub(in crate::check) receiver: Option<ReceiverCapture>,
     /// The value accepted by `return` inside this function body.
@@ -29,8 +33,6 @@ pub(in crate::check) struct FunctionFrame {
 /// A structured control target currently visible to flow analysis.
 #[derive(Debug)]
 pub(in crate::check) struct ControlTarget {
-    /// The source that introduced this target.
-    pub(in crate::check) source: ConstraintOrigin,
     /// The optional source label.
     pub(in crate::check) label: Option<dir::StringId>,
     /// Whether `continue` may target this control frame.

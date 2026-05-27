@@ -1482,8 +1482,7 @@ impl CheckState<'_> {
 
         // enter labeled control target
         let result = self.intern_local_type_variable(tree.module_id, id);
-        let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
-        self.enter_control_target(tree.module_id, origin, Some(label), false, result);
+        self.enter_control_target(tree.module_id, Some(label), false, result);
 
         // walk body with isolated flow
         let before_body = self.checkpoint_flow(tree.module_id);
@@ -1991,9 +1990,8 @@ impl CheckState<'_> {
         self.constrain_condition(condition.into_any(), condition_type);
 
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
         let result = self.intern_local_type_variable(tree.module_id, id);
-        self.enter_control_target(tree.module_id, origin, label, true, result);
+        self.enter_control_target(tree.module_id, label, true, result);
 
         // walk body under true condition facts
         let before_body = self.checkpoint_flow(tree.module_id);
@@ -2035,9 +2033,8 @@ impl CheckState<'_> {
         self.constrain_for_each_binding(id, operator, pattern, iterator, tree);
 
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
         let result = self.intern_local_type_variable(tree.module_id, id);
-        self.enter_control_target(tree.module_id, origin, label, true, result);
+        self.enter_control_target(tree.module_id, label, true, result);
 
         // walk body with iteration binding assigned
         let before_body = self.checkpoint_flow(tree.module_id);
@@ -2082,9 +2079,8 @@ impl CheckState<'_> {
         }
 
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
         let result = self.intern_local_type_variable(tree.module_id, id);
-        self.enter_control_target(tree.module_id, origin, label, true, result);
+        self.enter_control_target(tree.module_id, label, true, result);
 
         // walk body under true condition facts
         let before_body = self.checkpoint_flow(tree.module_id);
@@ -2237,9 +2233,8 @@ impl CheckState<'_> {
         body: dir::LocalNodeId<dir::Block>,
     ) {
         // enter loop control target
-        let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
         let result = self.intern_local_type_variable(tree.module_id, id);
-        self.enter_control_target(tree.module_id, origin, label, true, result);
+        self.enter_control_target(tree.module_id, label, true, result);
 
         // walk body with isolated flow
         let before_body = self.checkpoint_flow(tree.module_id);

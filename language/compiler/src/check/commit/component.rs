@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use destack_artifact::DirCheckedComponentEntry;
 use destack_source::DiagnosticCollection;
 
 use crate::CompilerResult;
-use crate::check::CheckComponentState;
+use crate::check::CheckState;
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Commit solved check state into checked DIR tables and diagnostics.
     pub(in crate::check) fn commit(
         mut self,
@@ -24,12 +26,27 @@ impl CheckComponentState<'_> {
 
     /// Commit checked DIR tables for every loaded module.
     fn commit_checked_modules(&mut self) -> CompilerResult<Vec<DirCheckedComponentEntry>> {
-        let modules = std::mem::take(&mut self.modules);
+        let modules = self.component_modules.clone();
         let mut entries = Vec::with_capacity(modules.len());
 
         // commit modules in stable load order
-        for (module, check_module) in modules {
-            let checked = check_module.commit(self.environment.as_ref());
+        for module in modules {
+            self.commit_module(module);
+            let output = self
+                .outputs
+                .shift_remove(&module)
+                .expect("check output was not loaded");
+            let checked = destack_artifact::DirCheckedModule {
+                types: Arc::new(output.types),
+                statics: Arc::new(output.statics),
+                resolutions: Arc::new(output.resolutions),
+                generics: Arc::new(output.generics),
+                relations: Arc::new(output.relations),
+                coercions: Arc::new(output.coercions),
+                extensions: Arc::new(output.extensions),
+                layouts: Arc::new(output.layouts),
+                captures: Arc::new(output.captures),
+            };
 
             entries.push(DirCheckedComponentEntry { module, checked });
         }

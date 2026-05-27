@@ -3,34 +3,36 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckComponentState, CheckError, CheckModuleState, Decision, Obligation, PatternFieldTerm,
-    PatternTerm, TypeLiteralTerm, TypeRelation, TypeTerm, VariableId,
+    CheckError, CheckState, Decision, Obligation, PatternField, PatternTerm, TermId,
+    TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Require one binding pattern to cover its matched value type.
     pub(in crate::check) fn require_irrefutable_pattern(
         &mut self,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
-        pattern: PatternTerm,
+        pattern: TermId<PatternTerm>,
         value: VariableId,
     ) {
         let obligation = Obligation::IrrefutablePattern {
-            source: source.into_global(self.input.module_id),
+            source: source.into_global(module),
             pattern,
             value,
+            condition: self.active_static_condition(module),
         };
 
         self.add_obligation(obligation);
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Check whether one pattern is irrefutable for its matched value type.
     pub(in crate::check) fn check_irrefutable_pattern(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        pattern: &PatternTerm,
+        pattern: TermId<PatternTerm>,
         value: VariableId,
     ) -> CompilerResult<()> {
         let decision = self.pattern_covers_variable(pattern, value)?;
@@ -48,10 +50,7 @@ impl CheckComponentState<'_> {
             }
         };
 
-        self.module_mut(source.module_id)?
-            .work
-            .diagnostics
-            .push(diagnostic);
+        self.diagnostics_mut(source.module_id).push(diagnostic);
 
         Ok(())
     }
@@ -59,7 +58,7 @@ impl CheckComponentState<'_> {
     /// Return whether one pattern covers every value in one variable type.
     fn pattern_covers_variable(
         &mut self,
-        pattern: &PatternTerm,
+        pattern: TermId<PatternTerm>,
         value: VariableId,
     ) -> CompilerResult<Decision> {
         let module = value.module;
@@ -71,10 +70,10 @@ impl CheckComponentState<'_> {
     }
 
     /// Return whether one pattern covers every value in one type term.
-    fn pattern_covers_type(
+    pub(in crate::check) fn pattern_covers_type(
         &mut self,
         module: ModuleId,
-        pattern: &PatternTerm,
+        pattern: TermId<PatternTerm>,
         value: &TypeTerm,
     ) -> CompilerResult<Decision> {
         if let TypeTerm::Union { elements } = value {
@@ -84,6 +83,7 @@ impl CheckComponentState<'_> {
             return self.pattern_covers_scalars(module, pattern, &values);
         }
 
+        let pattern = self.terms.get(pattern).clone();
         let decision = match pattern {
             PatternTerm::Wildcard | PatternTerm::Binding { pattern: None, .. } => Decision::Yes,
             PatternTerm::Must { pattern }
@@ -98,35 +98,35 @@ impl CheckComponentState<'_> {
                 return self.pattern_covers_type(module, pattern, value);
             }
             PatternTerm::Expression { value: expected } => {
-                self.expression_pattern_covers_type(*expected, value)?
+                self.expression_pattern_covers_type(expected, value)?
             }
             PatternTerm::Range {
                 start,
                 end,
                 end_kind,
-            } => self.range_pattern_covers_type(*start, *end, *end_kind, value)?,
+            } => self.range_pattern_covers_type(start, end, end_kind, value)?,
             PatternTerm::Type { ty } => self.decide_type_term_relation(
                 TypeRelation::Assignable,
                 value,
-                &TypeTerm::Variable(*ty),
+                &TypeTerm::Variable(ty),
             )?,
             PatternTerm::Tuple { fields }
             | PatternTerm::Sequence { fields }
             | PatternTerm::Object { fields } => {
-                self.pattern_fields_cover_type(module, fields, value)?
+                self.pattern_fields_cover_type(module, &fields, value)?
             }
             PatternTerm::TaggedTuple { ty, fields } | PatternTerm::TaggedObject { ty, fields } => {
                 let tag = self.decide_type_term_relation(
                     TypeRelation::Assignable,
                     value,
-                    &TypeTerm::Variable(*ty),
+                    &TypeTerm::Variable(ty),
                 )?;
-                let fields = self.pattern_fields_cover_type(module, fields, value)?;
+                let fields = self.pattern_fields_cover_type(module, &fields, value)?;
 
                 tag.and(fields)
             }
             PatternTerm::Union { patterns } => {
-                self.pattern_union_covers_type(module, patterns, value)?
+                self.pattern_union_covers_type(module, &patterns, value)?
             }
         };
 
@@ -137,7 +137,7 @@ impl CheckComponentState<'_> {
     fn pattern_covers_scalars(
         &mut self,
         module: ModuleId,
-        pattern: &PatternTerm,
+        pattern: TermId<PatternTerm>,
         values: &[dir::ScalarLiteral],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
@@ -154,13 +154,17 @@ impl CheckComponentState<'_> {
     /// Return whether one pattern covers every member in a union.
     fn pattern_covers_union(
         &mut self,
-        pattern: &PatternTerm,
-        elements: &[VariableId],
+        pattern: TermId<PatternTerm>,
+        elements: &[TypeOperand],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         for element in elements {
-            decision = decision.and(self.pattern_covers_variable(pattern, *element)?);
+            let TypeOperand::Variable(element) = *element else {
+                return Ok(Decision::Undecidable);
+            };
+
+            decision = decision.and(self.pattern_covers_variable(pattern, element)?);
         }
 
         Ok(decision)
@@ -170,13 +174,13 @@ impl CheckComponentState<'_> {
     fn pattern_union_covers_type(
         &mut self,
         module: ModuleId,
-        patterns: &[PatternTerm],
+        patterns: &[TermId<PatternTerm>],
         value: &TypeTerm,
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::No;
 
         for pattern in patterns {
-            decision = decision.or(self.pattern_covers_type(module, pattern, value)?);
+            decision = decision.or(self.pattern_covers_type(module, *pattern, value)?);
         }
 
         Ok(decision)
@@ -242,13 +246,14 @@ impl CheckComponentState<'_> {
     fn pattern_fields_cover_type(
         &mut self,
         module: ModuleId,
-        fields: &[PatternFieldTerm],
+        fields: &[PatternField],
         value: &TypeTerm,
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         for field in fields {
-            decision = decision.and(self.pattern_field_covers_type(module, field, value)?);
+            decision =
+                decision.and(self.pattern_field_covers_type(module, field.clone(), value)?);
         }
 
         Ok(decision)
@@ -258,32 +263,32 @@ impl CheckComponentState<'_> {
     fn pattern_field_covers_type(
         &mut self,
         module: ModuleId,
-        field: &PatternFieldTerm,
+        field: PatternField,
         value: &TypeTerm,
     ) -> CompilerResult<Decision> {
+        let field = field;
         let decision = match field {
-            PatternFieldTerm::Named { key, pattern } => {
+            PatternField::Named { key, pattern } => {
                 let Some(pattern) = pattern else {
                     return Ok(Decision::Yes);
                 };
-                let Some(field) = self.member_type_term(module, value, key)? else {
+                let Some(field) = self.resolve_member_type(module, value, &key, &[])? else {
                     return Ok(Decision::No);
                 };
 
                 self.pattern_covers_type(module, pattern, &field)?
             }
-            PatternFieldTerm::Computed { pattern, .. }
-            | PatternFieldTerm::Positional { pattern } => {
+            PatternField::Computed { pattern, .. } | PatternField::Positional { pattern } => {
                 self.pattern_covers_type(module, pattern, value)?
             }
-            PatternFieldTerm::Spread { pattern } => {
+            PatternField::Spread { pattern } => {
                 if let Some(pattern) = pattern {
                     self.pattern_covers_type(module, pattern, value)?
                 } else {
                     Decision::Yes
                 }
             }
-            PatternFieldTerm::Elision => Decision::Yes,
+            PatternField::Elision => Decision::Yes,
         };
 
         Ok(decision)

@@ -2,27 +2,33 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 
 use crate::CompilerResult;
+use destack_source::ModuleId;
+
 use crate::check::{
-    CheckComponentState, CheckModuleState, Constraint, GenericInstance, GenericParameter, TypeTerm,
+    CheckState, Definition, GenericInstance, GenericParameter, TypeTerm, VariableId,
 };
 
-impl CheckComponentState<'_> {
-    /// Commit generic instances from solved type reference constraints.
+impl CheckState<'_> {
+    /// Commit generic instances from solved type reference definitions.
     pub(super) fn commit_generic_instance_table(&mut self) -> CompilerResult<()> {
-        let constraints = self.collect_constraints();
+        let definitions = self.collect_definitions();
 
         // write type expression applications after their arguments are solved
-        for constraint in constraints {
-            let Constraint::DefineType {
+        for definition in definitions {
+            let Definition::Type {
                 result: _,
-                term:
-                    TypeTerm::Reference {
-                        source: Some(source),
-                        symbol,
-                        arguments,
-                    },
+                term,
                 origin: _,
-            } = constraint
+                condition: _,
+            } = definition
+            else {
+                continue;
+            };
+            let TypeTerm::Reference {
+                source: Some(source),
+                symbol,
+                arguments,
+            } = self.terms.get(term).clone()
             else {
                 continue;
             };
@@ -32,9 +38,8 @@ impl CheckComponentState<'_> {
 
             let environment = self.environment.clone();
             let instance = GenericInstance { symbol, arguments };
-            let check_module = self.module_mut(source.module_id)?;
 
-            if check_module
+            if self
                 .commit_generic_instance(environment.as_ref(), source, &instance)
                 .is_none()
             {
@@ -46,12 +51,16 @@ impl CheckComponentState<'_> {
     }
 }
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Commit generic parameters into the checked generic slot table.
-    pub(super) fn commit_generic_slot_table(&mut self, environment: &GlobalEnvironment) {
+    pub(super) fn commit_generic_slot_table(
+        &mut self,
+        module: ModuleId,
+        environment: &GlobalEnvironment,
+    ) {
         let mut generics = self
             .generic_parameters()
-            .filter(|(_, generic)| generic.slot().owner.module_id == self.input.module)
+            .filter(|(_, generic)| generic.slot().owner.module_id == module)
             .map(|(variable, generic)| {
                 (
                     generic.slot().owner,
@@ -67,7 +76,7 @@ impl CheckModuleState {
         for (_, _, _, generic) in generics {
             let slot = self.commit_generic_slot(environment, generic);
 
-            self.output.generics.push_slot(slot);
+            self.output_mut(module).generics.push_slot(slot);
         }
     }
 
@@ -89,7 +98,7 @@ impl CheckModuleState {
                 index: slot.index,
                 variance,
                 constraint: constraint
-                    .and_then(|variable| self.commit_variable_type(environment, variable)),
+                    .and_then(|variable| self.commit_generic_constraint(environment, variable)),
                 default: default
                     .and_then(|variable| self.commit_variable_type(environment, variable)),
                 origin: slot.origin,
@@ -105,7 +114,7 @@ impl CheckModuleState {
                 index: slot.index,
                 variance,
                 constraint: constraint
-                    .and_then(|variable| self.commit_variable_type(environment, variable)),
+                    .and_then(|variable| self.commit_generic_constraint(environment, variable)),
                 default: default
                     .and_then(|variable| self.commit_variable_type(environment, variable)),
                 origin: slot.origin,
@@ -119,8 +128,9 @@ impl CheckModuleState {
                 key: slot.key,
                 index: slot.index,
                 constraint: constraint
-                    .and_then(|variable| self.commit_variable_type(environment, variable)),
-                default: default.and_then(|variable| self.commit_variable_static(variable)),
+                    .and_then(|variable| self.commit_generic_constraint(environment, variable)),
+                default: default
+                    .and_then(|variable| self.commit_variable_static(environment, variable)),
                 origin: slot.origin,
             },
             GenericParameter::VariadicStatic {
@@ -132,10 +142,21 @@ impl CheckModuleState {
                 key: slot.key,
                 index: slot.index,
                 constraint: constraint
-                    .and_then(|variable| self.commit_variable_type(environment, variable)),
-                default: default.and_then(|variable| self.commit_variable_static(variable)),
+                    .and_then(|variable| self.commit_generic_constraint(environment, variable)),
+                default: default
+                    .and_then(|variable| self.commit_variable_static(environment, variable)),
                 origin: slot.origin,
             },
         }
+    }
+
+    /// Commit a generic constraint from its declared type term.
+    fn commit_generic_constraint(
+        &mut self,
+        environment: &GlobalEnvironment,
+        variable: VariableId,
+    ) -> Option<dir::LocalTypeId> {
+        self.commit_variable_type_definition(environment, variable)
+            .or_else(|| self.commit_variable_type(environment, variable))
     }
 }

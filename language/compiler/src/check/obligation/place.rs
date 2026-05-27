@@ -1,19 +1,21 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckComponentState, CheckError, CheckModuleState, Obligation, Place, PlaceTarget,
-    ShapeMemberTerm, TypeTerm, VariableId,
+    CheckError, CheckState, Obligation, Place, PlaceTarget, ShapeMember, TypeTerm, VariableId,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Require one place to accept a write.
     pub(in crate::check) fn require_writable_place(&mut self, place: Place) {
-        self.add_obligation(Obligation::WritablePlace { place });
+        self.add_obligation(Obligation::WritablePlace {
+            place,
+            condition: self.active_static_condition(place.source.module_id),
+        });
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Check one writable place requirement.
     pub(in crate::check) fn check_writable_place(&mut self, place: Place) -> CompilerResult<()> {
         if self.is_writable_place(place)? {
@@ -23,9 +25,7 @@ impl CheckComponentState<'_> {
         let (module, anchor) = self.source_anchor(place.source)?;
         let diagnostic = CheckError::NotWritable { anchor, module };
 
-        self.module_mut(place.source.module_id)?
-            .work
-            .diagnostics
+        self.diagnostics_mut(place.source.module_id)
             .push(diagnostic);
 
         Ok(())
@@ -34,9 +34,9 @@ impl CheckComponentState<'_> {
     /// Return whether one place is writable.
     fn is_writable_place(&self, place: Place) -> CompilerResult<bool> {
         let is_writable = match place.target {
-            PlaceTarget::Binding { symbol } => self.is_writable_binding(symbol)?,
-            PlaceTarget::Member { owner, key } => self.is_writable_member(owner, key)?,
-            PlaceTarget::Index { .. } => true,
+            PlaceTarget::Binding { symbol } => self.is_writable_binding(place.source, symbol)?,
+            PlaceTarget::MemberTerm { owner, key } => self.is_writable_member(owner, key)?,
+            PlaceTarget::IndexTerm { .. } => true,
             PlaceTarget::Dereference { .. } => true,
         };
 
@@ -44,17 +44,24 @@ impl CheckComponentState<'_> {
     }
 
     /// Return whether one local binding can be assigned.
-    fn is_writable_binding(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
-        let check_module = self.module(symbol.module_id)?;
-        let bindings = check_module.input.binding_table();
+    fn is_writable_binding(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        if symbol.module_id != source.module_id {
+            return Ok(false);
+        }
+
+        let input = self.input(symbol.module_id);
+        let bindings = input.binding_table();
         let local_symbol = bindings.get_symbol(symbol.local_id);
         let is_writable = local_symbol.binding_mutability.is_some_and(|mutability| {
             matches!(
                 mutability,
                 dir::Mutability::Mutable | dir::Mutability::Exclusive
             )
-        }) && check_module
-            .input
+        }) && input
             .resolved
             .imports
             .symbol_target(symbol.local_id)
@@ -74,7 +81,7 @@ impl CheckComponentState<'_> {
         // structural fields carry their write access directly
         if let TypeTerm::Shape { members } = owner {
             for member in members {
-                if let ShapeMemberTerm::Field {
+                if let ShapeMember::Field {
                     key: member_key,
                     is_readonly,
                     ..

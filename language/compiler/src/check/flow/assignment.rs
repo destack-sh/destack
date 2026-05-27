@@ -1,12 +1,17 @@
 use destack_dir as dir;
 
-use crate::check::{CheckModuleState, Place, PlaceTarget};
+use crate::check::{CheckState, Place, PlaceTarget};
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Mark one assigned place if it names a local binding.
     pub(in crate::check) fn mark_place_assigned(&mut self, place: Place) {
         if let PlaceTarget::Binding { symbol } = place.target {
-            self.work.flow.mark_assigned(symbol);
+            // ignore imported bindings
+            if symbol.module_id != place.source.module_id {
+                return;
+            }
+
+            self.flow_mut(place.source.module_id).mark_assigned(symbol);
         }
     }
 
@@ -27,8 +32,8 @@ impl CheckModuleState {
         tree: &dir::Tree,
         source: dir::LocalNodeIdAny,
     ) {
-        if let Some(symbol) = self.declaration_symbol(source) {
-            self.work.flow.mark_assigned(symbol);
+        if let Some(symbol) = self.declaration_symbol(tree.module_id, source) {
+            self.flow_mut(tree.module_id).mark_assigned(symbol);
         }
 
         match source.ty {

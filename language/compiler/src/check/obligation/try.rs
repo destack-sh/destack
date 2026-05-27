@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
-use crate::check::{CheckComponentState, Decision, VariableId};
+use crate::check::{CheckState, Decision, VariableId};
 use crate::{CheckError, CompilerResult};
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Check whether one try expression can propagate through its return type.
     pub(in crate::check) fn check_try_propagates(
         &mut self,
@@ -19,10 +19,7 @@ impl CheckComponentState<'_> {
                 message: "? can only propagate from a function body".to_owned(),
             };
 
-            self.module_mut(source.module_id)?
-                .work
-                .diagnostics
-                .push(diagnostic);
+            self.diagnostics_mut(source.module_id).push(diagnostic);
 
             return Ok(());
         };
@@ -33,10 +30,7 @@ impl CheckComponentState<'_> {
             let (module, anchor) = self.source_anchor(source)?;
             let diagnostic = CheckError::DoesNotImplement { anchor, module };
 
-            self.module_mut(source.module_id)?
-                .work
-                .diagnostics
-                .push(diagnostic);
+            self.diagnostics_mut(source.module_id).push(diagnostic);
         }
 
         // require more solved type information
@@ -44,10 +38,7 @@ impl CheckComponentState<'_> {
             let (module, anchor) = self.source_anchor(source)?;
             let diagnostic = CheckError::CannotSolve { anchor, module };
 
-            self.module_mut(source.module_id)?
-                .work
-                .diagnostics
-                .push(diagnostic);
+            self.diagnostics_mut(source.module_id).push(diagnostic);
         }
 
         Ok(())

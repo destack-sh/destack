@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, Constraint, ConstraintOrigin, StaticCondition, StaticTerm, TermId, TermTable,
-    TypeTerm, VariableId,
+    CheckState, Constraint, ConstraintOrigin, StaticCondition, StaticTerm, TermId, TypeTerm,
+    VariableId,
 };
 
 /// One check variable definition.
@@ -43,10 +43,10 @@ pub(in crate::check) enum Definition {
 }
 
 impl Definition {
-    /// Return variables whose changes should wake this definition.
-    pub(in crate::check) fn wake_variables(
+    /// Return variables watched by this definition.
+    pub(in crate::check) fn watched_variables(
         &self,
-        terms: &TermTable,
+        state: &CheckState<'_>,
     ) -> SmallVec<[VariableId; 4]> {
         match self {
             Self::Type {
@@ -56,8 +56,8 @@ impl Definition {
                 condition,
             } => {
                 let mut variables = smallvec::smallvec![*result];
-                variables.extend(terms.get(*term).referenced_variables());
-                variables.extend(condition.referenced_variables());
+                variables.extend(state.terms.get(*term).referenced_variables(state));
+                variables.extend(condition.referenced_variables(state));
 
                 variables
             }
@@ -68,8 +68,8 @@ impl Definition {
                 condition,
             } => {
                 let mut variables = smallvec::smallvec![*result];
-                variables.extend(terms.get(*term).referenced_variables());
-                variables.extend(condition.referenced_variables());
+                variables.extend(state.terms.get(*term).referenced_variables(state));
+                variables.extend(condition.referenced_variables(state));
 
                 variables
             }
@@ -96,7 +96,7 @@ impl CheckState<'_> {
         term: TypeTerm,
     ) {
         let origin = self.variable(variable).source;
-        let term = self.intern_term(term);
+        let term = self.terms.push(term);
         let condition = self.flow(module).current_static_condition();
         let definition = Definition::Type {
             result: variable,
@@ -116,7 +116,7 @@ impl CheckState<'_> {
         term: StaticTerm,
     ) {
         let origin = self.variable(variable).source;
-        let term = self.intern_term(term);
+        let term = self.terms.push(term);
         let condition = self.flow(module).current_static_condition();
         let definition = Definition::Static {
             result: variable,
