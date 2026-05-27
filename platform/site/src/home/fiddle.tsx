@@ -45,7 +45,7 @@ export function Fiddle() {
         <DottedFrame class="h-full min-h-0" depth="large">
             <section class="relative grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border-[2.5px] border-neutral-950 bg-destack-panel">
                 <span class="absolute -top-3 left-3 z-20 bg-destack-page px-1 text-sm font-extrabold lowercase">
-                    fiddle
+                    explore
                 </span>
                 <FiddleHeader
                     area={area()}
@@ -98,6 +98,7 @@ function FiddleHeader(props: FiddleHeaderProps) {
                         activeIndex={props.areaIndex}
                         labels={exampleAreas.map((item) => `${item.label.toLowerCase()}/`)}
                         onSelect={props.onAreaChange}
+                        level={0}
                     />
                     <OutputPicker
                         onChange={props.onTargetChange}
@@ -108,11 +109,13 @@ function FiddleHeader(props: FiddleHeaderProps) {
                 <PathRow
                     activeIndex={props.categoryIndex}
                     labels={props.area.categories.map((item) => `${item.label.toLowerCase()}/`)}
+                    level={1}
                     onSelect={props.onCategoryChange}
                 />
                 <PathRow
                     activeIndex={props.topicIndex}
                     labels={props.category.topics.map((item) => `${item.label}.ds`)}
+                    level={2}
                     onSelect={props.onTopicChange}
                 />
             </header>
@@ -123,12 +126,32 @@ function FiddleHeader(props: FiddleHeaderProps) {
 type PathRowProps = {
     activeIndex: number;
     labels: readonly string[];
+    level: 0 | 1 | 2;
     onSelect: (index: number) => void;
 };
 
 function PathRow(props: PathRowProps) {
     return (
-        <div class="relative min-w-0">
+        <div
+            class="relative min-w-0"
+            classList={{
+                "pl-0": props.level === 0,
+                "pl-8": props.level === 1,
+                "pl-16": props.level === 2,
+            }}
+        >
+            {props.level > 0 && (
+                <span
+                    aria-hidden="true"
+                    class="absolute top-1/2 -translate-y-1/2 text-base font-black leading-none text-neutral-400"
+                    classList={{
+                        "left-3": props.level === 1,
+                        "left-11": props.level === 2,
+                    }}
+                >
+                    {"↳"}
+                </span>
+            )}
             <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-gradient-to-l from-destack-page to-transparent" />
             <div class="flex min-w-0 snap-x gap-2 overflow-x-auto overscroll-x-contain pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {props.labels.map((label, index) => (
