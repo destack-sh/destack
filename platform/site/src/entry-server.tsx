@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 
 export default createHandler(() => <StartServer document={Document} />);
 
-function Document(props: { assets: JSX.Element; children: JSX.Element; scripts: JSX.Element }) {
+function Document(props: { assets: JSX.Element; children?: JSX.Element; scripts: JSX.Element }) {
     return (
         <html lang="en">
             <head>

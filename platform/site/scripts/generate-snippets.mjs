@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +10,7 @@ const treeSitter = join(repositoryDirectory, "node_modules/.bin/tree-sitter");
 const highlightQuery = join(grammarDirectory, "queries/highlights.scm");
 const snippetDirectory = join(siteDirectory, "src/snippets");
 const generatedSnippetFile = join(siteDirectory, "src/generated/snippets.ts");
+const isCheck = process.argv.includes("--check");
 
 const keywords = new Set([
     "async",
@@ -135,11 +136,21 @@ const entries = snippetOrder.map((name) => {
     return [name, html];
 });
 
-mkdirSync(dirname(generatedSnippetFile), { recursive: true });
-writeFileSync(
-    generatedSnippetFile,
-    `export const snippets = ${JSON.stringify(Object.fromEntries(entries), null, 4)} as const;\n`,
-);
+const generatedSnippetSource = `export const snippets = ${JSON.stringify(Object.fromEntries(entries), null, 4)} as const;\n`;
+
+if (isCheck) {
+    if (!existsSync(generatedSnippetFile)) {
+        throw new Error(`missing generated snippet file: ${generatedSnippetFile}`);
+    }
+
+    const currentSnippetSource = readFileSync(generatedSnippetFile, "utf8");
+    if (currentSnippetSource !== generatedSnippetSource) {
+        throw new Error("generated snippets are out of date, run `just platform/site/format`");
+    }
+} else {
+    mkdirSync(dirname(generatedSnippetFile), { recursive: true });
+    writeFileSync(generatedSnippetFile, generatedSnippetSource);
+}
 
 const snippetFiles = listSnippetFiles(snippetDirectory, snippetDirectory);
 const expectedFiles = new Set(snippetOrder.map((name) => `${name}.ds`));

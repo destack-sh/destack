@@ -10,43 +10,55 @@ import {
     type OutputTarget,
 } from "../examples";
 import { snippets } from "../generated/snippets";
-import { DottedFrame } from "./dotted";
+import { Panel } from "./panel";
+
+// file-extension-style label per output target
+const targetLabels: Record<OutputTarget, string> = {
+    assembly: ".asm",
+    javascript: ".js",
+    output: ".output",
+};
+
+// top-level area labels are static, derive them once
+const areaLabels = exampleAreas.map((area) => `${area.label.toLowerCase()}/`);
 
 export function Fiddle() {
+    // selection state: area > category > topic, plus output target
     const [areaIndex, setAreaIndex] = createSignal(0);
     const [categoryIndex, setCategoryIndex] = createSignal(0);
     const [topicIndex, setTopicIndex] = createSignal(0);
     const [target, setTarget] = createSignal<OutputTarget>("assembly");
+
+    // current area, category, and topic resolved from the indices
     const area = createMemo(() => exampleAreas[areaIndex()]);
     const category = createMemo(() => area().categories[categoryIndex()]);
     const topic = createMemo(() => category().topics[topicIndex()]);
+
+    // resolve the chosen target against what the topic supports, falling back to the first
     const targets = createMemo(() => targetsFor(topic()));
     const selectedTarget = createMemo(() => {
-        if (targets().includes(target())) {
-            return target();
-        }
-
-        return targets()[0];
+        const available = targets();
+        return available.includes(target()) ? target() : available[0];
     });
+
+    // pre-highlighted compiled output for the current topic + target
     const renderedOutput = createMemo(() => highlightedOutputFor(topic().key, selectedTarget()));
 
+    // picking a new area or category resets the nested indices
     const selectArea = (index: number) => {
         setAreaIndex(index);
         setCategoryIndex(0);
         setTopicIndex(0);
     };
-
     const selectCategory = (index: number) => {
         setCategoryIndex(index);
         setTopicIndex(0);
     };
 
     return (
-        <DottedFrame class="h-full min-h-0" depth="large">
-            <section class="relative grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] border-[2.5px] border-neutral-950 bg-destack-panel">
-                <span class="absolute -top-3 left-3 z-20 bg-destack-page px-1 text-sm font-extrabold lowercase">
-                    explore
-                </span>
+        <Panel class="h-full min-h-0" depth="deep" title="explore">
+            <div class="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)]">
+                {/* path + target picker */}
                 <FiddleHeader
                     area={area()}
                     areaIndex={areaIndex()}
@@ -61,6 +73,7 @@ export function Fiddle() {
                     topicIndex={topicIndex()}
                 />
 
+                {/* source on the left, compiled output on the right */}
                 <div class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden bg-destack-panel px-4 pt-4 pb-6 lg:grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)]">
                     <CodePanel>
                         <code innerHTML={snippets[topic().key]} />
@@ -70,8 +83,8 @@ export function Fiddle() {
                         <code innerHTML={renderedOutput()} />
                     </CodePanel>
                 </div>
-            </section>
-        </DottedFrame>
+            </div>
+        </Panel>
     );
 }
 
@@ -90,15 +103,21 @@ type FiddleHeaderProps = {
 };
 
 function FiddleHeader(props: FiddleHeaderProps) {
+    // category and topic labels depend on the current selection
+    const categoryLabels = () =>
+        props.area.categories.map((category) => `${category.label.toLowerCase()}/`);
+    const topicLabels = () => props.category.topics.map((topic) => `${topic.label}.ds`);
+
     return (
         <div class="relative z-10 m-3 mb-0">
-            <header class="grid gap-2 border-[2px] border-neutral-950 bg-[radial-gradient(circle,#d6d0c4_0_1px,transparent_1.25px)] bg-[length:5px_5px] px-4 py-4 text-sm font-extrabold lowercase">
+            <header class="grid gap-2 border-2 border-neutral-950 bg-size-[5px_5px] bg-[radial-gradient(circle,#d6d0c4_0_1px,transparent_1.25px)] px-4 py-4 text-sm font-extrabold lowercase">
+                {/* top row: area path + target picker */}
                 <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
                     <PathRow
                         activeIndex={props.areaIndex}
-                        labels={exampleAreas.map((item) => `${item.label.toLowerCase()}/`)}
-                        onSelect={props.onAreaChange}
+                        labels={areaLabels}
                         level={0}
+                        onSelect={props.onAreaChange}
                     />
                     <OutputPicker
                         onChange={props.onTargetChange}
@@ -106,15 +125,19 @@ function FiddleHeader(props: FiddleHeaderProps) {
                         targets={props.targets}
                     />
                 </div>
+
+                {/* category row */}
                 <PathRow
                     activeIndex={props.categoryIndex}
-                    labels={props.area.categories.map((item) => `${item.label.toLowerCase()}/`)}
+                    labels={categoryLabels()}
                     level={1}
                     onSelect={props.onCategoryChange}
                 />
+
+                {/* topic row */}
                 <PathRow
                     activeIndex={props.topicIndex}
-                    labels={props.category.topics.map((item) => `${item.label}.ds`)}
+                    labels={topicLabels()}
                     level={2}
                     onSelect={props.onTopicChange}
                 />
@@ -140,6 +163,7 @@ function PathRow(props: PathRowProps) {
                 "pl-16": props.level === 2,
             }}
         >
+            {/* nesting arrow on every row below the top */}
             {props.level > 0 && (
                 <span
                     aria-hidden="true"
@@ -152,28 +176,18 @@ function PathRow(props: PathRowProps) {
                     {"↳"}
                 </span>
             )}
-            <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-gradient-to-l from-destack-page to-transparent" />
-            <div class="flex min-w-0 snap-x gap-2 overflow-x-auto overscroll-x-contain pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+
+            {/* fade out the right edge to hint at horizontal overflow */}
+            <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-linear-to-l from-destack-page to-transparent" />
+
+            {/* scrollable row of selectable tags */}
+            <div class="flex min-w-0 snap-x gap-2 overflow-x-auto overscroll-x-contain pr-6 scrollbar-none">
                 {props.labels.map((label, index) => (
-                    <button
-                        class="group flex shrink-0 snap-start items-center gap-1.5 border bg-destack-panel px-3 py-1.5 text-left"
-                        classList={{
-                            "border-neutral-950 text-neutral-950": props.activeIndex === index,
-                            "border-neutral-950/30 text-neutral-500 shadow-none hover:border-neutral-950/70 hover:text-neutral-950":
-                                props.activeIndex !== index,
-                        }}
+                    <Tag
+                        isActive={props.activeIndex === index}
+                        label={label}
                         onClick={() => props.onSelect(index)}
-                        type="button"
-                    >
-                        <span
-                            class="size-2 shrink-0 rounded-full"
-                            classList={{
-                                "bg-destack-accent": props.activeIndex === index,
-                                "bg-neutral-300 group-hover:bg-neutral-500": props.activeIndex !== index,
-                            }}
-                        />
-                        <span class="block whitespace-nowrap">{label}</span>
-                    </button>
+                    />
                 ))}
             </div>
         </div>
@@ -190,9 +204,9 @@ function OutputPicker(props: OutputPickerProps) {
     return (
         <div class="flex gap-2 md:justify-end">
             {props.targets.map((target) => (
-                <OutputButton
+                <Tag
                     isActive={props.target === target}
-                    label={targetLabel(target)}
+                    label={targetLabels[target]}
                     onClick={() => props.onChange(target)}
                 />
             ))}
@@ -200,16 +214,17 @@ function OutputPicker(props: OutputPickerProps) {
     );
 }
 
-type OutputButtonProps = {
+type TagProps = {
     isActive: boolean;
     label: string;
     onClick: () => void;
 };
 
-function OutputButton(props: OutputButtonProps) {
+// selectable bordered tag with a status dot, shared by path rows and target picker
+function Tag(props: TagProps) {
     return (
         <button
-            class="group flex shrink-0 items-center gap-1.5 border bg-destack-panel px-3 py-1.5 text-left"
+            class="group flex shrink-0 snap-start items-center gap-1.5 border bg-destack-panel px-3 py-1.5 text-left"
             classList={{
                 "border-neutral-950 text-neutral-950": props.isActive,
                 "border-neutral-950/30 text-neutral-500 shadow-none hover:border-neutral-950/70 hover:text-neutral-950":
@@ -225,7 +240,7 @@ function OutputButton(props: OutputButtonProps) {
                     "bg-neutral-300 group-hover:bg-neutral-500": !props.isActive,
                 }}
             />
-            <span class="block">{props.label}</span>
+            <span class="block whitespace-nowrap">{props.label}</span>
         </button>
     );
 }
@@ -244,16 +259,4 @@ function CodePanel(props: CodePanelProps) {
 
 function CodeDivider() {
     return <div aria-hidden="true" class="hidden min-h-0 bg-neutral-950 lg:block" />;
-}
-
-function targetLabel(target: OutputTarget): string {
-    if (target === "assembly") {
-        return ".asm";
-    }
-
-    if (target === "javascript") {
-        return ".js";
-    }
-
-    return ".output";
 }
