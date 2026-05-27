@@ -2,8 +2,7 @@ use std::{fmt, mem, ptr};
 
 use destack_heap::{
     AllocationShape, Heap, HeapReference, HeapResult, Payload, RawAllocationShape,
-    SharedAllocationCache, SharedGcWorker, SharedHeapReference, SmallAllocationPlan,
-    repeated_layout,
+    SharedAllocationCache, SharedGcWorker, SharedHeapReference, repeated_layout,
 };
 use engine::StaticSpace;
 use {destack_engine as engine, destack_mir as mir};
@@ -31,7 +30,7 @@ pub(crate) struct Machine<'ctx, 'iso> {
     pub(crate) statics: &'iso mut StaticSpace,
     /// The worker-local heap borrowed for this dispatch step.
     heap: &'iso mut Heap,
-    /// The world-shared heap borrowed for this dispatch step.
+    /// The runtime-shared heap borrowed for this dispatch step.
     shared: &'iso SharedHeap,
     /// Shared collector worker for allocation assist.
     shared_gc: &'iso SharedGcWorker,
@@ -307,19 +306,25 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.side_table().tensor_scatter(id)
     }
 
-    /// Allocate one zeroed local heap payload from one pooled allocation site.
+    /// Allocate one zeroed local heap payload from one compiled allocation site.
     #[inline(always)]
-    pub(crate) fn allocate_zeroed_heap_allocation(
+    pub(crate) fn allocate_zeroed_heap_site(
         &mut self,
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let side_table = self.side_table();
         let allocation = side_table.allocation_site(id);
-        let trace_map = side_table.trace_map(allocation.trace_map);
         let class = side_table.allocation_class(allocation.class);
-        let layout = allocation.heap_plan(trace_map, class);
+        let site = allocation.heap_site(class);
+        if let Some(reference) = self.heap.try_allocate_site_zeroed(site) {
+            return Ok(reference);
+        }
 
-        self.heap.allocate_zeroed(&layout).map_err(Error::from)
+        let trace_map = self.program.trace_map(allocation.trace_map)?;
+
+        self.heap
+            .allocate_site_zeroed(site, trace_map)
+            .map_err(Error::from)
     }
 
     /// Allocate one zeroed local slice backing array.
@@ -331,7 +336,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> Result<HeapReference, Error> {
         let side_table = self.side_table();
         let element = side_table.allocation_site(element);
-        let trace_map = side_table.trace_map(element.trace_map);
+        let trace_map = self.program.trace_map(element.trace_map)?;
         let element_shape = element.shape(trace_map);
         let (byte_len, trace_map) = repeated_layout(
             element_shape.byte_len,
@@ -339,32 +344,11 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             element_shape.trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment, &trace_map);
+        let shape = AllocationShape::new(byte_len, element.alignment, None, &trace_map);
         let heap = &mut *self.heap;
         let layout = heap.allocation_plan(shape);
 
         heap.allocate_zeroed(&layout).map_err(Error::from)
-    }
-
-    /// Return the small allocation plan for one compiled allocation site.
-    #[inline(always)]
-    fn small_allocation_plan(&self, id: AllocationSiteId) -> Result<SmallAllocationPlan, Error> {
-        let side_table = self.side_table();
-        let allocation = side_table.allocation_site(id);
-        let class = side_table.allocation_class(allocation.class);
-
-        class.small().ok_or(Error::InvalidInstruction)
-    }
-
-    /// Reserve one zeroed no-scan local heap allocation from the active young run.
-    #[inline(always)]
-    pub(crate) fn reserve_young(
-        &mut self,
-        id: AllocationSiteId,
-    ) -> Result<Option<HeapReference>, Error> {
-        let small = self.small_allocation_plan(id)?;
-
-        Ok(self.heap.reserve_young(small))
     }
 
     /// Allocate one byte-initialized local heap payload from one program layout id.
@@ -381,20 +365,33 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         heap.allocate_bytes(&layout, bytes).map_err(Error::from)
     }
 
-    /// Allocate one zeroed shared heap payload from one pooled allocation site.
+    /// Allocate one zeroed shared heap payload from one compiled allocation site.
     #[inline(always)]
-    pub(crate) fn allocate_zeroed_shared_heap_allocation(
+    pub(crate) fn allocate_zeroed_shared_heap_site(
         &mut self,
         id: AllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
         let side_table = self.side_table();
         let allocation = side_table.allocation_site(id);
-        let trace_map = side_table.trace_map(allocation.trace_map);
         let class = side_table.allocation_class(allocation.class);
-        let layout = allocation.heap_plan(trace_map, class);
+        let site = allocation.heap_site(class);
+        if let Some(reference) = self
+            .shared
+            .try_allocate_site_zeroed(self.shared_cache, site)
+        {
+            return Ok(reference);
+        }
+
+        let trace_map = self.program.trace_map(allocation.trace_map)?;
 
         self.shared
-            .allocate_zeroed(self.shared_gc, self.shared_cache, &layout)
+            .allocate_site_zeroed(
+                self.shared_gc,
+                self.shared_cache,
+                site,
+                trace_map,
+                self.program.trace_table(),
+            )
             .map_err(Error::from)
     }
 
@@ -407,7 +404,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> Result<SharedHeapReference, Error> {
         let side_table = self.side_table();
         let element = side_table.allocation_site(element);
-        let trace_map = side_table.trace_map(element.trace_map);
+        let trace_map = self.program.trace_map(element.trace_map)?;
         let element_shape = element.shape(trace_map);
         let (byte_len, trace_map) = repeated_layout(
             element_shape.byte_len,
@@ -415,23 +412,17 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             element_shape.trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment, &trace_map);
+        let shape = AllocationShape::new(byte_len, element.alignment, None, &trace_map);
         let layout = self.shared.allocation_plan(shape);
 
         self.shared
-            .allocate_zeroed(self.shared_gc, self.shared_cache, &layout)
+            .allocate_zeroed(
+                self.shared_gc,
+                self.shared_cache,
+                &layout,
+                self.program.trace_table(),
+            )
             .map_err(Error::from)
-    }
-
-    /// Reserve one zeroed no-scan shared heap allocation from the active worker run.
-    #[inline(always)]
-    pub(crate) fn reserve_shared_small(
-        &mut self,
-        id: AllocationSiteId,
-    ) -> Result<Option<SharedHeapReference>, Error> {
-        let small = self.small_allocation_plan(id)?;
-
-        Ok(self.shared.reserve_small_zeroed(self.shared_cache, small))
     }
 
     /// Publish worker-local shared heap runs.
@@ -546,7 +537,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        self.heap.write_barrier(reference, offset, byte_len)
+        self.heap
+            .write_barrier(reference, offset, byte_len, self.program.trace_table())
     }
 
     /// Record one shared heap write barrier.
@@ -557,7 +549,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        self.shared.write_barrier(reference, offset, byte_len)
+        self.shared
+            .write_barrier(reference, offset, byte_len, self.program.trace_table())
     }
 
     /// Read one local raw allocation byte range.

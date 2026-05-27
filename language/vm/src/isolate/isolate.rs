@@ -53,6 +53,12 @@ impl fmt::Debug for Isolate {
 }
 
 impl Isolate {
+    /// Return the canonical program trace table.
+    #[inline]
+    pub fn trace_table(&self) -> Arc<mir::TraceTable> {
+        self.program.trace_table_handle()
+    }
+
     /// Restore one isolate from one shared immutable image.
     pub fn from_image(image: Arc<IsolateImage>) -> RuntimeResult<Self> {
         let program = Arc::new(Program::new(image.tree.clone(), image.strings.clone())?);
@@ -101,7 +107,6 @@ impl Isolate {
             heap.options().clone(),
             shared.options().clone(),
         )?);
-
         // initialize static data
         self.interpreter
             .initialize_statics(self.program.as_ref(), statics)

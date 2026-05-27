@@ -7,8 +7,7 @@ use crate::program::{
     ConstValue, ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource,
     Op, Projection, ProjectionId, SideRecord, SideTableBuilder, SliceProjection, SliceProjectionId,
     SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
-    TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, TraceMapId,
-    U32RangeId,
+    TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
 };
 use crate::{Error, Result};
 
@@ -16,6 +15,8 @@ use crate::{Error, Result};
 pub(super) struct Pool<'layout, 'table> {
     /// The frame layout being lowered.
     frame_layout: &'layout engine::FrameLayout,
+    /// The canonical program trace table.
+    trace_table: &'layout mir::TraceTable,
     /// The pooled argument values.
     argument: Vec<mir::Value>,
     /// The pooled move pairs.
@@ -29,9 +30,11 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     pub(super) fn new(
         side_table: &'table mut SideTableBuilder,
         frame_layout: &'layout engine::FrameLayout,
+        trace_table: &'layout mir::TraceTable,
     ) -> Self {
         Self {
             frame_layout,
+            trace_table,
             argument: Vec::new(),
             move_pair: Vec::new(),
             side_table,
@@ -78,8 +81,12 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     }
 
     /// Return one pooled trace map id.
-    pub(super) fn trace_map(&mut self, trace_map: mir::TraceMap) -> TraceMapId {
-        self.side_table.push_trace_map(trace_map)
+    pub(super) fn trace_map(&self, trace_map: &mir::TraceMap) -> Result<mir::TraceId> {
+        self.trace_table
+            .id(trace_map)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: "missing program trace map".to_string(),
+            })
     }
 
     /// Return one pooled projection id.

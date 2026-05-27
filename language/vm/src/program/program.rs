@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
@@ -29,6 +30,8 @@ pub struct Program {
     pub(crate) layout: engine::ProgramLayout,
     /// MIR layouts keyed by MIR layout id.
     mir_layouts: LayoutTable,
+    /// Program trace table shared by local and shared heap metadata.
+    trace_table: Arc<mir::TraceTable>,
 
     /// Lookup table for function ids by name.
     function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
@@ -201,12 +204,49 @@ impl Program {
                 context: format!("missing MIR layout {layout_id:?}"),
             });
         };
+        if layout.trace_map.has_reference() {
+            let Some(trace_id) = self.trace_table.id(&layout.trace_map) else {
+                return Err(Error::InvariantViolation {
+                    context: format!("missing MIR trace map for layout {layout_id:?}"),
+                });
+            };
+
+            return Ok(heap::AllocationShape::new(
+                layout.size as usize,
+                layout.alignment as usize,
+                Some(trace_id),
+                &layout.trace_map,
+            ));
+        }
 
         Ok(heap::AllocationShape::new(
             layout.size as usize,
             layout.alignment as usize,
+            None,
             &layout.trace_map,
         ))
+    }
+
+    /// Borrow one program trace map.
+    #[inline]
+    pub(crate) fn trace_map(&self, id: mir::TraceId) -> Result<&mir::TraceMap> {
+        self.trace_table
+            .trace(id)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing program trace map {:?}", id),
+            })
+    }
+
+    /// Return the canonical program trace table.
+    #[inline]
+    pub(crate) fn trace_table(&self) -> &mir::TraceTable {
+        self.trace_table.as_ref()
+    }
+
+    /// Return the canonical program trace table handle.
+    #[inline]
+    pub(crate) fn trace_table_handle(&self) -> Arc<mir::TraceTable> {
+        self.trace_table.clone()
     }
 
     /// Return the layout id for one MIR type.
@@ -591,6 +631,17 @@ fn initializer_ranges(
     Ok(ranges)
 }
 
+/// Build the canonical trace table for one program layout table.
+fn trace_table_from_layouts(layouts: &LayoutTable) -> mir::TraceTable {
+    let mut trace_table = mir::TraceTable::new();
+
+    for layout in &layouts.layouts {
+        trace_table.insert(layout.trace_map.clone());
+    }
+
+    trace_table
+}
+
 /// Build one program from one MIR tree and immutable string pool.
 struct ProgramBuilder {
     heap_options: heap::HeapOptions,
@@ -626,6 +677,7 @@ impl ProgramBuilder {
         let layout_id_by_type = self.build_layout_id_map()?;
         let type_layouts = build_layouts(&self.tree, &layout_id_by_type)?;
         let mir_layouts = self.build_layout_table(&type_layouts)?;
+        let trace_table = Arc::new(trace_table_from_layouts(&mir_layouts));
         let statics = self.build_statics(&type_layouts)?;
         let mut side_table = SideTableBuilder::default();
         let functions = self.build_functions(
@@ -633,6 +685,7 @@ impl ProgramBuilder {
             &target_by_id,
             &type_layouts,
             &layout_id_by_type,
+            trace_table.as_ref(),
             &mut side_table,
         )?;
         let side_table = side_table.finish();
@@ -646,6 +699,7 @@ impl ProgramBuilder {
             statics,
             types,
             mir_layouts,
+            trace_table,
             layout: self.layout,
             resume: self.resume,
             functions,
@@ -860,6 +914,7 @@ impl ProgramBuilder {
         target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+        trace_table: &mir::TraceTable,
         side_table: &mut SideTableBuilder,
     ) -> Result<Vec<Function>> {
         let call_targets = target_by_id.clone();
@@ -873,6 +928,7 @@ impl ProgramBuilder {
                 &call_targets,
                 layouts,
                 layout_id_by_type,
+                trace_table,
                 side_table,
             )?;
             functions.push(function);
@@ -888,6 +944,7 @@ impl ProgramBuilder {
         call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
         layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
+        trace_table: &mir::TraceTable,
         side_table: &mut SideTableBuilder,
     ) -> Result<Function> {
         let function = self.tree.get(function_id);
@@ -911,6 +968,7 @@ impl ProgramBuilder {
             layout_id_by_type,
             &self.heap_options,
             &self.shared_heap_options,
+            trace_table,
             &value_types,
             side_table,
         )?

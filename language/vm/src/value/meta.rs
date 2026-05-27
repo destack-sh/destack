@@ -27,7 +27,7 @@ const REF_SPACE_MASK: u16 = 0x7 << REF_SPACE_SHIFT;
 pub enum ReferenceSpace {
     /// Worker-local heap.
     Local,
-    /// World-shared heap.
+    /// Runtime-shared heap.
     Shared,
     /// Frame bytes.
     Frame,

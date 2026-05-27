@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use destack_engine::{StaticSpace, Value};
 use destack_heap::{
@@ -7,8 +7,8 @@ use destack_heap::{
 };
 
 use crate::SharedHeap;
-use destack_mir::DataLayout;
 use destack_mir::parse::{ParseOptions, Parser};
+use destack_mir::{DataLayout, TraceTable};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
@@ -17,6 +17,12 @@ use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Word};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_BYTES: usize = 16 * 1024 * 1024;
+static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
+
+/// Return the shared empty trace table for VM tests.
+pub(crate) fn trace_table() -> &'static TraceTable {
+    TRACE_TABLE.get_or_init(TraceTable::new)
+}
 
 /// The isolate and authoritative heap used by one test runtime.
 pub(crate) struct TestIsolate {
@@ -26,7 +32,7 @@ pub(crate) struct TestIsolate {
     pub statics: StaticSpace,
     /// The authoritative heap for the isolate.
     pub heap: Heap,
-    /// The world-shared heap for the isolate.
+    /// The runtime-shared heap for the isolate.
     pub shared_heap: SharedHeap,
     /// The shared collector worker used by this isolate.
     pub shared_gc: SharedGcWorker,
@@ -261,6 +267,7 @@ impl TestIsolate {
                 Ok(())
             })
             .expect("failed to collect shared roots");
+        let trace_table = self.isolate.trace_table();
         let mut heap_roots =
             |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
                 self.isolate
@@ -271,11 +278,11 @@ impl TestIsolate {
             };
         let mut stats = self
             .heap
-            .collect_full(&mut heap_roots)
+            .collect_full(&mut heap_roots, trace_table.as_ref())
             .expect("failed to collect heap");
         let shared_stats = self
             .shared_heap
-            .collect_full(&shared_roots)
+            .collect_full(&shared_roots, trace_table.as_ref())
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;

@@ -679,7 +679,12 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
         let mut allocator = isolate.shared_heap.allocation_cache();
         let handle = isolate
             .shared_heap
-            .allocate_zeroed(&isolate.shared_gc, &mut allocator, &layout)
+            .allocate_zeroed(
+                &isolate.shared_gc,
+                &mut allocator,
+                &layout,
+                isolate.isolate.trace_table().as_ref(),
+            )
             .expect("shared heap allocation should succeed");
         isolate.shared_heap.flush_allocation_cache(&mut allocator);
 
