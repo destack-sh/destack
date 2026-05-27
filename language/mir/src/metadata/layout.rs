@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{LocalNodeId, Type};
+use crate::{LocalNodeId, TraceMap, Type};
 
 /// Canonical layout metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -222,112 +222,4 @@ pub struct LayoutField {
     pub alignment: u32,
     /// Original source index for stable mapping.
     pub source_index: Option<u32>,
-}
-
-/// Heap trace metadata for one runtime payload.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TraceMap {
-    /// Payload contains no heap references.
-    Empty,
-    /// Payload stores heap-reference words at fixed byte offsets.
-    Fixed {
-        /// Byte offsets of encoded local heap references.
-        local_offsets: Box<[u32]>,
-        /// Byte offsets of encoded shared heap references.
-        shared_offsets: Box<[u32]>,
-    },
-    /// Payload stores one nested map at a byte offset.
-    Nested {
-        /// The byte offset of the nested payload.
-        byte_offset: u32,
-        /// The nested trace map.
-        map: Box<TraceMap>,
-    },
-    /// Payload stores multiple nested maps.
-    Composite {
-        /// The nested trace maps.
-        maps: Box<[TraceMap]>,
-    },
-    /// Payload stores repeated elements with one nested trace map.
-    Repeated {
-        /// The number of elements in the payload.
-        count: u32,
-        /// The element byte stride.
-        stride: u32,
-        /// The per-element trace map.
-        element: Box<TraceMap>,
-    },
-    /// Payload stores a tagged variant with variant-specific trace maps.
-    Tagged {
-        /// The byte offset of the variant tag.
-        tag_offset: u32,
-        /// The byte width of the variant tag.
-        tag_bytes: u8,
-        /// Variant trace maps keyed by normalized tag value.
-        variants: Box<[TraceVariant]>,
-    },
-}
-
-/// One tag-selected trace variant.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TraceVariant {
-    /// The normalized numeric tag value selecting this variant.
-    pub tag: u64,
-    /// The byte offset of the variant storage.
-    pub storage_offset: u32,
-    /// The storage trace map for this variant.
-    pub map: TraceMap,
-}
-
-impl TraceMap {
-    /// Return the empty trace map.
-    pub const fn empty() -> Self {
-        Self::Empty
-    }
-
-    /// Report whether this map can reach heap references.
-    pub fn has_reference(&self) -> bool {
-        self.has_local_reference() || self.has_shared_reference()
-    }
-
-    /// Report whether this map can reach local heap references.
-    pub fn has_local_reference(&self) -> bool {
-        match self {
-            Self::Empty => false,
-            Self::Fixed { local_offsets, .. } => !local_offsets.is_empty(),
-            Self::Nested { map, .. } => map.has_local_reference(),
-            Self::Composite { maps } => maps.iter().any(Self::has_local_reference),
-            Self::Repeated { count, element, .. } => *count > 0 && element.has_local_reference(),
-            Self::Tagged { variants, .. } => variants
-                .iter()
-                .any(|variant| variant.map.has_local_reference()),
-        }
-    }
-
-    /// Report whether this map can reach shared heap references.
-    pub fn has_shared_reference(&self) -> bool {
-        match self {
-            Self::Empty => false,
-            Self::Fixed { shared_offsets, .. } => !shared_offsets.is_empty(),
-            Self::Nested { map, .. } => map.has_shared_reference(),
-            Self::Composite { maps } => maps.iter().any(Self::has_shared_reference),
-            Self::Repeated { count, element, .. } => *count > 0 && element.has_shared_reference(),
-            Self::Tagged { variants, .. } => variants
-                .iter()
-                .any(|variant| variant.map.has_shared_reference()),
-        }
-    }
-
-    /// Report whether this map requires reading payload tags while scanning.
-    pub fn has_tagged_reference(&self) -> bool {
-        match self {
-            Self::Empty | Self::Fixed { .. } => false,
-            Self::Nested { map, .. } => map.has_tagged_reference(),
-            Self::Composite { maps } => maps.iter().any(Self::has_tagged_reference),
-            Self::Repeated { element, .. } => element.has_tagged_reference(),
-            Self::Tagged { variants, .. } => {
-                variants.iter().any(|variant| variant.map.has_reference())
-            }
-        }
-    }
 }
