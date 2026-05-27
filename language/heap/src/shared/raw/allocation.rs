@@ -8,7 +8,7 @@ pub(crate) struct SharedRawAllocation {
     /// The first byte offset inside shared raw space.
     pub(crate) first_offset: usize,
     /// The logical byte length of this allocation.
-    pub(crate) len: usize,
+    pub(crate) byte_len: usize,
     /// The allocator pages for this allocation.
     pub(crate) pages: PageRun,
 }
@@ -19,17 +19,17 @@ impl SharedRawAllocation {
         Self {
             is_live: false,
             first_offset: 0,
-            len: 0,
+            byte_len: 0,
             pages: PageRun::empty(),
         }
     }
 
     /// Create one live shared allocation.
-    pub(crate) const fn new(first_offset: usize, len: usize, pages: PageRun) -> Self {
+    pub(crate) const fn new(first_offset: usize, byte_len: usize, pages: PageRun) -> Self {
         Self {
             is_live: true,
             first_offset,
-            len,
+            byte_len,
             pages,
         }
     }

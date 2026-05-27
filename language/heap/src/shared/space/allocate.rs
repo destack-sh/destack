@@ -4,9 +4,9 @@ use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{
-    SharedAllocator, SharedHeapPageMapEntry, SharedHeapPlace, SharedHeapSpace, SharedHeapState,
-    SharedLargeAllocation, SharedLargeAllocationId, SharedSmallSpan, SmallAllocation, SmallBucket,
-    SmallRun, SpanList,
+    SharedAllocationCache, SharedHeapPageMapEntry, SharedHeapPlace, SharedHeapSpace,
+    SharedHeapState, SharedLargeAllocation, SharedLargeAllocationId, SharedSmallSpan,
+    SmallAllocation, SmallBucket, SmallRun, SpanList,
 };
 use crate::allocator::{PageRun, SpanSlot};
 use crate::{
@@ -18,7 +18,7 @@ impl SharedHeapSpace {
     /// Allocate one shared managed heap allocation.
     pub fn allocate(
         &self,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
         should_keep_worker_bucket: bool,
@@ -39,7 +39,7 @@ impl SharedHeapSpace {
         }
 
         // allocate the payload bytes
-        let place = self.allocate_place(allocator, layout, payload, should_keep_worker_bucket)?;
+        let place = self.allocate_place(cache, layout, payload, should_keep_worker_bucket)?;
         let reference = self.base_reference_for_place(place)?;
 
         // publish initialized shared references to an active mark cycle
@@ -53,7 +53,7 @@ impl SharedHeapSpace {
     #[inline(always)]
     pub(crate) fn try_allocate_worker_small(
         &self,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<Option<SharedHeapReference>> {
@@ -64,8 +64,8 @@ impl SharedHeapSpace {
         let bucket_index = small.bucket_index;
 
         // inactive buckets have no local slots
-        let run = &mut allocator.runs[bucket_index];
-        let bucket = &mut allocator.small[bucket_index];
+        let run = &mut cache.runs[bucket_index];
+        let bucket = &mut cache.small[bucket_index];
         if !bucket.is_active() {
             return Ok(None);
         }
@@ -134,12 +134,12 @@ impl SharedHeapSpace {
     }
 
     /// Publish and retire every worker-local small run.
-    pub(crate) fn flush_allocator(&self, allocator: &mut SharedAllocator) {
+    pub(crate) fn flush_allocation_cache(&self, cache: &mut SharedAllocationCache) {
         let mut store = self.state.write();
 
         // publish each worker-owned bucket back to central state
-        for (bucket_index, bucket) in allocator.small.iter_mut().enumerate() {
-            let run = &mut allocator.runs[bucket_index];
+        for (bucket_index, bucket) in cache.small.iter_mut().enumerate() {
+            let run = &mut cache.runs[bucket_index];
             let Some(span) = bucket.span.clone() else {
                 continue;
             };
@@ -164,7 +164,7 @@ impl SharedHeapSpace {
     /// Return the projected retained-byte delta for one shared heap layout.
     pub(crate) fn retained_byte_delta(
         &self,
-        allocator: &SharedAllocator,
+        cache: &SharedAllocationCache,
         layout: &AllocationPlan<'_>,
     ) -> HeapResult<i64> {
         // heap allocations must have a physical payload
@@ -175,8 +175,8 @@ impl SharedHeapSpace {
         // small allocations may reuse worker-local or central slots
         if let Some(small) = layout.class.small() {
             let bucket_index = small.bucket_index;
-            let bucket = &allocator.small[bucket_index];
-            let run = &allocator.runs[bucket_index];
+            let bucket = &cache.small[bucket_index];
+            let run = &cache.runs[bucket_index];
             if bucket.span.as_ref().is_some_and(|span| {
                 span.list.load() == SpanList::Worker && bucket.has_available_slot(run)
             }) {
@@ -259,7 +259,7 @@ impl SharedHeapSpace {
     /// Allocate one shared heap place for the given payload.
     fn allocate_place(
         &self,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
         should_keep_worker_bucket: bool,
@@ -269,7 +269,7 @@ impl SharedHeapSpace {
             let bucket_index = small.bucket_index;
             let class = small.class;
             let slot = self.allocate_small(
-                allocator,
+                cache,
                 bucket_index,
                 &class,
                 layout.trace_map,
@@ -432,7 +432,7 @@ impl SharedHeapSpace {
     /// Allocate one shared heap small slot from one explicit initialization source.
     fn allocate_small(
         &self,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         bucket_index: usize,
         class: &SmallSpanClass,
         trace_map: &TraceMap,
@@ -440,11 +440,11 @@ impl SharedHeapSpace {
         should_keep_worker_bucket: bool,
     ) -> HeapResult<SpanSlot> {
         // reuse the worker-owned span when it still has a slot
-        if allocator.small[bucket_index].is_active() {
+        if cache.small[bucket_index].is_active() {
             let mut should_release_bucket = false;
             let allocated_slot = {
-                let run = &mut allocator.runs[bucket_index];
-                let bucket = &mut allocator.small[bucket_index];
+                let run = &mut cache.runs[bucket_index];
+                let bucket = &mut cache.small[bucket_index];
                 let allocation = self.try_allocate_small_slot(bucket, run, trace_map, payload)?;
 
                 if let Some(allocation) = allocation {
@@ -475,7 +475,7 @@ impl SharedHeapSpace {
 
             // centralize a bucket whose free slots must remain visible
             if should_release_bucket {
-                self.release_allocator_bucket(allocator, bucket_index);
+                self.release_cache_bucket(cache, bucket_index);
             }
 
             // return the slot if the active bucket produced one
@@ -488,15 +488,15 @@ impl SharedHeapSpace {
         {
             let mut store = self.state.write();
             let (span_index, use_dense_run) = self.allocate_small_span(&mut store, class)?;
-            let run = &mut allocator.runs[bucket_index];
-            let bucket = &mut allocator.small[bucket_index];
+            let run = &mut cache.runs[bucket_index];
+            let bucket = &mut cache.small[bucket_index];
 
             self.install_small_bucket(&store, bucket, run, span_index, use_dense_run)?;
         }
 
         // initialize one slot from the newly installed worker bucket
-        let run = &mut allocator.runs[bucket_index];
-        let bucket = &mut allocator.small[bucket_index];
+        let run = &mut cache.runs[bucket_index];
+        let bucket = &mut cache.small[bucket_index];
         let allocation = match payload {
             Payload::Zeroed if !trace_map.has_reference() => {
                 self.try_allocate_zeroed_noscan_slot(bucket, run)?
@@ -525,18 +525,18 @@ impl SharedHeapSpace {
 
         // return published buckets to the central partial list
         if should_release_bucket {
-            self.release_allocator_bucket(allocator, bucket_index);
+            self.release_cache_bucket(cache, bucket_index);
         }
 
         Ok(slot)
     }
 
     /// Return one worker-local bucket to the central list.
-    fn release_allocator_bucket(&self, allocator: &mut SharedAllocator, bucket_index: usize) {
+    fn release_cache_bucket(&self, cache: &mut SharedAllocationCache, bucket_index: usize) {
         // take the worker-owned span
         let mut store = self.state.write();
-        let run = &mut allocator.runs[bucket_index];
-        let bucket = &mut allocator.small[bucket_index];
+        let run = &mut cache.runs[bucket_index];
+        let bucket = &mut cache.small[bucket_index];
         let Some(span) = bucket.span.clone() else {
             return;
         };
@@ -728,7 +728,7 @@ impl SharedHeapSpace {
     fn insert_large_allocation(
         &self,
         store: &mut SharedHeapState,
-        len: usize,
+        byte_len: usize,
         alignment: usize,
         pages: PageRun,
         trace_map: TraceMap,
@@ -815,7 +815,7 @@ impl SharedHeapSpace {
         let allocation = SharedLargeAllocation {
             is_live: true,
             first_offset,
-            len,
+            byte_len,
             pages,
             trace_map,
             mark_epoch: 0,

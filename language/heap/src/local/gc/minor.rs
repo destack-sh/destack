@@ -3,15 +3,18 @@ use crate::local::space::{
     HeapTraceQueue, LargeAllocationId, YoungGcPhase, YoungPlace, YoungRunCursor,
 };
 use crate::{
-    GcProgress, HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource,
-    scan_heap_references, scan_heap_references_in_range, slot_trace_map,
+    GcProgress, HeapError, HeapReference, HeapResult, RootSlot, ScanSource, scan_heap_references,
+    scan_heap_references_in_range, slot_trace_map,
 };
 
 impl HeapSpace {
     /// Perform one young-generation collection over mutable heap roots.
-    pub fn collect_minor<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    pub fn collect_minor<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<GcStats, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         self.start_young_gc()?;
 
@@ -37,13 +40,12 @@ impl HeapSpace {
     /// Start one local young collection.
     pub(crate) fn start_young_gc(&mut self) -> HeapResult<()> {
         // reject overlapping collection work
-        if self.collector.is_collecting {
+        if self.collector.is_collecting() {
             return Err(HeapError::HeapCollectionActive);
         }
 
         // reset minor cycle cursors
         self.clear_young_mark_bits();
-        self.young.clear_forwarding();
         self.collector.minor_queue.clear();
         self.collector.young_phase = YoungGcPhase::Mark;
         self.collector.young_sweep_range_cursor = 0;
@@ -55,19 +57,18 @@ impl HeapSpace {
         self.collector.young_dirty_large_card_cursor = 0;
         self.collector.young_freed_allocations = 0;
         self.collector.young_freed_bytes = 0;
-        self.collector.is_collecting = true;
 
         Ok(())
     }
 
     /// Drain one active local young collection at a safepoint.
-    pub(crate) fn step_young_gc<R>(
+    pub(crate) fn step_young_gc<E>(
         &mut self,
-        roots: &mut R,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-    ) -> Result<GcProgress, R::Error>
+    ) -> Result<GcProgress, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         // no active work
         if budget_bytes == 0 || self.collector.young_phase == YoungGcPhase::Idle {
@@ -82,13 +83,13 @@ impl HeapSpace {
     }
 
     /// Mark reachable young allocations and remembered mature writes.
-    fn mark_young_gc_step<R>(
+    fn mark_young_gc_step<E>(
         &mut self,
-        roots: &mut R,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-    ) -> Result<GcProgress, R::Error>
+    ) -> Result<GcProgress, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         self.seed_young_roots(roots)?;
         let dirty_bytes = self.scan_dirty_young_references_step(budget_bytes)?;
@@ -118,13 +119,16 @@ impl HeapSpace {
     }
 
     /// Seed the active young trace queue from roots and pins.
-    fn seed_young_roots<R>(&mut self, roots: &mut R) -> Result<(), R::Error>
+    fn seed_young_roots<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<(), E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         let mut pending = std::mem::take(&mut self.collector.minor_queue);
 
-        roots.visit_root_slots(&mut |slot: RootSlot<'_>| {
+        roots(&mut |slot: RootSlot<'_>| {
             let Some(reference) = slot.load_heap_reference()? else {
                 return Ok(());
             };
@@ -171,7 +175,6 @@ impl HeapSpace {
         self.compact_dirty_young_reference_queues();
         self.collector.young_freed_allocations = 0;
         self.collector.young_freed_bytes = 0;
-        self.collector.is_collecting = false;
 
         Ok(stats)
     }
@@ -232,20 +235,20 @@ impl HeapSpace {
     }
 
     /// Sweep unreachable young references within one byte budget.
-    fn sweep_young_gc_step<R>(
+    fn sweep_young_gc_step<E>(
         &mut self,
-        roots: &mut R,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-    ) -> Result<GcProgress, R::Error>
+    ) -> Result<GcProgress, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         let mut swept_bytes = 0usize;
 
         self.sweep_young_ranges_step(budget_bytes, &mut swept_bytes)?;
         self.sweep_young_runs_step(budget_bytes, &mut swept_bytes)?;
 
-        if self.collector.young_sweep_range_cursor >= self.young.live.capacity()
+        if self.collector.young_sweep_range_cursor >= self.young.ranges.len()
             && self.collector.young_sweep_run_cursor >= self.young.runs.len()
         {
             // young relocation must drain before the mutator resumes
@@ -267,7 +270,7 @@ impl HeapSpace {
         swept_bytes: &mut usize,
     ) -> HeapResult<()> {
         while *swept_bytes < budget_bytes
-            && self.collector.young_sweep_range_cursor < self.young.live.capacity()
+            && self.collector.young_sweep_range_cursor < self.young.ranges.len()
         {
             let Some(allocation_index) = self
                 .young
@@ -276,7 +279,7 @@ impl HeapSpace {
             else {
                 self.collector.young_sweep_range_cursor = charge_bitmap_skip(
                     self.collector.young_sweep_range_cursor,
-                    self.young.live.capacity(),
+                    self.young.ranges.len(),
                     budget_bytes,
                     swept_bytes,
                 );
@@ -342,7 +345,7 @@ impl HeapSpace {
             let reserved_slots = self
                 .young
                 .run_reserved_slot_count(run_index)
-                .unwrap_or(run.slot_count);
+                .unwrap_or_else(|| run.slot_count());
 
             while *swept_bytes < budget_bytes
                 && self.collector.young_sweep_slot_cursor < reserved_slots
@@ -388,18 +391,14 @@ impl HeapSpace {
 
     /// Recycle empty young metadata without changing the reserved page run.
     fn recycle_young_space(&mut self) {
-        self.young.generation += 1;
         self.young.next_offset = self.young.allocation_alignment_bytes;
-        self.young.starts.clear_all();
+        self.young.ranges.clear();
         self.young.live.clear_all();
         self.young.marked.clear_all();
-        self.young.survivor_ages.fill(0);
-        self.young.forwarding.clear();
         self.young.local_reference_bits.clear_all();
         self.young.shared_reference_bits.clear_all();
         self.young.runs.clear();
         self.young.run_bits.clear();
-        self.young.forwarding.clear_runs();
         self.young.run_buckets.fill(None);
         self.young.run_cursor = YoungRunCursor::inactive();
         self.young.page_runs.fill(None);

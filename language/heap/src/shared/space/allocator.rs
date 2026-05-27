@@ -4,19 +4,19 @@ use super::{SharedSmallSpan, SpanList};
 use crate::allocator::{SizeClassTable, SpanSlot};
 use crate::{AllocationPlan, SharedHeapReference, SmallAllocationPlan, SmallSpanClass};
 
-/// One worker-local shared heap allocator.
+/// One mutator-local shared allocation cache.
 #[derive(Debug)]
-pub struct SharedAllocator {
-    /// The worker-local dense allocation runs.
+pub struct SharedAllocationCache {
+    /// The mutator-local dense allocation runs.
     pub(super) runs: Vec<SmallRun>,
-    /// The worker-local small allocation buckets.
+    /// The mutator-local small allocation buckets.
     pub(super) small: Vec<SmallBucket>,
 }
 
-// SAFETY: runtime worker ownership keeps one shared allocator on one worker at a time
-unsafe impl Send for SharedAllocator {}
+// SAFETY: runtime worker ownership keeps one shared cache on one worker at a time
+unsafe impl Send for SharedAllocationCache {}
 
-/// One worker-local small allocation bucket.
+/// One mutator-local small allocation bucket.
 #[derive(Debug)]
 pub(super) struct SmallBucket {
     /// The homogeneous payload class allocated by this bucket.
@@ -29,11 +29,11 @@ pub(super) struct SmallBucket {
     pub(super) first_offset: usize,
     /// The number of slots in this span.
     pub(super) slot_count: usize,
-    /// The next never-tried slot for this allocator.
+    /// The next never-tried slot for this cache.
     pub(super) next_slot: usize,
 }
 
-/// One worker-local dense shared small allocation run.
+/// One mutator-local dense shared small allocation run.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct SmallRun {
     /// The next byte offset allocated from this run.
@@ -51,7 +51,7 @@ pub(super) struct SmallSlot {
     pub(super) is_dense: bool,
 }
 
-/// One shared small allocation from a worker-local bucket.
+/// One shared small allocation from a mutator-local bucket.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct SmallAllocation {
     /// The allocated small slot.
@@ -62,8 +62,8 @@ pub(super) struct SmallAllocation {
     pub(super) keep_bucket: bool,
 }
 
-impl SharedAllocator {
-    /// Create one empty worker-local shared allocator.
+impl SharedAllocationCache {
+    /// Create one empty mutator-local shared allocation cache.
     pub(super) fn new(size_classes: SizeClassTable, span_bytes: usize, page_bytes: usize) -> Self {
         let mut small = Vec::with_capacity(SmallSpanClass::bucket_count(&size_classes));
         let mut runs = Vec::with_capacity(SmallSpanClass::bucket_count(&size_classes));

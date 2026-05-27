@@ -66,7 +66,6 @@ impl RawSpace {
                 partial_spans: BTreeMap::new(),
             },
             large: LargeSpace {
-                page_bytes: options.page_bytes,
                 allocations: CowTable::new(),
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
@@ -254,11 +253,11 @@ impl RawSpace {
                 let allocation = self.large_allocation(allocation_id)?;
                 let logical_byte_offset =
                     logical_page_index * self.allocator.page_bytes() + page_offset;
-                if allocation.len == 0 {
+                if allocation.byte_len == 0 {
                     if logical_byte_offset != 0 {
                         return None;
                     }
-                } else if logical_byte_offset >= allocation.len {
+                } else if logical_byte_offset >= allocation.byte_len {
                     return None;
                 }
 
@@ -266,7 +265,7 @@ impl RawSpace {
                     place: RawPlace::Large(allocation_id),
                     base: RawPointer::new(allocation.first_offset),
                     byte_offset: logical_byte_offset,
-                    byte_len: allocation.len,
+                    byte_len: allocation.byte_len,
                 })
             }
         }
@@ -374,8 +373,6 @@ pub(crate) struct SmallSpace {
 /// One raw large space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeSpace {
-    /// The configured page width for allocations in large space.
-    pub(crate) page_bytes: usize,
     /// The live raw allocations.
     pub(crate) allocations: CowTable<LargeAllocation>,
     /// The free raw allocation ids available for reuse.

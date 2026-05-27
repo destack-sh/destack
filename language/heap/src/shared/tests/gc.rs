@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    Allocator, GcKind, GcOptions, GcProgress, HeapError, Payload, SharedAllocator, SharedGcPhase,
-    SharedGcWorker, SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedHeapReference,
-    SizeClassTable, TestLayout, test_layout, test_layouts,
+    Allocator, GcKind, GcOptions, GcProgress, HeapError, Payload, SharedAllocationCache,
+    SharedGcPhase, SharedGcWorker, SharedHeap, SharedHeapLimits, SharedHeapOptions,
+    SharedHeapReference, SizeClassTable, TestLayout, test_layout, test_layouts,
 };
 use destack_mir::TraceMap;
 
@@ -12,7 +12,12 @@ use super::{read_mapped_bytes, write_mapped_bytes};
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
 fn test_shared_heap(
     layouts: &[(usize, TraceMap)],
-) -> (SharedHeap, SharedAllocator, SharedGcWorker, Vec<TestLayout>) {
+) -> (
+    SharedHeap,
+    SharedAllocationCache,
+    SharedGcWorker,
+    Vec<TestLayout>,
+) {
     let options = SharedHeapOptions {
         gc: GcOptions {
             growth_percent: 0,
@@ -36,15 +41,15 @@ fn test_shared_heap(
     )
     .expect("shared heap should build");
 
-    let allocator = heap.allocator();
+    let allocator = heap.allocation_cache();
     let worker = heap.register_collector_worker();
 
     (heap, allocator, worker, layouts)
 }
 
 /// Publish worker-local shared allocations before a direct heap collection.
-fn flush_shared_allocator(shared: &SharedHeap, allocator: &mut SharedAllocator) {
-    shared.flush_allocator(allocator);
+fn flush_shared_cache(shared: &SharedHeap, cache: &mut SharedAllocationCache) {
+    shared.flush_allocation_cache(cache);
 }
 
 /// Reject one zero-size shared managed heap allocation.
@@ -123,7 +128,7 @@ fn test_collect_shared_frees_unreachable_entries() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     let stats = shared
         .collect_full(&[reachable])
@@ -159,7 +164,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
         options,
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     let full_layout = test_layout(8, TraceMap::empty());
     let short_layout = test_layout(1, TraceMap::empty());
@@ -181,7 +186,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     shared
         .collect_full(&[second])
@@ -234,7 +239,7 @@ fn test_collect_shared_keeps_reachable_children() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     let stats = shared
         .collect_full(&[parent])
@@ -293,7 +298,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -364,7 +369,7 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -428,7 +433,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
         options.clone(),
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     let reference = shared
         .allocate(
@@ -438,7 +443,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     let stats = shared
         .collect_full(&[reference])
@@ -466,7 +471,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
         options,
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     let reference = shared
         .allocate(
@@ -476,7 +481,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
         )
         .expect("shared heap allocation should succeed");
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     let stats = shared
         .collect_full(&[reference])
@@ -518,7 +523,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -561,7 +566,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     shared.request_gc();
     assert!(
@@ -662,7 +667,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     shared.request_gc();
     assert!(
@@ -726,7 +731,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),
@@ -788,7 +793,7 @@ fn test_collect_step_honors_manual_request() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     shared.request_gc();
     assert!(
@@ -817,7 +822,7 @@ fn test_shared_gc_budget_consumes_cycle_work() {
         )
         .expect("shared heap allocation should succeed");
 
-    flush_shared_allocator(&shared, &mut allocator);
+    flush_shared_cache(&shared, &mut allocator);
 
     assert!(
         shared.start_gc().expect("shared collection should start"),

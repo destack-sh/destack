@@ -211,28 +211,27 @@ impl SharedTraceQueue {
         self.global.push(work);
     }
 
-    /// Pop one bounded batch of pending work.
+    /// Pop one bounded batch of pending work into the caller buffer.
     pub(crate) fn pop_batch(
         &self,
         worker: Option<&SharedGcWorker>,
         batch_len: usize,
-    ) -> Vec<SharedTraceWork> {
-        let mut batch = Vec::with_capacity(batch_len);
+        batch: &mut Vec<SharedTraceWork>,
+    ) {
+        batch.clear();
 
         // local queue
         if let Some(worker) = worker {
-            self.pop_from_worker(worker, batch_len, &mut batch);
+            self.pop_from_worker(worker, batch_len, batch);
         }
 
         // global queue
-        self.pop_from_global(worker, batch_len, &mut batch);
+        self.pop_from_global(worker, batch_len, batch);
 
         // other workers
         if batch.len() < batch_len {
-            self.steal_from_workers(worker, batch_len, &mut batch);
+            self.steal_from_workers(worker, batch_len, batch);
         }
-
-        batch
     }
 
     /// Return whether every queue is currently empty.
@@ -466,7 +465,8 @@ mod tests {
             },
         );
 
-        let batch = queue.pop_batch(Some(&worker), 2);
+        let mut batch = Vec::new();
+        queue.pop_batch(Some(&worker), 2, &mut batch);
 
         assert_eq!(
             batch,

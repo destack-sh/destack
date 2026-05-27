@@ -1,4 +1,3 @@
-use std::num::NonZeroU8;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
@@ -47,8 +46,6 @@ pub struct HeapSpace {
 
     /// The maximum payload size routed to young space.
     pub(crate) max_young_allocation_bytes: usize,
-    /// The minor-cycle survivor count before young allocations promote.
-    pub(crate) young_promotion_age: NonZeroU8,
     /// The completed GC cycle summary.
     pub(crate) gc: GcState,
     /// The active collector state.
@@ -100,7 +97,6 @@ impl HeapSpace {
             allocator,
             page_run_cache,
             max_young_allocation_bytes,
-            young_promotion_age: options.young_promotion_age,
             young,
             small: SmallSpace {
                 size_classes: options.size_classes.clone(),
@@ -112,7 +108,6 @@ impl HeapSpace {
                 ],
             },
             large: LargeSpace {
-                page_bytes: options.page_bytes,
                 allocations: CowTable::new(),
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
@@ -380,7 +375,7 @@ impl HeapSpace {
                 .ok_or(HeapError::MissingLargeAllocation {
                     allocation_id: allocation_id.id(),
                 })?
-                .len),
+                .byte_len),
         }
     }
 
@@ -564,8 +559,6 @@ pub(crate) struct SmallSpace {
 /// One heap large space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeSpace {
-    /// The configured page width for allocations in large space.
-    pub(crate) page_bytes: usize,
     /// The live heap allocations.
     pub(crate) allocations: CowTable<LargeAllocation>,
     /// The free heap allocation ids available for reuse.

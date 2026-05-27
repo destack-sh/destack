@@ -530,13 +530,13 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
 
                         let start = Instant::now();
                         thread::scope(|scope| {
-                            // each worker allocates from its own shared allocator cache
+                            // each worker allocates from its own shared allocation cache
                             for _ in 0..*worker_count {
                                 let shared = Arc::clone(&shared);
                                 let barrier = Arc::clone(&barrier);
 
                                 scope.spawn(move || {
-                                    let mut allocator = shared.allocator();
+                                    let mut allocator = shared.allocation_cache();
                                     let worker = shared.register_collector_worker();
                                     barrier.wait();
 

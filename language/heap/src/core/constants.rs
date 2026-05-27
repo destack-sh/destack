@@ -1,5 +1,3 @@
-use std::num::NonZeroU8;
-
 use crate::SizeClassPolicy;
 use crate::allocator::DEFAULT_PAGE_BYTES;
 
@@ -24,9 +22,6 @@ pub(crate) const DEFAULT_CARD_BYTES: usize = DEFAULT_PAGE_BYTES / 32;
 
 /// The standard nursery bypass threshold for larger payloads.
 pub const DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES: usize = SizeClassPolicy::DEFAULT_MAX_BYTES;
-
-/// The standard minor-cycle survivor count before promotion.
-pub const DEFAULT_YOUNG_PROMOTION_AGE: NonZeroU8 = NonZeroU8::MIN;
 
 /// The standard alignment for configured small-allocation classes.
 pub const DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES: usize =

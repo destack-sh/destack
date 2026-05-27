@@ -6,13 +6,14 @@ use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    SharedAllocator, SharedGcPacer, SharedGcPhase, SharedGcWorker, SharedHeapLimits,
+    SharedAllocationCache, SharedGcPacer, SharedGcPhase, SharedGcWorker, SharedHeapLimits,
     SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
     AllocationPlan, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
     GcState, GcStats, HeapError, HeapResult, PageId, PageRun, Payload, RawAllocationShape,
-    SharedHeapOptions, SharedHeapReference, SharedRawPointer, apply_byte_delta,
+    SharedHeapOptions, SharedHeapReference, SharedRawPointer, SmallAllocationPlan,
+    apply_byte_delta,
 };
 
 /// One live world-shared heap.
@@ -389,14 +390,14 @@ impl SharedHeap {
         self.raw.free(pointer)
     }
 
-    /// Create one worker-local shared heap allocator.
-    pub fn allocator(&self) -> SharedAllocator {
-        self.heap.allocator()
+    /// Create one mutator-local shared allocation cache.
+    pub fn allocation_cache(&self) -> SharedAllocationCache {
+        self.heap.allocation_cache()
     }
 
-    /// Publish and retire every worker-local shared heap run.
-    pub fn flush_allocator(&self, allocator: &mut SharedAllocator) {
-        self.heap.flush_allocator(allocator);
+    /// Publish and retire every mutator-local shared allocation run.
+    pub fn flush_allocation_cache(&self, cache: &mut SharedAllocationCache) {
+        self.heap.flush_allocation_cache(cache);
     }
 
     /// Allocate one shared managed heap allocation.
@@ -404,11 +405,11 @@ impl SharedHeap {
     pub fn allocate(
         &self,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, allocator, layout, allocation)
+        self.allocate_payload(worker, cache, layout, allocation)
     }
 
     /// Allocate one byte-initialized shared managed heap allocation.
@@ -416,11 +417,11 @@ impl SharedHeap {
     pub fn allocate_bytes(
         &self,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         bytes: &[u8],
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, allocator, layout, Payload::Bytes(bytes))
+        self.allocate_payload(worker, cache, layout, Payload::Bytes(bytes))
     }
 
     /// Allocate one zeroed shared managed heap allocation.
@@ -428,7 +429,7 @@ impl SharedHeap {
     pub fn allocate_zeroed(
         &self,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
     ) -> HeapResult<SharedHeapReference> {
         if layout.is_empty() {
@@ -441,34 +442,25 @@ impl SharedHeap {
         if !is_active_collection
             && layout.is_noscan
             && let Some(small) = layout.class.small()
-            && let Some(reference) = allocator.reserve_small_zeroed(small)
+            && let Some(reference) = cache.reserve_small_zeroed(small)
         {
             self.heap.accounting.allocate(small.slot_bytes());
 
             return Ok(reference);
         }
 
-        self.allocate_zeroed_refill(worker, allocator, layout)
+        self.allocate_zeroed_refill(worker, cache, layout)
     }
 
-    /// Reserve one zeroed worker-local shared small allocation from trusted instruction fields.
-    ///
-    /// The caller must pass a bucket index and slot byte width from the same resolved small allocation.
-    ///
-    /// # Safety
-    ///
-    /// `bucket_index` must identify the bucket that owns `slot_bytes`.
+    /// Reserve one zeroed worker-local shared small allocation from one resolved plan.
     #[inline(always)]
-    pub unsafe fn reserve_zeroed_small_unchecked(
+    pub fn reserve_small_zeroed(
         &self,
-        allocator: &mut SharedAllocator,
-        bucket_index: usize,
-        slot_bytes: usize,
+        cache: &mut SharedAllocationCache,
+        small: SmallAllocationPlan,
     ) -> Option<SharedHeapReference> {
-        // SAFETY: caller resolved both values from the same small allocation plan
-        let reference =
-            unsafe { allocator.reserve_zeroed_run_slot_unchecked(bucket_index, slot_bytes)? };
-        self.heap.accounting.allocate(slot_bytes);
+        let reference = cache.reserve_small_zeroed(small)?;
+        self.heap.accounting.allocate(small.slot_bytes());
 
         Some(reference)
     }
@@ -479,10 +471,10 @@ impl SharedHeap {
     fn allocate_zeroed_refill(
         &self,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, allocator, layout, Payload::Zeroed)
+        self.allocate_payload(worker, cache, layout, Payload::Zeroed)
     }
 
     /// Allocate one shared managed payload.
@@ -490,7 +482,7 @@ impl SharedHeap {
     fn allocate_payload(
         &self,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
@@ -513,27 +505,27 @@ impl SharedHeap {
         if !is_active_collection
             && let Some(reference) = self
                 .heap
-                .try_allocate_worker_small(allocator, layout, payload)?
+                .try_allocate_worker_small(cache, layout, payload)?
         {
             return Ok(reference);
         }
 
         // active marking needs immediately published allocations
         if is_active_collection {
-            self.flush_allocator(allocator);
+            self.flush_allocation_cache(cache);
         }
 
-        let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
+        let retained_byte_delta = self.heap.retained_byte_delta(cache, layout)?;
         self.check_heap_retained_byte_delta(retained_byte_delta)?;
 
-        let pressure_bytes = allocator.plan_run_charge_bytes(layout);
+        let pressure_bytes = cache.plan_run_charge_bytes(layout);
 
         // mark assist before acquiring another shared allocation run
         self.assist_allocation(worker, pressure_bytes)?;
 
         let reference = self
             .heap
-            .allocate(allocator, layout, payload, !is_active_collection)?;
+            .allocate(cache, layout, payload, !is_active_collection)?;
         if !is_active_collection {
             self.accrue_assist_debt(pressure_bytes);
         }
@@ -554,7 +546,7 @@ impl SharedHeap {
     }
 
     /// Free one shared heap allocation immediately.
-    pub fn free_heap(&self, reference: SharedHeapReference) -> HeapResult<()> {
+    pub fn free(&self, reference: SharedHeapReference) -> HeapResult<()> {
         self.heap.free(reference).map(|_| ())
     }
 

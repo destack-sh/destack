@@ -137,7 +137,7 @@ fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) ->
             continue;
         }
 
-        return read_large_allocation_bytes(allocator, &allocation.pages, allocation.len);
+        return read_large_allocation_bytes(allocator, &allocation.pages, allocation.byte_len);
     }
 
     panic!("heap image should contain one live allocation")
@@ -165,7 +165,7 @@ fn read_first_raw_image_bytes(image: &RawSpaceImage) -> Vec<u8> {
             continue;
         }
 
-        return allocation.bytes[..allocation.len].to_vec();
+        return allocation.bytes[..allocation.byte_len].to_vec();
     }
 
     panic!("raw image should contain one live allocation")

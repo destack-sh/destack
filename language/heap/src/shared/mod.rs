@@ -15,7 +15,7 @@ pub use heap::{SharedHeap, SharedHeapImage, SharedHeapSnapshot};
 pub use options::SharedHeapOptions;
 pub use raw::{SharedRawAllocationImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};
 pub use space::{
-    SharedAllocator, SharedHeapLargeAllocationImage, SharedHeapReference, SharedHeapSmallSpanImage,
-    SharedHeapSpace, SharedHeapSpaceImage,
+    SharedAllocationCache, SharedHeapLargeAllocationImage, SharedHeapReference,
+    SharedHeapSmallSpanImage, SharedHeapSpace, SharedHeapSpaceImage,
 };
 pub use usage::{SharedHeapSpaceUsage, SharedHeapUsage, SharedRawSpaceUsage};

@@ -149,10 +149,10 @@ fn test_roundtrip_shared_heap_space_image() {
     // capture two allocations in one shared small span
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
-    let mut shared_allocator = heap.allocator();
+    let mut shared_cache = heap.allocation_cache();
     let first = heap
         .allocate(
-            &mut shared_allocator,
+            &mut shared_cache,
             &heap.allocation_plan(first_layout.allocation()),
             Payload::Bytes(&first_bytes),
             true,
@@ -160,7 +160,7 @@ fn test_roundtrip_shared_heap_space_image() {
         .expect("shared heap allocation should succeed");
     let _second = heap
         .allocate(
-            &mut shared_allocator,
+            &mut shared_cache,
             &heap.allocation_plan(second_layout.allocation()),
             Payload::Bytes(&second_bytes),
             true,

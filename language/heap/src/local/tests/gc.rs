@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::local::space::{HeapPlace, YoungPlace};
 use crate::{
     Allocator, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
-    HeapSpace, Payload, SharedHeapReference, SizeClassTable, TestLayout, test_allocator,
-    test_layout, test_layouts,
+    HeapResult, HeapSpace, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
+    test_allocator, test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::TraceMap;
 
@@ -61,6 +61,14 @@ fn read_heap_reference(heap: &HeapSpace, reference: HeapReference) -> HeapRefere
     HeapReference::from_bits(bits)
 }
 
+/// Visit mutable test roots as heap root slots.
+fn visit_roots(
+    roots: &mut [HeapReference],
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> HeapResult<()> {
+    visit_heap_references(roots, visit)
+}
+
 /// Promote reachable young allocations and free unreachable young-space state.
 #[test]
 fn test_collect_minor_promotes_reachable_entries() {
@@ -87,7 +95,7 @@ fn test_collect_minor_promotes_reachable_entries() {
     assert!(is_young(&heap, unreachable));
 
     let stats = heap
-        .collect_minor(&mut roots)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
 
     assert_eq!(stats.freed_allocations, 1);
@@ -131,7 +139,7 @@ fn test_collect_minor_promotes_reachable_noscan_runs() {
     ));
 
     let stats = heap
-        .collect_minor(&mut roots)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -165,7 +173,7 @@ fn test_collect_minor_recycles_young_zeroed_bytes() {
 
     assert!(is_young(&heap.heap, reference));
 
-    heap.collect_minor(&mut roots)
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
 
     let reference = heap
@@ -207,7 +215,7 @@ fn test_collect_minor_promotes_reachable_child_entries() {
     let mut roots = [parent];
 
     let stats = heap
-        .collect_minor(&mut roots)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -240,7 +248,7 @@ fn test_collect_minor_rejects_invalid_root() {
     let mut roots = [invalid];
 
     let error = heap
-        .collect_minor(&mut roots)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect_err("invalid roots should fail collection");
 
     assert_eq!(
@@ -266,7 +274,7 @@ fn test_collect_minor_updates_gc_state() {
     let mut roots = [reachable];
 
     let stats = heap
-        .collect_minor(&mut roots)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
 
     assert_eq!(heap.gc_state().completed_cycles, 1);
@@ -354,7 +362,7 @@ fn test_collect_minor_promotes_interior_roots() {
         .expect("heap allocation should succeed");
     let mut roots = [HeapReference::new(reference.offset() + 5)];
 
-    heap.collect_minor(&mut roots)
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
     let location = heap
         .resolve_location(roots[0])
@@ -397,7 +405,7 @@ fn test_collect_minor_traces_pinned_roots() {
     let mut roots = [];
 
     let stats = heap
-        .collect_minor(&mut roots)
+        .collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -453,7 +461,7 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
     assert!(is_young(&heap, child));
     assert!(!is_young(&heap, parent));
 
-    heap.collect_minor(&mut roots)
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should keep pinned child");
 
     assert_eq!(read_heap_reference(&heap, roots[0]), child);
@@ -461,7 +469,7 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
     assert!(is_young(&heap, child));
 
     heap.unpin(child).expect("unpin should succeed");
-    heap.collect_minor(&mut roots)
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("young collection should rescan retained card");
 
     let promoted_child = read_heap_reference(&heap, roots[0]);
@@ -493,7 +501,7 @@ fn test_collect_full_traces_pinned_roots() {
     let mut roots = [];
 
     let stats = heap
-        .collect_full(&mut roots)
+        .collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("full collection should succeed");
 
     assert_eq!(stats.freed_allocations, 0);
@@ -679,7 +687,7 @@ fn test_collect_step_stays_idle_without_request() {
 
     let budget_bytes = heap.take_collection_budget_bytes();
     let progress = heap
-        .collect_step(&mut roots, budget_bytes)
+        .collect_step(&mut |visit| visit_roots(&mut roots, visit), budget_bytes)
         .expect("collection step should succeed");
 
     assert_eq!(progress, GcProgress::Idle);
@@ -700,7 +708,7 @@ fn test_collect_step_runs_full_after_pressure() {
 
     let budget_bytes = heap.take_collection_budget_bytes();
     let progress = heap
-        .collect_step(&mut roots, budget_bytes)
+        .collect_step(&mut |visit| visit_roots(&mut roots, visit), budget_bytes)
         .expect("collection step should succeed");
     let stats = progress
         .completed_stats()
@@ -750,7 +758,7 @@ fn test_collect_step_runs_minor_after_young_occupancy() {
 
     let budget_bytes = heap.take_collection_budget_bytes();
     let progress = heap
-        .collect_step(&mut roots, budget_bytes)
+        .collect_step(&mut |visit| visit_roots(&mut roots, visit), budget_bytes)
         .expect("collection step should succeed");
 
     assert_eq!(progress.completed_stats().map(|_| ()), Some(()));
@@ -794,7 +802,7 @@ fn test_collect_step_drains_minor_at_safepoint() {
     }
 
     let progress = heap
-        .collect_step(&mut roots, 1)
+        .collect_step(&mut |visit| visit_roots(&mut roots, visit), 1)
         .expect("small-budget collection should succeed");
 
     assert_eq!(progress.completed_stats().map(|_| ()), Some(()));
@@ -864,7 +872,7 @@ fn test_collect_step_honors_manual_full_request() {
 
     let budget_bytes = heap.take_collection_budget_bytes();
     let progress = heap
-        .collect_step(&mut roots, budget_bytes)
+        .collect_step(&mut |visit| visit_roots(&mut roots, visit), budget_bytes)
         .expect("collection step should succeed");
     let stats = progress
         .completed_stats()
@@ -899,11 +907,11 @@ fn test_step_major_gc_spreads_full_cycle() {
         .expect("heap allocation should succeed");
     let mut roots = [root];
 
-    heap.start_major_gc(&mut roots)
+    heap.start_major_gc(&mut |visit| visit_roots(&mut roots, visit))
         .expect("major collection should start");
 
     let first = heap
-        .step_major_gc(&mut roots, 1)
+        .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1)
         .expect("major step should succeed");
 
     assert_eq!(first, GcProgress::Active);
@@ -911,7 +919,7 @@ fn test_step_major_gc_spreads_full_cycle() {
 
     let stats = loop {
         let progress = heap
-            .step_major_gc(&mut roots, 1)
+            .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1)
             .expect("major step should succeed");
         if let Some(stats) = progress.completed_stats() {
             break stats;
@@ -971,11 +979,11 @@ fn test_step_major_gc_scans_large_allocations_incrementally() {
         .expect("heap allocation should succeed");
     let mut roots = [parent];
 
-    heap.start_major_gc(&mut roots)
+    heap.start_major_gc(&mut |visit| visit_roots(&mut roots, visit))
         .expect("major collection should start");
 
     let first = heap
-        .step_major_gc(&mut roots, 1)
+        .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1)
         .expect("major step should succeed");
 
     assert_eq!(first, GcProgress::Active);
@@ -983,7 +991,7 @@ fn test_step_major_gc_scans_large_allocations_incrementally() {
 
     let stats = loop {
         let progress = heap
-            .step_major_gc(&mut roots, 1)
+            .step_major_gc(&mut |visit| visit_roots(&mut roots, visit), 1)
             .expect("major step should succeed");
         if let Some(stats) = progress.completed_stats() {
             break stats;
@@ -1018,7 +1026,7 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     let mut roots = [root];
 
     // the first full cycle should leave only the explicit root
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("full collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);
@@ -1041,7 +1049,7 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
     assert!(is_young(&heap, even_more));
 
     // the next minor cycle should clear the unreachable nursery
-    heap.collect_minor(&mut roots)
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit))
         .expect("minor collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);

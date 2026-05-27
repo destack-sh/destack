@@ -9,7 +9,7 @@ mod reference;
 pub(crate) mod space;
 mod span;
 
-pub use allocator::SharedAllocator;
+pub use allocator::SharedAllocationCache;
 pub(crate) use allocator::*;
 pub use image::SharedHeapSpaceImage;
 pub use large::SharedHeapLargeAllocationImage;

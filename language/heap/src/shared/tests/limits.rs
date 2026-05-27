@@ -26,7 +26,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
         options,
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
     shared
@@ -66,7 +66,7 @@ fn test_track_shared_small_span_retained_bytes() {
         options,
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
@@ -79,7 +79,7 @@ fn test_track_shared_small_span_retained_bytes() {
             )
             .expect("shared heap allocation should succeed");
     }
-    shared.flush_allocator(&mut allocator);
+    shared.flush_allocation_cache(&mut allocator);
 
     let usage = shared.usage().heap;
 
@@ -101,7 +101,7 @@ fn test_flush_publishes_worker_shared_small_allocations() {
         crate::SharedHeapOptions::default(),
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
     let first = shared
@@ -119,7 +119,7 @@ fn test_flush_publishes_worker_shared_small_allocations() {
         )
         .expect("shared heap allocation should succeed");
 
-    shared.flush_allocator(&mut allocator);
+    shared.flush_allocation_cache(&mut allocator);
 
     assert!(shared.is_heap_live(first));
     assert!(shared.is_heap_live(second));
@@ -150,7 +150,7 @@ fn test_allocate_shared_honors_layout_alignment() {
         options,
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
     let first = shared
@@ -188,7 +188,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
         crate::SharedHeapOptions::default(),
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
     let error = shared
@@ -274,7 +274,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
         options.clone(),
     )
     .expect("shared heap should build");
-    let mut allocator = shared.allocator();
+    let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     shared
         .allocate(

@@ -52,7 +52,7 @@ impl Allocator {
             state: Mutex::new(AllocatorState {
                 chunk_count: 0,
                 current_chunk_index: None,
-                free_runs: PageRunSet::new(pages_per_chunk),
+                free_runs: PageRunSet::new(),
                 chunks: Vec::new(),
                 image_pages: BTreeMap::new(),
             }),

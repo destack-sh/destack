@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 
 use super::PageRun;
 
+/// The largest free run stored in direct small buckets.
+const SMALL_RUN_BUCKET_LIMIT: usize = 128;
+
 /// The free page-run set owned by one allocator.
 #[derive(Debug)]
 pub(crate) struct PageRunSet {
@@ -14,10 +17,10 @@ pub(crate) struct PageRunSet {
 }
 
 impl PageRunSet {
-    /// Create one free-run set with small buckets up to one chunk.
-    pub(crate) fn new(pages_per_chunk: usize) -> Self {
-        let mut small_runs = Vec::with_capacity(pages_per_chunk + 1);
-        small_runs.resize_with(pages_per_chunk + 1, Vec::new);
+    /// Create one empty free-run set.
+    pub(crate) fn new() -> Self {
+        let mut small_runs = Vec::with_capacity(SMALL_RUN_BUCKET_LIMIT + 1);
+        small_runs.resize_with(SMALL_RUN_BUCKET_LIMIT + 1, Vec::new);
 
         Self {
             small_runs,

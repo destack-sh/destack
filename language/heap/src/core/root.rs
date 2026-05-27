@@ -118,77 +118,14 @@ impl RootSlot<'_> {
     }
 }
 
-/// Mutable heap roots for one collection safepoint.
-pub trait RootSet {
-    /// The root visitor error type.
-    type Error: From<HeapError>;
-
-    /// Visit every mutable heap root slot.
-    fn visit_root_slots(
-        &mut self,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Self::Error>;
-}
-
-impl<F, E> RootSet for F
-where
-    F: FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
-    E: From<HeapError>,
-{
-    type Error = E;
-
-    fn visit_root_slots(
-        &mut self,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Self::Error> {
-        self(visit)
+/// Visit direct worker heap references as mutable root slots.
+pub fn visit_heap_references(
+    roots: &mut [HeapReference],
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> HeapResult<()> {
+    for reference in roots {
+        visit(RootSlot::HeapReference(reference))?;
     }
-}
 
-impl RootSet for [HeapReference] {
-    type Error = HeapError;
-
-    fn visit_root_slots(
-        &mut self,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Self::Error> {
-        for reference in self {
-            visit(RootSlot::HeapReference(reference))?;
-        }
-
-        Ok(())
-    }
-}
-
-impl RootSet for Vec<HeapReference> {
-    type Error = HeapError;
-
-    fn visit_root_slots(
-        &mut self,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Self::Error> {
-        self.as_mut_slice().visit_root_slots(visit)
-    }
-}
-
-impl<const N: usize> RootSet for [HeapReference; N] {
-    type Error = HeapError;
-
-    fn visit_root_slots(
-        &mut self,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Self::Error> {
-        self.as_mut_slice().visit_root_slots(visit)
-    }
-}
-
-impl RootSet for () {
-    type Error = HeapError;
-
-    fn visit_root_slots(
-        &mut self,
-        _visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    Ok(())
 }

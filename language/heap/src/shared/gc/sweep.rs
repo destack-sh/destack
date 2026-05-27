@@ -102,7 +102,7 @@ impl SharedHeapSpace {
                     continue;
                 }
 
-                swept_bytes += allocation.len.max(1);
+                swept_bytes += allocation.byte_len.max(1);
                 if allocation.mark_epoch == mark_epoch {
                     continue;
                 }

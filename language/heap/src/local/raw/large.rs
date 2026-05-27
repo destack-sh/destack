@@ -11,7 +11,7 @@ pub(crate) struct LargeAllocation {
     /// The first byte offset inside raw space.
     pub(crate) first_offset: usize,
     /// The logical byte length of this allocation.
-    pub(crate) len: usize,
+    pub(crate) byte_len: usize,
     /// The allocator pages for this allocation.
     pub(crate) pages: PageRun,
 }
@@ -21,7 +21,7 @@ impl LargeAllocation {
     pub(crate) fn retire(&mut self) {
         self.is_live = false;
         self.first_offset = 0;
-        self.len = 0;
+        self.byte_len = 0;
         self.pages = PageRun::empty();
     }
 }
@@ -59,7 +59,7 @@ pub(crate) struct LargeAllocationImage {
     /// The first byte offset inside raw space.
     pub first_offset: usize,
     /// The logical byte length of this allocation.
-    pub len: usize,
+    pub byte_len: usize,
     /// The full byte payload for this allocation.
     pub bytes: Box<[u8]>,
 }

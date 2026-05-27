@@ -74,13 +74,14 @@ impl SharedHeapSpace {
         // mark queue
         let mut marked_bytes = 0usize;
         let batch_capacity = self.trace_batch_capacity()?;
+        let mut batch = Vec::with_capacity(batch_capacity);
         while marked_bytes < budget_bytes {
             // reserve before popping so termination sees in-flight batches
             let batch_len = batch_capacity;
             self.gc.mark_inflight.fetch_add(batch_len, Ordering::AcqRel);
 
             // claim one batch from local, global, or stolen work
-            let batch = self.gc.trace_queue.pop_batch(worker, batch_len);
+            self.gc.trace_queue.pop_batch(worker, batch_len, &mut batch);
             if batch.is_empty() {
                 self.gc.mark_inflight.fetch_sub(batch_len, Ordering::AcqRel);
                 break;

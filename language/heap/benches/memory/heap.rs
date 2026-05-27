@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_heap::{
-    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocator, SharedGcWorker, SharedHeap,
+    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocationCache, SharedGcWorker, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 
@@ -10,7 +10,7 @@ pub(crate) struct SharedWorkerHeap {
     /// The shared heap under test.
     pub(crate) heap: SharedHeap,
     /// The worker-local allocator cache.
-    pub(crate) allocator: SharedAllocator,
+    pub(crate) allocator: SharedAllocationCache,
     /// The shared collector worker used by this worker heap.
     pub(crate) worker: SharedGcWorker,
 }
@@ -41,7 +41,7 @@ pub(crate) fn shared_worker_heap() -> SharedWorkerHeap {
     )
     .expect("shared heap should build");
 
-    let allocator = shared.allocator();
+    let allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
     SharedWorkerHeap {

@@ -101,7 +101,7 @@ pub struct SharedRawAllocationImage {
     /// The first byte offset inside shared raw space.
     pub first_offset: usize,
     /// The logical byte length of this allocation.
-    pub len: usize,
+    pub byte_len: usize,
     /// The page run for this allocation.
     pub pages: PageRun,
 }
@@ -173,11 +173,11 @@ impl SharedRawSpace {
                     let bytes = allocator.read_bytes_from(&allocation.pages, 0, byte_len)?;
                     let pages = allocator.allocate_pages(byte_len)?;
 
-                    mapping.write_bytes(allocation.first_offset, &bytes[..allocation.len])?;
+                    mapping.write_bytes(allocation.first_offset, &bytes[..allocation.byte_len])?;
 
                     Arc::new(RwLock::new(SharedRawAllocation::new(
                         allocation.first_offset,
-                        allocation.len,
+                        allocation.byte_len,
                         pages,
                     )))
                 } else {
@@ -234,7 +234,7 @@ impl SharedRawSpace {
                         Ok(SharedRawAllocationImage {
                             is_live: !allocation.is_vacant(),
                             first_offset: allocation.first_offset,
-                            len: allocation.len,
+                            byte_len: allocation.byte_len,
                             pages,
                         })
                     },
