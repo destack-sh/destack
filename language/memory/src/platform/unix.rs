@@ -242,7 +242,7 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
     if address == libc::MAP_FAILED {
         return Err(last_system_error(
             MemoryOperation::ReserveAddressSpace,
-            byte_len,
+            Some(byte_len),
         ));
     }
 
@@ -318,7 +318,10 @@ pub(crate) fn make_shared_pages_writable(
         return Ok(());
     }
 
-    Err(last_system_error(MemoryOperation::ProtectPages, byte_len))
+    Err(last_system_error(
+        MemoryOperation::ProtectPages,
+        Some(byte_len),
+    ))
 }
 
 /// Register one write watched virtual range.
@@ -572,7 +575,10 @@ fn map_frame_range(
         frame.offset,
     );
     if mapped == libc::MAP_FAILED {
-        return Err(last_system_error(MemoryOperation::MapFrameRange, byte_len));
+        return Err(last_system_error(
+            MemoryOperation::MapFrameRange,
+            Some(byte_len),
+        ));
     }
 
     Ok(())
@@ -586,7 +592,10 @@ fn map_frame_range_anywhere(
 ) -> MemoryResult<*mut u8> {
     let address = map_frame_anywhere(allocator.fd, frame.offset, byte_len);
     if address == libc::MAP_FAILED {
-        return Err(last_system_error(MemoryOperation::MapFrameRange, byte_len));
+        return Err(last_system_error(
+            MemoryOperation::MapFrameRange,
+            Some(byte_len),
+        ));
     }
 
     Ok(address.cast())
@@ -632,7 +641,7 @@ fn write_frame_range(
         if result <= 0 {
             return Err(last_system_error(
                 MemoryOperation::CopyFrameStorage,
-                byte_len,
+                Some(byte_len),
             ));
         }
 
@@ -659,18 +668,13 @@ fn extend_frame_file(fd: RawFd, byte_len: u64) -> MemoryResult<()> {
 
     Err(last_system_error(
         MemoryOperation::ExtendFrameAllocator,
-        byte_len as usize,
+        Some(byte_len as usize),
     ))
 }
 
 /// Return one system error from the last platform error code.
-fn last_system_error(operation: MemoryOperation, byte_len: usize) -> MemoryError {
-    MemoryError::system_bytes(operation, IoError::last_os_error().raw_os_error(), byte_len)
-}
-
-/// Return one system error from the last platform error code without byte context.
-fn last_system_error_without_bytes(operation: MemoryOperation) -> MemoryError {
-    MemoryError::system(operation, IoError::last_os_error().raw_os_error(), None)
+fn last_system_error(operation: MemoryOperation, byte_len: Option<usize>) -> MemoryError {
+    MemoryError::system(operation, IoError::last_os_error().raw_os_error(), byte_len)
 }
 
 /// Install the write fault handler once.
@@ -688,21 +692,17 @@ fn install_write_fault_handler() -> MemoryResult<()> {
 
         // SAFETY: action contains storage for one signal mask
         if unsafe { libc::sigemptyset(&mut action.sa_mask) } != 0 {
-            return Err(last_system_error_without_bytes(
-                MemoryOperation::InstallWriteWatch,
-            ));
+            return Err(last_system_error(MemoryOperation::InstallWriteWatch, None));
         }
 
         // SAFETY: action contains a valid SA_SIGINFO handler
         if unsafe { libc::sigaction(libc::SIGSEGV, &action, &mut segmentation) } != 0 {
-            return Err(last_system_error_without_bytes(
-                MemoryOperation::InstallWriteWatch,
-            ));
+            return Err(last_system_error(MemoryOperation::InstallWriteWatch, None));
         }
 
         // SAFETY: action contains a valid SA_SIGINFO handler
         if unsafe { libc::sigaction(libc::SIGBUS, &action, &mut bus) } != 0 {
-            let error = last_system_error_without_bytes(MemoryOperation::InstallWriteWatch);
+            let error = last_system_error(MemoryOperation::InstallWriteWatch, None);
 
             // SAFETY: segmentation was captured while installing SIGSEGV above
             unsafe {
