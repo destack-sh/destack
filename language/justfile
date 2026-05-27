@@ -159,6 +159,10 @@ test-all:
     cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
     cargo test --release --all-targets --no-fail-fast -p destack_linter
 
+# report heap allocation and side-metadata overhead
+report-heap-overhead:
+    cargo run -p destack_heap --example overhead --quiet
+
 # run linter tests
 test-linter:
     cargo test --release --all-targets --no-fail-fast -p destack_linter
@@ -277,6 +281,10 @@ bench:
 # run compiler benches
 bench-compiler:
     cargo bench -p destack_compiler -- destack_compile
+
+# run runtime footprint benches
+bench-runtime-footprint:
+    cargo bench -p destack_runtime --bench footprint
 
 # run compiler bench stats
 bench-compiler-stats args="--help":

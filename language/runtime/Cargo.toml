@@ -68,7 +68,12 @@ windows-sys = { workspace = true, features = [
 io-uring = { workspace = true }
 
 [dev-dependencies]
-destack_compiler = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "footprint"
+path = "benches/footprint/bench.rs"
+harness = false
 
 [lints]
 workspace = true
