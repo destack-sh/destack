@@ -1,4 +1,8 @@
-use crate::check::{CheckModuleState, Constraint, ConstraintOrigin, VariableId};
+use destack_dir as dir;
+
+use crate::check::{
+    CheckState, Constraint, ConstraintOrigin, TypeLiteralTerm, TypeTerm, VariableId,
+};
 
 /// A relation between two type variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,9 +28,9 @@ pub(in crate::check) enum StaticRelation {
     Equal,
 }
 
-impl CheckModuleState {
-    /// Relate two type variables.
-    pub(in crate::check) fn relate_type(
+impl CheckState<'_> {
+    /// Constrain two type variables.
+    pub(in crate::check) fn constrain_type(
         &mut self,
         origin: ConstraintOrigin,
         relation: TypeRelation,
@@ -38,13 +42,14 @@ impl CheckModuleState {
             left,
             right,
             origin,
+            condition: self.active_static_condition(),
         };
 
         self.add_constraint(constraint);
     }
 
-    /// Relate two static variables.
-    pub(in crate::check) fn relate_static(
+    /// Constrain two static variables.
+    pub(in crate::check) fn constrain_static(
         &mut self,
         origin: ConstraintOrigin,
         relation: StaticRelation,
@@ -56,8 +61,22 @@ impl CheckModuleState {
             left,
             right,
             origin,
+            condition: self.active_static_condition(),
         };
 
         self.add_constraint(constraint);
+    }
+
+    /// Constrain one expression condition to boolean.
+    pub(in crate::check) fn constrain_condition(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        condition: VariableId,
+    ) {
+        let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
+        let expected =
+            self.define_anonymous_type(origin, TypeTerm::Literal(TypeLiteralTerm::boolean()));
+
+        self.constrain_type(origin, TypeRelation::Assignable, condition, expected);
     }
 }

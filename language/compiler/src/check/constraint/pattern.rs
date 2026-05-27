@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    AssignPatternTerm, CheckModuleState, Constraint, ConstraintOrigin, PatternTerm, VariableId,
+    AssignPatternTerm, CheckState, Constraint, ConstraintOrigin, PatternTerm, VariableId,
 };
 
 /// Relation between a value type and a pattern.
@@ -24,19 +24,20 @@ impl PatternRelation {
     }
 }
 
-impl CheckModuleState {
-    /// Relate one pattern to one value type.
-    pub(in crate::check) fn relate_pattern(
+impl CheckState<'_> {
+    /// Constrain one pattern against one value type.
+    pub(in crate::check) fn constrain_pattern(
         &mut self,
         relation: PatternRelation,
         source: dir::LocalNodeIdAny,
         value: VariableId,
     ) {
-        let origin = ConstraintOrigin::Node(source.into_global(self.input.module));
+        let origin = ConstraintOrigin::Node(source.into_global(self.input.module_id));
         let constraint = Constraint::RelatePattern {
             relation,
             value,
             origin,
+            condition: self.active_static_condition(),
         };
 
         self.add_constraint(constraint);
