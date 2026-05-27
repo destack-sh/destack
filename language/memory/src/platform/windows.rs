@@ -396,7 +396,10 @@ pub(crate) fn make_shared_pages_writable(
             )
         };
         if result == 0 {
-            return Err(last_system_error(MemoryOperation::ProtectPages, byte_len));
+            return Err(last_system_error(
+                MemoryOperation::ProtectPages,
+                Some(byte_len),
+            ));
         }
     }
 
@@ -483,9 +486,7 @@ fn install_write_fault_handler() -> MemoryResult<()> {
             let handler = unsafe { AddVectoredExceptionHandler(1, Some(handle_write_watch)) };
 
             if handler.is_null() {
-                return Err(last_system_error_without_bytes(
-                    MemoryOperation::InstallWriteWatch,
-                ));
+                return Err(last_system_error(MemoryOperation::InstallWriteWatch, None));
             }
 
             Ok(())
@@ -558,7 +559,7 @@ fn map_page(
     if view.Value.is_null() {
         return Err(last_system_error(
             MemoryOperation::MapFrameRange,
-            page_bytes,
+            Some(page_bytes),
         ));
     }
 
@@ -582,7 +583,7 @@ fn reserve_placeholder(byte_len: usize) -> MemoryResult<*mut u8> {
     if address.is_null() {
         return Err(last_system_error(
             MemoryOperation::ReserveAddressSpace,
-            byte_len,
+            Some(byte_len),
         ));
     }
 
@@ -671,7 +672,10 @@ fn map_frame_range_anywhere(
         )
     };
     if view.Value.is_null() {
-        return Err(last_system_error(MemoryOperation::MapFrameRange, byte_len));
+        return Err(last_system_error(
+            MemoryOperation::MapFrameRange,
+            Some(byte_len),
+        ));
     }
 
     Ok(view.Value.cast())
@@ -763,7 +767,7 @@ fn create_section(byte_len: usize) -> MemoryResult<HANDLE> {
     if section == 0 {
         return Err(last_system_error(
             MemoryOperation::CreateFrameAllocator,
-            byte_len,
+            Some(byte_len),
         ));
     }
 
@@ -771,19 +775,11 @@ fn create_section(byte_len: usize) -> MemoryResult<HANDLE> {
 }
 
 /// Return one system error from the last platform error code.
-fn last_system_error(operation: MemoryOperation, byte_len: usize) -> MemoryError {
+fn last_system_error(operation: MemoryOperation, byte_len: Option<usize>) -> MemoryError {
     // SAFETY: GetLastError reads thread-local Windows error state
     let code = unsafe { GetLastError() } as i32;
 
-    MemoryError::system_bytes(operation, Some(code), byte_len)
-}
-
-/// Return one system error from the last platform error code without byte context.
-fn last_system_error_without_bytes(operation: MemoryOperation) -> MemoryError {
-    // SAFETY: GetLastError reads thread-local Windows error state
-    let code = unsafe { GetLastError() } as i32;
-
-    MemoryError::system(operation, Some(code), None)
+    MemoryError::system(operation, Some(code), byte_len)
 }
 
 /// Allocate one free frame range when a large enough range exists.
