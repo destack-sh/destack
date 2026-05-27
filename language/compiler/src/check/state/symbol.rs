@@ -1,34 +1,41 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
-use super::CheckModuleState;
+use super::CheckState;
 
-impl CheckModuleState {
-    /// Record one resolved name directly into the checked DIR table.
-    pub(in crate::check) fn record_name_resolution(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        target: dir::NameResolution,
-    ) {
-        self.output.resolutions.set_name_resolution(source, target);
-    }
-
+impl CheckState<'_> {
     /// Return the symbol introduced by a source declaration node.
     pub(in crate::check) fn declaration_symbol(
         &self,
+        module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
-        self.binding_table()
-            .symbol_for_declaration(node.into_global(self.input.module))
-            .map(|symbol| symbol.into_global(self.input.module))
+        self.input(module)
+            .binding_table()
+            .symbol_for_declaration(node.into_global(module))
+            .map(|symbol| symbol.into_global(module))
+    }
+
+    /// Return the implicit receiver symbol introduced for one member node.
+    pub(in crate::check) fn implicit_receiver_symbol(
+        &self,
+        module: ModuleId,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalSymbolId> {
+        self.input(module)
+            .binding_table()
+            .implicit_receiver_symbol(node.into_global(module))
+            .map(|symbol| symbol.into_global(module))
     }
 
     /// Return the symbol selected by a nominal member key.
     pub(in crate::check) fn member_symbol(
         &self,
+        module: ModuleId,
         owner: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> Option<dir::GlobalSymbolId> {
-        let binding_table = self.binding_table();
+        let binding_table = self.input(module).binding_table();
 
         // find the scope owned by the nominal declaration
         for scope_id in binding_table.scope_ids() {
@@ -39,28 +46,29 @@ impl CheckModuleState {
 
             return scope
                 .find_symbol(key)
-                .map(|symbol| symbol.into_global(self.input.module));
+                .map(|symbol| symbol.into_global(module));
         }
 
         None
     }
 
-    /// Return the nearest generic owner symbol for one source node.
-    pub(in crate::check) fn generic_owner_symbol(
+    /// Return the nearest owner symbol for one source node's scope.
+    pub(in crate::check) fn scope_owner_symbol(
         &self,
+        module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
-        let binding_table = self.binding_table();
+        let binding_table = self.input(module).binding_table();
         let mut current = Some(node);
-        let view = self.input.view();
+        let view = self.input(module).view();
 
         // walk parents until a scoped symbol owner is found
         while let Some(node) = current {
-            let global = node.into_global(self.input.module);
+            let global = node.into_global(module);
             if let Some(scope) = binding_table.scope_for_node(global) {
                 let scope = binding_table.get_scope(scope);
                 if let Some(owner) = scope.owner {
-                    return Some(owner.into_global(self.input.module));
+                    return Some(owner.into_global(module));
                 }
             }
 
@@ -73,110 +81,99 @@ impl CheckModuleState {
     /// Return one symbol's declaration node in this module.
     pub(in crate::check) fn symbol_source_node(
         &self,
+        module: ModuleId,
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<dir::LocalNodeIdAny> {
-        let binding_table = self.binding_table();
-        let symbol = binding_table.get_symbol(symbol_id.local_id);
+        if symbol_id.module_id != module {
+            return None;
+        }
+        let binding_table = self.input(module).binding_table();
+        let symbol = binding_table.get_symbol_maybe(symbol_id.local_id)?;
 
         symbol
             .declaration
-            .filter(|declaration| declaration.module_id == self.input.module)
+            .filter(|declaration| declaration.module_id == module)
             .map(|declaration| declaration.local_id)
     }
 
-    /// Return the declaration symbol visible through one local binding.
-    pub(in crate::check) fn visible_symbol(
+    /// Return whether one local symbol is an imported alias.
+    pub(in crate::check) fn is_import_symbol(
         &self,
-        symbol: dir::LocalSymbolId,
-    ) -> dir::GlobalSymbolId {
-        match self.input.resolved.imports.symbol_target(symbol) {
-            // imported aliases use their resolved target
-            Some(dir::ImportTarget::Symbol(symbol)) => symbol,
-
-            // local and namespace bindings keep their local symbol
-            Some(dir::ImportTarget::Namespace(_)) | None => symbol.into_global(self.input.module),
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> bool {
+        if symbol.module_id != module {
+            return false;
         }
+
+        self.input(module)
+            .resolved
+            .imports
+            .symbol_target(symbol.local_id)
+            .is_some()
+    }
+
+    /// Return the declaration kind for one visible symbol.
+    pub(in crate::check) fn symbol_kind(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::SymbolKind> {
+        if symbol.module_id == module {
+            let binding_table = self.input(module).binding_table();
+            let symbol = binding_table.get_symbol(symbol.local_id);
+
+            return Some(symbol.kind);
+        }
+
+        self.imports(module)
+            .symbol_kinds
+            .get(&symbol)
+            .copied()
+    }
+
+    /// Return whether one symbol names a transparent type constraint.
+    pub(in crate::check) fn is_transparent_constraint_symbol(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> bool {
+        matches!(
+            self.symbol_kind(module, symbol),
+            Some(
+                dir::SymbolKind::AssociatedType
+                    | dir::SymbolKind::Interface
+                    | dir::SymbolKind::NewtypeInterface
+                    | dir::SymbolKind::TypeAlias,
+            )
+        )
     }
 
     /// Return the type symbol named by one interface heritage expression.
-    pub(in crate::check) fn interface_heritage_symbol(
-        &self,
+    pub(in crate::check) fn require_interface_heritage_symbol(
+        &mut self,
+        module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
-        let view = self.input.view();
-
+        let view = self.input(module).view();
         match view.get(expression) {
+            // Interface
             dir::Expression::Identifier { name } => {
-                let path = dir::Path {
-                    segments: smallvec::smallvec![*name],
-                };
-
-                self.reference_type_symbol(expression.into_any(), &path)
+                self.require_name(module, expression.into_any(), *name, dir::SymbolSpace::Type)
             }
+            // Namespace.Interface
             dir::Expression::QualifiedReference {
                 path,
                 generic_arguments: _,
-            } => self.reference_type_symbol(expression.into_any(), path),
+            } => {
+                let [name] = path.segments.as_slice() else {
+                    return None;
+                };
+
+                self.require_name(module, expression.into_any(), *name, dir::SymbolSpace::Type)
+            }
+            // not a heritage reference
             _ => None,
-        }
-    }
-
-    /// Return one visible type symbol for a source reference.
-    pub(in crate::check) fn reference_type_symbol(
-        &self,
-        source: dir::LocalNodeIdAny,
-        path: &dir::Path,
-    ) -> Option<dir::GlobalSymbolId> {
-        if path.segments.len() != 1 {
-            return None;
-        }
-
-        let key = dir::StaticKey::Name(path.segments[0]);
-        let bindings = self.binding_table();
-        let scope = self.visible_scope(&bindings, source);
-        let symbols = self.visible_scope_symbols(&bindings, scope, key, dir::SymbolSpace::Type);
-
-        if symbols.len() == 1 {
-            symbols.first().copied()
-        } else {
-            None
-        }
-    }
-
-    /// Return the visible checked type id for one symbol.
-    pub(in crate::check) fn visible_symbol_type_id(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> Option<dir::LocalTypeId> {
-        // prefer checked tables produced during this phase
-        self.output
-            .types
-            .get_symbol_type_id(symbol_id)
-            .or_else(|| self.input_type_table().get_symbol_type_id(symbol_id))
-    }
-
-    /// Return the visible checked static value id for one symbol.
-    pub(in crate::check) fn visible_symbol_static_id(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> Option<dir::LocalStaticId> {
-        // prefer checked tables produced during this phase
-        self.output
-            .statics
-            .get_symbol_static_id(symbol_id)
-            .or_else(|| self.input_static_table().get_symbol_static_id(symbol_id))
-    }
-
-    /// Return a stable local label for one symbol.
-    pub(in crate::check) fn symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
-        let bindings = self.binding_table();
-        let symbol = bindings.get_symbol(symbol_id.local_id);
-
-        // derive an internal label for unnamed owners
-        if let Some(name) = symbol.name() {
-            self.input.strings.get(name).to_string()
-        } else {
-            format!("symbol{}", symbol_id.local_id.id)
         }
     }
 }

@@ -1,15 +1,22 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirExpanded, DirParsed, DirResolved, GlobalEnvironment};
+use destack_artifact::{
+    DirBound, DirExpanded, DirParsed, DirResolved, GlobalEnvironment, ProfileKey,
+};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use destack_workspace::Module;
 
 /// Check inputs for one module.
 #[derive(Debug)]
 pub(in crate::check) struct CheckInputState {
-    /// The requested module.
-    pub(in crate::check) module: ModuleId,
+    /// The requested module id.
+    pub(in crate::check) module_id: ModuleId,
+    /// The requested source module.
+    pub(in crate::check) module: Arc<Module>,
+    /// The active semantic profile.
+    pub(in crate::check) profile: ProfileKey,
     /// The shared string pool.
     pub(in crate::check) strings: Arc<StringPool>,
     /// The parsed DIR input.
@@ -29,7 +36,9 @@ pub(in crate::check) struct CheckInputState {
 impl CheckInputState {
     /// Create check inputs for one module.
     pub(in crate::check) fn new(
-        module: ModuleId,
+        module_id: ModuleId,
+        module: Arc<Module>,
+        profile: ProfileKey,
         strings: Arc<StringPool>,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
@@ -38,7 +47,9 @@ impl CheckInputState {
         environment: Arc<GlobalEnvironment>,
     ) -> Self {
         Self {
+            module_id,
             module,
+            profile,
             strings,
             parsed,
             bound,
