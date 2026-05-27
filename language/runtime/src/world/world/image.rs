@@ -298,7 +298,7 @@ impl World {
                     .collect::<BTreeMap<_, _>>();
                 let (allocator, collector) = {
                     let history = self.history.read();
-                    (history.allocator(), history.collector())
+                    (history.allocator.clone(), history.collector.clone())
                 };
 
                 let runtime = Runtime::from_image(

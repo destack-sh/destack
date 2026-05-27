@@ -369,16 +369,7 @@ impl PartialOrd for TimerEntry {
 impl EventLoop {
     /// Normalize one timer deadline using scheduler options.
     pub(super) fn normalize_deadline(&self, deadline: Nanos) -> Nanos {
-        let mut normalized = deadline;
-        if let Some(timer_resolution_ns) = self.options.timer_resolution_ns {
-            normalized = self.round_up_deadline(normalized, Nanos::new(timer_resolution_ns));
-        }
-
-        if let Some(max_timer_coalesce_ns) = self.options.max_timer_coalesce_ns {
-            normalized = self.round_up_deadline(normalized, Nanos::new(max_timer_coalesce_ns));
-        }
-
-        normalized
+        deadline
     }
 
     /// Schedule a timer in the runtime queue.
@@ -422,20 +413,6 @@ impl EventLoop {
         mono_now: Nanos,
     ) -> RuntimeResult<Option<ScheduledTimer>> {
         Ok(self.timers.pop_ready(wall_now, mono_now))
-    }
-
-    /// Round one deadline up to one deterministic quantum.
-    fn round_up_deadline(&self, deadline: Nanos, quantum: Nanos) -> Nanos {
-        if quantum.get() <= 1 {
-            return deadline;
-        }
-
-        let remainder = deadline.get() % quantum.get();
-        if remainder == 0 {
-            return deadline;
-        }
-
-        deadline.saturating_add(Nanos::new(quantum.get().saturating_sub(remainder)))
     }
 }
 

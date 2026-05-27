@@ -1,5 +1,7 @@
+use destack_engine as engine;
+use destack_native as native;
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use {destack_engine as engine, destack_native as native, destack_vm as vm};
 
 /// Live runnable continuation owned by one backend engine.
 #[derive(Debug)]

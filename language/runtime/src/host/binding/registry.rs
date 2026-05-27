@@ -24,7 +24,7 @@ impl BindingRegistry {
         Self {
             descriptors: Vec::new(),
             descriptor_by_id: HashMap::new(),
-            access: RwLock::new(BindingAccess::new(ExecutionMode::Fast)),
+            access: RwLock::new(BindingAccess::new(ExecutionMode::Strict)),
         }
     }
 

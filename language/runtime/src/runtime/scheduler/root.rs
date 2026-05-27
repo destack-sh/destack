@@ -1,4 +1,5 @@
-use {destack_engine as engine, destack_heap as heap};
+use destack_engine as engine;
+use destack_heap as heap;
 
 use super::EventLoop;
 use crate::diagnostic::{RuntimeError, RuntimeResult};

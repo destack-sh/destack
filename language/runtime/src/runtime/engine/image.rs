@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use destack_native as native;
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
-use {destack_native as native, destack_vm as vm};
 
 /// Immutable execution image for one engine backend.
 #[derive(Debug, Clone, Serialize, Deserialize)]

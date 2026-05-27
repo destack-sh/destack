@@ -3,7 +3,7 @@ use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
 use destack_heap::{SharedGcPhase, SharedHeap};
-use destack_workspace::SchedulerMode;
+use destack_workspace::ExecutionMode;
 use parking_lot::{Condvar, Mutex};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -43,25 +43,19 @@ pub enum SharedCollectorMode {
 }
 
 impl SharedCollectorMode {
-    /// Convert workspace scheduler mode into shared heap collection mode.
-    pub const fn from_scheduler_mode(mode: SchedulerMode) -> Self {
+    /// Resolve shared heap collection mode for one execution mode.
+    pub const fn from_execution_mode(mode: ExecutionMode) -> Self {
         match mode {
-            SchedulerMode::Cooperative => Self::Cooperative,
-            SchedulerMode::Parallel => Self::Concurrent,
+            ExecutionMode::Fast => Self::Concurrent,
+            ExecutionMode::Strict | ExecutionMode::Record | ExecutionMode::Replay => {
+                Self::Cooperative
+            }
         }
     }
 
     /// Return whether this mode uses one background collector thread.
     pub const fn is_concurrent(self) -> bool {
         matches!(self, Self::Concurrent)
-    }
-
-    /// Convert this collector mode into workspace scheduler mode.
-    pub const fn to_scheduler_mode(self) -> SchedulerMode {
-        match self {
-            Self::Cooperative => SchedulerMode::Cooperative,
-            Self::Concurrent => SchedulerMode::Parallel,
-        }
     }
 }
 

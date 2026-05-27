@@ -1,6 +1,7 @@
 use std::fmt;
 
-use {destack_heap as heap, destack_vm as vm};
+use destack_heap as heap;
+use destack_vm as vm;
 
 use crate::diagnostic::HostError;
 

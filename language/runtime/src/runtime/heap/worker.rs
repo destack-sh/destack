@@ -6,14 +6,14 @@ impl Runtime {
     /// Return whether one concurrent shared-GC cycle is still in flight.
     pub(crate) fn shared_gc_in_flight(&self) -> bool {
         self.shared.is_concurrent()
-            && (self.shared.heap().gc_phase() != SharedGcPhase::Idle
-                || self.shared.collection().is_busy()
+            && (self.shared.heap.gc_phase() != SharedGcPhase::Idle
+                || self.shared.collection_busy()
                 || self.shared_gc_pending_cleanup())
     }
 
     /// Refresh shared GC work from current shared pressure.
     fn refresh_shared_gc_work(&mut self) {
-        let work_bytes = self.shared.heap().take_edge_scan_work_bytes();
+        let work_bytes = self.shared.heap.take_edge_scan_work_bytes();
 
         self.shared.roots().set_edge_scan_work_bytes(work_bytes);
     }
@@ -21,9 +21,9 @@ impl Runtime {
     /// Start shared root publication across all workers.
     fn start_shared_root_publication(&mut self) {
         let worker_ids = self.worker_ids();
-        let work_bytes = self.shared.heap().take_edge_scan_work_bytes();
+        let work_bytes = self.shared.heap.take_edge_scan_work_bytes();
 
-        self.flush_shared_allocators();
+        self.flush_shared_caches();
         self.shared.roots().begin_mark(worker_ids, work_bytes);
         self.start_shared_edge_scan();
     }
@@ -65,12 +65,12 @@ impl Runtime {
 
     /// Run one shared GC step inline from the current thread.
     fn advance_shared_gc_inline(&mut self) -> RuntimeResult<bool> {
-        let was_active = self.shared.heap().gc_phase() != SharedGcPhase::Idle;
+        let was_active = self.shared.heap.gc_phase() != SharedGcPhase::Idle;
         let did_start = if was_active {
             false
         } else {
             self.shared
-                .heap()
+                .heap
                 .start_gc()
                 .map_err(Box::<RuntimeError>::from)?
         };
@@ -85,10 +85,10 @@ impl Runtime {
 
         self.refresh_shared_gc_work();
 
-        let before_cycles = self.shared.heap().gc_state().completed_cycles;
+        let before_cycles = self.shared.heap.gc_state().completed_cycles;
         let mut roots_complete = true;
 
-        if did_start || self.shared.heap().gc_phase() == SharedGcPhase::Mark {
+        if did_start || self.shared.heap.gc_phase() == SharedGcPhase::Mark {
             self.refresh_shared_edge_scan();
             roots_complete = self.shared.roots().roots_complete();
         }
@@ -96,19 +96,19 @@ impl Runtime {
         let roots = self.shared.roots().roots_snapshot();
         let budget_bytes = self
             .shared
-            .heap()
+            .heap
             .take_collection_budget_bytes(self.worker_count());
         let progress = self
             .shared
-            .heap()
+            .heap
             .collect_step(roots.as_ref(), roots_complete, budget_bytes)
             .map_err(Box::<RuntimeError>::from)?;
-        let is_active = self.shared.heap().gc_phase() != SharedGcPhase::Idle;
-        let after_cycles = self.shared.heap().gc_state().completed_cycles;
+        let is_active = self.shared.heap.gc_phase() != SharedGcPhase::Idle;
+        let after_cycles = self.shared.heap.gc_state().completed_cycles;
 
-        if self.shared.heap().gc_phase() != SharedGcPhase::Mark || roots_complete {
+        if self.shared.heap.gc_phase() != SharedGcPhase::Mark || roots_complete {
             self.shared.roots().clear_termination();
-        } else if self.shared.heap().mark_idle() {
+        } else if self.shared.heap.mark_idle() {
             self.shared.roots().request_termination();
         }
 
@@ -121,23 +121,22 @@ impl Runtime {
 
     /// Drive shared collection through one collector thread.
     fn advance_shared_gc_concurrent(&mut self) -> RuntimeResult<bool> {
-        if let Some(error) = self.shared.collection().take_failure() {
+        if let Some(error) = self.shared.take_collection_failure() {
             return Err(error);
         }
 
-        if self.shared.heap().gc_phase() == SharedGcPhase::Idle && self.shared_gc_pending_cleanup()
-        {
+        if self.shared.heap.gc_phase() == SharedGcPhase::Idle && self.shared_gc_pending_cleanup() {
             self.finish_shared_root_publication();
 
             return Ok(true);
         }
 
-        let was_active = self.shared.heap().gc_phase() != SharedGcPhase::Idle;
+        let was_active = self.shared.heap.gc_phase() != SharedGcPhase::Idle;
         let did_start = if was_active {
             false
         } else {
             self.shared
-                .heap()
+                .heap
                 .start_gc()
                 .map_err(Box::<RuntimeError>::from)?
         };

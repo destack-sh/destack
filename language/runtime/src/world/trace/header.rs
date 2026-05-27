@@ -3,9 +3,11 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::host::binding::BindingReplayPayload;
+use crate::runtime::random::RandomSource;
+use crate::runtime::time::ClockSource;
 use crate::world::trace::TraceSequence;
 use crate::world::{BranchId, CheckpointId, RevisionId};
-use destack_workspace::{ClockSource, Environment, ExecutionMode, RandomSource};
+use destack_workspace::{Environment, ExecutionMode};
 
 /// Current trace format version.
 pub const TRACE_FORMAT_VERSION: u32 = 1;
@@ -52,9 +54,9 @@ impl TraceHeader {
             format_version: TRACE_FORMAT_VERSION,
             build_hash: 0,
             target: String::new(),
-            execution_mode: ExecutionMode::Fast,
-            clock_source: ClockSource::Host,
-            random_source: RandomSource::Host,
+            execution_mode: ExecutionMode::Strict,
+            clock_source: ClockSource::Runtime,
+            random_source: RandomSource::Deterministic,
             branch_id: BranchId::new(0),
             replay_payload: BindingReplayPayload::Results,
             binding_registry_hash: 0,

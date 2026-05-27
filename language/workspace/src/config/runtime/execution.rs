@@ -5,15 +5,25 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum ExecutionMode {
-    /// Fast execution without determinism guarantees.
+    /// Strict execution through runtime-owned facts and effect boundaries.
     #[default]
+    Strict,
+    /// Fast execution without determinism guarantees.
     Fast,
-    /// Deterministic scheduling with controlled randomness.
-    Deterministic,
     /// Record external effects for replay.
     Record,
     /// Replay external effects from the log.
     Replay,
+}
+
+/// Runtime execution configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionOptions {
+    /// Execution mode for scheduling and effect handling.
+    pub mode: ExecutionMode,
 }
 
 impl std::str::FromStr for ExecutionMode {
@@ -21,8 +31,8 @@ impl std::str::FromStr for ExecutionMode {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('-', "_").as_str() {
+            "strict" => Ok(Self::Strict),
             "fast" => Ok(Self::Fast),
-            "deterministic" => Ok(Self::Deterministic),
             "record" => Ok(Self::Record),
             "replay" => Ok(Self::Replay),
             _ => Err(()),

@@ -18,8 +18,8 @@ impl Trace {
     {
         let mode = self.mode();
         match mode {
-            // fast and deterministic modes execute directly
-            ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
+            // fast and strict modes execute directly
+            ExecutionMode::Fast | ExecutionMode::Strict => call(),
             // replay mode decodes one recorded entropy sample
             ExecutionMode::Replay => {
                 on_replay_read();
@@ -74,8 +74,8 @@ impl Trace {
         let mode = self.mode();
 
         match mode {
-            // fast and deterministic modes execute directly
-            ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
+            // fast and strict modes execute directly
+            ExecutionMode::Fast | ExecutionMode::Strict => call(),
             // replay mode decodes one recorded stream allocation
             ExecutionMode::Replay => {
                 on_replay_read();
@@ -123,8 +123,8 @@ impl Trace {
     {
         let mode = self.mode();
         match mode {
-            // fast and deterministic modes execute directly
-            ExecutionMode::Fast | ExecutionMode::Deterministic => call(),
+            // fast and strict modes execute directly
+            ExecutionMode::Fast | ExecutionMode::Strict => call(),
             // replay mode decodes one recorded byte payload
             ExecutionMode::Replay => {
                 on_replay_read();

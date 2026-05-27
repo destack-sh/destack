@@ -10,6 +10,7 @@ use crate::host::core::{Host, HostQueue, advance_host_events};
 use crate::host::{HostError, core as host_core};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
+use crate::runtime::time::ClockSource;
 use crate::simulation::Simulation;
 use crate::world::policy::BindingDecision;
 use crate::world::scenario::{ScenarioCallId, ScenarioRunner};
@@ -17,7 +18,7 @@ use crate::world::trace::{EntropySubject, Trace};
 use crate::world::{RuntimeId, WorldState};
 
 use super::{ExecutionContext, RunnableScope, WorkerId, binding_affinity_name};
-use destack_workspace::{ClockSource, Environment, RuntimeDiagnosticLevel, RuntimeOptions};
+use destack_workspace::{Environment, RuntimeDiagnosticLevel, RuntimeOptions};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug)]
@@ -234,32 +235,16 @@ impl BindingCallContext<'_> {
 
     /// Return the current random stream identifier.
     pub fn random_stream_id(&self) -> RandomStreamId {
-        // resolve runtime and worker scoped stream selection policy
-        let is_per_runnable = self.options.random_options().per_runnable;
-        let task_id = if is_per_runnable {
-            self.scope.task_id().map(TaskId::get)
-        } else {
-            None
-        };
-        let microtask_id = if is_per_runnable {
-            self.scope.microtask_id().map(MicrotaskId::get)
-        } else {
-            None
-        };
-
-        // resolve one stable world scoped stream id
-        self.world().random.scoped_stream_id(
-            self.runtime_id.0,
-            self.worker_id.0,
-            task_id,
-            microtask_id,
-        )
+        // resolve one stable worker scoped stream id
+        self.world()
+            .random
+            .worker_stream_id(self.runtime_id.0, self.worker_id.0)
     }
 
-    /// Return true when the world clock runs in virtual mode.
+    /// Return true when the world clock is runtime-owned.
     #[inline]
-    pub fn is_virtual_clock(&self) -> bool {
-        self.world().clock.source() == ClockSource::Virtual
+    pub fn is_runtime_clock(&self) -> bool {
+        self.world().clock.source() == ClockSource::Runtime
     }
 
     /// Return one runtime-backed wall clock sample.

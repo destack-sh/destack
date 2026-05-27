@@ -25,7 +25,7 @@ export enum PolicyDecisionKind {
 }
 
 /// Runtime execution-mode selector.
-export type ExecutionSelector = "fast" | "deterministic" | "record" | "replay";
+export type ExecutionSelector = "strict" | "fast" | "record" | "replay";
 
 /// Runtime condition selector.
 export struct ConditionSelector {

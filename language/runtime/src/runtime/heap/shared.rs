@@ -11,9 +11,9 @@ use destack_workspace::RuntimeOptions;
 #[derive(Debug)]
 pub(crate) struct SharedHeap {
     /// History-owned allocator backing runtime and worker heaps.
-    allocator: Arc<heap::Allocator>,
+    pub(crate) allocator: Arc<heap::Allocator>,
     /// Shared heap visible to every worker in this runtime.
-    shared: Arc<heap::SharedHeap>,
+    pub(crate) heap: Arc<heap::SharedHeap>,
     /// Shared heap roots published by workers for the active mark cycle.
     roots: Arc<SharedRootSet>,
     /// Runtime-owned collection state for this shared heap.
@@ -39,7 +39,7 @@ impl SharedHeap {
             .map_err(Box::<RuntimeError>::from)?,
         );
 
-        Ok(Self::from_shared(allocator, shared, collector))
+        Ok(Self::from_heap(allocator, shared, collector))
     }
 
     /// Restore runtime-owned shared heap state from a snapshot.
@@ -59,32 +59,22 @@ impl SharedHeap {
             .map_err(Box::<RuntimeError>::from)?,
         );
 
-        Ok(Self::from_shared(allocator, shared, collector))
+        Ok(Self::from_heap(allocator, shared, collector))
     }
 
     /// Fork runtime-owned shared heap state for one child world.
     pub(crate) fn fork(&self, collector: Arc<SharedCollector>) -> RuntimeResult<Self> {
-        let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
+        let shared = Arc::new(self.heap.fork().map_err(Box::<RuntimeError>::from)?);
 
-        Ok(Self::from_shared(self.allocator.clone(), shared, collector))
+        Ok(Self::from_heap(self.allocator.clone(), shared, collector))
     }
 
     /// Capture the shared heap snapshot.
     pub(crate) fn snapshot(&self) -> RuntimeResult<heap::SharedHeapSnapshot> {
-        self.shared
+        self.heap
             .image()
             .and_then(|image| image.snapshot())
             .map_err(Box::<RuntimeError>::from)
-    }
-
-    /// Borrow the shared heap.
-    pub(crate) fn heap(&self) -> &heap::SharedHeap {
-        &self.shared
-    }
-
-    /// Borrow the history-owned allocator.
-    pub(crate) fn allocator(&self) -> Arc<heap::Allocator> {
-        self.allocator.clone()
     }
 
     /// Borrow the shared root set.
@@ -92,14 +82,19 @@ impl SharedHeap {
         &self.roots
     }
 
-    /// Borrow the shared collection state.
-    pub(crate) fn collection(&self) -> &Arc<SharedCollection> {
-        &self.collection
-    }
-
     /// Register one shared GC worker.
     pub(crate) fn register_collector_worker(&self) -> heap::SharedGcWorker {
-        self.shared.register_collector_worker()
+        self.heap.register_collector_worker()
+    }
+
+    /// Return whether shared collection work is active.
+    pub(crate) fn collection_busy(&self) -> bool {
+        self.collection.is_busy()
+    }
+
+    /// Return one shared collector failure if one was recorded.
+    pub(crate) fn take_collection_failure(&self) -> Option<Box<RuntimeError>> {
+        self.collection.take_failure()
     }
 
     /// Suspend shared GC and wait for in-flight work to drain.
@@ -112,7 +107,7 @@ impl SharedHeap {
         self.collection.resume();
 
         if self.collector.mode().is_concurrent()
-            && self.shared.gc_phase() != heap::SharedGcPhase::Idle
+            && self.heap.gc_phase() != heap::SharedGcPhase::Idle
         {
             self.collector.wake(&self.collection);
         }
@@ -125,7 +120,7 @@ impl SharedHeap {
 
     /// Return whether the shared heap is currently marking.
     pub(crate) fn is_marking(&self) -> bool {
-        self.shared.gc_phase() == heap::SharedGcPhase::Mark
+        self.heap.gc_phase() == heap::SharedGcPhase::Mark
     }
 
     /// Return the bounded shared local-edge scan work for one worker tick.
@@ -196,7 +191,7 @@ impl SharedHeap {
     }
 
     /// Build state around one already-created shared heap.
-    fn from_shared(
+    fn from_heap(
         allocator: Arc<heap::Allocator>,
         shared: Arc<heap::SharedHeap>,
         collector: Arc<SharedCollector>,
@@ -206,7 +201,7 @@ impl SharedHeap {
 
         Self {
             allocator,
-            shared,
+            heap: shared,
             roots,
             collection,
             collector,

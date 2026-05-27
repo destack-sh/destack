@@ -32,9 +32,9 @@ const INITIAL_IMAGE_ID: u128 = 1;
 #[derive(Debug)]
 pub(crate) struct History {
     /// The shared allocator backing retained and live world images in this history.
-    allocator: Arc<heap::Allocator>,
+    pub(crate) allocator: Arc<heap::Allocator>,
     /// The collector scheduler shared by live worlds in this history.
-    collector: Arc<SharedCollector>,
+    pub(crate) collector: Arc<SharedCollector>,
     /// The next branch identifier to allocate.
     pub next_branch_id: u128,
     /// The next revision identifier to allocate.
@@ -270,16 +270,6 @@ impl History {
         history.rebuild_image_tables();
 
         Ok(history)
-    }
-
-    /// Return the shared collector for this history.
-    pub(crate) fn collector(&self) -> Arc<SharedCollector> {
-        self.collector.clone()
-    }
-
-    /// Return the shared allocator for this history.
-    pub(crate) fn allocator(&self) -> Arc<heap::Allocator> {
-        self.allocator.clone()
     }
 
     /// Collect the allocator pages reachable from one set of retained world images.

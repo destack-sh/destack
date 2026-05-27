@@ -2,11 +2,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_core::{Capture, CaptureMode};
-use destack_workspace::{RandomOptions, RandomSource};
+use destack_workspace::{ExecutionMode, RandomOptions};
 
 #[cfg(test)]
 use super::r#virtual::StreamStateDecodeError;
 use super::r#virtual::VirtualRandom;
+
+/// Effective runtime randomness source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RandomSource {
+    /// Use the host randomness source.
+    #[default]
+    Host,
+    /// Use deterministic runtime-managed randomness.
+    Deterministic,
+}
 
 /// Runtime randomness and entropy providers.
 #[derive(Debug)]
@@ -36,31 +46,27 @@ impl RandomStreamId {
     }
 }
 
-/// Key for one runtime and worker scoped implicit random stream.
+/// Key for one worker scoped implicit random stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct ScopedRandomStreamKey {
+pub struct WorkerRandomStreamKey {
     /// Runtime identifier component.
     pub runtime_id: u64,
     /// Worker identifier component.
     pub worker_id: u64,
-    /// Task identifier component when per-runnable streams are enabled.
-    pub task_id: Option<u64>,
-    /// Microtask identifier component when per-runnable streams are enabled.
-    pub microtask_id: Option<u64>,
 }
 
 impl Default for Random {
     fn default() -> Self {
-        Self::from_options(&RandomOptions::default())
+        Self::from_options(RandomSource::Host, &RandomOptions::default())
     }
 }
 
 impl Random {
     /// Create a random source from runtime options.
-    pub fn from_options(options: &RandomOptions) -> Self {
+    pub fn from_options(source: RandomSource, options: &RandomOptions) -> Self {
         let root_seed = options.seed.unwrap_or_default();
 
-        Self::with_source(options.source, root_seed)
+        Self::with_source(source, root_seed)
     }
 
     /// Create a random source from one source and root seed.
@@ -106,16 +112,9 @@ impl Random {
         self.virtual_random.reseed(seed);
     }
 
-    /// Resolve one scoped implicit random stream id.
-    pub fn scoped_stream_id(
-        &self,
-        runtime_id: u64,
-        worker_id: u64,
-        task_id: Option<u64>,
-        microtask_id: Option<u64>,
-    ) -> RandomStreamId {
-        self.virtual_random
-            .scoped_stream_id(runtime_id, worker_id, task_id, microtask_id)
+    /// Resolve one worker scoped implicit random stream id.
+    pub fn worker_stream_id(&self, runtime_id: u64, worker_id: u64) -> RandomStreamId {
+        self.virtual_random.worker_stream_id(runtime_id, worker_id)
     }
 
     /// Allocate a new deterministic random stream id.
@@ -152,7 +151,7 @@ impl Random {
 
     /// Capture one materialized random image.
     pub(crate) fn snapshot(&self) -> RandomImage {
-        let (root_seed, default_stream, next_stream_id, streams, scoped_streams) =
+        let (root_seed, default_stream, next_stream_id, streams, worker_streams) =
             self.virtual_random.snapshot();
 
         RandomImage {
@@ -160,7 +159,7 @@ impl Random {
             default_stream,
             next_stream_id,
             streams,
-            scoped_streams,
+            worker_streams,
         }
     }
 
@@ -184,7 +183,7 @@ impl Random {
                 &snapshot.default_stream,
                 snapshot.next_stream_id,
                 &snapshot.streams,
-                &snapshot.scoped_streams,
+                &snapshot.worker_streams,
             )
             .map_err(|error| {
                 RuntimeError::Internal {
@@ -194,6 +193,16 @@ impl Random {
             })?;
 
         Ok(())
+    }
+}
+
+impl RandomSource {
+    /// Resolve the effective random source for one execution mode.
+    pub const fn from_execution_mode(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Fast | ExecutionMode::Record => Self::Host,
+            ExecutionMode::Strict | ExecutionMode::Replay => Self::Deterministic,
+        }
     }
 }
 
@@ -208,8 +217,8 @@ pub struct RandomImage {
     pub next_stream_id: u64,
     /// Captured deterministic user stream states.
     pub streams: std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
-    /// Captured scoped stream bindings.
-    pub scoped_streams: std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
+    /// Captured worker stream bindings.
+    pub worker_streams: std::collections::BTreeMap<WorkerRandomStreamKey, RandomStreamId>,
 }
 
 impl Capture for Random {
@@ -239,8 +248,7 @@ impl Capture for Random {
 
 #[cfg(test)]
 mod tests {
-    use super::{Random, RandomStreamId, StreamStateDecodeError};
-    use destack_workspace::RandomSource;
+    use super::{Random, RandomSource, RandomStreamId, StreamStateDecodeError};
 
     /// Create one deterministic test random source.
     fn deterministic_random(root_seed: u64) -> Random {
@@ -317,24 +325,24 @@ mod tests {
     }
 
     #[test]
-    fn test_scoped_stream_id_is_stable_for_same_scope() {
-        // resolve one scoped stream id twice for one runtime and worker scope
+    fn test_worker_stream_id_is_stable_for_same_worker() {
+        // resolve one worker stream id twice for one runtime and worker scope
         let random = deterministic_random(0xdead_beef);
-        let first = random.scoped_stream_id(1, 7, Some(3), None);
-        let second = random.scoped_stream_id(1, 7, Some(3), None);
+        let first = random.worker_stream_id(1, 7);
+        let second = random.worker_stream_id(1, 7);
 
-        // ensure scoped stream mapping is stable
+        // ensure worker stream mapping is stable
         assert_eq!(first, second);
     }
 
     #[test]
-    fn test_scoped_stream_id_differs_across_workers_with_same_task_id() {
-        // resolve one scoped stream id for two workers with the same task id
+    fn test_worker_stream_id_differs_across_workers() {
+        // resolve one worker stream id for two workers
         let random = deterministic_random(0xdead_beef);
-        let first_worker_stream = random.scoped_stream_id(1, 7, Some(3), None);
-        let second_worker_stream = random.scoped_stream_id(1, 8, Some(3), None);
+        let first_worker_stream = random.worker_stream_id(1, 7);
+        let second_worker_stream = random.worker_stream_id(1, 8);
 
-        // ensure runtime and worker identity separates scoped streams
+        // ensure runtime and worker identity separates streams
         assert_ne!(first_worker_stream, second_worker_stream);
     }
 

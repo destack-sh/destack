@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use destack_engine as engine;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
-use destack_workspace::{Environment, RuntimeOptions, SchedulerOptions};
-use {destack_engine as engine, destack_vm as vm};
+use destack_vm as vm;
+use destack_workspace::{Environment, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::{Host, HostQueue, poll_host_events};
@@ -16,9 +17,7 @@ use crate::host::{
     HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
 use crate::runtime::engine::{CallContext, Continuation, Engine, Entry, MemoryContext, Outcome};
-use crate::runtime::scheduler::{
-    Microtask, MicrotaskId, Readiness, ScheduledTimer, Task, TaskId, TimerDeadline,
-};
+use crate::runtime::scheduler::{Readiness, ScheduledTimer, Task, TaskId, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::runtime::{
     BindingCallContext, ExecutionContext, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
@@ -225,25 +224,6 @@ impl TestRuntime {
         });
     }
 
-    /// Enqueue one native microtask with explicit identifiers.
-    pub(crate) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
-        let continuation = self.completing_continuation(continuation_id);
-
-        self.worker.event_loop.enqueue_microtask(Microtask {
-            id: MicrotaskId::new(microtask_id),
-            continuation,
-            resume_value: engine::Value::Void,
-        });
-    }
-
-    /// Configure scheduler options and fail loudly in tests.
-    pub(crate) fn configure_scheduler(&mut self, options: SchedulerOptions) {
-        self.worker
-            .event_loop
-            .configure(options)
-            .expect("scheduler options should configure");
-    }
-
     /// Register one native timer waiter.
     pub(crate) fn add_timer_waiter_native(
         &mut self,
@@ -419,23 +399,11 @@ impl TestRuntime {
         self.worker.event_loop.has_pending_work()
     }
 
-    /// Return whether the event loop has pending microtasks.
-    pub(crate) fn has_microtasks(&self) -> bool {
-        self.worker.event_loop.has_microtasks()
-    }
-
     /// Create one VM continuation that yields once when scheduled.
     pub(crate) fn yielding_continuation(&mut self, value: u64) -> Continuation {
         let value = i32::try_from(value).expect("test continuation id should fit int32");
 
         self.start_continuation("test.task", value)
-    }
-
-    /// Create one VM continuation that completes when scheduled.
-    pub(crate) fn completing_continuation(&mut self, value: u64) -> Continuation {
-        let value = i32::try_from(value).expect("test continuation id should fit int32");
-
-        self.start_continuation("test.complete", value)
     }
 
     /// Start one yielding VM function and return its continuation.
@@ -457,7 +425,7 @@ impl TestWorldRuntime {
     /// Build one test world runtime.
     pub(crate) fn build(options: &RuntimeOptions, engine: impl Into<Engine>) -> Self {
         let environment = Arc::new(Environment::default());
-        let mut world = World::new(options, environment.clone(), None).expect("world should build");
+        let mut world = World::new(options, environment.clone()).expect("world should build");
         let runtime_id = world
             .spawn_runtime(environment, options, engine)
             .expect("runtime should spawn");
@@ -559,8 +527,12 @@ impl TestWorldRuntime {
 pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> SharedHeap {
     let history = world.history.read();
 
-    SharedHeap::new(history.allocator(), history.collector(), options)
-        .expect("runtime shared heap should build")
+    SharedHeap::new(
+        history.allocator.clone(),
+        history.collector.clone(),
+        options,
+    )
+    .expect("runtime shared heap should build")
 }
 
 /// Build one worker configured for runtime tests.
@@ -569,7 +541,7 @@ fn worker_for_options(
     engine: impl Into<Engine>,
 ) -> (World, SharedHeap, engine::StaticSpace, Worker) {
     let mut world =
-        World::new(options, Environment::default(), None).expect("runtime test world should build");
+        World::new(options, Environment::default()).expect("runtime test world should build");
 
     // construct one runtime worker from explicit options
     let shared = runtime_shared_heap(&world, options);
@@ -586,12 +558,6 @@ fn worker_for_options(
         engine,
     )
     .expect("runtime test worker should build");
-
-    // configure scheduler options for deterministic tests
-    worker
-        .event_loop
-        .configure(options.scheduler_options().clone())
-        .expect("scheduler options should configure");
 
     // apply runtime options to binding policy state
     worker.bindings.apply_runtime_defaults(options);
@@ -619,7 +585,7 @@ pub(crate) fn start_worker_continuation(
         heap,
         statics,
         engine,
-        shared_allocator,
+        shared_cache,
         shared_gc_worker,
         ..
     } = worker;
@@ -627,8 +593,8 @@ pub(crate) fn start_worker_continuation(
         runtime: std::ptr::NonNull::from(&mut call_context).cast(),
         memory: MemoryContext {
             heap,
-            shared_heap: shared.heap(),
-            shared_allocator,
+            shared_heap: shared.heap.as_ref(),
+            shared_cache,
             shared_gc_worker,
             worker_static: statics,
             runtime_static,
