@@ -1,15 +1,16 @@
-use serde::{Deserialize, Serialize};
-
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
+use destack_mir::TraceTable;
+use serde::{Deserialize, Serialize};
 
 use super::{
     CardSet, GcState, HeapPageMapEntry, HeapSpace, LargeAllocation, LargeAllocationId,
     LargeAllocationImage, SmallSpan, SmallSpanImage, YoungImage, YoungRunCursor, YoungSpace,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
-use crate::{AllocationUsage, Bitmap, CowTable, HeapError, HeapResult, SmallSpanClass};
+use crate::{AllocationUsage, Bitmap, CowTable, HeapError, HeapResult};
 
 /// One frozen heap-space image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,7 +168,7 @@ impl HeapSpace {
     /// Fork one heap space over the same shared allocator.
     ///
     /// Call this only from a safepoint where the heap space cannot mutate.
-    pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
+    pub(crate) fn fork(&mut self, trace_table: &TraceTable) -> Result<Self, HeapError> {
         self.check_branch_boundary()?;
         self.flush_branch_boundary()?;
 
@@ -176,8 +177,8 @@ impl HeapSpace {
         // rebuild remembered-set state conservatively after fork
         space
             .rebuild_page_map()
-            .and_then(|()| space.rebuild_remembered_set())
-            .and_then(|()| space.rebuild_shared_edge_roots())?;
+            .and_then(|()| space.rebuild_remembered_set(trace_table))
+            .and_then(|()| space.rebuild_shared_edge_roots(trace_table))?;
 
         Ok(space)
     }
@@ -186,6 +187,7 @@ impl HeapSpace {
     pub(crate) fn from_image(
         allocator: Arc<Allocator>,
         image: &HeapSpaceImage,
+        trace_table: &TraceTable,
     ) -> Result<Self, HeapError> {
         // reject contradictory young-space policy
         if image.young().capacity_bytes() != 0
@@ -197,21 +199,22 @@ impl HeapSpace {
             });
         }
 
-        Self::restore_from_image(allocator, image)
+        Self::restore_from_image(allocator, image, trace_table)
     }
 
     /// Restore one heap space from one checked frozen heap-space image.
     fn restore_from_image(
         allocator: Arc<Allocator>,
         image: &HeapSpaceImage,
+        trace_table: &TraceTable,
     ) -> Result<Self, HeapError> {
         let mut space = Self::restore_state(allocator.clone(), image)?;
 
         // rebuild remembered-set state conservatively after restore
         space
             .rebuild_page_map()
-            .and_then(|()| space.rebuild_remembered_set())
-            .and_then(|()| space.rebuild_shared_edge_roots())?;
+            .and_then(|()| space.rebuild_remembered_set(trace_table))
+            .and_then(|()| space.rebuild_shared_edge_roots(trace_table))?;
 
         Ok(space)
     }
@@ -268,8 +271,7 @@ impl HeapSpace {
         let live = image.young().live().clone();
         let runs = image.young().runs().to_vec();
         let run_bits = image.young().run_bits().to_vec();
-        let small_bucket_count = SmallSpanClass::bucket_count(image.size_classes());
-        let mut run_buckets = vec![None; small_bucket_count];
+        let mut run_buckets = BTreeMap::new();
         let page_count = image
             .young()
             .capacity_bytes()
@@ -277,8 +279,12 @@ impl HeapSpace {
         let mut page_runs = vec![None; page_count];
 
         for (run_index, run) in runs.iter().enumerate() {
-            let bucket_index = run.class().bucket_index(image.size_classes())?;
-            run_buckets[bucket_index] = Some(run_index);
+            run.class().validate(
+                image.size_classes(),
+                image.young().page_bytes(),
+                image.small_bytes(),
+            )?;
+            run_buckets.insert(run.class(), run_index);
 
             let page_start = run.first_offset / image.young().page_bytes();
             let page_count = run.span_bytes() / image.young().page_bytes();
@@ -309,6 +315,14 @@ impl HeapSpace {
     /// Fork the heap young space from one live space.
     fn fork_young_space(space: &Self) -> HeapResult<YoungSpace> {
         let pages = space.allocator.share_page_run(space.young.pages)?;
+
+        for run in &space.young.runs {
+            run.class().validate(
+                &space.small.size_classes,
+                space.young.page_bytes,
+                space.small.span_bytes,
+            )?;
+        }
 
         Ok(YoungSpace {
             capacity_bytes: space.young.capacity_bytes,
@@ -402,11 +416,11 @@ impl HeapSpace {
             size_classes: image.size_classes().clone(),
             span_bytes: image.small_bytes(),
             spans: CowTable::from_vec(spans),
-            partial_spans: vec![Vec::new(); SmallSpanClass::bucket_count(image.size_classes())],
+            partial_spans: BTreeMap::new(),
         };
 
         // rebuild the derived span occupancy state
-        Self::restore_partial_spans(&mut small)?;
+        Self::restore_partial_spans(&mut small, allocator.page_bytes())?;
 
         Ok(small)
     }
@@ -425,24 +439,28 @@ impl HeapSpace {
             size_classes: space.small.size_classes.clone(),
             span_bytes: space.small.span_bytes,
             spans: CowTable::from_vec(spans),
-            partial_spans: vec![
-                Vec::new();
-                SmallSpanClass::bucket_count(&space.small.size_classes)
-            ],
+            partial_spans: BTreeMap::new(),
         };
 
         // rebuild the derived span occupancy state
-        Self::restore_partial_spans(&mut small)?;
+        Self::restore_partial_spans(&mut small, space.allocator.page_bytes())?;
 
         Ok(small)
     }
 
     /// Rebuild the derived reusable-span state for one restored small space.
-    fn restore_partial_spans(small: &mut super::SmallSpace) -> Result<(), HeapError> {
+    fn restore_partial_spans(
+        small: &mut super::SmallSpace,
+        page_bytes: usize,
+    ) -> Result<(), HeapError> {
         for span_index in 0..small.spans.len() {
             let Some(span) = small.spans.get_mut(span_index) else {
                 return Err(HeapError::MissingSpan { span_index });
             };
+
+            // validate persisted class metadata before rebuilding derived state
+            span.class
+                .validate(&small.size_classes, page_bytes, small.span_bytes)?;
 
             // rebuild the derived per-span occupancy counters
             span.occupied_count = span.occupied.count_ones();
@@ -453,8 +471,11 @@ impl HeapSpace {
                 continue;
             }
 
-            let bucket_index = span.class.bucket_index(&small.size_classes)?;
-            small.partial_spans[bucket_index].push(span_index);
+            small
+                .partial_spans
+                .entry(span.class)
+                .or_default()
+                .push(span_index);
         }
 
         Ok(())
@@ -728,7 +749,7 @@ fn restored_young_usage(image: &HeapSpaceImage) -> AllocationUsage {
         let occupied_count = reserved_count - freed_count;
 
         for _ in 0..occupied_count {
-            usage.allocate(run.size_class);
+            usage.allocate(run.class.size_class);
         }
     }
 

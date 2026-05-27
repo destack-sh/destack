@@ -1,5 +1,7 @@
 use std::sync::atomic::Ordering;
 
+use destack_mir::TraceTable;
+
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{SharedHeapPlace, SharedHeapSpace, small_slot_offset};
 use crate::{
@@ -34,13 +36,17 @@ impl SharedHeapSpace {
     }
 
     /// Perform one full shared heap collection over the given roots.
-    pub fn collect_full(&self, roots: &[SharedHeapReference]) -> HeapResult<GcStats> {
+    pub fn collect_full(
+        &self,
+        roots: &[SharedHeapReference],
+        trace_table: &TraceTable,
+    ) -> HeapResult<GcStats> {
         // mark phase
         self.start_mark(roots)?;
 
         // concurrent mark
         while !self.mark_idle() {
-            self.mark_step(None, &[], usize::MAX)?;
+            self.mark_step(None, &[], usize::MAX, trace_table)?;
         }
 
         // sweep phase
@@ -62,6 +68,7 @@ impl SharedHeapSpace {
         worker: Option<&SharedGcWorker>,
         roots: &[SharedHeapReference],
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // phase
         if self.gc.phase() != SharedGcPhase::Mark {
@@ -94,7 +101,8 @@ impl SharedHeapSpace {
             }
 
             // trace claimed work
-            let trace_result = self.trace_batch(worker, &batch, budget_bytes - marked_bytes);
+            let trace_result =
+                self.trace_batch(worker, &batch, budget_bytes - marked_bytes, trace_table);
             let (traced_bytes, processed_items) = match trace_result {
                 Ok(result) => result,
                 Err(error) => {
@@ -141,6 +149,7 @@ impl SharedHeapSpace {
         worker: Option<&SharedGcWorker>,
         batch: &[SharedTraceWork],
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<(usize, usize)> {
         let mut start = 0usize;
         let mut marked_bytes = 0usize;
@@ -158,7 +167,8 @@ impl SharedHeapSpace {
                     reference,
                     start: range_start,
                 } => {
-                    marked_bytes += self.trace_large_range(worker, reference, range_start)?;
+                    marked_bytes +=
+                        self.trace_large_range(worker, reference, range_start, trace_table)?;
                     start += 1;
                 }
 
@@ -179,6 +189,7 @@ impl SharedHeapSpace {
                         worker,
                         span_index,
                         budget_bytes - marked_bytes,
+                        trace_table,
                     )?;
                     start = end;
                 }
@@ -199,6 +210,7 @@ impl SharedHeapSpace {
         worker: Option<&SharedGcWorker>,
         reference: SharedHeapReference,
         start: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // resolve and verify the large allocation
         let Some(location) = self.resolve_location(reference) else {
@@ -209,7 +221,7 @@ impl SharedHeapSpace {
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
         if !trace_map.has_shared_reference() {
             return Ok(location.byte_len);
         }
@@ -260,6 +272,7 @@ impl SharedHeapSpace {
         worker: Option<&SharedGcWorker>,
         span_index: usize,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         let mut scanned_bytes = 0usize;
 
@@ -272,7 +285,6 @@ impl SharedHeapSpace {
 
             span
         };
-
         // keep draining until this span really goes idle
         while scanned_bytes < budget_bytes {
             let scan_slots = {
@@ -292,7 +304,7 @@ impl SharedHeapSpace {
 
                 for slot_index in slot_indices {
                     let slot_offset = small_slot_offset(span.class.size_class, slot_index);
-                    let trace_map = span.trace_map(slot_index);
+                    let trace_map = span.trace_map(slot_index, trace_table)?;
                     scan_slots.push((
                         span.first_offset,
                         slot_offset,

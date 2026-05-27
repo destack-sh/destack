@@ -65,8 +65,9 @@ pub(super) struct SmallAllocation {
 impl SharedAllocationCache {
     /// Create one empty mutator-local shared allocation cache.
     pub(super) fn new(size_classes: SizeClassTable, span_bytes: usize, page_bytes: usize) -> Self {
-        let mut small = Vec::with_capacity(SmallSpanClass::bucket_count(&size_classes));
-        let mut runs = Vec::with_capacity(SmallSpanClass::bucket_count(&size_classes));
+        let bucket_count = SmallAllocationPlan::bucket_count(&size_classes);
+        let mut small = Vec::with_capacity(bucket_count);
+        let mut runs = Vec::with_capacity(bucket_count);
 
         // create scan and noscan buckets for every size class
         for class_index in 0..size_classes.classes.len() {
@@ -78,6 +79,7 @@ impl SharedAllocationCache {
                     span_bytes: size_class
                         .span_bytes(page_bytes, span_bytes)
                         .max(span_bytes),
+                    trace_id: None,
                     is_noscan,
                 };
 
@@ -110,13 +112,18 @@ impl SharedAllocationCache {
         layout.byte_len
     }
 
-    /// Reserve one zeroed allocation from a resolved no-scan small class.
+    /// Try to allocate one zeroed payload from the active run for one small class.
     #[inline(always)]
-    pub(crate) fn reserve_small_zeroed(
+    pub(crate) fn try_allocate_zeroed(
         &mut self,
         small: SmallAllocationPlan,
     ) -> Option<SharedHeapReference> {
-        // SAFETY: small allocation plan carries a matching bucket index and slot width
+        let bucket = self.small.get(small.bucket_index())?;
+        if bucket.class != small.class {
+            return None;
+        }
+
+        // SAFETY: the bucket class was checked against this small allocation plan
         unsafe { self.reserve_zeroed_run_slot_unchecked(small.bucket_index(), small.slot_bytes()) }
     }
 
@@ -318,6 +325,7 @@ impl SmallBucket {
         let next_slot = span.first_free_slot();
 
         self.span_index = span_index as u32;
+        self.class = span.class;
         self.span = Some(span.clone());
         self.first_offset = span.first_offset;
         self.slot_count = span.slot_count;

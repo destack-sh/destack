@@ -6,7 +6,7 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::{read_mapped_bytes, write_mapped_bytes};
+use super::{read_mapped_bytes, trace_table, write_mapped_bytes};
 
 /// The allocator chunk size for small-page shared image fixtures.
 const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
@@ -172,7 +172,7 @@ fn test_roundtrip_shared_heap_space_image() {
     let restored_image = restored.image().expect("shared heap image should capture");
 
     // restored metadata should match the captured image
-    assert_eq!(restored.scan(first), Ok(TraceMap::empty()));
+    assert_eq!(restored.scan(first, trace_table()), Ok(TraceMap::empty()));
     assert!(Arc::ptr_eq(&restored.allocator, &allocator));
     assert_eq!(image.spans().len(), restored_image.spans().len());
 
@@ -192,7 +192,7 @@ fn test_roundtrip_shared_heap_space_image() {
 
     // mutating one slot should not affect the captured image
     restored
-        .write_barrier_bytes(first, 0, &[0xFE])
+        .write_barrier_bytes(first, 0, &[0xFE], trace_table())
         .expect("shared heap write barrier should record");
 
     write_mapped_bytes(first_address, &[0xFE]);

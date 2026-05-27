@@ -1,3 +1,5 @@
+use destack_mir::TraceTable;
+
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{SharedHeapPlace, SharedHeapSpace};
 use crate::{
@@ -12,6 +14,7 @@ impl SharedHeapSpace {
         reference: SharedHeapReference,
         byte_offset: usize,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // inactive collector
         let Some(_publication) = self.gc.begin_mark_publication() else {
@@ -28,7 +31,7 @@ impl SharedHeapSpace {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidSharedHeapReference { reference });
         };
-        let trace_map = self.trace_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
         let base_address = self.mapping.base_address() + location.base.offset();
         scan_shared_references_in_range(
             &trace_map,
@@ -180,10 +183,6 @@ impl SharedHeapSpace {
         if !self.mark_place(location.place)? {
             return Ok(());
         }
-        if !self.scan(reference)?.has_shared_reference() {
-            return Ok(());
-        }
-
         self.gc.trace_queue.push(
             worker,
             SharedTraceWork::Large {

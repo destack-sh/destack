@@ -217,6 +217,11 @@ pub enum HeapError {
         /// The violated invariant context.
         context: &'static str,
     },
+    /// One heap trace id did not resolve to program trace metadata.
+    MissingTraceMap {
+        /// The missing trace id.
+        trace_id: u32,
+    },
     /// One serialized image page could not be resolved.
     ImageMissingPage {
         /// The missing page identifier.
@@ -575,6 +580,9 @@ impl Display for HeapError {
             }
             Self::InvariantViolation { context } => {
                 write!(formatter, "heap invariant violation: {context}")
+            }
+            Self::MissingTraceMap { trace_id } => {
+                write!(formatter, "heap trace table is missing trace id {trace_id}")
             }
             Self::ImageMissingPage { page_id } => {
                 write!(formatter, "heap image is missing page {page_id:?}")

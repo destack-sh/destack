@@ -2,11 +2,18 @@ use std::sync::Arc;
 
 use crate::{Allocator, HeapError, Payload, RawAllocationShape, SharedRawPointer, SharedRawSpace};
 
+/// Build one default shared raw space.
+fn test_shared_raw_space() -> SharedRawSpace {
+    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
+
+    SharedRawSpace::with_allocator(allocator).expect("shared raw should build")
+}
+
 /// Reject one invalid shared raw pointer loudly.
 #[test]
 fn test_free_shared_rejects_invalid_pointer() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // build a shared raw space with no allocation at offset 7
+    let shared = test_shared_raw_space();
 
     // reject one unknown address
     let pointer = SharedRawPointer::new(7);
@@ -18,8 +25,8 @@ fn test_free_shared_rejects_invalid_pointer() {
 /// Reclaim one freed shared raw allocation and allow another allocation.
 #[test]
 fn test_free_shared_reclaims_live_allocation() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // allocate one live shared raw payload
+    let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(2), Payload::Bytes(&[0xAB, 0xCD]))
         .expect("shared allocation should succeed");
@@ -29,6 +36,7 @@ fn test_free_shared_reclaims_live_allocation() {
     shared.free(pointer).expect("shared free should succeed");
     assert!(!shared.is_live(pointer));
 
+    // allocate again to prove the shared raw space remains usable
     let next_pointer = shared
         .allocate(RawAllocationShape::bytes(1), Payload::Bytes(&[0xEF]))
         .expect("shared allocation should succeed");
@@ -39,8 +47,8 @@ fn test_free_shared_reclaims_live_allocation() {
 /// Clear bytes when reusing one freed shared raw allocation for zeroed payload.
 #[test]
 fn test_allocate_zeroed_shared_raw_clears_reused_allocation() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // seed one nonzero shared raw allocation
+    let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(2), Payload::Bytes(&[0xAB, 0xCD]))
         .expect("shared allocation should succeed");
@@ -57,9 +65,10 @@ fn test_allocate_zeroed_shared_raw_clears_reused_allocation() {
 /// Reject caller-provided shared raw bytes that do not match the allocation shape.
 #[test]
 fn test_reject_shared_raw_allocation_byte_len_mismatch() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // build a default shared raw space
+    let shared = test_shared_raw_space();
 
+    // provide fewer bytes than the requested shape
     let error = shared
         .allocate(RawAllocationShape::new(4, 1), Payload::Bytes(&[1, 2]))
         .expect_err("shared allocation should reject mismatched bytes");
@@ -76,8 +85,8 @@ fn test_reject_shared_raw_allocation_byte_len_mismatch() {
 /// Honor the requested shared raw allocation base alignment.
 #[test]
 fn test_allocate_shared_raw_honors_alignment() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // build a default shared raw space
+    let shared = test_shared_raw_space();
     let alignment = shared.page_bytes() * 2;
 
     // align page-backed shared raw allocation bases
@@ -91,8 +100,8 @@ fn test_allocate_shared_raw_honors_alignment() {
 /// Keep shared raw fork writes independent from the parent mapping.
 #[test]
 fn test_fork_shared_raw_write_is_independent() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // allocate one shared raw payload before forking
+    let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(4), Payload::Bytes(&[1, 2, 3, 4]))
         .expect("shared allocation should succeed");
@@ -110,8 +119,8 @@ fn test_fork_shared_raw_write_is_independent() {
 /// Keep zero-byte shared raw allocations addressable.
 #[test]
 fn test_allocate_shared_zero_byte_raw_is_live() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // allocate a zero-byte payload as a real resource
+    let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(0), Payload::Bytes(&[]))
         .expect("zero-byte allocation should succeed");
@@ -123,8 +132,8 @@ fn test_allocate_shared_zero_byte_raw_is_live() {
 /// Reject one out of bounds shared pointer offset loudly.
 #[test]
 fn test_shared_reads_reject_invalid_pointer_offset() {
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let shared = SharedRawSpace::with_allocator(allocator).expect("shared raw should build");
+    // allocate one payload and form an offset outside it
+    let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(
             RawAllocationShape::bytes(3),
@@ -133,6 +142,7 @@ fn test_shared_reads_reject_invalid_pointer_offset() {
         .expect("shared allocation should succeed");
     let pointer = pointer.add_bytes(4);
 
+    // reject the interior pointer because it resolves outside the allocation
     let error = shared
         .byte_len(pointer)
         .expect_err("shared byte_len should reject invalid offsets");

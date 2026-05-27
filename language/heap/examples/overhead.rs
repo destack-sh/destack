@@ -6,7 +6,6 @@ use destack_heap::{
 };
 
 const WORD_BYTES: usize = mem::size_of::<usize>();
-const CURRENT_YOUNG_RANGE_RECORD_BYTES: usize = mem::size_of::<usize>() * 2;
 const TARGET_YOUNG_RANGE_RECORD_BYTES: usize = mem::size_of::<u32>() * 3;
 const TARGET_TRACE_MAP_ID_BYTES: usize = 4;
 const DIRTY_CARD_BYTES: usize = DEFAULT_PAGE_BYTES / 32;
@@ -78,20 +77,17 @@ fn print_policy() {
 /// Print the current eager young-space metadata summary.
 fn print_young_space_summary() {
     let reference_capacity = DEFAULT_YOUNG_BYTES.div_ceil(WORD_BYTES);
-    let run_bucket_count = SizeClassTable::default().classes.len() * 2;
     let page_count = DEFAULT_YOUNG_BYTES.div_ceil(DEFAULT_PAGE_BYTES);
 
     let local_reference_bytes = bitmap_bytes(reference_capacity);
     let shared_reference_bytes = bitmap_bytes(reference_capacity);
     let page_runs_bytes = page_count * mem::size_of::<Option<usize>>();
-    let run_buckets_bytes = run_bucket_count * mem::size_of::<Option<usize>>();
-    let total_bytes =
-        page_runs_bytes + run_buckets_bytes + local_reference_bytes + shared_reference_bytes;
+    let total_bytes = page_runs_bytes + local_reference_bytes + shared_reference_bytes;
     let metadata_percent = total_bytes as f64 / DEFAULT_YOUNG_BYTES as f64 * 100.0;
 
     println!("current eager local young metadata");
     println!("  page run owners:        {}", page_runs_bytes);
-    println!("  no-scan run buckets:    {}", run_buckets_bytes);
+    println!("  run bucket map:         0");
     println!("  local reference bits:   {}", local_reference_bytes);
     println!("  shared reference bits:  {}", shared_reference_bytes);
     println!("  total:                  {total_bytes} ({metadata_percent:.1}% of young)");
@@ -161,7 +157,7 @@ fn print_size_table(rows: &[Row]) {
 /// Print interpretation notes for the report columns.
 fn print_notes() {
     println!("legend");
-    println!("  young:  current local young range allocation, amortized over a full nursery");
+    println!("  young:  current local young typed-run allocation");
     println!(
         "  young*: target local young range allocation, compact record plus reference map bits"
     );
@@ -195,7 +191,7 @@ fn row_for_class(class_index: usize, class: SizeClass, classes: &[SizeClass]) ->
         span_bytes,
         slot_count,
         rounding_bytes,
-        current_young_scan_bytes: current_young_scan_bytes(class.bytes),
+        current_young_scan_bytes: current_young_scan_bytes(slot_count),
         target_young_scan_bytes: target_young_scan_bytes(class.bytes),
         current_young_noscan_bytes: current_young_noscan_bytes(),
         target_young_noscan_bytes: target_young_noscan_bytes(),
@@ -207,8 +203,8 @@ fn row_for_class(class_index: usize, class: SizeClass, classes: &[SizeClass]) ->
 }
 
 /// Return current local young scan metadata bytes for one allocation.
-fn current_young_scan_bytes(slot_bytes: usize) -> f64 {
-    CURRENT_YOUNG_RANGE_RECORD_BYTES as f64 + reference_map_bytes(slot_bytes) + bit_bytes(2)
+fn current_young_scan_bytes(slot_count: usize) -> f64 {
+    bit_bytes(2) + TARGET_TRACE_MAP_ID_BYTES as f64 / slot_count as f64
 }
 
 /// Return target local young scan metadata bytes for one allocation.

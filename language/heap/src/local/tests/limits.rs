@@ -4,13 +4,14 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::TestHeap;
+use super::{TestHeap, trace_table};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
 
 /// Return the retained heap bytes for one allocation in the given heap options.
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
+    // allocate one managed payload under the requested options
     let layout = test_layout(bytes.len(), TraceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
@@ -21,11 +22,13 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
     )
     .expect("heap allocation should succeed");
 
+    // report retained bytes after allocator rounding
     heap.usage().heap.retained_bytes
 }
 
 /// Return the retained local raw bytes after one replacement in the given heap options.
 fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
+    // allocate one raw payload under the requested options
     let mut test_heap = TestHeap::with_options(options);
     let heap = &mut test_heap.heap;
 
@@ -35,12 +38,14 @@ fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 
     )
     .expect("raw allocation should succeed");
 
+    // report retained bytes after allocator rounding
     heap.usage().raw.retained_bytes
 }
 
 /// Track retained bytes for default young-space allocation.
 #[test]
 fn test_track_default_young_retained_bytes() {
+    // fill the default nursery with small zeroed objects
     let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
@@ -52,6 +57,7 @@ fn test_track_default_young_retained_bytes() {
 
     let usage = heap.usage().heap;
 
+    // retained bytes should be the whole reserved nursery
     assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
     assert_eq!(
         usage.allocated_bytes,
@@ -63,6 +69,7 @@ fn test_track_default_young_retained_bytes() {
 /// Track retained bytes for local small-span allocation.
 #[test]
 fn test_track_small_span_retained_bytes() {
+    // disable young space so all objects use mature small spans
     let options = HeapOptions {
         heap_young_bytes: 0,
         max_heap_young_allocation_bytes: 0,
@@ -83,6 +90,7 @@ fn test_track_small_span_retained_bytes() {
     let mut test_heap = TestHeap::with_options(options);
     let heap = &mut test_heap.heap;
 
+    // allocate enough objects to cover several slots and spans
     for _ in 0..SMALL_ALLOCATION_COUNT {
         heap.allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
             .expect("heap allocation should succeed");
@@ -90,6 +98,7 @@ fn test_track_small_span_retained_bytes() {
 
     let usage = heap.usage().heap;
 
+    // retained bytes should be rounded by span geometry
     assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
     assert_eq!(
         usage.allocated_bytes,
@@ -101,6 +110,7 @@ fn test_track_small_span_retained_bytes() {
 /// Reject one heap allocation when the retained-byte limit would be exceeded.
 #[test]
 fn test_reject_heap_allocation_when_limit_exceeded() {
+    // compute the projected retained-byte charge for one allocation
     let options = HeapOptions {
         heap_young_bytes: 0,
         max_heap_young_allocation_bytes: 0,
@@ -120,6 +130,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     })
     .expect("baseline heap should fit its current retained-byte limit");
 
+    // reject the allocation before mutating heap accounting
     let error = heap
         .allocate(
             &heap.allocation_plan(layout.allocation()),
@@ -142,6 +153,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 /// Reject one raw allocation when the retained-byte limit would be exceeded.
 #[test]
 fn test_reject_raw_allocation_when_limit_exceeded() {
+    // compute the projected retained-byte charge for one allocation
     let expected_used_bytes = raw_retained_bytes_after_allocate(HeapOptions::local(), &[1]);
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
@@ -155,6 +167,7 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
     })
     .expect("baseline raw heap should fit its current retained-byte limit");
 
+    // reject the allocation before mutating raw accounting
     let error = heap
         .allocate_raw(RawAllocationShape::bytes(1), Payload::Bytes(&[1]))
         .expect_err("raw allocation should be rejected");
@@ -174,6 +187,7 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
 /// Preserve custom heap limits across in-place heap image restore.
 #[test]
 fn test_restore_heap_image_preserves_limits() {
+    // install non-default hard limits before capture
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
     let limits = HeapLimits {
@@ -190,7 +204,7 @@ fn test_restore_heap_image_preserves_limits() {
     let image = heap.image().expect("heap image should capture");
 
     // restoring one captured image should keep the existing hard limits
-    heap.restore_image(&image)
+    heap.restore_image(&image, trace_table())
         .expect("heap image restore should succeed");
 
     assert_eq!(heap.limits(), limits);
@@ -199,6 +213,7 @@ fn test_restore_heap_image_preserves_limits() {
 /// Reject one raw replace when byte growth would exceed the retained-byte limit.
 #[test]
 fn test_reject_raw_replace_when_limit_exceeded() {
+    // allocate one raw payload and cap retained bytes at the baseline
     let mut test_heap = TestHeap::with_options(HeapOptions::local());
     let heap = &mut test_heap.heap;
     let pointer = heap
@@ -222,6 +237,7 @@ fn test_reject_raw_replace_when_limit_exceeded() {
         .expect("raw replacement should project");
     let expected_used_bytes = baseline + retained_byte_delta as u64;
 
+    // reject the replacement before mutating bytes or accounting
     let error = heap
         .replace_raw_bytes(pointer, &vec![0xBB; 8193])
         .expect_err("raw replace should be rejected");

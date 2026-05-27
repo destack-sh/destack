@@ -1,10 +1,12 @@
+use destack_mir::TraceTable;
+
 use crate::local::space::{
-    GC_METADATA_STEP_BYTES, GC_METADATA_WORD_BITS, GcKind, GcStats, HeapPlace, HeapSpace,
-    HeapTraceQueue, LargeAllocationId, YoungGcPhase, YoungPlace, YoungRunCursor,
+    DirtyRegion, GC_METADATA_STEP_BYTES, GC_METADATA_WORD_BITS, GcKind, GcStats, HeapPlace,
+    HeapSpace, HeapTraceQueue, LargeAllocationId, YoungGcPhase, YoungPlace, YoungRunCursor,
 };
 use crate::{
     GcProgress, HeapError, HeapReference, HeapResult, RootSlot, ScanSource, scan_heap_references,
-    scan_heap_references_in_range, slot_trace_map,
+    scan_heap_references_in_range,
 };
 
 impl HeapSpace {
@@ -12,6 +14,7 @@ impl HeapSpace {
     pub fn collect_minor<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        trace_table: &TraceTable,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -19,7 +22,7 @@ impl HeapSpace {
         self.start_young_gc()?;
 
         loop {
-            match self.step_young_gc(roots, usize::MAX)? {
+            match self.step_young_gc(roots, usize::MAX, trace_table)? {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
@@ -51,10 +54,8 @@ impl HeapSpace {
         self.collector.young_sweep_range_cursor = 0;
         self.collector.young_sweep_run_cursor = 0;
         self.collector.young_sweep_slot_cursor = 0;
-        self.collector.young_dirty_span_cursor = 0;
-        self.collector.young_dirty_span_card_cursor = 0;
-        self.collector.young_dirty_large_cursor = 0;
-        self.collector.young_dirty_large_card_cursor = 0;
+        self.collector.young_dirty_region_cursor = 0;
+        self.collector.young_dirty_card_cursor = 0;
         self.collector.young_freed_allocations = 0;
         self.collector.young_freed_bytes = 0;
 
@@ -66,6 +67,7 @@ impl HeapSpace {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -77,8 +79,8 @@ impl HeapSpace {
 
         match self.collector.young_phase {
             YoungGcPhase::Idle => Ok(GcProgress::Idle),
-            YoungGcPhase::Mark => self.mark_young_gc_step(roots, usize::MAX),
-            YoungGcPhase::Sweep => self.sweep_young_gc_step(roots, usize::MAX),
+            YoungGcPhase::Mark => self.mark_young_gc_step(roots, usize::MAX, trace_table),
+            YoungGcPhase::Sweep => self.sweep_young_gc_step(roots, usize::MAX, trace_table),
         }
     }
 
@@ -87,14 +89,15 @@ impl HeapSpace {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
     {
         self.seed_young_roots(roots)?;
-        let dirty_bytes = self.scan_dirty_young_references_step(budget_bytes)?;
+        let dirty_bytes = self.scan_dirty_young_references_step(budget_bytes, trace_table)?;
         let marked_bytes = if dirty_bytes < budget_bytes {
-            self.mark_young_references_step(budget_bytes - dirty_bytes)?
+            self.mark_young_references_step(budget_bytes - dirty_bytes, trace_table)?
         } else {
             0
         };
@@ -107,7 +110,7 @@ impl HeapSpace {
             self.collector.young_phase = YoungGcPhase::Sweep;
             let remaining_bytes = budget_bytes - dirty_bytes - marked_bytes;
 
-            return self.sweep_young_gc_step(roots, remaining_bytes);
+            return self.sweep_young_gc_step(roots, remaining_bytes, trace_table);
         }
 
         // advance to sweep for the next safepoint
@@ -166,13 +169,11 @@ impl HeapSpace {
         self.collector.young_sweep_range_cursor = 0;
         self.collector.young_sweep_run_cursor = 0;
         self.collector.young_sweep_slot_cursor = 0;
-        self.collector.young_dirty_span_cursor = 0;
-        self.collector.young_dirty_span_card_cursor = 0;
-        self.collector.young_dirty_large_cursor = 0;
-        self.collector.young_dirty_large_card_cursor = 0;
+        self.collector.young_dirty_region_cursor = 0;
+        self.collector.young_dirty_card_cursor = 0;
 
         // keep cards that still bridge mature objects to young objects
-        self.compact_dirty_young_reference_queues();
+        self.compact_dirty_regions();
         self.collector.young_freed_allocations = 0;
         self.collector.young_freed_bytes = 0;
 
@@ -180,7 +181,11 @@ impl HeapSpace {
     }
 
     /// Mark reachable young references within one byte budget.
-    fn mark_young_references_step(&mut self, budget_bytes: usize) -> HeapResult<usize> {
+    fn mark_young_references_step(
+        &mut self,
+        budget_bytes: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<usize> {
         let mut marked_bytes = 0usize;
         let mut pending = std::mem::take(&mut self.collector.minor_queue);
 
@@ -202,12 +207,12 @@ impl HeapSpace {
             }
 
             // load exact reference layout for this allocation
-            let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
-                HeapError::HeapScanFailed {
+            let trace_map = self
+                .trace_map_for_place(location.place, trace_table)
+                .map_err(|error| HeapError::HeapScanFailed {
                     source: ScanSource::Reference(reference),
                     error: Box::new(error),
-                }
-            })?;
+                })?;
 
             let mut references = Vec::new();
 
@@ -239,6 +244,7 @@ impl HeapSpace {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -252,7 +258,7 @@ impl HeapSpace {
             && self.collector.young_sweep_run_cursor >= self.young.runs.len()
         {
             // young relocation must drain before the mutator resumes
-            self.relocate_young_survivors(roots)?;
+            self.relocate_young_survivors(roots, trace_table)?;
 
             return self
                 .finish_young_gc()
@@ -365,7 +371,7 @@ impl HeapSpace {
                 }
 
                 if bits.marked.contains(slot_index) {
-                    *swept_bytes += run.size_class.max(1);
+                    *swept_bytes += run.class.size_class.max(1);
 
                     continue;
                 }
@@ -374,10 +380,10 @@ impl HeapSpace {
                 bits.marked.clear(slot_index);
                 let reference = HeapReference::new(run.slot_offset(slot_index));
                 self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(run.size_class);
+                self.record_young_free(run.class.size_class);
                 self.collector.young_freed_allocations += 1;
-                self.collector.young_freed_bytes += run.size_class as u64;
-                *swept_bytes += run.size_class.max(1);
+                self.collector.young_freed_bytes += run.class.size_class as u64;
+                *swept_bytes += run.class.size_class.max(1);
             }
 
             if self.collector.young_sweep_slot_cursor >= reserved_slots {
@@ -399,7 +405,7 @@ impl HeapSpace {
         self.young.shared_reference_bits.clear_all();
         self.young.runs.clear();
         self.young.run_bits.clear();
-        self.young.run_buckets.fill(None);
+        self.young.run_buckets.clear();
         self.young.run_cursor = YoungRunCursor::inactive();
         self.young.page_runs.fill(None);
     }
@@ -432,36 +438,40 @@ impl HeapSpace {
     }
 
     /// Scan remembered mature writes within one byte budget.
-    fn scan_dirty_young_references_step(&mut self, budget_bytes: usize) -> HeapResult<usize> {
+    fn scan_dirty_young_references_step(
+        &mut self,
+        budget_bytes: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<usize> {
         let mut scanned_bytes = 0usize;
         let mut pending = std::mem::take(&mut self.collector.minor_queue);
 
-        self.scan_dirty_spans_step(budget_bytes, &mut scanned_bytes, &mut pending)?;
-        self.scan_dirty_large_allocations_step(budget_bytes, &mut scanned_bytes, &mut pending)?;
+        self.scan_dirty_regions_step(budget_bytes, &mut scanned_bytes, &mut pending, trace_table)?;
 
         self.collector.minor_queue = pending;
 
         Ok(scanned_bytes)
     }
 
-    /// Scan remembered mature span writes within one byte budget.
-    fn scan_dirty_spans_step(
+    /// Scan remembered mature region writes within one byte budget.
+    fn scan_dirty_regions_step(
         &mut self,
         budget_bytes: usize,
         scanned_bytes: &mut usize,
         pending: &mut HeapTraceQueue,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         while *scanned_bytes < budget_bytes
-            && self.collector.young_dirty_span_cursor < self.collector.dirty_spans.len()
+            && self.collector.young_dirty_region_cursor < self.collector.dirty_regions.len()
         {
-            let dirty_index = self.collector.young_dirty_span_cursor;
-            let span_index = self.collector.dirty_spans[dirty_index];
-            let references = self.scan_next_dirty_span_card(span_index)?;
+            let dirty_index = self.collector.young_dirty_region_cursor;
+            let region = self.collector.dirty_regions[dirty_index];
+            let references = self.scan_next_dirty_region_card(region, trace_table)?;
 
             let Some((card_index, card_len, references)) = references else {
-                self.finish_dirty_span(span_index)?;
-                self.collector.young_dirty_span_cursor += 1;
-                self.collector.young_dirty_span_card_cursor = 0;
+                self.finish_dirty_region(region)?;
+                self.collector.young_dirty_region_cursor += 1;
+                self.collector.young_dirty_card_cursor = 0;
                 *scanned_bytes += 1;
 
                 continue;
@@ -472,17 +482,32 @@ impl HeapSpace {
                 self.enqueue_young_reference(reference, pending)?;
             }
 
-            self.finish_dirty_span_card(span_index, card_index, has_young_reference)?;
+            self.finish_dirty_region_card(region, card_index, has_young_reference)?;
             *scanned_bytes += card_len.max(1);
         }
 
         Ok(())
     }
 
+    /// Scan one dirty card from one mature region.
+    fn scan_next_dirty_region_card(
+        &self,
+        region: DirtyRegion,
+        trace_table: &TraceTable,
+    ) -> HeapResult<Option<(usize, usize, Vec<HeapReference>)>> {
+        match region {
+            DirtyRegion::Span(span_index) => {
+                self.scan_next_dirty_span_card(span_index, trace_table)
+            }
+            DirtyRegion::Large(allocation_id) => self.scan_next_dirty_large_card(allocation_id),
+        }
+    }
+
     /// Scan one dirty card from one mature span.
     fn scan_next_dirty_span_card(
         &self,
         span_index: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<Option<(usize, usize, Vec<HeapReference>)>> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::HeapScanFailed {
@@ -490,7 +515,7 @@ impl HeapSpace {
                 error: Box::new(HeapError::MissingSpan { span_index }),
             });
         };
-        let card_cursor = self.collector.young_dirty_span_card_cursor;
+        let card_cursor = self.collector.young_dirty_card_cursor;
         let Some((card_index, card_start, card_len)) =
             span.dirty_cards.next_dirty_card_from(card_cursor)
         else {
@@ -507,13 +532,7 @@ impl HeapSpace {
                 continue;
             }
 
-            let trace_map = slot_trace_map(
-                &span.local_reference_bits,
-                &span.shared_reference_bits,
-                slot_index,
-                span.class.size_class,
-                span.class.size_class,
-            );
+            let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_table)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
@@ -547,6 +566,23 @@ impl HeapSpace {
         Ok(Some((card_index, card_len, references)))
     }
 
+    /// Finish one scanned dirty region card.
+    fn finish_dirty_region_card(
+        &mut self,
+        region: DirtyRegion,
+        card_index: usize,
+        has_young_reference: bool,
+    ) -> HeapResult<()> {
+        match region {
+            DirtyRegion::Span(span_index) => {
+                self.finish_dirty_span_card(span_index, card_index, has_young_reference)
+            }
+            DirtyRegion::Large(allocation_id) => {
+                self.finish_dirty_large_card(allocation_id, card_index, has_young_reference)
+            }
+        }
+    }
+
     /// Finish one scanned dirty span card.
     fn finish_dirty_span_card(
         &mut self,
@@ -566,57 +602,10 @@ impl HeapSpace {
             span.is_dirty_queued = false;
         }
 
-        self.collector.young_dirty_span_card_cursor = card_index + 1;
+        self.collector.young_dirty_card_cursor = card_index + 1;
         if is_empty {
-            self.collector.young_dirty_span_cursor += 1;
-            self.collector.young_dirty_span_card_cursor = 0;
-        }
-
-        Ok(())
-    }
-
-    /// Finish one queued dirty span with no remaining dirty cards.
-    fn finish_dirty_span(&mut self, span_index: usize) -> HeapResult<()> {
-        let Some(span) = self.span_mut(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
-        };
-
-        span.is_dirty_queued = !span.dirty_cards.is_empty();
-
-        Ok(())
-    }
-
-    /// Scan remembered mature large-allocation writes within one byte budget.
-    fn scan_dirty_large_allocations_step(
-        &mut self,
-        budget_bytes: usize,
-        scanned_bytes: &mut usize,
-        pending: &mut HeapTraceQueue,
-    ) -> HeapResult<()> {
-        while *scanned_bytes < budget_bytes
-            && self.collector.young_dirty_large_cursor
-                < self.collector.dirty_large_allocations.len()
-        {
-            let dirty_index = self.collector.young_dirty_large_cursor;
-            let allocation_id = self.collector.dirty_large_allocations[dirty_index];
-            let references = self.scan_next_dirty_large_card(allocation_id)?;
-
-            let Some((card_index, card_len, references)) = references else {
-                self.finish_dirty_large_allocation(allocation_id)?;
-                self.collector.young_dirty_large_cursor += 1;
-                self.collector.young_dirty_large_card_cursor = 0;
-                *scanned_bytes += 1;
-
-                continue;
-            };
-
-            let has_young_reference = self.contains_young_reference(&references)?;
-            for reference in references {
-                self.enqueue_young_reference(reference, pending)?;
-            }
-
-            self.finish_dirty_large_card(allocation_id, card_index, has_young_reference)?;
-            *scanned_bytes += card_len.max(1);
+            self.collector.young_dirty_region_cursor += 1;
+            self.collector.young_dirty_card_cursor = 0;
         }
 
         Ok(())
@@ -635,7 +624,7 @@ impl HeapSpace {
                 }),
             });
         };
-        let card_cursor = self.collector.young_dirty_large_card_cursor;
+        let card_cursor = self.collector.young_dirty_card_cursor;
         let Some((card_index, card_start, card_len)) =
             allocation.dirty_cards.next_dirty_card_from(card_cursor)
         else {
@@ -680,27 +669,35 @@ impl HeapSpace {
             allocation.is_dirty_queued = false;
         }
 
-        self.collector.young_dirty_large_card_cursor = card_index + 1;
+        self.collector.young_dirty_card_cursor = card_index + 1;
         if is_empty {
-            self.collector.young_dirty_large_cursor += 1;
-            self.collector.young_dirty_large_card_cursor = 0;
+            self.collector.young_dirty_region_cursor += 1;
+            self.collector.young_dirty_card_cursor = 0;
         }
 
         Ok(())
     }
 
-    /// Finish one queued dirty large allocation with no remaining dirty cards.
-    fn finish_dirty_large_allocation(
-        &mut self,
-        allocation_id: LargeAllocationId,
-    ) -> HeapResult<()> {
-        let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
-        };
+    /// Finish one queued dirty region with no remaining dirty cards.
+    fn finish_dirty_region(&mut self, region: DirtyRegion) -> HeapResult<()> {
+        match region {
+            DirtyRegion::Span(span_index) => {
+                let Some(span) = self.span_mut(span_index) else {
+                    return Err(HeapError::MissingSpan { span_index });
+                };
 
-        allocation.is_dirty_queued = !allocation.dirty_cards.is_empty();
+                span.is_dirty_queued = !span.dirty_cards.is_empty();
+            }
+            DirtyRegion::Large(allocation_id) => {
+                let Some(allocation) = self.large_allocation_mut(allocation_id) else {
+                    return Err(HeapError::MissingLargeAllocation {
+                        allocation_id: allocation_id.id(),
+                    });
+                };
+
+                allocation.is_dirty_queued = !allocation.dirty_cards.is_empty();
+            }
+        }
 
         Ok(())
     }
@@ -730,29 +727,24 @@ impl HeapSpace {
     }
 
     /// Keep only mature remembered-set entries that still have dirty cards.
-    fn compact_dirty_young_reference_queues(&mut self) {
-        self.collector.dirty_spans.retain(|span_index| {
-            self.small
+    fn compact_dirty_regions(&mut self) {
+        self.collector.dirty_regions.retain(|region| match region {
+            DirtyRegion::Span(span_index) => self
+                .small
                 .spans
                 .get(*span_index)
-                .is_some_and(|span| span.is_dirty_queued)
+                .is_some_and(|span| span.is_dirty_queued),
+            DirtyRegion::Large(allocation_id) => allocation_id
+                .index()
+                .ok()
+                .and_then(|index| self.large.allocations.get(index))
+                .is_some_and(|allocation| allocation.is_dirty_queued),
         });
-        self.collector
-            .dirty_large_allocations
-            .retain(|allocation_id| {
-                allocation_id
-                    .index()
-                    .ok()
-                    .and_then(|index| self.large.allocations.get(index))
-                    .is_some_and(|allocation| allocation.is_dirty_queued)
-            });
     }
 
     /// Return whether remembered young roots are fully scanned.
     fn young_dirty_references_drained(&self) -> bool {
-        self.collector.young_dirty_span_cursor >= self.collector.dirty_spans.len()
-            && self.collector.young_dirty_large_cursor
-                >= self.collector.dirty_large_allocations.len()
+        self.collector.young_dirty_region_cursor >= self.collector.dirty_regions.len()
     }
 }
 

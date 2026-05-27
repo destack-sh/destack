@@ -1,11 +1,14 @@
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Bitmap, PageRun};
-use crate::{SmallSpanClass, local_reference_offsets, shared_reference_offsets, slot_trace_map};
+use crate::{
+    HeapError, HeapResult, SmallSpanClass, local_reference_offsets, shared_reference_offsets,
+    slot_trace_map,
+};
 
 /// The number of bits in one atomic bitmap word.
 const ATOMIC_BITMAP_WORD_BITS: usize = u64::BITS as usize;
@@ -263,6 +266,10 @@ impl SharedSmallSpan {
 
     /// Write exact reference bits for one occupied slot.
     pub(crate) fn write_reference_bits(&self, slot_index: usize, trace_map: &TraceMap) {
+        if self.class.trace_id.is_some() {
+            return;
+        }
+
         if !trace_map.has_reference() {
             return;
         }
@@ -286,18 +293,32 @@ impl SharedSmallSpan {
     }
 
     /// Return exact reference metadata for one occupied slot.
-    pub(crate) fn trace_map(&self, slot_index: usize) -> TraceMap {
+    pub(crate) fn trace_map(
+        &self,
+        slot_index: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
+        if let Some(trace_id) = self.class.trace_id {
+            let trace_map = trace_table
+                .trace(trace_id)
+                .ok_or(HeapError::MissingTraceMap {
+                    trace_id: trace_id.raw(),
+                })?;
+
+            return Ok(trace_map.clone());
+        }
+
         // snapshot both edge classes consistently enough for tracing
         let local_reference_bits = self.local_reference_bits.snapshot();
         let shared_reference_bits = self.shared_reference_bits.snapshot();
 
-        slot_trace_map(
+        Ok(slot_trace_map(
             &local_reference_bits,
             &shared_reference_bits,
             slot_index,
             self.class.size_class,
             self.class.size_class,
-        )
+        ))
     }
 
     /// Return whether one slot is marked in one cycle.

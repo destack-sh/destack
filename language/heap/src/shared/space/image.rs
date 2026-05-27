@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
@@ -13,7 +14,7 @@ use crate::shared::gc::SharedGcState;
 use crate::shared::space::{
     SharedHeapAccounting, SharedHeapState, SharedLargeSpace, SharedSmallSpace,
 };
-use crate::{Allocator, GcState, HeapResult, PageId, PageRun, SizeClassTable, SmallSpanClass};
+use crate::{Allocator, GcState, HeapResult, PageId, PageRun, SizeClassTable};
 
 /// One frozen shared heap-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -229,7 +230,7 @@ impl SharedHeapSpace {
                 size_classes: store.small.size_classes.clone(),
                 span_bytes: store.small.span_bytes,
                 spans,
-                partial_spans: store.small.partial_spans.clone(),
+                partial_spans: BTreeMap::new(),
             },
             large: SharedLargeSpace {
                 allocations,
@@ -243,7 +244,7 @@ impl SharedHeapSpace {
 
         Self::rebuild_page_map(&mut cloned_store, self.allocator.page_bytes());
 
-        Ok(Self {
+        let space = Self {
             allocator: self.allocator.clone(),
             mapping,
             accounting: SharedHeapAccounting::from_state(
@@ -252,7 +253,11 @@ impl SharedHeapSpace {
             ),
             state: RwLock::new(cloned_store),
             gc: SharedGcState::default(),
-        })
+        };
+
+        space.rebuild_small_availability()?;
+
+        Ok(space)
     }
 
     /// Create one shared heap space from one frozen image over one shared allocator.
@@ -394,7 +399,7 @@ impl SharedHeapSpace {
                         )))
                     })
                     .collect::<HeapResult<Vec<_>>>()?,
-                partial_spans: vec![Vec::new(); SmallSpanClass::bucket_count(image.size_classes())],
+                partial_spans: BTreeMap::new(),
             },
             large: SharedLargeSpace {
                 allocations: image
@@ -435,14 +440,19 @@ impl SharedHeapSpace {
         for span_index in 0..store.small.spans.len() {
             let occupied_count;
             let slot_count;
-            let bucket_index;
+            let class;
 
             {
                 let span = store.small.spans[span_index].clone();
                 span.reset_free_cursor();
                 occupied_count = span.occupied_count();
                 slot_count = span.slot_count;
-                bucket_index = span.class.bucket_index(&store.small.size_classes)?;
+                class = span.class;
+                class.validate(
+                    &store.small.size_classes,
+                    self.allocator.page_bytes(),
+                    store.small.span_bytes,
+                )?;
 
                 if occupied_count == 0 {
                     span.list.store(SpanList::Released);
@@ -457,7 +467,12 @@ impl SharedHeapSpace {
                 continue;
             }
 
-            store.small.partial_spans[bucket_index].push(span_index);
+            store
+                .small
+                .partial_spans
+                .entry(class)
+                .or_default()
+                .push(span_index);
         }
 
         drop(store);

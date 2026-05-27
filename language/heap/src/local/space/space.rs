@@ -1,7 +1,8 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_memory::AddressSpace;
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use super::{
     GcState, HeapPageMapEntry, HeapPlace, LargeAllocation, LargeAllocationId, LocalGcState,
@@ -78,7 +79,6 @@ impl HeapSpace {
             options.heap_young_bytes,
             options.page_bytes,
             options.small_allocation_alignment_bytes,
-            SmallSpanClass::bucket_count(&options.size_classes),
             &mut page_run_cache,
         )?;
         let max_young_allocation_bytes = if options.heap_young_bytes == 0 {
@@ -102,10 +102,7 @@ impl HeapSpace {
                 size_classes: options.size_classes.clone(),
                 span_bytes: options.heap_small_bytes,
                 spans: CowTable::new(),
-                partial_spans: vec![
-                    Vec::new();
-                    SmallSpanClass::bucket_count(&options.size_classes)
-                ],
+                partial_spans: BTreeMap::new(),
             },
             large: LargeSpace {
                 allocations: CowTable::new(),
@@ -224,11 +221,11 @@ impl HeapSpace {
     }
 
     /// Rebuild the tracked local references that may contain shared edges.
-    pub(crate) fn rebuild_shared_edge_roots(&mut self) -> HeapResult<()> {
+    pub(crate) fn rebuild_shared_edge_roots(&mut self, trace_table: &TraceTable) -> HeapResult<()> {
         self.collector.clear_shared_edge_roots();
 
         for reference in self.live_references()? {
-            if !self.reference_has_shared_roots(reference)? {
+            if !self.reference_has_shared_roots(reference, trace_table)? {
                 continue;
             }
 
@@ -314,14 +311,20 @@ impl HeapSpace {
     }
 
     /// Return the trace map for one heap place.
-    pub(crate) fn trace_map_for_place(&self, place: HeapPlace) -> HeapResult<TraceMap> {
+    pub(crate) fn trace_map_for_place(
+        &self,
+        place: HeapPlace,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
         match place {
             HeapPlace::Young(YoungPlace::Range { first_offset }) => {
                 self.young_range_trace_map(first_offset)
             }
-            HeapPlace::Young(YoungPlace::Slot(_)) => Ok(TraceMap::Empty),
+            HeapPlace::Young(YoungPlace::Slot(slot)) => {
+                self.young_slot_trace_map(slot.span_index(), trace_table)
+            }
             HeapPlace::Small(slot) => {
-                self.small_slot_trace_map(slot.span_index(), slot.slot_index())
+                self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)
             }
             HeapPlace::Large(allocation_id) => {
                 let trace_map = self
@@ -354,7 +357,7 @@ impl HeapSpace {
                     });
                 };
 
-                Ok(run.size_class)
+                Ok(run.class.size_class)
             }
             HeapPlace::Small(slot) => {
                 let span = self.span(slot.span_index()).ok_or(HeapError::MissingSpan {
@@ -457,6 +460,7 @@ impl HeapSpace {
         &self,
         span_index: usize,
         slot_index: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<TraceMap> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
@@ -468,6 +472,16 @@ impl HeapSpace {
             });
         }
 
+        if let Some(trace_id) = span.class.trace_id {
+            let trace_map = trace_table
+                .trace(trace_id)
+                .ok_or(HeapError::MissingTraceMap {
+                    trace_id: trace_id.raw(),
+                })?;
+
+            return Ok(trace_map.clone());
+        }
+
         Ok(slot_trace_map(
             &span.local_reference_bits,
             &span.shared_reference_bits,
@@ -475,6 +489,31 @@ impl HeapSpace {
             span.class.size_class,
             span.class.size_class,
         ))
+    }
+
+    /// Return the exact trace map stored for one young run slot.
+    pub(crate) fn young_slot_trace_map(
+        &self,
+        run_index: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
+        let Some(run) = self.young.run(run_index) else {
+            return Err(HeapError::MissingSpan {
+                span_index: run_index,
+            });
+        };
+
+        let Some(trace_id) = run.class.trace_id else {
+            return Ok(TraceMap::Empty);
+        };
+
+        let trace_map = trace_table
+            .trace(trace_id)
+            .ok_or(HeapError::MissingTraceMap {
+                trace_id: trace_id.raw(),
+            })?;
+
+        Ok(trace_map.clone())
     }
 
     /// Return the exact trace map stored for one young range.
@@ -488,11 +527,6 @@ impl HeapSpace {
             range.first_offset,
             range.byte_len,
         ))
-    }
-
-    /// Return the reusable-span bucket index for one small-span class.
-    pub(crate) fn small_span_bucket(&self, class: &SmallSpanClass) -> HeapResult<usize> {
-        class.bucket_index(&self.small.size_classes)
     }
 
     /// Resolve one allocation shape against this heap space.
@@ -552,8 +586,8 @@ pub(crate) struct SmallSpace {
     pub(crate) span_bytes: usize,
     /// The live heap spans.
     pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per size and scan class.
-    pub(crate) partial_spans: Vec<Vec<usize>>,
+    /// The reusable non-full spans per exact small-span class.
+    pub(crate) partial_spans: BTreeMap<SmallSpanClass, Vec<usize>>,
 }
 
 /// One heap large space.

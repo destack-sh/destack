@@ -1,11 +1,12 @@
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use super::{HeapSpace, LargeAllocationId, YoungGcPhase};
+use crate::local::gc::DirtyRegion;
 use crate::{HeapError, HeapResult, overlaps_heap_range, overlaps_shared_range};
 
 impl HeapSpace {
     /// Rebuild the mature remembered set conservatively.
-    pub(crate) fn rebuild_remembered_set(&mut self) -> HeapResult<()> {
+    pub(crate) fn rebuild_remembered_set(&mut self, trace_table: &TraceTable) -> HeapResult<()> {
         self.clear_remembered_set();
 
         // conservatively dirty every mature span slot with heap references
@@ -21,12 +22,12 @@ impl HeapSpace {
                     continue;
                 }
 
-                let trace_map = self.small_slot_trace_map(span_index, slot_index)?;
+                let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_table)?;
                 if !trace_map.has_reference() {
                     continue;
                 }
 
-                self.mark_span_slot_dirty(span_index, slot_index, 0, size_class)?;
+                self.mark_span_slot_dirty(span_index, slot_index, 0, size_class, &trace_map)?;
             }
         }
 
@@ -48,12 +49,9 @@ impl HeapSpace {
 
     /// Clear every mature remembered-set entry.
     fn clear_remembered_set(&mut self) {
-        self.collector.dirty_spans.clear();
-        self.collector.dirty_large_allocations.clear();
-        self.collector.young_dirty_span_cursor = 0;
-        self.collector.young_dirty_span_card_cursor = 0;
-        self.collector.young_dirty_large_cursor = 0;
-        self.collector.young_dirty_large_card_cursor = 0;
+        self.collector.dirty_regions.clear();
+        self.collector.young_dirty_region_cursor = 0;
+        self.collector.young_dirty_card_cursor = 0;
 
         for span_index in 0..self.small.spans.len() {
             let Some(span) = self.small.spans.get_mut(span_index) else {
@@ -81,6 +79,7 @@ impl HeapSpace {
         slot_index: usize,
         byte_offset: usize,
         byte_len: usize,
+        trace_map: &TraceMap,
     ) -> HeapResult<()> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
@@ -92,8 +91,7 @@ impl HeapSpace {
             });
         }
 
-        let trace_map = self.small_slot_trace_map(span_index, slot_index)?;
-        let is_overlapping = overlaps_heap_range(&trace_map, byte_offset, byte_len);
+        let is_overlapping = overlaps_heap_range(trace_map, byte_offset, byte_len);
         if !is_overlapping {
             return Ok(());
         }
@@ -113,7 +111,9 @@ impl HeapSpace {
 
         // queue the owning span once for the next minor collection
         if should_queue {
-            self.collector.dirty_spans.push(span_index);
+            self.collector
+                .dirty_regions
+                .push(DirtyRegion::Span(span_index));
             if self.collector.young_phase == YoungGcPhase::Sweep {
                 self.collector.young_phase = YoungGcPhase::Mark;
             }
@@ -153,7 +153,9 @@ impl HeapSpace {
 
         // queue the owning allocation once for the next minor collection
         if should_queue {
-            self.collector.dirty_large_allocations.push(allocation_id);
+            self.collector
+                .dirty_regions
+                .push(DirtyRegion::Large(allocation_id));
             if self.collector.young_phase == YoungGcPhase::Sweep {
                 self.collector.young_phase = YoungGcPhase::Mark;
             }
