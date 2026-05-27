@@ -3,11 +3,11 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    ArgumentTerm, CallDecision, CallFailure, CallResolution, CallResolutionTarget, CheckState,
-    ConstraintOrigin, ConstructCandidates, FunctionParameterTerm, FunctionTerm, GenericArgumentKey,
+    CallDecision, CallFailure, CallResolution, CallResolutionTarget, CheckState, ConstraintOrigin,
+    ConstructCandidates, FunctionParameter, FunctionTerm, GenericArgument, GenericArgumentKey,
     GenericInstance, GenericParameter, GenericSlot, GenericSubstitution, GenericSubstitutionEntry,
-    Progress, Reduction, ShapeMemberTerm, StaticTerm, TermId, TypeLiteralTerm, TypeRelation,
-    TypeTerm, VariableId, VariableKind, VariableOutput,
+    Progress, Reduction, ShapeMember, StaticTerm, TermId, TypeLiteralTerm, TypeOperand,
+    TypeRelation, TypeTerm, VariableId, VariableKind, VariableOutput,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -29,9 +29,9 @@ pub(in crate::check) struct CallTerm {
     /// The symbol-backed candidates visible at the call site.
     pub(in crate::check) candidates: Vec<CallCandidate>,
     /// The explicit call generic arguments.
-    pub(in crate::check) generic_arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
     /// The argument expression types.
-    pub(in crate::check) arguments: Vec<VariableId>,
+    pub(in crate::check) arguments: SmallVec<[TypeOperand; 4]>,
 }
 
 /// Symbol-backed callable candidate.
@@ -59,7 +59,7 @@ pub(in crate::check) struct MemberCallTerm {
     /// The selected member key.
     pub(in crate::check) key: dir::StaticKey,
     /// The applied static arguments.
-    pub(in crate::check) arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) arguments: SmallVec<[GenericArgument; 4]>,
     /// The protocol that must own the resolved method.
     pub(in crate::check) protocol: Option<MemberProtocol>,
 }
@@ -70,7 +70,7 @@ pub(in crate::check) struct MemberProtocol {
     /// The protocol language item.
     pub(in crate::check) item: dir::LanguageItem,
     /// The required protocol arguments.
-    pub(in crate::check) arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) arguments: SmallVec<[GenericArgument; 4]>,
 }
 
 impl CallTerm {
@@ -95,15 +95,19 @@ impl CallTerm {
                 member
                     .arguments
                     .iter()
-                    .flat_map(|argument| state.argument_variables(*argument)),
+                    .flat_map(|argument| state.argument_variables(argument)),
             );
         }
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(*argument)),
+                .flat_map(|argument| state.argument_variables(argument)),
         );
-        variables.extend(self.arguments.iter().copied());
+        variables.extend(
+            self.arguments
+                .iter()
+                .flat_map(|argument| argument.referenced_variables(state)),
+        );
 
         variables
     }
@@ -237,7 +241,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-        generic_arguments: &[TermId<ArgumentTerm>],
+        generic_arguments: &[GenericArgument],
     ) -> CompilerResult<Reduction<TypeTerm>> {
         let value = self.symbol_type_variable(module, symbol)?;
         let Some(term) = self.solved_type_term(value)? else {
@@ -249,7 +253,7 @@ impl CheckState<'_> {
                 return Ok(Reduction::value(TypeTerm::Reference {
                     source: Some(source),
                     symbol,
-                    arguments: generic_arguments.to_vec(),
+                    arguments: generic_arguments.to_vec().into(),
                 }));
             }
             CallableSignature::Present(function) => function,
@@ -271,7 +275,7 @@ impl CheckState<'_> {
     /// Reduce one runtime call to its return type.
     pub(in crate::check) fn reduce_call_term(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         call: &CallTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
         let result = self.resolve_call(call, None)?;
@@ -296,11 +300,8 @@ impl CheckState<'_> {
             Some(return_type) => TypeTerm::Variable(return_type),
             None => TypeTerm::Literal(TypeLiteralTerm::Void),
         };
-        let origin = ConstraintOrigin::Node(call.source);
-        let term = self.solve_anonymous_type(module, origin, term)?;
-
         Ok(Reduction {
-            value: Some(TypeTerm::Variable(term)),
+            value: Some(term),
             progress,
         })
     }
@@ -458,8 +459,7 @@ impl CheckState<'_> {
         &self,
         call: &CallTerm,
     ) -> CompilerResult<Option<CallableSelection>> {
-        let Some(decision) = self.solutions.call.get(&call.source).cloned()
-        else {
+        let Some(decision) = self.solutions.call.get(&call.source).cloned() else {
             return Ok(None);
         };
 
@@ -593,7 +593,7 @@ impl CheckState<'_> {
         let Some(member) = call.member else {
             return Ok(None);
         };
-        let member = self.terms.get(member);
+        let member = self.terms.get(member).clone();
         let Some(receiver) = self.solved_type_term(member.receiver)? else {
             return Ok(Some(CallableSelection::pending()));
         };
@@ -647,8 +647,8 @@ impl CheckState<'_> {
         owner: Option<dir::GlobalSymbolId>,
         instance: Option<GenericInstance>,
         function: FunctionTerm,
-        generic_arguments: &[TermId<ArgumentTerm>],
-        arguments: &[VariableId],
+        generic_arguments: &[GenericArgument],
+        arguments: &[TypeOperand],
         expected: Option<VariableId>,
         target: CallTarget,
     ) -> CompilerResult<CallableSelection> {
@@ -717,7 +717,7 @@ impl CheckState<'_> {
         owner: Option<dir::GlobalSymbolId>,
         instance: Option<GenericInstance>,
         function: FunctionTerm,
-        generic_arguments: &[TermId<ArgumentTerm>],
+        generic_arguments: &[GenericArgument],
     ) -> CompilerResult<CallInstantiation> {
         if function.generic_parameters.is_empty() {
             return Ok(CallInstantiation {
@@ -728,7 +728,7 @@ impl CheckState<'_> {
             });
         }
         let mut substitution = GenericSubstitution::empty();
-        let mut arguments = Vec::with_capacity(function.generic_parameters.len());
+        let mut arguments = SmallVec::with_capacity(function.generic_parameters.len());
         let generic_parameters = function.generic_parameters.clone();
 
         // use explicit arguments first, then infer the remaining call generics
@@ -736,7 +736,7 @@ impl CheckState<'_> {
             let slot = self.generic_parameter_slot(*parameter)?;
             let argument = if let Some(argument) = generic_arguments.get(index) {
                 self.select_argument_for_static_slot(
-                    *argument,
+                    argument,
                     self.generic_parameter_is_static(*parameter)?,
                 )
             } else {
@@ -761,7 +761,7 @@ impl CheckState<'_> {
             function,
             instance,
             substitution,
-            generic_parameters,
+            generic_parameters: generic_parameters.to_vec(),
         })
     }
 
@@ -803,7 +803,8 @@ impl CheckState<'_> {
                 default: Some(default),
                 ..
             } => {
-                let Some(argument) = self.substitution_type_variable(substitution, parameter) else {
+                let Some(argument) = self.substitution_type_variable(substitution, parameter)
+                else {
                     return Ok(());
                 };
                 if !self.lower_bounds(argument).is_empty()
@@ -824,7 +825,8 @@ impl CheckState<'_> {
                 default: Some(default),
                 ..
             } => {
-                let Some(argument) = self.substitution_static_variable(substitution, parameter) else {
+                let Some(argument) = self.substitution_static_variable(substitution, parameter)
+                else {
                     return Ok(());
                 };
                 if !self.lower_bounds(argument).is_empty()
@@ -852,14 +854,13 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         parameter: VariableId,
-    ) -> CompilerResult<TermId<ArgumentTerm>> {
+    ) -> CompilerResult<GenericArgument> {
         let variable = self.instantiation_variable(module, source, parameter)?;
         let kind = self.variable(variable).kind;
         let argument = match kind {
-            VariableKind::Type => ArgumentTerm::Type(variable),
-            VariableKind::Static => ArgumentTerm::Static(variable),
+            VariableKind::Type => GenericArgument::Type(variable.into()),
+            VariableKind::Static => GenericArgument::Static(variable.into()),
         };
-        let argument = self.terms.push(argument);
 
         Ok(argument)
     }
@@ -879,21 +880,13 @@ impl CheckState<'_> {
         };
         let kind = self.variable(parameter).kind;
 
-        if let Some(variable) = self
-            .variables
-            .generic_argument
-            .get(&key)
-            .copied()
-        {
+        if let Some(variable) = self.variables.generic_argument.get(&key).copied() {
             return Ok(variable);
         }
         let origin = ConstraintOrigin::Node(source);
-        let variable = self.allocate_anonymous_variable(module, kind, origin);
+        let variable = self.allocate_intermediate_variable(module, kind, origin);
 
-        self
-            .variables
-            .generic_argument
-            .insert(key, variable);
+        self.variables.generic_argument.insert(key, variable);
 
         Ok(variable)
     }
@@ -955,7 +948,7 @@ impl CheckState<'_> {
     fn named_call_signature(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<CallableSignature> {
         if self.environment.language.item(symbol) != Some(dir::LanguageItem::Function) {
             return Ok(CallableSignature::Absent);
@@ -982,7 +975,7 @@ impl CheckState<'_> {
 
         let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters: Vec::new(),
+            generic_parameters: SmallVec::new(),
             this_parameter: None,
             parameters,
             return_type: Some(return_type),
@@ -996,14 +989,14 @@ impl CheckState<'_> {
     fn shape_call_signature(
         &mut self,
         module: ModuleId,
-        members: &[TermId<ShapeMemberTerm>],
+        members: &[ShapeMember],
     ) -> CompilerResult<CallableSignature> {
         for member in members {
-            let member = self.terms.get(*member);
-            let ShapeMemberTerm::CallSignature { ty } = member else {
+            let member = member;
+            let ShapeMember::CallSignature { ty } = member else {
                 continue;
             };
-            let Some(term) = self.solved_type_term(*ty)? else {
+            let Some(term) = self.type_operand_term(*ty)? else {
                 return Ok(CallableSignature::Pending);
             };
 
@@ -1017,7 +1010,7 @@ impl CheckState<'_> {
     fn call_parameters_from_tuple(
         &mut self,
         variable: VariableId,
-    ) -> CompilerResult<Option<Vec<TermId<FunctionParameterTerm>>>> {
+    ) -> CompilerResult<Option<SmallVec<[FunctionParameter; 4]>>> {
         let Some(term) = self.solved_type_term(variable)? else {
             return Ok(None);
         };
@@ -1025,17 +1018,17 @@ impl CheckState<'_> {
             TypeTerm::Tuple { elements, .. } => elements
                 .iter()
                 .map(|element| {
-                    let element = self.terms.get(*element);
-                    let parameter = FunctionParameterTerm {
+                    let element = element;
+                    let parameter = FunctionParameter {
                         ty: element.ty,
                         is_optional: element.is_optional,
                         is_rest: element.is_rest,
                     };
 
-                    self.terms.push(parameter)
+                    parameter
                 })
                 .collect(),
-            TypeTerm::Literal(TypeLiteralTerm::Void) => Vec::new(),
+            TypeTerm::Literal(TypeLiteralTerm::Void) => SmallVec::new(),
             _ => return Ok(None),
         };
 
@@ -1045,8 +1038,8 @@ impl CheckState<'_> {
     /// Decide whether arguments are assignable to parameters.
     fn decide_call_arguments(
         &self,
-        arguments: &[VariableId],
-        parameters: &[TermId<FunctionParameterTerm>],
+        arguments: &[TypeOperand],
+        parameters: &[FunctionParameter],
     ) -> CompilerResult<Decision> {
         if !self.call_arity_accepts(arguments, parameters) {
             return Ok(Decision::No);
@@ -1055,7 +1048,7 @@ impl CheckState<'_> {
 
         // every argument must be assignable to the corresponding parameter
         for (argument, parameter) in arguments.iter().zip(parameters) {
-            let parameter = self.terms.get(*parameter).ty;
+            let parameter = parameter.ty;
 
             decision = decision.and(self.decide_type_relation(
                 TypeRelation::Assignable,
@@ -1073,15 +1066,15 @@ impl CheckState<'_> {
     /// Return the first solved argument type failure.
     fn call_argument_type_failure(
         &self,
-        arguments: &[VariableId],
-        parameters: &[TermId<FunctionParameterTerm>],
-    ) -> CompilerResult<Option<(VariableId, VariableId)>> {
+        arguments: &[TypeOperand],
+        parameters: &[FunctionParameter],
+    ) -> CompilerResult<Option<(TypeOperand, TypeOperand)>> {
         if !self.call_arity_accepts(arguments, parameters) {
             return Ok(None);
         }
 
         for (argument, parameter) in arguments.iter().zip(parameters) {
-            let parameter = self.terms.get(*parameter).ty;
+            let parameter = parameter.ty;
 
             let decision =
                 self.decide_type_relation(TypeRelation::Assignable, *argument, parameter)?;
@@ -1117,13 +1110,13 @@ impl CheckState<'_> {
     /// Expect accepted call arguments to satisfy parameter types.
     fn expect_call_arguments(
         &mut self,
-        arguments: &[VariableId],
-        parameters: &[TermId<FunctionParameterTerm>],
+        arguments: &[TypeOperand],
+        parameters: &[FunctionParameter],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         for (argument, parameter) in arguments.iter().zip(parameters) {
-            let parameter = self.terms.get(*parameter).ty;
+            let parameter = parameter.ty;
 
             progress = progress.merge(self.solve_type_assignability(*argument, parameter)?);
         }
@@ -1134,18 +1127,14 @@ impl CheckState<'_> {
     /// Return whether runtime arguments fit one function parameter list.
     fn call_arity_accepts(
         &self,
-        arguments: &[VariableId],
-        parameters: &[TermId<FunctionParameterTerm>],
+        arguments: &[TypeOperand],
+        parameters: &[FunctionParameter],
     ) -> bool {
         let required = parameters
             .iter()
-            .map(|parameter| self.terms.get(*parameter))
             .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
             .count();
-        let has_rest = parameters
-            .iter()
-            .map(|parameter| self.terms.get(*parameter))
-            .any(|parameter| parameter.is_rest);
+        let has_rest = parameters.iter().any(|parameter| parameter.is_rest);
 
         arguments.len() >= required && (has_rest || arguments.len() <= parameters.len())
     }
@@ -1161,8 +1150,7 @@ impl CheckState<'_> {
         };
         let Some(return_type) = function.return_type else {
             let void = TypeTerm::Literal(TypeLiteralTerm::Void);
-            let origin = self.variable_origin(expected)?;
-            let void = self.solve_anonymous_type(expected.module, origin, void)?;
+            let void = self.terms.push(void);
 
             return self.solve_type_assignability(void, expected);
         };

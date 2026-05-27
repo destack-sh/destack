@@ -3,16 +3,16 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, TermId, TypeRelation, VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, TypeOperand, TypeRelation,
 };
 
-/// Tuple element term.
+/// Tuple element payload.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct TupleElementTerm {
+pub(in crate::check) struct TupleElement {
     /// The optional label for the element.
     pub(in crate::check) label: Option<dir::StringId>,
     /// The element type.
-    pub(in crate::check) ty: VariableId,
+    pub(in crate::check) ty: TypeOperand,
     /// Whether the element is optional.
     pub(in crate::check) is_optional: bool,
     /// Whether the element is readonly.
@@ -21,7 +21,7 @@ pub(in crate::check) struct TupleElementTerm {
     pub(in crate::check) is_rest: bool,
 }
 
-impl TupleElementTerm {
+impl TupleElement {
     /// Substitute generic arguments through this tuple element.
     pub(in crate::check) fn substitute(
         &self,
@@ -31,13 +31,12 @@ impl TupleElementTerm {
     ) -> CompilerResult<Self> {
         Ok(Self {
             label: self.label,
-            ty: state.substitute_type_variable(module, substitution, self.ty)?,
+            ty: state.substitute_type_operand(module, substitution, self.ty)?,
             is_optional: self.is_optional,
             is_readonly: self.is_readonly,
             is_rest: self.is_rest,
         })
     }
-
 }
 
 impl CheckState<'_> {
@@ -46,25 +45,19 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        elements: &[TermId<TupleElementTerm>],
-    ) -> CompilerResult<Vec<TermId<TupleElementTerm>>> {
+        elements: &[TupleElement],
+    ) -> CompilerResult<Vec<TupleElement>> {
         elements
             .iter()
-            .map(|element| {
-                let element = self.terms.get(*element);
-                let element = element.substitute(module, substitution, self)?;
-                let element = self.terms.push(element);
-
-                Ok(element)
-            })
+            .map(|element| element.substitute(module, substitution, self))
             .collect()
     }
 
     /// Decide exact equality for tuple element lists.
     pub(in crate::check) fn decide_tuple_elements_equal(
         &self,
-        left: &[TermId<TupleElementTerm>],
-        right: &[TermId<TupleElementTerm>],
+        left: &[TupleElement],
+        right: &[TupleElement],
     ) -> CompilerResult<Decision> {
         if left.len() != right.len() {
             return Ok(Decision::No);
@@ -73,9 +66,6 @@ impl CheckState<'_> {
 
         // compare matching element slots
         for (left, right) in left.iter().zip(right) {
-            let left = self.terms.get(*left);
-            let right = self.terms.get(*right);
-
             decision = decision.and(self.decide_tuple_element_equal(left, right)?);
             if decision == Decision::No {
                 return Ok(decision);
@@ -88,8 +78,8 @@ impl CheckState<'_> {
     /// Decide tuple element assignability.
     pub(in crate::check) fn decide_tuple_elements_assignable(
         &self,
-        source: &[TermId<TupleElementTerm>],
-        target: &[TermId<TupleElementTerm>],
+        source: &[TupleElement],
+        target: &[TupleElement],
     ) -> CompilerResult<Decision> {
         if source.len() != target.len() {
             return Ok(Decision::No);
@@ -98,9 +88,6 @@ impl CheckState<'_> {
 
         // compare matching element slots
         for (source, target) in source.iter().zip(target) {
-            let source = self.terms.get(*source);
-            let target = self.terms.get(*target);
-
             decision = decision.and(self.decide_tuple_element_assignable(source, target)?);
             if decision == Decision::No {
                 return Ok(decision);
@@ -113,8 +100,8 @@ impl CheckState<'_> {
     /// Relate matching tuple elements by equality.
     pub(in crate::check) fn constrain_tuple_elements_equal(
         &mut self,
-        left: &[TermId<TupleElementTerm>],
-        right: &[TermId<TupleElementTerm>],
+        left: &[TupleElement],
+        right: &[TupleElement],
     ) -> CompilerResult<Progress> {
         if left.len() != right.len() {
             return Ok(Progress::Unchanged);
@@ -123,9 +110,6 @@ impl CheckState<'_> {
 
         // constrain each matching element
         for (left, right) in left.iter().zip(right) {
-            let left = self.terms.get(*left);
-            let right = self.terms.get(*right);
-
             progress = progress.merge(self.solve_type_equality(left.ty, right.ty)?);
         }
 
@@ -135,8 +119,8 @@ impl CheckState<'_> {
     /// Relate matching tuple elements by assignability.
     pub(in crate::check) fn constrain_tuple_elements_assignable(
         &mut self,
-        source: &[TermId<TupleElementTerm>],
-        target: &[TermId<TupleElementTerm>],
+        source: &[TupleElement],
+        target: &[TupleElement],
     ) -> CompilerResult<Progress> {
         if source.len() != target.len() {
             return Ok(Progress::Unchanged);
@@ -145,9 +129,6 @@ impl CheckState<'_> {
 
         // constrain each matching element
         for (source, target) in source.iter().zip(target) {
-            let source = self.terms.get(*source);
-            let target = self.terms.get(*target);
-
             progress = progress.merge(self.solve_type_assignability(source.ty, target.ty)?);
         }
 
@@ -157,8 +138,8 @@ impl CheckState<'_> {
     /// Expect tuple elements to satisfy expected elements.
     pub(in crate::check) fn expect_tuple_element_terms(
         &mut self,
-        elements: &[TermId<TupleElementTerm>],
-        targets: &[TermId<TupleElementTerm>],
+        elements: &[TupleElement],
+        targets: &[TupleElement],
     ) -> CompilerResult<Progress> {
         if elements.len() != targets.len() {
             return Ok(Progress::Unchanged);
@@ -167,9 +148,6 @@ impl CheckState<'_> {
 
         // push each expected element type
         for (element, target) in elements.iter().zip(targets) {
-            let element = self.terms.get(*element);
-            let target = self.terms.get(*target);
-
             progress = progress.merge(self.solve_type_assignability(element.ty, target.ty)?);
         }
 
@@ -179,8 +157,8 @@ impl CheckState<'_> {
     /// Decide exact equality for one tuple element.
     fn decide_tuple_element_equal(
         &self,
-        left: &TupleElementTerm,
-        right: &TupleElementTerm,
+        left: &TupleElement,
+        right: &TupleElement,
     ) -> CompilerResult<Decision> {
         if left.label != right.label
             || left.is_optional != right.is_optional
@@ -196,8 +174,8 @@ impl CheckState<'_> {
     /// Decide one tuple element assignability.
     fn decide_tuple_element_assignable(
         &self,
-        source: &TupleElementTerm,
-        target: &TupleElementTerm,
+        source: &TupleElement,
+        target: &TupleElement,
     ) -> CompilerResult<Decision> {
         if source.is_rest != target.is_rest
             || source.is_readonly && !target.is_readonly

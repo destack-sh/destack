@@ -5,7 +5,7 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Decision, PatternRelation, Progress, TermId, TermTable, TypeRelation, TypeTerm,
-    VariableId,
+    VariableId, VariableKind,
 };
 
 /// Pattern relation term.
@@ -73,31 +73,31 @@ pub(in crate::check) enum PatternTerm {
     /// Tuple pattern.
     Tuple {
         /// The tuple fields.
-        fields: Vec<TermId<PatternFieldTerm>>,
+        fields: SmallVec<[PatternField; 8]>,
     },
     /// Tagged tuple pattern.
     TaggedTuple {
         /// The tag type.
         ty: VariableId,
         /// The tuple fields.
-        fields: Vec<TermId<PatternFieldTerm>>,
+        fields: SmallVec<[PatternField; 8]>,
     },
     /// Sequence pattern.
     Sequence {
         /// The sequence fields.
-        fields: Vec<TermId<PatternFieldTerm>>,
+        fields: SmallVec<[PatternField; 8]>,
     },
     /// Object pattern.
     Object {
         /// The object fields.
-        fields: Vec<TermId<PatternFieldTerm>>,
+        fields: SmallVec<[PatternField; 8]>,
     },
     /// Tagged object pattern.
     TaggedObject {
         /// The tag type.
         ty: VariableId,
         /// The object fields.
-        fields: Vec<TermId<PatternFieldTerm>>,
+        fields: SmallVec<[PatternField; 8]>,
     },
     /// Union pattern.
     Union {
@@ -108,7 +108,7 @@ pub(in crate::check) enum PatternTerm {
 
 /// One field inside a pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum PatternFieldTerm {
+pub(in crate::check) enum PatternField {
     /// Named field.
     Named {
         /// The selected key.
@@ -155,18 +155,18 @@ pub(in crate::check) enum AssignPatternTerm {
     /// Sequence destructuring target.
     Sequence {
         /// The sequence fields.
-        fields: Vec<TermId<AssignPatternFieldTerm>>,
+        fields: SmallVec<[AssignPatternField; 8]>,
     },
     /// Object destructuring target.
     Object {
         /// The object fields.
-        fields: Vec<TermId<AssignPatternFieldTerm>>,
+        fields: SmallVec<[AssignPatternField; 8]>,
     },
 }
 
 /// One field inside an assignment target pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum AssignPatternFieldTerm {
+pub(in crate::check) enum AssignPatternField {
     /// Named field.
     Named {
         /// The selected key.
@@ -247,17 +247,13 @@ impl PatternTerm {
             Self::Type { ty } => variables.push(*ty),
             Self::Tuple { fields } | Self::Sequence { fields } | Self::Object { fields } => {
                 for field in fields {
-                    terms
-                        .get(*field)
-                        .collect_referenced_variables(terms, variables);
+                    field.collect_referenced_variables(terms, variables);
                 }
             }
             Self::TaggedTuple { ty, fields } | Self::TaggedObject { ty, fields } => {
                 variables.push(*ty);
                 for field in fields {
-                    terms
-                        .get(*field)
-                        .collect_referenced_variables(terms, variables);
+                    field.collect_referenced_variables(terms, variables);
                 }
             }
             Self::Union { patterns } => {
@@ -271,7 +267,7 @@ impl PatternTerm {
     }
 }
 
-impl PatternFieldTerm {
+impl PatternField {
     /// Collect variables referenced by this field.
     fn collect_referenced_variables(
         &self,
@@ -281,9 +277,9 @@ impl PatternFieldTerm {
         match self {
             Self::Named { key: _, pattern } | Self::Spread { pattern } => {
                 if let Some(pattern) = pattern {
-                        terms
-                            .get(*pattern)
-                            .collect_referenced_variables(terms, variables);
+                    terms
+                        .get(*pattern)
+                        .collect_referenced_variables(terms, variables);
                 }
             }
             Self::Computed { key, pattern } => {
@@ -329,16 +325,14 @@ impl AssignPatternTerm {
             }
             Self::Sequence { fields } | Self::Object { fields } => {
                 for field in fields {
-                    terms
-                        .get(*field)
-                        .collect_referenced_variables(terms, variables);
+                    field.collect_referenced_variables(terms, variables);
                 }
             }
         }
     }
 }
 
-impl AssignPatternFieldTerm {
+impl AssignPatternField {
     /// Collect variables referenced by this assignment pattern field.
     fn collect_referenced_variables(
         &self,
@@ -348,9 +342,9 @@ impl AssignPatternFieldTerm {
         match self {
             Self::Named { key: _, pattern } | Self::Spread { pattern } => {
                 if let Some(pattern) = pattern {
-                        terms
-                            .get(*pattern)
-                            .collect_referenced_variables(terms, variables);
+                    terms
+                        .get(*pattern)
+                        .collect_referenced_variables(terms, variables);
                 }
             }
             Self::Computed { key, pattern } => {
@@ -377,7 +371,9 @@ impl CheckState<'_> {
         let module = value.module;
         let value = TypeTerm::Variable(value);
         let decision = match relation {
-            PatternRelation::Match(pattern) => self.decide_pattern_term(module, &value, *pattern)?,
+            PatternRelation::Match(pattern) => {
+                self.decide_pattern_term(module, &value, *pattern)?
+            }
             PatternRelation::Assign(pattern) => {
                 self.decide_assign_pattern_term(module, &value, *pattern)?
             }
@@ -444,7 +440,9 @@ impl CheckState<'_> {
             )?,
             PatternTerm::Tuple { fields }
             | PatternTerm::Sequence { fields }
-            | PatternTerm::Object { fields } => self.decide_pattern_fields(module, value, &fields)?,
+            | PatternTerm::Object { fields } => {
+                self.decide_pattern_fields(module, value, &fields)?
+            }
             PatternTerm::TaggedTuple { ty, fields } | PatternTerm::TaggedObject { ty, fields } => {
                 let tag = self.decide_type_term_relation(
                     TypeRelation::Satisfies,
@@ -478,13 +476,13 @@ impl CheckState<'_> {
         &mut self,
         module: destack_source::ModuleId,
         value: &TypeTerm,
-        fields: &[TermId<PatternFieldTerm>],
+        fields: &[PatternField],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         // every requested field must match
         for field in fields {
-            decision = decision.and(self.decide_pattern_field(module, value, *field)?);
+            decision = decision.and(self.decide_pattern_field(module, value, field.clone())?);
         }
 
         Ok(decision)
@@ -495,11 +493,11 @@ impl CheckState<'_> {
         &mut self,
         module: destack_source::ModuleId,
         value: &TypeTerm,
-        field: TermId<PatternFieldTerm>,
+        field: PatternField,
     ) -> CompilerResult<Decision> {
-        let field = self.terms.get(field).clone();
+        let field = field;
         let decision = match field {
-            PatternFieldTerm::Named { key, pattern } => {
+            PatternField::Named { key, pattern } => {
                 let Some(pattern) = pattern else {
                     return Ok(Decision::Yes);
                 };
@@ -509,18 +507,17 @@ impl CheckState<'_> {
 
                 self.decide_pattern_term(module, &ty, pattern)?
             }
-            PatternFieldTerm::Computed { key: _, pattern }
-            | PatternFieldTerm::Positional { pattern } => {
+            PatternField::Computed { key: _, pattern } | PatternField::Positional { pattern } => {
                 self.decide_pattern_term(module, value, pattern)?
             }
-            PatternFieldTerm::Spread { pattern } => {
+            PatternField::Spread { pattern } => {
                 if let Some(pattern) = pattern {
                     self.decide_pattern_term(module, value, pattern)?
                 } else {
                     Decision::Yes
                 }
             }
-            PatternFieldTerm::Elision => Decision::Yes,
+            PatternField::Elision => Decision::Yes,
         };
 
         Ok(decision)
@@ -566,13 +563,14 @@ impl CheckState<'_> {
         &mut self,
         module: destack_source::ModuleId,
         value: &TypeTerm,
-        fields: &[TermId<AssignPatternFieldTerm>],
+        fields: &[AssignPatternField],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         // every assignment field must accept the source value
         for field in fields {
-            decision = decision.and(self.decide_assign_pattern_field(module, value, *field)?);
+            decision =
+                decision.and(self.decide_assign_pattern_field(module, value, field.clone())?);
         }
 
         Ok(decision)
@@ -583,11 +581,11 @@ impl CheckState<'_> {
         &mut self,
         module: destack_source::ModuleId,
         value: &TypeTerm,
-        field: TermId<AssignPatternFieldTerm>,
+        field: AssignPatternField,
     ) -> CompilerResult<Decision> {
-        let field = self.terms.get(field).clone();
+        let field = field;
         let decision = match field {
-            AssignPatternFieldTerm::Named { key, pattern } => {
+            AssignPatternField::Named { key, pattern } => {
                 let Some(pattern) = pattern else {
                     return Ok(Decision::Yes);
                 };
@@ -597,18 +595,18 @@ impl CheckState<'_> {
 
                 self.decide_assign_pattern_term(module, &ty, pattern)?
             }
-            AssignPatternFieldTerm::Computed { key: _, pattern }
-            | AssignPatternFieldTerm::Positional { pattern } => {
+            AssignPatternField::Computed { key: _, pattern }
+            | AssignPatternField::Positional { pattern } => {
                 self.decide_assign_pattern_term(module, value, pattern)?
             }
-            AssignPatternFieldTerm::Spread { pattern } => {
+            AssignPatternField::Spread { pattern } => {
                 if let Some(pattern) = pattern {
                     self.decide_assign_pattern_term(module, value, pattern)?
                 } else {
                     Decision::Yes
                 }
             }
-            AssignPatternFieldTerm::Elision => Decision::Yes,
+            AssignPatternField::Elision => Decision::Yes,
         };
 
         Ok(decision)
@@ -703,12 +701,12 @@ impl CheckState<'_> {
     fn expect_pattern_field_terms(
         &mut self,
         value: VariableId,
-        fields: &[TermId<PatternFieldTerm>],
+        fields: &[PatternField],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         for field in fields {
-            progress = progress.merge(self.expect_pattern_field(value, *field)?);
+            progress = progress.merge(self.expect_pattern_field(value, field.clone())?);
         }
 
         Ok(progress)
@@ -718,11 +716,11 @@ impl CheckState<'_> {
     fn expect_pattern_field(
         &mut self,
         value: VariableId,
-        field: TermId<PatternFieldTerm>,
+        field: PatternField,
     ) -> CompilerResult<Progress> {
-        let field = self.terms.get(field).clone();
+        let field = field;
         let progress = match field {
-            PatternFieldTerm::Named { key, pattern } => {
+            PatternField::Named { key, pattern } => {
                 let Some(pattern) = pattern else {
                     return Ok(Progress::Unchanged);
                 };
@@ -732,22 +730,23 @@ impl CheckState<'_> {
                     return Ok(Progress::Unchanged);
                 };
                 let origin = self.variable_origin(value)?;
-                let ty = self.solve_anonymous_type(value.module, origin, ty)?;
+                let field =
+                    self.allocate_intermediate_variable(value.module, VariableKind::Type, origin);
+                self.define_type(value.module, field, ty);
 
-                self.expect_pattern_term(ty, pattern)?
+                self.expect_pattern_term(field, pattern)?
             }
-            PatternFieldTerm::Computed { key: _, pattern }
-            | PatternFieldTerm::Positional { pattern } => {
+            PatternField::Computed { key: _, pattern } | PatternField::Positional { pattern } => {
                 self.expect_pattern_term(value, pattern)?
             }
-            PatternFieldTerm::Spread { pattern } => {
+            PatternField::Spread { pattern } => {
                 if let Some(pattern) = pattern {
                     self.expect_pattern_term(value, pattern)?
                 } else {
                     Progress::Unchanged
                 }
             }
-            PatternFieldTerm::Elision => Progress::Unchanged,
+            PatternField::Elision => Progress::Unchanged,
         };
 
         Ok(progress)
@@ -785,12 +784,12 @@ impl CheckState<'_> {
     fn expect_assign_pattern_field_terms(
         &mut self,
         value: VariableId,
-        fields: &[TermId<AssignPatternFieldTerm>],
+        fields: &[AssignPatternField],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         for field in fields {
-            progress = progress.merge(self.expect_assign_pattern_field(value, *field)?);
+            progress = progress.merge(self.expect_assign_pattern_field(value, field.clone())?);
         }
 
         Ok(progress)
@@ -800,11 +799,11 @@ impl CheckState<'_> {
     fn expect_assign_pattern_field(
         &mut self,
         value: VariableId,
-        field: TermId<AssignPatternFieldTerm>,
+        field: AssignPatternField,
     ) -> CompilerResult<Progress> {
-        let field = self.terms.get(field).clone();
+        let field = field;
         let progress = match field {
-            AssignPatternFieldTerm::Named { key, pattern } => {
+            AssignPatternField::Named { key, pattern } => {
                 let Some(pattern) = pattern else {
                     return Ok(Progress::Unchanged);
                 };
@@ -814,22 +813,24 @@ impl CheckState<'_> {
                     return Ok(Progress::Unchanged);
                 };
                 let origin = self.variable_origin(value)?;
-                let ty = self.solve_anonymous_type(value.module, origin, ty)?;
+                let field =
+                    self.allocate_intermediate_variable(value.module, VariableKind::Type, origin);
+                self.define_type(value.module, field, ty);
 
-                self.expect_assign_pattern_term(ty, pattern)?
+                self.expect_assign_pattern_term(field, pattern)?
             }
-            AssignPatternFieldTerm::Computed { key: _, pattern }
-            | AssignPatternFieldTerm::Positional { pattern } => {
+            AssignPatternField::Computed { key: _, pattern }
+            | AssignPatternField::Positional { pattern } => {
                 self.expect_assign_pattern_term(value, pattern)?
             }
-            AssignPatternFieldTerm::Spread { pattern } => {
+            AssignPatternField::Spread { pattern } => {
                 if let Some(pattern) = pattern {
                     self.expect_assign_pattern_term(value, pattern)?
                 } else {
                     Progress::Unchanged
                 }
             }
-            AssignPatternFieldTerm::Elision => Progress::Unchanged,
+            AssignPatternField::Elision => Progress::Unchanged,
         };
 
         Ok(progress)

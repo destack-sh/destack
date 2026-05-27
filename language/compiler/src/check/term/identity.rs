@@ -87,7 +87,7 @@ impl CheckState<'_> {
             TypeTerm::Literal(literal) => Self::literal_supports_identity(literal),
             TypeTerm::Reference { symbol, .. } => self.symbol_supports_identity(*symbol)?,
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 
@@ -95,7 +95,7 @@ impl CheckState<'_> {
             }
             TypeTerm::Union { elements } => {
                 for element in elements {
-                    let Some(term) = self.solved_type_term(*element)? else {
+                    let Some(term) = self.type_operand_term(*element)? else {
                         return Ok(false);
                     };
                     if !self.supports_identity(&term)? {

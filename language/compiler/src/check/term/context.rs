@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{ArgumentTerm, CheckState, Reduction, TypeTerm, VariableId};
+use crate::check::{CheckState, GenericArgument, Reduction, TypeTerm, VariableId};
 
 /// Runtime `type T` reflection term.
 ///
@@ -88,11 +88,11 @@ impl CheckState<'_> {
         value: &TypeValueTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
         let symbol = self.language_symbol(module, dir::LanguageItem::Type)?;
-        let argument = self.terms.push(ArgumentTerm::Type(value.ty));
+        let argument = GenericArgument::Type(value.ty.into());
         let term = TypeTerm::Reference {
             source: Some(value.source),
             symbol,
-            arguments: vec![argument],
+            arguments: vec![argument].into(),
         };
 
         Ok(Reduction::value(term))
@@ -109,7 +109,7 @@ impl CheckState<'_> {
         Ok(Reduction::value(TypeTerm::Reference {
             source: Some(meta.source),
             symbol,
-            arguments: Vec::new(),
+            arguments: Vec::new().into(),
         }))
     }
 

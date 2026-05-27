@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{ArgumentTerm, CheckState, Reduction, TermId, TypeTerm, VariableId};
+use crate::check::{CheckState, GenericArgument, Reduction, TypeTerm, VariableId};
 
 /// Runtime tree expression term.
 ///
@@ -17,7 +17,7 @@ pub(in crate::check) struct TreeTerm {
     /// The explicit tag expression type, when any.
     pub(in crate::check) tag: Option<VariableId>,
     /// The explicit tag generic arguments.
-    pub(in crate::check) generic_arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
     /// The tree attribute argument types.
     pub(in crate::check) arguments: Vec<VariableId>,
     /// The child tree element argument types.
@@ -36,7 +36,7 @@ impl TreeTerm {
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(*argument)),
+                .flat_map(|argument| state.argument_variables(argument)),
         );
         variables.extend(self.arguments.iter().copied());
         variables.extend(self.elements.iter().copied());

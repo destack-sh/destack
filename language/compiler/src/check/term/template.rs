@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CallTerm, CheckState, ConstraintOrigin, Progress, Reduction, TypeLiteralTerm,
-    TermId, TypeTerm, VariableId,
+    CallTerm, CheckState, GenericArgument, Progress, Reduction, TypeLiteralTerm, TypeOperand,
+    TypeTerm, VariableId,
 };
 
 /// Runtime template string term.
@@ -60,7 +60,7 @@ pub(in crate::check) struct TaggedTemplateTerm {
     /// The tag expression type.
     pub(in crate::check) tag: VariableId,
     /// The explicit tag generic arguments.
-    pub(in crate::check) generic_arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
     /// The literal string segments.
     pub(in crate::check) strings: Vec<dir::StringId>,
     /// The interpolated expression types.
@@ -79,7 +79,7 @@ impl TaggedTemplateTerm {
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(*argument)),
+                .flat_map(|argument| state.argument_variables(argument)),
         );
         variables.extend(self.spans.iter().copied());
 
@@ -119,15 +119,16 @@ impl CheckState<'_> {
 
     /// Return the lowered call shape for one tagged template.
     fn tagged_template_call(&mut self, template: &TaggedTemplateTerm) -> CompilerResult<CallTerm> {
-        let origin = ConstraintOrigin::Node(template.source);
         let string = TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::String));
-        let string = self.solve_anonymous_type(template.tag.module, origin, string)?;
-        let strings = TypeTerm::Array { element: string };
-        let strings = self.solve_anonymous_type(template.tag.module, origin, strings)?;
+        let string = self.terms.push(string);
+        let strings = TypeTerm::Array {
+            element: string.into(),
+        };
+        let strings = self.terms.push(strings);
         let mut arguments = Vec::with_capacity(template.spans.len() + 1);
 
-        arguments.push(strings);
-        arguments.extend(template.spans.iter().copied());
+        arguments.push(strings.into());
+        arguments.extend(template.spans.iter().copied().map(TypeOperand::from));
 
         Ok(CallTerm {
             source: template.source,
@@ -135,7 +136,7 @@ impl CheckState<'_> {
             member: None,
             candidates: Vec::new(),
             generic_arguments: template.generic_arguments.clone(),
-            arguments,
+            arguments: arguments.into(),
         })
     }
 

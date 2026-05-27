@@ -3,52 +3,55 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, StaticRelation, TermId, TypeRelation,
-    VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, StaticOperand, StaticRelation,
+    TypeOperand, TypeRelation, VariableId,
 };
 
 /// Argument supplied to a generic use.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum ArgumentTerm {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(in crate::check) enum GenericArgument {
     /// Type argument.
-    Type(VariableId),
+    Type(TypeOperand),
     /// Static argument.
-    Static(VariableId),
+    Static(StaticOperand),
     /// Argument that can be interpreted as either a type or static value.
     TypeOrStatic {
         /// The type interpretation.
-        ty: VariableId,
+        ty: TypeOperand,
         /// The static interpretation.
-        value: VariableId,
+        value: StaticOperand,
     },
     /// Spread type argument.
-    SpreadType(VariableId),
+    SpreadType(TypeOperand),
     /// Static spread argument.
-    SpreadStatic(VariableId),
+    SpreadStatic(StaticOperand),
     /// Spread argument that can be interpreted as either type or static values.
     SpreadTypeOrStatic {
         /// The type interpretation.
-        ty: VariableId,
+        ty: TypeOperand,
         /// The static interpretation.
-        value: VariableId,
+        value: StaticOperand,
     },
 }
 
-impl ArgumentTerm {
+impl GenericArgument {
     /// Return the variables referenced by this argument.
-    pub(in crate::check) fn variables(&self) -> SmallVec<[VariableId; 2]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
         match self {
-            Self::Type(variable)
-            | Self::Static(variable)
-            | Self::SpreadType(variable)
-            | Self::SpreadStatic(variable) => {
-                variables.push(*variable);
+            Self::Type(operand) | Self::SpreadType(operand) => {
+                variables.extend(operand.referenced_variables(state));
+            }
+            Self::Static(operand) | Self::SpreadStatic(operand) => {
+                variables.extend(operand.referenced_variables(state));
             }
             Self::TypeOrStatic { ty, value } | Self::SpreadTypeOrStatic { ty, value } => {
-                variables.push(*ty);
-                variables.push(*value);
+                variables.extend(ty.referenced_variables(state));
+                variables.extend(value.referenced_variables(state));
             }
         }
 
@@ -56,18 +59,18 @@ impl ArgumentTerm {
     }
 
     /// Return the type interpretation of this argument.
-    pub(in crate::check) fn type_variable(&self) -> Option<VariableId> {
+    pub(in crate::check) fn type_operand(&self) -> Option<TypeOperand> {
         match self {
-            Self::Type(variable) | Self::SpreadType(variable) => Some(*variable),
+            Self::Type(operand) | Self::SpreadType(operand) => Some(*operand),
             Self::TypeOrStatic { ty, .. } | Self::SpreadTypeOrStatic { ty, .. } => Some(*ty),
             Self::Static(_) | Self::SpreadStatic(_) => None,
         }
     }
 
     /// Return the static interpretation of this argument.
-    pub(in crate::check) fn static_variable(&self) -> Option<VariableId> {
+    pub(in crate::check) fn static_operand(&self) -> Option<StaticOperand> {
         match self {
-            Self::Static(variable) | Self::SpreadStatic(variable) => Some(*variable),
+            Self::Static(operand) | Self::SpreadStatic(operand) => Some(*operand),
             Self::TypeOrStatic { value, .. } | Self::SpreadTypeOrStatic { value, .. } => {
                 Some(*value)
             }
@@ -94,92 +97,76 @@ impl ArgumentTerm {
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let argument = match self {
-            Self::Type(variable) => {
-                Self::Type(state.substitute_type_variable(module, substitution, *variable)?)
+            Self::Type(operand) => {
+                Self::Type(state.substitute_type_operand(module, substitution, *operand)?)
             }
-            Self::Static(variable) => {
-                Self::Static(state.substitute_static_variable(module, substitution, *variable)?)
+            Self::Static(operand) => {
+                Self::Static(state.substitute_static_operand(module, substitution, *operand)?)
             }
             Self::TypeOrStatic { ty, value } => Self::TypeOrStatic {
-                ty: state.substitute_type_variable(module, substitution, *ty)?,
-                value: state.substitute_static_variable(module, substitution, *value)?,
+                ty: state.substitute_type_operand(module, substitution, *ty)?,
+                value: state.substitute_static_operand(module, substitution, *value)?,
             },
-            Self::SpreadType(variable) => {
-                Self::SpreadType(state.substitute_type_variable(module, substitution, *variable)?)
+            Self::SpreadType(operand) => {
+                Self::SpreadType(state.substitute_type_operand(module, substitution, *operand)?)
             }
-            Self::SpreadStatic(variable) => Self::SpreadStatic(state.substitute_static_variable(
+            Self::SpreadStatic(operand) => Self::SpreadStatic(state.substitute_static_operand(
                 module,
                 substitution,
-                *variable,
+                *operand,
             )?),
             Self::SpreadTypeOrStatic { ty, value } => Self::SpreadTypeOrStatic {
-                ty: state.substitute_type_variable(module, substitution, *ty)?,
-                value: state.substitute_static_variable(module, substitution, *value)?,
+                ty: state.substitute_type_operand(module, substitution, *ty)?,
+                value: state.substitute_static_operand(module, substitution, *value)?,
             },
         };
 
         Ok(argument)
     }
-
-    /// Substitute generic arguments through an argument list.
-    pub(in crate::check) fn substitute_all(
-        arguments: &[Self],
-        module: ModuleId,
-        substitution: &GenericSubstitution,
-        state: &mut CheckState<'_>,
-    ) -> CompilerResult<Vec<Self>> {
-        arguments
-            .iter()
-            .map(|argument| argument.substitute(module, substitution, state))
-            .collect()
-    }
 }
 
 impl CheckState<'_> {
-    /// Return the variables referenced by one argument term.
+    /// Return the variables referenced by one generic argument.
     pub(in crate::check) fn argument_variables(
         &self,
-        argument: TermId<ArgumentTerm>,
+        argument: &GenericArgument,
     ) -> SmallVec<[VariableId; 2]> {
-        self.terms.get(argument).variables()
+        argument.referenced_variables(self)
     }
 
-    /// Return the type interpretation of one argument term.
+    /// Return the type interpretation of one generic argument.
     pub(in crate::check) fn argument_type_variable(
         &self,
-        argument: TermId<ArgumentTerm>,
+        argument: &GenericArgument,
     ) -> Option<VariableId> {
-        self.terms.get(argument).type_variable()
+        argument.type_operand()?.variable()
     }
 
-    /// Return the static interpretation of one argument term.
+    /// Return the static interpretation of one generic argument.
     pub(in crate::check) fn argument_static_variable(
         &self,
-        argument: TermId<ArgumentTerm>,
+        argument: &GenericArgument,
     ) -> Option<VariableId> {
-        self.terms.get(argument).static_variable()
+        argument.static_operand()?.variable()
     }
 
-    /// Select one argument term for a known generic slot kind.
+    /// Select one generic argument for a known generic slot kind.
     pub(in crate::check) fn select_argument_for_static_slot(
-        &mut self,
-        argument: TermId<ArgumentTerm>,
+        &self,
+        argument: &GenericArgument,
         is_static: bool,
-    ) -> TermId<ArgumentTerm> {
-        let argument = self.terms.get(argument).select_for_static_slot(is_static);
-
-        self.terms.push(argument)
+    ) -> GenericArgument {
+        argument.select_for_static_slot(is_static)
     }
 
-    /// Substitute generic arguments through one argument term.
+    /// Substitute generic arguments through one generic argument.
     pub(in crate::check) fn substitute_argument(
         &mut self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        argument: TermId<ArgumentTerm>,
-    ) -> CompilerResult<TermId<ArgumentTerm>> {
-        let argument = self.terms.get(argument).substitute(module, substitution, self)?;
-        let argument = self.terms.push(argument);
+        argument: &GenericArgument,
+    ) -> CompilerResult<GenericArgument> {
+        let argument = argument.substitute(module, substitution, self)?;
 
         Ok(argument)
     }
@@ -189,19 +176,19 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        arguments: &[TermId<ArgumentTerm>],
-    ) -> CompilerResult<Vec<TermId<ArgumentTerm>>> {
+        arguments: &[GenericArgument],
+    ) -> CompilerResult<SmallVec<[GenericArgument; 4]>> {
         arguments
             .iter()
-            .map(|argument| self.substitute_argument(module, substitution, *argument))
+            .map(|argument| self.substitute_argument(module, substitution, argument))
             .collect()
     }
 
     /// Decide exact equality for argument lists.
     pub(in crate::check) fn decide_argument_list_equal(
         &self,
-        left: &[TermId<ArgumentTerm>],
-        right: &[TermId<ArgumentTerm>],
+        left: &[GenericArgument],
+        right: &[GenericArgument],
     ) -> CompilerResult<Decision> {
         if left.len() != right.len() {
             return Ok(Decision::No);
@@ -209,7 +196,7 @@ impl CheckState<'_> {
 
         let mut decision = Decision::Yes;
         for (left, right) in left.iter().zip(right) {
-            decision = decision.and(self.decide_argument_equal(*left, *right)?);
+            decision = decision.and(self.decide_argument_equal(left, right)?);
             if decision == Decision::No {
                 return Ok(decision);
             }
@@ -221,29 +208,26 @@ impl CheckState<'_> {
     /// Decide exact equality for one argument.
     pub(in crate::check) fn decide_argument_equal(
         &self,
-        left: TermId<ArgumentTerm>,
-        right: TermId<ArgumentTerm>,
+        left: &GenericArgument,
+        right: &GenericArgument,
     ) -> CompilerResult<Decision> {
-        let left = self.terms.get(left);
-        let right = self.terms.get(right);
         let decision = match (left, right) {
-            (ArgumentTerm::Type(left), ArgumentTerm::Type(right))
-            | (ArgumentTerm::SpreadType(left), ArgumentTerm::SpreadType(right)) => {
+            (GenericArgument::Type(left), GenericArgument::Type(right))
+            | (GenericArgument::SpreadType(left), GenericArgument::SpreadType(right)) => {
                 self.decide_type_relation(TypeRelation::Equal, *left, *right)?
             }
-            (ArgumentTerm::Static(left), ArgumentTerm::Static(right))
-            | (ArgumentTerm::SpreadStatic(left), ArgumentTerm::SpreadStatic(right)) => {
+            (GenericArgument::Static(left), GenericArgument::Static(right))
+            | (GenericArgument::SpreadStatic(left), GenericArgument::SpreadStatic(right)) => {
                 self.decide_static_relation(StaticRelation::Equal, *left, *right)?
             }
             (left, right)
-                if let (Some(left), Some(right)) =
-                    (left.type_variable(), right.type_variable()) =>
+                if let (Some(left), Some(right)) = (left.type_operand(), right.type_operand()) =>
             {
                 self.decide_type_relation(TypeRelation::Equal, left, right)?
             }
             (left, right)
                 if let (Some(left), Some(right)) =
-                    (left.static_variable(), right.static_variable()) =>
+                    (left.static_operand(), right.static_operand()) =>
             {
                 self.decide_static_relation(StaticRelation::Equal, left, right)?
             }
@@ -256,8 +240,8 @@ impl CheckState<'_> {
     /// Constrain matching generic arguments by exact equality.
     pub(in crate::check) fn constrain_argument_list_equal(
         &mut self,
-        left: &[TermId<ArgumentTerm>],
-        right: &[TermId<ArgumentTerm>],
+        left: &[GenericArgument],
+        right: &[GenericArgument],
     ) -> CompilerResult<Progress> {
         if left.len() != right.len() {
             return Ok(Progress::Unchanged);
@@ -266,7 +250,7 @@ impl CheckState<'_> {
 
         // constrain matching argument slots
         for (left, right) in left.iter().zip(right) {
-            progress = progress.merge(self.constrain_argument_equal(*left, *right)?);
+            progress = progress.merge(self.constrain_argument_equal(left, right)?);
         }
 
         Ok(progress)
@@ -275,29 +259,26 @@ impl CheckState<'_> {
     /// Constrain one generic argument by exact equality.
     fn constrain_argument_equal(
         &mut self,
-        left: TermId<ArgumentTerm>,
-        right: TermId<ArgumentTerm>,
+        left: &GenericArgument,
+        right: &GenericArgument,
     ) -> CompilerResult<Progress> {
-        let left = self.terms.get(left);
-        let right = self.terms.get(right);
         let progress = match (left, right) {
-            (ArgumentTerm::Type(left), ArgumentTerm::Type(right))
-            | (ArgumentTerm::SpreadType(left), ArgumentTerm::SpreadType(right)) => {
+            (GenericArgument::Type(left), GenericArgument::Type(right))
+            | (GenericArgument::SpreadType(left), GenericArgument::SpreadType(right)) => {
                 self.solve_type_equality(*left, *right)?
             }
-            (ArgumentTerm::Static(left), ArgumentTerm::Static(right))
-            | (ArgumentTerm::SpreadStatic(left), ArgumentTerm::SpreadStatic(right)) => {
+            (GenericArgument::Static(left), GenericArgument::Static(right))
+            | (GenericArgument::SpreadStatic(left), GenericArgument::SpreadStatic(right)) => {
                 self.solve_static_equality(*left, *right)?
             }
             (left, right)
-                if let (Some(left), Some(right)) =
-                    (left.type_variable(), right.type_variable()) =>
+                if let (Some(left), Some(right)) = (left.type_operand(), right.type_operand()) =>
             {
                 self.solve_type_equality(left, right)?
             }
             (left, right)
                 if let (Some(left), Some(right)) =
-                    (left.static_variable(), right.static_variable()) =>
+                    (left.static_operand(), right.static_operand()) =>
             {
                 self.solve_static_equality(left, right)?
             }

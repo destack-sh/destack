@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, StaticRelation, StaticTerm, VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, StaticOperand, StaticRelation, StaticTerm,
+    VariableId,
 };
 
 /// Check-local memory form term.
@@ -17,16 +18,16 @@ pub(in crate::check) enum FormTerm {
     /// Borrowed value form.
     Borrowed {
         /// The solved lifetime value.
-        lifetime: VariableId,
+        lifetime: StaticOperand,
         /// The solved access value.
-        access: VariableId,
+        access: StaticOperand,
     },
     /// Raw pointer form.
     Raw,
     /// Placed value form.
     Placed {
         /// The solved place value.
-        place: VariableId,
+        place: StaticOperand,
     },
     /// Readonly view form.
     Readonly,
@@ -47,15 +48,18 @@ impl FormTerm {
     }
 
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
         let mut variables = SmallVec::new();
 
         match self {
             Self::Borrowed { lifetime, access } => {
-                variables.push(*lifetime);
-                variables.push(*access);
+                variables.extend(lifetime.referenced_variables(state));
+                variables.extend(access.referenced_variables(state));
             }
-            Self::Placed { place } => variables.push(*place),
+            Self::Placed { place } => variables.extend(place.referenced_variables(state)),
             Self::Managed | Self::Owned | Self::Raw | Self::Readonly => {}
         }
 
@@ -71,11 +75,11 @@ impl FormTerm {
     ) -> CompilerResult<Self> {
         let form = match self {
             Self::Borrowed { lifetime, access } => Self::Borrowed {
-                lifetime: state.substitute_static_variable(module, substitution, *lifetime)?,
-                access: state.substitute_static_variable(module, substitution, *access)?,
+                lifetime: state.substitute_static_operand(module, substitution, *lifetime)?,
+                access: state.substitute_static_operand(module, substitution, *access)?,
             },
             Self::Placed { place } => Self::Placed {
-                place: state.substitute_static_variable(module, substitution, *place)?,
+                place: state.substitute_static_operand(module, substitution, *place)?,
             },
             Self::Managed | Self::Owned | Self::Raw | Self::Readonly => self.clone(),
         };
@@ -157,8 +161,8 @@ impl CheckState<'_> {
     /// Decide whether one access capability can flow into another.
     pub(in crate::check) fn decide_access_assignable(
         &self,
-        source: VariableId,
-        target: VariableId,
+        source: StaticOperand,
+        target: StaticOperand,
     ) -> CompilerResult<Decision> {
         let Some(source) = self.access_value(source)? else {
             return Ok(Decision::Undecidable);
@@ -266,8 +270,8 @@ impl CheckState<'_> {
     }
 
     /// Return one solved access value.
-    fn access_value(&self, variable: VariableId) -> CompilerResult<Option<dir::Access>> {
-        let Some(term) = self.solved_static_term(variable)? else {
+    fn access_value(&self, operand: StaticOperand) -> CompilerResult<Option<dir::Access>> {
+        let Some(term) = self.static_operand_term(operand)? else {
             return Ok(None);
         };
         let access = match term {

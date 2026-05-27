@@ -4,18 +4,18 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, TermId, TypeRelation, VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, TypeOperand, TypeRelation, VariableId,
 };
 
-/// Shape member term.
+/// Shape member payload.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum ShapeMemberTerm {
+pub(in crate::check) enum ShapeMember {
     /// Shape field.
     Field {
         /// The field key.
         key: dir::StaticKey,
         /// The field type.
-        ty: VariableId,
+        ty: TypeOperand,
         /// Whether the field is optional.
         is_optional: bool,
         /// Whether the field is readonly.
@@ -24,21 +24,21 @@ pub(in crate::check) enum ShapeMemberTerm {
     /// Call signature.
     CallSignature {
         /// The signature type.
-        ty: VariableId,
+        ty: TypeOperand,
     },
     /// Construct signature.
     ConstructSignature {
         /// The signature type.
-        ty: VariableId,
+        ty: TypeOperand,
     },
-    /// Index signature.
+    /// IndexTerm signature.
     IndexSignature {
         /// The parameter name.
         name: dir::StringId,
         /// The key type.
-        key_type: VariableId,
+        key_type: TypeOperand,
         /// The value type.
-        value_type: VariableId,
+        value_type: TypeOperand,
         /// Whether the index signature is optional.
         is_optional: bool,
         /// Whether the index signature is readonly.
@@ -46,9 +46,12 @@ pub(in crate::check) enum ShapeMemberTerm {
     },
 }
 
-impl ShapeMemberTerm {
+impl ShapeMember {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
         let mut variables = SmallVec::new();
 
         match self {
@@ -59,7 +62,7 @@ impl ShapeMemberTerm {
                 is_readonly: _,
             }
             | Self::CallSignature { ty }
-            | Self::ConstructSignature { ty } => variables.push(*ty),
+            | Self::ConstructSignature { ty } => variables.extend(ty.referenced_variables(state)),
             Self::IndexSignature {
                 name: _,
                 key_type,
@@ -67,8 +70,8 @@ impl ShapeMemberTerm {
                 is_optional: _,
                 is_readonly: _,
             } => {
-                variables.push(*key_type);
-                variables.push(*value_type);
+                variables.extend(key_type.referenced_variables(state));
+                variables.extend(value_type.referenced_variables(state));
             }
         }
 
@@ -90,15 +93,15 @@ impl ShapeMemberTerm {
                 is_readonly,
             } => Self::Field {
                 key: *key,
-                ty: state.substitute_type_variable(module, substitution, *ty)?,
+                ty: state.substitute_type_operand(module, substitution, *ty)?,
                 is_optional: *is_optional,
                 is_readonly: *is_readonly,
             },
             Self::CallSignature { ty } => Self::CallSignature {
-                ty: state.substitute_type_variable(module, substitution, *ty)?,
+                ty: state.substitute_type_operand(module, substitution, *ty)?,
             },
             Self::ConstructSignature { ty } => Self::ConstructSignature {
-                ty: state.substitute_type_variable(module, substitution, *ty)?,
+                ty: state.substitute_type_operand(module, substitution, *ty)?,
             },
             Self::IndexSignature {
                 name,
@@ -108,8 +111,8 @@ impl ShapeMemberTerm {
                 is_readonly,
             } => Self::IndexSignature {
                 name: *name,
-                key_type: state.substitute_type_variable(module, substitution, *key_type)?,
-                value_type: state.substitute_type_variable(module, substitution, *value_type)?,
+                key_type: state.substitute_type_operand(module, substitution, *key_type)?,
+                value_type: state.substitute_type_operand(module, substitution, *value_type)?,
                 is_optional: *is_optional,
                 is_readonly: *is_readonly,
             },
@@ -117,7 +120,6 @@ impl ShapeMemberTerm {
 
         Ok(member)
     }
-
 }
 
 impl CheckState<'_> {
@@ -126,25 +128,19 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        members: &[TermId<ShapeMemberTerm>],
-    ) -> CompilerResult<Vec<TermId<ShapeMemberTerm>>> {
+        members: &[ShapeMember],
+    ) -> CompilerResult<Vec<ShapeMember>> {
         members
             .iter()
-            .map(|member| {
-                let member = self.terms.get(*member);
-                let member = member.substitute(module, substitution, self)?;
-                let member = self.terms.push(member);
-
-                Ok(member)
-            })
+            .map(|member| member.substitute(module, substitution, self))
             .collect()
     }
 
     /// Decide exact equality for shape members.
     pub(in crate::check) fn decide_shape_members_equal(
         &self,
-        left: &[TermId<ShapeMemberTerm>],
-        right: &[TermId<ShapeMemberTerm>],
+        left: &[ShapeMember],
+        right: &[ShapeMember],
     ) -> CompilerResult<Decision> {
         if left.len() != right.len() {
             return Ok(Decision::No);
@@ -153,9 +149,6 @@ impl CheckState<'_> {
 
         // compare shape members in source order
         for (left, right) in left.iter().zip(right) {
-            let left = self.terms.get(*left);
-            let right = self.terms.get(*right);
-
             decision = decision.and(self.decide_shape_member_equal(left, right)?);
             if decision == Decision::No {
                 return Ok(decision);
@@ -168,14 +161,14 @@ impl CheckState<'_> {
     /// Decide structural shape assignability.
     pub(in crate::check) fn decide_shape_assignable(
         &self,
-        source: &[TermId<ShapeMemberTerm>],
-        target: &[TermId<ShapeMemberTerm>],
+        source: &[ShapeMember],
+        target: &[ShapeMember],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         // require each target member from the source shape
         for target in target {
-            decision = decision.and(self.decide_shape_member_assignable(source, *target)?);
+            decision = decision.and(self.decide_shape_member_assignable(source, target)?);
             if decision == Decision::No {
                 return Ok(decision);
             }
@@ -187,14 +180,13 @@ impl CheckState<'_> {
     /// Relate matching shape fields by equality.
     pub(in crate::check) fn constrain_shape_members_equal(
         &mut self,
-        left: &[TermId<ShapeMemberTerm>],
-        right: &[TermId<ShapeMemberTerm>],
+        left: &[ShapeMember],
+        right: &[ShapeMember],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // constrain common fields in both directions
         for left in left {
-            let left = self.terms.get(*left);
             let Some((left_key, left_ty)) = shape_field(left) else {
                 continue;
             };
@@ -211,14 +203,13 @@ impl CheckState<'_> {
     /// Relate matching shape fields by assignability.
     pub(in crate::check) fn constrain_shape_members_assignable(
         &mut self,
-        source: &[TermId<ShapeMemberTerm>],
-        target: &[TermId<ShapeMemberTerm>],
+        source: &[ShapeMember],
+        target: &[ShapeMember],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // push target field types into source fields
         for target in target {
-            let target = self.terms.get(*target);
             let Some((target_key, target_ty)) = shape_field(target) else {
                 continue;
             };
@@ -235,14 +226,13 @@ impl CheckState<'_> {
     /// Expect shape fields to satisfy expected fields.
     pub(in crate::check) fn expect_shape_member_terms(
         &mut self,
-        members: &[TermId<ShapeMemberTerm>],
-        targets: &[TermId<ShapeMemberTerm>],
+        members: &[ShapeMember],
+        targets: &[ShapeMember],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // expect common fields to satisfy expected types
         for target in targets {
-            let target = self.terms.get(*target);
             let Some((target_key, target_ty)) = shape_field(target) else {
                 continue;
             };
@@ -259,18 +249,18 @@ impl CheckState<'_> {
     /// Decide exact equality for one shape member.
     fn decide_shape_member_equal(
         &self,
-        left: &ShapeMemberTerm,
-        right: &ShapeMemberTerm,
+        left: &ShapeMember,
+        right: &ShapeMember,
     ) -> CompilerResult<Decision> {
         let decision = match (left, right) {
             (
-                ShapeMemberTerm::Field {
+                ShapeMember::Field {
                     key: left_key,
                     ty: left_type,
                     is_optional: left_optional,
                     is_readonly: left_readonly,
                 },
-                ShapeMemberTerm::Field {
+                ShapeMember::Field {
                     key: right_key,
                     ty: right_type,
                     is_optional: right_optional,
@@ -286,23 +276,20 @@ impl CheckState<'_> {
                     self.decide_type_relation(TypeRelation::Equal, *left_type, *right_type)?
                 }
             }
-            (
-                ShapeMemberTerm::CallSignature { ty: left },
-                ShapeMemberTerm::CallSignature { ty: right },
-            )
+            (ShapeMember::CallSignature { ty: left }, ShapeMember::CallSignature { ty: right })
             | (
-                ShapeMemberTerm::ConstructSignature { ty: left },
-                ShapeMemberTerm::ConstructSignature { ty: right },
+                ShapeMember::ConstructSignature { ty: left },
+                ShapeMember::ConstructSignature { ty: right },
             ) => self.decide_type_relation(TypeRelation::Equal, *left, *right)?,
             (
-                ShapeMemberTerm::IndexSignature {
+                ShapeMember::IndexSignature {
                     name: left_name,
                     key_type: left_key,
                     value_type: left_value,
                     is_optional: left_optional,
                     is_readonly: left_readonly,
                 },
-                ShapeMemberTerm::IndexSignature {
+                ShapeMember::IndexSignature {
                     name: right_name,
                     key_type: right_key,
                     value_type: right_value,
@@ -333,10 +320,9 @@ impl CheckState<'_> {
     /// Decide assignability for one target shape member.
     fn decide_shape_member_assignable(
         &self,
-        source: &[TermId<ShapeMemberTerm>],
-        target: TermId<ShapeMemberTerm>,
+        source: &[ShapeMember],
+        target: &ShapeMember,
     ) -> CompilerResult<Decision> {
-        let target = self.terms.get(target);
         let Some(source) = self.find_shape_member(source, target) else {
             return Ok(if Self::shape_member_is_optional(target) {
                 Decision::Yes
@@ -351,60 +337,53 @@ impl CheckState<'_> {
     /// Return a source member matching one target member.
     fn find_shape_member<'a>(
         &self,
-        source: &'a [TermId<ShapeMemberTerm>],
-        target: &ShapeMemberTerm,
-    ) -> Option<&'a ShapeMemberTerm> {
+        source: &'a [ShapeMember],
+        target: &ShapeMember,
+    ) -> Option<&'a ShapeMember> {
         source
             .iter()
-            .map(|source| self.terms.get(*source))
             .find(|source| Self::shape_member_matches(source, target))
     }
 
     /// Return whether two shape members have the same lookup key.
-    fn shape_member_matches(left: &ShapeMemberTerm, right: &ShapeMemberTerm) -> bool {
+    fn shape_member_matches(left: &ShapeMember, right: &ShapeMember) -> bool {
         match (left, right) {
-            (
-                ShapeMemberTerm::Field { key: left, .. },
-                ShapeMemberTerm::Field { key: right, .. },
-            ) => left == right,
-            (ShapeMemberTerm::CallSignature { .. }, ShapeMemberTerm::CallSignature { .. }) => true,
-            (
-                ShapeMemberTerm::ConstructSignature { .. },
-                ShapeMemberTerm::ConstructSignature { .. },
-            ) => true,
-            (ShapeMemberTerm::IndexSignature { .. }, ShapeMemberTerm::IndexSignature { .. }) => {
+            (ShapeMember::Field { key: left, .. }, ShapeMember::Field { key: right, .. }) => {
+                left == right
+            }
+            (ShapeMember::CallSignature { .. }, ShapeMember::CallSignature { .. }) => true,
+            (ShapeMember::ConstructSignature { .. }, ShapeMember::ConstructSignature { .. }) => {
                 true
             }
+            (ShapeMember::IndexSignature { .. }, ShapeMember::IndexSignature { .. }) => true,
             _ => false,
         }
     }
 
     /// Return whether one shape member can be omitted.
-    fn shape_member_is_optional(member: &ShapeMemberTerm) -> bool {
+    fn shape_member_is_optional(member: &ShapeMember) -> bool {
         match member {
-            ShapeMemberTerm::Field { is_optional, .. }
-            | ShapeMemberTerm::IndexSignature { is_optional, .. } => *is_optional,
-            ShapeMemberTerm::CallSignature { .. } | ShapeMemberTerm::ConstructSignature { .. } => {
-                false
-            }
+            ShapeMember::Field { is_optional, .. }
+            | ShapeMember::IndexSignature { is_optional, .. } => *is_optional,
+            ShapeMember::CallSignature { .. } | ShapeMember::ConstructSignature { .. } => false,
         }
     }
 
     /// Decide assignability for two matched shape members.
     fn decide_shape_member_value_assignable(
         &self,
-        source: &ShapeMemberTerm,
-        target: &ShapeMemberTerm,
+        source: &ShapeMember,
+        target: &ShapeMember,
     ) -> CompilerResult<Decision> {
         let decision = match (source, target) {
             (
-                ShapeMemberTerm::Field {
+                ShapeMember::Field {
                     ty: source_type,
                     is_optional: source_optional,
                     is_readonly: source_readonly,
                     ..
                 },
-                ShapeMemberTerm::Field {
+                ShapeMember::Field {
                     ty: target_type,
                     is_optional: target_optional,
                     is_readonly: target_readonly,
@@ -418,22 +397,22 @@ impl CheckState<'_> {
                 }
             }
             (
-                ShapeMemberTerm::CallSignature { ty: source },
-                ShapeMemberTerm::CallSignature { ty: target },
+                ShapeMember::CallSignature { ty: source },
+                ShapeMember::CallSignature { ty: target },
             )
             | (
-                ShapeMemberTerm::ConstructSignature { ty: source },
-                ShapeMemberTerm::ConstructSignature { ty: target },
+                ShapeMember::ConstructSignature { ty: source },
+                ShapeMember::ConstructSignature { ty: target },
             ) => self.decide_type_relation(TypeRelation::Assignable, *source, *target)?,
             (
-                ShapeMemberTerm::IndexSignature {
+                ShapeMember::IndexSignature {
                     key_type: source_key,
                     value_type: source_value,
                     is_optional: source_optional,
                     is_readonly: source_readonly,
                     ..
                 },
-                ShapeMemberTerm::IndexSignature {
+                ShapeMember::IndexSignature {
                     key_type: target_key,
                     value_type: target_value,
                     is_optional: target_optional,
@@ -467,11 +446,10 @@ impl CheckState<'_> {
     /// Return one shape field type by key.
     pub(in crate::check) fn shape_field_type(
         &self,
-        members: &[TermId<ShapeMemberTerm>],
+        members: &[ShapeMember],
         key: dir::StaticKey,
-    ) -> Option<VariableId> {
+    ) -> Option<TypeOperand> {
         members.iter().find_map(|member| {
-            let member = self.terms.get(*member);
             let (member_key, ty) = shape_field(member)?;
 
             member_key.matches(&key).then_some(ty)
@@ -480,19 +458,17 @@ impl CheckState<'_> {
 }
 
 /// Return one shape field key and type.
-pub(in crate::check) fn shape_field(
-    member: &ShapeMemberTerm,
-) -> Option<(dir::StaticKey, VariableId)> {
+pub(in crate::check) fn shape_field(member: &ShapeMember) -> Option<(dir::StaticKey, TypeOperand)> {
     match member {
-        ShapeMemberTerm::Field {
+        ShapeMember::Field {
             key,
             ty,
             is_optional: _,
             is_readonly: _,
         } => Some((key.clone(), *ty)),
-        ShapeMemberTerm::CallSignature { ty: _ }
-        | ShapeMemberTerm::ConstructSignature { ty: _ }
-        | ShapeMemberTerm::IndexSignature {
+        ShapeMember::CallSignature { ty: _ }
+        | ShapeMember::ConstructSignature { ty: _ }
+        | ShapeMember::IndexSignature {
             name: _,
             key_type: _,
             value_type: _,

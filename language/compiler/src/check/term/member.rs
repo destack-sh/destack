@@ -1,11 +1,12 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckState, FunctionTerm, GenericInstance, GenericSlotId, GenericSubstitution,
+    CheckState, FunctionTerm, GenericArgument, GenericInstance, GenericSlotId, GenericSubstitution,
     MemberDecision, MemberFailure, MemberProtocol, MemberResolution, MemberResolutionTarget,
-    ShapeMemberTerm, StaticTerm, TermId, TupleElementTerm, TypeRelation, TypeTerm, VariableId,
+    ShapeMember, StaticTerm, TermId, TupleElement, TypeOperand, TypeRelation, TypeTerm, VariableId,
     VariableOutput,
 };
 
@@ -21,7 +22,7 @@ pub(in crate::check) struct MemberTerm {
     /// The selected member key.
     pub(in crate::check) key: dir::StaticKey,
     /// The applied static arguments.
-    pub(in crate::check) arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) arguments: SmallVec<[GenericArgument; 4]>,
 }
 
 impl MemberTerm {
@@ -36,7 +37,7 @@ impl MemberTerm {
         variables.extend(
             self.arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(*argument)),
+                .flat_map(|argument| state.argument_variables(argument)),
         );
 
         variables
@@ -78,7 +79,7 @@ impl CheckState<'_> {
         source: Option<dir::GlobalNodeIdAny>,
         owner: VariableId,
         key: dir::StaticKey,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
         let receiver = owner;
         let Some(owner) = self.solved_type_term(owner)? else {
@@ -135,8 +136,7 @@ impl CheckState<'_> {
                 MemberDecision::Rejected(MemberFailure::Missing)
             };
 
-        self.module_mut(source.module_id)?
-            .record_member_solution(source, decision);
+        self.record_member_solution(source, decision);
 
         Ok(())
     }
@@ -147,7 +147,7 @@ impl CheckState<'_> {
         module: ModuleId,
         term: &TypeTerm,
         key: &dir::StaticKey,
-        member_arguments: &[TermId<ArgumentTerm>],
+        member_arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
         match term {
             TypeTerm::Variable(variable) => {
@@ -158,7 +158,7 @@ impl CheckState<'_> {
                 self.resolve_member_type(module, &term, key, member_arguments)
             }
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(None);
                 };
 
@@ -221,7 +221,7 @@ impl CheckState<'_> {
                 self.member_static_term(module, &term, key)
             }
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(None);
                 };
 
@@ -285,7 +285,7 @@ impl CheckState<'_> {
                 self.member_type_candidate_matching(module, &term, key, protocol)
             }
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(None);
                 };
 
@@ -324,7 +324,7 @@ impl CheckState<'_> {
         &mut self,
         parameter: GenericSlotId,
         key: &dir::StaticKey,
-        member_arguments: &[TermId<ArgumentTerm>],
+        member_arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
         let Some(constraint) = self.generic_parameter_type_constraint(parameter)? else {
             return Ok(None);
@@ -352,7 +352,7 @@ impl CheckState<'_> {
     /// Return a symbol-backed candidate from one shape method field.
     fn shape_member_candidate(
         &self,
-        members: &[ShapeMemberTerm],
+        members: &[ShapeMember],
         key: &dir::StaticKey,
         protocol: Option<&MemberProtocol>,
     ) -> CompilerResult<Option<MemberCandidate>> {
@@ -361,7 +361,8 @@ impl CheckState<'_> {
         }
 
         for member in members {
-            let ShapeMemberTerm::Field {
+            let member = member;
+            let ShapeMember::Field {
                 key: member_key,
                 ty,
                 ..
@@ -372,14 +373,16 @@ impl CheckState<'_> {
             if !member_key.matches(key) {
                 continue;
             }
-            let Some(VariableOutput::Symbol(symbol)) = self.module(ty.module)?.variable(*ty).output
-            else {
+            let Some(variable) = ty.variable() else {
+                return Ok(None);
+            };
+            let Some(VariableOutput::Symbol(symbol)) = self.variable(variable).output else {
                 return Ok(None);
             };
 
             return Ok(Some(MemberCandidate {
                 symbol,
-                ty: TypeTerm::Variable(*ty),
+                ty: TypeTerm::Variable(variable),
                 instance: None,
             }));
         }
@@ -439,8 +442,8 @@ impl CheckState<'_> {
         slot: dir::MemberSlot,
     ) -> CompilerResult<Vec<dir::GlobalSymbolId>> {
         if let Some(module) = self.inputs.get(&symbol.module_id) {
-            let bindings = module.input.binding_table();
-            let view = module.input.view();
+            let bindings = module.binding_table();
+            let view = module.view();
             let symbols = Self::binding_member_symbols(&bindings, Some(&view), symbol, slot);
 
             return Ok(symbols);
@@ -565,9 +568,9 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
         key: dir::StaticKey,
-        member_arguments: &[TermId<ArgumentTerm>],
+        member_arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
         if let Some(member) = self.visible_member_symbol(symbol, key)? {
             let substitution = self.generic_substitution(symbol, arguments)?;
@@ -615,7 +618,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         member: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
         term: TypeTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
         let substitution = self.generic_substitution(member, arguments)?;
@@ -631,7 +634,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
         key: dir::StaticKey,
     ) -> CompilerResult<Option<StaticTerm>> {
         let Some(member) = self.visible_member_symbol(symbol, key)? else {
@@ -655,7 +658,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
         key: dir::StaticKey,
         protocol: Option<&MemberProtocol>,
     ) -> CompilerResult<Option<MemberCandidate>> {
@@ -683,7 +686,7 @@ impl CheckState<'_> {
             };
             let instance = Some(GenericInstance {
                 symbol,
-                arguments: arguments.to_vec(),
+                arguments: arguments.to_vec().into(),
             });
 
             return Ok(Some(MemberCandidate {
@@ -727,11 +730,10 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<GenericSlotId>> {
-        let Some(module) = self.outputs.get_mut(&symbol.module_id) else {
+        let Some(variable) = self.variables.type_by_symbol.get(&symbol).copied() else {
             return Ok(None);
         };
-        let variable = module.intern_symbol_type_variable(symbol);
-        let Some(VariableOutput::Generic(generic)) = &module.variable(variable).output else {
+        let Some(VariableOutput::Generic(generic)) = &self.variable(variable).output else {
             return Ok(None);
         };
         if !generic.is_type() {
@@ -746,8 +748,7 @@ impl CheckState<'_> {
         &self,
         slot_id: GenericSlotId,
     ) -> CompilerResult<Option<VariableId>> {
-        let module = self.module(slot_id.owner.module_id)?;
-        let constraint = module.generic_parameters().find_map(|(_, generic)| {
+        let constraint = self.generic_parameters().find_map(|(_, generic)| {
             if generic.slot().id() == slot_id && generic.is_type() {
                 generic.type_constraint()
             } else {
@@ -785,12 +786,12 @@ impl CheckState<'_> {
         let actual = TypeTerm::Reference {
             source: None,
             symbol: actual,
-            arguments: Vec::new(),
+            arguments: Vec::new().into(),
         };
         let required = TypeTerm::Reference {
             source: None,
             symbol: required,
-            arguments: Vec::new(),
+            arguments: Vec::new().into(),
         };
 
         Ok(
@@ -801,12 +802,15 @@ impl CheckState<'_> {
 
     /// Return the owning declaration symbol for one resolved member.
     fn member_owner_symbol(&self, member: dir::GlobalSymbolId) -> Option<dir::GlobalSymbolId> {
+        let module_id = member.module_id;
         let module = self.inputs.get(&member.module_id)?;
-        let bindings = module.input.binding_table();
+        let bindings = module.binding_table();
         let member = bindings.get_symbol(member.local_id);
         let scope = bindings.get_scope(member.scope);
 
-        scope.owner.map(|owner| owner.into_global(module.module()))
+        scope
+            .owner
+            .map(|owner: dir::LocalSymbolId| owner.into_global(module_id))
     }
 
     /// Return whether one declaration implements a language item.
@@ -818,9 +822,7 @@ impl CheckState<'_> {
         let implemented = self.implemented_type_expressions(symbol);
 
         for implemented in implemented {
-            let variable = self
-                .module_mut(symbol.module_id)?
-                .intern_local_type_variable(implemented);
+            let variable = self.intern_local_type_variable(symbol.module_id, implemented);
             let Some(term) = self.solved_type_term(variable)? else {
                 continue;
             };
@@ -842,9 +844,7 @@ impl CheckState<'_> {
         let implemented = self.implemented_type_expressions(symbol);
 
         for implemented in implemented {
-            let variable = self
-                .module_mut(symbol.module_id)?
-                .intern_local_type_variable(implemented);
+            let variable = self.intern_local_type_variable(symbol.module_id, implemented);
             let Some(term) = self.solved_type_term(variable)? else {
                 continue;
             };
@@ -889,7 +889,7 @@ impl CheckState<'_> {
                 );
             }
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 
@@ -920,7 +920,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         owner: dir::GlobalSymbolId,
-        actual: &[TermId<ArgumentTerm>],
+        actual: &[GenericArgument],
         protocol: &MemberProtocol,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
@@ -985,7 +985,7 @@ impl CheckState<'_> {
                 return self.type_term_is_language_item(variable.module, &term, item);
             }
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 
@@ -1026,7 +1026,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: &TypeTerm,
         target: dir::GlobalSymbolId,
-        target_arguments: &[TermId<ArgumentTerm>],
+        target_arguments: &[GenericArgument],
     ) -> CompilerResult<Decision> {
         let members = self.nominal_member_declarations(target)?;
         let substitution = self.generic_substitution(target, target_arguments)?;
@@ -1059,8 +1059,7 @@ impl CheckState<'_> {
         &self,
         owner: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<(dir::StaticKey, dir::GlobalSymbolId)>> {
-        let module = self.module(owner.module_id)?;
-        let binding_table = module.input.binding_table();
+        let binding_table = self.input(owner.module_id).binding_table();
         let mut members = Vec::new();
 
         for scope_id in binding_table.scope_ids() {
@@ -1069,11 +1068,11 @@ impl CheckState<'_> {
                 continue;
             }
 
-            members.extend(
-                scope
-                    .named_symbols()
-                    .map(|(key, symbol)| (key, symbol.into_global(owner.module_id))),
-            );
+            members.extend(scope.named_symbols().map(
+                |(key, symbol): (dir::StaticKey, dir::LocalSymbolId)| {
+                    (key, symbol.into_global(owner.module_id))
+                },
+            ));
 
             break;
         }
@@ -1091,7 +1090,7 @@ impl CheckState<'_> {
         let target = self.normalize_type_pattern_term(target)?;
         let decision = match (&source, &target) {
             (TypeTerm::Function(source), TypeTerm::Function(target)) => {
-                self.decide_member_function_satisfied(source, target)?
+                self.decide_member_function_satisfied(*source, *target)?
             }
             _ => self.decide_type_term_relation(TypeRelation::Assignable, &source, &target)?,
         };
@@ -1102,9 +1101,12 @@ impl CheckState<'_> {
     /// Decide member function satisfaction, ignoring expected `this`.
     fn decide_member_function_satisfied(
         &self,
-        source: &FunctionTerm,
-        target: &FunctionTerm,
+        source: TermId<FunctionTerm>,
+        target: TermId<FunctionTerm>,
     ) -> CompilerResult<Decision> {
+        let source = self.terms.get(source);
+        let target = self.terms.get(target);
+
         if source.asynchrony != target.asynchrony
             || source.is_generator != target.is_generator
             || source.parameters.len() != target.parameters.len()
@@ -1141,13 +1143,10 @@ impl CheckState<'_> {
     }
 
     /// Return a member type from one check shape term.
-    fn shape_member_type(
-        &self,
-        members: &[ShapeMemberTerm],
-        key: &dir::StaticKey,
-    ) -> Option<TypeTerm> {
+    fn shape_member_type(&self, members: &[ShapeMember], key: &dir::StaticKey) -> Option<TypeTerm> {
         for member in members {
-            let ShapeMemberTerm::Field {
+            let member = member;
+            let ShapeMember::Field {
                 key: member_key,
                 ty,
                 ..
@@ -1156,7 +1155,10 @@ impl CheckState<'_> {
                 continue;
             };
             if member_key.matches(key) {
-                return Some(TypeTerm::Variable(*ty));
+                return Some(match *ty {
+                    TypeOperand::Variable(variable) => TypeTerm::Variable(variable),
+                    TypeOperand::Term(term) => self.terms.get(term).clone(),
+                });
             }
         }
 
@@ -1167,7 +1169,7 @@ impl CheckState<'_> {
     fn tuple_member_type(
         &self,
         module: ModuleId,
-        elements: &[TupleElementTerm],
+        elements: &[TupleElement],
         key: &dir::StaticKey,
     ) -> CompilerResult<Option<TypeTerm>> {
         let Some(index) = self.tuple_member_index(module, key)? else {
@@ -1177,7 +1179,12 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        Ok(Some(TypeTerm::Variable(element.ty)))
+        let ty = match element.ty {
+            TypeOperand::Variable(variable) => TypeTerm::Variable(variable),
+            TypeOperand::Term(term) => self.terms.get(term).clone(),
+        };
+
+        Ok(Some(ty))
     }
 
     /// Return the tuple index selected by one member key.
@@ -1189,7 +1196,7 @@ impl CheckState<'_> {
         let dir::StaticKey::Number(number) = key else {
             return Ok(None);
         };
-        let strings = &self.module(module)?.input.strings;
+        let strings = &self.input(module).strings;
         let index = strings.get(*number).parse().ok();
 
         Ok(index)
@@ -1211,7 +1218,7 @@ impl CheckState<'_> {
                 self.type_term_has_field(variable.module, &term, key)
             }
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 

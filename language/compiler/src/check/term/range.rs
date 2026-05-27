@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckState, ConstraintOrigin, Progress, Reduction, TypeOperationTerm, TypeTerm,
-    VariableId,
+    CheckState, ConstraintOrigin, GenericArgument, Progress, Reduction, TypeOperand,
+    TypeOperationTerm, TypeTerm, VariableId, VariableKind,
 };
 
 /// Runtime range expression term.
@@ -109,11 +109,17 @@ impl CheckState<'_> {
         range: &RangeValueTerm,
     ) -> CompilerResult<VariableId> {
         let origin = ConstraintOrigin::Node(range.source);
-        let elements = range.referenced_variables().into_iter().collect();
+        let elements = range
+            .referenced_variables()
+            .into_iter()
+            .map(TypeOperand::from)
+            .collect();
         let operation = self.terms.push(TypeOperationTerm::BestCommon { elements });
         let term = TypeTerm::Operation(operation);
+        let variable = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
+        self.define_type(module, variable, term);
 
-        self.solve_anonymous_type(module, origin, term)
+        Ok(variable)
     }
 
     /// Return one nominal range language item type.
@@ -127,7 +133,7 @@ impl CheckState<'_> {
         let symbol = self.language_symbol(module, item)?;
         let arguments = element
             .into_iter()
-            .map(|element| self.terms.push(ArgumentTerm::Type(element)))
+            .map(|element| GenericArgument::Type(element.into()))
             .collect();
 
         Ok(Reduction::value(TypeTerm::Reference {
