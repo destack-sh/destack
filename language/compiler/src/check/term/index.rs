@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallTerm, CheckState, ConstraintOrigin, MemberCallTerm, MemberProtocol, Progress, Reduction,
-    SubscriptMethod, TypeTerm, VariableId,
+    CallTerm, CheckState, MemberCallTerm, MemberProtocol, Progress, Reduction, SubscriptMethod,
+    TypeTerm, VariableId,
 };
 
 /// Runtime index access term.
@@ -114,8 +114,7 @@ impl CheckState<'_> {
         result: VariableId,
     ) -> CompilerResult<Progress> {
         if let Some(term) = self.reduce_structural_index_type(result.module, index)? {
-            let origin = ConstraintOrigin::Node(index.source);
-            let term = self.solve_anonymous_type(result.module, origin, term)?;
+            let term = self.terms.push(term);
 
             return self.solve_type_assignability(term, result);
         }
@@ -164,8 +163,7 @@ impl CheckState<'_> {
         let Some(term) = self.resolve_member_type(module, &receiver, &key, &[])? else {
             return Ok(false);
         };
-        let origin = ConstraintOrigin::Node(set.source);
-        let term = self.solve_anonymous_type(module, origin, term)?;
+        let term = self.terms.push(term);
         self.solve_type_assignability(set.value, term)?;
 
         Ok(true)
@@ -181,10 +179,10 @@ impl CheckState<'_> {
         let member = MemberCallTerm {
             receiver: index.receiver,
             key,
-            arguments: Vec::new(),
+            arguments: Vec::new().into(),
             protocol: Some(MemberProtocol {
                 item: dir::LanguageItem::Index,
-                arguments: Vec::new(),
+                arguments: Vec::new().into(),
             }),
         };
         let member = self.terms.push(member);
@@ -194,8 +192,8 @@ impl CheckState<'_> {
             callee: index.receiver,
             member: Some(member),
             candidates: Vec::new(),
-            generic_arguments: Vec::new(),
-            arguments: vec![index.index],
+            generic_arguments: Default::default(),
+            arguments: vec![index.index.into()].into(),
         })
     }
 
@@ -209,10 +207,10 @@ impl CheckState<'_> {
         let member = MemberCallTerm {
             receiver: set.receiver,
             key,
-            arguments: Vec::new(),
+            arguments: Vec::new().into(),
             protocol: Some(MemberProtocol {
                 item: dir::LanguageItem::IndexSet,
-                arguments: Vec::new(),
+                arguments: Vec::new().into(),
             }),
         };
         let member = self.terms.push(member);
@@ -222,8 +220,8 @@ impl CheckState<'_> {
             callee: set.receiver,
             member: Some(member),
             candidates: Vec::new(),
-            generic_arguments: Vec::new(),
-            arguments: vec![set.index, set.value],
+            generic_arguments: Default::default(),
+            arguments: vec![set.index.into(), set.value.into()].into(),
         })
     }
 }

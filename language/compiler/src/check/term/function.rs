@@ -4,29 +4,29 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, TermId, TypeRelation, VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, TypeOperand, TypeRelation, VariableId,
 };
 
-/// Function parameter term.
+/// Function parameter payload.
 ///
 /// ```ts
 /// value?: string
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct FunctionParameterTerm {
+pub(in crate::check) struct FunctionParameter {
     /// The parameter type.
-    pub(in crate::check) ty: VariableId,
+    pub(in crate::check) ty: TypeOperand,
     /// Whether the parameter may be omitted at the call site.
     pub(in crate::check) is_optional: bool,
     /// Whether the parameter captures the remaining call arguments.
     pub(in crate::check) is_rest: bool,
 }
 
-impl FunctionParameterTerm {
+impl FunctionParameter {
     /// Create a required parameter.
-    pub(in crate::check) fn required(ty: VariableId) -> Self {
+    pub(in crate::check) fn required(ty: impl Into<TypeOperand>) -> Self {
         Self {
-            ty,
+            ty: ty.into(),
             is_optional: false,
             is_rest: false,
         }
@@ -40,7 +40,7 @@ impl FunctionParameterTerm {
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
-            ty: state.substitute_type_variable(module, substitution, self.ty)?,
+            ty: state.substitute_type_operand(module, substitution, self.ty)?,
             is_optional: self.is_optional,
             is_rest: self.is_rest,
         })
@@ -57,11 +57,11 @@ pub(in crate::check) struct FunctionTerm {
     /// The function asynchrony.
     pub(in crate::check) asynchrony: dir::Asynchrony,
     /// The generic parameter types.
-    pub(in crate::check) generic_parameters: Vec<VariableId>,
+    pub(in crate::check) generic_parameters: SmallVec<[VariableId; 4]>,
     /// The optional `this` parameter type.
     pub(in crate::check) this_parameter: Option<VariableId>,
     /// The parameter types.
-    pub(in crate::check) parameters: Vec<TermId<FunctionParameterTerm>>,
+    pub(in crate::check) parameters: SmallVec<[FunctionParameter; 4]>,
     /// The optional return type.
     pub(in crate::check) return_type: Option<VariableId>,
     /// Whether this is a generator function.
@@ -86,17 +86,13 @@ impl FunctionTerm {
             parameters: self
                 .parameters
                 .iter()
-                .map(|parameter| {
-                    let parameter = state.terms.get(*parameter);
-                    let parameter = parameter.substitute(module, substitution, state)?;
-                    let parameter = state.terms.push(parameter);
-
-                    Ok(parameter)
-                })
-                .collect::<CompilerResult<Vec<_>>>()?,
+                .map(|parameter| parameter.substitute(module, substitution, state))
+                .collect::<CompilerResult<SmallVec<_>>>()?,
             return_type: self
                 .return_type
-                .map(|return_type| state.substitute_type_variable(module, substitution, return_type))
+                .map(|return_type| {
+                    state.substitute_type_variable(module, substitution, return_type)
+                })
                 .transpose()?,
             is_generator: self.is_generator,
         })
@@ -113,11 +109,9 @@ impl FunctionTerm {
 
         variables.extend(self.generic_parameters.iter().copied());
         variables.extend(self.this_parameter);
-        variables.extend(
-            self.parameters
-                .iter()
-                .map(|parameter| state.terms.get(*parameter).ty),
-        );
+        for parameter in &self.parameters {
+            variables.extend(parameter.ty.referenced_variables(state));
+        }
         variables.extend(self.return_type.iter().copied());
 
         variables
@@ -145,9 +139,6 @@ impl CheckState<'_> {
 
         // push parameter context contravariantly
         for (source, target) in function.parameters.iter().zip(&expected.parameters) {
-            let source = self.terms.get(*source);
-            let target = self.terms.get(*target);
-
             if source.is_optional != target.is_optional || source.is_rest != target.is_rest {
                 continue;
             }
@@ -188,8 +179,8 @@ impl CheckState<'_> {
     /// Decide exact equality for function parameter terms.
     fn decide_function_parameter_list_equal(
         &self,
-        left: &[TermId<FunctionParameterTerm>],
-        right: &[TermId<FunctionParameterTerm>],
+        left: &[FunctionParameter],
+        right: &[FunctionParameter],
     ) -> CompilerResult<Decision> {
         if left.len() != right.len() {
             return Ok(Decision::No);
@@ -198,9 +189,6 @@ impl CheckState<'_> {
 
         // compare parameter metadata and types together
         for (left, right) in left.iter().zip(right) {
-            let left = self.terms.get(*left);
-            let right = self.terms.get(*right);
-
             if left.is_optional != right.is_optional || left.is_rest != right.is_rest {
                 return Ok(Decision::No);
             }

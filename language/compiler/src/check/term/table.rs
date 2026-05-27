@@ -2,13 +2,11 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
 use crate::check::{
-    ArgumentTerm, AssignPatternFieldTerm, AssignPatternTerm, AwaitTerm, CallTerm, ConstructTerm,
-    FormTerm, FunctionParameterTerm, FunctionTerm, IdentityTerm, ImportMetaTerm, IndexSetTerm,
-    IndexTerm, InstanceCheckTerm, KeyMembershipTerm, LayoutTerm, MappedParameterTerm,
-    MatchCaseTerm, MemberCallTerm, MemberTerm, OperatorTerm, PatternFieldTerm, PatternTerm,
-    RangeValueTerm, ReceiverTerm, ShapeMemberTerm, StaticTerm, SuperTerm, TaggedTemplateTerm,
-    TemplateTerm, TreeTerm, TryFailureTerm, TryTerm, TupleElementTerm, TypeOperationTerm, TypeTerm,
-    TypeValueTerm, YieldTerm,
+    AssignPatternTerm, AwaitTerm, CallTerm, ConstructTerm, FormTerm, FunctionTerm, IdentityTerm,
+    ImportMetaTerm, IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, LayoutTerm,
+    MemberCallTerm, MemberTerm, OperatorTerm, PatternTerm, RangeValueTerm, ReceiverTerm,
+    StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryFailureTerm, TryTerm,
+    TypeOperationTerm, TypeTerm, TypeValueTerm, YieldTerm,
 };
 
 /// Typed id for one check term in a component term table.
@@ -84,14 +82,11 @@ macro_rules! define_term_table {
 }
 
 define_term_table! {
-    arguments: ArgumentTerm,
-    assign_pattern_fields: AssignPatternFieldTerm,
     assign_patterns: AssignPatternTerm,
     awaits: AwaitTerm,
     calls: CallTerm,
     constructs: ConstructTerm,
     forms: FormTerm,
-    function_parameters: FunctionParameterTerm,
     functions: FunctionTerm,
     identities: IdentityTerm,
     import_metas: ImportMetaTerm,
@@ -100,16 +95,12 @@ define_term_table! {
     instance_checks: InstanceCheckTerm,
     key_memberships: KeyMembershipTerm,
     layouts: LayoutTerm,
-    mapped_parameters: MappedParameterTerm,
-    match_cases: MatchCaseTerm,
     member_calls: MemberCallTerm,
     members: MemberTerm,
     operators: OperatorTerm,
-    pattern_fields: PatternFieldTerm,
     patterns: PatternTerm,
     range_values: RangeValueTerm,
     receivers: ReceiverTerm,
-    shape_members: ShapeMemberTerm,
     statics: StaticTerm,
     supers: SuperTerm,
     tagged_templates: TaggedTemplateTerm,
@@ -117,7 +108,6 @@ define_term_table! {
     trees: TreeTerm,
     try_failures: TryFailureTerm,
     tries: TryTerm,
-    tuple_elements: TupleElementTerm,
     type_operations: TypeOperationTerm,
     type_values: TypeValueTerm,
     types: TypeTerm,

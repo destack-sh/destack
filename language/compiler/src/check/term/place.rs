@@ -33,14 +33,14 @@ pub(in crate::check) enum PlaceTarget {
         symbol: dir::GlobalSymbolId,
     },
     /// Structural or nominal member target.
-    Member {
+    MemberTerm {
         /// The receiver type.
         owner: VariableId,
         /// The selected member key.
         key: dir::StaticKey,
     },
     /// Protocol-backed index target.
-    Index {
+    IndexTerm {
         /// The indexed receiver type.
         receiver: VariableId,
         /// The index expression type.

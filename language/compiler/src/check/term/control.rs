@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckState, ConstraintOrigin, Decision, Progress, TypeLiteralTerm, TypeRelation,
-    TypeTerm, VariableId,
+    CheckState, Decision, GenericArgument, Progress, TypeLiteralTerm, TypeRelation, TypeTerm,
+    VariableId,
 };
 
 /// Runtime await expression term.
@@ -147,14 +147,13 @@ impl CheckState<'_> {
         result: VariableId,
     ) -> CompilerResult<Progress> {
         let symbol = self.language_symbol(awaited.source.module_id, dir::LanguageItem::Promise)?;
-        let argument = self.terms.push(ArgumentTerm::Type(result));
+        let argument = GenericArgument::Type(result.into());
         let expected = TypeTerm::Reference {
             source: Some(awaited.source),
             symbol,
-            arguments: vec![argument],
+            arguments: vec![argument].into(),
         };
-        let origin = ConstraintOrigin::Node(awaited.source);
-        let expected = self.solve_anonymous_type(result.module, origin, expected)?;
+        let expected = self.terms.push(expected);
 
         self.solve_type_assignability(awaited.value, expected)
     }
@@ -181,7 +180,7 @@ impl CheckState<'_> {
         Ok(failure.map(TypeTerm::Variable))
     }
 
-    /// Expect a `Try.Value` projection to produce the expected result.
+    /// Expect a try value projection to produce the expected result.
     pub(in crate::check) fn expect_try_term(
         &mut self,
         tried: &TryTerm,
@@ -196,7 +195,7 @@ impl CheckState<'_> {
         Ok(progress)
     }
 
-    /// Expect a `Try.Failure` projection to produce the expected result.
+    /// Expect a try failure projection to produce the expected result.
     pub(in crate::check) fn expect_try_failure_term(
         &mut self,
         tried: &TryFailureTerm,
@@ -275,7 +274,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one `Try` associated type.
+    /// Return one try associated type.
     fn try_associated_type_variable(
         &mut self,
         module: ModuleId,
@@ -308,12 +307,12 @@ impl CheckState<'_> {
         failure: VariableId,
     ) -> CompilerResult<TypeTerm> {
         let symbol = self.language_symbol(module, dir::LanguageItem::FromFailure)?;
-        let argument = self.terms.push(ArgumentTerm::Type(failure));
+        let argument = GenericArgument::Type(failure.into());
 
         Ok(TypeTerm::Reference {
             source: Some(source),
             symbol,
-            arguments: vec![argument],
+            arguments: vec![argument].into(),
         })
     }
 }

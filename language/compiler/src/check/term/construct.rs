@@ -1,11 +1,12 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::check::{
-    ArgumentTerm, CallFailure, CallTarget, CallableSelection, CallableSignature, CheckState,
-    ConstraintOrigin, ConstructDecision, ConstructFailure, ConstructResolution,
-    FunctionParameterTerm, FunctionTerm, GenericInstance, Progress, Reduction, ShapeMemberTerm,
-    TermId, TypeLiteralTerm, TypeTerm, VariableId,
+    CallFailure, CallTarget, CallableSelection, CallableSignature, CheckState, ConstructDecision,
+    ConstructFailure, ConstructResolution, FunctionParameter, FunctionTerm, GenericArgument,
+    GenericInstance, Progress, Reduction, ShapeMember, TypeLiteralTerm, TypeOperand, TypeTerm,
+    VariableId,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -22,9 +23,9 @@ pub(in crate::check) struct ConstructTerm {
     /// The construct callee type.
     pub(in crate::check) callee: VariableId,
     /// The explicit construct generic arguments.
-    pub(in crate::check) generic_arguments: Vec<TermId<ArgumentTerm>>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
     /// The argument expression types.
-    pub(in crate::check) arguments: Vec<VariableId>,
+    pub(in crate::check) arguments: SmallVec<[TypeOperand; 4]>,
 }
 
 impl ConstructTerm {
@@ -39,9 +40,13 @@ impl ConstructTerm {
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(*argument)),
+                .flat_map(|argument| state.argument_variables(argument)),
         );
-        variables.extend(self.arguments.iter().copied());
+        variables.extend(
+            self.arguments
+                .iter()
+                .flat_map(|argument| argument.referenced_variables(state)),
+        );
 
         variables
     }
@@ -64,7 +69,7 @@ pub(in crate::check) enum ConstructCandidates {
     /// The callee has no construct signatures.
     Absent,
     /// The callee has one or more construct signatures.
-    Present(Vec<ConstructCandidate>),
+    Present(SmallVec<[ConstructCandidate; 4]>),
 }
 
 impl CheckState<'_> {
@@ -100,11 +105,8 @@ impl CheckState<'_> {
             Some(return_type) => TypeTerm::Variable(return_type),
             None => TypeTerm::Literal(TypeLiteralTerm::Void),
         };
-        let origin = ConstraintOrigin::Node(construct.source);
-        let term = self.solve_anonymous_type(module, origin, term)?;
-
         Ok(Reduction {
-            value: Some(TypeTerm::Variable(term)),
+            value: Some(term),
             progress,
         })
     }
@@ -232,7 +234,7 @@ impl CheckState<'_> {
         module: ModuleId,
         callee: VariableId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
         let constructors = self.visible_role_member_symbols(
             symbol,
@@ -244,7 +246,7 @@ impl CheckState<'_> {
         let substitution = self.generic_substitution(symbol, arguments)?;
         let instance = (!arguments.is_empty()).then(|| GenericInstance {
             symbol,
-            arguments: arguments.to_vec(),
+            arguments: arguments.to_vec().into(),
         });
         let mut candidates = Vec::with_capacity(constructors.len());
 
@@ -272,7 +274,7 @@ impl CheckState<'_> {
             });
         }
 
-        Ok(ConstructCandidates::Present(candidates))
+        Ok(ConstructCandidates::Present(candidates.into()))
     }
 
     /// Return implicit constructor candidates for a nominal type.
@@ -280,7 +282,7 @@ impl CheckState<'_> {
         &mut self,
         callee: VariableId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
         if self.construct_symbol_kind(symbol)? == dir::SymbolKind::Newtype {
             return self.newtype_constructor_candidate(callee, symbol, arguments);
@@ -288,13 +290,13 @@ impl CheckState<'_> {
 
         let instance = (!arguments.is_empty()).then(|| GenericInstance {
             symbol,
-            arguments: arguments.to_vec(),
+            arguments: arguments.to_vec().into(),
         });
         let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters: Vec::new(),
+            generic_parameters: SmallVec::new(),
             this_parameter: None,
-            parameters: Vec::new(),
+            parameters: Vec::new().into(),
             return_type: Some(callee),
             is_generator: false,
         };
@@ -304,7 +306,7 @@ impl CheckState<'_> {
             function,
         };
 
-        Ok(ConstructCandidates::Present(vec![candidate]))
+        Ok(ConstructCandidates::Present(vec![candidate].into()))
     }
 
     /// Return an implicit constructor candidate for a newtype backing type.
@@ -312,7 +314,7 @@ impl CheckState<'_> {
         &mut self,
         callee: VariableId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
         let Some(backing) = self.newtype_backing_type(symbol)? else {
             return Ok(ConstructCandidates::Pending);
@@ -320,11 +322,11 @@ impl CheckState<'_> {
         let parameters = self.newtype_constructor_parameters(backing)?;
         let instance = (!arguments.is_empty()).then(|| GenericInstance {
             symbol,
-            arguments: arguments.to_vec(),
+            arguments: arguments.to_vec().into(),
         });
         let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters: Vec::new(),
+            generic_parameters: SmallVec::new(),
             this_parameter: None,
             parameters,
             return_type: Some(callee),
@@ -336,37 +338,37 @@ impl CheckState<'_> {
             function,
         };
 
-        Ok(ConstructCandidates::Present(vec![candidate]))
+        Ok(ConstructCandidates::Present(vec![candidate].into()))
     }
 
     /// Return the constructor parameters implied by a newtype backing type.
     fn newtype_constructor_parameters(
         &mut self,
         backing: VariableId,
-    ) -> CompilerResult<Vec<TermId<FunctionParameterTerm>>> {
+    ) -> CompilerResult<SmallVec<[FunctionParameter; 4]>> {
         let Some(term) = self.solved_type_term(backing)? else {
-            let parameter = self.terms.push(FunctionParameterTerm::required(backing));
+            let parameter = FunctionParameter::required(backing);
 
-            return Ok(vec![parameter]);
+            return Ok(vec![parameter].into());
         };
         let parameters = match term {
             TypeTerm::Tuple { elements, .. } => elements
                 .iter()
                 .map(|element| {
-                    let element = self.terms.get(*element);
-                    let parameter = FunctionParameterTerm {
+                    let element = element;
+                    let parameter = FunctionParameter {
                         ty: element.ty,
                         is_optional: element.is_optional,
                         is_rest: element.is_rest,
                     };
 
-                    self.terms.push(parameter)
+                    parameter
                 })
                 .collect(),
-            _ => vec![self.terms.push(FunctionParameterTerm::required(backing))],
+            _ => vec![FunctionParameter::required(backing)],
         };
 
-        Ok(parameters)
+        Ok(parameters.into())
     }
 
     /// Return the backing type variable for a newtype symbol.
@@ -384,7 +386,11 @@ impl CheckState<'_> {
             return Ok(None);
         }
         let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(source.id);
-        let declaration = self.input(symbol.module_id).view().get(declaration_id).clone();
+        let declaration = self
+            .input(symbol.module_id)
+            .view()
+            .get(declaration_id)
+            .clone();
         let backing = match declaration {
             dir::Declaration::Type(declaration) if declaration.is_nominal => {
                 Some(self.intern_local_type_variable(symbol.module_id, declaration.value))
@@ -396,7 +402,10 @@ impl CheckState<'_> {
     }
 
     /// Return the declaration kind for one construct symbol.
-    fn construct_symbol_kind(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<dir::SymbolKind> {
+    fn construct_symbol_kind(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::SymbolKind> {
         let Some(module) = self.inputs.get(&symbol.module_id) else {
             return Err(CompilerError::Internal {
                 message: format!("construct symbol {symbol:?} is outside the check component"),
@@ -416,14 +425,14 @@ impl CheckState<'_> {
     fn shape_construct_candidates(
         &mut self,
         module: ModuleId,
-        members: &[TermId<ShapeMemberTerm>],
+        members: &[ShapeMember],
     ) -> CompilerResult<ConstructCandidates> {
         for member in members {
-            let member = self.terms.get(*member);
-            let ShapeMemberTerm::ConstructSignature { ty } = member else {
+            let member = member;
+            let ShapeMember::ConstructSignature { ty } = member else {
                 continue;
             };
-            let Some(term) = self.solved_type_term(*ty)? else {
+            let Some(term) = self.type_operand_term(*ty)? else {
                 return Ok(ConstructCandidates::Pending);
             };
             let CallableSignature::Present(function) = self.call_signature(module, &term)? else {
@@ -435,7 +444,7 @@ impl CheckState<'_> {
                 function,
             };
 
-            return Ok(ConstructCandidates::Present(vec![candidate]));
+            return Ok(ConstructCandidates::Present(vec![candidate].into()));
         }
 
         Ok(ConstructCandidates::Absent)
@@ -446,12 +455,7 @@ impl CheckState<'_> {
         &self,
         construct: &ConstructTerm,
     ) -> CompilerResult<Option<CallableSelection>> {
-        let Some(decision) = self
-            .solutions
-            .construct
-            .get(&construct.source)
-            .cloned()
-        else {
+        let Some(decision) = self.solutions.construct.get(&construct.source).cloned() else {
             return Ok(None);
         };
 

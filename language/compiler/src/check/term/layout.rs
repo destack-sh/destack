@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, FormTerm, GenericSubstitution, LayoutDecision, LayoutFailure, LayoutResolution,
-    ShapeMemberTerm, StaticTerm, TermId, TypeTerm, VariableId,
+    ShapeMember, StaticTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Compile-time query over a concrete type layout.
@@ -38,9 +38,9 @@ pub(in crate::check) enum LayoutQuery {
 
 /// Solved layout before commit allocates DIR layout ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct ConcreteLayout {
+pub(in crate::check) struct Layout {
     /// The layout shape.
-    pub(in crate::check) shape: ConcreteLayoutShape,
+    pub(in crate::check) shape: LayoutShape,
     /// The size in bytes.
     pub(in crate::check) size: Option<u32>,
     /// The alignment in bytes.
@@ -49,7 +49,7 @@ pub(in crate::check) struct ConcreteLayout {
 
 /// Solved layout shape before commit allocates DIR layout ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) enum ConcreteLayoutShape {
+pub(in crate::check) enum LayoutShape {
     /// No runtime storage.
     None,
     /// Builtin scalar storage.
@@ -59,22 +59,23 @@ pub(in crate::check) enum ConcreteLayoutShape {
     /// Struct or object storage.
     Struct {
         /// The fields in layout order.
-        fields: Vec<ConcreteLayoutField>,
+        fields: Vec<LayoutField>,
     },
     /// Tuple storage.
     Tuple {
         /// The tuple elements in layout order.
-        elements: Vec<ConcreteLayoutField>,
+        elements: Vec<LayoutField>,
     },
     /// Variant value storage.
     Variant {
         /// The variant cases.
-        variants: Vec<ConcreteVariantLayout>,
+        variants: Vec<VariantLayout>,
     },
     /// Transparent nominal storage.
+    #[allow(dead_code)]
     Newtype {
         /// The backing type layout.
-        backing: Box<ConcreteLayout>,
+        backing: Box<Layout>,
     },
     /// Runtime function or closure storage.
     Function,
@@ -82,13 +83,13 @@ pub(in crate::check) enum ConcreteLayoutShape {
 
 /// Solved field or tuple element layout before commit allocates DIR layout ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct ConcreteLayoutField {
+pub(in crate::check) struct LayoutField {
     /// The field key.
     pub(in crate::check) key: Option<dir::StaticKey>,
     /// The field type.
     pub(in crate::check) ty: LayoutType,
     /// The field layout.
-    pub(in crate::check) layout: Box<ConcreteLayout>,
+    pub(in crate::check) layout: Box<Layout>,
     /// The offset in bytes.
     pub(in crate::check) offset: Option<u32>,
     /// The size in bytes.
@@ -99,18 +100,18 @@ pub(in crate::check) struct ConcreteLayoutField {
 
 /// Solved variant case layout before commit allocates DIR layout ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct ConcreteVariantLayout {
+pub(in crate::check) struct VariantLayout {
     /// The logical case type.
     pub(in crate::check) ty: LayoutType,
     /// The case layout.
-    pub(in crate::check) layout: Box<ConcreteLayout>,
+    pub(in crate::check) layout: Box<Layout>,
 }
 
 /// Type identity attached to one solved layout node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum LayoutType {
-    /// Check type variable.
-    Variable(VariableId),
+    /// Check type operand.
+    Operand(TypeOperand),
     /// Committed DIR type id.
     TypeId(dir::LocalTypeId),
 }
@@ -166,8 +167,22 @@ impl CheckState<'_> {
         module: ModuleId,
         variable: VariableId,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let Some(term) = self.solved_type_term(variable)? else {
+            return Ok(None);
+        };
+
+        self.type_term_layout(module, &term, pointer_bytes)
+    }
+
+    /// Return a concrete layout for one solved type operand.
+    fn type_operand_layout(
+        &mut self,
+        module: ModuleId,
+        operand: TypeOperand,
+        pointer_bytes: u32,
+    ) -> CompilerResult<Option<Layout>> {
+        let Some(term) = self.type_operand_term(operand)? else {
             return Ok(None);
         };
 
@@ -180,7 +195,7 @@ impl CheckState<'_> {
         module: ModuleId,
         term: &TypeTerm,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let layout = match term {
             TypeTerm::Literal(atom) => {
                 let ty = atom.to_type();
@@ -190,7 +205,7 @@ impl CheckState<'_> {
             TypeTerm::Form { form, payload } => {
                 let form = self.terms.get(*form).clone();
 
-                self.form_term_layout(module, &form, LayoutType::Variable(*payload), pointer_bytes)?
+                self.form_term_layout(module, &form, LayoutType::Operand(*payload), pointer_bytes)?
             }
             TypeTerm::FixedArray {
                 element,
@@ -206,16 +221,24 @@ impl CheckState<'_> {
                 is_readonly: _,
                 form: _,
             } => {
-                let fields = elements.iter().map(|element| LayoutFieldInput {
-                    key: None,
-                    ty: LayoutType::Variable(self.terms.get(*element).ty),
-                });
+                let fields = elements
+                    .iter()
+                    .map(|element| LayoutFieldInput {
+                        key: None,
+                        ty: LayoutType::Operand(element.ty.into()),
+                    })
+                    .collect::<Vec<_>>();
 
-                self.aggregate_layout(module, fields, AggregateLayoutShape::Tuple, pointer_bytes)?
+                self.aggregate_layout(
+                    module,
+                    fields.into_iter(),
+                    AggregateLayoutShape::Tuple,
+                    pointer_bytes,
+                )?
             }
             TypeTerm::Shape { members } => self.shape_layout(module, members, pointer_bytes)?,
             TypeTerm::Union { elements } => {
-                let variants = elements.iter().copied().map(LayoutType::Variable);
+                let variants = elements.iter().copied().map(LayoutType::Operand);
 
                 self.variant_layout(module, variants, pointer_bytes)?
             }
@@ -236,7 +259,7 @@ impl CheckState<'_> {
         module: ModuleId,
         ty: &dir::Type,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let layout = match ty {
             dir::Type::Never | dir::Type::Void | dir::Type::Undefined => Some(none_layout()),
             dir::Type::Any | dir::Type::Unknown | dir::Type::Object => {
@@ -292,7 +315,7 @@ impl CheckState<'_> {
         module: ModuleId,
         form: &dir::FormType,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let layout = match form.form {
             dir::Form::Managed | dir::Form::Borrowed { .. } | dir::Form::Raw => {
                 Some(pointer_layout(pointer_bytes))
@@ -314,7 +337,7 @@ impl CheckState<'_> {
         form: &FormTerm,
         value: LayoutType,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let layout = match form {
             FormTerm::Managed | FormTerm::Borrowed { .. } | FormTerm::Raw => {
                 Some(pointer_layout(pointer_bytes))
@@ -333,7 +356,7 @@ impl CheckState<'_> {
         module: ModuleId,
         array: &dir::FixedArrayType,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let element_type = self.local_type(module, array.element);
         let element = self.committed_type_layout(module, &element_type, pointer_bytes)?;
         let Some(element) = element else {
@@ -349,8 +372,8 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        Ok(Some(ConcreteLayout {
-            shape: ConcreteLayoutShape::Tuple {
+        Ok(Some(Layout {
+            shape: LayoutShape::Tuple {
                 elements: Vec::new(),
             },
             size: Some(size.saturating_mul(length)),
@@ -362,11 +385,11 @@ impl CheckState<'_> {
     fn fixed_array_term_layout(
         &mut self,
         module: ModuleId,
-        element: VariableId,
+        element: TypeOperand,
         length: VariableId,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
-        let Some(element) = self.type_layout(module, element, pointer_bytes)? else {
+    ) -> CompilerResult<Option<Layout>> {
+        let Some(element) = self.type_operand_layout(module, element, pointer_bytes)? else {
             return Ok(None);
         };
         let Some(length) = self.static_usize_variable(length)? else {
@@ -379,8 +402,8 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        Ok(Some(ConcreteLayout {
-            shape: ConcreteLayoutShape::Tuple {
+        Ok(Some(Layout {
+            shape: LayoutShape::Tuple {
                 elements: Vec::new(),
             },
             size: Some(size.saturating_mul(length)),
@@ -392,20 +415,28 @@ impl CheckState<'_> {
     fn shape_layout(
         &mut self,
         module: ModuleId,
-        members: &[TermId<ShapeMemberTerm>],
+        members: &[ShapeMember],
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
-        let fields = members.iter().filter_map(|member| match self.terms.get(*member) {
-            ShapeMemberTerm::Field { key, ty, .. } => Some(LayoutFieldInput {
-                key: Some(*key),
-                ty: LayoutType::Variable(*ty),
-            }),
-            ShapeMemberTerm::CallSignature { .. }
-            | ShapeMemberTerm::ConstructSignature { .. }
-            | ShapeMemberTerm::IndexSignature { .. } => None,
-        });
+    ) -> CompilerResult<Option<Layout>> {
+        let fields = members
+            .iter()
+            .filter_map(|member| match member {
+                ShapeMember::Field { key, ty, .. } => Some(LayoutFieldInput {
+                    key: Some(key.clone()),
+                    ty: LayoutType::Operand(*ty),
+                }),
+                ShapeMember::CallSignature { .. }
+                | ShapeMember::ConstructSignature { .. }
+                | ShapeMember::IndexSignature { .. } => None,
+            })
+            .collect::<Vec<_>>();
 
-        self.aggregate_layout(module, fields, AggregateLayoutShape::Struct, pointer_bytes)
+        self.aggregate_layout(
+            module,
+            fields.into_iter(),
+            AggregateLayoutShape::Struct,
+            pointer_bytes,
+        )
     }
 
     /// Return an aggregate layout for ordered fields.
@@ -415,7 +446,7 @@ impl CheckState<'_> {
         fields: impl IntoIterator<Item = LayoutFieldInput>,
         shape: AggregateLayoutShape,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let mut offset = 0;
         let mut alignment = 1;
         let mut layout_fields = Vec::new();
@@ -435,7 +466,7 @@ impl CheckState<'_> {
 
             offset = field_offset.saturating_add(field_size);
             alignment = alignment.max(field_alignment);
-            layout_fields.push(ConcreteLayoutField {
+            layout_fields.push(LayoutField {
                 key: field.key,
                 ty: field.ty,
                 layout: Box::new(layout),
@@ -445,15 +476,15 @@ impl CheckState<'_> {
             });
         }
         let shape = match shape {
-            AggregateLayoutShape::Struct => ConcreteLayoutShape::Struct {
+            AggregateLayoutShape::Struct => LayoutShape::Struct {
                 fields: layout_fields,
             },
-            AggregateLayoutShape::Tuple => ConcreteLayoutShape::Tuple {
+            AggregateLayoutShape::Tuple => LayoutShape::Tuple {
                 elements: layout_fields,
             },
         };
 
-        Ok(Some(ConcreteLayout {
+        Ok(Some(Layout {
             shape,
             size: Some(align_to(offset, alignment)),
             alignment: Some(alignment),
@@ -466,7 +497,7 @@ impl CheckState<'_> {
         module: ModuleId,
         variants: impl IntoIterator<Item = LayoutType>,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         let mut size = 1;
         let mut alignment = 1;
         let mut variant_layouts = Vec::new();
@@ -484,14 +515,14 @@ impl CheckState<'_> {
 
             size = size.max(variant_size);
             alignment = alignment.max(variant_alignment.max(1));
-            variant_layouts.push(ConcreteVariantLayout {
+            variant_layouts.push(VariantLayout {
                 ty,
                 layout: Box::new(layout),
             });
         }
 
-        Ok(Some(ConcreteLayout {
-            shape: ConcreteLayoutShape::Variant {
+        Ok(Some(Layout {
+            shape: LayoutShape::Variant {
                 variants: variant_layouts,
             },
             size: Some(align_to(size.saturating_add(1), alignment)),
@@ -563,7 +594,7 @@ impl CheckState<'_> {
     fn record_layout_resolution(
         &mut self,
         term: &LayoutTerm,
-        layout: ConcreteLayout,
+        layout: Layout,
     ) -> CompilerResult<()> {
         let decision = LayoutDecision::Resolved(LayoutResolution {
             source: term.source,
@@ -598,9 +629,9 @@ impl LayoutType {
         module: ModuleId,
         state: &mut CheckState<'_>,
         pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
+    ) -> CompilerResult<Option<Layout>> {
         match self {
-            Self::Variable(variable) => state.type_layout(module, variable, pointer_bytes),
+            Self::Operand(operand) => state.type_operand_layout(module, operand, pointer_bytes),
             Self::TypeId(ty) => {
                 let ty = state.local_type(module, ty);
 
@@ -612,7 +643,7 @@ impl LayoutType {
 
 impl LayoutQuery {
     /// Return this query's integer value from a layout.
-    fn value(self, layout: &ConcreteLayout) -> Option<u32> {
+    fn value(self, layout: &Layout) -> Option<u32> {
         match self {
             Self::Size => layout.size,
             Self::Alignment => layout.alignment,
@@ -643,48 +674,48 @@ enum AggregateLayoutShape {
 }
 
 /// Return a storage-free layout.
-fn none_layout() -> ConcreteLayout {
-    ConcreteLayout {
-        shape: ConcreteLayoutShape::None,
+fn none_layout() -> Layout {
+    Layout {
+        shape: LayoutShape::None,
         size: Some(0),
         alignment: Some(1),
     }
 }
 
 /// Return a pointer layout.
-fn pointer_layout(pointer_bytes: u32) -> ConcreteLayout {
+fn pointer_layout(pointer_bytes: u32) -> Layout {
     scalar_layout(pointer_bytes, pointer_bytes)
 }
 
 /// Return an erased value layout.
-fn any_layout(pointer_bytes: u32) -> ConcreteLayout {
-    ConcreteLayout {
-        shape: ConcreteLayoutShape::Dynamic,
+fn any_layout(pointer_bytes: u32) -> Layout {
+    Layout {
+        shape: LayoutShape::Dynamic,
         size: Some(pointer_bytes),
         alignment: Some(pointer_bytes),
     }
 }
 
 /// Return a runtime function layout.
-fn function_layout(pointer_bytes: u32) -> ConcreteLayout {
-    ConcreteLayout {
-        shape: ConcreteLayoutShape::Function,
+fn function_layout(pointer_bytes: u32) -> Layout {
+    Layout {
+        shape: LayoutShape::Function,
         size: Some(pointer_bytes * 2),
         alignment: Some(pointer_bytes),
     }
 }
 
 /// Return a scalar layout.
-fn scalar_layout(size: u32, alignment: u32) -> ConcreteLayout {
-    ConcreteLayout {
-        shape: ConcreteLayoutShape::Scalar,
+fn scalar_layout(size: u32, alignment: u32) -> Layout {
+    Layout {
+        shape: LayoutShape::Scalar,
         size: Some(size),
         alignment: Some(alignment),
     }
 }
 
 /// Return a primitive layout when it has a concrete representation.
-fn primitive_layout(primitive: dir::PrimitiveType, pointer_bytes: u32) -> Option<ConcreteLayout> {
+fn primitive_layout(primitive: dir::PrimitiveType, pointer_bytes: u32) -> Option<Layout> {
     let layout = match primitive {
         dir::PrimitiveType::Boolean => scalar_layout(1, 1),
         dir::PrimitiveType::Character => scalar_layout(4, 4),
@@ -700,7 +731,7 @@ fn primitive_layout(primitive: dir::PrimitiveType, pointer_bytes: u32) -> Option
 }
 
 /// Return a literal layout.
-fn literal_layout(literal: &dir::ScalarLiteral) -> Option<ConcreteLayout> {
+fn literal_layout(literal: &dir::ScalarLiteral) -> Option<Layout> {
     let layout = match literal {
         dir::ScalarLiteral::Null => none_layout(),
         dir::ScalarLiteral::Boolean(_) => scalar_layout(1, 1),
@@ -715,7 +746,7 @@ fn literal_layout(literal: &dir::ScalarLiteral) -> Option<ConcreteLayout> {
 }
 
 /// Return an integer layout.
-fn integer_layout(integer: dir::IntegerType, pointer_bytes: u32) -> ConcreteLayout {
+fn integer_layout(integer: dir::IntegerType, pointer_bytes: u32) -> Layout {
     match integer {
         dir::IntegerType::Integer { .. } => scalar_layout(pointer_bytes, pointer_bytes),
         dir::IntegerType::Fixed { width, .. } => {
@@ -728,7 +759,7 @@ fn integer_layout(integer: dir::IntegerType, pointer_bytes: u32) -> ConcreteLayo
 }
 
 /// Return a float layout.
-fn float_layout(float: dir::FloatType) -> ConcreteLayout {
+fn float_layout(float: dir::FloatType) -> Layout {
     match float {
         dir::FloatType::Float => scalar_layout(8, 8),
         dir::FloatType::Float32 => scalar_layout(4, 4),

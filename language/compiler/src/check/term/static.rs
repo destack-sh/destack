@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckState, Decision, GenericSubstitution, LayoutTerm, Reduction, StaticRelation,
-    TermId, TypeRelation, VariableId,
+    CheckState, Decision, GenericArgument, GenericSubstitution, LayoutTerm, Reduction,
+    StaticOperand, StaticRelation, TermId, TypeRelation, VariableId,
 };
 
 /// Term used to define a static variable.
@@ -42,7 +42,7 @@ pub(in crate::check) enum StaticTerm {
         /// The selected member key.
         key: dir::StaticKey,
         /// The applied static arguments.
-        arguments: Vec<TermId<ArgumentTerm>>,
+        arguments: SmallVec<[GenericArgument; 4]>,
     },
     /// Static value join.
     ///
@@ -68,7 +68,7 @@ pub(in crate::check) enum StaticTerm {
         /// The intrinsic language item.
         item: dir::LanguageItem,
         /// The intrinsic arguments.
-        arguments: SmallVec<[TermId<ArgumentTerm>; 4]>,
+        arguments: SmallVec<[GenericArgument; 4]>,
     },
     /// Static equality comparison.
     ///
@@ -131,7 +131,7 @@ impl StaticTerm {
                 variables.extend(
                     arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(*argument)),
+                        .flat_map(|argument| state.argument_variables(argument)),
                 );
             }
             Self::Join { elements } => variables.extend(elements.iter().copied()),
@@ -140,7 +140,7 @@ impl StaticTerm {
                 variables.extend(
                     arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(*argument)),
+                        .flat_map(|argument| state.argument_variables(argument)),
                 );
             }
             Self::Equal { left, right, .. } => {
@@ -260,7 +260,8 @@ impl StaticTerm {
                 else_value: state.substitute_static_term(module, substitution, *else_value)?,
             },
             StaticTerm::Variable(variable) => {
-                if let Some(argument) = state.substitution_static_variable(substitution, *variable) {
+                if let Some(argument) = state.substitution_static_variable(substitution, *variable)
+                {
                     StaticTerm::Variable(argument)
                 } else if let Some(term) = state.solved_static_term(*variable)? {
                     term.substitute(module, substitution, state)?
@@ -283,7 +284,8 @@ impl CheckState<'_> {
         substitution: &GenericSubstitution,
         term: TermId<StaticTerm>,
     ) -> CompilerResult<TermId<StaticTerm>> {
-        let term = self.terms.get(term).substitute(module, substitution, self)?;
+        let term = self.terms.get(term).clone();
+        let term = term.substitute(module, substitution, self)?;
         let term = self.terms.push(term);
 
         Ok(term)
@@ -307,14 +309,28 @@ impl CheckState<'_> {
     pub(in crate::check) fn decide_static_relation(
         &self,
         relation: StaticRelation,
-        left: VariableId,
-        right: VariableId,
+        left: impl Into<StaticOperand>,
+        right: impl Into<StaticOperand>,
     ) -> CompilerResult<Decision> {
-        let Some(left) = self.solved_static_term(left)? else {
-            return Ok(Decision::Undecidable);
+        let left = match left.into() {
+            StaticOperand::Variable(variable) => {
+                let Some(term) = self.solved_static_term(variable)? else {
+                    return Ok(Decision::Undecidable);
+                };
+
+                term
+            }
+            StaticOperand::Term(term) => self.terms.get(term).clone(),
         };
-        let Some(right) = self.solved_static_term(right)? else {
-            return Ok(Decision::Undecidable);
+        let right = match right.into() {
+            StaticOperand::Variable(variable) => {
+                let Some(term) = self.solved_static_term(variable)? else {
+                    return Ok(Decision::Undecidable);
+                };
+
+                term
+            }
+            StaticOperand::Term(term) => self.terms.get(term).clone(),
         };
 
         self.decide_static_term_relation(relation, &left, &right)
@@ -403,11 +419,11 @@ impl CheckState<'_> {
                 right,
                 is_negated,
             } => {
-                let left = self.terms.get(*left);
+                let left = self.terms.get(*left).clone();
                 let Some(left) = self.reduce_static_term(module, &left)? else {
                     return Ok(None);
                 };
-                let right = self.terms.get(*right);
+                let right = self.terms.get(*right).clone();
                 let Some(right) = self.reduce_static_term(module, &right)? else {
                     return Ok(None);
                 };
@@ -444,7 +460,7 @@ impl CheckState<'_> {
                 then_value,
                 else_value,
             } => {
-                let condition = self.terms.get(*condition);
+                let condition = self.terms.get(*condition).clone();
                 let Some(condition) = self.reduce_static_term(module, &condition)? else {
                     return Ok(None);
                 };
@@ -453,7 +469,7 @@ impl CheckState<'_> {
                     StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
                         value: dir::ScalarLiteral::Boolean(true),
                     }) => {
-                        let then_value = self.terms.get(*then_value);
+                        let then_value = self.terms.get(*then_value).clone();
                         let Some(term) = self.reduce_static_term(module, &then_value)? else {
                             return Ok(None);
                         };
@@ -463,7 +479,7 @@ impl CheckState<'_> {
                     StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
                         value: dir::ScalarLiteral::Boolean(false),
                     }) => {
-                        let else_value = self.terms.get(*else_value);
+                        let else_value = self.terms.get(*else_value).clone();
                         let Some(term) = self.reduce_static_term(module, &else_value)? else {
                             return Ok(None);
                         };
@@ -538,7 +554,7 @@ impl CheckState<'_> {
 
         // collect solved lifetime elements
         for element in elements {
-            let Some(term) = self.static_value(*element)? else {
+            let Some(term) = self.static_value((*element).into())? else {
                 return Ok(None);
             };
             let dir::StaticTerm::Lifetime { .. } = term else {

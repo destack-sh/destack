@@ -4,13 +4,13 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, AwaitTerm, CallTerm, CheckState, ConstraintOrigin, ConstructTerm, Decision,
-    FormTerm, FunctionTerm, GenericSlotId, GenericSubstitution, IdentityTerm, ImportMetaTerm,
-    IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm, MemberProtocol,
-    MemberTerm, OperatorTerm, Progress, RangeValueTerm, ReceiverTerm, Reduction, ShapeMemberTerm,
-    Solution, StaticRelation, StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm,
-    TermId, TryFailureTerm, TryTerm, TupleElementTerm, TypeOperationTerm, TypeRelation,
-    TypeValueTerm, VariableId, VariableOutput, YieldTerm,
+    AwaitTerm, CallTerm, CheckState, ConstraintOrigin, ConstructTerm, Decision, FormTerm,
+    FunctionTerm, GenericArgument, GenericSlotId, GenericSubstitution, IdentityTerm,
+    ImportMetaTerm, IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm,
+    MemberProtocol, MemberTerm, OperatorTerm, Progress, RangeValueTerm, ReceiverTerm, Reduction,
+    ShapeMember, Solution, StaticRelation, StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm,
+    TermId, TreeTerm, TryFailureTerm, TryTerm, TupleElement, TypeOperand, TypeOperationTerm,
+    TypeRelation, TypeValueTerm, VariableId, VariableOutput, YieldTerm,
 };
 
 /// How an expected type flows into one defining term.
@@ -179,7 +179,7 @@ pub(in crate::check) enum TypeTerm {
         /// The form constructor.
         form: TermId<FormTerm>,
         /// The carried payload type.
-        payload: VariableId,
+        payload: TypeOperand,
     },
     /// Named type declaration reference.
     ///
@@ -192,12 +192,12 @@ pub(in crate::check) enum TypeTerm {
         /// The declaration symbol.
         symbol: dir::GlobalSymbolId,
         /// The applied static arguments.
-        arguments: Vec<TermId<ArgumentTerm>>,
+        arguments: SmallVec<[GenericArgument; 4]>,
     },
     /// Homogeneous array type.
     Array {
         /// The element type.
-        element: VariableId,
+        element: TypeOperand,
     },
     /// Type member projection.
     ///
@@ -208,7 +208,7 @@ pub(in crate::check) enum TypeTerm {
     /// Fixed-length array type.
     FixedArray {
         /// The repeated element type.
-        element: VariableId,
+        element: TypeOperand,
         /// The static array length.
         length: VariableId,
         /// Whether the array is readonly.
@@ -217,7 +217,7 @@ pub(in crate::check) enum TypeTerm {
     /// Runtime-length homogeneous view type.
     Slice {
         /// The element type.
-        element: VariableId,
+        element: TypeOperand,
         /// Whether the slice is readonly.
         is_readonly: bool,
     },
@@ -226,14 +226,14 @@ pub(in crate::check) enum TypeTerm {
         /// The tuple source form.
         form: dir::TupleForm,
         /// The tuple elements.
-        elements: Vec<TermId<TupleElementTerm>>,
+        elements: SmallVec<[TupleElement; 4]>,
         /// Whether the tuple is readonly.
         is_readonly: bool,
     },
     /// Structural object shape type.
     Shape {
         /// The shape members.
-        members: Vec<TermId<ShapeMemberTerm>>,
+        members: SmallVec<[ShapeMember; 8]>,
     },
     /// Function type.
     Function(TermId<FunctionTerm>),
@@ -249,12 +249,12 @@ pub(in crate::check) enum TypeTerm {
     /// Union type.
     Union {
         /// The union elements.
-        elements: Vec<VariableId>,
+        elements: Vec<TypeOperand>,
     },
     /// Intersection type.
     Intersection {
         /// The intersection elements.
-        elements: Vec<VariableId>,
+        elements: Vec<TypeOperand>,
     },
     /// Type-level operation.
     ///
@@ -426,8 +426,8 @@ impl TypeTerm {
             Self::Variable(variable) => variables.push(*variable),
             Self::StaticValue { value } => variables.push(*value),
             Self::Form { form, payload } => {
-                variables.push(*payload);
-                variables.extend(state.terms.get(*form).referenced_variables());
+                variables.extend(payload.referenced_variables(state));
+                variables.extend(state.terms.get(*form).referenced_variables(state));
             }
             Self::Reference {
                 source: _,
@@ -437,10 +437,10 @@ impl TypeTerm {
                 variables.extend(
                     arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(*argument)),
+                        .flat_map(|argument| state.argument_variables(argument)),
                 );
             }
-            Self::Array { element } => variables.push(*element),
+            Self::Array { element } => variables.extend(element.referenced_variables(state)),
             Self::Member(member) => {
                 variables.extend(state.terms.get(*member).referenced_variables(state));
             }
@@ -449,23 +449,25 @@ impl TypeTerm {
                 length,
                 is_readonly: _,
             } => {
-                variables.push(*element);
+                variables.extend(element.referenced_variables(state));
                 variables.push(*length);
             }
             Self::Slice {
                 element,
                 is_readonly: _,
-            } => variables.push(*element),
+            } => variables.extend(element.referenced_variables(state)),
             Self::Tuple {
                 form: _,
                 elements,
                 is_readonly: _,
             } => {
-                variables.extend(elements.iter().map(|element| state.terms.get(*element).ty));
+                for element in elements {
+                    variables.extend(element.ty.referenced_variables(state));
+                }
             }
             Self::Shape { members } => {
                 for member in members {
-                    variables.extend(state.terms.get(*member).referenced_variables());
+                    variables.extend(member.referenced_variables(state));
                 }
             }
             Self::Function(function) => {
@@ -477,19 +479,27 @@ impl TypeTerm {
                 is_inclusive: _,
             } => {}
             Self::Union { elements } | Self::Intersection { elements } => {
-                variables.extend(elements.iter().copied());
+                variables.extend(
+                    elements
+                        .iter()
+                        .flat_map(|element| element.referenced_variables(state)),
+                );
             }
             Self::Operation(operation) => {
                 variables.extend(state.terms.get(*operation).referenced_variables(state));
             }
-            Self::Call(call) => variables.extend(state.terms.get(*call).referenced_variables(state)),
+            Self::Call(call) => {
+                variables.extend(state.terms.get(*call).referenced_variables(state))
+            }
             Self::Construct(construct) => {
                 variables.extend(state.terms.get(*construct).referenced_variables(state));
             }
             Self::RangeValue(range) => {
                 variables.extend(state.terms.get(*range).referenced_variables());
             }
-            Self::Tree(tree) => variables.extend(state.terms.get(*tree).referenced_variables(state)),
+            Self::Tree(tree) => {
+                variables.extend(state.terms.get(*tree).referenced_variables(state))
+            }
             Self::TypeValue(value) => {
                 variables.extend(state.terms.get(*value).referenced_variables());
             }
@@ -514,7 +524,9 @@ impl TypeTerm {
             }
             Self::Await(awaited) => variables.push(state.terms.get(*awaited).value),
             Self::Try(tried) => variables.extend(state.terms.get(*tried).referenced_variables()),
-            Self::Yield(yielded) => variables.extend(state.terms.get(*yielded).referenced_variables()),
+            Self::Yield(yielded) => {
+                variables.extend(state.terms.get(*yielded).referenced_variables())
+            }
             Self::TryFailure(tried) => {
                 variables.extend(state.terms.get(*tried).referenced_variables());
             }
@@ -634,14 +646,28 @@ impl CheckState<'_> {
     pub(in crate::check) fn decide_type_relation(
         &self,
         relation: TypeRelation,
-        left: VariableId,
-        right: VariableId,
+        left: impl Into<TypeOperand>,
+        right: impl Into<TypeOperand>,
     ) -> CompilerResult<Decision> {
-        let Some(left) = self.solved_type_term(left)? else {
-            return Ok(Decision::Undecidable);
+        let left = match left.into() {
+            TypeOperand::Variable(variable) => {
+                let Some(term) = self.solved_type_term(variable)? else {
+                    return Ok(Decision::Undecidable);
+                };
+
+                term
+            }
+            TypeOperand::Term(term) => self.terms.get(term).clone(),
         };
-        let Some(right) = self.solved_type_term(right)? else {
-            return Ok(Decision::Undecidable);
+        let right = match right.into() {
+            TypeOperand::Variable(variable) => {
+                let Some(term) = self.solved_type_term(variable)? else {
+                    return Ok(Decision::Undecidable);
+                };
+
+                term
+            }
+            TypeOperand::Term(term) => self.terms.get(term).clone(),
         };
 
         self.decide_type_term_relation(relation, &left, &right)
@@ -663,7 +689,7 @@ impl CheckState<'_> {
         if &result_term != term {
             progress = progress.merge(self.expect_type_definition(
                 result,
-                result,
+                TypeOperand::Variable(result),
                 &result_term,
                 term,
                 TypeExpectationMode::Exact,
@@ -688,7 +714,7 @@ impl CheckState<'_> {
                 None => Reduction::pending(),
             },
             TypeTerm::Member(member) => {
-                let member = self.terms.get(*member);
+                let member = self.terms.get(*member).clone();
 
                 match self.reduce_member_term(
                     module,
@@ -703,9 +729,7 @@ impl CheckState<'_> {
             }
             TypeTerm::Operation(operation) => match self.terms.get(*operation).clone() {
                 TypeOperationTerm::Exclude { source, target } => {
-                    let origin = self.variable_origin(source)?;
-
-                    match self.reduce_exclude_term(module, origin, source, target)? {
+                    match self.reduce_exclude_term(module, source, target)? {
                         Some(term) => Reduction::value(term),
                         None => Reduction::pending(),
                     }
@@ -757,59 +781,133 @@ impl CheckState<'_> {
                     None => Reduction::pending(),
                 }
             }
-            TypeTerm::Call(call) => self.reduce_call_term(module, self.terms.get(*call))?,
-            TypeTerm::Construct(construct) => {
-                self.reduce_construct_term(module, self.terms.get(*construct))?
+            TypeTerm::Call(call) => {
+                let call = self.terms.get(*call).clone();
+
+                self.reduce_call_term(module, &call)?
             }
-            TypeTerm::RangeValue(range) => self.reduce_range_value_term(module, self.terms.get(*range))?,
-            TypeTerm::Tree(tree) => self.reduce_tree_term(module, self.terms.get(*tree))?,
-            TypeTerm::TypeValue(value) => self.reduce_type_value_term(module, self.terms.get(*value))?,
-            TypeTerm::ImportMeta(meta) => self.reduce_import_meta_term(module, self.terms.get(*meta))?,
-            TypeTerm::Receiver(receiver) => self.reduce_receiver_term(self.terms.get(*receiver))?,
-            TypeTerm::Super(term) => self.reduce_super_term(module, self.terms.get(*term))?,
-            TypeTerm::Operator(operator) => match self.reduce_operator_term(self.terms.get(*operator))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::Index(index) => self.reduce_index_term(module, self.terms.get(*index))?,
-            TypeTerm::IndexSet(set) => self.reduce_index_set_term(module, self.terms.get(*set))?,
-            TypeTerm::KeyMembership(membership) => {
-                match self.reduce_key_membership_term(self.terms.get(*membership))? {
+            TypeTerm::Construct(construct) => {
+                let construct = self.terms.get(*construct).clone();
+
+                self.reduce_construct_term(module, &construct)?
+            }
+            TypeTerm::RangeValue(range) => {
+                let range = self.terms.get(*range).clone();
+
+                self.reduce_range_value_term(module, &range)?
+            }
+            TypeTerm::Tree(tree) => {
+                let tree = self.terms.get(*tree).clone();
+
+                self.reduce_tree_term(module, &tree)?
+            }
+            TypeTerm::TypeValue(value) => {
+                let value = self.terms.get(*value).clone();
+
+                self.reduce_type_value_term(module, &value)?
+            }
+            TypeTerm::ImportMeta(meta) => {
+                let meta = self.terms.get(*meta).clone();
+
+                self.reduce_import_meta_term(module, &meta)?
+            }
+            TypeTerm::Receiver(receiver) => {
+                let receiver = self.terms.get(*receiver).clone();
+
+                self.reduce_receiver_term(&receiver)?
+            }
+            TypeTerm::Super(term) => {
+                let term = self.terms.get(*term).clone();
+
+                self.reduce_super_term(module, &term)?
+            }
+            TypeTerm::Operator(operator) => {
+                let operator = self.terms.get(*operator).clone();
+
+                match self.reduce_operator_term(&operator)? {
                     Some(term) => Reduction::value(term),
                     None => Reduction::pending(),
                 }
             }
-            TypeTerm::InstanceCheck(instance) => match self.reduce_instance_check_term(self.terms.get(*instance))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::Identity(identity) => match self.reduce_identity_term(self.terms.get(*identity))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::Template(template) => match self.reduce_template_term(self.terms.get(*template))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::TaggedTemplate(template) => {
-                self.reduce_tagged_template_term(self.terms.get(*template))?
+            TypeTerm::Index(index) => {
+                let index = self.terms.get(*index).clone();
+
+                self.reduce_index_term(module, &index)?
             }
-            TypeTerm::Await(awaited) => match self.reduce_await_term(self.terms.get(*awaited))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::Try(tried) => match self.reduce_try_term(module, self.terms.get(*tried))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::Yield(yielded) => match self.reduce_yield_term(self.terms.get(*yielded))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
-            TypeTerm::TryFailure(tried) => match self.reduce_try_failure_term(module, self.terms.get(*tried))? {
-                Some(term) => Reduction::value(term),
-                None => Reduction::pending(),
-            },
+            TypeTerm::IndexSet(set) => {
+                let set = self.terms.get(*set).clone();
+
+                self.reduce_index_set_term(module, &set)?
+            }
+            TypeTerm::KeyMembership(membership) => {
+                let membership = self.terms.get(*membership).clone();
+
+                match self.reduce_key_membership_term(&membership)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::InstanceCheck(instance) => {
+                let instance = self.terms.get(*instance).clone();
+
+                match self.reduce_instance_check_term(&instance)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::Identity(identity) => {
+                let identity = self.terms.get(*identity).clone();
+
+                match self.reduce_identity_term(&identity)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::Template(template) => {
+                let template = self.terms.get(*template).clone();
+
+                match self.reduce_template_term(&template)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::TaggedTemplate(template) => {
+                let template = self.terms.get(*template).clone();
+
+                self.reduce_tagged_template_term(&template)?
+            }
+            TypeTerm::Await(awaited) => {
+                let awaited = self.terms.get(*awaited).clone();
+
+                match self.reduce_await_term(&awaited)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::Try(tried) => {
+                let tried = self.terms.get(*tried).clone();
+
+                match self.reduce_try_term(module, &tried)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::Yield(yielded) => {
+                let yielded = self.terms.get(*yielded).clone();
+
+                match self.reduce_yield_term(&yielded)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::TryFailure(tried) => {
+                let tried = self.terms.get(*tried).clone();
+
+                match self.reduce_try_failure_term(module, &tried)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
             TypeTerm::Literal(_)
             | TypeTerm::Parameter(_)
             | TypeTerm::This
@@ -850,7 +948,9 @@ impl CheckState<'_> {
                     payload: right_value,
                 },
             ) => {
-                let form = self.constrain_form_equal(self.terms.get(*left_form), self.terms.get(*right_form))?;
+                let left_form = self.terms.get(*left_form).clone();
+                let right_form = self.terms.get(*right_form).clone();
+                let form = self.constrain_form_equal(&left_form, &right_form)?;
                 let value = self.solve_type_equality(*left_value, *right_value)?;
 
                 form.merge(value)
@@ -948,10 +1048,9 @@ impl CheckState<'_> {
                     payload: target_value,
                 },
             ) => {
-                let form = self.constrain_form_assignable(
-                    self.terms.get(*source_form),
-                    self.terms.get(*target_form),
-                )?;
+                let source_form = self.terms.get(*source_form).clone();
+                let target_form = self.terms.get(*target_form).clone();
+                let form = self.constrain_form_assignable(&source_form, &target_form)?;
                 let value = self.solve_type_assignability(*source_value, *target_value)?;
 
                 form.merge(value)
@@ -1078,7 +1177,9 @@ impl TypeTerm {
             TypeTerm::Parameter(slot_id) => {
                 if let Some(argument) = state.substitution_type_slot(substitution, *slot_id) {
                     TypeTerm::Variable(argument)
-                } else if let Some(argument) = state.substitution_static_slot(substitution, *slot_id) {
+                } else if let Some(argument) =
+                    state.substitution_static_slot(substitution, *slot_id)
+                {
                     TypeTerm::StaticValue { value: argument }
                 } else {
                     self.clone()
@@ -1089,10 +1190,11 @@ impl TypeTerm {
             },
             TypeTerm::Form { form, payload } => TypeTerm::Form {
                 form: {
-                    let form = state.terms.get(*form).substitute(module, substitution, state)?;
+                    let form = state.terms.get(*form).clone();
+                    let form = form.substitute(module, substitution, state)?;
                     state.terms.push(form)
                 },
-                payload: state.substitute_type_variable(module, substitution, *payload)?,
+                payload: state.substitute_type_operand(module, substitution, *payload)?,
             },
             TypeTerm::Reference {
                 source,
@@ -1116,10 +1218,11 @@ impl TypeTerm {
                 }
             }
             TypeTerm::Array { element } => TypeTerm::Array {
-                element: state.substitute_type_variable(module, substitution, *element)?,
+                element: state.substitute_type_operand(module, substitution, *element)?,
             },
             TypeTerm::Member(member) => {
-                let member = state.terms.get(*member).substitute(module, substitution, state)?;
+                let member = state.terms.get(*member).clone();
+                let member = member.substitute(module, substitution, state)?;
                 let member = state.terms.push(member);
 
                 TypeTerm::Member(member)
@@ -1129,7 +1232,7 @@ impl TypeTerm {
                 length,
                 is_readonly,
             } => TypeTerm::FixedArray {
-                element: state.substitute_type_variable(module, substitution, *element)?,
+                element: state.substitute_type_operand(module, substitution, *element)?,
                 length: state.substitute_static_variable(module, substitution, *length)?,
                 is_readonly: *is_readonly,
             },
@@ -1137,7 +1240,7 @@ impl TypeTerm {
                 element,
                 is_readonly,
             } => TypeTerm::Slice {
-                element: state.substitute_type_variable(module, substitution, *element)?,
+                element: state.substitute_type_operand(module, substitution, *element)?,
                 is_readonly: *is_readonly,
             },
             TypeTerm::Tuple {
@@ -1146,36 +1249,42 @@ impl TypeTerm {
                 is_readonly,
             } => TypeTerm::Tuple {
                 form: *form,
-                elements: state.substitute_tuple_elements(module, substitution, elements)?,
+                elements: state
+                    .substitute_tuple_elements(module, substitution, elements)?
+                    .into(),
                 is_readonly: *is_readonly,
             },
             TypeTerm::Shape { members } => TypeTerm::Shape {
-                members: state.substitute_shape_members(module, substitution, members)?,
+                members: state
+                    .substitute_shape_members(module, substitution, members)?
+                    .into(),
             },
             TypeTerm::Function(function) => {
-                let function = state.terms.get(*function).substitute(module, substitution, state)?;
+                let function = state.terms.get(*function).clone();
+                let function = function.substitute(module, substitution, state)?;
                 let function = state.terms.push(function);
 
                 TypeTerm::Function(function)
             }
             TypeTerm::Union { elements } => TypeTerm::Union {
-                elements: state.substitute_type_variables(module, substitution, elements)?,
+                elements: state.substitute_type_operands(module, substitution, elements)?,
             },
             TypeTerm::Intersection { elements } => TypeTerm::Intersection {
-                elements: state.substitute_type_variables(module, substitution, elements)?,
+                elements: state.substitute_type_operands(module, substitution, elements)?,
             },
             TypeTerm::Operation(operation) => {
-                let operation = state.terms.get(*operation).substitute(module, substitution, state)?;
+                let operation = state.terms.get(*operation).clone();
+                let operation = operation.substitute(module, substitution, state)?;
                 let operation = state.terms.push(operation);
 
                 TypeTerm::Operation(operation)
             }
             TypeTerm::Call(call) => {
-                let call = state.terms.get(*call);
+                let call = state.terms.get(*call).clone();
                 let member = call
                     .member
                     .map(|member| -> CompilerResult<TermId<MemberCallTerm>> {
-                        let member = state.terms.get(member);
+                        let member = state.terms.get(member).clone();
                         let protocol = member
                             .protocol
                             .map(|protocol| -> CompilerResult<MemberProtocol> {
@@ -1211,54 +1320,54 @@ impl TypeTerm {
                     source: call.source,
                     callee: state.substitute_type_variable(module, substitution, call.callee)?,
                     member,
-                    candidates: call.candidates,
+                    candidates: call.candidates.clone(),
                     generic_arguments: state.substitute_arguments(
                         module,
                         substitution,
                         &call.generic_arguments,
                     )?,
-                    arguments: state.substitute_type_variables(
-                        module,
-                        substitution,
-                        &call.arguments,
-                    )?,
+                    arguments: state
+                        .substitute_type_operands(module, substitution, &call.arguments)?
+                        .into(),
                 };
                 let call = state.terms.push(call);
 
                 TypeTerm::Call(call)
             }
             TypeTerm::Construct(construct) => {
-                let construct = state.terms.get(*construct);
+                let construct = state.terms.get(*construct).clone();
                 let construct = ConstructTerm {
                     source: construct.source,
-                    callee: state.substitute_type_variable(module, substitution, construct.callee)?,
+                    callee: state.substitute_type_variable(
+                        module,
+                        substitution,
+                        construct.callee,
+                    )?,
                     generic_arguments: state.substitute_arguments(
                         module,
                         substitution,
                         &construct.generic_arguments,
                     )?,
-                    arguments: state.substitute_type_variables(
-                        module,
-                        substitution,
-                        &construct.arguments,
-                    )?,
+                    arguments: state
+                        .substitute_type_operands(module, substitution, &construct.arguments)?
+                        .into(),
                 };
                 let construct = state.terms.push(construct);
 
                 TypeTerm::Construct(construct)
             }
             TypeTerm::RangeValue(range) => {
-                let range = state.terms.get(*range);
+                let range = state.terms.get(*range).clone();
                 let range = RangeValueTerm {
                     source: range.source,
                     start: range
-                    .start
-                    .map(|start| state.substitute_type_variable(module, substitution, start))
-                    .transpose()?,
+                        .start
+                        .map(|start| state.substitute_type_variable(module, substitution, start))
+                        .transpose()?,
                     end: range
-                    .end
-                    .map(|end| state.substitute_type_variable(module, substitution, end))
-                    .transpose()?,
+                        .end
+                        .map(|end| state.substitute_type_variable(module, substitution, end))
+                        .transpose()?,
                     end_kind: range.end_kind,
                 };
                 let range = state.terms.push(range);
@@ -1266,13 +1375,13 @@ impl TypeTerm {
                 TypeTerm::RangeValue(range)
             }
             TypeTerm::Tree(tree) => {
-                let tree = state.terms.get(*tree);
+                let tree = state.terms.get(*tree).clone();
                 let tree = TreeTerm {
                     source: tree.source,
                     tag: tree
-                    .tag
-                    .map(|tag| state.substitute_type_variable(module, substitution, tag))
-                    .transpose()?,
+                        .tag
+                        .map(|tag| state.substitute_type_variable(module, substitution, tag))
+                        .transpose()?,
                     generic_arguments: state.substitute_arguments(
                         module,
                         substitution,
@@ -1283,14 +1392,18 @@ impl TypeTerm {
                         substitution,
                         &tree.arguments,
                     )?,
-                    elements: state.substitute_type_variables(module, substitution, &tree.elements)?,
+                    elements: state.substitute_type_variables(
+                        module,
+                        substitution,
+                        &tree.elements,
+                    )?,
                 };
                 let tree = state.terms.push(tree);
 
                 TypeTerm::Tree(tree)
             }
             TypeTerm::TypeValue(value) => {
-                let value = state.terms.get(*value);
+                let value = state.terms.get(*value).clone();
                 let value = TypeValueTerm {
                     source: value.source,
                     ty: state.substitute_type_variable(module, substitution, value.ty)?,
@@ -1301,7 +1414,7 @@ impl TypeTerm {
             }
             TypeTerm::ImportMeta(meta) => TypeTerm::ImportMeta(*meta),
             TypeTerm::Receiver(receiver) => {
-                let receiver = state.terms.get(*receiver);
+                let receiver = state.terms.get(*receiver).clone();
                 let receiver = ReceiverTerm {
                     source: receiver.source,
                     kind: receiver.kind,
@@ -1312,12 +1425,14 @@ impl TypeTerm {
                 TypeTerm::Receiver(receiver)
             }
             TypeTerm::Super(term) => {
-                let term = state.terms.get(*term);
+                let term = state.terms.get(*term).clone();
                 let term = SuperTerm {
                     source: term.source,
                     receiver: term
                         .receiver
-                        .map(|receiver| state.substitute_type_variable(module, substitution, receiver))
+                        .map(|receiver| {
+                            state.substitute_type_variable(module, substitution, receiver)
+                        })
                         .transpose()?,
                 };
                 let term = state.terms.push(term);
@@ -1325,7 +1440,7 @@ impl TypeTerm {
                 TypeTerm::Super(term)
             }
             TypeTerm::Operator(operator) => {
-                let operator = state.terms.get(*operator);
+                let operator = state.terms.get(*operator).clone();
                 let operator = OperatorTerm {
                     source: operator.source,
                     kind: operator.kind,
@@ -1346,10 +1461,14 @@ impl TypeTerm {
                 TypeTerm::Operator(operator)
             }
             TypeTerm::Index(index) => {
-                let index = state.terms.get(*index);
+                let index = state.terms.get(*index).clone();
                 let index = IndexTerm {
                     source: index.source,
-                    receiver: state.substitute_type_variable(module, substitution, index.receiver)?,
+                    receiver: state.substitute_type_variable(
+                        module,
+                        substitution,
+                        index.receiver,
+                    )?,
                     index: state.substitute_type_variable(module, substitution, index.index)?,
                     key: index.key,
                 };
@@ -1358,7 +1477,7 @@ impl TypeTerm {
                 TypeTerm::Index(index)
             }
             TypeTerm::IndexSet(set) => {
-                let set = state.terms.get(*set);
+                let set = state.terms.get(*set).clone();
                 let set = IndexSetTerm {
                     source: set.source,
                     receiver: state.substitute_type_variable(module, substitution, set.receiver)?,
@@ -1371,7 +1490,7 @@ impl TypeTerm {
                 TypeTerm::IndexSet(set)
             }
             TypeTerm::KeyMembership(membership) => {
-                let membership = state.terms.get(*membership);
+                let membership = state.terms.get(*membership).clone();
                 let membership = KeyMembershipTerm {
                     source: membership.source,
                     key: state.substitute_type_variable(module, substitution, membership.key)?,
@@ -1387,18 +1506,22 @@ impl TypeTerm {
                 TypeTerm::KeyMembership(membership)
             }
             TypeTerm::InstanceCheck(instance) => {
-                let instance = state.terms.get(*instance);
+                let instance = state.terms.get(*instance).clone();
                 let instance = InstanceCheckTerm {
                     source: instance.source,
                     value: state.substitute_type_variable(module, substitution, instance.value)?,
-                    target: state.substitute_type_variable(module, substitution, instance.target)?,
+                    target: state.substitute_type_variable(
+                        module,
+                        substitution,
+                        instance.target,
+                    )?,
                 };
                 let instance = state.terms.push(instance);
 
                 TypeTerm::InstanceCheck(instance)
             }
             TypeTerm::Identity(identity) => {
-                let identity = state.terms.get(*identity);
+                let identity = state.terms.get(*identity).clone();
                 let identity = IdentityTerm {
                     source: identity.source,
                     operator: identity.operator,
@@ -1410,7 +1533,7 @@ impl TypeTerm {
                 TypeTerm::Identity(identity)
             }
             TypeTerm::Await(awaited) => {
-                let awaited = state.terms.get(*awaited);
+                let awaited = state.terms.get(*awaited).clone();
                 let awaited = AwaitTerm {
                     source: awaited.source,
                     value: state.substitute_type_variable(module, substitution, awaited.value)?,
@@ -1420,7 +1543,7 @@ impl TypeTerm {
                 TypeTerm::Await(awaited)
             }
             TypeTerm::Try(tried) => {
-                let tried = state.terms.get(*tried);
+                let tried = state.terms.get(*tried).clone();
                 let tried = TryTerm {
                     source: tried.source,
                     value: state.substitute_type_variable(module, substitution, tried.value)?,
@@ -1431,25 +1554,25 @@ impl TypeTerm {
                 TypeTerm::Try(tried)
             }
             TypeTerm::Yield(yielded) => {
-                let yielded = state.terms.get(*yielded);
+                let yielded = state.terms.get(*yielded).clone();
                 let yielded = YieldTerm {
                     source: yielded.source,
                     value: yielded
-                    .value
-                    .map(|value| state.substitute_type_variable(module, substitution, value))
-                    .transpose()?,
+                        .value
+                        .map(|value| state.substitute_type_variable(module, substitution, value))
+                        .transpose()?,
                     yield_type: yielded
-                    .yield_type
-                    .map(|ty| state.substitute_type_variable(module, substitution, ty))
-                    .transpose()?,
+                        .yield_type
+                        .map(|ty| state.substitute_type_variable(module, substitution, ty))
+                        .transpose()?,
                     resume_type: yielded
-                    .resume_type
-                    .map(|ty| state.substitute_type_variable(module, substitution, ty))
-                    .transpose()?,
+                        .resume_type
+                        .map(|ty| state.substitute_type_variable(module, substitution, ty))
+                        .transpose()?,
                     delegate_return_type: yielded
-                    .delegate_return_type
-                    .map(|ty| state.substitute_type_variable(module, substitution, ty))
-                    .transpose()?,
+                        .delegate_return_type
+                        .map(|ty| state.substitute_type_variable(module, substitution, ty))
+                        .transpose()?,
                     cardinality: yielded.cardinality,
                 };
                 let yielded = state.terms.push(yielded);
@@ -1457,7 +1580,7 @@ impl TypeTerm {
                 TypeTerm::Yield(yielded)
             }
             TypeTerm::TryFailure(tried) => {
-                let tried = state.terms.get(*tried);
+                let tried = state.terms.get(*tried).clone();
                 let tried = TryFailureTerm {
                     source: tried.source,
                     value: state.substitute_type_variable(module, substitution, tried.value)?,
@@ -1467,18 +1590,22 @@ impl TypeTerm {
                 TypeTerm::TryFailure(tried)
             }
             TypeTerm::Template(template) => {
-                let template = state.terms.get(*template);
+                let template = state.terms.get(*template).clone();
                 let template = TemplateTerm {
                     source: template.source,
                     strings: template.strings.clone(),
-                    spans: state.substitute_type_variables(module, substitution, &template.spans)?,
+                    spans: state.substitute_type_variables(
+                        module,
+                        substitution,
+                        &template.spans,
+                    )?,
                 };
                 let template = state.terms.push(template);
 
                 TypeTerm::Template(template)
             }
             TypeTerm::TaggedTemplate(template) => {
-                let template = state.terms.get(*template);
+                let template = state.terms.get(*template).clone();
                 let template = TaggedTemplateTerm {
                     source: template.source,
                     tag: state.substitute_type_variable(module, substitution, template.tag)?,
@@ -1488,7 +1615,11 @@ impl TypeTerm {
                         &template.generic_arguments,
                     )?,
                     strings: template.strings.clone(),
-                    spans: state.substitute_type_variables(module, substitution, &template.spans)?,
+                    spans: state.substitute_type_variables(
+                        module,
+                        substitution,
+                        &template.spans,
+                    )?,
                 };
                 let template = state.terms.push(template);
 
@@ -1528,11 +1659,15 @@ impl TypeTerm {
 
 impl CheckState<'_> {
     /// Decide exact equality for type variable lists.
-    pub(in crate::check) fn decide_type_variable_list_equal(
+    pub(in crate::check) fn decide_type_variable_list_equal<L, R>(
         &self,
-        left: &[VariableId],
-        right: &[VariableId],
-    ) -> CompilerResult<Decision> {
+        left: &[L],
+        right: &[R],
+    ) -> CompilerResult<Decision>
+    where
+        L: Copy + Into<TypeOperand>,
+        R: Copy + Into<TypeOperand>,
+    {
         if left.len() != right.len() {
             return Ok(Decision::No);
         }
@@ -1540,8 +1675,11 @@ impl CheckState<'_> {
 
         // compare matching variables in declaration order
         for (left, right) in left.iter().zip(right) {
-            decision =
-                decision.and(self.decide_type_relation(TypeRelation::Equal, *left, *right)?);
+            decision = decision.and(self.decide_type_relation(
+                TypeRelation::Equal,
+                (*left).into(),
+                (*right).into(),
+            )?);
             if decision == Decision::No {
                 return Ok(decision);
             }
@@ -1572,14 +1710,21 @@ impl CheckState<'_> {
         &mut self,
         result: VariableId,
         term: &TypeTerm,
-        upper_bounds: &[VariableId],
+        upper_bounds: &[TypeOperand],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // apply each solved upper bound independently
         for upper_bound in upper_bounds {
-            let Some(expected) = self.solved_type_term(*upper_bound)? else {
-                continue;
+            let expected = match *upper_bound {
+                TypeOperand::Variable(variable) => {
+                    let Some(expected) = self.solved_type_term(variable)? else {
+                        continue;
+                    };
+
+                    expected
+                }
+                TypeOperand::Term(term) => self.terms.get(term).clone(),
             };
             progress = progress.merge(self.expect_type_definition(
                 result,
@@ -1597,7 +1742,7 @@ impl CheckState<'_> {
     fn expect_type_definition(
         &mut self,
         result: VariableId,
-        expected: VariableId,
+        expected: TypeOperand,
         expected_term: &TypeTerm,
         term: &TypeTerm,
         mode: TypeExpectationMode,
@@ -1617,7 +1762,9 @@ impl CheckState<'_> {
                 else {
                     return Ok(Progress::Unchanged);
                 };
-                let form = self.expect_form_term(self.terms.get(*form), self.terms.get(*result_form))?;
+                let form_term = self.terms.get(*form).clone();
+                let result_form = self.terms.get(*result_form).clone();
+                let form = self.expect_form_term(&form_term, &result_form)?;
                 let payload = self.solve_type_assignability(*payload, *result_payload)?;
 
                 form.merge(payload)
@@ -1690,27 +1837,89 @@ impl CheckState<'_> {
 
                 self.expect_shape_member_terms(members, &result_members)?
             }
-            TypeTerm::Call(call) => self.expect_call_term(self.terms.get(*call), expected)?,
+            TypeTerm::Call(call) => {
+                let call = self.terms.get(*call).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_call_term(&call, expected)?
+            }
             TypeTerm::Construct(construct) => {
-                self.expect_construct_term(result.module, self.terms.get(*construct), expected)?
+                let construct = self.terms.get(*construct).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_construct_term(result.module, &construct, expected)?
             }
             TypeTerm::Operator(operator) => {
-                self.expect_operator_term(self.terms.get(*operator), expected)?
+                let operator = self.terms.get(*operator).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_operator_term(&operator, expected)?
             }
-            TypeTerm::Index(index) => self.expect_index_term(self.terms.get(*index), expected)?,
-            TypeTerm::IndexSet(set) => self.expect_index_set_term(self.terms.get(*set), expected)?,
+            TypeTerm::Index(index) => {
+                let index = self.terms.get(*index).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_index_term(&index, expected)?
+            }
+            TypeTerm::IndexSet(set) => {
+                let set = self.terms.get(*set).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_index_set_term(&set, expected)?
+            }
             TypeTerm::KeyMembership(_)
             | TypeTerm::InstanceCheck(_)
             | TypeTerm::Identity(_)
             | TypeTerm::Template(_) => Progress::Unchanged,
             TypeTerm::TaggedTemplate(template) => {
-                self.expect_tagged_template_term(self.terms.get(*template), expected)?
+                let template = self.terms.get(*template).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_tagged_template_term(&template, expected)?
             }
-            TypeTerm::Await(awaited) => self.expect_await_term(self.terms.get(*awaited), expected)?,
-            TypeTerm::Try(tried) => self.expect_try_term(self.terms.get(*tried), expected)?,
-            TypeTerm::Yield(yielded) => self.expect_yield_term(self.terms.get(*yielded), expected)?,
+            TypeTerm::Await(awaited) => {
+                let awaited = self.terms.get(*awaited).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_await_term(&awaited, expected)?
+            }
+            TypeTerm::Try(tried) => {
+                let tried = self.terms.get(*tried).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_try_term(&tried, expected)?
+            }
+            TypeTerm::Yield(yielded) => {
+                let yielded = self.terms.get(*yielded).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_yield_term(&yielded, expected)?
+            }
             TypeTerm::TryFailure(tried) => {
-                self.expect_try_failure_term(self.terms.get(*tried), expected)?
+                let tried = self.terms.get(*tried).clone();
+                let Some(expected) = expected.variable() else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_try_failure_term(&tried, expected)?
             }
             TypeTerm::Operation(operation) => match self.terms.get(*operation).clone() {
                 TypeOperationTerm::Exclude { source, target: _ } => {
@@ -1736,6 +1945,7 @@ impl CheckState<'_> {
                     self.expect_widen_term(source, expected, expected_term)?
                 }
                 TypeOperationTerm::Index { left, index } => self.expect_type_index_term(
+                    result.module,
                     left,
                     index,
                     expected,
@@ -1748,14 +1958,19 @@ impl CheckState<'_> {
                 | TypeOperationTerm::Intrinsic { .. } => Progress::Unchanged,
             },
             TypeTerm::RangeValue(range) => {
-                self.expect_range_value_term(self.terms.get(*range), expected_term)?
+                let range = self.terms.get(*range).clone();
+
+                self.expect_range_value_term(&range, expected_term)?
             }
             TypeTerm::Function(function) => {
                 let TypeTerm::Function(expected_function) = expected_term else {
                     return Ok(Progress::Unchanged);
                 };
 
-                self.expect_function_term(self.terms.get(*function), self.terms.get(*expected_function))?
+                let function = self.terms.get(*function).clone();
+                let expected_function = self.terms.get(*expected_function).clone();
+
+                self.expect_function_term(&function, &expected_function)?
             }
             TypeTerm::Member(_)
             | TypeTerm::Reference { .. }
@@ -1833,7 +2048,8 @@ impl CheckState<'_> {
                     payload: right_value,
                 },
             ) => {
-                let form = self.decide_form_equal(self.terms.get(*left_form), self.terms.get(*right_form))?;
+                let form = self
+                    .decide_form_equal(self.terms.get(*left_form), self.terms.get(*right_form))?;
                 if form != Decision::Yes {
                     return Ok(form);
                 }
@@ -2117,7 +2333,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: Option<dir::GlobalNodeIdAny>,
         symbol: dir::GlobalSymbolId,
-        arguments: &[TermId<ArgumentTerm>],
+        arguments: &[GenericArgument],
     ) -> CompilerResult<Reduction<TypeTerm>> {
         let Some(value) = self.type_alias_body(symbol)? else {
             if let Some(source) = source
@@ -2130,7 +2346,7 @@ impl CheckState<'_> {
             return Ok(Reduction::value(TypeTerm::Reference {
                 source,
                 symbol,
-                arguments: arguments.to_vec(),
+                arguments: arguments.to_vec().into(),
             }));
         };
         let value = self.intern_local_type_variable(symbol.module_id, value);
@@ -2141,7 +2357,7 @@ impl CheckState<'_> {
             return Ok(Reduction::value(TypeTerm::Reference {
                 source,
                 symbol,
-                arguments: arguments.to_vec(),
+                arguments: arguments.to_vec().into(),
             }));
         }
         let term = if arguments.is_empty() {
@@ -2252,20 +2468,21 @@ impl CheckState<'_> {
                     else {
                         return Ok(None);
                     };
-                    let ty = self.solve_anonymous_type(module, origin, term)?;
+                    let ty = self.terms.push(term);
 
-                    let member = ShapeMemberTerm::Field {
+                    let member = ShapeMember::Field {
                         key: *key,
-                        ty,
+                        ty: ty.into(),
                         is_optional: false,
                         is_readonly: false,
                     };
-                    let member = self.terms.push(member);
 
                     members.push(member);
                 }
 
-                TypeTerm::Shape { members }
+                TypeTerm::Shape {
+                    members: members.into(),
+                }
             }
             StaticTerm::Literal(_) => return Ok(None),
             StaticTerm::Member { .. }
@@ -2439,11 +2656,11 @@ impl CheckState<'_> {
     /// Decide whether all source union elements assign to a target.
     fn decide_all_sources_assignable(
         &self,
-        sources: &[VariableId],
+        sources: &[TypeOperand],
         target: &TypeTerm,
     ) -> CompilerResult<Decision> {
         for source in sources {
-            let Some(source) = self.solved_type_term(*source)? else {
+            let Some(source) = self.type_operand_term(*source)? else {
                 return Ok(Decision::Undecidable);
             };
             let decision = self.decide_type_assignable(&source, target)?;
@@ -2459,13 +2676,13 @@ impl CheckState<'_> {
     fn decide_any_target_assignable(
         &self,
         source: &TypeTerm,
-        targets: &[VariableId],
+        targets: &[TypeOperand],
     ) -> CompilerResult<Decision> {
         let mut has_unknown = false;
 
         // accept the first matching target
         for target in targets {
-            let Some(target) = self.solved_type_term(*target)? else {
+            let Some(target) = self.type_operand_term(*target)? else {
                 has_unknown = true;
                 continue;
             };

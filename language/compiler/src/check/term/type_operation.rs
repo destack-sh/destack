@@ -4,8 +4,8 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckState, ConstraintOrigin, Decision, GenericSubstitution, Progress, Reduction,
-    Solution, TermId, TypeLiteralTerm, TypeRelation, TypeTerm, VariableId,
+    CheckState, Decision, GenericArgument, GenericSubstitution, Progress, Reduction, Solution,
+    TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 
 /// Type-level operation term.
@@ -37,7 +37,7 @@ pub(in crate::check) enum TypeOperationTerm {
         /// The index type.
         index: VariableId,
     },
-    /// Template literal type expression.
+    /// TemplateTerm literal type expression.
     ///
     /// ```ts
     /// `id:${T}`
@@ -71,7 +71,7 @@ pub(in crate::check) enum TypeOperationTerm {
     /// ```
     Mapped {
         /// The mapped parameter.
-        parameter: TermId<MappedParameterTerm>,
+        parameter: MappedParameter,
         /// The mapped modifiers.
         modifiers: dir::MappedTypeModifiers,
         /// The mapped value type.
@@ -84,7 +84,7 @@ pub(in crate::check) enum TypeOperationTerm {
     /// ```
     BestCommon {
         /// The candidate element types.
-        elements: Vec<VariableId>,
+        elements: Vec<TypeOperand>,
     },
     /// Literal widening for inferred mutable storage.
     ///
@@ -102,9 +102,9 @@ pub(in crate::check) enum TypeOperationTerm {
     /// ```
     Exclude {
         /// The source type.
-        source: VariableId,
+        source: TypeOperand,
         /// The excluded type.
-        target: VariableId,
+        target: TypeOperand,
     },
     /// Compiler intrinsic returning a type.
     ///
@@ -115,13 +115,13 @@ pub(in crate::check) enum TypeOperationTerm {
         /// The intrinsic language item.
         item: dir::LanguageItem,
         /// The intrinsic arguments.
-        arguments: SmallVec<[TermId<ArgumentTerm>; 4]>,
+        arguments: SmallVec<[GenericArgument; 4]>,
     },
 }
 
 /// Mapped type parameter term.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct MappedParameterTerm {
+pub(in crate::check) struct MappedParameter {
     /// The parameter name.
     pub(in crate::check) name: dir::StringId,
     /// The parameter symbol.
@@ -157,21 +157,28 @@ impl TypeOperationTerm {
                 modifiers: _,
                 value,
             } => {
-                let mut variables = state.terms.get(*parameter).referenced_variables();
+                let mut variables = parameter.referenced_variables();
 
                 variables.push(*value);
 
                 variables
             }
-            Self::BestCommon { elements } => elements.iter().copied().collect(),
+            Self::BestCommon { elements } => elements
+                .iter()
+                .flat_map(|element| element.referenced_variables(state))
+                .collect(),
             Self::Widen { source } => smallvec![*source],
-            Self::Exclude { source, target } => smallvec![*source, *target],
-            Self::Intrinsic { item: _, arguments } => {
-                arguments
-                    .iter()
-                    .flat_map(|argument| state.argument_variables(*argument))
-                    .collect()
+            Self::Exclude { source, target } => {
+                let mut variables = source.referenced_variables(state);
+
+                variables.extend(target.referenced_variables(state));
+
+                variables
             }
+            Self::Intrinsic { item: _, arguments } => arguments
+                .iter()
+                .flat_map(|argument| state.argument_variables(argument))
+                .collect(),
         }
     }
 
@@ -218,23 +225,19 @@ impl TypeOperationTerm {
                 modifiers,
                 value,
             } => Self::Mapped {
-                parameter: {
-                    let parameter = state.terms.get(*parameter).substitute(module, substitution, state)?;
-
-                    state.terms.push(parameter)
-                },
+                parameter: parameter.substitute(module, substitution, state)?,
                 modifiers: *modifiers,
                 value: state.substitute_type_variable(module, substitution, *value)?,
             },
             Self::BestCommon { elements } => Self::BestCommon {
-                elements: state.substitute_type_variables(module, substitution, elements)?,
+                elements: state.substitute_type_operands(module, substitution, elements)?,
             },
             Self::Widen { source } => Self::Widen {
                 source: state.substitute_type_variable(module, substitution, *source)?,
             },
             Self::Exclude { source, target } => Self::Exclude {
-                source: state.substitute_type_variable(module, substitution, *source)?,
-                target: state.substitute_type_variable(module, substitution, *target)?,
+                source: state.substitute_type_operand(module, substitution, *source)?,
+                target: state.substitute_type_operand(module, substitution, *target)?,
             },
             Self::Intrinsic { item, arguments } => Self::Intrinsic {
                 item: *item,
@@ -248,7 +251,7 @@ impl TypeOperationTerm {
     }
 }
 
-impl MappedParameterTerm {
+impl MappedParameter {
     /// Return variables referenced by this term.
     pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
         let mut variables = SmallVec::new();
@@ -304,7 +307,7 @@ impl CheckState<'_> {
         right: VariableId,
         then_type: VariableId,
         else_type: VariableId,
-        expected: VariableId,
+        expected: TypeOperand,
         is_exact: bool,
     ) -> CompilerResult<Progress> {
         let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
@@ -354,16 +357,16 @@ impl CheckState<'_> {
     /// Expect one indexed access type to satisfy one expected type.
     pub(in crate::check) fn expect_type_index_term(
         &mut self,
+        module: ModuleId,
         left: VariableId,
         index: VariableId,
-        expected: VariableId,
+        expected: TypeOperand,
         is_exact: bool,
     ) -> CompilerResult<Progress> {
-        let Some(term) = self.reduce_type_index_term(expected.module, left, index)? else {
+        let Some(term) = self.reduce_type_index_term(module, left, index)? else {
             return Ok(Progress::Unchanged);
         };
-        let origin = self.variable_origin(left)?;
-        let term = self.solve_anonymous_type(expected.module, origin, term)?;
+        let term = self.terms.push(term);
         let progress = if is_exact {
             self.solve_type_equality(term, expected)?
         } else {
@@ -416,10 +419,12 @@ impl CheckState<'_> {
     pub(in crate::check) fn expect_widen_term(
         &mut self,
         source: VariableId,
-        expected: VariableId,
+        expected: TypeOperand,
         expected_term: &TypeTerm,
     ) -> CompilerResult<Progress> {
-        let literal = if let Some(source_term) = self.solved_type_term(source)? {
+        let literal = if let Some(source_term) = self.solved_type_term(source)?
+            && let TypeOperand::Variable(_) = expected
+        {
             self.expect_literal_term(source, &source_term, expected_term)?
         } else {
             Progress::Unchanged
@@ -433,7 +438,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn reduce_best_common_term(
         &mut self,
         module: ModuleId,
-        elements: &[VariableId],
+        elements: &[TypeOperand],
     ) -> CompilerResult<Option<TypeTerm>> {
         if elements.is_empty() {
             return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Unknown)));
@@ -442,7 +447,7 @@ impl CheckState<'_> {
 
         // collect widened element candidates
         for element in elements {
-            let Some(term) = self.solved_type_term(*element)? else {
+            let Some(term) = self.type_operand_term(*element)? else {
                 return Ok(None);
             };
             let term = Self::widen_inferred_type(term);
@@ -450,15 +455,16 @@ impl CheckState<'_> {
             candidates.push(term);
         }
 
-        let origin = self.variable_origin(elements[0])?;
-        let term = self.reduce_best_common_terms(module, origin, candidates)?;
+        let term = self.reduce_best_common_terms(module, candidates)?;
 
         // push the chosen candidate back into element expressions
         for element in elements {
-            let Some(element_term) = self.solved_type_term(*element)? else {
+            let Some(element_term) = self.type_operand_term(*element)? else {
                 return Ok(None);
             };
-            self.expect_literal_term(*element, &element_term, &term)?;
+            if let TypeOperand::Variable(element) = *element {
+                self.expect_literal_term(element, &element_term, &term)?;
+            }
         }
 
         Ok(Some(term))
@@ -468,17 +474,19 @@ impl CheckState<'_> {
     pub(in crate::check) fn expect_best_common_term(
         &mut self,
         result: VariableId,
-        elements: &[VariableId],
-        expected: VariableId,
+        elements: &[TypeOperand],
+        expected: TypeOperand,
         expected_term: &TypeTerm,
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // push the expected element type into every literal element
         for element in elements {
-            if let Some(element_term) = self.solved_type_term(*element)? {
+            if let Some(element_term) = self.type_operand_term(*element)?
+                && let TypeOperand::Variable(element) = *element
+            {
                 progress = progress.merge(self.expect_literal_term(
-                    *element,
+                    element,
                     &element_term,
                     expected_term,
                 )?);
@@ -496,8 +504,7 @@ impl CheckState<'_> {
     /// Reduce a concrete set of candidate terms to their best common type.
     pub(in crate::check) fn reduce_best_common_terms(
         &mut self,
-        module: ModuleId,
-        origin: ConstraintOrigin,
+        _module: ModuleId,
         candidates: Vec<TypeTerm>,
     ) -> CompilerResult<TypeTerm> {
         // choose the first candidate that accepts every element
@@ -506,30 +513,29 @@ impl CheckState<'_> {
                 return Ok(candidate.clone());
             }
         }
-        let mut variables = Vec::with_capacity(candidates.len());
+        let mut elements = Vec::with_capacity(candidates.len());
 
         // preserve heterogeneous literal arrays as widened unions
         for candidate in candidates {
-            variables.push(self.solve_anonymous_type(module, origin, candidate)?);
+            let candidate = self.terms.push(candidate);
+
+            elements.push(candidate.into());
         }
 
-        Ok(TypeTerm::Union {
-            elements: variables,
-        })
+        Ok(TypeTerm::Union { elements })
     }
 
     /// Reduce one type exclusion term.
     pub(in crate::check) fn reduce_exclude_term(
         &mut self,
         module: ModuleId,
-        origin: ConstraintOrigin,
-        source: VariableId,
-        target: VariableId,
+        source: TypeOperand,
+        target: TypeOperand,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(source_term) = self.solved_type_term(source)? else {
+        let Some(source_term) = self.type_operand_term(source)? else {
             return Ok(None);
         };
-        let Some(target_term) = self.solved_type_term(target)? else {
+        let Some(target_term) = self.type_operand_term(target)? else {
             return Ok(None);
         };
         let term = match (&source_term, &target_term) {
@@ -548,15 +554,15 @@ impl CheckState<'_> {
                 .same_constructor(self.terms.get(*target_form)) =>
             {
                 let Some(payload) =
-                    self.reduce_exclude_term(module, origin, *source_value, *target_value)?
+                    self.reduce_exclude_term(module, *source_value, *target_value)?
                 else {
                     return Ok(None);
                 };
-                let payload = self.solve_anonymous_type(module, origin, payload)?;
+                let payload = self.terms.push(payload);
 
                 TypeTerm::Form {
                     form: source_form.clone(),
-                    payload,
+                    payload: payload.into(),
                 }
             }
             (TypeTerm::Union { elements }, target) => {
@@ -594,14 +600,14 @@ impl CheckState<'_> {
     /// Reduce one union type exclusion.
     fn reduce_exclude_union(
         &self,
-        elements: &[VariableId],
+        elements: &[TypeOperand],
         target: &TypeTerm,
     ) -> CompilerResult<TypeTerm> {
         let mut kept = Vec::with_capacity(elements.len());
 
         // remove elements that are known equal to the excluded type
         for element in elements {
-            let Some(element_term) = self.solved_type_term(*element)? else {
+            let Some(element_term) = self.type_operand_term(*element)? else {
                 return Ok(TypeTerm::Union {
                     elements: elements.to_vec(),
                 });
@@ -616,7 +622,10 @@ impl CheckState<'_> {
         }
 
         let term = if kept.len() == 1 {
-            TypeTerm::Variable(kept[0])
+            match kept[0] {
+                TypeOperand::Variable(variable) => TypeTerm::Variable(variable),
+                TypeOperand::Term(term) => self.terms.get(term).clone(),
+            }
         } else {
             TypeTerm::Union { elements: kept }
         };
@@ -628,7 +637,7 @@ impl CheckState<'_> {
     fn expect_conditional_branch(
         &mut self,
         branch: VariableId,
-        expected: VariableId,
+        expected: TypeOperand,
         is_exact: bool,
     ) -> CompilerResult<Progress> {
         if is_exact {

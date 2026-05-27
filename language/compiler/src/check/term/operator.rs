@@ -2,10 +2,11 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    ArgumentTerm, CallableSignature, CheckState, ConstraintOrigin, FunctionTerm, MemberProtocol,
+    CallableSignature, CheckState, ConstraintOrigin, FunctionTerm, GenericArgument, MemberProtocol,
     OperatorDecision, OperatorFailure, OperatorFailureReason, OperatorProtocol,
-    OperatorProtocolArgument, OperatorResolution, OperatorType, Progress, TypeLiteralTerm,
-    TypeRelation, TypeTerm, VariableId, binary_operator_protocols, unary_operator_protocols,
+    OperatorProtocolArgument, OperatorResolution, OperatorType, Progress, StaticTerm,
+    TypeLiteralTerm, TypeRelation, TypeTerm, VariableId, VariableKind, binary_operator_protocols,
+    unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 use smallvec::SmallVec;
@@ -53,7 +54,7 @@ pub(in crate::check) enum OperatorTermKind {
 
 /// Transient operator selection while reducing operator syntax.
 pub(in crate::check) enum OperatorSelection {
-    /// Operator resolution is waiting for solver input.
+    /// OperatorTerm resolution is waiting for solver input.
     Pending,
     /// No operator candidate accepts the operands.
     NoMatch {
@@ -571,7 +572,7 @@ impl CheckState<'_> {
         }
 
         if let Some(argument) = operator.argument {
-            let parameter = self.terms.get(function.parameters[0]);
+            let parameter = &function.parameters[0];
 
             decision = decision.and(self.decide_type_relation(
                 TypeRelation::Assignable,
@@ -631,7 +632,7 @@ impl CheckState<'_> {
                 let module = self.operator_type_module(function)?;
                 let value = self.language_item_type_term(module, item)?;
 
-                self.nullable_operator_type_term(function, value)?
+                self.nullable_operator_type_term(value)?
             }
         };
 
@@ -651,8 +652,7 @@ impl CheckState<'_> {
             return Ok(Progress::Unchanged);
         };
         let target = self.operator_type_term(function, operator_type)?;
-        let origin = self.variable_origin(return_type)?;
-        let target = self.solve_anonymous_type(return_type.module, origin, target)?;
+        let target = self.terms.push(target);
 
         self.solve_type_assignability(return_type, target)
     }
@@ -672,8 +672,8 @@ impl CheckState<'_> {
         if let Some(argument) = operator.argument
             && let Some(source) = self.solved_type_term(argument)?
         {
-            let parameter = self.terms.get(function.parameters[0]);
-            let Some(target) = self.solved_type_term(parameter.ty)? else {
+            let parameter = &function.parameters[0];
+            let Some(target) = self.type_operand_term(parameter.ty)? else {
                 return Ok(());
             };
 
@@ -902,7 +902,7 @@ impl CheckState<'_> {
             TypeTerm::Literal(literal) => Self::literal_supports_strict_identity(literal),
             TypeTerm::Reference { symbol, .. } => self.symbol_supports_strict_identity(*symbol)?,
             TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.solved_type_term(*payload)? else {
+                let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 
@@ -910,7 +910,7 @@ impl CheckState<'_> {
             }
             TypeTerm::Union { elements } => {
                 for element in elements {
-                    let Some(term) = self.solved_type_term(*element)? else {
+                    let Some(term) = self.type_operand_term(*element)? else {
                         return Ok(false);
                     };
                     if !self.supports_strict_identity(&term)? {
@@ -966,24 +966,17 @@ impl CheckState<'_> {
         Ok(TypeTerm::Reference {
             source: None,
             symbol,
-            arguments: Vec::new(),
+            arguments: Vec::new().into(),
         })
     }
 
     /// Return a nullable protocol return type.
-    fn nullable_operator_type_term(
-        &mut self,
-        function: &FunctionTerm,
-        value: TypeTerm,
-    ) -> CompilerResult<TypeTerm> {
-        let module = self.operator_type_module(function)?;
-        let origin = self.operator_function_origin(function)?;
-        let value = self.solve_anonymous_type(module, origin, value)?;
-        let null =
-            self.solve_anonymous_type(module, origin, TypeTerm::Literal(TypeLiteralTerm::Null))?;
+    fn nullable_operator_type_term(&mut self, value: TypeTerm) -> CompilerResult<TypeTerm> {
+        let value = self.terms.push(value);
+        let null = self.terms.push(TypeTerm::Literal(TypeLiteralTerm::Null));
 
         Ok(TypeTerm::Union {
-            elements: vec![value, null],
+            elements: vec![value.into(), null.into()],
         })
     }
 
@@ -996,9 +989,13 @@ impl CheckState<'_> {
             return Ok(parameter.module);
         }
         if let Some(parameter) = function.parameters.first() {
-            let parameter = self.terms.get(*parameter);
+            let Some(variable) = parameter.ty.variable() else {
+                return Err(CompilerError::Internal {
+                    message: "operator parameter type has no variable anchor".to_owned(),
+                });
+            };
 
-            return Ok(parameter.ty.module);
+            return Ok(variable.module);
         }
 
         let Some(parameter) = function.generic_parameters.first() else {
@@ -1023,9 +1020,11 @@ impl CheckState<'_> {
             let argument = match argument {
                 OperatorProtocolArgument::Access(access) => {
                     let value = dir::StaticTerm::Access { access: *access };
-                    let variable = self.solve_anonymous_static_value(module, origin, value)?;
+                    let variable =
+                        self.allocate_intermediate_variable(module, VariableKind::Static, origin);
+                    self.define_static(module, variable, StaticTerm::Literal(value));
 
-                    self.terms.push(ArgumentTerm::Static(variable))
+                    GenericArgument::Static(variable.into())
                 }
             };
 
@@ -1034,34 +1033,8 @@ impl CheckState<'_> {
 
         Ok(MemberProtocol {
             item: protocol.item,
-            arguments,
+            arguments: arguments.into(),
         })
-    }
-
-    /// Return the diagnostic origin for operator protocol pieces.
-    fn operator_function_origin(
-        &self,
-        function: &FunctionTerm,
-    ) -> CompilerResult<ConstraintOrigin> {
-        if let Some(return_type) = function.return_type {
-            return self.variable_origin(return_type);
-        }
-        if let Some(parameter) = function.this_parameter {
-            return self.variable_origin(parameter);
-        }
-        if let Some(parameter) = function.parameters.first() {
-            let parameter = self.terms.get(*parameter);
-
-            return self.variable_origin(parameter.ty);
-        }
-
-        let Some(parameter) = function.generic_parameters.first() else {
-            return Err(CompilerError::Internal {
-                message: "operator function has no typed variable anchor".to_owned(),
-            });
-        };
-
-        self.variable_origin(*parameter)
     }
 }
 
