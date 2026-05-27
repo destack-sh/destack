@@ -12,9 +12,7 @@ export function Hero() {
                     engineer great software with confidence
                 </h1>
                 <p class="mt-4 max-w-3xl text-sm font-bold leading-6 text-neutral-700">
-                    <span>de•stack</span> is a
-                    fully integrated stack for building correct, optimal, integrated software
-                    with a full-stack language toolchain, VM, AOT compiler, and deep code analysis.
+                    <span class="underline underline-offset-2 decoration-2">destack</span> is a <span>fully integrated stack</span> for building <span class="">correct</span>, <span class="">optimal</span>, <span class="">integrated</span> software with a <span class="underline underline-offset-2 decoration-2">single-binary TypeScript++ toolchain</span>, VM, AOT compiler, and <span class="">deep</span> code analysis.
                 </p>
                 <ul class="mt-3 flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-sm font-extrabold lowercase">
                     <Claim>deeply understand your systems</Claim>
@@ -61,13 +59,13 @@ function InstallCommand() {
             <span class="absolute -top-3 left-3 bg-destack-page px-1 text-sm font-extrabold lowercase">
                 install
             </span>
-            <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                <span class="text-sm font-extrabold text-destack-accent">$</span>
+            <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-3">
+                <span class="text-base font-black leading-5 text-destack-accent">$</span>
                 <code class="min-w-0 overflow-x-auto whitespace-nowrap text-sm font-extrabold leading-5">
                     {installCommand}
                 </code>
                 <button
-                    class="border-b-4 border-neutral-300 text-sm font-extrabold lowercase hover:border-destack-accent"
+                    class="border-b-4 border-neutral-300 text-sm font-extrabold leading-5 lowercase hover:border-destack-accent"
                     onClick={copyInstallCommand}
                     type="button"
                 >
