@@ -33,8 +33,8 @@ pub fn run(args: &SettingsArgs) -> i32 {
         common,
         payload,
         "settings",
-        |exit_code, payload, _| {
-            report_from_payload("settings", exit_code, Some(payload), None, None)
+        |exit_code, _, payload_value| {
+            report_from_payload("settings", exit_code, Some(payload_value), None, None)
         },
         |_, payload| {
             // print resolved paths

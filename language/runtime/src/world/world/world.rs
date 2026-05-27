@@ -59,6 +59,14 @@ impl std::fmt::Debug for World {
 }
 
 impl World {
+    /// Create one world from public runtime options.
+    pub fn from_options(
+        options: &RuntimeOptions,
+        environment: impl Into<Arc<Environment>>,
+    ) -> RuntimeResult<Self> {
+        Self::new(options, environment, None)
+    }
+
     /// Suspend runtime shared GC while one quiescent world operation runs.
     pub(crate) fn quiesce_shared_gc(&self) {
         for runtime in self.runtimes.values() {

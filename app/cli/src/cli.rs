@@ -4,7 +4,8 @@ use clap::{CommandFactory, Parser};
 
 use crate::{
     bench, build, cache, check, clean, completions, console, daemon, doc, doctor, eval, explain,
-    fmt, info, init, lint, lsp, repl, run, settings, targets, task, test, update, version,
+    fmt, info, init, lint, lsp, manifest, repl, run, settings, targets, task, test, update,
+    version,
 };
 
 #[cfg(feature = "dev")]

@@ -185,7 +185,7 @@ fn run_entry_module(
     let target_id = target.id;
     let profile = target_profile(repository, revision, entry_module, target_id)?;
     let mut runtime_options = target.target.runtime_options.clone();
-    runtime_options.conditions = profile.conditions.clone();
+    runtime_options.conditions = profile.conditions().clone();
 
     // vm isolate
     let isolate = create_isolate(
@@ -201,7 +201,8 @@ fn run_entry_module(
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let environment = environment_for_source(entry_source, args);
-    let mut world = World::from_options(&runtime_options).map_err(|error| format!("{error}"))?;
+    let mut world = World::from_options(&runtime_options, environment.clone())
+        .map_err(|error| format!("{error}"))?;
     let runtime_id = world
         .spawn_runtime(environment, &runtime_options, isolate)
         .map_err(|error| format!("{error}"))?;
