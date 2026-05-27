@@ -3,7 +3,7 @@
 import { siteDomain } from "./domains";
 
 export function site(stage: string) {
-    const site = new sst.aws.StaticSite("Site", {
+    const site = new sst.aws.StaticSite("destack.sh", {
         path: "../site",
         build: {
             command: "bun run build",
@@ -11,6 +11,14 @@ export function site(stage: string) {
         },
         assets: {
             fileOptions: [
+                {
+                    files: "**",
+                    cacheControl: "max-age=31536000,public,immutable",
+                },
+                {
+                    files: "index.html",
+                    cacheControl: "max-age=0,no-cache,no-store,must-revalidate",
+                },
                 {
                     files: ["install", "install.ps1"],
                     cacheControl: "max-age=0,no-cache,no-store,must-revalidate",
@@ -26,15 +34,6 @@ export function site(stage: string) {
             ],
         },
         domain: siteDomain(stage),
-        edge: {
-            viewerRequest: {
-                injection: `
-if (event.request.uri === "/install") {
-    return event.request;
-}
-`,
-            },
-        },
     });
 
     return {
