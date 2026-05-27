@@ -64,7 +64,7 @@ impl World {
         options: &RuntimeOptions,
         environment: impl Into<Arc<Environment>>,
     ) -> RuntimeResult<Self> {
-        Self::new(options, environment, None)
+        Self::new(options, environment)
     }
 
     /// Suspend runtime shared GC while one quiescent world operation runs.

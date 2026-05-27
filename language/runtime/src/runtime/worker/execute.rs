@@ -348,6 +348,7 @@ impl Worker {
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,
+                runtime_heap.trace_table(),
             )
             .map_err(Box::<RuntimeError>::from)?;
 
@@ -360,7 +361,7 @@ impl Worker {
         &mut self,
         world: &mut WorldState,
         shared: &SharedHeap,
-        runtime_static: &engine::StaticSpace,
+        statics: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
         target_task: Option<TaskId>,
@@ -370,7 +371,7 @@ impl Worker {
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
             let (drained, budget_exhausted) =
-                self.drain_microtasks(world, shared, runtime_static, host, host_queue)?;
+                self.drain_microtasks(world, shared, statics, host, host_queue)?;
             if drained > 0 {
                 progressed = true;
             }
@@ -384,7 +385,7 @@ impl Worker {
             if let Some(output) = self.execute_dequeued_task(
                 world,
                 shared,
-                runtime_static,
+                statics,
                 host,
                 host_queue,
                 task,
@@ -414,7 +415,7 @@ impl Worker {
             if let Some(output) = self.execute_dequeued_task(
                 world,
                 shared,
-                runtime_static,
+                statics,
                 host,
                 host_queue,
                 task,

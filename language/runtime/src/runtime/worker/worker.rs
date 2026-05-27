@@ -506,6 +506,7 @@ impl Worker {
     /// Run one budgeted local collection step using the current root set.
     pub fn collect_local_step(&mut self) -> RuntimeResult<heap::GcProgress> {
         let budget_bytes = self.heap.take_collection_budget_bytes();
+        let trace_table = self.engine.trace_table()?;
         let engine = &mut self.engine;
         let event_loop = &mut self.event_loop;
         let handles = &mut self.handles;
@@ -518,7 +519,8 @@ impl Worker {
             Ok::<(), Box<RuntimeError>>(())
         };
 
-        self.heap.collect_step(&mut roots, budget_bytes)
+        self.heap
+            .collect_step(&mut roots, budget_bytes, trace_table.as_ref())
     }
 
     /// Collect shared heap roots from engine, scheduler, and registered providers.
@@ -556,8 +558,10 @@ impl Worker {
         roots: &mut Vec<heap::SharedHeapReference>,
         budget_bytes: usize,
     ) -> RuntimeResult<usize> {
+        let trace_table = self.engine.trace_table()?;
+
         self.heap
-            .scan_shared_references(roots, budget_bytes)
+            .scan_shared_references(roots, budget_bytes, trace_table.as_ref())
             .map_err(Box::<RuntimeError>::from)
     }
 
@@ -659,7 +663,8 @@ impl Worker {
         bindings.set_access(BindingAccess::new(execution_mode));
         bindings.apply_runtime_defaults(&self.options);
 
-        let mut heap = self.heap.fork()?;
+        let trace_table = self.engine.trace_table()?;
+        let mut heap = self.heap.fork(trace_table.as_ref())?;
         let mut statics = self.statics.clone();
         let mut shared_cache = shared.heap.allocation_cache();
         let mut engine = self.engine.fork(engine::MemoryContext {
@@ -725,20 +730,22 @@ impl Worker {
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
         let mut event_loop = Box::new(EventLoop::default());
 
-        // heap and engine
+        // engine
+        let mut engine = Engine::from_image(&image.engine_image)?;
+        let trace_table = engine.trace_table()?;
+
+        // heap
         let heap_options = resolve_local_heap_options(&options.heap)?;
         let mut heap = heap::Heap::from_snapshot_with_allocator(
             &image.heap,
             shared.allocator.clone(),
             heap_options.limits,
+            trace_table.as_ref(),
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut statics = image.statics.clone();
         let shared_gc_worker = shared.register_collector_worker();
         let mut shared_cache = shared.heap.allocation_cache();
-
-        // rebuild the engine from the materialized worker image
-        let mut engine = Engine::from_image(&image.engine_image)?;
 
         // restore backend execution state over the restored heap
         let context = MemoryContext {

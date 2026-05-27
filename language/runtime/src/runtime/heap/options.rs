@@ -3,9 +3,8 @@ use destack_heap::{
     DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES,
     DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
     DEFAULT_SHARED_SMALL_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES,
-    DEFAULT_SPACE_BYTES, DEFAULT_YOUNG_PROMOTION_AGE, GcOptions, HeapLimits, HeapOptions,
-    HeapSpaceLimits, RawLimits, SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits,
-    SharedRawLimits, SizeClassTable,
+    DEFAULT_SPACE_BYTES, GcOptions, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits,
+    SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable,
 };
 use destack_workspace::{HeapOptions as WorkspaceHeapOptions, LocalHeapOptions};
 
@@ -71,7 +70,6 @@ fn resolve_local_heap_policy(
         size_classes: SizeClassTable::default(),
         heap_young_bytes: options.local.young_bytes,
         max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
-        young_promotion_age: DEFAULT_YOUNG_PROMOTION_AGE,
         heap_small_bytes: DEFAULT_SMALL_BYTES,
         raw_small_bytes: DEFAULT_SMALL_BYTES,
         heap_space_bytes: DEFAULT_SPACE_BYTES,

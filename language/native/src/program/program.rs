@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use destack_engine::{ProgramLayout, StaticSpace};
+use destack_mir as mir;
 
 use crate::{CodeMapping, Entry, EntryId, EntrySymbol, Object};
 
@@ -43,6 +44,11 @@ impl Program {
     /// Borrow the program layout.
     pub fn layout(&self) -> &ProgramLayout {
         &self.object.layout
+    }
+
+    /// Return the program heap trace table.
+    pub fn trace_table(&self) -> Arc<mir::TraceTable> {
+        self.object.trace_table.clone()
     }
 
     /// Return one entry by id.

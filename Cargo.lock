@@ -1501,6 +1501,7 @@ version = "0.55.4"
 dependencies = [
  "destack_engine",
  "destack_heap",
+ "destack_mir",
  "serde",
 ]
 
