@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ptr::NonNull;
 
 use {destack_engine as engine, destack_mir as mir};
 
@@ -74,23 +73,9 @@ impl FunctionTable {
         }
     }
 
-    /// Return a lowered function pointer by dense index.
-    pub(crate) fn pointer_by_index(&self, index: u32) -> Option<NonNull<Function>> {
-        self.functions.get(index as usize).map(NonNull::from)
-    }
-
     /// Return a lowered function by dense index.
     pub(crate) fn function_by_index(&self, index: u32) -> Option<&Function> {
         self.functions.get(index as usize)
-    }
-
-    /// Return one lowered function pointer by function id.
-    pub(crate) fn pointer_for_function(
-        &self,
-        func_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<NonNull<Function>> {
-        let index = self.local_index(func_id)?;
-        self.pointer_by_index(index)
     }
 
     /// Return one lowered function by function id.

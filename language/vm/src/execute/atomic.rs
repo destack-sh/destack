@@ -145,16 +145,12 @@ fn atomic_address(
 
     // references carry heap offsets, raw pointers carry raw offsets
     let address = match address {
-        AtomicAddress::Heap => {
-            machine.heap().heap_base_address() + pointer.as_heap_reference().offset()
-        }
+        AtomicAddress::Heap => machine.heap_address(pointer.as_heap_reference(), 0),
         AtomicAddress::SharedHeap => {
-            machine.shared().heap_base_address() + pointer.as_shared_heap_reference().offset()
+            machine.shared_heap_address(pointer.as_shared_heap_reference(), 0)
         }
-        AtomicAddress::Raw => machine.heap().raw_base_address() + pointer.as_raw_pointer().offset(),
-        AtomicAddress::SharedRaw => {
-            machine.shared().raw_base_address() + pointer.as_shared_raw_pointer().offset()
-        }
+        AtomicAddress::Raw => machine.raw_address(pointer.as_raw_pointer(), 0),
+        AtomicAddress::SharedRaw => machine.shared_raw_address(pointer.as_shared_raw_pointer(), 0),
         AtomicAddress::Stack => pointer.as_stack_pointer().address(),
         AtomicAddress::Frame => pointer.as_frame_pointer().address(),
         AtomicAddress::Static => pointer.as_static_pointer().address(),

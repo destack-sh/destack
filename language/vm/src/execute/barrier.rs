@@ -17,9 +17,7 @@ pub(crate) fn execute_barrier_write_heap(
     let byte_len = machine.load_word_at(byte_len).as_uint() as usize;
 
     // publish to the local collector
-    let result = machine
-        .heap_mut()
-        .write_barrier(object.as_heap_reference(), offset, byte_len);
+    let result = machine.write_heap_barrier(object.as_heap_reference(), offset, byte_len);
 
     // report invalid heap ranges
     if let Err(error) = result {
@@ -45,9 +43,7 @@ pub(crate) fn execute_barrier_write_shared_heap(
 
     // publish to the shared collector
     let result =
-        machine
-            .shared()
-            .write_barrier(object.as_shared_heap_reference(), offset, byte_len);
+        machine.write_shared_heap_barrier(object.as_shared_heap_reference(), offset, byte_len);
 
     // report invalid heap ranges
     if let Err(error) = result {

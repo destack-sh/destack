@@ -11,7 +11,7 @@ use crate::program::{
     repr_type, value_layout_from_type,
 };
 use crate::{FramePointer, SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
+use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
 
 use super::access;
 
@@ -259,8 +259,8 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_heap_reference();
-    if machine.heap().is_heap_live(reference) {
-        let address = machine.heap().heap_base_address() + reference.offset();
+    if machine.is_heap_live(reference) {
+        let address = machine.heap_address(reference, 0);
 
         copy_address_to_slice(address, destination);
 
@@ -268,12 +268,12 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_shared_heap_reference();
-    if !machine.shared().is_heap_live(reference) {
-        machine.flush_shared_allocator();
+    if !machine.is_shared_heap_live(reference) {
+        machine.flush_shared_cache();
     }
 
-    if machine.shared().is_heap_live(reference) {
-        let address = machine.shared().heap_base_address() + reference.offset();
+    if machine.is_shared_heap_live(reference) {
+        let address = machine.shared_heap_address(reference, 0);
 
         copy_address_to_slice(address, destination);
 
@@ -457,7 +457,7 @@ pub(crate) fn materialize_value(
     program: &Program,
     heap: &mut Heap,
     shared: &SharedHeap,
-    shared_allocator: &mut SharedAllocator,
+    shared_cache: &mut SharedAllocationCache,
     shared_gc: &SharedGcWorker,
     value: FrameValue,
 ) -> Result<engine::Value, Error> {
@@ -483,7 +483,7 @@ pub(crate) fn materialize_value(
                 PointerClass::SharedHeap => {
                     let layout = shared.allocation_plan(shape);
                     let reference = shared
-                        .allocate_bytes(shared_gc, shared_allocator, &layout, &bytes)
+                        .allocate_bytes(shared_gc, shared_cache, &layout, &bytes)
                         .map_err(Error::from)?;
 
                     Ok(engine::Value::SharedHeapReference(reference))

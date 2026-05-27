@@ -47,8 +47,8 @@ pub struct ContinuationFrame {
 }
 
 impl Continuation {
-    /// Clone this continuation for multi-shot resumption.
-    pub fn clone_for_fork(&self) -> RuntimeResult<Self> {
+    /// Fork this continuation for multi-shot resumption.
+    pub fn fork(&self) -> RuntimeResult<Self> {
         let stack = self.stack.fork()?;
         let mut frames = Vec::with_capacity(self.frames.len());
 
@@ -57,7 +57,7 @@ impl Continuation {
             let base = stack
                 .address(frame.stack_offset, frame.byte_len)
                 .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
-            frames.push(frame.clone_for_fork(base));
+            frames.push(frame.fork(base));
         }
 
         Ok(Self {
@@ -228,7 +228,8 @@ impl Continuation {
             return Ok(self.frame_state);
         }
 
-        let point = program.point(frame.function(), frame.block_id(), frame.pc as u32);
+        let block = frame.block_id(program)?;
+        let point = program.point(frame.function(), block, frame.pc as u32);
 
         program
             .frame_state_at(point)
@@ -236,7 +237,7 @@ impl Continuation {
                 context: format!(
                     "missing frame state for frame position: {:?} {:?} {}",
                     frame.function(),
-                    frame.block_id(),
+                    block,
                     frame.pc
                 ),
             })
@@ -273,7 +274,7 @@ impl ContinuationFrame {
         &self,
         program: &Program,
         stack_offset: usize,
-        frame_base: *mut u8,
+        frame_base: usize,
     ) -> RuntimeResult<Frame> {
         let point = program
             .point_for_frame_state(self.frame_state)
@@ -281,14 +282,6 @@ impl ContinuationFrame {
 
         let function_id = point.function;
         let block_id = point.block;
-        let function_ptr = program
-            .functions
-            .pointer_for_function(function_id)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: function_id,
-                })
-            })?;
         let function = program
             .functions
             .function_by_id(function_id)
@@ -307,7 +300,7 @@ impl ContinuationFrame {
             .position(|block| block.mir_block == block_id)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
         let mut frame = Frame::new(
-            function_ptr,
+            function,
             block_index as u32,
             layout,
             stack_offset,

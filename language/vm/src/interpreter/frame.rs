@@ -1,5 +1,4 @@
 use std::mem;
-use std::ptr::NonNull;
 
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
@@ -10,11 +9,13 @@ use crate::program::{Function, Program, ProgramPoint};
 
 /// Call frame in the interpreter.
 ///
-/// The raw byte pointer is owned by the page-backed VM stack.
+/// The byte address is owned by the page-backed VM stack.
 #[derive(Debug)]
 pub struct Frame {
-    /// Pointer to the lowered function.
-    pub(crate) function_ptr: NonNull<Function>,
+    /// Current MIR function id.
+    pub(crate) function: mir::LocalNodeId<mir::Function>,
+    /// The logical frame layout id.
+    pub(crate) frame_layout: engine::FrameLayoutId,
     /// The current block index in the lowered function.
     pub(crate) block: u32,
     /// Program counter within the current block.
@@ -25,8 +26,8 @@ pub struct Frame {
     pub(crate) stack_offset: usize,
     /// The frame byte width.
     pub(crate) byte_len: usize,
-    /// Pointer to the frame bytes in the interpreter stack arena.
-    base: *mut u8,
+    /// Native address of the frame bytes in the interpreter stack arena.
+    base: usize,
 }
 
 /// Immutable frame image.
@@ -45,20 +46,18 @@ pub struct FrameImage {
 // frame should fit in 64 bytes
 const _: () = assert!(std::mem::size_of::<Frame>() <= 64);
 
-// SAFETY: the raw function pointer always points into immutable isolate-owned program data
-unsafe impl Send for Frame {}
-
 impl Frame {
     /// Create a new frame for a function.
     pub(crate) fn new(
-        function_ptr: NonNull<Function>,
+        function: &Function,
         block: u32,
         layout: &engine::FrameLayout,
         stack_offset: usize,
-        base: *mut u8,
+        base: usize,
     ) -> Self {
         Self {
-            function_ptr,
+            function: function.mir_function,
+            frame_layout: function.frame_layout,
             block,
             pc: 0,
             return_state: None,
@@ -68,33 +67,51 @@ impl Frame {
         }
     }
 
-    /// Borrow the lowered function.
-    #[inline(always)]
-    pub(crate) fn function_ref(&self) -> &Function {
-        // SAFETY: function_ptr is created from immutable program data that outlives this frame
-        unsafe { self.function_ptr.as_ref() }
-    }
-
     /// Return the current MIR function id.
     #[inline(always)]
     pub(crate) fn function(&self) -> mir::LocalNodeId<mir::Function> {
-        self.function_ref().mir_function
+        self.function
     }
 
     /// Return the logical frame layout id.
     #[inline(always)]
     pub(crate) fn frame_layout(&self) -> engine::FrameLayoutId {
-        self.function_ref().frame_layout
+        self.frame_layout
     }
 
-    /// Return the active MIR block id.
-    #[inline(always)]
-    pub(crate) fn block_id(&self) -> mir::LocalNodeId<mir::Block> {
-        self.function_ref().blocks[self.block as usize].mir_block
+    /// Return the active MIR block id for this frame.
+    pub(crate) fn block_id(
+        &self,
+        program: &Program,
+    ) -> Result<mir::LocalNodeId<mir::Block>, Error> {
+        let function =
+            program
+                .functions
+                .function_by_id(self.function)
+                .ok_or(Error::UndefinedFunction {
+                    function: self.function,
+                })?;
+        let block = function
+            .blocks
+            .get(self.block as usize)
+            .ok_or(Error::InvalidInstruction)?;
+
+        Ok(block.mir_block)
     }
 
-    /// Replace this frame's byte range.
-    pub(crate) fn replace_bytes(&mut self, stack_offset: usize, byte_len: usize, base: *mut u8) {
+    /// Retarget this frame to one lowered function and stack range.
+    pub(crate) fn retarget(
+        &mut self,
+        function: &Function,
+        block: u32,
+        stack_offset: usize,
+        byte_len: usize,
+        base: usize,
+    ) {
+        self.function = function.mir_function;
+        self.frame_layout = function.frame_layout;
+        self.block = block;
+        self.pc = 0;
         self.stack_offset = stack_offset;
         self.byte_len = byte_len;
         self.base = base;
@@ -110,21 +127,21 @@ impl Frame {
     /// Return the native address of this frame's byte range.
     #[inline]
     pub(crate) fn base_address(&self) -> usize {
-        self.base as usize
+        self.base
     }
 
     /// Return this frame's byte range.
     #[inline]
     pub(crate) fn bytes(&self) -> &[u8] {
         // SAFETY: base points at byte_len live bytes in the VM stack arena
-        unsafe { std::slice::from_raw_parts(self.base, self.byte_len) }
+        unsafe { std::slice::from_raw_parts(self.base as *const u8, self.byte_len) }
     }
 
     /// Return this frame's byte range mutably.
     #[inline]
     pub(crate) fn bytes_mut(&mut self) -> &mut [u8] {
         // SAFETY: &mut self guarantees exclusive access to this live VM stack frame
-        unsafe { std::slice::from_raw_parts_mut(self.base, self.byte_len) }
+        unsafe { std::slice::from_raw_parts_mut(self.base as *mut u8, self.byte_len) }
     }
 
     /// Return a pointer to one frame slot.
@@ -250,10 +267,11 @@ impl Frame {
         start <= address && end <= stack_end
     }
 
-    /// Clone this frame over one already forked stack address.
-    pub(crate) fn clone_for_fork(&self, base: *mut u8) -> Self {
+    /// Fork this frame over one already forked stack address.
+    pub(crate) fn fork(&self, base: usize) -> Self {
         Self {
-            function_ptr: self.function_ptr,
+            function: self.function,
+            frame_layout: self.frame_layout,
             block: self.block,
             pc: self.pc,
             return_state: self.return_state,
@@ -265,7 +283,8 @@ impl Frame {
 
     /// Capture one immutable frame image.
     pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameImage> {
-        let point = ProgramPoint::new(self.function(), self.block_id(), self.pc as u32);
+        let block = self.block_id(program).map_err(RuntimeError::new)?;
+        let point = ProgramPoint::new(self.function(), block, self.pc as u32);
         let frame_state = program.frame_state_at(point).ok_or_else(|| {
             RuntimeError::new(Error::InvariantViolation {
                 context: format!("missing frame state for image point: {point:?}"),
@@ -292,21 +311,13 @@ impl Frame {
         image: &FrameImage,
         program: &Program,
         stack_offset: usize,
-        base: *mut u8,
+        base: usize,
     ) -> RuntimeResult<Self> {
         let point = program
             .point_for_frame_state(image.frame_state)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         // resolve the lowered function for this frame
-        let function_ptr = program
-            .functions
-            .pointer_for_function(point.function)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: point.function,
-                })
-            })?;
         let function_ref = program
             .functions
             .function_by_id(point.function)
@@ -331,7 +342,8 @@ impl Frame {
         }
 
         Ok(Self {
-            function_ptr,
+            function: function_ref.mir_function,
+            frame_layout: function_ref.frame_layout,
             block: block as u32,
             pc: point.pc as usize,
             return_state: image.return_state,

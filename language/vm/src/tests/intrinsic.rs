@@ -676,12 +676,12 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
         let layout = isolate.shared_heap.allocation_plan(shape);
-        let mut allocator = isolate.shared_heap.allocator();
+        let mut allocator = isolate.shared_heap.allocation_cache();
         let handle = isolate
             .shared_heap
             .allocate_zeroed(&isolate.shared_gc, &mut allocator, &layout)
             .expect("shared heap allocation should succeed");
-        isolate.shared_heap.flush_allocator(&mut allocator);
+        isolate.shared_heap.flush_allocation_cache(&mut allocator);
 
         vec![
             Word::shared_heap_reference(handle),

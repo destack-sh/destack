@@ -1,5 +1,5 @@
 use crate::Word;
-use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
+use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
 
 use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
 use crate::SharedHeap;
@@ -14,7 +14,7 @@ impl Interpreter {
         program: &Program,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
+        shared_cache: &mut SharedAllocationCache,
         shared_gc: &SharedGcWorker,
         value: Word,
     ) -> RuntimeResult<Option<Outcome>> {
@@ -43,9 +43,8 @@ impl Interpreter {
 
         // complete top level execution when there is no caller
         if self.frames.is_empty() {
-            let value =
-                materialize_value(program, heap, shared, shared_allocator, shared_gc, returned)
-                    .map_err(RuntimeError::new)?;
+            let value = materialize_value(program, heap, shared, shared_cache, shared_gc, returned)
+                .map_err(RuntimeError::new)?;
             return Ok(Some(self.complete_execution(value)));
         }
 
@@ -69,7 +68,8 @@ impl Interpreter {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let point = program.point(caller.function(), caller.block_id(), caller.pc as u32);
+        let block = caller.block_id(program).map_err(RuntimeError::new)?;
+        let point = program.point(caller.function(), block, caller.pc as u32);
         if let Some(destination) = program.return_destination_at(point)? {
             store_frame_value(program, caller, destination, returned).map_err(RuntimeError::new)?;
         }

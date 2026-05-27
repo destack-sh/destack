@@ -1590,12 +1590,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> RuntimeResult<()> {
         let mut bytes = vec![0; len];
 
-        self.heap()
-            .read_raw_bytes_into(source, 0, &mut bytes)
+        self.read_raw_bytes_into(source, 0, &mut bytes)
             .map_err(Error::from)
             .map_err(|error| self.runtime_error(error))?;
-        self.heap_mut()
-            .write_raw_bytes(destination, 0, &bytes)
+        self.write_raw_bytes(destination, 0, &bytes)
             .map_err(Error::from)
             .map_err(|error| self.runtime_error(error))?;
 
@@ -1606,8 +1604,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     fn store_memory(&mut self, destination: RawPointer, byte: u8, len: usize) -> RuntimeResult<()> {
         let bytes = vec![byte; len];
 
-        self.heap_mut()
-            .write_raw_bytes(destination, 0, &bytes)
+        self.write_raw_bytes(destination, 0, &bytes)
             .map_err(Error::from)
             .map_err(|error| self.runtime_error(error))?;
 
@@ -1624,12 +1621,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let mut left_bytes = vec![0; len];
         let mut right_bytes = vec![0; len];
 
-        self.heap()
-            .read_raw_bytes_into(left, 0, &mut left_bytes)
+        self.read_raw_bytes_into(left, 0, &mut left_bytes)
             .map_err(Error::from)
             .map_err(|error| self.runtime_error(error))?;
-        self.heap()
-            .read_raw_bytes_into(right, 0, &mut right_bytes)
+        self.read_raw_bytes_into(right, 0, &mut right_bytes)
             .map_err(Error::from)
             .map_err(|error| self.runtime_error(error))?;
 
@@ -1654,7 +1649,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
         let caller_frame = &self.interpreter.frames[self.interpreter.frames.len() - 2];
         let func_id = caller_frame.function().id as u64;
-        let block_id = caller_frame.block_id().id as u64;
+        let block_id = caller_frame
+            .block_id(self.program)
+            .map_err(|error| self.runtime_error(error))?
+            .id as u64;
 
         let synthetic_addr = (func_id << 32) | block_id;
         Ok(Word::uint(synthetic_addr, 64))

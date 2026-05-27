@@ -96,7 +96,10 @@ impl Interpreter {
             return Err(RuntimeError::new(Error::InvalidInstruction));
         }
 
-        let function = frame.function_ref();
+        let function = program
+            .functions
+            .function_by_id(frame.function())
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let target_index = function
             .blocks
             .iter()

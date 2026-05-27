@@ -5,7 +5,7 @@ use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
 use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
+use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
 use {destack_engine as engine, destack_mir as mir};
 
 use super::frame::move_values_within_frame;
@@ -64,7 +64,7 @@ impl Interpreter {
         options: &IsolateOptions,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
+        shared_cache: &mut SharedAllocationCache,
         shared_gc: &SharedGcWorker,
         isolate_id: engine::EngineId,
         value: Word,
@@ -82,14 +82,7 @@ impl Interpreter {
             value,
         )
         .and_then(|value| {
-            super::frame::materialize_value(
-                program,
-                heap,
-                shared,
-                shared_allocator,
-                shared_gc,
-                value,
-            )
+            super::frame::materialize_value(program, heap, shared, shared_cache, shared_gc, value)
         })
         .map_err(RuntimeError::new)?;
 
@@ -111,7 +104,7 @@ impl Interpreter {
         options: &IsolateOptions,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_allocator: &mut SharedAllocator,
+        shared_cache: &mut SharedAllocationCache,
         shared_gc: &SharedGcWorker,
         current_func: &Function,
         transfer: Transfer,
@@ -188,7 +181,7 @@ impl Interpreter {
                     options,
                     heap,
                     shared,
-                    shared_allocator,
+                    shared_cache,
                     shared_gc,
                     isolate_id,
                     value,
@@ -197,7 +190,7 @@ impl Interpreter {
                 )
                 .map(Some),
             Transfer::Return(value) => {
-                self.complete_return(program, heap, shared, shared_allocator, shared_gc, value)
+                self.complete_return(program, heap, shared, shared_cache, shared_gc, value)
             }
             Transfer::Error(error) => Err(self.runtime_error(program, error)),
         }
