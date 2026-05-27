@@ -14,8 +14,8 @@ pub struct MemoryContext<'a> {
     pub heap: &'a mut heap::Heap,
     /// Runtime heap.
     pub shared_heap: &'a heap::SharedHeap,
-    /// Worker-local shared heap allocator.
-    pub shared_allocator: &'a mut heap::SharedAllocator,
+    /// Worker-local shared allocation cache.
+    pub shared_cache: &'a mut heap::SharedAllocationCache,
     /// Runtime heap collector worker.
     pub shared_gc_worker: &'a heap::SharedGcWorker,
     /// Worker static memory.
@@ -30,7 +30,7 @@ impl std::fmt::Debug for MemoryContext<'_> {
             .debug_struct("MemoryContext")
             .field("heap", &"<heap>")
             .field("shared_heap", &"<shared heap>")
-            .field("shared_allocator", &"<shared allocator>")
+            .field("shared_cache", &"<shared allocation cache>")
             .field("shared_gc_worker", &"<shared gc worker>")
             .field("worker_static", &self.worker_static.len())
             .field("runtime_static", &self.runtime_static.byte_len())

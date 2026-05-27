@@ -13,7 +13,7 @@ fn decode_callable_object(
     reference: HeapReference,
 ) -> Result<(Word, Word), Error> {
     let layout = machine.program.callable_object_layout();
-    let base_address = machine.heap().heap_base_address() + reference.offset();
+    let base_address = machine.heap_address(reference, 0);
 
     // split the two pointer fields
     let function_address = base_address + layout.function_offset;
@@ -136,7 +136,7 @@ pub(crate) fn decode_callable(
     value: Word,
 ) -> Result<(Word, Word), Error> {
     let reference = value.as_heap_reference();
-    if machine.heap().is_heap_live(reference) {
+    if machine.is_heap_live(reference) {
         return decode_callable_object(machine, reference);
     }
 

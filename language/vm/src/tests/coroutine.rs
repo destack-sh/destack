@@ -354,9 +354,9 @@ b1(v2: int32, v3: int32):
     assert_runtime_error_matches!(result, Error::InvalidContinuation);
 }
 
-/// Continuations can be cloned for multi-shot resumption.
+/// Continuations can be forked for multi-shot resumption.
 #[test]
-fn test_continuation_clone_for_fork() {
+fn test_fork_continuation() {
     let mir = r#"
 function yieldOnce(): int32 {
 b0:
@@ -369,9 +369,7 @@ b1(v1: int32):
     let (continuation, value) =
         assert_execution_yielded(isolate.run_function_by_name_yielding("yieldOnce", &[]));
     assert_eq!(value, Value::int32(1));
-    let forked = continuation
-        .clone_for_fork()
-        .expect("continuation should fork");
+    let forked = continuation.fork().expect("continuation should fork");
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(5)));
     assert_eq!(output, Value::int32(5));
     let output = assert_execution_completed(isolate.resume(forked, Value::int32(9)));
@@ -438,17 +436,15 @@ b1(v3: Pair, v4: int32):
         .isolate
         .continuation_image(&continuation)
         .expect("continuation image should capture");
-    let mut roots = crate::RootSet::default();
-    isolate
-        .isolate
-        .visit_image_root_slots(&mut image, &mut |slot| {
-            let root = slot.load()?;
-            destack_heap::RootSink::push(&mut roots, root);
+    let mut heap_roots =
+        |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
+            isolate
+                .isolate
+                .visit_image_root_slots(&mut image, visit)
+                .expect("continuation image roots should collect");
 
-            Ok(())
-        })
-        .expect("continuation image roots should collect");
-    let mut heap_roots = roots.heap;
+            Ok::<(), destack_heap::HeapError>(())
+        };
     let stats = isolate
         .heap
         .collect_full(&mut heap_roots)

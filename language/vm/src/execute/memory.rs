@@ -228,7 +228,7 @@ pub(crate) fn execute_store_frame_bytes(
     let (address, access, source, byte_len) = store_bytes(machine, instruction);
     let destination = address.as_frame_pointer().add_bytes(access.byte_offset);
 
-    machine.copy_frame_bytes_at(source, destination.address(), byte_len);
+    machine.copy_frame_bytes_to_address(source, destination.address(), byte_len);
 
     Ok(())
 }

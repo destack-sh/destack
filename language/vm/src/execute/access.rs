@@ -39,7 +39,7 @@ fn local_heap_address(
     reference: HeapReference,
     byte_offset: usize,
 ) -> usize {
-    machine.heap().heap_base_address() + reference.offset() + byte_offset
+    machine.heap_address(reference, byte_offset)
 }
 
 /// Return one shared heap native address.
@@ -49,13 +49,13 @@ fn shared_heap_address(
     reference: SharedHeapReference,
     byte_offset: usize,
 ) -> usize {
-    machine.shared().heap_base_address() + reference.offset() + byte_offset
+    machine.shared_heap_address(reference, byte_offset)
 }
 
 /// Return one local raw native address.
 #[inline(always)]
 fn local_raw_address(machine: &Machine<'_, '_>, pointer: RawPointer, byte_offset: usize) -> usize {
-    machine.heap().raw_base_address() + pointer.offset() + byte_offset
+    machine.raw_address(pointer, byte_offset)
 }
 
 /// Return one shared raw native address.
@@ -65,7 +65,7 @@ fn shared_raw_address(
     pointer: SharedRawPointer,
     byte_offset: usize,
 ) -> usize {
-    machine.shared().raw_base_address() + pointer.offset() + byte_offset
+    machine.shared_raw_address(pointer, byte_offset)
 }
 
 /// Load bytes from one native address.

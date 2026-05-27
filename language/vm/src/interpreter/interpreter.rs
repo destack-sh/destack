@@ -55,7 +55,7 @@ impl Interpreter {
     pub(crate) fn allocate_frame(
         &mut self,
         layout: &engine::FrameLayout,
-    ) -> RuntimeResult<(usize, *mut u8)> {
+    ) -> RuntimeResult<(usize, usize)> {
         let base = self
             .stack
             .allocate(layout.byte_len as usize, Word::BYTE_LEN)?;
@@ -92,7 +92,7 @@ impl Interpreter {
             let base = stack
                 .address(frame.stack_offset, frame.byte_len)
                 .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
-            frames.push(frame.clone_for_fork(base));
+            frames.push(frame.fork(base));
         }
 
         Ok(Self { frames, stack })
@@ -126,7 +126,12 @@ impl Interpreter {
     /// Create a runtime error with current call stack.
     #[cold]
     pub(crate) fn runtime_error(&self, program: &Program, error: Error) -> RuntimeError {
-        RuntimeError::new(error).with_call_stack(self.call_stack(program))
+        match self.call_stack(program) {
+            Ok(stack) => RuntimeError::new(error).with_call_stack(stack),
+            Err(stack_error) => RuntimeError::new(Error::InvariantViolation {
+                context: format!("failed to build call stack for {error:?}: {stack_error:?}"),
+            }),
+        }
     }
 
     /// Initialize static data from MIR globals.
@@ -194,19 +199,19 @@ impl Interpreter {
     }
 
     /// Return the current call stack for error reporting.
-    fn call_stack(&self, program: &Program) -> Vec<StackTraceFrame> {
+    fn call_stack(&self, program: &Program) -> Result<Vec<StackTraceFrame>> {
         self.frames
             .iter()
             .map(|f| {
                 let function = f.function();
-                let block = f.block_id();
+                let block = f.block_id(program)?;
                 let func = program.tree.get(function);
                 let name = program.strings.get(func.name).to_string();
-                StackTraceFrame {
+                Ok(StackTraceFrame {
                     function,
                     block,
                     function_name: Some(name),
-                }
+                })
             })
             .collect()
     }

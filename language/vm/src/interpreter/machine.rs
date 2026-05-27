@@ -1,7 +1,8 @@
 use std::{fmt, mem, ptr};
 
 use destack_heap::{
-    AllocationShape, Heap, HeapReference, SharedAllocator, SharedGcWorker, SharedHeapReference,
+    AllocationShape, Heap, HeapReference, HeapResult, Payload, RawAllocationShape,
+    SharedAllocationCache, SharedGcWorker, SharedHeapReference, SmallAllocationPlan,
     repeated_layout,
 };
 use engine::StaticSpace;
@@ -16,12 +17,11 @@ use crate::program::{
     SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId,
     TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
 };
-use crate::{FramePointer, SharedHeap, StaticPointer, Word};
+use crate::{FramePointer, RawPointer, SharedHeap, SharedRawPointer, StaticPointer, Word};
 
 /// Execution context for one active interpreter frame.
 ///
-/// Raw pointers cache borrows that are proven by the interpreter dispatch loop.
-/// This keeps the hot path address-based while the caller owns the real lifetimes.
+/// Frame byte addresses are cached for the hot dispatch path.
 pub(crate) struct Machine<'ctx, 'iso> {
     /// Program being executed.
     pub(crate) program: &'iso Program,
@@ -30,37 +30,33 @@ pub(crate) struct Machine<'ctx, 'iso> {
     /// Mutable static byte arena.
     pub(crate) statics: &'iso mut StaticSpace,
     /// The worker-local heap borrowed for this dispatch step.
-    heap: *mut Heap,
+    heap: &'iso mut Heap,
     /// The world-shared heap borrowed for this dispatch step.
-    shared: *const SharedHeap,
+    shared: &'iso SharedHeap,
     /// Shared collector worker for allocation assist.
     shared_gc: &'iso SharedGcWorker,
     /// The worker cache for shared heap allocations borrowed for this dispatch step.
-    shared_allocator: *mut SharedAllocator,
+    shared_cache: &'iso mut SharedAllocationCache,
     /// Interpreter owning the live stack.
     pub(crate) interpreter: &'ctx mut Interpreter,
 
     /// Index of the current frame in the stack.
     pub frame_index: usize,
-    /// Pointer to the active frame.
-    frame: *mut Frame,
     /// Native address of the active frame bytes.
     frame_base: usize,
-    /// Pointer to the active frame layout.
-    frame_layout: *const engine::FrameLayout,
-    /// Pointer to the program side table.
-    side_table: *const SideTable,
+    /// Active frame layout.
+    frame_layout: &'iso engine::FrameLayout,
+    /// Program side table.
+    side_table: &'iso SideTable,
     /// Argument pool for the current function.
-    argument_pool: *const mir::Value,
-    /// Argument pool length.
-    argument_pool_len: usize,
+    argument_pool: &'iso [mir::Value],
 }
 
 impl fmt::Debug for Machine<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Machine")
             .field("frame_index", &self.frame_index)
-            .field("argument_pool_len", &self.argument_pool_len)
+            .field("argument_pool_len", &self.argument_pool.len())
             .finish()
     }
 }
@@ -74,7 +70,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         heap: &'iso mut Heap,
         shared: &'iso SharedHeap,
         shared_gc: &'iso SharedGcWorker,
-        shared_allocator: &'iso mut SharedAllocator,
+        shared_cache: &'iso mut SharedAllocationCache,
         interpreter: &'ctx mut Interpreter,
         frame_index: usize,
         function: &'iso Function,
@@ -87,26 +83,22 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let frame_layout = frame.frame_layout();
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
-            .ok_or(Error::InvalidInstruction)?
-            as *const engine::FrameLayout;
-        let frame = frame as *mut Frame;
+            .ok_or(Error::InvalidInstruction)?;
 
         Ok(Self {
             program,
             options,
             statics,
             shared_gc,
-            heap: heap as *mut Heap,
-            shared: shared as *const SharedHeap,
-            shared_allocator: shared_allocator as *mut SharedAllocator,
+            heap,
+            shared,
+            shared_cache,
             interpreter,
             frame_index,
-            frame,
             frame_base,
             frame_layout,
             side_table: &program.side_table,
-            argument_pool: function.argument_pool.as_ptr(),
-            argument_pool_len: function.argument_pool.len(),
+            argument_pool: function.argument_pool.as_slice(),
         })
     }
 
@@ -195,12 +187,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.interpreter.runtime_error(self.program, error)
     }
 
-    /// Refresh cached frame data after moving to another function.
-    pub(crate) fn refresh_frame(&mut self, function: &Function) -> Result<(), Error> {
-        let (frame_base, frame_layout) = {
+    /// Load cached dispatch metadata from the active frame.
+    pub(crate) fn load_active_frame(&mut self) -> Result<(), Error> {
+        let (function, frame_base, frame_layout) = {
             let frame = self.active_frame();
 
-            (frame.base_address(), frame.frame_layout())
+            (frame.function(), frame.base_address(), frame.frame_layout())
         };
         self.frame_base = frame_base;
 
@@ -208,11 +200,16 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .program
             .frame_layout_by_id(frame_layout)
             .ok_or(Error::InvalidInstruction)?;
-        self.frame_layout = frame_layout as *const engine::FrameLayout;
+        self.frame_layout = frame_layout;
 
-        // refresh argument pool
-        self.argument_pool = function.argument_pool.as_ptr();
-        self.argument_pool_len = function.argument_pool.len();
+        let function = self
+            .program
+            .functions
+            .function_by_id(function)
+            .ok_or(Error::InvalidInstruction)?;
+
+        // load argument pool
+        self.argument_pool = function.argument_pool.as_slice();
 
         Ok(())
     }
@@ -220,7 +217,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     /// Borrow the program side table.
     #[inline(always)]
     fn side_table(&self) -> &'iso SideTable {
-        unsafe { &*self.side_table }
+        self.side_table
     }
 
     /// Return one pooled address projection.
@@ -310,12 +307,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.side_table().tensor_scatter(id)
     }
 
-    /// Borrow the worker heap mutably.
-    #[inline]
-    pub(crate) fn heap_mut(&mut self) -> &mut Heap {
-        unsafe { &mut *self.heap }
-    }
-
     /// Allocate one zeroed local heap payload from one pooled allocation site.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_allocation(
@@ -328,9 +319,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let class = side_table.allocation_class(allocation.class);
         let layout = allocation.heap_plan(trace_map, class);
 
-        self.heap_mut()
-            .allocate_zeroed(&layout)
-            .map_err(Error::from)
+        self.heap.allocate_zeroed(&layout).map_err(Error::from)
     }
 
     /// Allocate one zeroed local slice backing array.
@@ -351,16 +340,31 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             length,
         )?;
         let shape = AllocationShape::new(byte_len, element.alignment, &trace_map);
-        let heap = self.heap_mut();
+        let heap = &mut *self.heap;
         let layout = heap.allocation_plan(shape);
 
         heap.allocate_zeroed(&layout).map_err(Error::from)
     }
 
+    /// Return the small allocation plan for one compiled allocation site.
+    #[inline(always)]
+    fn small_allocation_plan(&self, id: AllocationSiteId) -> Result<SmallAllocationPlan, Error> {
+        let side_table = self.side_table();
+        let allocation = side_table.allocation_site(id);
+        let class = side_table.allocation_class(allocation.class);
+
+        class.small().ok_or(Error::InvalidInstruction)
+    }
+
     /// Reserve one zeroed no-scan local heap allocation from the active young run.
     #[inline(always)]
-    pub(crate) fn reserve_young(&mut self, slot_bytes: usize) -> Option<HeapReference> {
-        self.heap_mut().reserve_young(slot_bytes)
+    pub(crate) fn reserve_young(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<Option<HeapReference>, Error> {
+        let small = self.small_allocation_plan(id)?;
+
+        Ok(self.heap.reserve_young(small))
     }
 
     /// Allocate one byte-initialized local heap payload from one program layout id.
@@ -371,7 +375,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         bytes: &[u8],
     ) -> Result<HeapReference, Error> {
         let shape = self.program.allocation_shape(layout_id)?;
-        let heap = self.heap_mut();
+        let heap = &mut *self.heap;
         let layout = heap.allocation_plan(shape);
 
         heap.allocate_bytes(&layout, bytes).map_err(Error::from)
@@ -389,11 +393,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let class = side_table.allocation_class(allocation.class);
         let layout = allocation.heap_plan(trace_map, class);
 
-        unsafe {
-            (&*self.shared)
-                .allocate_zeroed(self.shared_gc, &mut *self.shared_allocator, &layout)
-                .map_err(Error::from)
-        }
+        self.shared
+            .allocate_zeroed(self.shared_gc, self.shared_cache, &layout)
+            .map_err(Error::from)
     }
 
     /// Allocate one zeroed shared slice backing array.
@@ -414,83 +416,206 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             length,
         )?;
         let shape = AllocationShape::new(byte_len, element.alignment, &trace_map);
-        let layout = self.shared().allocation_plan(shape);
+        let layout = self.shared.allocation_plan(shape);
 
-        unsafe {
-            (&*self.shared)
-                .allocate_zeroed(self.shared_gc, &mut *self.shared_allocator, &layout)
-                .map_err(Error::from)
-        }
+        self.shared
+            .allocate_zeroed(self.shared_gc, self.shared_cache, &layout)
+            .map_err(Error::from)
     }
 
     /// Reserve one zeroed no-scan shared heap allocation from the active worker run.
     #[inline(always)]
     pub(crate) fn reserve_shared_small(
         &mut self,
-        bucket_index: usize,
-        slot_bytes: usize,
-    ) -> Option<SharedHeapReference> {
-        unsafe {
-            (&*self.shared).reserve_zeroed_small_unchecked(
-                &mut *self.shared_allocator,
-                bucket_index,
-                slot_bytes,
-            )
-        }
+        id: AllocationSiteId,
+    ) -> Result<Option<SharedHeapReference>, Error> {
+        let small = self.small_allocation_plan(id)?;
+
+        Ok(self.shared.reserve_small_zeroed(self.shared_cache, small))
     }
 
-    /// Borrow the worker heap immutably.
-    #[inline]
-    pub(crate) fn heap(&self) -> &Heap {
-        unsafe { &*self.heap }
-    }
-
-    /// Borrow the shared heap immutably.
-    #[inline]
-    pub(crate) fn shared(&self) -> &SharedHeap {
-        unsafe { &*self.shared }
-    }
-
-    /// Publish allocator-local shared heap runs.
+    /// Publish worker-local shared heap runs.
     #[inline(always)]
-    pub(crate) fn flush_shared_allocator(&mut self) {
-        unsafe { &*self.shared }.flush_allocator(unsafe { &mut *self.shared_allocator });
+    pub(crate) fn flush_shared_cache(&mut self) {
+        self.shared.flush_allocation_cache(self.shared_cache);
     }
 
-    /// Move the machine to a new frame and function.
-    pub(crate) fn enter_frame(
+    /// Return one local heap native address.
+    #[inline(always)]
+    pub(crate) fn heap_address(&self, reference: HeapReference, byte_offset: usize) -> usize {
+        self.heap.heap_base_address() + reference.offset() + byte_offset
+    }
+
+    /// Return one shared heap native address.
+    #[inline(always)]
+    pub(crate) fn shared_heap_address(
+        &self,
+        reference: SharedHeapReference,
+        byte_offset: usize,
+    ) -> usize {
+        self.shared.heap_base_address() + reference.offset() + byte_offset
+    }
+
+    /// Return one local raw native address.
+    #[inline(always)]
+    pub(crate) fn raw_address(&self, pointer: RawPointer, byte_offset: usize) -> usize {
+        self.heap.raw_base_address() + pointer.offset() + byte_offset
+    }
+
+    /// Return one shared raw native address.
+    #[inline(always)]
+    pub(crate) fn shared_raw_address(
+        &self,
+        pointer: SharedRawPointer,
+        byte_offset: usize,
+    ) -> usize {
+        self.shared.raw_base_address() + pointer.offset() + byte_offset
+    }
+
+    /// Return whether one local heap reference is live.
+    #[inline(always)]
+    pub(crate) fn is_heap_live(&self, reference: HeapReference) -> bool {
+        self.heap.is_heap_live(reference)
+    }
+
+    /// Return whether one shared heap reference is live.
+    #[inline(always)]
+    pub(crate) fn is_shared_heap_live(&self, reference: SharedHeapReference) -> bool {
+        self.shared.is_heap_live(reference)
+    }
+
+    /// Allocate one zeroed local raw allocation.
+    #[inline(always)]
+    pub(crate) fn allocate_raw_zeroed(
         &mut self,
-        frame_index: usize,
-        function: &Function,
-    ) -> Result<(), Error> {
-        let frame = self
+        shape: RawAllocationShape,
+    ) -> HeapResult<RawPointer> {
+        self.heap.allocate_raw(shape, Payload::Zeroed)
+    }
+
+    /// Allocate one zeroed shared raw allocation.
+    #[inline(always)]
+    pub(crate) fn allocate_shared_raw_zeroed(
+        &self,
+        shape: RawAllocationShape,
+    ) -> HeapResult<SharedRawPointer> {
+        self.shared.allocate_raw(shape, Payload::Zeroed)
+    }
+
+    /// Free one local raw allocation.
+    #[inline(always)]
+    pub(crate) fn free_raw(&mut self, pointer: RawPointer) -> HeapResult<()> {
+        self.heap.free_raw(pointer)
+    }
+
+    /// Free one shared raw allocation.
+    #[inline(always)]
+    pub(crate) fn free_shared_raw(&self, pointer: SharedRawPointer) -> HeapResult<()> {
+        self.shared.free_raw(pointer)
+    }
+
+    /// Free one local managed allocation.
+    #[inline(always)]
+    pub(crate) fn free_heap(&mut self, reference: HeapReference) -> HeapResult<()> {
+        self.heap.free(reference)
+    }
+
+    /// Free one shared managed allocation.
+    #[inline(always)]
+    pub(crate) fn free_shared_heap(&self, reference: SharedHeapReference) -> HeapResult<()> {
+        self.shared.free(reference)
+    }
+
+    /// Pin one local managed allocation.
+    #[inline(always)]
+    pub(crate) fn pin_heap(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
+        self.heap.pin(reference)
+    }
+
+    /// Unpin one local managed allocation.
+    #[inline(always)]
+    pub(crate) fn unpin_heap(&mut self, reference: HeapReference) -> HeapResult<()> {
+        self.heap.unpin(reference)
+    }
+
+    /// Record one local heap write barrier.
+    #[inline(always)]
+    pub(crate) fn write_heap_barrier(
+        &mut self,
+        reference: HeapReference,
+        offset: usize,
+        byte_len: usize,
+    ) -> HeapResult<()> {
+        self.heap.write_barrier(reference, offset, byte_len)
+    }
+
+    /// Record one shared heap write barrier.
+    #[inline(always)]
+    pub(crate) fn write_shared_heap_barrier(
+        &self,
+        reference: SharedHeapReference,
+        offset: usize,
+        byte_len: usize,
+    ) -> HeapResult<()> {
+        self.shared.write_barrier(reference, offset, byte_len)
+    }
+
+    /// Read one local raw allocation byte range.
+    #[inline(always)]
+    pub(crate) fn read_raw_bytes_into(
+        &self,
+        pointer: RawPointer,
+        start: usize,
+        destination: &mut [u8],
+    ) -> HeapResult<()> {
+        self.heap.read_raw_bytes_into(pointer, start, destination)
+    }
+
+    /// Write one local raw allocation byte range.
+    #[inline(always)]
+    pub(crate) fn write_raw_bytes(
+        &mut self,
+        pointer: RawPointer,
+        start: usize,
+        bytes: &[u8],
+    ) -> HeapResult<()> {
+        self.heap.write_raw_bytes(pointer, start, bytes)
+    }
+
+    /// Move the machine to another live frame.
+    pub(crate) fn enter_frame(&mut self, frame_index: usize) -> Result<(), Error> {
+        let _frame = self
             .interpreter
             .frames
-            .get_mut(frame_index)
+            .get(frame_index)
             .ok_or(Error::InvalidInstruction)?;
         self.frame_index = frame_index;
-        self.frame = frame as *mut Frame;
 
-        // refresh cached pointers
-        self.refresh_frame(function)
+        self.load_active_frame()
     }
 
     /// Borrow the active frame mutably.
     #[inline(always)]
     pub(crate) fn active_frame_mut(&mut self) -> &mut Frame {
-        unsafe { &mut *self.frame }
+        debug_assert!(self.frame_index < self.interpreter.frames.len());
+
+        // SAFETY: Machine is only constructed with a live frame index and updates it on frame entry
+        unsafe { self.interpreter.frames.get_unchecked_mut(self.frame_index) }
     }
 
     /// Borrow the active frame.
     #[inline(always)]
     pub(crate) fn active_frame(&self) -> &Frame {
-        unsafe { &*self.frame }
+        debug_assert!(self.frame_index < self.interpreter.frames.len());
+
+        // SAFETY: Machine is only constructed with a live frame index and updates it on frame entry
+        unsafe { self.interpreter.frames.get_unchecked(self.frame_index) }
     }
 
     /// Borrow the current frame layout.
     #[inline(always)]
     pub(crate) fn frame_layout(&self) -> &engine::FrameLayout {
-        unsafe { &*self.frame_layout }
+        self.frame_layout
     }
 
     /// Borrow one frame.
@@ -519,7 +644,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .interpreter
             .stack
             .address(base, byte_len)
-            .map_err(|_| Error::StackOverflow)? as usize;
+            .map_err(|_| Error::StackOverflow)?;
 
         Ok(address)
     }
@@ -570,6 +695,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn frame_bytes_at(&self, offset: u32, byte_len: usize) -> &[u8] {
         let address = self.frame_base + offset as usize;
 
+        // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe { std::slice::from_raw_parts(address as *const u8, byte_len) }
     }
 
@@ -583,7 +709,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> T {
         let address = self.frame_base + offset as usize;
 
-        // lower guarantees the frame range is valid for the operation
+        // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
             let bytes = std::slice::from_raw_parts(address as *const u8, byte_len);
 
@@ -596,16 +722,23 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn store_frame_bytes_at(&mut self, offset: u32, bytes: &[u8]) {
         let address = self.frame_base + offset as usize;
 
+        // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
             ptr::copy_nonoverlapping(bytes.as_ptr(), address as *mut u8, bytes.len());
         }
     }
 
-    /// Copy frame bytes to one native address.
+    /// Copy frame bytes into one native address.
     #[inline(always)]
-    pub(crate) fn copy_frame_bytes_at(&self, source: u32, destination: usize, byte_len: usize) {
+    pub(crate) fn copy_frame_bytes_to_address(
+        &self,
+        source: u32,
+        destination: usize,
+        byte_len: usize,
+    ) {
         let source = self.frame_base + source as usize;
 
+        // SAFETY: caller provides a valid destination and lower validates the source frame range
         unsafe {
             ptr::copy(source as *const u8, destination as *mut u8, byte_len);
         }
@@ -617,6 +750,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let address = self.frame_base + offset as usize;
         debug_assert_eq!(address % mem::align_of::<Word>(), 0);
 
+        // SAFETY: lowered word offsets are word-aligned and point inside the active frame
         unsafe { ptr::read(address as *const Word) }
     }
 
@@ -630,6 +764,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             "ssa value out of bounds: {v:?}"
         );
 
+        // SAFETY: lower only emits SSA values present in the active frame layout
         unsafe { layout.values().get_unchecked(index) }
     }
 
@@ -656,6 +791,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let address = self.frame_base + offset as usize;
         debug_assert_eq!(address % mem::align_of::<Word>(), 0);
 
+        // SAFETY: lowered word offsets are word-aligned and point inside the active frame
         unsafe {
             ptr::write(address as *mut Word, value);
         }
@@ -672,7 +808,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let source_offset = source_offset as usize;
         let destination_offset = destination_offset as usize;
 
-        // lower guarantees that both ranges are inside the frame layout
+        // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
             ptr::copy(
                 (self.frame_base + source_offset) as *const u8,
@@ -687,10 +823,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn argument_slice(&self, range: ArgumentRange) -> &[mir::Value] {
         let start = range.start as usize;
         let len = range.len as usize;
+        let end = start + len;
         debug_assert!(
-            start + len <= self.argument_pool_len,
+            end <= self.argument_pool.len(),
             "argument pool out of bounds for range"
         );
-        unsafe { std::slice::from_raw_parts(self.argument_pool.add(start), len) }
+
+        &self.argument_pool[start..end]
     }
 }

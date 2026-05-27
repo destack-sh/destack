@@ -3,7 +3,7 @@ use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{AllocationSiteId, Instruction, SliceProjectionId};
 use crate::{StackPointer, Word};
-use destack_heap::{HeapError, Payload, RawAllocationShape};
+use destack_heap::{HeapError, RawAllocationShape};
 
 /// Decode one power-of-two alignment from an instruction field.
 fn decode_alignment(alignment_log2: u32) -> usize {
@@ -18,10 +18,9 @@ pub(crate) fn execute_allocate_heap_small_noscan(
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationSiteId(instruction.b);
-    let slot_bytes = instruction.c as usize;
 
     // reserve from the active young run, refill on capacity failure
-    let reference = match machine.reserve_young(slot_bytes) {
+    let reference = match machine.reserve_young(allocation)? {
         Some(reference) => reference,
         None => machine.allocate_zeroed_heap_allocation(allocation)?,
     };
@@ -56,11 +55,9 @@ pub(crate) fn execute_allocate_shared_heap_small_noscan(
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationSiteId(instruction.b);
-    let slot_bytes = instruction.c as usize;
-    let bucket_index = instruction.d as usize;
 
     // reserve from the active worker run, refill on capacity failure
-    let reference = match machine.reserve_shared_small(bucket_index, slot_bytes) {
+    let reference = match machine.reserve_shared_small(allocation)? {
         Some(reference) => reference,
         None => machine.allocate_zeroed_shared_heap_allocation(allocation)?,
     };
@@ -152,7 +149,7 @@ pub(crate) fn execute_allocate_raw(
     let shape = RawAllocationShape::new(byte_len, alignment);
 
     // allocate raw heap bytes
-    let pointer = machine.heap_mut().allocate_raw(shape, Payload::Zeroed);
+    let pointer = machine.allocate_raw_zeroed(shape);
     let pointer = match pointer {
         Ok(pointer) => pointer,
         Err(error) => return Err(Error::from(error)),
@@ -176,7 +173,7 @@ pub(crate) fn execute_allocate_shared_raw(
     let shape = RawAllocationShape::new(byte_len, alignment);
 
     // allocate shared raw heap bytes
-    let pointer = machine.shared().allocate_raw(shape, Payload::Zeroed);
+    let pointer = machine.allocate_shared_raw_zeroed(shape);
     let pointer = match pointer {
         Ok(pointer) => pointer,
         Err(error) => return Err(Error::from(error)),
@@ -197,8 +194,7 @@ pub(crate) fn execute_free_raw(
 
     // free the pointed raw allocation
     let pointer = machine.load_word_at(pointer).as_raw_pointer();
-    let heap = machine.heap_mut();
-    match heap.free_raw(pointer) {
+    match machine.free_raw(pointer) {
         Ok(()) => {}
         Err(HeapError::InvalidRawPointer { .. }) => {
             return Err(Error::InvalidRawPointer);
@@ -218,7 +214,7 @@ pub(crate) fn execute_free_heap(
 
     // free the unique heap allocation
     let reference = machine.load_word_at(reference).as_heap_reference();
-    match machine.heap_mut().free_heap(reference) {
+    match machine.free_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidHeapReference { .. }) => {
             return Err(Error::InvalidHeapReference);
@@ -238,7 +234,7 @@ pub(crate) fn execute_free_shared_heap(
 
     // free the unique shared heap allocation
     let reference = machine.load_word_at(reference).as_shared_heap_reference();
-    match machine.shared().free_heap(reference) {
+    match machine.free_shared_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidSharedHeapReference { .. }) => {
             return Err(Error::InvalidSharedHeapReference);
@@ -259,8 +255,7 @@ pub(crate) fn execute_pin_heap(
 
     // pin the local heap reference
     let reference = machine.load_word_at(value).as_heap_reference();
-    let heap = machine.heap_mut();
-    match heap.pin_heap(reference) {
+    match machine.pin_heap(reference) {
         Ok(reference) => machine.store_word_at(dest, Word::heap_reference(reference)),
         Err(HeapError::InvalidHeapReference { .. }) => {
             return Err(Error::InvalidHeapReference);
@@ -295,8 +290,7 @@ pub(crate) fn execute_unpin_heap(
 
     // release the local heap pin
     let reference = machine.load_word_at(value).as_heap_reference();
-    let heap = machine.heap_mut();
-    match heap.unpin_heap(reference) {
+    match machine.unpin_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidHeapReference { .. }) => {
             return Err(Error::InvalidHeapReference);
@@ -325,7 +319,7 @@ pub(crate) fn execute_free_shared_raw(
 
     // free the pointed shared raw allocation
     let pointer = machine.load_word_at(pointer).as_shared_raw_pointer();
-    match machine.shared().free_raw(pointer) {
+    match machine.free_shared_raw(pointer) {
         Ok(()) => {}
         Err(HeapError::InvalidSharedRawPointer { .. }) => {
             return Err(Error::InvalidSharedRawPointer);

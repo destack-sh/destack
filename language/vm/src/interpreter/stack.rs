@@ -133,11 +133,14 @@ impl Stack {
 
     /// Return the native address for one live byte range.
     #[inline]
-    pub(crate) fn address(&self, offset: usize, byte_len: usize) -> RuntimeResult<*mut u8> {
-        self.space
+    pub(crate) fn address(&self, offset: usize, byte_len: usize) -> RuntimeResult<usize> {
+        let address = self
+            .space
             .address(offset, byte_len)
             .map_err(Error::from)
-            .map_err(RuntimeError::new)
+            .map_err(RuntimeError::new)?;
+
+        Ok(address as usize)
     }
 
     /// Copy bytes into one live byte range.

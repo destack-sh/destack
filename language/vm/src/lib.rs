@@ -28,7 +28,7 @@ pub use value::*;
 pub use destack_engine::{EngineId as IsolateId, StaticPointer, StaticSpace, Value};
 pub use destack_heap::{
     Allocator, GcStats, Heap, HeapError, HeapImage, HeapLimits, HeapOptions, HeapReference,
-    HeapResult, HeapSpace, RawPointer, RawSpace, RootSink, RootSlot, SharedAllocator,
+    HeapResult, HeapSpace, RawPointer, RawSpace, RootSink, RootSlot, SharedAllocationCache,
     SharedGcWorker, SharedHeap, SharedHeapImage, SharedHeapLimits, SharedHeapReference,
     SharedHeapUsage, SharedRawAllocationImage, SharedRawBudget, SharedRawLimits, SharedRawPointer,
 };

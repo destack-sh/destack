@@ -1,5 +1,3 @@
-use std::ptr::NonNull;
-
 use destack_engine as engine;
 
 use super::frame::{
@@ -233,18 +231,10 @@ pub(crate) fn execute_load_callable_environment(
 
 /// Return one local function for a call target.
 #[inline]
-fn local_function<'iso>(
-    machine: &Machine<'_, 'iso>,
-    target: CallTarget,
-) -> Option<(NonNull<Function>, &'iso Function)> {
+fn local_function<'iso>(machine: &Machine<'_, 'iso>, target: CallTarget) -> Option<&'iso Function> {
     // only local callees can enter directly
     match target {
-        CallTarget::Local(index) => {
-            let pointer = machine.program.functions.pointer_by_index(index)?;
-            let function = machine.program.functions.function_by_index(index)?;
-
-            Some((pointer, function))
-        }
+        CallTarget::Local(index) => machine.program.functions.function_by_index(index),
         CallTarget::Import => None,
     }
 }
@@ -262,7 +252,7 @@ fn enter_local_call(
     let moves = moves?;
 
     // require one local callee before entering
-    let (callee_ptr, callee) = local_function(machine, target)?;
+    let callee = local_function(machine, target)?;
 
     // reject stack overflow before mutating any live machine
     if machine.interpreter.frames.len() >= machine.options().limits.max_stack_depth {
@@ -283,7 +273,7 @@ fn enter_local_call(
         Ok(frame) => frame,
         Err(error) => return Some(Transfer::Error(error.error)),
     };
-    let mut new_frame = Frame::new(callee_ptr, callee.entry, layout, stack_offset, frame_base);
+    let mut new_frame = Frame::new(callee, callee.entry, layout, stack_offset, frame_base);
     if let Err(error) = new_frame.store_environment(layout, env) {
         return Some(Transfer::Error(error));
     }
@@ -292,7 +282,10 @@ fn enter_local_call(
     let caller_index = machine.frame_index;
     let current_function = {
         let frame = machine.active_frame();
-        frame.function_ref()
+        match machine.program.functions.function_by_id(frame.function()) {
+            Some(function) => function,
+            None => return Some(Transfer::Error(Error::InvalidInstruction)),
+        }
     };
     let caller = match machine.frame(caller_index) {
         Ok(caller) => caller,
@@ -311,7 +304,7 @@ fn enter_local_call(
     // push the callee frame and continue at its entry block
     machine.interpreter.frames.push(new_frame);
     let new_index = machine.interpreter.frames.len() - 1;
-    if let Err(error) = machine.enter_frame(new_index, callee) {
+    if let Err(error) = machine.enter_frame(new_index) {
         return Some(Transfer::Error(error));
     }
 
@@ -741,9 +734,9 @@ pub(crate) fn execute_call_callable_branch(
 }
 
 /// Enter a tail call by reusing the current frame.
-fn enter_tail_call(
-    machine: &mut Machine<'_, '_>,
-    callee: &Function,
+fn enter_tail_call<'ctx, 'iso>(
+    machine: &mut Machine<'ctx, 'iso>,
+    callee: &'iso Function,
     argument_values: &[FrameValue],
     env: Option<Word>,
 ) -> Result<(), Error> {
@@ -762,15 +755,18 @@ fn enter_tail_call(
         .map_err(|error| error.error)?;
     {
         let frame = machine.active_frame_mut();
-        frame.function_ptr = NonNull::from(callee);
-        frame.block = callee.entry;
-        frame.pc = 0;
-        frame.replace_bytes(stack_offset, layout.byte_len as usize, frame_base);
+        frame.retarget(
+            callee,
+            callee.entry,
+            stack_offset,
+            layout.byte_len as usize,
+            frame_base,
+        );
         frame.store_environment(layout, env)?;
     }
 
-    // refresh cached pointers for the new function
-    machine.refresh_frame(callee)?;
+    // load dispatch metadata for the retargeted frame
+    machine.load_active_frame()?;
 
     // bind function parameters
     let program = machine.program;
@@ -825,7 +821,14 @@ pub(crate) fn execute_tail_call(
 
     // collect argument values
     let argument_values = {
-        let current_func = machine.active_frame().function_ref();
+        let current_func = match machine
+            .program
+            .functions
+            .function_by_id(machine.active_frame().function())
+        {
+            Some(function) => function,
+            None => return Transfer::Error(Error::InvalidInstruction),
+        };
         let caller = match machine.frame(machine.frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
@@ -895,7 +898,7 @@ pub(crate) fn execute_tail_call_self(
     {
         let (stack_offset, frame_base) = {
             let frame = machine.active_frame_mut();
-            (frame.stack_offset, frame.base_address() as *mut u8)
+            (frame.stack_offset, frame.base_address())
         };
         let frame_byte_len = frame_layout.byte_len as usize;
 
@@ -903,19 +906,12 @@ pub(crate) fn execute_tail_call_self(
             .interpreter
             .truncate_stack(stack_offset + frame_byte_len);
         let frame = machine.active_frame_mut();
-        frame.replace_bytes(stack_offset, frame_byte_len, frame_base);
+        frame.retarget(function, entry, stack_offset, frame_byte_len, frame_base);
         frame.clear_values(frame_layout);
     }
 
-    // update frame to entry block
-    {
-        let frame = machine.active_frame_mut();
-        frame.block = entry;
-        frame.pc = 0;
-    }
-
-    // refresh cached frame pointers after replacing frame bytes
-    if let Err(error) = machine.refresh_frame(function) {
+    // load dispatch metadata after replacing frame bytes
+    if let Err(error) = machine.load_active_frame() {
         return Transfer::Error(error);
     }
 
@@ -1119,7 +1115,10 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         Ok(frame) => frame,
         Err(error) => return Transfer::Error(error),
     };
-    let caller_function = caller.function_ref();
+    let caller_function = match machine.program.functions.function_by_id(caller.function()) {
+        Some(function) => function,
+        None => return Transfer::Error(Error::InvalidInstruction),
+    };
     let argument_values = match load_arguments(
         machine.program,
         machine.interpreter.frames.as_slice(),

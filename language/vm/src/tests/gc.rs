@@ -1,6 +1,9 @@
 use crate::Word;
 use crate::tests::create_test_heap;
-use destack_heap::{AllocationShape, Heap, HeapError, HeapReference, Payload};
+use destack_heap::{
+    AllocationShape, Heap, HeapError, HeapReference, HeapResult, Payload, RootSlot,
+    visit_heap_references,
+};
 use destack_mir::TraceMap;
 
 /// Allocate one managed cell for tests.
@@ -48,6 +51,14 @@ fn contains(heap: &Heap, reference: HeapReference) -> bool {
 /// Return the heap allocation count for tests.
 fn allocation_count(heap: &Heap) -> usize {
     heap.heap_allocation_count()
+}
+
+/// Visit mutable test roots as heap root slots.
+fn visit_roots(
+    roots: &mut [HeapReference],
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> HeapResult<()> {
+    visit_heap_references(roots, visit)
 }
 
 /// Read managed heap bytes for GC assertions.
@@ -114,7 +125,7 @@ fn test_gc_collects_unreachable() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
@@ -131,7 +142,7 @@ fn test_gc_preserves_reachable() {
     let handle2 = allocate(&mut heap);
     let mut roots = [handle1, handle2];
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
@@ -152,7 +163,7 @@ fn test_gc_follows_references() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
     let rewritten_root = roots[0];
     let rewritten_root_bytes = read_cell_bytes(&heap, rewritten_root, Word::BYTE_LEN);
@@ -198,7 +209,7 @@ fn test_gc_handles_cycles() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
     let rewritten_a = roots[0];
     let rewritten_a_bytes = read_cell_bytes(&heap, rewritten_a, Word::BYTE_LEN);
@@ -227,7 +238,9 @@ fn test_gc_empty_roots() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_full(&mut [])
+    let mut roots = [];
+
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 0);
@@ -245,7 +258,7 @@ fn test_gc_multiple_references_to_same_cell() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
     let first_holder_bytes = read_cell_bytes(&heap, roots[0], Word::BYTE_LEN);
     let second_holder_bytes = read_cell_bytes(&heap, roots[1], Word::BYTE_LEN);
@@ -278,7 +291,7 @@ fn test_gc_traces_nested_heap_references() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
     let rewritten_parent = roots[0];
     let rewritten_parent_bytes = read_cell_bytes(&heap, rewritten_parent, Word::BYTE_LEN);
@@ -311,8 +324,9 @@ fn test_gc_invalid_root_fails() {
 
     assert_eq!(allocation_count(&heap), 1);
 
+    let mut roots = [valid, invalid];
     let error = heap
-        .collect_full(&mut [valid, invalid])
+        .collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect_err("invalid roots should fail collection");
 
     assert_eq!(
@@ -332,14 +346,14 @@ fn test_gc_repeated_collection() {
     let _garbage = allocate(&mut heap);
     let mut roots = [root];
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 
     let _more_garbage = allocate(&mut heap);
     let _even_more = allocate(&mut heap);
 
-    heap.collect_full(&mut roots)
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
         .expect("heap collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 }

@@ -623,9 +623,9 @@ impl ProgramBuilder {
     fn build(mut self) -> Result<Program> {
         let function_id_by_name = self.build_function_id_by_name();
         let (function_ids, target_by_id) = self.build_function_targets();
-        let type_layouts = build_layouts(&self.tree)?;
-        let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
-        let mir_layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
+        let layout_id_by_type = self.build_layout_id_map()?;
+        let type_layouts = build_layouts(&self.tree, &layout_id_by_type)?;
+        let mir_layouts = self.build_layout_table(&type_layouts)?;
         let statics = self.build_statics(&type_layouts)?;
         let mut side_table = SideTableBuilder::default();
         let functions = self.build_functions(
@@ -637,7 +637,7 @@ impl ProgramBuilder {
         )?;
         let side_table = side_table.finish();
         let functions = FunctionTable::new(functions, target_by_id);
-        let types = TypeTable::new(type_layouts, layout_id_by_type)?;
+        let types = TypeTable::new(type_layouts);
 
         Ok(Program {
             tree: self.tree,
@@ -731,20 +731,18 @@ impl ProgramBuilder {
     }
 
     /// Build the layout id map for all compiled MIR types.
-    fn build_layout_id_map(
-        &self,
-        layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ) -> Result<HashMap<mir::LocalNodeId<mir::Type>, LayoutId>> {
-        let next_layout_id = layouts
-            .keys()
-            .filter_map(|type_id| self.tree.type_layout_id(*type_id))
+    fn build_layout_id_map(&self) -> Result<HashMap<mir::LocalNodeId<mir::Type>, LayoutId>> {
+        let next_layout_id = self
+            .tree
+            .iter_nodes::<mir::Type>()
+            .filter_map(|(type_id, _)| self.tree.type_layout_id(type_id))
             .map(|layout_id| layout_id.raw())
             .max()
             .unwrap_or(0);
         let mut next_layout_id = next_layout_id.saturating_add(1);
         let mut layout_id_by_type = HashMap::new();
 
-        for type_id in layouts.keys().copied() {
+        for (type_id, _) in self.tree.iter_nodes::<mir::Type>() {
             let layout_id = if let Some(layout_id) = self.tree.type_layout_id(type_id) {
                 layout_id
             } else {
@@ -769,11 +767,10 @@ impl ProgramBuilder {
     fn build_layout_table(
         &self,
         layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-        layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
     ) -> Result<LayoutTable> {
-        let max_layout_id = layout_id_by_type
+        let max_layout_id = layouts
             .values()
-            .map(|layout_id| layout_id.raw() as usize)
+            .map(|layout| layout.layout_id.raw() as usize)
             .max()
             .unwrap_or(0);
         let mut table = LayoutTable::new();
@@ -785,12 +782,7 @@ impl ProgramBuilder {
         });
 
         // compiled type layouts
-        for (type_id, layout_id) in layout_id_by_type {
-            let layout = layouts
-                .get(type_id)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!("missing program layout for heap type {type_id:?}"),
-                })?;
+        for (type_id, layout) in layouts {
             let module_layout = match self.tree.get(*type_id) {
                 mir::Type::Closure { environment, .. } => {
                     let environment =
@@ -813,11 +805,11 @@ impl ProgramBuilder {
                     trace_map: layout.trace_map.clone(),
                 },
             };
-            let index = layout_id.index();
+            let index = layout.layout_id.index();
 
             if index >= table.layouts.len() {
                 return Err(Error::InvariantViolation {
-                    context: format!("layout id out of range: {layout_id:?}"),
+                    context: format!("layout id out of range: {:?}", layout.layout_id),
                 });
             }
 

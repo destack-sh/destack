@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_engine::{StaticSpace, Value};
 use destack_heap::{
-    Allocator, GcStats, Heap, HeapLimits, HeapOptions, HeapReference, SharedAllocator,
+    Allocator, GcStats, Heap, HeapLimits, HeapOptions, HeapReference, SharedAllocationCache,
     SharedGcWorker, SharedHeapLimits, SharedHeapOptions,
 };
 
@@ -13,7 +13,7 @@ use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::program::{Layout, encode_word_bytes};
-use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, RootSet, Word};
+use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Word};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_BYTES: usize = 16 * 1024 * 1024;
@@ -30,8 +30,8 @@ pub(crate) struct TestIsolate {
     pub shared_heap: SharedHeap,
     /// The shared collector worker used by this isolate.
     pub shared_gc: SharedGcWorker,
-    /// The worker-local shared heap allocator.
-    pub shared_allocator: SharedAllocator,
+    /// The worker-local shared allocation cache.
+    pub shared_cache: SharedAllocationCache,
 }
 
 /// Create one local test heap.
@@ -96,7 +96,7 @@ impl TestIsolate {
         let heap = create_test_heap();
         let shared_heap = create_test_shared_heap();
         let shared_gc = shared_heap.register_collector_worker();
-        let shared_allocator = shared_heap.allocator();
+        let shared_cache = shared_heap.allocation_cache();
 
         isolate
             .initialize(&heap, &shared_heap, &mut statics)
@@ -108,7 +108,7 @@ impl TestIsolate {
             heap,
             shared_heap,
             shared_gc,
-            shared_allocator,
+            shared_cache,
         }
     }
 
@@ -174,11 +174,13 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<Value> {
-        self.isolate.run_function_by_name(
+        let function = self.isolate.function_id_by_name(function)?;
+
+        self.isolate.run_function(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
-            &mut self.shared_allocator,
+            &mut self.shared_cache,
             &self.shared_gc,
             function,
             arguments,
@@ -191,11 +193,13 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<Outcome> {
-        self.isolate.run_function_by_name_yielding(
+        let function = self.isolate.function_id_by_name(function)?;
+
+        self.isolate.run_function_yielding(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
-            &mut self.shared_allocator,
+            &mut self.shared_cache,
             &self.shared_gc,
             function,
             arguments,
@@ -210,11 +214,11 @@ impl TestIsolate {
     ) -> RuntimeResult<Value> {
         let function = self.isolate.function_id_by_name(function)?;
 
-        self.isolate.run_function_frame(
+        self.isolate.run_function_words(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
-            &mut self.shared_allocator,
+            &mut self.shared_cache,
             &self.shared_gc,
             function,
             arguments,
@@ -231,7 +235,7 @@ impl TestIsolate {
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
-            &mut self.shared_allocator,
+            &mut self.shared_cache,
             &self.shared_gc,
             continuation,
             resume_value,
@@ -248,15 +252,15 @@ impl TestIsolate {
         &mut self,
         continuations: &mut [Continuation],
     ) -> GcStats {
-        let mut roots = RootSet::default();
+        let mut shared_roots = Vec::new();
         self.isolate
             .visit_root_slots(&mut self.statics, continuations, &mut |slot| {
                 let root = slot.load()?;
-                destack_heap::RootSink::push(&mut roots, root);
+                destack_heap::RootSink::push(&mut shared_roots, root);
 
                 Ok(())
             })
-            .expect("failed to collect root set");
+            .expect("failed to collect shared roots");
         let mut heap_roots =
             |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
                 self.isolate
@@ -271,7 +275,7 @@ impl TestIsolate {
             .expect("failed to collect heap");
         let shared_stats = self
             .shared_heap
-            .collect_full(&roots.shared_heap)
+            .collect_full(&shared_roots)
             .expect("failed to collect shared heap");
 
         stats.freed_allocations += shared_stats.freed_allocations;
@@ -407,7 +411,7 @@ pub(crate) fn create_isolate_with_data_layout(
     let heap = create_test_heap();
     let shared = create_test_shared_heap();
     let shared_gc = shared.register_collector_worker();
-    let shared_allocator = shared.allocator();
+    let shared_cache = shared.allocation_cache();
     isolate
         .initialize(&heap, &shared, &mut statics)
         .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
@@ -418,7 +422,7 @@ pub(crate) fn create_isolate_with_data_layout(
         heap,
         shared_heap: shared,
         shared_gc,
-        shared_allocator,
+        shared_cache,
     }
 }
 

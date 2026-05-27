@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
-    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocator, SharedGcWorker, SharedHeap,
+    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocationCache, SharedGcWorker, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir as mir;
@@ -20,8 +20,8 @@ pub(crate) struct Runtime {
     pub(crate) heap: Heap,
     /// The runtime shared heap.
     shared: SharedHeap,
-    /// The worker-local shared allocator.
-    shared_allocator: SharedAllocator,
+    /// The worker-local shared allocation cache.
+    shared_cache: SharedAllocationCache,
     /// The shared collector worker.
     shared_gc: SharedGcWorker,
     /// The benchmark entry function.
@@ -50,7 +50,7 @@ impl Runtime {
         let heap = heap();
         let shared = shared_heap();
         let shared_gc = shared.register_collector_worker();
-        let shared_allocator = shared.allocator();
+        let shared_cache = shared.allocation_cache();
 
         // initialize program statics
         isolate
@@ -67,7 +67,7 @@ impl Runtime {
             statics,
             heap,
             shared,
-            shared_allocator,
+            shared_cache,
             shared_gc,
             entry,
         }
@@ -91,7 +91,7 @@ impl Runtime {
                 &mut self.statics,
                 &mut self.heap,
                 &self.shared,
-                &mut self.shared_allocator,
+                &mut self.shared_cache,
                 &self.shared_gc,
                 entry,
                 arguments,
@@ -124,7 +124,7 @@ fn shared_heap() -> SharedHeap {
     let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
-            .expect("benchmark shared allocator should build"),
+            .expect("benchmark shared page allocator should build"),
     );
 
     SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)

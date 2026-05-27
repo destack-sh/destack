@@ -1,5 +1,3 @@
-use std::ptr::NonNull;
-
 use crate::Word;
 use {destack_engine as engine, destack_mir as mir};
 
@@ -14,8 +12,6 @@ use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 
 /// Local lowered function target.
 struct LocalFunction<'a> {
-    /// The stable function pointer stored in VM frames.
-    pointer: NonNull<Function>,
     /// The lowered function body.
     function: &'a Function,
 }
@@ -37,15 +33,7 @@ impl Interpreter {
             }
         };
 
-        // load the lowered function pointer and body
-        let pointer = program
-            .functions
-            .pointer_by_index(function_index)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: function_id,
-                })
-            })?;
+        // load the lowered function body
         let function = program
             .functions
             .function_by_index(function_index)
@@ -55,7 +43,7 @@ impl Interpreter {
                 })
             })?;
 
-        Ok(LocalFunction { pointer, function })
+        Ok(LocalFunction { function })
     }
 
     /// Return the runtime boundary error for one imported call.
@@ -105,7 +93,7 @@ impl Interpreter {
         caller_frame.return_state = return_state;
 
         let mut new_frame = Frame::new(
-            callee.pointer,
+            callee.function,
             entry_block,
             frame_layout,
             stack_offset,
@@ -176,11 +164,13 @@ impl Interpreter {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        frame.function_ptr = callee.pointer;
-        frame.block = entry_block;
-        frame.pc = 0;
-        frame.return_state = None;
-        frame.replace_bytes(stack_offset, frame_layout.byte_len as usize, frame_base);
+        frame.retarget(
+            callee.function,
+            entry_block,
+            stack_offset,
+            frame_layout.byte_len as usize,
+            frame_base,
+        );
         frame
             .store_environment(frame_layout, env)
             .map_err(RuntimeError::new)?;
@@ -262,7 +252,10 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         // resume after the terminator once the callee returns
-        let function = caller.function_ref();
+        let function = program
+            .functions
+            .function_by_id(caller.function())
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let resume_pc = function
             .block_len(caller.block)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
