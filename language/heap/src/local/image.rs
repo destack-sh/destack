@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use destack_mir::TraceTable;
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
@@ -209,8 +210,8 @@ impl Heap {
     /// Fork one live heap over the same shared allocator.
     ///
     /// Call this only from a safepoint where the heap cannot mutate.
-    pub fn fork(&mut self) -> Result<Self, HeapError> {
-        let heap = self.heap.fork()?;
+    pub fn fork(&mut self, trace_table: &TraceTable) -> Result<Self, HeapError> {
+        let heap = self.heap.fork(trace_table)?;
         let raw = self.raw.fork()?;
 
         Ok(Self {
@@ -224,25 +225,29 @@ impl Heap {
     }
 
     /// Create one heap from one frozen heap image.
-    pub fn from_image(image: &HeapImage) -> Result<Self, HeapError> {
-        Self::from_image_with_limits(image, HeapLimits::default())
+    pub fn from_image(image: &HeapImage, trace_table: &TraceTable) -> Result<Self, HeapError> {
+        Self::from_image_with_limits(image, HeapLimits::default(), trace_table)
     }
 
     /// Create one heap from one serialized heap snapshot.
-    pub fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
+    pub fn from_snapshot(
+        snapshot: &HeapSnapshot,
+        trace_table: &TraceTable,
+    ) -> Result<Self, HeapError> {
         let image = HeapImage::from_snapshot(snapshot)?;
 
-        Self::from_image(&image)
+        Self::from_image(&image, trace_table)
     }
 
     /// Create one heap from one serialized heap snapshot and explicit hard limits.
     pub fn from_snapshot_with_limits(
         snapshot: &HeapSnapshot,
         limits: HeapLimits,
+        trace_table: &TraceTable,
     ) -> Result<Self, HeapError> {
         let image = HeapImage::from_snapshot(snapshot)?;
 
-        Self::from_image_with_limits(&image, limits)
+        Self::from_image_with_limits(&image, limits, trace_table)
     }
 
     /// Create one heap from one serialized heap snapshot, allocator, and explicit hard limits.
@@ -250,20 +255,22 @@ impl Heap {
         snapshot: &HeapSnapshot,
         allocator: Arc<Allocator>,
         limits: HeapLimits,
+        trace_table: &TraceTable,
     ) -> Result<Self, HeapError> {
         let image = HeapImage::from_snapshot_with_allocator(snapshot, allocator)?;
 
-        Self::from_image_with_limits(&image, limits)
+        Self::from_image_with_limits(&image, limits, trace_table)
     }
 
     /// Create one heap from one frozen heap image and explicit hard limits.
     pub fn from_image_with_limits(
         image: &HeapImage,
         limits: HeapLimits,
+        trace_table: &TraceTable,
     ) -> Result<Self, HeapError> {
         image.options().validate_local()?;
 
-        let heap = HeapSpace::from_image(image.allocator().clone(), image.heap())?;
+        let heap = HeapSpace::from_image(image.allocator().clone(), image.heap(), trace_table)?;
         let raw = RawSpace::from_image(image.allocator().clone(), image.raw())?;
 
         let mut heap = Self {
@@ -289,11 +296,15 @@ impl Heap {
     }
 
     /// Restore this heap from one frozen heap image.
-    pub fn restore_image(&mut self, image: &HeapImage) -> Result<(), HeapError> {
+    pub fn restore_image(
+        &mut self,
+        image: &HeapImage,
+        trace_table: &TraceTable,
+    ) -> Result<(), HeapError> {
         self.heap.check_branch_boundary()?;
 
         let limits = self.limits;
-        *self = Self::from_image_with_limits(image, limits)?;
+        *self = Self::from_image_with_limits(image, limits, trace_table)?;
 
         Ok(())
     }

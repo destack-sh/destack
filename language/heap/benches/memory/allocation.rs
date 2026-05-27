@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
 use destack_heap::AllocationShape;
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use crate::config::{
     ALLOCATION_MATRIX_BYTES, LARGE_ALLOCATIONS, LARGE_BYTES, MATRIX_MAX_ALLOCATIONS,
@@ -26,10 +26,11 @@ fn matrix_allocation_count(byte_len: usize) -> usize {
 pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_allocation");
     let trace_map = TraceMap::Empty;
+    let trace_table = TraceTable::new();
     let payload = [0xAB; SMALL_BYTES];
-    let shape = AllocationShape::new(SMALL_BYTES, 1, &trace_map);
+    let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
     let large_payload = vec![0xAB; LARGE_BYTES];
-    let large_shape = AllocationShape::new(LARGE_BYTES, 1, &trace_map);
+    let large_shape = AllocationShape::new(LARGE_BYTES, 1, None, &trace_map);
 
     // small objects exercise the cached allocator path
     group.throughput(Throughput::Elements(SMALL_ALLOCATIONS as u64));
@@ -112,7 +113,12 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 // prime the allocation run outside the timed loop
                 let warm_reference = shared_worker
                     .heap
-                    .allocate_zeroed(&shared_worker.worker, &mut shared_worker.allocator, &layout)
+                    .allocate_zeroed(
+                        &shared_worker.worker,
+                        &mut shared_worker.allocator,
+                        &layout,
+                        &trace_table,
+                    )
                     .expect("shared heap allocation should prime");
                 black_box(warm_reference);
 
@@ -126,6 +132,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &shared_worker.worker,
                             &mut shared_worker.allocator,
                             &layout,
+                            &trace_table,
                         )
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
@@ -156,6 +163,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                         &mut shared_worker.allocator,
                         &layout,
                         &payload,
+                        &trace_table,
                     )
                     .expect("shared heap allocation should prime");
                 black_box(warm_reference);
@@ -171,6 +179,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &mut shared_worker.allocator,
                             &layout,
                             &payload,
+                            &trace_table,
                         )
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
@@ -257,6 +266,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &shared_worker.worker,
                             &mut shared_worker.allocator,
                             &layout,
+                            &trace_table,
                         )
                         .expect("shared large allocation should succeed");
                     black_box(reference);
@@ -289,6 +299,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &mut shared_worker.allocator,
                             &layout,
                             &large_payload,
+                            &trace_table,
                         )
                         .expect("shared large allocation should succeed");
                     black_box(reference);
@@ -309,6 +320,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_allocation_matrix");
     let trace_map = TraceMap::Empty;
+    let trace_table = TraceTable::new();
 
     // sweep representative size classes through the public allocator paths
     for byte_len in ALLOCATION_MATRIX_BYTES {
@@ -319,7 +331,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
 
                 bencher.iter_custom(|iterations| {
                     let mut elapsed = Duration::ZERO;
@@ -358,7 +370,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -398,7 +410,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
 
                 bencher.iter_custom(|iterations| {
                     let mut elapsed = Duration::ZERO;
@@ -415,6 +427,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                 &shared_worker.worker,
                                 &mut shared_worker.allocator,
                                 &layout,
+                                &trace_table,
                             )
                             .expect("shared zeroed allocation should prime");
                         black_box(warm_reference);
@@ -429,6 +442,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                     &shared_worker.worker,
                                     &mut shared_worker.allocator,
                                     &layout,
+                                    &trace_table,
                                 )
                                 .expect("shared zeroed allocation should succeed");
                             black_box(reference);
@@ -447,7 +461,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -466,6 +480,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                 &mut shared_worker.allocator,
                                 &layout,
                                 &payload,
+                                &trace_table,
                             )
                             .expect("shared byte allocation should prime");
                         black_box(warm_reference);
@@ -481,6 +496,7 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                     &mut shared_worker.allocator,
                                     &layout,
                                     &payload,
+                                    &trace_table,
                                 )
                                 .expect("shared byte allocation should succeed");
                             black_box(reference);
@@ -503,7 +519,8 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_shared_parallel_allocation");
     let trace_map = TraceMap::Empty;
-    let shape = AllocationShape::new(SMALL_BYTES, 1, &trace_map);
+    let trace_table = TraceTable::new();
+    let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
     group.throughput(Throughput::Elements(
         (PARALLEL_ALLOCATIONS_PER_WORKER * PARALLEL_WORKERS[0]) as u64,
     ));
@@ -534,6 +551,7 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
                             for _ in 0..*worker_count {
                                 let shared = Arc::clone(&shared);
                                 let barrier = Arc::clone(&barrier);
+                                let trace_table = &trace_table;
 
                                 scope.spawn(move || {
                                     let mut allocator = shared.allocation_cache();
@@ -543,7 +561,12 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
                                     // measure the parallel public allocation path
                                     for _ in 0..PARALLEL_ALLOCATIONS_PER_WORKER {
                                         let reference = shared
-                                            .allocate_zeroed(&worker, &mut allocator, &layout)
+                                            .allocate_zeroed(
+                                                &worker,
+                                                &mut allocator,
+                                                &layout,
+                                                trace_table,
+                                            )
                                             .expect("shared parallel allocation should succeed");
                                         black_box(reference);
                                     }

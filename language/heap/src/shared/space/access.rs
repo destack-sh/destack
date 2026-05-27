@@ -1,4 +1,4 @@
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use super::space::{allocation_byte_offset, small_slot_offset};
 use super::{SharedHeapLocation, SharedHeapPlace, SharedHeapSpace};
@@ -18,10 +18,14 @@ impl SharedHeapSpace {
     }
 
     /// Return the trace map for one shared heap reference.
-    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TraceMap> {
+    pub fn scan(
+        &self,
+        reference: SharedHeapReference,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
         let (location, _) = self.resolve_range(reference, 0, 0)?;
 
-        self.trace_map_for_place(location.place)
+        self.trace_map_for_place(location.place, trace_table)
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -30,10 +34,11 @@ impl SharedHeapSpace {
         reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         let (_, byte_offset) = self.resolve_range(reference, start, bytes.len())?;
 
-        self.write_shared_barrier_bytes(reference, byte_offset, bytes)
+        self.write_shared_barrier_bytes(reference, byte_offset, bytes, trace_table)
     }
 
     /// Record one shared heap write barrier after one completed byte store.
@@ -42,10 +47,11 @@ impl SharedHeapSpace {
         reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         let (location, byte_offset) = self.resolve_range(reference, start, byte_len)?;
 
-        self.publish_location_edges(location, byte_offset, byte_len)
+        self.publish_location_edges(location, byte_offset, byte_len, trace_table)
     }
 
     /// Publish shared edges from one already-resolved byte range.
@@ -54,6 +60,7 @@ impl SharedHeapSpace {
         location: SharedHeapLocation,
         byte_offset: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // inactive collector
         let Some(_publication) = self.gc.begin_mark_publication() else {
@@ -66,7 +73,7 @@ impl SharedHeapSpace {
         }
 
         // scan inserted shared references in mapped heap memory
-        let trace_map = self.trace_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
         let mut edges = Vec::new();
 
         let base_address = self.mapping.base_address() + location.base.offset();
@@ -102,11 +109,15 @@ impl SharedHeapSpace {
     }
 
     /// Return the trace map for one shared heap location.
-    pub(crate) fn trace_map_for_place(&self, place: SharedHeapPlace) -> HeapResult<TraceMap> {
+    pub(crate) fn trace_map_for_place(
+        &self,
+        place: SharedHeapPlace,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
         // dispatch by physical shared heap place
         match place {
             SharedHeapPlace::Small(slot) => {
-                self.small_slot_trace_map(slot.span_index(), slot.slot_index())
+                self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)
             }
             SharedHeapPlace::Large(allocation_id) => {
                 let trace_map = self

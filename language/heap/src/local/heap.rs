@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use crate::allocator::Allocator;
 use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
-    AllocationPlan, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
-    HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawAllocationShape, RawPointer,
-    RootSlot, SharedHeapReference, SmallAllocationPlan,
+    AllocationPlan, AllocationShape, AllocationSite, GcPacer, GcPressure, GcProgress, GcState,
+    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload,
+    RawAllocationShape, RawPointer, RootSlot, SharedHeapReference,
 };
 
 /// One live heap over one shared allocator.
@@ -94,6 +94,12 @@ impl Heap {
         self.heap.live_references()
     }
 
+    /// Return whether one heap reference currently refers to young space.
+    #[cfg(test)]
+    pub(crate) fn is_young(&self, reference: HeapReference) -> bool {
+        self.heap.is_young(reference)
+    }
+
     /// Return the current collector state.
     pub fn gc_state(&self) -> &GcState {
         self.heap.gc_state()
@@ -119,8 +125,10 @@ impl Heap {
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
-        self.heap.scan_shared_references(roots, budget_bytes)
+        self.heap
+            .scan_shared_references(roots, budget_bytes, trace_table)
     }
 
     /// Stabilize one heap reference in mature space.
@@ -152,6 +160,7 @@ impl Heap {
     pub fn collect_minor<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        trace_table: &TraceTable,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -159,7 +168,7 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        let stats = self.heap.collect_minor(roots)?;
+        let stats = self.heap.collect_minor(roots, trace_table)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
@@ -169,6 +178,7 @@ impl Heap {
     pub fn collect_full<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        trace_table: &TraceTable,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
@@ -176,7 +186,7 @@ impl Heap {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
 
-        let stats = self.heap.collect_full(roots)?;
+        let stats = self.heap.collect_full(roots, trace_table)?;
         self.on_after_gc_cycle(stats);
 
         Ok(stats)
@@ -211,6 +221,7 @@ impl Heap {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -223,7 +234,7 @@ impl Heap {
 
         // service young GC work
         if self.heap.young_gc_active() {
-            let progress = self.heap.step_young_gc(roots, budget_bytes)?;
+            let progress = self.heap.step_young_gc(roots, budget_bytes, trace_table)?;
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
             }
@@ -233,7 +244,7 @@ impl Heap {
 
         // service major GC work
         if self.heap.major_gc_active() {
-            let progress = self.heap.step_major_gc(roots, budget_bytes)?;
+            let progress = self.heap.step_major_gc(roots, budget_bytes, trace_table)?;
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
             }
@@ -251,7 +262,7 @@ impl Heap {
         // full cycles run as bounded mark and sweep work
         if gc_request == GcRequest::Full {
             self.heap.start_major_gc(roots)?;
-            let progress = self.heap.step_major_gc(roots, budget_bytes)?;
+            let progress = self.heap.step_major_gc(roots, budget_bytes, trace_table)?;
 
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
@@ -264,7 +275,7 @@ impl Heap {
         // nursery cycles move objects, so drain them at one safepoint
         else {
             self.heap.start_young_gc()?;
-            let progress = self.heap.step_young_gc(roots, budget_bytes)?;
+            let progress = self.heap.step_young_gc(roots, budget_bytes, trace_table)?;
 
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
@@ -350,29 +361,58 @@ impl Heap {
         // no-scan small allocations use the young run cursor directly
         if layout.is_noscan
             && let Some(small) = layout.class.small()
-            && let Some(reference) = self.heap.reserve_young_run_cursor(small.slot_bytes())
+            && let Some(reference) = self.heap.reserve_young_run_cursor(small)
         {
             return Ok(reference);
         }
 
-        self.allocate_zeroed_refill(layout)
-    }
-
-    /// Reserve one zeroed no-scan allocation from the active young run.
-    #[inline(always)]
-    pub fn reserve_young(&mut self, small: SmallAllocationPlan) -> Option<HeapReference> {
-        self.heap.reserve_young_run_cursor(small.slot_bytes())
-    }
-
-    /// Refill zeroed allocation state or allocate from mature space.
-    #[cold]
-    #[inline(never)]
-    fn allocate_zeroed_refill(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<HeapReference> {
-        // refill the young cursor or allocate through mature space
         if let Some(reference) = self.heap.try_allocate_young_zeroed(layout)? {
             return Ok(reference);
         }
 
+        self.allocate_zeroed_mature(layout)
+    }
+
+    /// Try to allocate one zeroed payload from a compiled allocation site.
+    #[inline(always)]
+    pub fn try_allocate_site_zeroed(&mut self, site: AllocationSite) -> Option<HeapReference> {
+        if site.is_empty() {
+            return None;
+        }
+
+        // active major collection needs the slow path to publish traced allocations
+        if !site.is_noscan && self.heap.major_gc_active() {
+            return None;
+        }
+
+        let small = site.class.small()?;
+        let reference = self.heap.reserve_young_run_cursor(small)?;
+
+        // track every live reference whose layout may contain shared edges
+        if site.has_shared_reference {
+            self.heap.collector.track_shared_edge_root(reference);
+        }
+
+        Some(reference)
+    }
+
+    /// Allocate one zeroed payload from a compiled allocation site.
+    #[cold]
+    #[inline(never)]
+    pub fn allocate_site_zeroed(
+        &mut self,
+        site: AllocationSite,
+        trace_map: &TraceMap,
+    ) -> HeapResult<HeapReference> {
+        let layout = site.plan(trace_map);
+
+        self.allocate_zeroed(&layout)
+    }
+
+    /// Allocate one zeroed payload from mature space.
+    #[cold]
+    #[inline(never)]
+    fn allocate_zeroed_mature(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<HeapReference> {
         let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
 
         // check the projected heap retained-byte delta first
@@ -427,8 +467,8 @@ impl Heap {
     }
 
     /// Return the heap scan metadata for one heap allocation.
-    pub fn scan(&self, reference: HeapReference) -> HeapResult<TraceMap> {
-        self.heap.scan(reference)
+    pub fn scan(&self, reference: HeapReference, trace_table: &TraceTable) -> HeapResult<TraceMap> {
+        self.heap.scan(reference, trace_table)
     }
 
     /// Record one heap write barrier over one byte range.
@@ -437,8 +477,10 @@ impl Heap {
         reference: HeapReference,
         start: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        self.heap.write_barrier(reference, start, byte_len)
+        self.heap
+            .write_barrier(reference, start, byte_len, trace_table)
     }
 
     /// Return old and new shared edges for one heap store before it writes.
@@ -447,9 +489,10 @@ impl Heap {
         reference: HeapReference,
         start: usize,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         self.heap
-            .shared_write_barrier_bytes(reference, start, bytes)
+            .shared_write_barrier_bytes(reference, start, bytes, trace_table)
     }
 
     /// Return the bytes for one raw allocation as one owned vector.

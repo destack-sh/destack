@@ -1,4 +1,4 @@
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use super::{HeapLocation, HeapPlace, HeapSpace, YoungPlace};
 use crate::{
@@ -18,6 +18,17 @@ impl HeapSpace {
         self.resolve_location(reference).is_some()
     }
 
+    /// Return whether one heap reference currently refers to young space.
+    #[cfg(test)]
+    pub(crate) fn is_young(&self, reference: HeapReference) -> bool {
+        matches!(
+            self.resolve_location(reference)
+                .map(|location| location.place),
+            Some(HeapPlace::Young(YoungPlace::Range { .. }))
+                | Some(HeapPlace::Young(YoungPlace::Slot(_)))
+        )
+    }
+
     /// Return the live place for one heap reference.
     #[cfg(test)]
     pub(crate) fn place(&self, reference: HeapReference) -> Option<HeapPlace> {
@@ -25,12 +36,12 @@ impl HeapSpace {
     }
 
     /// Return the trace map for one heap reference.
-    pub fn scan(&self, reference: HeapReference) -> HeapResult<TraceMap> {
+    pub fn scan(&self, reference: HeapReference, trace_table: &TraceTable) -> HeapResult<TraceMap> {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
         };
 
-        self.trace_map_for_place(location.place)
+        self.trace_map_for_place(location.place, trace_table)
     }
 
     /// Record one heap write barrier for one live heap allocation.
@@ -39,10 +50,11 @@ impl HeapSpace {
         reference: HeapReference,
         start: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         let (location, byte_offset) = self.resolve_range(reference, start, byte_len)?;
 
-        self.record_write_barrier(reference, location, byte_offset, byte_len)
+        self.record_write_barrier(reference, location, byte_offset, byte_len, trace_table)
     }
 
     /// Return old and new shared edges for one heap store before it writes.
@@ -51,10 +63,11 @@ impl HeapSpace {
         reference: HeapReference,
         start: usize,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         let (location, byte_offset) = self.resolve_range(reference, start, bytes.len())?;
 
-        self.shared_write_barrier_location_bytes(location, byte_offset, bytes)
+        self.shared_write_barrier_location_bytes(location, byte_offset, bytes, trace_table)
     }
 
     /// Return old and new shared edges for one already-resolved heap store.
@@ -63,9 +76,10 @@ impl HeapSpace {
         location: HeapLocation,
         byte_offset: usize,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         // skip ranges that cannot contain shared references
-        let trace_map = self.trace_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
         if !self.overlaps_shared_roots(&trace_map, byte_offset, bytes.len()) {
             return Ok(Vec::new());
         }
@@ -123,12 +137,13 @@ impl HeapSpace {
         location: HeapLocation,
         byte_offset: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // local collector metadata
-        self.record_local_write(location, byte_offset, byte_len)?;
+        self.record_local_write(location, byte_offset, byte_len, trace_table)?;
 
         // shared collector metadata
-        self.record_shared_edge_write(reference, location, byte_offset, byte_len)
+        self.record_shared_edge_write(reference, location, byte_offset, byte_len, trace_table)
     }
 
     /// Record local collector metadata for one live heap location.
@@ -137,20 +152,27 @@ impl HeapSpace {
         location: HeapLocation,
         byte_offset: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        self.write_major_barrier(location, byte_offset, byte_len)?;
+        self.write_major_barrier(location, byte_offset, byte_len, trace_table)?;
 
         // only mature locations need remembered-write bookkeeping
         match location.place {
             HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_)) => {
                 Ok(())
             }
-            HeapPlace::Small(slot) => self.mark_span_slot_dirty(
-                slot.span_index(),
-                slot.slot_index(),
-                byte_offset,
-                byte_len,
-            ),
+            HeapPlace::Small(slot) => {
+                let trace_map =
+                    self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)?;
+
+                self.mark_span_slot_dirty(
+                    slot.span_index(),
+                    slot.slot_index(),
+                    byte_offset,
+                    byte_len,
+                    &trace_map,
+                )
+            }
             HeapPlace::Large(allocation_id) => {
                 self.mark_large_allocation_dirty(allocation_id, byte_offset, byte_len)
             }
@@ -164,6 +186,7 @@ impl HeapSpace {
         location: HeapLocation,
         byte_offset: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // inactive local-to-shared scan
         if !self.collector.is_scanning_shared_edges {
@@ -171,12 +194,12 @@ impl HeapSpace {
         }
 
         // skip writes that cannot touch shared references
-        let trace_map = self.trace_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
         if !self.overlaps_shared_roots(&trace_map, byte_offset, byte_len) {
             return Ok(());
         }
 
-        self.queue_shared_reference(reference)
+        self.queue_shared_reference(reference, trace_table)
     }
 }
 

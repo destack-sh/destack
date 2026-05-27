@@ -6,6 +6,7 @@ use crate::{
 /// Reclaim one freed raw allocation and keep the allocator live.
 #[test]
 fn test_free_raw_reclaims_live_allocation() {
+    // allocate one live raw payload
     let options = HeapOptions::local();
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
@@ -22,6 +23,7 @@ fn test_free_raw_reclaims_live_allocation() {
 /// Clear bytes when reusing one freed raw slot for zeroed allocation.
 #[test]
 fn test_allocate_zeroed_raw_clears_reused_slot() {
+    // seed one nonzero raw slot
     let options = HeapOptions::local();
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
@@ -41,10 +43,12 @@ fn test_allocate_zeroed_raw_clears_reused_slot() {
 /// Reject caller-provided raw bytes that do not match the allocation shape.
 #[test]
 fn test_reject_raw_allocation_byte_len_mismatch() {
+    // build a default raw space
     let options = HeapOptions::local();
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
 
+    // provide fewer bytes than the requested shape
     let error = raw
         .allocate(RawAllocationShape::new(4, 1), Payload::Bytes(&[1, 2]))
         .expect_err("raw allocation should reject mismatched bytes");
@@ -61,6 +65,7 @@ fn test_reject_raw_allocation_byte_len_mismatch() {
 /// Honor the requested raw allocation base alignment.
 #[test]
 fn test_allocate_raw_honors_alignment() {
+    // build a default raw space
     let options = HeapOptions::local();
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
@@ -83,6 +88,7 @@ fn test_allocate_raw_honors_alignment() {
 /// Keep raw fork writes independent from the parent mapping.
 #[test]
 fn test_fork_raw_write_is_independent() {
+    // allocate one raw payload before forking
     let options = HeapOptions::local();
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");
@@ -103,6 +109,7 @@ fn test_fork_raw_write_is_independent() {
 /// Reclaim one freed raw large allocation and allow another large allocation.
 #[test]
 fn test_free_raw_reclaims_large_allocation() {
+    // force allocations larger than the local small span classes
     let options = HeapOptions {
         heap_small_bytes: 32,
         raw_small_bytes: 32,
@@ -127,6 +134,7 @@ fn test_free_raw_reclaims_large_allocation() {
     raw.free(pointer).expect("raw large free should succeed");
     assert!(!raw.is_live(pointer));
 
+    // allocating again should keep the raw space usable
     let next_pointer = raw
         .allocate(
             RawAllocationShape::bytes(large_byte_len),
@@ -140,6 +148,7 @@ fn test_free_raw_reclaims_large_allocation() {
 /// Re-place one raw allocation when replacement bytes fit a smaller class.
 #[test]
 fn test_replace_large_raw_can_move_to_small() {
+    // allocate one payload above the local small raw threshold
     let options = HeapOptions {
         heap_small_bytes: 32,
         raw_small_bytes: 32,
@@ -172,6 +181,7 @@ fn test_replace_large_raw_can_move_to_small() {
 /// Reject one invalid raw pointer loudly.
 #[test]
 fn test_free_raw_rejects_invalid_pointer() {
+    // build a raw space with no allocation at offset 7
     let options = HeapOptions::local();
     let mut raw =
         RawSpace::with_options(test_allocator(&options), &options).expect("raw space should build");

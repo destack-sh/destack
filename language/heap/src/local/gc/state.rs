@@ -23,14 +23,10 @@ pub(crate) struct LocalGcState {
     pub(crate) young_sweep_run_cursor: usize,
     /// The next slot inside the current young run to sweep.
     pub(crate) young_sweep_slot_cursor: usize,
-    /// The next dirty mature span queued for young marking.
-    pub(crate) young_dirty_span_cursor: usize,
-    /// The next dirty card inside the current mature span.
-    pub(crate) young_dirty_span_card_cursor: usize,
-    /// The next dirty mature large allocation queued for young marking.
-    pub(crate) young_dirty_large_cursor: usize,
-    /// The next dirty card inside the current mature large allocation.
-    pub(crate) young_dirty_large_card_cursor: usize,
+    /// The next dirty mature region queued for young marking.
+    pub(crate) young_dirty_region_cursor: usize,
+    /// The next dirty card inside the current mature region.
+    pub(crate) young_dirty_card_cursor: usize,
     /// The number of allocations freed by the active young cycle.
     pub(crate) young_freed_allocations: usize,
     /// The number of bytes freed by the active young cycle.
@@ -49,10 +45,8 @@ pub(crate) struct LocalGcState {
     pub(crate) major_freed_bytes: u64,
     /// The scoped heap pins that keep stable addresses and block branch boundaries.
     pub(crate) pins: PinSet,
-    /// Mature spans queued for dirty-card scanning.
-    pub(crate) dirty_spans: Vec<usize>,
-    /// Mature large allocations queued for dirty-card scanning.
-    pub(crate) dirty_large_allocations: Vec<LargeAllocationId>,
+    /// Mature regions queued for dirty-card scanning.
+    pub(crate) dirty_regions: Vec<DirtyRegion>,
     /// Live local references whose layouts may contain shared heap references.
     pub(crate) shared_edge_roots: Vec<HeapReference>,
     /// Reverse index into tracked shared-edge roots.
@@ -65,6 +59,15 @@ pub(crate) struct LocalGcState {
     pub(crate) shared_edge_queue: SharedEdgeQueue,
     /// Queue membership for pending shared-edge rescans.
     pub(crate) shared_edge_pending: BTreeSet<HeapReference>,
+}
+
+/// One mature region queued for dirty-card scanning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DirtyRegion {
+    /// One mature small span.
+    Span(usize),
+    /// One mature large allocation.
+    Large(LargeAllocationId),
 }
 
 impl LocalGcState {

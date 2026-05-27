@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Allocator, Bitmap, PageRun, PageRunCache};
+
 use crate::{HeapReference, HeapResult, SmallSpanClass};
 
 /// One live heap young space.
@@ -31,13 +34,13 @@ pub(crate) struct YoungSpace {
     /// The exact shared-reference bits across young space.
     pub(crate) shared_reference_bits: Bitmap,
 
-    /// The fixed-size no-scan young runs.
+    /// The fixed-size young runs.
     pub(crate) runs: Vec<YoungRun>,
-    /// The fixed-size no-scan young run bits.
+    /// The fixed-size young run bits.
     pub(crate) run_bits: Vec<YoungRunBits>,
-    /// The active run for each small no-scan bucket.
-    pub(crate) run_buckets: Vec<Option<usize>>,
-    /// The active fixed-size no-scan young run cursor.
+    /// The active run for each exact small-span class.
+    pub(crate) run_buckets: BTreeMap<SmallSpanClass, usize>,
+    /// The active fixed-size young run cursor.
     pub(crate) run_cursor: YoungRunCursor,
     /// The owning run for each young-space page.
     pub(crate) page_runs: Vec<Option<usize>>,
@@ -50,7 +53,6 @@ impl YoungSpace {
         capacity_bytes: usize,
         page_bytes: usize,
         allocation_alignment_bytes: usize,
-        small_bucket_count: usize,
         cache: &mut PageRunCache,
     ) -> HeapResult<Self> {
         let reference_bit_capacity = capacity_bytes.div_ceil(std::mem::size_of::<usize>());
@@ -70,7 +72,7 @@ impl YoungSpace {
             shared_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
             runs: Vec::new(),
             run_bits: Vec::new(),
-            run_buckets: vec![None; small_bucket_count],
+            run_buckets: BTreeMap::new(),
             run_cursor: YoungRunCursor::inactive(),
             page_runs: vec![None; page_count],
         })
@@ -219,7 +221,7 @@ impl YoungSpace {
     pub(crate) fn activate_run_cursor(
         &mut self,
         minimum_byte_len: usize,
-        size_class: usize,
+        class: SmallSpanClass,
         run_index: usize,
     ) -> Option<()> {
         if self.run_cursor.is_active() && self.run_cursor.run_index == run_index {
@@ -231,7 +233,7 @@ impl YoungSpace {
         let run = self.run(run_index)?;
         self.run_cursor = YoungRunCursor {
             minimum_byte_len,
-            size_class,
+            class,
             run_index,
             next_offset: run.next_offset,
             end_offset: run.end_offset,
@@ -250,7 +252,7 @@ impl YoungSpace {
     }
 }
 
-/// One live fixed-size no-scan run in young space.
+/// One live fixed-size run in young space.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct YoungRun {
     /// The first byte offset inside young space.
@@ -259,18 +261,14 @@ pub(crate) struct YoungRun {
     pub(crate) next_offset: usize,
     /// The byte offset after this run.
     pub(crate) end_offset: usize,
-    /// The byte length of each slot in this run.
-    pub(crate) size_class: usize,
+    /// The homogeneous payload class for this run.
+    pub(crate) class: SmallSpanClass,
 }
 
 impl YoungRun {
     /// Return the homogeneous payload class for this run.
     pub(crate) const fn class(&self) -> SmallSpanClass {
-        SmallSpanClass {
-            size_class: self.size_class,
-            span_bytes: self.span_bytes(),
-            is_noscan: true,
-        }
+        self.class
     }
 
     /// Return the total byte length of this run.
@@ -280,28 +278,28 @@ impl YoungRun {
 
     /// Return the number of slots in this run.
     pub(crate) const fn slot_count(&self) -> usize {
-        self.span_bytes() / self.size_class
+        self.span_bytes() / self.class.size_class
     }
 
     /// Return the number of slots reserved through one next offset.
     pub(crate) const fn reserved_slot_count_with(&self, next_offset: usize) -> usize {
-        (next_offset - self.first_offset) / self.size_class
+        (next_offset - self.first_offset) / self.class.size_class
     }
 
     /// Return the base byte offset for one slot.
     #[inline(always)]
     pub(crate) fn slot_offset(&self, slot_index: usize) -> usize {
-        self.first_offset + slot_index * self.size_class
+        self.first_offset + slot_index * self.class.size_class
     }
 }
 
-/// The active fixed-size no-scan young run.
+/// The active fixed-size young run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct YoungRunCursor {
     /// The smallest payload byte length allocated by this cursor.
     pub(crate) minimum_byte_len: usize,
-    /// The fixed slot byte length allocated by this cursor.
-    pub(crate) size_class: usize,
+    /// The fixed slot class allocated by this cursor.
+    pub(crate) class: SmallSpanClass,
     /// The run index written back when this cursor changes.
     pub(crate) run_index: usize,
     /// The next byte offset allocated by this cursor.
@@ -315,7 +313,7 @@ impl YoungRunCursor {
     pub(crate) const fn inactive() -> Self {
         Self {
             minimum_byte_len: 0,
-            size_class: 0,
+            class: SmallSpanClass::EMPTY,
             run_index: 0,
             next_offset: 0,
             end_offset: 0,
@@ -325,24 +323,29 @@ impl YoungRunCursor {
     /// Return whether this cursor currently owns a run.
     #[inline(always)]
     pub(crate) const fn is_active(&self) -> bool {
-        self.size_class != 0
+        self.class.size_class != 0
     }
 
     /// Return whether this cursor can allocate the requested byte length.
     #[inline(always)]
-    pub(crate) const fn matches(&self, byte_len: usize) -> bool {
-        self.minimum_byte_len <= byte_len && byte_len <= self.size_class
+    pub(crate) fn matches(&self, class: SmallSpanClass, byte_len: usize) -> bool {
+        self.class.size_class == class.size_class
+            && self.class.span_bytes == class.span_bytes
+            && self.class.trace_id == class.trace_id
+            && self.class.is_noscan == class.is_noscan
+            && self.minimum_byte_len <= byte_len
+            && byte_len <= self.class.size_class
     }
 
     /// Reserve one reference from this cursor.
     #[inline(always)]
     pub(crate) fn reserve_reference(&mut self) -> Option<HeapReference> {
-        if self.size_class > self.end_offset - self.next_offset {
+        if self.class.size_class > self.end_offset - self.next_offset {
             return None;
         }
 
         let reference = HeapReference::new(self.next_offset);
-        self.next_offset += self.size_class;
+        self.next_offset += self.class.size_class;
 
         Some(reference)
     }
@@ -351,9 +354,9 @@ impl YoungRunCursor {
     #[inline(always)]
     pub(crate) fn reserve_matching_reference(
         &mut self,
-        size_class: usize,
+        class: SmallSpanClass,
     ) -> Option<HeapReference> {
-        if self.size_class != size_class {
+        if self.class != class {
             return None;
         }
 
@@ -370,7 +373,7 @@ pub(crate) struct YoungRange {
     pub(crate) byte_len: usize,
 }
 
-/// Mark bits for one fixed-size no-scan young run.
+/// Mark bits for one fixed-size young run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct YoungRunBits {
     /// The live slots retired before the next young reset.

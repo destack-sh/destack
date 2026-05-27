@@ -9,7 +9,7 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::{TestHeap, read_mapped_bytes, write_mapped_byte, write_mapped_bytes};
+use super::{TestHeap, read_mapped_bytes, trace_table, write_mapped_byte, write_mapped_bytes};
 
 /// The allocator chunk size for small-page image fixtures.
 const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
@@ -86,7 +86,7 @@ fn write_payload(
     start: usize,
     bytes: &[u8],
 ) {
-    heap.write_barrier(reference, start, bytes.len())
+    heap.write_barrier(reference, start, bytes.len(), trace_table())
         .expect("heap barrier should record");
     let address = heap.heap_base_address() + reference.offset() + start;
 
@@ -207,8 +207,8 @@ fn test_roundtrip_heap_space_image() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored =
-        HeapSpace::from_image(allocator.clone(), &image).expect("heap image should restore");
+    let mut restored = HeapSpace::from_image(allocator.clone(), &image, trace_table())
+        .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     // restored metadata should match the captured image
@@ -245,7 +245,7 @@ fn test_roundtrip_heap_space_image() {
 
     // mutating one allocation should not affect the captured image
     restored
-        .write_barrier(first, 0, 1)
+        .write_barrier(first, 0, 1, trace_table())
         .expect("heap write barrier should record");
     let address = restored.base_address() + first.offset();
 
@@ -361,8 +361,11 @@ fn test_roundtrip_heap_image_and_fork() {
 
     // capture both the frozen image and the live fork
     let image = heap.image().expect("heap image should capture");
-    let mut forked = heap.fork().expect("heap fork should retain live pages");
-    let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
+    let mut forked = heap
+        .fork(trace_table())
+        .expect("heap fork should retain live pages");
+    let mut restored =
+        crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
     let forked_image = forked.image().expect("heap image should capture");
     let restored_image = restored.image().expect("heap image should capture");
 
@@ -400,7 +403,8 @@ fn test_roundtrip_heap_snapshot() {
 
     let image = heap.image().expect("heap image should capture");
     let snapshot = image.snapshot().expect("heap snapshot should capture");
-    let mut restored = crate::Heap::from_snapshot(&snapshot).expect("heap snapshot should restore");
+    let mut restored =
+        crate::Heap::from_snapshot(&snapshot, trace_table()).expect("heap snapshot should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
@@ -437,7 +441,8 @@ fn test_heap_heap_write_preserves_captured_allocation_bytes() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
+    let mut restored =
+        crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
 
     // mutating one allocation should only change the restored heap
     write_payload(&mut restored, first, 0, &[0xCC]);
@@ -492,7 +497,8 @@ fn test_heap_heap_write_preserves_captured_page_bytes() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
+    let mut restored =
+        crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
 
     // mutating one page should change only the written bytes
     write_payload(&mut restored, reference, 4096, &[0xCC]);
@@ -538,7 +544,8 @@ fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
+    let mut restored =
+        crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
 
     // mutating three pages should only change those bytes
     write_payload(&mut restored, reference, 0, &vec![0xCC; 3 * 4096]);
@@ -584,7 +591,8 @@ fn test_heap_heap_write_preserves_captured_many_page_bytes() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = crate::Heap::from_image(&image).expect("heap image should restore");
+    let mut restored =
+        crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
 
     // mutating four pages should only change those bytes
     write_payload(&mut restored, reference, 0, &vec![0xCC; 4 * 4096]);
@@ -637,8 +645,8 @@ fn test_roundtrip_heap_small_space_image() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored =
-        HeapSpace::from_image(allocator.clone(), &image).expect("heap image should restore");
+    let mut restored = HeapSpace::from_image(allocator.clone(), &image, trace_table())
+        .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
@@ -654,7 +662,7 @@ fn test_roundtrip_heap_small_space_image() {
 
     // mutating one small allocation should not affect the captured image
     restored
-        .write_barrier(first, 1, 1)
+        .write_barrier(first, 1, 1, trace_table())
         .expect("heap write barrier should record");
     let address = restored.base_address() + first.offset() + 1;
 
@@ -710,8 +718,8 @@ fn test_roundtrip_heap_young_space_image() {
         )
         .expect("heap allocation should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored =
-        HeapSpace::from_image(allocator.clone(), &image).expect("heap image should restore");
+    let mut restored = HeapSpace::from_image(allocator.clone(), &image, trace_table())
+        .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
@@ -721,7 +729,7 @@ fn test_roundtrip_heap_young_space_image() {
 
     // mutating one young allocation should not affect the captured image
     restored
-        .write_barrier(first, 1, 1)
+        .write_barrier(first, 1, 1, trace_table())
         .expect("heap write barrier should record");
     let address = restored.base_address() + first.offset() + 1;
 
@@ -828,8 +836,8 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
     let image =
         image.with_size_classes(SizeClassTable::new([16]).expect("size classes should validate"));
 
-    let error =
-        HeapSpace::from_image(allocator, &image).expect_err("heap restore should fail loudly");
+    let error = HeapSpace::from_image(allocator, &image, trace_table())
+        .expect_err("heap restore should fail loudly");
 
     assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
 }
@@ -850,7 +858,9 @@ fn test_fork_heap_space_rejects_invalid_size_class() {
     .expect("heap allocation should succeed");
     heap.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
-    let error = heap.fork().expect_err("heap fork should fail loudly");
+    let error = heap
+        .fork(trace_table())
+        .expect_err("heap fork should fail loudly");
 
     assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
 }
@@ -922,7 +932,8 @@ fn test_restore_heap_image_rejects_invalid_raw_size_class() {
     .expect("heap image should build");
     drop(original_image);
 
-    let error = crate::Heap::from_image(&image).expect_err("heap restore should fail loudly");
+    let error = crate::Heap::from_image(&image, trace_table())
+        .expect_err("heap restore should fail loudly");
 
     assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
 }
@@ -945,7 +956,9 @@ fn test_fork_heap_rejects_invalid_raw_size_class() {
         .expect("raw allocation should succeed");
     heap.raw.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
-    let error = heap.fork().expect_err("heap fork should fail loudly");
+    let error = heap
+        .fork(trace_table())
+        .expect_err("heap fork should fail loudly");
 
     assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
 }

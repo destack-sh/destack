@@ -113,8 +113,8 @@ impl HeapSpace {
     ) -> Option<HeapLocation> {
         let run = self.young.run(run_index)?;
         let run_offset = logical_byte_offset.checked_sub(run.first_offset)?;
-        let slot_index = run_offset / run.size_class;
-        let slot_offset = run_offset % run.size_class;
+        let slot_index = run_offset / run.class.size_class;
+        let slot_offset = run_offset % run.class.size_class;
         let bits = self.young.run_bits(run_index)?;
         if slot_index >= self.young.run_reserved_slot_count(run_index)?
             || bits.freed.contains(slot_index)
@@ -129,7 +129,7 @@ impl HeapSpace {
             place: HeapPlace::Young(YoungPlace::Slot(slot)),
             base: HeapReference::new(base_offset),
             byte_offset: slot_offset,
-            byte_len: run.size_class,
+            byte_len: run.class.size_class,
         })
     }
 

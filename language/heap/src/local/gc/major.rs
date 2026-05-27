@@ -1,3 +1,5 @@
+use destack_mir::{TraceMap, TraceTable};
+
 use crate::local::space::{
     GcKind, GcStats, HeapLocation, HeapPlace, HeapSpace, LocalGcPhase, LocalTraceWork,
     MajorSweepCursor, YoungPlace,
@@ -23,6 +25,7 @@ impl HeapSpace {
         &mut self,
         reference: HeapReference,
         place: HeapPlace,
+        trace_map: &TraceMap,
     ) -> HeapResult<()> {
         // inactive collector
         if self.collector.major_phase == LocalGcPhase::Idle {
@@ -31,7 +34,7 @@ impl HeapSpace {
 
         self.mark_place(place)?;
 
-        self.enqueue_location_heap_references(reference, place, 0, usize::MAX)
+        self.enqueue_location_heap_references(reference, place, 0, usize::MAX, trace_map)
     }
 
     /// Queue local references written into one active local major cycle.
@@ -40,13 +43,22 @@ impl HeapSpace {
         location: HeapLocation,
         byte_offset: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // inactive collector
         if self.collector.major_phase == LocalGcPhase::Idle {
             return Ok(());
         }
 
-        self.enqueue_location_heap_references(location.base, location.place, byte_offset, byte_len)
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
+
+        self.enqueue_location_heap_references(
+            location.base,
+            location.place,
+            byte_offset,
+            byte_len,
+            &trace_map,
+        )
     }
 
     /// Queue local references from one heap payload range into the active major cycle.
@@ -56,9 +68,8 @@ impl HeapSpace {
         place: HeapPlace,
         byte_offset: usize,
         byte_len: usize,
+        trace_map: &TraceMap,
     ) -> HeapResult<()> {
-        // skip noscan payloads
-        let trace_map = self.trace_map_for_place(place)?;
         if !trace_map.has_local_reference() {
             return Ok(());
         }
@@ -102,18 +113,19 @@ impl HeapSpace {
     pub fn collect_full<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        trace_table: &TraceTable,
     ) -> Result<GcStats, E>
     where
         E: From<HeapError>,
     {
         // collect the nursery first so full collection sees mature references
-        let _minor = self.collect_minor(roots)?;
+        let _minor = self.collect_minor(roots, trace_table)?;
 
         self.start_major_gc(roots)?;
 
         // drain the active major cycle synchronously
         loop {
-            match self.step_major_gc(roots, usize::MAX)? {
+            match self.step_major_gc(roots, usize::MAX, trace_table)? {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
@@ -159,6 +171,7 @@ impl HeapSpace {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> Result<GcProgress, E>
     where
         E: From<HeapError>,
@@ -174,7 +187,8 @@ impl HeapSpace {
             LocalGcPhase::Mark => {
                 // roots may have changed between incremental steps
                 self.seed_major_roots(roots)?;
-                let marked_bytes = self.mark_reachable_references_step(budget_bytes)?;
+                let marked_bytes =
+                    self.mark_reachable_references_step(budget_bytes, trace_table)?;
 
                 // switch to sweep when mark work drains
                 if self.collector.major_queue.is_empty() {
@@ -192,7 +206,8 @@ impl HeapSpace {
                 Ok(GcProgress::Active)
             }
             LocalGcPhase::Sweep => {
-                let marked_bytes = self.mark_reachable_references_step(budget_bytes)?;
+                let marked_bytes =
+                    self.mark_reachable_references_step(budget_bytes, trace_table)?;
                 if !self.collector.major_queue.is_empty() {
                     return Ok(GcProgress::Active);
                 }
@@ -372,7 +387,7 @@ impl HeapSpace {
                 }
 
                 if bits.marked.contains(slot_index) {
-                    *swept_bytes += run.size_class.max(1);
+                    *swept_bytes += run.class.size_class.max(1);
 
                     continue;
                 }
@@ -381,10 +396,10 @@ impl HeapSpace {
                 bits.marked.clear(slot_index);
                 let reference = HeapReference::new(run.slot_offset(slot_index));
                 self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(run.size_class);
+                self.record_young_free(run.class.size_class);
                 self.collector.major_freed_allocations += 1;
-                self.collector.major_freed_bytes += run.size_class as u64;
-                *swept_bytes += run.size_class.max(1);
+                self.collector.major_freed_bytes += run.class.size_class as u64;
+                *swept_bytes += run.class.size_class.max(1);
             }
 
             if self.collector.major_sweep.young_slot_cursor >= reserved_slots {
@@ -515,7 +530,11 @@ impl HeapSpace {
     }
 
     /// Mark reachable heap references within one byte budget.
-    fn mark_reachable_references_step(&mut self, budget_bytes: usize) -> HeapResult<usize> {
+    fn mark_reachable_references_step(
+        &mut self,
+        budget_bytes: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<usize> {
         let mut marked_bytes = 0usize;
 
         // trace bounded mark work
@@ -528,7 +547,7 @@ impl HeapSpace {
             match work {
                 // large allocations are scanned page by page
                 LocalTraceWork::LargeRange { reference, start } => {
-                    marked_bytes += self.trace_large_range(reference, start)?;
+                    marked_bytes += self.trace_large_range(reference, start, trace_table)?;
 
                     continue;
                 }
@@ -542,12 +561,12 @@ impl HeapSpace {
                     marked_bytes += location.byte_len.max(1);
 
                     // read layout side metadata for this payload
-                    let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
-                        HeapError::HeapScanFailed {
+                    let trace_map = self
+                        .trace_map_for_place(location.place, trace_table)
+                        .map_err(|error| HeapError::HeapScanFailed {
                             source: ScanSource::Reference(reference),
                             error: Box::new(error),
-                        }
-                    })?;
+                        })?;
 
                     let mut references = Vec::new();
 
@@ -579,7 +598,12 @@ impl HeapSpace {
     }
 
     /// Trace one page-sized range from one local large allocation.
-    fn trace_large_range(&mut self, reference: HeapReference, start: usize) -> HeapResult<usize> {
+    fn trace_large_range(
+        &mut self,
+        reference: HeapReference,
+        start: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<usize> {
         // resolve and verify the large allocation
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
@@ -589,12 +613,12 @@ impl HeapSpace {
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
-            HeapError::HeapScanFailed {
+        let trace_map = self
+            .trace_map_for_place(location.place, trace_table)
+            .map_err(|error| HeapError::HeapScanFailed {
                 source: ScanSource::Reference(reference),
                 error: Box::new(error),
-            }
-        })?;
+            })?;
         if !trace_map.has_local_reference() || start >= location.byte_len {
             return Ok(0);
         }
@@ -652,11 +676,6 @@ impl HeapSpace {
 
         if self.mark_place(location.place)? {
             // marked noscan allocations need no queued scan work
-            let trace_map = self.trace_map_for_place(location.place)?;
-            if !trace_map.has_local_reference() {
-                return Ok(());
-            }
-
             // large allocations are sliced to keep major steps bounded
             if matches!(location.place, HeapPlace::Large(_)) {
                 self.collector.major_queue.push(LocalTraceWork::LargeRange {

@@ -1,3 +1,5 @@
+use destack_mir::TraceTable;
+
 use crate::local::gc::SharedEdgeWork;
 use crate::local::space::{HeapPlace, HeapSpace};
 use crate::{
@@ -27,6 +29,7 @@ impl HeapSpace {
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // inactive scan
         if !self.collector.is_scanning_shared_edges || budget_bytes == 0 {
@@ -41,7 +44,7 @@ impl HeapSpace {
                 break;
             };
 
-            scanned_bytes += self.trace_shared_edge_work(work, roots)?;
+            scanned_bytes += self.trace_shared_edge_work(work, roots, trace_table)?;
         }
 
         // then continue the tracked shared-edge walk
@@ -50,18 +53,25 @@ impl HeapSpace {
                 break;
             };
 
-            scanned_bytes +=
-                self.trace_shared_edge_work(SharedEdgeWork::Reference(reference), roots)?;
+            scanned_bytes += self.trace_shared_edge_work(
+                SharedEdgeWork::Reference(reference),
+                roots,
+                trace_table,
+            )?;
         }
 
         Ok(scanned_bytes)
     }
 
     /// Queue one local reference for one later shared-edge rescan.
-    pub(crate) fn queue_shared_reference(&mut self, reference: HeapReference) -> HeapResult<()> {
+    pub(crate) fn queue_shared_reference(
+        &mut self,
+        reference: HeapReference,
+        trace_table: &TraceTable,
+    ) -> HeapResult<()> {
         // only live shared-reference carriers need rescanning
         if !self.collector.is_scanning_shared_edges
-            || !self.reference_has_shared_roots(reference)?
+            || !self.reference_has_shared_roots(reference, trace_table)?
         {
             return Ok(());
         }
@@ -71,15 +81,26 @@ impl HeapSpace {
         Ok(())
     }
 
+    /// Queue one shared-edge root when a scan is active.
+    pub(crate) fn queue_shared_edge_root(&mut self, reference: HeapReference) {
+        if self.collector.is_scanning_shared_edges {
+            self.collector.queue_shared_edge_root(reference);
+        }
+    }
+
     /// Return whether one live local reference may contain shared heap roots.
-    pub(crate) fn reference_has_shared_roots(&self, reference: HeapReference) -> HeapResult<bool> {
+    pub(crate) fn reference_has_shared_roots(
+        &self,
+        reference: HeapReference,
+        trace_table: &TraceTable,
+    ) -> HeapResult<bool> {
         // freed references cannot publish shared roots
         let Some(location) = self.resolve_location(reference) else {
             return Ok(false);
         };
 
         // layout metadata decides whether scanning is needed
-        let trace_map = self.trace_map_for_place(location.place)?;
+        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
 
         Ok(trace_map.has_shared_reference())
     }
@@ -89,11 +110,14 @@ impl HeapSpace {
         &mut self,
         work: SharedEdgeWork,
         roots: &mut Vec<SharedHeapReference>,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         match work {
-            SharedEdgeWork::Reference(reference) => self.trace_shared_edges(reference, roots),
+            SharedEdgeWork::Reference(reference) => {
+                self.trace_shared_edges(reference, roots, trace_table)
+            }
             SharedEdgeWork::LargeRange { reference, start } => {
-                self.trace_large_shared_edges(reference, start, roots)
+                self.trace_large_shared_edges(reference, start, roots, trace_table)
             }
         }
     }
@@ -103,6 +127,7 @@ impl HeapSpace {
         &mut self,
         reference: HeapReference,
         roots: &mut Vec<SharedHeapReference>,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // freed references contribute no work
         let Some(location) = self.resolve_location(reference) else {
@@ -110,12 +135,12 @@ impl HeapSpace {
         };
 
         // load exact shared-reference layout
-        let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
-            HeapError::HeapScanFailed {
+        let trace_map = self
+            .trace_map_for_place(location.place, trace_table)
+            .map_err(|error| HeapError::HeapScanFailed {
                 source: ScanSource::Reference(reference),
                 error: Box::new(error),
-            }
-        })?;
+            })?;
 
         // noscan payloads still consume their byte budget
         if !trace_map.has_shared_reference() {
@@ -124,7 +149,7 @@ impl HeapSpace {
 
         // large references are sliced to keep shared-root scans bounded
         if matches!(location.place, HeapPlace::Large(_)) {
-            return self.trace_large_shared_edges(reference, 0, roots);
+            return self.trace_large_shared_edges(reference, 0, roots, trace_table);
         }
 
         // scan mapped heap memory directly
@@ -152,6 +177,7 @@ impl HeapSpace {
         reference: HeapReference,
         start: usize,
         roots: &mut Vec<SharedHeapReference>,
+        trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // freed references contribute no work
         let Some(location) = self.resolve_location(reference) else {
@@ -164,12 +190,12 @@ impl HeapSpace {
         };
 
         // load exact shared-reference layout
-        let trace_map = self.trace_map_for_place(location.place).map_err(|error| {
-            HeapError::HeapScanFailed {
+        let trace_map = self
+            .trace_map_for_place(location.place, trace_table)
+            .map_err(|error| HeapError::HeapScanFailed {
                 source: ScanSource::Reference(reference),
                 error: Box::new(error),
-            }
-        })?;
+            })?;
 
         // empty or noscan ranges need no continuation
         if start >= location.byte_len || !trace_map.has_shared_reference() {

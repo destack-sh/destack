@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use destack_memory::AddressSpace;
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 use parking_lot::RwLock;
 
 use super::{
@@ -71,10 +72,7 @@ impl SharedHeapSpace {
                 size_classes: options.size_classes.clone(),
                 span_bytes: options.heap_small_bytes,
                 spans: Vec::new(),
-                partial_spans: vec![
-                    Vec::new();
-                    SmallSpanClass::bucket_count(&options.size_classes)
-                ],
+                partial_spans: BTreeMap::new(),
             },
             large: SharedLargeSpace {
                 allocations: Vec::new(),
@@ -267,6 +265,7 @@ impl SharedHeapSpace {
         &self,
         span_index: usize,
         slot_index: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<TraceMap> {
         // resolve the small span
         let store = self.state.read();
@@ -282,7 +281,7 @@ impl SharedHeapSpace {
             });
         }
 
-        Ok(span.trace_map(slot_index))
+        span.trace_map(slot_index, trace_table)
     }
 
     /// Return the base reference for one shared heap place.
@@ -467,8 +466,8 @@ pub(crate) struct SharedSmallSpace {
     pub(crate) span_bytes: usize,
     /// The live shared heap spans.
     pub(crate) spans: Vec<Arc<SharedSmallSpan>>,
-    /// The reusable non-full spans per size and scan class.
-    pub(crate) partial_spans: Vec<Vec<usize>>,
+    /// The reusable non-full spans per exact small-span class.
+    pub(crate) partial_spans: BTreeMap<SmallSpanClass, Vec<usize>>,
 }
 
 /// One shared heap large space.

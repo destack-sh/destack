@@ -1,8 +1,9 @@
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 
 use crate::allocator::SpanSlot;
 use crate::local::space::{
-    HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId, YoungPlace,
+    DirtyRegion, HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId,
+    YoungPlace,
 };
 use crate::{
     HeapError, HeapReference, HeapResult, RootSlot, visit_heap_root_slots_in_bytes,
@@ -77,6 +78,7 @@ impl HeapSpace {
     pub(super) fn relocate_young_survivors<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        trace_table: &TraceTable,
     ) -> Result<(), E>
     where
         E: From<HeapError>,
@@ -84,11 +86,11 @@ impl HeapSpace {
         let mut forwarding = ForwardingTable::default();
 
         // copy eligible survivors before publishing forwarded references
-        self.promote_young_range_survivors(&mut forwarding)?;
-        self.promote_young_run_survivors(&mut forwarding)?;
+        self.promote_young_range_survivors(&mut forwarding, trace_table)?;
+        self.promote_young_run_survivors(&mut forwarding, trace_table)?;
 
         // rewrite every visible local reference before the mutator resumes
-        self.rewrite_promoted_references(roots, &forwarding)?;
+        self.rewrite_promoted_references(roots, &forwarding, trace_table)?;
 
         Ok(())
     }
@@ -97,6 +99,7 @@ impl HeapSpace {
     fn promote_young_range_survivors(
         &mut self,
         forwarding: &mut ForwardingTable,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         let mut start = 0usize;
 
@@ -129,7 +132,13 @@ impl HeapSpace {
             let target = self.base_reference(target_place)?;
 
             // publish forwarding after the copied payload is tracked
-            self.publish_promoted_payload(target, target_place, range.byte_len, &trace_map)?;
+            self.publish_promoted_payload(
+                target,
+                target_place,
+                range.byte_len,
+                &trace_map,
+                trace_table,
+            )?;
             forwarding.push_range(range_index, target);
             self.retire_promoted_young_range(range_index, source, range.byte_len);
         }
@@ -138,7 +147,11 @@ impl HeapSpace {
     }
 
     /// Promote reachable fixed-size young run slots.
-    fn promote_young_run_survivors(&mut self, forwarding: &mut ForwardingTable) -> HeapResult<()> {
+    fn promote_young_run_survivors(
+        &mut self,
+        forwarding: &mut ForwardingTable,
+        trace_table: &TraceTable,
+    ) -> HeapResult<()> {
         self.young.flush_run_cursor();
 
         for run_index in 0..self.young.runs.len() {
@@ -172,15 +185,24 @@ impl HeapSpace {
                     continue;
                 }
 
-                let bytes = self.mapping.read_bytes(source.offset(), run.size_class)?;
-                let trace_map = TraceMap::Empty;
+                let bytes = self
+                    .mapping
+                    .read_bytes(source.offset(), run.class.size_class)?;
+                let trace_map = self
+                    .trace_map_for_place(HeapPlace::Young(YoungPlace::Slot(slot)), trace_table)?;
                 let target_place =
-                    self.allocate_promoted_payload(run.size_class, &trace_map, &bytes)?;
+                    self.allocate_promoted_payload(run.class.size_class, &trace_map, &bytes)?;
                 let target = self.base_reference(target_place)?;
 
-                // fixed-size young slots have no reference payload
+                self.publish_promoted_payload(
+                    target,
+                    target_place,
+                    run.class.size_class,
+                    &trace_map,
+                    trace_table,
+                )?;
                 forwarding.push_run_slot(slot, target);
-                self.retire_promoted_young_slot(slot, source, run.size_class)?;
+                self.retire_promoted_young_slot(slot, source, run.class.size_class)?;
             }
         }
 
@@ -194,6 +216,7 @@ impl HeapSpace {
         place: HeapPlace,
         byte_len: usize,
         trace_map: &TraceMap,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         if trace_map.has_shared_reference() {
             self.collector.track_shared_edge_root(reference);
@@ -209,6 +232,7 @@ impl HeapSpace {
             },
             0,
             byte_len,
+            trace_table,
         )
     }
 
@@ -251,6 +275,7 @@ impl HeapSpace {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         forwarding: &ForwardingTable,
+        trace_table: &TraceTable,
     ) -> Result<(), E>
     where
         E: From<HeapError>,
@@ -264,7 +289,7 @@ impl HeapSpace {
 
         // payloads after roots, while forwarding is still live
         self.rewrite_young_payload_references(forwarding)?;
-        self.rewrite_remembered_mature_references(forwarding)?;
+        self.rewrite_remembered_mature_references(forwarding, trace_table)?;
 
         Ok(())
     }
@@ -321,18 +346,19 @@ impl HeapSpace {
     fn rewrite_remembered_mature_references(
         &mut self,
         forwarding: &ForwardingTable,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        let dirty_span_count = self.collector.dirty_spans.len();
-        let dirty_large_count = self.collector.dirty_large_allocations.len();
+        let dirty_region_count = self.collector.dirty_regions.len();
 
-        for dirty_index in 0..dirty_span_count {
-            let span_index = self.collector.dirty_spans[dirty_index];
-            self.rewrite_dirty_span_references(span_index, forwarding)?;
-        }
-
-        for dirty_index in 0..dirty_large_count {
-            let allocation_id = self.collector.dirty_large_allocations[dirty_index];
-            self.rewrite_dirty_large_references(allocation_id, forwarding)?;
+        for dirty_index in 0..dirty_region_count {
+            match self.collector.dirty_regions[dirty_index] {
+                DirtyRegion::Span(span_index) => {
+                    self.rewrite_dirty_span_references(span_index, forwarding, trace_table)?;
+                }
+                DirtyRegion::Large(allocation_id) => {
+                    self.rewrite_dirty_large_references(allocation_id, forwarding)?;
+                }
+            }
         }
 
         Ok(())
@@ -343,6 +369,7 @@ impl HeapSpace {
         &mut self,
         span_index: usize,
         forwarding: &ForwardingTable,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
         let mut card_cursor = 0usize;
 
@@ -358,8 +385,13 @@ impl HeapSpace {
                 return Ok(());
             };
 
-            let has_young_reference =
-                self.rewrite_dirty_span_card(span_index, card_start, card_len, forwarding)?;
+            let has_young_reference = self.rewrite_dirty_span_card(
+                span_index,
+                card_start,
+                card_len,
+                forwarding,
+                trace_table,
+            )?;
             self.finish_rewritten_dirty_span_card(span_index, card_index, has_young_reference)?;
             card_cursor = card_index + 1;
         }
@@ -372,6 +404,7 @@ impl HeapSpace {
         card_start: usize,
         card_len: usize,
         forwarding: &ForwardingTable,
+        trace_table: &TraceTable,
     ) -> HeapResult<bool> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::MissingSpan { span_index });
@@ -393,7 +426,7 @@ impl HeapSpace {
                 continue;
             }
 
-            let trace_map = self.small_slot_trace_map(span_index, slot_index)?;
+            let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_table)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
@@ -741,8 +774,8 @@ impl HeapSpace {
         let Some(run_offset) = logical_byte_offset.checked_sub(run.first_offset) else {
             return Ok(None);
         };
-        let slot_index = run_offset / run.size_class;
-        let slot_offset = run_offset % run.size_class;
+        let slot_index = run_offset / run.class.size_class;
+        let slot_offset = run_offset % run.class.size_class;
         let slot = SpanSlot::new(run_index, slot_index)?;
         let Some(target) = forwarding.run_slot(slot) else {
             return Ok(None);

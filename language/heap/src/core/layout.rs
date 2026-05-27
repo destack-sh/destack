@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use destack_mir::TraceMap;
+use destack_mir::{TraceId, TraceMap};
 use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapResult, SizeClassTable};
@@ -12,6 +12,8 @@ pub struct AllocationShape<'a> {
     pub byte_len: usize,
     /// The required allocation base alignment in bytes.
     pub alignment: usize,
+    /// The canonical trace id when this payload has table-backed metadata.
+    pub trace_id: Option<TraceId>,
     /// The exact heap trace map.
     pub trace_map: &'a TraceMap,
     /// Whether the payload contains no heap references.
@@ -20,15 +22,60 @@ pub struct AllocationShape<'a> {
     pub has_shared_reference: bool,
 }
 
+/// The precomputed facts for one compiler-known allocation site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AllocationSite {
+    /// The exact payload byte length.
+    pub byte_len: usize,
+    /// The required allocation base alignment in bytes.
+    pub alignment: usize,
+    /// The canonical trace id when this site has table-backed metadata.
+    pub trace_id: Option<TraceId>,
+    /// Whether the payload contains no heap references.
+    pub is_noscan: bool,
+    /// Whether the payload may contain shared heap references.
+    pub has_shared_reference: bool,
+    /// The allocator class used by this site.
+    pub class: AllocationClass,
+}
+
+impl AllocationSite {
+    /// Return whether this site describes a valid non-empty heap allocation.
+    #[inline(always)]
+    pub const fn is_empty(&self) -> bool {
+        self.byte_len == 0
+    }
+
+    /// Return this site as one slow-path allocation plan.
+    #[inline(always)]
+    pub fn plan<'a>(&self, trace_map: &'a TraceMap) -> AllocationPlan<'a> {
+        AllocationPlan {
+            byte_len: self.byte_len,
+            alignment: self.alignment,
+            trace_id: self.trace_id,
+            trace_map,
+            is_noscan: self.is_noscan,
+            has_shared_reference: self.has_shared_reference,
+            class: self.class,
+        }
+    }
+}
+
 impl<'a> AllocationShape<'a> {
     /// Create one allocation shape.
     #[inline(always)]
-    pub fn new(byte_len: usize, alignment: usize, trace_map: &'a TraceMap) -> Self {
+    pub fn new(
+        byte_len: usize,
+        alignment: usize,
+        trace_id: Option<TraceId>,
+        trace_map: &'a TraceMap,
+    ) -> Self {
         debug_assert!(alignment == 0 || alignment.is_power_of_two());
 
         Self {
             byte_len,
             alignment: alignment.max(1),
+            trace_id,
             trace_map,
             is_noscan: !trace_map.has_reference(),
             has_shared_reference: trace_map.has_shared_reference(),
@@ -94,6 +141,8 @@ pub struct AllocationPlan<'a> {
     pub byte_len: usize,
     /// The required allocation base alignment in bytes.
     pub alignment: usize,
+    /// The canonical trace id when this payload has table-backed metadata.
+    pub trace_id: Option<TraceId>,
     /// The exact heap trace map.
     pub trace_map: &'a TraceMap,
     /// Whether the payload contains no heap references.
@@ -117,8 +166,6 @@ impl<'a> AllocationPlan<'a> {
 pub struct SmallAllocationPlan {
     /// The reusable bucket index for this class.
     pub(crate) bucket_index: usize,
-    /// The exact size-class index.
-    pub(crate) class_index: usize,
     /// The smallest payload byte length routed to this class.
     pub(crate) minimum_byte_len: usize,
     /// The small-span class used by local and shared spaces.
@@ -132,44 +179,75 @@ pub struct SmallSpanClass {
     pub(crate) size_class: usize,
     /// The span byte width for this size class.
     pub(crate) span_bytes: usize,
+    /// The table-backed trace id shared by every slot in this class.
+    pub(crate) trace_id: Option<TraceId>,
     /// Whether every slot in this span has no references.
     pub(crate) is_noscan: bool,
 }
 
 impl SmallSpanClass {
+    /// The empty inactive small-span class.
+    pub(crate) const EMPTY: Self = Self {
+        size_class: 0,
+        span_bytes: 0,
+        trace_id: None,
+        is_noscan: true,
+    };
+
     /// Create one small-span class from a validated size class.
-    pub(crate) const fn new(size_class: usize, span_bytes: usize, is_noscan: bool) -> Self {
+    pub(crate) const fn new(
+        size_class: usize,
+        span_bytes: usize,
+        trace_id: Option<TraceId>,
+        is_noscan: bool,
+    ) -> Self {
         Self {
             size_class,
             span_bytes,
+            trace_id,
             is_noscan,
         }
     }
 
-    /// Return the number of reusable small-span buckets for one size-class table.
-    pub(crate) fn bucket_count(size_classes: &SizeClassTable) -> usize {
-        size_classes.classes.len() * 2
-    }
-
-    /// Return the reusable-span bucket index for this class.
-    pub(crate) fn bucket_index(&self, size_classes: &SizeClassTable) -> Result<usize, HeapError> {
+    /// Validate this class against one size-class table and span policy.
+    pub(crate) fn validate(
+        &self,
+        size_classes: &SizeClassTable,
+        page_bytes: usize,
+        span_bytes: usize,
+    ) -> HeapResult<()> {
         let Some(class_index) = size_classes.class_index_for(self.size_class) else {
             return Err(HeapError::InvalidSizeClass {
                 class_bytes: self.size_class,
             });
         };
-        let class_bytes = size_classes.classes[class_index].bytes;
-        if class_bytes != self.size_class {
+
+        let size_class = size_classes.classes[class_index];
+        if size_class.bytes != self.size_class {
             return Err(HeapError::InvalidSizeClass {
                 class_bytes: self.size_class,
             });
         }
 
-        Ok(class_index * 2 + self.is_noscan as usize)
+        let configured_span_bytes = size_class
+            .span_bytes(page_bytes, span_bytes)
+            .max(span_bytes);
+        if configured_span_bytes != self.span_bytes {
+            return Err(HeapError::InvalidSizeClass {
+                class_bytes: self.size_class,
+            });
+        }
+
+        Ok(())
     }
 }
 
 impl SmallAllocationPlan {
+    /// Return the number of mutator-cache buckets for one size-class table.
+    pub(crate) fn bucket_count(size_classes: &SizeClassTable) -> usize {
+        size_classes.classes.len() * 2
+    }
+
     /// Return the reusable bucket index for this small allocation.
     #[inline(always)]
     pub const fn bucket_index(self) -> usize {
@@ -196,6 +274,7 @@ pub(crate) fn allocation_plan<'a>(
         allocation_class(
             shape.byte_len,
             shape.alignment,
+            shape.trace_id,
             shape.is_noscan,
             size_classes,
             page_bytes,
@@ -206,6 +285,7 @@ pub(crate) fn allocation_plan<'a>(
     AllocationPlan {
         byte_len: shape.byte_len,
         alignment: shape.alignment,
+        trace_id: shape.trace_id,
         trace_map: shape.trace_map,
         is_noscan: shape.is_noscan,
         has_shared_reference: shape.has_shared_reference,
@@ -217,11 +297,16 @@ pub(crate) fn allocation_plan<'a>(
 pub(crate) fn allocation_class(
     byte_len: usize,
     alignment: usize,
+    trace_id: Option<TraceId>,
     is_noscan: bool,
     size_classes: &SizeClassTable,
     page_bytes: usize,
     span_bytes: usize,
 ) -> AllocationClass {
+    if !is_noscan && trace_id.is_none() {
+        return AllocationClass::Large;
+    }
+
     let Some(class_index) = size_classes.class_index_for_layout(byte_len, alignment) else {
         return AllocationClass::Large;
     };
@@ -230,12 +315,11 @@ pub(crate) fn allocation_class(
     let span_bytes = size_class
         .span_bytes(page_bytes, span_bytes)
         .max(span_bytes);
-    let class = SmallSpanClass::new(size_class.bytes, span_bytes, is_noscan);
+    let class = SmallSpanClass::new(size_class.bytes, span_bytes, trace_id, is_noscan);
     let bucket_index = class_index * 2 + is_noscan as usize;
 
     AllocationClass::Small(SmallAllocationPlan {
         bucket_index,
-        class_index,
         minimum_byte_len,
         class,
     })
@@ -252,6 +336,7 @@ impl Ord for SmallSpanClass {
         self.size_class
             .cmp(&other.size_class)
             .then_with(|| self.span_bytes.cmp(&other.span_bytes))
+            .then_with(|| self.trace_id.cmp(&other.trace_id))
             .then_with(|| self.is_noscan.cmp(&other.is_noscan))
     }
 }

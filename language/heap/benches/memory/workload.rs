@@ -2,6 +2,7 @@ use std::hint::black_box;
 
 use criterion::{BatchSize, Criterion, Throughput};
 use destack_heap::{Heap, HeapReference};
+use destack_mir::TraceTable;
 
 use crate::config::{REFERENCE_BYTES, WORKLOAD_MUTATIONS, WORKLOAD_OBJECTS};
 use crate::graph::{ObjectGraphWorkload, ReferenceArrayWorkload};
@@ -9,8 +10,13 @@ use crate::heap::{local_heap, shared_worker_heap};
 
 /// Store one scalar field in a forked local record.
 #[inline(always)]
-fn store_local_record_value(heap: &mut Heap, reference: HeapReference, value: usize) {
-    heap.write_barrier(reference, REFERENCE_BYTES, REFERENCE_BYTES)
+fn store_local_record_value(
+    heap: &mut Heap,
+    reference: HeapReference,
+    value: usize,
+    trace_table: &TraceTable,
+) {
+    heap.write_barrier(reference, REFERENCE_BYTES, REFERENCE_BYTES, trace_table)
         .expect("heap barrier should record");
     let address = heap.heap_base_address() + reference.offset() + REFERENCE_BYTES;
 
@@ -58,7 +64,11 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
     group.bench_function("local_reference_array", |bencher| {
         bencher.iter_batched(
             local_heap,
-            |mut heap| black_box(reference_array.allocate_local(&mut heap).reference),
+            |mut heap| {
+                let array = reference_array.allocate_local(&mut heap);
+
+                black_box((array.reference, array.trace_table.traces().len()))
+            },
             BatchSize::SmallInput,
         );
     });
@@ -74,7 +84,7 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
                     &mut shared_worker.allocator,
                 );
 
-                black_box(array.reference)
+                black_box((array.reference, array.trace_table.traces().len()))
             },
             BatchSize::SmallInput,
         );
@@ -85,12 +95,13 @@ pub(crate) fn bench_heap_workload(criterion: &mut Criterion) {
         bencher.iter_batched(
             || object_graph.local_heap(),
             |(mut heap, graph)| {
-                let mut fork = heap.fork().expect("heap fork should succeed");
+                let trace_table = &graph.trace_table;
+                let mut fork = heap.fork(trace_table).expect("heap fork should succeed");
 
                 for (index, reference) in graph.records.iter().take(WORKLOAD_MUTATIONS).enumerate()
                 {
                     let value = index.wrapping_mul(17);
-                    store_local_record_value(&mut fork, *reference, value);
+                    store_local_record_value(&mut fork, *reference, value, trace_table);
                 }
 
                 black_box(fork)

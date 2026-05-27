@@ -10,6 +10,7 @@ const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
 /// Keep empty raw spans in the local cache instead of the live image.
 #[test]
 fn test_release_empty_raw_span_into_page_run_cache() {
+    // build a raw space whose small spans are easy to observe
     let options = HeapOptions {
         page_bytes: 16,
         allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
@@ -27,6 +28,7 @@ fn test_release_empty_raw_span_into_page_run_cache() {
     // one live span should charge one full span of active bytes
     assert_eq!(raw.retained_bytes(), 32);
 
+    // free the only allocation before capturing the raw image
     raw.free(pointer).expect("raw free should succeed");
     let image = raw.image().expect("raw image should capture");
 
@@ -39,6 +41,7 @@ fn test_release_empty_raw_span_into_page_run_cache() {
 /// Keep freed heap large-allocation pages in the local cache instead of the live image.
 #[test]
 fn test_release_heap_large_pages_into_page_run_cache() {
+    // force the payload onto the large-allocation path
     let options = HeapOptions {
         page_bytes: 16,
         allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
@@ -61,6 +64,7 @@ fn test_release_heap_large_pages_into_page_run_cache() {
     // one live large allocation should charge one page of active bytes
     assert_eq!(heap.retained_bytes(), 16);
 
+    // free the only allocation before capturing the heap image
     heap.free(reference).expect("heap free should succeed");
     let image = heap.image().expect("heap image should capture");
 

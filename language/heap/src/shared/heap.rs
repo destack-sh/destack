@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_mir::TraceMap;
+use destack_mir::{TraceMap, TraceTable};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -10,17 +10,14 @@ use super::{
     SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    AllocationPlan, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
-    GcState, GcStats, HeapError, HeapResult, PageId, PageRun, Payload, RawAllocationShape,
-    SharedHeapOptions, SharedHeapReference, SharedRawPointer, SmallAllocationPlan,
-    apply_byte_delta,
+    AllocationPlan, AllocationShape, AllocationSite, Allocator, AllocatorImage, GcPacer,
+    GcPressure, GcProgress, GcState, GcStats, HeapError, HeapResult, PageId, PageRun, Payload,
+    RawAllocationShape, SharedHeapOptions, SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
-/// One live world-shared heap.
+/// One live shared heap.
 #[derive(Debug)]
 pub struct SharedHeap {
-    /// The shared allocator for both shared heap spaces.
-    pub(crate) allocator: Arc<Allocator>,
     /// The configured shared heap options.
     pub(crate) options: SharedHeapOptions,
 
@@ -195,7 +192,6 @@ impl SharedHeap {
         let shared = Self {
             heap: SharedHeapSpace::with_options(allocator.clone(), &options)?,
             raw: SharedRawSpace::with_options(allocator.clone(), &options)?,
-            allocator,
             options,
             collection_requested: AtomicBool::new(false),
             gc_pacer: SharedGcPacer::default(),
@@ -212,7 +208,7 @@ impl SharedHeap {
 
     /// Return the configured shared page size.
     pub fn page_bytes(&self) -> usize {
-        self.allocator.page_bytes()
+        self.heap.allocator.page_bytes()
     }
 
     /// Return the configured shared heap options.
@@ -408,8 +404,9 @@ impl SharedHeap {
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         allocation: Payload<'_>,
+        trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, cache, layout, allocation)
+        self.allocate_payload(worker, cache, layout, allocation, trace_table)
     }
 
     /// Allocate one byte-initialized shared managed heap allocation.
@@ -420,8 +417,9 @@ impl SharedHeap {
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, cache, layout, Payload::Bytes(bytes))
+        self.allocate_payload(worker, cache, layout, Payload::Bytes(bytes), trace_table)
     }
 
     /// Allocate one zeroed shared managed heap allocation.
@@ -431,6 +429,7 @@ impl SharedHeap {
         worker: &SharedGcWorker,
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
+        trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
         if layout.is_empty() {
             return Err(HeapError::ZeroSizeAllocation);
@@ -442,27 +441,48 @@ impl SharedHeap {
         if !is_active_collection
             && layout.is_noscan
             && let Some(small) = layout.class.small()
-            && let Some(reference) = cache.reserve_small_zeroed(small)
+            && let Some(reference) = cache.try_allocate_zeroed(small)
         {
             self.heap.accounting.allocate(small.slot_bytes());
 
             return Ok(reference);
         }
 
-        self.allocate_zeroed_refill(worker, cache, layout)
+        self.allocate_zeroed_refill(worker, cache, layout, trace_table)
     }
 
-    /// Reserve one zeroed worker-local shared small allocation from one resolved plan.
+    /// Try to allocate one zeroed payload from a compiled allocation site.
     #[inline(always)]
-    pub fn reserve_small_zeroed(
+    pub fn try_allocate_site_zeroed(
         &self,
         cache: &mut SharedAllocationCache,
-        small: SmallAllocationPlan,
+        site: AllocationSite,
     ) -> Option<SharedHeapReference> {
-        let reference = cache.reserve_small_zeroed(small)?;
+        if site.is_empty() || self.gc_phase() != SharedGcPhase::Idle {
+            return None;
+        }
+
+        let small = site.class.small()?;
+        let reference = cache.try_allocate_zeroed(small)?;
         self.heap.accounting.allocate(small.slot_bytes());
 
         Some(reference)
+    }
+
+    /// Allocate one zeroed payload from a compiled allocation site.
+    #[cold]
+    #[inline(never)]
+    pub fn allocate_site_zeroed(
+        &self,
+        worker: &SharedGcWorker,
+        cache: &mut SharedAllocationCache,
+        site: AllocationSite,
+        trace_map: &TraceMap,
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = site.plan(trace_map);
+
+        self.allocate_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
     }
 
     /// Refill zeroed allocation state or allocate from published space.
@@ -473,8 +493,9 @@ impl SharedHeap {
         worker: &SharedGcWorker,
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
+        trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, cache, layout, Payload::Zeroed)
+        self.allocate_payload(worker, cache, layout, Payload::Zeroed, trace_table)
     }
 
     /// Allocate one shared managed payload.
@@ -485,6 +506,7 @@ impl SharedHeap {
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
+        trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
         if layout.is_empty() {
             return Err(HeapError::ZeroSizeAllocation);
@@ -521,7 +543,7 @@ impl SharedHeap {
         let pressure_bytes = cache.plan_run_charge_bytes(layout);
 
         // mark assist before acquiring another shared allocation run
-        self.assist_allocation(worker, pressure_bytes)?;
+        self.assist_allocation(worker, pressure_bytes, trace_table)?;
 
         let reference = self
             .heap
@@ -563,8 +585,12 @@ impl SharedHeap {
     }
 
     /// Return the scan metadata for one shared heap reference.
-    pub fn scan(&self, reference: SharedHeapReference) -> HeapResult<TraceMap> {
-        self.heap.scan(reference)
+    pub fn scan(
+        &self,
+        reference: SharedHeapReference,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
+        self.heap.scan(reference, trace_table)
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -573,8 +599,10 @@ impl SharedHeap {
         reference: SharedHeapReference,
         start: usize,
         bytes: &[u8],
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        self.heap.write_barrier_bytes(reference, start, bytes)
+        self.heap
+            .write_barrier_bytes(reference, start, bytes, trace_table)
     }
 
     /// Record one shared heap write barrier after one completed byte store.
@@ -583,8 +611,10 @@ impl SharedHeap {
         reference: SharedHeapReference,
         start: usize,
         byte_len: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        self.heap.write_barrier(reference, start, byte_len)
+        self.heap
+            .write_barrier(reference, start, byte_len, trace_table)
     }
 
     /// Request one shared collection cycle at the next world step.
@@ -614,11 +644,15 @@ impl SharedHeap {
     }
 
     /// Perform one full shared heap collection over explicit roots.
-    pub fn collect_full(&self, roots: &[SharedHeapReference]) -> HeapResult<GcStats> {
+    pub fn collect_full(
+        &self,
+        roots: &[SharedHeapReference],
+        trace_table: &TraceTable,
+    ) -> HeapResult<GcStats> {
         self.gc_pacer
             .begin_cycle(&self.options, self.heap_allocated_bytes());
 
-        let stats = self.heap.collect_full(roots)?;
+        let stats = self.heap.collect_full(roots, trace_table)?;
         self.record_gc_cycle(stats);
 
         Ok(stats)
@@ -630,8 +664,9 @@ impl SharedHeap {
         roots: &[SharedHeapReference],
         roots_complete: bool,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<GcProgress> {
-        self.collect_step_for_worker(None, roots, roots_complete, budget_bytes)
+        self.collect_step_for_worker(None, roots, roots_complete, budget_bytes, trace_table)
     }
 
     /// Register one shared GC worker.
@@ -646,6 +681,7 @@ impl SharedHeap {
         roots: &[SharedHeapReference],
         roots_complete: bool,
         budget_bytes: usize,
+        trace_table: &TraceTable,
     ) -> HeapResult<GcProgress> {
         // empty budget
         if budget_bytes == 0 {
@@ -659,7 +695,8 @@ impl SharedHeap {
 
         // concurrent mark
         if self.gc_phase() == SharedGcPhase::Mark {
-            self.heap.mark_step(worker, roots, budget_bytes)?;
+            self.heap
+                .mark_step(worker, roots, budget_bytes, trace_table)?;
 
             // termination check
             if roots_complete {
@@ -683,7 +720,6 @@ impl SharedHeap {
     /// Call this only from a safepoint where shared heap mutators are stopped.
     pub fn fork(&self) -> HeapResult<Self> {
         Ok(Self {
-            allocator: self.allocator.clone(),
             options: self.options.clone(),
             collection_requested: AtomicBool::new(
                 self.collection_requested.load(Ordering::Acquire),
@@ -709,7 +745,6 @@ impl SharedHeap {
         let shared = Self {
             heap: SharedHeapSpace::from_image_with_allocator(allocator.clone(), image.heap())?,
             raw: SharedRawSpace::from_image_with_allocator(allocator.clone(), image.raw())?,
-            allocator,
             options,
             collection_requested: AtomicBool::new(false),
             gc_pacer: SharedGcPacer::default(),
@@ -814,7 +849,7 @@ impl SharedHeap {
         let heap = self.heap.image()?;
         let raw = self.raw.image()?;
 
-        SharedHeapImage::new(self.allocator.clone(), self.options.clone(), heap, raw)
+        SharedHeapImage::new(self.heap.allocator.clone(), self.options.clone(), heap, raw)
     }
 
     /// Return the number of live shared heap allocations.
@@ -866,7 +901,12 @@ impl SharedHeap {
     }
 
     /// Run shared collector work proportional to one allocation.
-    fn assist_allocation(&self, worker: &SharedGcWorker, allocated_bytes: usize) -> HeapResult<()> {
+    fn assist_allocation(
+        &self,
+        worker: &SharedGcWorker,
+        allocated_bytes: usize,
+        trace_table: &TraceTable,
+    ) -> HeapResult<()> {
         if allocated_bytes == 0 || self.gc_phase() == SharedGcPhase::Idle {
             return Ok(());
         }
@@ -882,7 +922,7 @@ impl SharedHeap {
             return Ok(());
         }
 
-        self.collect_step_for_worker(Some(worker), &[], false, budget_bytes)?;
+        self.collect_step_for_worker(Some(worker), &[], false, budget_bytes, trace_table)?;
 
         Ok(())
     }

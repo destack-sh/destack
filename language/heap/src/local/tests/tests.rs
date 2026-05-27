@@ -1,7 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use crate::allocator::Allocator;
 use crate::local::{Heap, HeapLimits, HeapOptions};
+use destack_mir::TraceTable;
+
+static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
 
 /// One heap test harness.
 pub(crate) struct TestHeap {
@@ -45,6 +48,11 @@ impl TestHeap {
                 .expect("explicit heap options should build"),
         }
     }
+}
+
+/// Return the shared empty trace table for heap tests.
+pub(crate) fn trace_table() -> &'static TraceTable {
+    TRACE_TABLE.get_or_init(TraceTable::new)
 }
 
 /// Read bytes from one mapped heap address.

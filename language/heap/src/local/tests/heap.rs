@@ -5,16 +5,18 @@ use crate::{
 };
 use destack_mir::{TraceMap, TraceVariant};
 
-use super::read_mapped_bytes;
+use super::{read_mapped_bytes, trace_table};
 
 /// Reject one zero-size managed heap allocation.
 #[test]
 fn test_allocate_heap_rejects_zero_size_layout() {
+    // build a valid heap with an invalid allocation layout
     let options = HeapOptions::local();
     let layout = test_layout(0, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
+    // reject zero-size managed objects loudly
     let error = heap
         .allocate(
             &heap.allocation_plan(layout.allocation()),
@@ -28,6 +30,7 @@ fn test_allocate_heap_rejects_zero_size_layout() {
 /// Reclaim one freed heap allocation and allow another allocation.
 #[test]
 fn test_free_heap_reclaims_live_allocation() {
+    // allocate one live managed payload
     let options = HeapOptions::local();
     let layout = test_layout(1, TraceMap::empty());
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
@@ -39,10 +42,12 @@ fn test_free_heap_reclaims_live_allocation() {
         )
         .expect("heap allocation should succeed");
 
+    // free the allocation and retire its old reference
     assert!(heap.is_live(reference));
     heap.free(reference).expect("heap free should succeed");
     assert!(!heap.is_live(reference));
 
+    // allocate again to prove the heap remains usable
     let next_reference = heap
         .allocate(
             &heap.allocation_plan(layout.allocation()),
@@ -56,6 +61,7 @@ fn test_free_heap_reclaims_live_allocation() {
 /// Clear one reused small heap slot before writing a shorter payload.
 #[test]
 fn test_allocate_heap_clears_reused_small_slot_tail() {
+    // force small mature allocation reuse
     let options = HeapOptions {
         heap_young_bytes: 0,
         heap_small_bytes: 16,
@@ -80,6 +86,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
         )
         .expect("heap allocation should succeed");
 
+    // free the full slot so a shorter payload can reuse it
     heap.free(first).expect("heap free should succeed");
 
     let reused = heap
@@ -93,6 +100,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
     assert!(heap.is_live(reused));
     let address = heap.base_address() + reused.offset();
 
+    // reused slot tail bytes should be cleared
     let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[0xCC, 0, 0, 0, 0, 0, 0, 0]);
@@ -101,6 +109,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
 /// Keep young allocations separated by size-class width.
 #[test]
 fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
+    // configure both payloads into the same 16-byte young run class
     let options = HeapOptions {
         size_classes: SizeClassTable::new([8, 16]).expect("size classes should validate"),
         ..HeapOptions::local()
@@ -123,10 +132,12 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
         )
         .expect("second heap allocation should succeed");
 
+    // consecutive run slots should use the size-class stride
     assert_eq!(second.offset() - first.offset(), 16);
     let first_address = heap.base_address() + first.offset();
     let second_address = heap.base_address() + second.offset();
 
+    // payload bytes should not overlap across adjacent slots
     let first_bytes = read_mapped_bytes(first_address, 9);
     let second_bytes = read_mapped_bytes(second_address, 10);
 
@@ -137,6 +148,7 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
 /// Keep tagged trace maps on allocation records.
 #[test]
 fn test_allocate_heap_routes_tagged_trace_map_to_large() {
+    // tagged trace maps require allocation records, not young run metadata
     let options = HeapOptions {
         heap_young_bytes: 64,
         max_heap_young_allocation_bytes: 64,
@@ -165,12 +177,14 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
         .allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
         .expect("heap allocation should succeed");
 
+    // tagged payloads should bypass young space
     assert!(matches!(heap.place(reference), Some(HeapPlace::Large(_))));
 }
 
 /// Keep over-aligned allocations on aligned mature slots.
 #[test]
 fn test_allocate_heap_honors_layout_alignment() {
+    // use a size class that can satisfy 16-byte alignment
     let options = HeapOptions {
         heap_young_bytes: 64,
         max_heap_young_allocation_bytes: 64,
@@ -195,6 +209,7 @@ fn test_allocate_heap_honors_layout_alignment() {
         )
         .expect("second aligned heap allocation should succeed");
 
+    // every returned base should satisfy the layout alignment
     assert_eq!(first.offset() % 16, 0);
     assert_eq!(second.offset() % 16, 0);
     assert_eq!(second.offset() - first.offset(), 32);
@@ -203,6 +218,7 @@ fn test_allocate_heap_honors_layout_alignment() {
 /// Reject one write that crosses allocation bounds from an interior reference.
 #[test]
 fn test_write_heap_rejects_interior_reference_crossing_bounds() {
+    // allocate one small mature payload and form an interior reference near the end
     let options = HeapOptions {
         heap_young_bytes: 0,
         heap_small_bytes: 8,
@@ -220,8 +236,9 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
         .expect("heap allocation should succeed");
     let reference = reference.add_bytes(7);
 
+    // writing two bytes from offset 7 crosses the allocation boundary
     let error = heap
-        .write_barrier(reference, 0, 2)
+        .write_barrier(reference, 0, 2, trace_table())
         .expect_err("heap write should reject bounds crossing");
 
     assert_eq!(
@@ -237,6 +254,7 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
 /// Reclaim one freed heap large allocation and allow another large allocation.
 #[test]
 fn test_free_heap_reclaims_large_allocation() {
+    // force allocations larger than the local small span classes
     let options = HeapOptions {
         heap_young_bytes: 0,
         heap_small_bytes: 32,
@@ -260,6 +278,7 @@ fn test_free_heap_reclaims_large_allocation() {
 
     assert!(matches!(heap.place(first), Some(HeapPlace::Large(_))));
 
+    // free the large allocation before allocating another one
     heap.free(first).expect("heap large free should succeed");
 
     let second = heap
@@ -269,16 +288,19 @@ fn test_free_heap_reclaims_large_allocation() {
         )
         .expect("heap large reallocation should succeed");
 
+    // large allocation placement should stay on the large path
     assert!(matches!(heap.place(second), Some(HeapPlace::Large(_))));
 }
 
 /// Reject one invalid heap reference loudly.
 #[test]
 fn test_free_heap_rejects_invalid_reference() {
+    // build a heap with no allocation at offset 7
     let options = HeapOptions::local();
     let mut heap = HeapSpace::with_options(test_allocator(&options), &options)
         .expect("heap space should build");
 
+    // reject the unknown address
     let reference = HeapReference::new(7);
     let error = heap.free(reference).expect_err("heap free should fail");
 

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AccountingRegion, HeapError, HeapResult, apply_byte_delta};
 
-/// One live admission budget for world-shared raw space.
+/// One live admission budget for shared raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SharedRawBudget {
     /// The configured shared raw-space limits.
@@ -27,7 +27,7 @@ impl SharedRawBudget {
     }
 }
 
-/// Hard limits for world-shared raw space.
+/// Hard limits for shared raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedRawLimits {
     /// Optional hard limit for retained shared raw-space bytes.

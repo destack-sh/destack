@@ -4,4 +4,4 @@ mod limits;
 mod raw;
 mod tests;
 
-pub(crate) use tests::{read_mapped_bytes, write_mapped_bytes};
+pub(crate) use tests::{read_mapped_bytes, trace_table, write_mapped_bytes};

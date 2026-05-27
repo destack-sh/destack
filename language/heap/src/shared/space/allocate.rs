@@ -69,6 +69,9 @@ impl SharedHeapSpace {
         if !bucket.is_active() {
             return Ok(None);
         }
+        if bucket.class != small.class {
+            return Ok(None);
+        }
 
         // no-scan zeroed allocations are just a dense-run bump
         if layout.is_noscan
@@ -149,7 +152,12 @@ impl SharedHeapSpace {
             // partial spans return to the central partial list
             if bucket.has_available_slot(run) {
                 span.list.store(SpanList::Central);
-                store.small.partial_spans[bucket_index].push(bucket.span_index as usize);
+                store
+                    .small
+                    .partial_spans
+                    .entry(bucket.class)
+                    .or_default()
+                    .push(bucket.span_index as usize);
                 bucket.clear(run);
 
                 continue;
@@ -235,9 +243,13 @@ impl SharedHeapSpace {
                     && span.list.load() == SpanList::Full;
 
                 if should_requeue {
-                    let bucket_index = span.class.bucket_index(&store.small.size_classes)?;
                     span.list.store(SpanList::Central);
-                    store.small.partial_spans[bucket_index].push(slot.span_index());
+                    store
+                        .small
+                        .partial_spans
+                        .entry(span.class)
+                        .or_default()
+                        .push(slot.span_index());
                 }
 
                 None
@@ -327,12 +339,10 @@ impl SharedHeapSpace {
         store: &SharedHeapState,
         small: &SmallAllocationPlan,
     ) -> bool {
-        let bucket_index = small.bucket_index;
-
         store
             .small
             .partial_spans
-            .get(bucket_index)
+            .get(&small.class)
             .is_some_and(|spans| !spans.is_empty())
     }
 
@@ -342,10 +352,8 @@ impl SharedHeapSpace {
         store: &mut SharedHeapState,
         class: &SmallSpanClass,
     ) -> HeapResult<(usize, bool)> {
-        let bucket_index = class.bucket_index(&store.small.size_classes)?;
-
         // first reuse a central partial span
-        while let Some(span_index) = store.small.partial_spans[bucket_index].pop() {
+        while let Some(span_index) = store.small.partial_spans.entry(*class).or_default().pop() {
             let Some(span) = store.small.spans.get(span_index).cloned() else {
                 return Err(HeapError::MissingSpan { span_index });
             };
@@ -440,6 +448,13 @@ impl SharedHeapSpace {
         should_keep_worker_bucket: bool,
     ) -> HeapResult<SpanSlot> {
         // reuse the worker-owned span when it still has a slot
+        if cache.small[bucket_index].is_active() {
+            if cache.small[bucket_index].class != *class {
+                self.release_cache_bucket(cache, bucket_index);
+            }
+        }
+
+        // reuse the worker-owned span when it still has a matching slot
         if cache.small[bucket_index].is_active() {
             let mut should_release_bucket = false;
             let allocated_slot = {
@@ -547,7 +562,12 @@ impl SharedHeapSpace {
         // keep reusable spans on the central partial list
         if bucket.has_available_slot(run) {
             span.list.store(SpanList::Central);
-            store.small.partial_spans[bucket_index].push(bucket.span_index as usize);
+            store
+                .small
+                .partial_spans
+                .entry(bucket.class)
+                .or_default()
+                .push(bucket.span_index as usize);
         } else {
             span.list.store(SpanList::Full);
         }

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use destack_mir::TraceId;
+
 use crate::allocator::{
     Allocator, DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, SizeClassTable,
 };
@@ -45,11 +47,13 @@ impl HeapOptions {
         &self,
         byte_len: usize,
         alignment: usize,
+        trace_id: Option<TraceId>,
         is_noscan: bool,
     ) -> AllocationClass {
         allocation_class(
             byte_len,
             alignment,
+            trace_id,
             is_noscan,
             &self.size_classes,
             self.page_bytes,

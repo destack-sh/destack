@@ -1,3 +1,14 @@
+use std::sync::OnceLock;
+
+use destack_mir::TraceTable;
+
+static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
+
+/// Return the shared empty trace table for shared heap tests.
+pub(crate) fn trace_table() -> &'static TraceTable {
+    TRACE_TABLE.get_or_init(TraceTable::new)
+}
+
 /// Read bytes from one mapped shared heap address.
 pub(crate) fn read_mapped_bytes(address: usize, byte_len: usize) -> Vec<u8> {
     // tests only read ranges they just allocated or restored
