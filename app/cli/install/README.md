@@ -80,6 +80,7 @@ Use `destack update --check --verify` to run metadata signature verification wit
 
 Stable releases use a `vX.Y.Z` release tag and `channel = stable`.
 Nightly uses the rolling `nightly` prerelease tag and `channel = nightly`.
+Canary is reserved for internal validation and is not a public installer channel.
 
 ## release wiring
 

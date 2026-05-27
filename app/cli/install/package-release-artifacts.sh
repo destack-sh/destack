@@ -60,7 +60,14 @@ resolve_release_tag() {
 
 # resolve the release channel
 resolve_release_channel() {
-    printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
+    case "${DESTACK_RELEASE_CHANNEL_INPUT}" in
+        stable | nightly | canary)
+            printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
+            ;;
+        *)
+            fail "unsupported release channel: ${DESTACK_RELEASE_CHANNEL_INPUT}"
+            ;;
+    esac
 }
 
 # resolve the output directory
