@@ -26,7 +26,7 @@ pub trait ProviderContext: DiagnosticContext {
     fn track(&self, dependency: ArtifactDependency);
 
     /// Add an already-final diagnostic collection produced by this attempt.
-    fn emit_collection(&self, diagnostics: DiagnosticCollection);
+    fn emit_diagnostics(&self, diagnostics: DiagnosticCollection);
 
     /// Add one sidecar produced by this attempt.
     fn emit_sidecar(&self, sidecar: ArtifactSidecar);
