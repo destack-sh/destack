@@ -56,6 +56,7 @@ impl ParserFlags {
     const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 28;
     const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 29;
     const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 30;
+    const IN_DECORATOR_HEAD_FLAG: u32 = 1 << 31;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -154,6 +155,11 @@ impl ParserFlags {
     #[inline]
     pub(crate) const fn is_in_decorator(self) -> bool {
         self.has_flag(Self::IN_DECORATOR_FLAG)
+    }
+
+    #[inline]
+    pub(crate) const fn is_in_decorator_head(self) -> bool {
+        self.has_flag(Self::IN_DECORATOR_HEAD_FLAG)
     }
 
     #[inline]
@@ -283,6 +289,11 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn set_in_decorator(&mut self, enabled: bool) {
         self.set_flag(Self::IN_DECORATOR_FLAG, enabled);
+    }
+
+    #[inline]
+    pub(crate) fn set_in_decorator_head(&mut self, enabled: bool) {
+        self.set_flag(Self::IN_DECORATOR_HEAD_FLAG, enabled);
     }
 
     #[inline]
@@ -567,6 +578,12 @@ impl ParserFlags {
         self.with_flag(Self::IN_DECORATOR_FLAG, true)
     }
 
+    /// Set `in_decorator_head=true`.
+    #[inline]
+    pub(crate) fn in_decorator_head(self) -> Self {
+        self.with_flag(Self::IN_DECORATOR_HEAD_FLAG, true)
+    }
+
     /// Set `in_decorator=false`.
     #[inline]
     pub(crate) fn not_in_decorator(self) -> Self {
@@ -603,6 +620,7 @@ impl ParserFlags {
         flags.set_forbid_await(self.is_forbid_await());
         flags.set_allow_sequence_expression(self.allows_sequence_expression());
         flags.set_in_decorator(self.is_in_decorator());
+        flags.set_in_decorator_head(false);
         flags.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
         flags.set_in_declare_context(self.is_in_declare_context());
         flags.set_in_statement_context(self.is_in_statement_context());
