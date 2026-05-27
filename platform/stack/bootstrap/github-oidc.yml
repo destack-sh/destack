@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GitHub OIDC deploy role for the Destack platform.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: destack-sh
+  GitHubRepository:
+    Type: String
+    Default: destack
+  GitHubEnvironment:
+    Type: String
+    Default: production
+  RoleName:
+    Type: String
+    Default: destack-platform-github
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      Tags:
+        - Key: App
+          Value: destack-platform
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOwner}/${GitHubRepository}:environment:${GitHubEnvironment}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      Tags:
+        - Key: App
+          Value: destack-platform
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt GitHubDeployRole.Arn
+  RoleName:
+    Value: !Ref GitHubDeployRole

@@ -6,6 +6,12 @@
     "type": "module",
     "description": "Destack operated platform stack",
     "scripts": {
-        "check": "echo \"platform stack scaffolding is intentionally empty\""
+        "check": "sst install && sst version",
+        "deploy": "sst install && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst deploy --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}",
+        "diff": "sst install && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst diff --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}",
+        "remove": "sst install && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst remove --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}"
+    },
+    "devDependencies": {
+        "sst": "4.14.3"
     }
 }

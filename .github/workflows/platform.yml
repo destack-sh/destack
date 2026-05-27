@@ -1,0 +1,86 @@
+name: Platform
+
+on:
+  pull_request:
+    paths:
+      - ".github/actions/**"
+      - ".github/workflows/platform.yml"
+      - "app/cli/install/**"
+      - "dev/toolchain/versions.sh"
+      - "justfile"
+      - "platform/**"
+      - "package.json"
+      - "bun.lock"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/actions/**"
+      - ".github/workflows/platform.yml"
+      - "app/cli/install/**"
+      - "dev/toolchain/versions.sh"
+      - "justfile"
+      - "platform/**"
+      - "package.json"
+      - "bun.lock"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check Platform
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          install_js_dependencies: "true"
+
+      - name: Check Platform
+        run: just platform/check-quick
+
+  deploy:
+    name: Deploy Platform
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-2' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_DEFAULT_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
+        with:
+          install_js_dependencies: "true"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: destack-platform-${{ github.run_id }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+
+      - name: Deploy Platform
+        run: just platform/deploy production
