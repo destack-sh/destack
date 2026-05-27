@@ -1,5 +1,7 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../../.env.local"
 
 _default:
     @just --list --unsorted
@@ -42,20 +44,20 @@ check-quick:
 check-full:
     just check-quick
 
-# preview production changes
-diff:
+# preview stage changes
+diff stage:
     just install
-    bun x sst diff --stage production
+    CLOUDFLARE_DEFAULT_ACCOUNT_ID="${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}" bun x sst diff --stage {{stage}}
 
-# deploy production
-deploy:
+# deploy stage
+deploy stage:
     just install
-    bun x sst deploy --stage production
+    CLOUDFLARE_DEFAULT_ACCOUNT_ID="${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}" bun x sst deploy --stage {{stage}}
 
-# remove production
-remove:
+# remove stage
+remove stage:
     just install
-    bun x sst remove --stage production
+    CLOUDFLARE_DEFAULT_ACCOUNT_ID="${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}" bun x sst remove --stage {{stage}}
 
 # clean build artifacts
 clean:

@@ -1,5 +1,7 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../.env.local"
 
 _default:
     @just --list --unsorted
@@ -43,17 +45,17 @@ check-quick:
 check-full:
     just check-quick
 
-# preview production changes
-diff:
-    just stack/diff
+# preview stage changes
+diff stage:
+    just stack/diff {{stage}}
 
-# deploy production
-deploy:
-    just stack/deploy
+# deploy stage
+deploy stage:
+    just stack/deploy {{stage}}
 
-# remove production
-remove:
-    just stack/remove
+# remove stage
+remove stage:
+    just stack/remove {{stage}}
 
 # clean build artifacts
 clean:

@@ -7,6 +7,26 @@ The single package that defines and deploys the operated Destack platform.
 The first production target is `destack.sh`.
 SST deploys the public site to AWS S3 and CloudFront, while Cloudflare owns DNS and redirect records for the Destack domains.
 
+## Stages
+
+`production` is the only stage that claims `destack.sh` and the redirect domains.
+Other stages deploy isolated AWS resources and use the generated CloudFront URL.
+
+Use explicit stages for local deploys:
+
+```sh
+just platform/diff florian
+just platform/deploy florian
+just platform/remove florian
+```
+
+Use `production` only for the live platform:
+
+```sh
+just platform/diff production
+just platform/deploy production
+```
+
 ## GitHub Environment
 
 Production deploys run through the `production` GitHub environment.
@@ -30,13 +50,32 @@ Required environment secrets:
 
 ```sh
 CLOUDFLARE_API_TOKEN=...
-CLOUDFLARE_DEFAULT_ACCOUNT_ID=...
+CLOUDFLARE_ACCOUNT_ID=...
 ```
 
 ## AWS Role
 
-Create an IAM OIDC provider for `https://token.actions.githubusercontent.com`.
-Then create a deploy role that trusts only this repository and the `production` environment.
+Deploy the bootstrap stack from an administrator profile in the dedicated platform account:
+
+```sh
+aws cloudformation deploy \
+  --stack-name destack-platform-bootstrap \
+  --template-file platform/stack/bootstrap/github-oidc.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --region eu-central-2
+```
+
+Then read the deploy role ARN:
+
+```sh
+aws cloudformation describe-stacks \
+  --stack-name destack-platform-bootstrap \
+  --region eu-central-2 \
+  --query 'Stacks[0].Outputs'
+```
+
+The bootstrap stack creates an IAM OIDC provider for `https://token.actions.githubusercontent.com`.
+It also creates a deploy role that trusts only this repository and the `production` environment.
 
 The trust policy should have this shape:
 
@@ -74,6 +113,8 @@ The token needs zone read and DNS edit access for every `destack.*` zone managed
 Run these from `platform/stack`.
 
 ```sh
-bun run diff
-bun run deploy
+DESTACK_STAGE=florian bun run diff
+DESTACK_STAGE=florian bun run deploy
 ```
+
+The scripts map `CLOUDFLARE_ACCOUNT_ID` to the provider's `CLOUDFLARE_DEFAULT_ACCOUNT_ID`.
