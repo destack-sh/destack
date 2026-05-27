@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::allocator::{Allocator, Bitmap, PageRun, PageRunCache, SpanSlot};
+use crate::allocator::{Allocator, Bitmap, PageRun, PageRunCache};
 use crate::{HeapReference, HeapResult, SmallSpanClass};
 
 /// One live heap young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct YoungSpace {
-    /// The generation number for this young space.
-    pub(crate) generation: u32,
     /// The configured byte capacity for the young space.
     pub(crate) capacity_bytes: usize,
     /// The fixed page width for young space.
@@ -18,24 +16,21 @@ pub(crate) struct YoungSpace {
     pub(crate) mapped_until: usize,
     /// The required alignment for young allocation bases.
     pub(crate) allocation_alignment_bytes: usize,
+
     /// The allocator pages backing this young space.
     pub(crate) pages: PageRun,
-    /// The object-start bits across young space.
-    pub(crate) starts: Bitmap,
-    /// The logical byte length for each object-start index.
-    pub(crate) byte_lens: Box<[u32]>,
-    /// The live young-space object-start bits.
+    /// The variable-size young range allocations.
+    pub(crate) ranges: Vec<YoungRange>,
+
+    /// The live young-space range bits.
     pub(crate) live: Bitmap,
-    /// The marked young-space object-start bits.
+    /// The marked young-space range bits.
     pub(crate) marked: Bitmap,
-    /// The survived minor-cycle count for each young-space allocation.
-    pub(crate) survivor_ages: Box<[u8]>,
-    /// The transient young-to-mature forwarding table.
-    pub(crate) forwarding: YoungForwarding,
     /// The exact local-reference bits across young space.
     pub(crate) local_reference_bits: Bitmap,
     /// The exact shared-reference bits across young space.
     pub(crate) shared_reference_bits: Bitmap,
+
     /// The fixed-size no-scan young runs.
     pub(crate) runs: Vec<YoungRun>,
     /// The fixed-size no-scan young run bits.
@@ -59,23 +54,18 @@ impl YoungSpace {
         cache: &mut PageRunCache,
     ) -> HeapResult<Self> {
         let reference_bit_capacity = capacity_bytes.div_ceil(std::mem::size_of::<usize>());
-        let start_bit_capacity = capacity_bytes.div_ceil(allocation_alignment_bytes.max(1));
         let page_count = capacity_bytes.div_ceil(page_bytes);
 
         Ok(Self {
-            generation: 0,
             capacity_bytes,
             page_bytes,
             next_offset: allocation_alignment_bytes,
             mapped_until: 0,
             allocation_alignment_bytes,
             pages: cache.allocate_pages(allocator, capacity_bytes)?,
-            starts: Bitmap::with_capacity(start_bit_capacity),
-            byte_lens: vec![0; start_bit_capacity].into_boxed_slice(),
-            live: Bitmap::with_capacity(start_bit_capacity),
-            marked: Bitmap::with_capacity(start_bit_capacity),
-            survivor_ages: vec![0; start_bit_capacity].into_boxed_slice(),
-            forwarding: YoungForwarding::new(start_bit_capacity),
+            ranges: Vec::new(),
+            live: Bitmap::with_capacity(0),
+            marked: Bitmap::with_capacity(0),
             local_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
             shared_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
             runs: Vec::new(),
@@ -91,67 +81,77 @@ impl YoungSpace {
         self.next_offset - self.allocation_alignment_bytes
     }
 
-    /// Return the young-space start-bit index for one byte offset.
-    pub(crate) fn start_index(&self, first_offset: usize) -> usize {
-        first_offset / self.allocation_alignment_bytes
+    /// Insert one live young range and return its range index.
+    #[inline(always)]
+    pub(crate) fn push_range(&mut self, first_offset: usize, byte_len: usize) -> usize {
+        let range_index = self.ranges.len();
+        let range_count = range_index + 1;
+
+        self.live.ensure_capacity(range_count);
+        self.marked.ensure_capacity(range_count);
+        self.ranges.push(YoungRange {
+            first_offset,
+            byte_len,
+        });
+        self.live.set_in_bounds(range_index);
+        self.marked.clear_in_bounds(range_index);
+
+        range_index
     }
 
-    /// Return the byte offset for one young-space start-bit index.
-    pub(crate) fn start_offset(&self, start_index: usize) -> usize {
-        start_index * self.allocation_alignment_bytes
-    }
-
-    /// Return one young range by object-start index.
-    pub(crate) fn range(&self, start_index: usize) -> Option<YoungRange> {
-        if !self.starts.contains(start_index) || !self.live.contains(start_index) {
+    /// Return one live young range by range index.
+    pub(crate) fn range(&self, range_index: usize) -> Option<YoungRange> {
+        if !self.live.contains(range_index) {
             return None;
         }
 
-        let first_offset = self.start_offset(start_index);
-        let byte_len = self.byte_lens[start_index] as usize;
+        self.ranges.get(range_index).copied()
+    }
 
-        Some(YoungRange {
-            first_offset,
-            byte_len,
-        })
+    /// Return one young range record by range index.
+    pub(crate) fn range_record(&self, range_index: usize) -> Option<YoungRange> {
+        self.ranges.get(range_index).copied()
     }
 
     /// Return one young range by object base offset.
     pub(crate) fn range_by_offset(&self, first_offset: usize) -> Option<(usize, YoungRange)> {
-        if !first_offset.is_multiple_of(self.allocation_alignment_bytes) {
+        let range_index = self.range_index_at_offset(first_offset)?;
+        let range = self.range(range_index)?;
+
+        if range.first_offset != first_offset {
             return None;
         }
 
-        let start_index = self.start_index(first_offset);
-        let range = self.range(start_index)?;
+        Some((range_index, range))
+    }
 
-        Some((start_index, range))
+    /// Return one live young range containing one byte offset.
+    pub(crate) fn range_at_offset(&self, byte_offset: usize) -> Option<(usize, YoungRange)> {
+        let range_index = self.range_index_at_offset(byte_offset)?;
+        let range = self.range(range_index)?;
+
+        if byte_offset >= range.first_offset + range.byte_len {
+            return None;
+        }
+
+        Some((range_index, range))
+    }
+
+    /// Return one young range record containing one byte offset.
+    pub(crate) fn range_record_at_offset(&self, byte_offset: usize) -> Option<(usize, YoungRange)> {
+        let range_index = self.range_index_at_offset(byte_offset)?;
+        let range = self.range_record(range_index)?;
+
+        if byte_offset >= range.first_offset + range.byte_len {
+            return None;
+        }
+
+        Some((range_index, range))
     }
 
     /// Return every captured young-space range and its live range bits.
     pub(crate) fn image_ranges(&self) -> (Box<[YoungRange]>, Bitmap) {
-        let mut ranges = Vec::new();
-        let mut live = Bitmap::with_capacity(self.starts.count_ones());
-        let mut start = 0;
-
-        while let Some(start_index) = self.starts.first_set_from(start) {
-            let first_offset = self.start_offset(start_index);
-            let byte_len = self.byte_lens[start_index] as usize;
-            let range_index = ranges.len();
-
-            ranges.push(YoungRange {
-                first_offset,
-                byte_len,
-            });
-
-            if self.live.contains(start_index) {
-                live.set(range_index);
-            }
-
-            start = start_index + 1;
-        }
-
-        (ranges.into_boxed_slice(), live)
+        (self.ranges.clone().into_boxed_slice(), self.live.clone())
     }
 
     /// Return one fixed-size young run by index.
@@ -167,35 +167,6 @@ impl YoungSpace {
     /// Return one fixed-size young run mark bitmap mutably by index.
     pub(crate) fn run_bits_mut(&mut self, run_index: usize) -> Option<&mut YoungRunBits> {
         self.run_bits.get_mut(run_index)
-    }
-
-    /// Return the promoted reference for one young-space allocation.
-    #[inline(always)]
-    pub(crate) fn forwarded_range(&self, start_index: usize) -> Option<HeapReference> {
-        self.forwarding.range(start_index)
-    }
-
-    /// Record the promoted reference for one young-space allocation.
-    #[inline(always)]
-    pub(crate) fn forward_range(&mut self, start_index: usize, reference: HeapReference) {
-        self.forwarding.set_range(start_index, reference);
-    }
-
-    /// Return the promoted reference for one fixed-size young run slot.
-    #[inline(always)]
-    pub(crate) fn forwarded_run_slot(&self, slot: SpanSlot) -> Option<HeapReference> {
-        self.forwarding.run_slot(slot)
-    }
-
-    /// Record the promoted reference for one fixed-size young run slot.
-    #[inline(always)]
-    pub(crate) fn forward_run_slot(&mut self, slot: SpanSlot, reference: HeapReference) {
-        self.forwarding.set_run_slot(slot, reference);
-    }
-
-    /// Clear all transient forwarding references.
-    pub(crate) fn clear_forwarding(&mut self) {
-        self.forwarding.clear();
     }
 
     /// Return the exact next byte offset for one run.
@@ -268,89 +239,14 @@ impl YoungSpace {
 
         Some(())
     }
-}
 
-/// Transient young-to-mature forwarding state for one promotion pass.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct YoungForwarding {
-    /// The forwarded references for range allocations.
-    ranges: Box<[usize]>,
-    /// The forwarded references for fixed-size run slots.
-    runs: Vec<Box<[usize]>>,
-}
+    /// Return the last young range index whose base is at or before one offset.
+    fn range_index_at_offset(&self, byte_offset: usize) -> Option<usize> {
+        let end = self
+            .ranges
+            .partition_point(|range| range.first_offset <= byte_offset);
 
-impl YoungForwarding {
-    /// Create empty range forwarding state.
-    pub(crate) fn new(range_capacity: usize) -> Self {
-        Self {
-            ranges: vec![0; range_capacity].into_boxed_slice(),
-            runs: Vec::new(),
-        }
-    }
-
-    /// Create empty forwarding state for captured runs.
-    pub(crate) fn with_runs(range_capacity: usize, runs: &[YoungRun]) -> Self {
-        Self {
-            ranges: vec![0; range_capacity].into_boxed_slice(),
-            runs: empty_run_forwarding(runs),
-        }
-    }
-
-    /// Return the number of range forwarding entries.
-    pub(crate) fn range_capacity(&self) -> usize {
-        self.ranges.len()
-    }
-
-    /// Return the promoted reference for one range allocation.
-    pub(crate) fn range(&self, start_index: usize) -> Option<HeapReference> {
-        let reference = HeapReference::from_bits(*self.ranges.get(start_index)?);
-
-        if reference.is_null() {
-            None
-        } else {
-            Some(reference)
-        }
-    }
-
-    /// Record the promoted reference for one range allocation.
-    pub(crate) fn set_range(&mut self, start_index: usize, reference: HeapReference) {
-        self.ranges[start_index] = reference.bits();
-    }
-
-    /// Add forwarding entries for one fixed-size run.
-    pub(crate) fn push_run(&mut self, slot_count: usize) {
-        self.runs.push(vec![0; slot_count].into_boxed_slice());
-    }
-
-    /// Return the promoted reference for one fixed-size run slot.
-    pub(crate) fn run_slot(&self, slot: SpanSlot) -> Option<HeapReference> {
-        let run = self.runs.get(slot.span_index())?;
-        let reference = HeapReference::from_bits(*run.get(slot.slot_index())?);
-
-        if reference.is_null() {
-            None
-        } else {
-            Some(reference)
-        }
-    }
-
-    /// Record the promoted reference for one fixed-size run slot.
-    pub(crate) fn set_run_slot(&mut self, slot: SpanSlot, reference: HeapReference) {
-        self.runs[slot.span_index()][slot.slot_index()] = reference.bits();
-    }
-
-    /// Clear all forwarding entries.
-    pub(crate) fn clear(&mut self) {
-        self.ranges.fill(0);
-
-        for run in &mut self.runs {
-            run.fill(0);
-        }
-    }
-
-    /// Clear fixed-size run forwarding state.
-    pub(crate) fn clear_runs(&mut self) {
-        self.runs.clear();
+        end.checked_sub(1)
     }
 }
 
@@ -365,10 +261,6 @@ pub(crate) struct YoungRun {
     pub(crate) end_offset: usize,
     /// The byte length of each slot in this run.
     pub(crate) size_class: usize,
-    /// The total byte length of this run.
-    pub(crate) span_bytes: usize,
-    /// The number of slots in this run.
-    pub(crate) slot_count: usize,
 }
 
 impl YoungRun {
@@ -376,9 +268,19 @@ impl YoungRun {
     pub(crate) const fn class(&self) -> SmallSpanClass {
         SmallSpanClass {
             size_class: self.size_class,
-            span_bytes: self.span_bytes,
+            span_bytes: self.span_bytes(),
             is_noscan: true,
         }
+    }
+
+    /// Return the total byte length of this run.
+    pub(crate) const fn span_bytes(&self) -> usize {
+        self.end_offset - self.first_offset
+    }
+
+    /// Return the number of slots in this run.
+    pub(crate) const fn slot_count(&self) -> usize {
+        self.span_bytes() / self.size_class
     }
 
     /// Return the number of slots reserved through one next offset.
@@ -391,13 +293,6 @@ impl YoungRun {
     pub(crate) fn slot_offset(&self, slot_index: usize) -> usize {
         self.first_offset + slot_index * self.size_class
     }
-}
-
-/// Return empty forwarding tables for fixed-size young run slots.
-fn empty_run_forwarding(runs: &[YoungRun]) -> Vec<Box<[usize]>> {
-    runs.iter()
-        .map(|run| vec![0; run.slot_count].into_boxed_slice())
-        .collect()
 }
 
 /// The active fixed-size no-scan young run.
@@ -482,15 +377,11 @@ pub(crate) struct YoungRunBits {
     pub(crate) freed: Bitmap,
     /// The marked slots in this run.
     pub(crate) marked: Bitmap,
-    /// The survived minor-cycle count for each slot.
-    pub(crate) survivor_ages: Box<[u8]>,
 }
 
 /// One frozen young-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct YoungImage {
-    /// The generation number for this young space.
-    generation: u32,
     /// The configured byte capacity for the young space.
     capacity_bytes: usize,
     /// The fixed page width for young space.
@@ -518,7 +409,6 @@ pub(crate) struct YoungImage {
 impl YoungImage {
     /// Create one frozen young-space image.
     pub(crate) fn new(
-        generation: u32,
         capacity_bytes: usize,
         page_bytes: usize,
         next_offset: usize,
@@ -532,7 +422,6 @@ impl YoungImage {
         shared_reference_bits: Bitmap,
     ) -> Self {
         Self {
-            generation,
             capacity_bytes,
             page_bytes,
             next_offset,
@@ -545,11 +434,6 @@ impl YoungImage {
             local_reference_bits,
             shared_reference_bits,
         }
-    }
-
-    /// Return the generation number.
-    pub(crate) const fn generation(&self) -> u32 {
-        self.generation
     }
 
     /// Return the young-space byte capacity.

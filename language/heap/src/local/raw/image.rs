@@ -146,7 +146,6 @@ impl RawSpace {
                 partial_spans: Default::default(),
             },
             large: super::LargeSpace {
-                page_bytes: self.large.page_bytes,
                 allocations: CowTable::from_vec(allocations),
                 free_large_allocation_ids: self.large.free_large_allocation_ids.clone(),
                 next_unused_large_allocation_id: self.large.next_unused_large_allocation_id,
@@ -179,7 +178,6 @@ impl RawSpace {
                 partial_spans: Default::default(),
             },
             large: super::LargeSpace {
-                page_bytes: image.page_bytes(),
                 allocations: CowTable::new(),
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: image.next_unused_large_allocation_id(),
@@ -229,7 +227,7 @@ impl RawSpace {
             self.small.size_classes.clone(),
             self.small.span_bytes,
             spans,
-            self.large.page_bytes,
+            self.allocator.page_bytes(),
             self.mapping.byte_len(),
             allocations,
             self.large.next_unused_large_allocation_id,
@@ -313,7 +311,7 @@ impl RawSpace {
         Ok(LargeAllocation {
             is_live: allocation.is_live,
             first_offset: allocation.first_offset,
-            len: allocation.len,
+            byte_len: allocation.byte_len,
             pages,
         })
     }
@@ -352,7 +350,7 @@ impl RawSpace {
                 Ok(LargeAllocation {
                     is_live: allocation.is_live,
                     first_offset: allocation.first_offset,
-                    len: allocation.len,
+                    byte_len: allocation.byte_len,
                     pages,
                 })
             })
@@ -413,7 +411,7 @@ impl RawSpace {
     ) -> HeapResult<LargeAllocationImage> {
         let bytes = if allocation.is_live {
             self.mapping
-                .read_bytes(allocation.first_offset, allocation.len)?
+                .read_bytes(allocation.first_offset, allocation.byte_len)?
                 .into_boxed_slice()
         } else {
             Box::new([])
@@ -422,7 +420,7 @@ impl RawSpace {
         Ok(LargeAllocationImage {
             is_live: allocation.is_live,
             first_offset: allocation.first_offset,
-            len: allocation.len,
+            byte_len: allocation.byte_len,
             bytes,
         })
     }

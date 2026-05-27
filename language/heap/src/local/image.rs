@@ -214,10 +214,8 @@ impl Heap {
         let raw = self.raw.fork()?;
 
         Ok(Self {
-            allocator: self.allocator.clone(),
             options: self.options.clone(),
             gc_pacer: self.gc_pacer,
-            young_trigger_bytes: self.young_trigger_bytes,
             gc_request: self.gc_request,
             heap,
             raw,
@@ -269,17 +267,14 @@ impl Heap {
         let raw = RawSpace::from_image(image.allocator().clone(), image.raw())?;
 
         let mut heap = Self {
-            allocator: image.allocator().clone(),
             options: image.options().clone(),
             gc_pacer: Default::default(),
-            young_trigger_bytes: 0,
             gc_request: None,
             heap,
             raw,
             limits,
         };
 
-        heap.young_trigger_bytes = heap.young_trigger_bytes();
         heap.refresh_gc_request();
 
         Ok(heap)

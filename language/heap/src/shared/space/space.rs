@@ -6,7 +6,7 @@ use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{
-    SharedAllocator, SharedHeapPageMapEntry, SharedHeapPlace, SharedLargeAllocation,
+    SharedAllocationCache, SharedHeapPageMapEntry, SharedHeapPlace, SharedLargeAllocation,
     SharedSmallSpan,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
@@ -26,7 +26,7 @@ pub struct SharedHeapSpace {
     pub(crate) allocator: Arc<Allocator>,
     /// The fixed live byte mapping for shared heap space.
     pub(crate) mapping: AddressSpace,
-    /// The shared heap allocator state.
+    /// The shared heap allocation state.
     pub(crate) state: RwLock<SharedHeapState>,
     /// The exact shared heap accounting state.
     pub(crate) accounting: SharedHeapAccounting,
@@ -77,7 +77,6 @@ impl SharedHeapSpace {
                 ],
             },
             large: SharedLargeSpace {
-                page_bytes: allocator.page_bytes(),
                 allocations: Vec::new(),
                 free_large_allocation_ids: Vec::new(),
                 next_unused_large_allocation_id: FIRST_LARGE_ALLOCATION_ID,
@@ -208,12 +207,12 @@ impl SharedHeapSpace {
         Ok(released_bytes)
     }
 
-    /// Create one worker-local shared heap allocator.
-    pub fn allocator(&self) -> SharedAllocator {
-        // allocator shape follows shared heap options
+    /// Create one mutator-local shared allocation cache.
+    pub fn allocation_cache(&self) -> SharedAllocationCache {
+        // cache shape follows shared heap options
         let store = self.state.read();
 
-        SharedAllocator::new(
+        SharedAllocationCache::new(
             store.small.size_classes.clone(),
             store.small.span_bytes,
             self.allocator.page_bytes(),
@@ -388,7 +387,7 @@ impl SharedHeapAccounting {
                 continue;
             }
 
-            accounting.allocate(allocation.len);
+            accounting.allocate(allocation.byte_len);
             accounting.retain_pages(allocation.pages, page_bytes);
         }
 
@@ -475,8 +474,6 @@ pub(crate) struct SharedSmallSpace {
 /// One shared heap large space.
 #[derive(Debug)]
 pub(crate) struct SharedLargeSpace {
-    /// The configured page width for allocations in large space.
-    pub(crate) page_bytes: usize,
     /// The live shared heap allocations.
     pub(crate) allocations: Vec<Arc<RwLock<SharedLargeAllocation>>>,
     /// The free shared heap allocation ids available for reuse.

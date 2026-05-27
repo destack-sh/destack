@@ -166,7 +166,7 @@ impl HeapSpace {
             return Ok(Some(slot.reference));
         }
 
-        let Some((write_offset, start_index)) =
+        let Some((write_offset, range_index)) =
             self.reserve_young_noscan_range(byte_len, layout.alignment)?
         else {
             return Ok(None);
@@ -175,7 +175,7 @@ impl HeapSpace {
 
         // objects allocated during marking start black
         if self.collector.major_phase == LocalGcPhase::Mark {
-            self.young.marked.set_in_bounds(start_index);
+            self.young.marked.set_in_bounds(range_index);
         }
         self.clear_mapped_bytes(write_offset, byte_len);
         self.record_young_allocation(byte_len);
@@ -273,15 +273,11 @@ impl HeapSpace {
             next_offset: first_offset,
             end_offset: first_offset + run_bytes,
             size_class: class.size_class,
-            span_bytes: class.span_bytes,
-            slot_count,
         });
         self.young.run_bits.push(YoungRunBits {
             freed: Bitmap::with_capacity(slot_count),
             marked: Bitmap::with_capacity(slot_count),
-            survivor_ages: vec![0; slot_count].into_boxed_slice(),
         });
-        self.young.forwarding.push_run(slot_count);
 
         for page_index in page_start..page_start + page_count {
             self.young.page_runs[page_index] = Some(run_index);
@@ -332,7 +328,7 @@ impl HeapSpace {
             return Ok(Some(reference));
         }
 
-        let Some((write_offset, start_index)) =
+        let Some((write_offset, range_index)) =
             self.reserve_young_noscan_range(byte_len, layout.alignment)?
         else {
             return Ok(None);
@@ -343,7 +339,7 @@ impl HeapSpace {
 
         // objects allocated during marking start black
         if self.collector.major_phase == LocalGcPhase::Mark {
-            self.young.marked.set_in_bounds(start_index);
+            self.young.marked.set_in_bounds(range_index);
         }
         self.record_young_allocation(byte_len);
 
@@ -693,7 +689,7 @@ impl HeapSpace {
 
     /// Return the page-rounded retained bytes for one heap large allocation.
     fn round_up_large_allocation_bytes(&self, byte_len: usize) -> u64 {
-        let page_bytes = self.large.page_bytes as u64;
+        let page_bytes = self.allocator.page_bytes() as u64;
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes
@@ -702,7 +698,7 @@ impl HeapSpace {
     /// Insert one large allocation record.
     pub(crate) fn insert_large_allocation(
         &mut self,
-        len: usize,
+        byte_len: usize,
         alignment: usize,
         pages: PageRun,
         trace_map: TraceMap,
@@ -753,11 +749,11 @@ impl HeapSpace {
         let allocation = LargeAllocation {
             is_live: true,
             first_offset,
-            len,
+            byte_len,
             pages,
             trace_map,
             mark_epoch: 0,
-            dirty_cards: CardSet::with_len(len),
+            dirty_cards: CardSet::with_len(byte_len),
             is_dirty_queued: false,
         };
 
@@ -776,7 +772,7 @@ impl HeapSpace {
 
         // remember new mature allocations conservatively
         if remember {
-            self.mark_large_allocation_dirty(allocation_id, 0, len)?;
+            self.mark_large_allocation_dirty(allocation_id, 0, byte_len)?;
         }
 
         Ok(allocation_id)
@@ -968,17 +964,11 @@ impl HeapSpace {
         }
 
         let end_offset = write_offset + byte_len;
-        let start_index = self.young.start_index(write_offset);
-
         // materialize the allocation range before publishing metadata
         self.materialize_young_range(write_offset, byte_len)?;
 
         // install the metadata before exposing the address
-        debug_assert!(u32::try_from(byte_len).is_ok());
-        self.young.starts.set_in_bounds(start_index);
-        self.young.byte_lens[start_index] = byte_len as u32;
-        self.young.live.set_in_bounds(start_index);
-        self.young.marked.clear_in_bounds(start_index);
+        let _range_index = self.young.push_range(write_offset, byte_len);
         if trace_map.has_local_reference() || tracks_shared_edges {
             write_allocation_reference_bits(
                 trace_map,
@@ -1023,20 +1013,15 @@ impl HeapSpace {
         }
 
         let end_offset = write_offset + byte_len;
-        let start_index = self.young.start_index(write_offset);
-
         // materialize the allocation range before publishing metadata
         self.materialize_young_range(write_offset, byte_len)?;
 
         // install exact no-scan metadata
-        debug_assert!(u32::try_from(byte_len).is_ok());
-        self.young.starts.set_in_bounds(start_index);
-        self.young.byte_lens[start_index] = byte_len as u32;
-        self.young.live.set_in_bounds(start_index);
+        let range_index = self.young.push_range(write_offset, byte_len);
 
         self.young.next_offset = end_offset;
 
-        Ok(Some((write_offset, start_index)))
+        Ok(Some((write_offset, range_index)))
     }
 
     /// Allocate or reuse one non-full heap span for the given size class.

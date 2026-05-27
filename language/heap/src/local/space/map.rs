@@ -90,20 +90,8 @@ impl HeapSpace {
             return self.resolve_young_run_location(run_index, logical_byte_offset);
         }
 
-        let start_index = self.young.start_index(logical_byte_offset);
-        let range_index = self.young.starts.last_set_at_or_before(start_index)?;
-
-        // retired young ranges stay addressable only until the next reset
-        if !self.young.live.contains(range_index) {
-            return None;
-        }
-
-        let allocation = self.young.range(range_index)?;
+        let (_range_index, allocation) = self.young.range_at_offset(logical_byte_offset)?;
         let allocation_offset = allocation.first_offset;
-        let allocation_limit = allocation_offset + allocation.byte_len;
-        if logical_byte_offset >= allocation_limit {
-            return None;
-        }
 
         let byte_offset = logical_byte_offset - allocation_offset;
 
@@ -190,11 +178,11 @@ impl HeapSpace {
     ) -> Option<HeapLocation> {
         let allocation = self.large_allocation(allocation_id)?;
         let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
-        if allocation.len == 0 {
+        if allocation.byte_len == 0 {
             if logical_byte_offset != 0 {
                 return None;
             }
-        } else if logical_byte_offset >= allocation.len {
+        } else if logical_byte_offset >= allocation.byte_len {
             return None;
         }
 
@@ -207,7 +195,7 @@ impl HeapSpace {
             place: HeapPlace::Large(allocation_id),
             base: HeapReference::new(allocation.first_offset),
             byte_offset: logical_byte_offset,
-            byte_len: allocation.len,
+            byte_len: allocation.byte_len,
         })
     }
 }

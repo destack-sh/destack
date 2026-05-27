@@ -3,8 +3,8 @@ use crate::local::space::{
     MajorSweepCursor, YoungPlace,
 };
 use crate::{
-    GcProgress, HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource,
-    scan_heap_references, scan_heap_references_in_range,
+    GcProgress, HeapError, HeapReference, HeapResult, RootSlot, ScanSource, scan_heap_references,
+    scan_heap_references_in_range,
 };
 
 /// The budget charged for one metadata-only sweep step.
@@ -99,9 +99,12 @@ impl HeapSpace {
     }
 
     /// Perform one full heap collection over mutable heap roots.
-    pub fn collect_full<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    pub fn collect_full<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<GcStats, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         // collect the nursery first so full collection sees mature references
         let _minor = self.collect_minor(roots)?;
@@ -124,12 +127,15 @@ impl HeapSpace {
     }
 
     /// Start one local major collection.
-    pub(crate) fn start_major_gc<R>(&mut self, roots: &mut R) -> Result<(), R::Error>
+    pub(crate) fn start_major_gc<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<(), E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         // reject overlapping collection work
-        if self.collector.is_collecting {
+        if self.collector.is_collecting() {
             return Err(HeapError::HeapCollectionActive.into());
         }
 
@@ -141,7 +147,6 @@ impl HeapSpace {
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
         self.collector.major_phase = LocalGcPhase::Mark;
-        self.collector.is_collecting = true;
 
         // seed initial roots
         self.seed_major_roots(roots)?;
@@ -150,13 +155,13 @@ impl HeapSpace {
     }
 
     /// Perform bounded work for one active local major collection.
-    pub(crate) fn step_major_gc<R>(
+    pub(crate) fn step_major_gc<E>(
         &mut self,
-        roots: &mut R,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-    ) -> Result<GcProgress, R::Error>
+    ) -> Result<GcProgress, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         // no active work
         if budget_bytes == 0 || self.collector.major_phase == LocalGcPhase::Idle {
@@ -203,12 +208,15 @@ impl HeapSpace {
     }
 
     /// Seed the active major trace queue from explicit roots and pins.
-    fn seed_major_roots<R>(&mut self, roots: &mut R) -> Result<(), R::Error>
+    fn seed_major_roots<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<(), E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         // root slots
-        roots.visit_root_slots(&mut |slot: RootSlot<'_>| {
+        roots(&mut |slot: RootSlot<'_>| {
             let Some(reference) = slot.load_heap_reference()? else {
                 return Ok(());
             };
@@ -240,7 +248,6 @@ impl HeapSpace {
         self.collector.major_sweep = MajorSweepCursor::default();
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
-        self.collector.is_collecting = false;
 
         Ok(stats)
     }
@@ -278,7 +285,7 @@ impl HeapSpace {
         swept_bytes: &mut usize,
     ) -> HeapResult<()> {
         while *swept_bytes < budget_bytes
-            && self.collector.major_sweep.young_range_cursor < self.young.live.capacity()
+            && self.collector.major_sweep.young_range_cursor < self.young.ranges.len()
         {
             let Some(allocation_index) = self
                 .young
@@ -287,7 +294,7 @@ impl HeapSpace {
             else {
                 self.collector.major_sweep.young_range_cursor = charge_bitmap_skip(
                     self.collector.major_sweep.young_range_cursor,
-                    self.young.live.capacity(),
+                    self.young.ranges.len(),
                     budget_bytes,
                     swept_bytes,
                 );
@@ -345,7 +352,7 @@ impl HeapSpace {
             let reserved_slots = self
                 .young
                 .run_reserved_slot_count(run_index)
-                .unwrap_or(run.slot_count);
+                .unwrap_or_else(|| run.slot_count());
 
             while *swept_bytes < budget_bytes
                 && self.collector.major_sweep.young_slot_cursor < reserved_slots
@@ -467,7 +474,7 @@ impl HeapSpace {
             }
 
             let reference = HeapReference::new(allocation.first_offset);
-            let byte_len = allocation.len;
+            let byte_len = allocation.byte_len;
             if allocation.mark_epoch == self.collector.mark_epoch {
                 *swept_bytes += byte_len.max(1);
 
@@ -483,7 +490,7 @@ impl HeapSpace {
 
     /// Return whether every active major sweep cursor is drained.
     fn major_sweep_drained(&self) -> bool {
-        self.collector.major_sweep.young_range_cursor >= self.young.live.capacity()
+        self.collector.major_sweep.young_range_cursor >= self.young.ranges.len()
             && self.collector.major_sweep.young_run_cursor >= self.young.runs.len()
             && self.collector.major_sweep.small_span_cursor
                 >= self.collector.major_sweep.small_span_limit

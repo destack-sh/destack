@@ -1,5 +1,5 @@
 use destack_heap::{
-    AllocationShape, Heap, HeapReference, SharedAllocator, SharedGcWorker, SharedHeap,
+    AllocationShape, Heap, HeapReference, SharedAllocationCache, SharedGcWorker, SharedHeap,
     SharedHeapReference,
 };
 use destack_mir::TraceMap;
@@ -52,11 +52,11 @@ impl ObjectGraphWorkload {
         self,
         shared: &SharedHeap,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
     ) -> ObjectGraph<SharedHeapReference> {
         let trace_map = shared_record_trace_map();
 
-        self.allocate_shared_with_map(shared, worker, allocator, &trace_map)
+        self.allocate_shared_with_map(shared, worker, cache, &trace_map)
     }
 
     /// Build one local heap with this workload ready to fork.
@@ -103,7 +103,7 @@ impl ObjectGraphWorkload {
         self,
         shared: &SharedHeap,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
         trace_map: &TraceMap,
     ) -> ObjectGraph<SharedHeapReference> {
         let leaf_map = TraceMap::Empty;
@@ -116,14 +116,14 @@ impl ObjectGraphWorkload {
         // allocate leaf and record pairs through one worker cache
         for index in 0..self.objects {
             let leaf = shared
-                .allocate_zeroed(worker, allocator, &leaf_layout)
+                .allocate_zeroed(worker, cache, &leaf_layout)
                 .expect("shared leaf allocation should succeed");
             let mut record = vec![0u8; self.record_bytes];
             write_word(&mut record, 0, leaf.bits());
             write_word(&mut record, REFERENCE_BYTES, index);
 
             let reference = shared
-                .allocate_bytes(worker, allocator, &record_layout, &record)
+                .allocate_bytes(worker, cache, &record_layout, &record)
                 .expect("shared record allocation should succeed");
             records.push(reference);
         }
@@ -181,7 +181,7 @@ impl ReferenceArrayWorkload {
         self,
         shared: &SharedHeap,
         worker: &SharedGcWorker,
-        allocator: &mut SharedAllocator,
+        cache: &mut SharedAllocationCache,
     ) -> ReferenceArray<SharedHeapReference> {
         let trace_map = shared_reference_array_map(self.objects);
         let leaf_map = TraceMap::Empty;
@@ -195,13 +195,13 @@ impl ReferenceArrayWorkload {
         // build the array payload from fresh leaf references
         for index in 0..self.objects {
             let leaf = shared
-                .allocate_zeroed(worker, allocator, &leaf_layout)
+                .allocate_zeroed(worker, cache, &leaf_layout)
                 .expect("shared leaf allocation should succeed");
             write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
         }
 
         let reference = shared
-            .allocate_bytes(worker, allocator, &array_layout, &payload)
+            .allocate_bytes(worker, cache, &array_layout, &payload)
             .expect("shared reference array allocation should succeed");
 
         ReferenceArray { reference }

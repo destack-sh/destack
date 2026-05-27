@@ -148,7 +148,7 @@ impl RawSpace {
     /// Insert one raw large allocation record.
     pub(super) fn insert_large_allocation(
         &mut self,
-        len: usize,
+        byte_len: usize,
         alignment: usize,
         pages: PageRun,
     ) -> HeapResult<LargeAllocationId> {
@@ -197,7 +197,7 @@ impl RawSpace {
         let allocation = LargeAllocation {
             is_live: true,
             first_offset,
-            len,
+            byte_len,
             pages,
         };
 
@@ -468,7 +468,7 @@ impl RawSpace {
 
     /// Return the page-rounded retained bytes for one raw large allocation.
     fn round_up_large_allocation_bytes(&self, byte_len: usize) -> u64 {
-        let page_bytes = self.large.page_bytes as u64;
+        let page_bytes = self.allocator.page_bytes() as u64;
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes

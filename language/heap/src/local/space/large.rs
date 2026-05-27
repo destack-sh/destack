@@ -14,7 +14,7 @@ pub(crate) struct LargeAllocation {
     /// The first byte offset inside heap space.
     pub(crate) first_offset: usize,
     /// The logical byte length of this allocation.
-    pub(crate) len: usize,
+    pub(crate) byte_len: usize,
     /// The allocator pages for this allocation.
     pub(crate) pages: PageRun,
     /// The trace map for this allocation.
@@ -32,7 +32,7 @@ impl LargeAllocation {
     pub(crate) fn retire(&mut self) {
         self.is_live = false;
         self.first_offset = 0;
-        self.len = 0;
+        self.byte_len = 0;
         self.pages = PageRun::empty();
         self.mark_epoch = 0;
         self.dirty_cards.clear();
@@ -73,7 +73,7 @@ pub(crate) struct LargeAllocationImage {
     /// The first byte offset inside heap space.
     pub first_offset: usize,
     /// The logical byte length of this allocation.
-    pub len: usize,
+    pub byte_len: usize,
     /// The allocator pages for this allocation.
     pub pages: PageRun,
     /// The trace map for this allocation.

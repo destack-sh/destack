@@ -135,11 +135,11 @@ impl SharedHeapSpace {
         }
 
         let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
-        if allocation.len == 0 {
+        if allocation.byte_len == 0 {
             if logical_byte_offset != 0 {
                 return None;
             }
-        } else if logical_byte_offset >= allocation.len {
+        } else if logical_byte_offset >= allocation.byte_len {
             return None;
         }
 
@@ -147,7 +147,7 @@ impl SharedHeapSpace {
             place: SharedHeapPlace::Large(allocation_id),
             base: SharedHeapReference::new(allocation.first_offset),
             byte_offset: logical_byte_offset,
-            byte_len: allocation.len,
+            byte_len: allocation.byte_len,
         })
     }
 }

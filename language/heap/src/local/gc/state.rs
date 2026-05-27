@@ -47,8 +47,6 @@ pub(crate) struct LocalGcState {
     pub(crate) major_freed_allocations: usize,
     /// The number of bytes freed by the active local major cycle.
     pub(crate) major_freed_bytes: u64,
-    /// Whether a heap collection is currently running.
-    pub(crate) is_collecting: bool,
     /// The scoped heap pins that keep stable addresses and block branch boundaries.
     pub(crate) pins: PinSet,
     /// Mature spans queued for dirty-card scanning.
@@ -70,6 +68,11 @@ pub(crate) struct LocalGcState {
 }
 
 impl LocalGcState {
+    /// Return whether a local collection is currently running.
+    pub(crate) fn is_collecting(&self) -> bool {
+        self.young_phase != YoungGcPhase::Idle || self.major_phase != LocalGcPhase::Idle
+    }
+
     /// Clear every tracked shared-edge root.
     pub(crate) fn clear_shared_edge_roots(&mut self) {
         self.shared_edge_roots.clear();

@@ -296,7 +296,7 @@ impl SharedRawSpace {
 
         let previous_pages = allocation.pages;
         let first_offset = allocation.first_offset;
-        let previous_len = allocation.len;
+        let previous_byte_len = allocation.byte_len;
 
         // materialize the replacement pages before publishing them
         if let Err(error) = self
@@ -323,11 +323,11 @@ impl SharedRawSpace {
         );
 
         allocation.pages = next_pages;
-        allocation.len = bytes.len();
+        allocation.byte_len = bytes.len();
 
         drop(allocation);
 
-        state.usage.resize(previous_len, bytes.len());
+        state.usage.resize(previous_byte_len, bytes.len());
         state
             .page_run_cache
             .release_page_run(&self.allocator, previous_pages)?;
@@ -349,15 +349,15 @@ impl SharedRawSpace {
 
         let pages = allocation.pages;
         let first_offset = allocation.first_offset;
-        let previous_len = allocation.len as u64;
+        let previous_byte_len = allocation.byte_len as u64;
 
-        state.usage.check_free(previous_len);
+        state.usage.check_free(previous_byte_len);
 
         allocation.retire();
         drop(allocation);
 
         self.unmap_page_run(first_offset, &pages);
-        state.usage.free(previous_len);
+        state.usage.free(previous_byte_len);
         state
             .page_run_cache
             .release_page_run(&self.allocator, pages)?;
@@ -380,7 +380,7 @@ impl SharedRawSpace {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
-        let previous_retained_bytes = self.round_up_allocation_bytes(allocation.len);
+        let previous_retained_bytes = self.round_up_allocation_bytes(allocation.byte_len);
         let next_retained_bytes = self.round_up_allocation_bytes(next_byte_len);
 
         Ok(next_retained_bytes as i64 - previous_retained_bytes as i64)
@@ -461,11 +461,11 @@ impl SharedRawSpace {
 
         let byte_offset = entry.logical_page_index * self.page_bytes() + page_offset;
 
-        if allocation.len == 0 {
+        if allocation.byte_len == 0 {
             if byte_offset != 0 {
                 return Err(HeapError::InvalidSharedRawPointer { pointer });
             }
-        } else if byte_offset >= allocation.len {
+        } else if byte_offset >= allocation.byte_len {
             return Err(HeapError::InvalidSharedRawPointer { pointer });
         }
 
@@ -473,7 +473,7 @@ impl SharedRawSpace {
             allocation_index: entry.allocation_index,
             base: SharedRawPointer::new(allocation.first_offset),
             byte_offset,
-            byte_len: allocation.len,
+            byte_len: allocation.byte_len,
         })
     }
 

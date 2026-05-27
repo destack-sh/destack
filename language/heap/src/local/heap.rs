@@ -8,20 +8,16 @@ use crate::local::space::HeapSpace;
 use crate::{
     AllocationPlan, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
     HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawAllocationShape, RawPointer,
-    RootSet, SharedHeapReference,
+    RootSlot, SharedHeapReference, SmallAllocationPlan,
 };
 
 /// One live heap over one shared allocator.
 #[derive(Debug)]
 pub struct Heap {
-    /// The shared page allocator for every local byte payload.
-    pub(super) allocator: Arc<Allocator>,
     /// The configured heap options.
     pub(super) options: HeapOptions,
     /// The derived collector pacing targets.
     pub(super) gc_pacer: GcPacer,
-    /// The young-space occupancy that starts a minor collection request.
-    pub(super) young_trigger_bytes: usize,
     /// The pending pacing or explicit collection request.
     pub(super) gc_request: Option<GcRequest>,
     /// The heap local allocation space.
@@ -54,15 +50,12 @@ impl Heap {
         let mut heap = Self {
             heap: HeapSpace::build_with_options(allocator.clone(), &options)?,
             raw: RawSpace::with_options(allocator.clone(), &options)?,
-            allocator,
             options,
             gc_pacer: GcPacer::default(),
-            young_trigger_bytes: 0,
             gc_request: None,
             limits,
         };
 
-        heap.young_trigger_bytes = heap.young_trigger_bytes();
         heap.gc_pacer
             .set_live_bytes(heap.options.gc, heap.heap_allocated_bytes());
         heap.refresh_gc_request();
@@ -72,7 +65,7 @@ impl Heap {
 
     /// Return the shared page allocator.
     pub(crate) fn allocator(&self) -> &Arc<Allocator> {
-        &self.allocator
+        self.heap.allocator()
     }
 
     /// Return the heap options.
@@ -131,22 +124,22 @@ impl Heap {
     }
 
     /// Stabilize one heap reference in mature space.
-    pub fn stabilize_heap(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
+    pub fn stabilize(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
         self.heap.stabilize(reference)
     }
 
     /// Pin one heap reference against movement.
-    pub fn pin_heap(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
+    pub fn pin(&mut self, reference: HeapReference) -> HeapResult<HeapReference> {
         self.heap.pin(reference)
     }
 
     /// Release one heap pin.
-    pub fn unpin_heap(&mut self, reference: HeapReference) -> HeapResult<()> {
+    pub fn unpin(&mut self, reference: HeapReference) -> HeapResult<()> {
         self.heap.unpin(reference)
     }
 
     /// Free one heap allocation immediately.
-    pub fn free_heap(&mut self, reference: HeapReference) -> HeapResult<()> {
+    pub fn free(&mut self, reference: HeapReference) -> HeapResult<()> {
         self.heap.free(reference)
     }
 
@@ -156,9 +149,12 @@ impl Heap {
     }
 
     /// Perform one minor heap collection over mutable roots.
-    pub fn collect_minor<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    pub fn collect_minor<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<GcStats, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
@@ -170,9 +166,12 @@ impl Heap {
     }
 
     /// Perform one full heap collection over mutable roots.
-    pub fn collect_full<R>(&mut self, roots: &mut R) -> Result<GcStats, R::Error>
+    pub fn collect_full<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+    ) -> Result<GcStats, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         self.gc_pacer
             .begin_cycle(self.options.gc, self.heap_allocated_bytes());
@@ -208,13 +207,13 @@ impl Heap {
     }
 
     /// Run one local collection step within one byte budget.
-    pub fn collect_step<R>(
+    pub fn collect_step<E>(
         &mut self,
-        roots: &mut R,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
-    ) -> Result<GcProgress, R::Error>
+    ) -> Result<GcProgress, E>
     where
-        R: RootSet,
+        E: From<HeapError>,
     {
         if budget_bytes == 0 {
             return Ok(GcProgress::Idle);
@@ -361,8 +360,8 @@ impl Heap {
 
     /// Reserve one zeroed no-scan allocation from the active young run.
     #[inline(always)]
-    pub fn reserve_young(&mut self, slot_bytes: usize) -> Option<HeapReference> {
-        self.heap.reserve_young_run_cursor(slot_bytes)
+    pub fn reserve_young(&mut self, small: SmallAllocationPlan) -> Option<HeapReference> {
+        self.heap.reserve_young_run_cursor(small.slot_bytes())
     }
 
     /// Refill zeroed allocation state or allocate from mature space.
@@ -571,7 +570,7 @@ impl Heap {
         let young_bytes = self.heap.young.used_bytes();
         let nursery_fits_quantum =
             young_bytes > 0 && young_bytes <= self.options.gc.minimum_work_bytes;
-        if young_bytes >= self.young_trigger_bytes && nursery_fits_quantum {
+        if young_bytes >= self.young_trigger_bytes() && nursery_fits_quantum {
             self.request_gc(GcRequest::Minor);
         }
     }

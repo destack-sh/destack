@@ -40,7 +40,7 @@ impl HeapSpace {
                 continue;
             }
 
-            self.mark_large_allocation_dirty(allocation_id, 0, allocation.len)?;
+            self.mark_large_allocation_dirty(allocation_id, 0, allocation.byte_len)?;
         }
 
         Ok(())
