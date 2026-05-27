@@ -109,7 +109,7 @@ impl SessionState {
             tree_in,
         );
         let roots = parser.parse();
-        attempt.emit_collection(parser.diagnostics());
+        attempt.emit_diagnostics(parser.diagnostics());
 
         // preserve parser side data in the artifact payload
         let (tokens, side_tokens) = parser.take_tokens();
