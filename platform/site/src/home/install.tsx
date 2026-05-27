@@ -3,7 +3,7 @@ import { createSignal } from "solid-js";
 import { Panel } from "./panel";
 
 // how long the "copied" feedback flashes after a copy
-const COPIED_FEEDBACK_MS = 1200;
+const COPIED_FEEDBACK_MS = 2000;
 
 export function Install() {
     const [isCopied, setIsCopied] = createSignal(false);
@@ -18,7 +18,7 @@ export function Install() {
     return (
         <section class="flex min-w-0 items-center lg:justify-end">
             <Panel class="w-full max-w-120" depth="shallow" title="install">
-                <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-3 px-3 py-3">
+                <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-3 px-3 pt-3 pb-2.5">
                     {/* prompt */}
                     <span class="text-base leading-5 font-black text-destack-accent">$</span>
 

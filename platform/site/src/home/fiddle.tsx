@@ -73,11 +73,13 @@ export function Fiddle() {
                     topicIndex={topicIndex()}
                 />
 
-                {/* source on the left, compiled output on the right */}
+                {/* body */}
                 <div class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden bg-destack-panel px-4 pt-4 pb-6 lg:grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)]">
+                    {/* source */}
                     <CodePanel>
                         <code innerHTML={snippets[topic().key]} />
                     </CodePanel>
+                    {/* output */}
                     <CodeDivider />
                     <CodePanel>
                         <code innerHTML={renderedOutput()} />
