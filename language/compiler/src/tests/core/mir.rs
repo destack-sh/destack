@@ -108,7 +108,7 @@ impl ProviderContext for TestMirProvider {
     fn track(&self, _dependency: ArtifactDependency) {}
 
     /// Emit one diagnostic collection.
-    fn emit_collection(&self, _diagnostics: DiagnosticCollection) {}
+    fn emit_diagnostics(&self, _diagnostics: DiagnosticCollection) {}
 
     /// Emit one sidecar.
     fn emit_sidecar(&self, _sidecar: ArtifactSidecar) {}

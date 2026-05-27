@@ -571,7 +571,12 @@ impl DirSnapshotBuilder<'_> {
     fn parameter_type_label(&self, parameter: &dir::ParameterType) -> String {
         match parameter.key {
             dir::GenericSlotKey::Symbol(symbol) => self.symbol_label(symbol),
-            dir::GenericSlotKey::Generated(name) => self.strings.get(name).to_string(),
+            dir::GenericSlotKey::Generated(name) => {
+                let owner = self.symbol_path_label(parameter.owner);
+                let name = self.strings.get(name);
+
+                format!("{owner}.{name}")
+            }
         }
     }
 

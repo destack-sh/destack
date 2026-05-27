@@ -138,6 +138,13 @@ fn generic_slot_key_field(
                 builder.symbol_label(symbol)
             ),
         ),
-        dir::GenericSlotKey::Generated(_) => row.field("key", builder.generic_slot_key_label(key)),
+        dir::GenericSlotKey::Generated(_) => row.field(
+            "key",
+            format!(
+                "{}.{}",
+                builder.symbol_path_label(owner),
+                builder.generic_slot_key_label(key)
+            ),
+        ),
     }
 }

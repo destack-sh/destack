@@ -6,7 +6,10 @@ use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirCheckedModule,
     DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
 };
-use destack_source::{DiagnosticCollection, FileContent, MemoryFileSystem, ModuleId, TargetId};
+use destack_source::{
+    DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, TargetId,
+    format_diff,
+};
 use destack_workspace::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, ProviderError, Ref, Repository,
     Revision, Settings,
@@ -719,6 +722,10 @@ impl TestSession {
 fn assert_equal(actual: impl AsRef<str>, expected: &str) {
     let actual = actual.as_ref();
     let expected = expected.trim_matches('\n');
+    if actual == expected {
+        return;
+    }
+    let diff = format_diff(expected, actual, &DiffOptions::new());
 
-    pretty_assertions::assert_eq!(actual, expected);
+    panic!("snapshot mismatch\n\n{diff}");
 }

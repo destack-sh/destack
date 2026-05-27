@@ -51,6 +51,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) static_labels: BTreeMap<dir::LocalStaticId, String>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
+    /// Whether to render expression node type rows.
+    pub(super) type_nodes: bool,
     /// Whether to render identifier type rows.
     pub(super) type_references: bool,
     /// Whether to render table summary rows.
@@ -77,6 +79,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             type_labels: BTreeMap::new(),
             static_labels: BTreeMap::new(),
             binding_nodes: false,
+            type_nodes: false,
             type_references: false,
             summaries: true,
             rows: Vec::new(),
@@ -197,6 +200,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         checked: &DirCheckedModule,
     ) {
         self.summaries = selection.summaries;
+        self.type_nodes = selection.type_nodes;
         self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
@@ -699,6 +703,9 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Return whether to render one checked type node row.
     pub(crate) fn should_render_type_node(&self, node_id: dir::GlobalNodeIdAny) -> bool {
+        if !self.type_nodes {
+            return false;
+        }
         if node_id.module_id != self.tree.module_id {
             return false;
         }
