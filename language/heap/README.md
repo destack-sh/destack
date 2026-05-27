@@ -13,9 +13,9 @@ cargo test -p destack_heap
 cargo test -p destack_vm
 cargo test -p destack_test --test optimize
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

@@ -1,18 +1,12 @@
 # CI
 
-Repository policy, workflow validation, release automation, and metadata validation.
+Release automation and hygiene toolchain setup.
 
 ## Testing
 
 Run these from the repository root.
 
 ```sh
-# focused local loop
-just check-workflow-policy
-
-# clean gate
 just check-hygiene
-
-# exhaustive gate
-just quick
+just check-quick
 ```

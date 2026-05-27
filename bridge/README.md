@@ -24,11 +24,11 @@ Run these commands from the repository root.
 ```sh
 just bridge/format
 just bridge/format-check
-just bridge/check
+just bridge/lint
 just bridge/build
 just bridge/test
-just bridge/quick
-just bridge/full
+just bridge/check-quick
+just bridge/check-full
 just bridge/test-language-bridges
 just bridge/install-toolchain
 just bridge/doctor-toolchain

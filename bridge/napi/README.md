@@ -11,9 +11,9 @@ Run these from the repository root.
 # focused local loop
 just bridge/test
 
-# clean gate
-just bridge/quick
+# clean check
+just bridge/check-quick
 
-# exhaustive gate
-just bridge/full
+# exhaustive check
+just bridge/check-full
 ```

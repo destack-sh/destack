@@ -14,36 +14,6 @@ Make MIR more optimal for execution.
 
 ## Analyses
 
-```text
-           ┌─────────┐
-           │   cfg   │
-           └────┬────┘
-                │
-   ┌────────────┼───────────┬───────────┬──────────────┬──────────┐
-   │            │           │           │              │          │
-   ▼            ▼           ▼           ▼              ▼          ▼
-┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌──────────┐
-│ domtree  │ │ postdom  │ │ liveness │ │ constant-prop│ │ ownership│ │  range   │
-└────┬─────┘ └──────────┘ └────┬─────┘ └──────────────┘ └──────────┘ └──────────┘
-     │                         │
-     ▼                         ▼
-  ┌───────┐               ┌────────┐
-  │ loops │               │ borrow │
-  └───┬───┘               └────────┘
-      ▼
-┌──────────────────┐
-│ scalar-evolution │
-└──────────────────┘
-
-┌──────────┐
-│  alias   │
-└──────────┘
-
-┌──────────┐
-│ lifetime │
-└──────────┘
-```
-
 | ID | Name | Scope | Done | Depends On | Description |
 |----|------|-------|------|------------|-------------|
 | `cfg` | ControlFlowGraph | function | ✓ | — | Predecessors and successors for each block |

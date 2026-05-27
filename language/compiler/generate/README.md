@@ -15,49 +15,15 @@ Destack has two main generation paths (DIR and MIR), and they are pretty differe
 The JS backend works directly from DIR because its internal pipeline is semantic planning, emission, assembly, and printing.
 The native backend needs MIR because it eventually generates machine code.
 
-```text
-         ┌─────────────┐
-         │     DIR     │
-         └──────┬──────┘
-                │
-    ┌───────────┴───────────┐
-    │                       │
-    ▼                       ▼
-┌───────┐               ┌───────┐
-│  js/  │               │ Lower │
-└───┬───┘               └───┬───┘
-    │                       │
-    ▼                       ▼
-┌───────────┐           ┌───────┐
-│  .js/.ts  │           │  MIR  │
-└───────────┘           └───┬───┘
-                            │
-                            ▼
-                      ┌───────────┐
-│ native/   │
-                      └─────┬─────┘
-                            │
-                ┌───────────┴───────────┐
-                ▼                       ▼
-          ┌──────────┐            ┌──────────┐
-          │  .wasm   │            │   .o     │
-          └──────────┘            └──────────┘
-```
-
 ## Testing
 
 Run these from the repository root.
 
 ```sh
-# focused local loop
 cargo test -p destack_codegen_js
 cargo test -p destack_codegen_lib
 cargo test -p destack_codegen_native
 just language/test-emit
-
-# clean gate
-just language/quick
-
-# exhaustive gate
-just language/full
+just language/check-quick
+just language/check-full
 ```

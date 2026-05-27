@@ -57,9 +57,9 @@ cargo test -p destack_source
 just language/test-specification
 just language/test-query
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

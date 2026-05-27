@@ -12,11 +12,11 @@ Run these from the repository root.
 cargo test -p destack_runtime
 just language/check-runtime-macos # or linux/windows on matching hosts
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 
 # toolchain and target coverage
 just language/doctor-toolchain

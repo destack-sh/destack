@@ -60,18 +60,6 @@ If the content no longer fits, the printer expands that group and turns soft bre
 `best_fitting(...)` allows a formatter to try several document shapes in priority order.
 `fill(...)` allows the printer to pack as many items as fit on each line instead of choosing only fully flat or fully expanded output.
 
-## Usage
-
-FIR is shared across several code-generation paths.
-That shared document model keeps wrapping, indentation, and line-suffix behavior consistent.
-
-Current major users are:
-
-- the source formatter in [`language/formatter`](/Users/florian/symbol/destack-6/language/formatter)
-- JavaScript generation paths under `language/compiler`
-- MIR text formatting paths under `language/mir`
-- formatter-style fix output in linting and tooling code
-
 ## Testing
 
 Run these commands from the repository root.
@@ -79,5 +67,5 @@ Run these commands from the repository root.
 ```sh
 cargo check -p destack_fir
 cargo test -p destack_fir
-just fmt
+just language/check-quick
 ```

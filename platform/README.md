@@ -4,12 +4,19 @@ Destack's own operated platform surfaces, deployment assets, and hosted stack.
 
 ## Projects
 
-| Project | Status | Summary |
-|---------|--------|---------|
-| [`stack`](stack/README.md) | Experimental | Single entrypoint for defining and deploying the operated Destack platform |
-| [`site`](site/README.md) | Experimental | Public web surfaces for Destack such as the website and blog |
+| Project | Summary |
+|---------|---------|
+| [`stack`](stack/README.md) | Single entrypoint for defining and deploying the operated Destack platform |
+| [`site`](site) | Public web surfaces for Destack such as the website and blog |
 
 ## Commands
 
-Platform specific commands will land with the first real platform packages.
-Use the shared repository gates from the root for now.
+Run these commands from the repository root.
+
+```sh
+just platform/build
+just platform/check-quick
+just platform/check-full
+just platform/diff
+just platform/deploy
+```

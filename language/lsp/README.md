@@ -12,9 +12,9 @@ Run these from the repository root.
 cargo test -p destack_lsp
 just language/test-lsp
 
-# clean gate
-just service/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just service/full
+# exhaustive check
+just language/check-full
 ```

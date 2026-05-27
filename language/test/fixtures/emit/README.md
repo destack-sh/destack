@@ -5,8 +5,7 @@ Emit tests verify emitted output against checked-in snapshots.
 ## Structure
 
 Each fixture lives under `fixtures/emit/<target>/<family>/<scenario>/`.
-The current target roots are `html` and `script`.
-The family directories should mirror the behavior families in [`TEST_PLAN.md`](/Users/florian/symbol/destack-4/TEST_PLAN.md), not toy example size.
+The target roots are `html` and `script`.
 
 Each fixture contains:
 

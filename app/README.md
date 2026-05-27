@@ -15,11 +15,11 @@ Run these commands from the repository root.
 ```sh
 just app/format
 just app/format-check
-just app/check
+just app/lint
 just app/build
 just app/test
-just app/quick
-just app/full
+just app/check-quick
+just app/check-full
 just app/generate-schema
 just app/publish --dry-run
 ```

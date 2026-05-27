@@ -13,9 +13,9 @@ cargo test -p destack_unicode
 cargo test -p destack_parser
 cargo test -p destack_test --test smoke -- --parser
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

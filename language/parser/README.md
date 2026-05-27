@@ -1,7 +1,7 @@
 # parser
 
 Lexer and parser for Destack, TypeScript, and JavaScript.
-Transforms source text into the [Destack AST](../ast/README.md).
+Transforms source text into the shared Destack AST.
 
 ## Overview
 
@@ -41,14 +41,9 @@ let Component = <Component<T<"button.press">> />.Child<T>; // what even is this?
 Run these from the repository root.
 
 ```sh
-# focused local loop
 cargo test -p destack_parser
 cargo test -p destack_test --test smoke -- --parser
 just language/test-conformance
-
-# clean gate
-just language/quick
-
-# exhaustive gate
-just language/full
+just language/check-quick
+just language/check-full
 ```

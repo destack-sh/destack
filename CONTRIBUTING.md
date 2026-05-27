@@ -6,11 +6,11 @@ Destack is not generally open for public contributions at this point as we are i
 
 ## Checklist
 
-- Before committing, run `just quick` from the repository root.
-- Before pushing or landing a non-trivial change, run `just full` from the repository root at least once.
-- `just quick` is the normal local confidence gate.
-- `just full` is the deepest local verification sweep and should be the final pre-push gate for broad, risky, or cross-cutting changes.
-- Use `just fmt` for formatting and `just check` for static checks when you are iterating on one area.
+- Before committing, run `just check` or `just check-quick` from the repository root.
+- Before pushing or landing a non-trivial change, run `just check-full` from the repository root at least once.
+- `just check-quick` is the normal local confidence check.
+- `just check-full` is the deepest local validation sweep and should be the final pre-push check for broad, risky, or cross-cutting changes.
+- Use `just fmt` for formatting and `just lint` for static checks when you are iterating on one area.
 - See [TESTING.md](TESTING.md) for the test matrix and suite details.
 
 ## Versioning
@@ -44,7 +44,7 @@ See [LICENSE.txt](LICENSE.txt) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSE
 Destack is *developed* primarily using Rust and TypeScript (and Destack itself, of course).
 To contribute to Destack and build it yourself locally you will need at least `cargo`, `bun`, and `just`:
 
-- [Rust](https://rustup.rs/): Rust compiler (`nightly-2025-11-27`, see [rust-toolchain.toml](rust-toolchain.toml))
+- [Rust](https://rustup.rs/): Rust compiler (`nightly-2026-05-26`, see [rust-toolchain.toml](rust-toolchain.toml))
 - [Bun](https://bun.sh/): JavaScript runtime and package management
 - [just](https://github.com/casey/just): Scripts and command runner
 - [Python](https://python.org/): Project docs validation and codegen utilities
@@ -54,27 +54,28 @@ To contribute to Destack and build it yourself locally you will need at least `c
 We use `justfile`s as the source of truth for all commands:
 ```sh
 just install        # setup everything
-just check          # run repository static checks
+just lint           # run repository static checks
 just test           # run area test aggregates
 just fmt            # format all code
-just quick          # run the repository quick gate
-just full           # run the repository full gate
+just check          # run the normal repository check
+just check-quick    # run the explicit normal repository check
+just check-full     # run the repository check with slow suites
 just clean          # clean all build artifacts
 just publish        # publish all packages
 ```
 
-If you are working in one area only, use scoped area gates:
+If you are working in one area only, use scoped area checks:
 ```sh
-just language/quick
-just language/full
-just library/quick
-just library/full
-just service/quick
-just service/full
-just app/quick
-just app/full
-just bridge/quick
-just bridge/full
+just language/check-quick
+just language/check-full
+just library/check-quick
+just library/check-full
+just service/check-quick
+just service/check-full
+just app/check-quick
+just app/check-full
+just bridge/check-quick
+just bridge/check-full
 ```
 
 ## Release
@@ -83,5 +84,6 @@ Release CI is tag driven and runs on `v*` pushes:
  - Use `just release` to prepare a local patch release commit and tag.
  - Use `just release minor` or `just release major` when you want a non-default bump.
  - Use `just release-push` to push the current release commit and tag.
- - Nightly is the high-frequency canary channel.
+ - Nightly is the high-frequency early-access channel.
+ - Canary is reserved for internal validation builds.
 See [RELEASE.md](RELEASE.md) for the canonical release runbook, credential matrix, signing model, and failure recovery guidance.

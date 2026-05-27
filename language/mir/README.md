@@ -100,23 +100,6 @@ Instructions perform "operations" and may produce SSA `Value`s.
 
 Canonical MIR formatting uses camelCase for multiword instruction and intrinsic names.
 
-### Terminators
-
-Blocks end with a terminator that transfers control:
-
-| Terminator | Description |
-|------------|-------------|
-| `return` | Return from function |
-| `jump` | Unconditional branch |
-| `branch` | Conditional branch (if-then-else) |
-| `switch` | Multi-way branch on integer |
-| `yield` | Suspend coroutine (generators, async) |
-| `call*` terminators | Call with an explicit continuation |
-| `tailCall*` terminators | Non-returning call that reuses the current frame |
-| `trap` | Unrecoverable runtime termination (`abort`, `panic`) |
-| `check` | Checked branch with semantic constraint |
-| `unreachable` | Invalid control-flow point that traps if reached |
-
 `check` carries a semantic constraint (`bounds`, `null`, `zeroDivisor`, `shiftRange`, `overflow`, `dynamicType`, `receiverType`, `interfaceConformance`, etc.) and splits control flow into success and failure paths.
 Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -> ok, fail`.
 
@@ -234,9 +217,9 @@ cargo test -p destack_mir
 cargo test -p destack_test --test optimize
 just language/test-emit
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

@@ -23,9 +23,9 @@ cargo test -p destack_dir
 just language/test-specification
 just language/test-emit
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```
