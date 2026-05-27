@@ -217,6 +217,7 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 - Avoid `include!` or convoluted `#[path]` to bypass
 - Avoid nesting `mod x { }` inside a file (except for `tests`)
 - Avoid `Cell` and `RefCell`, they almost always imply a bad ownership model
+- Prefer direct `expr.clone()` over `Arc.clone(expr)`
 
 ### Logic
 
