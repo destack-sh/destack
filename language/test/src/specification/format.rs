@@ -59,6 +59,10 @@ impl SpecificationFormatSuite {
         let relative_name = relative_path.to_string_lossy();
 
         for test in tests {
+            if test.skip {
+                continue;
+            }
+
             for (index, file) in test.files.into_iter().enumerate() {
                 let source_path = PathBuf::from(&file.path);
                 let Some(file_type) = FileType::from_path(&source_path) else {

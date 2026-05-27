@@ -110,6 +110,44 @@ declare let value: Buffer<2 + 2>;
 value satisfies [uint8; 4];
 ```
 
+### static value parameters accept comparison conditionals
+
+Value parameters support real expressions like static conditional expressions in type space.
+
+```ds
+type Buffer<comptime N: uint> = [uint8; N];
+type Sized<comptime Capacity: uint> = Buffer<(Capacity > 4 ? 2 : 5)>;
+
+declare let value: Sized<8>;
+value satisfies [uint8; 2];
+```
+
+### static value defaults accept comparison conditionals
+
+Value parameter defaults support parenthesized static conditional expressions in generic parameter lists.
+
+```ds
+type Buffer<comptime N: uint> = [uint8; N];
+type Sized<comptime Capacity: uint, comptime Size: uint = (Capacity > 4 ? 2 : 5)> = Buffer<Size>;
+
+declare let value: Sized<8>;
+value satisfies [uint8; 2];
+```
+
+### static value conditionals size arrays
+
+Array lengths can use expression-shaped static conditionals.
+
+```ds
+type Buffer<comptime Capacity: uint> = [uint8; Capacity > 4 ? 2 : 5];
+
+declare let small: Buffer<2>;
+declare let large: Buffer<8>;
+
+small satisfies [uint8; 5];
+large satisfies [uint8; 2];
+```
+
 ### static value parameters accept string unions
 
 Value parameters accept literal unions of strings.
