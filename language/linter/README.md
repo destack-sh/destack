@@ -1,6 +1,6 @@
 # linter
 
-Static analysis rules for Destack (`.ds`. i.e., "TS++") and TypeScript (`.ts`, `.tsx`).
+Static analysis rules for Destack (`.ds`) and TypeScript (`.ts`, `.tsx`).
 Lints run at different IR levels (AST, DIR, MIR), usually per module.
 
 ## Overview
@@ -12,39 +12,6 @@ Rules can operate on all the main IRs: AST (syntax patterns), DIR (typed IR), or
 We draw inspiration from linters across the ecosystem: ESLint, TypeScript-ESLint, Biome, Clippy, Ruff, SonarQube, Semgrep.
 Each rule notes its main inspiration when following an established rule, and we also try to keep the name, severity, and fixability to a level the ecosystem is used to.
 However, the Destack linter is _not_ intended as a complete replacement or even substitute for contemporary linters like ESLint.
-
-## Architecture
-
-Rules implement the `LintRule` trait:
-
-```ds
-interface LintRule {
-    meta(): LintMeta
-    checkModuleAst(severity: LintSeverity, ctx: LintModuleAstContext): void
-    checkModuleDir(severity: LintSeverity, ctx: LintModuleDirContext): void
-    checkPackageDir(ctx: LintPackageDirContext): void
-    checkWorkspaceAst(ctx: LintWorkspaceAstContext): void
-    checkWorkspaceDir(ctx: LintWorkspaceDirContext): void
-}
-```
-
-Rules run at semantic scopes: `Module`, `Package`, or `Workspace`.
-The runner chooses a concrete revision, then executes rules at the appropriate scope and IR level.
-Rules can provide automatic fixes, which the runner collects alongside diagnostics.
-
-Rules are declared using the `declare_lint!` macro, which generates the boilerplate:
-
-```ds
-@lint({
-    category: Correctness,
-    level: Dir,
-    requiresAll: [],
-    requiresAny: [],
-    fixable: No,
-})
-/// Disallow approximate mathematical constants.
-class NoApproxConstant implements LintRule { ... }
-```
 
 ## Categories
 
@@ -378,9 +345,9 @@ Run these from the repository root.
 cargo test -p destack_linter
 just language/test-linter
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

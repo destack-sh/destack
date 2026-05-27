@@ -26,5 +26,6 @@ cargo check -p destack_formatter
 cargo test -p destack_formatter
 cargo test -p destack_test --test formatter
 cargo test -p destack_test --test conformance-formatter
-just fmt
+just language/check-quick
+just language/check-full
 ```

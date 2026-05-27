@@ -2,23 +2,20 @@
 
 Destack is a universal software engine for building correct, optimal, integrated software, so of course testing Destack's own correctness and performance is quite important.
 
-## Gates
+## Checks
 
-| Gate | Purpose | Local command | CI usage |
+| Check | Purpose | Local command | CI usage |
 |------|---------|---------------|----------|
-| **Quick** | Fast, deterministic confidence for normal development and mainline verification | `just quick` | `main` push verification, split across `Hygiene Check`, area `Check` jobs, the Windows resolver check, and the Linux runtime checks |
-| **Full** | Deep verification for broad local validation and release depth | `just full` | Scheduled nightly verification, signed nightly canary packaging, and release verification |
-
-When you need to tune test concurrency, set `DESTACK_TEST_THREADS`.
-That knob drives Rust `libtest` concurrency and also feeds custom language harness jobs by default.
-Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker count than Rust `libtest`.
+| **Check Quick** | Fast, deterministic confidence for normal development and mainline validation | `just check`, `just check-quick` | `main` push validation, split across `Hygiene Check`, area `Check` jobs, and the Linux runtime checks |
+| **Check Full** | Deep validation for broad local and release confidence | `just check-full` | Scheduled nightly validation, signed nightly packaging, and release validation |
 
 ## Terminology
 
 | Command family | Meaning |
 |----------------|---------|
-| `format`, `format-check` | Rewrite or verify formatting |
-| `check` | Static analysis and compile-time validation |
+| `format`, `format-check` | Rewrite or check formatting |
+| `check`, `check-quick`, `check-full` | Aggregate confidence checks |
+| `lint` | Static analysis and compile-time validation |
 | `build` | Produce build artifacts |
 | `test` | Run the normal deterministic test aggregate for that area |
 | `install-*`, `fetch-*`, `generate-*` | Prepare prerequisites or generated inputs |
@@ -28,7 +25,7 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 
 ## Suites
 
-| Suite | Family | Gate | Purpose |
+| Suite | Family | Check | Purpose |
 |------|--------|------|---------|
 | [**Unit**](language/test/README.md) | Correctness | Quick | Internal invariants in parser, compiler, runtime, resolver, and related crates |
 | [**Emit**](language/test/fixtures/emit/) | Correctness | Standalone | Emitted output matches curated checked-in snapshots |
@@ -36,7 +33,6 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 | [**Conformance**](language/test/fixtures/conformance/) | Conformance | Mixed | External parser and formatter corpora used as regression inputs, not product compatibility targets |
 | [**Query**](language/test/fixtures/query/) | Correctness | Quick | Query-layer IDE behavior such as navigation, completion, rename, and diagnostics |
 | [**LSP**](language/test/fixtures/lsp/) | Correctness | Quick | Applied LSP editor scenarios over the real in-process language server |
-| **Resolver** | Correctness | Quick | Crate-local module path resolution tests |
 | [**Formatter**](language/test/fixtures/formatter/) | Correctness | Quick | Formatting behavior on first-party fixtures |
 | [**Grammar**](language/grammar/README.md) | Correctness | Quick | Tree-sitter grammar routing, corpus coverage, and specification sweeps |
 | [**Stress**](language/test/fixtures/stress/) | Correctness | Full | Very large or pathological inputs that should still complete correctly |
@@ -58,13 +54,10 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 Run these commands from the repository root.
 
 ```bash
-# tune test concurrency when needed
-DESTACK_TEST_THREADS=8 just quick
-DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just language/test-conformance
-
-# gates
-just quick
-just full
+# checks
+just check
+just check-quick
+just check-full
 
 # language correctness suites
 just language/test
@@ -73,7 +66,6 @@ just language/test-emit
 just language/test-specification
 just language/test-query
 just language/test-lsp
-just language/test-resolver
 just language/test-formatter
 just language/test-grammar
 just language/test-conformance

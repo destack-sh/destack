@@ -10,9 +10,9 @@ Run these from the repository root.
 # focused local loop
 just check
 
-# clean gate
-just quick
+# clean check
+just check-quick
 
-# exhaustive gate
-just full
+# exhaustive check
+just check-full
 ```

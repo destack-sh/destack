@@ -9,13 +9,13 @@ Language testing uses two storage patterns.
 Unit tests stay with the crates they exercise.
 Fixture-driven suites live under `language/test/fixtures/` and are run by the `destack_test` harness.
 There is no separate `unit/` fixture tree.
-Unit tests enter the language gate model through `just test-unit`.
+Unit tests enter the language check model through `just test-unit`.
 
 ## Suite Taxonomy
 
 The language suite taxonomy is:
 
-| Suite | Family | Gate | Location | Purpose |
+| Suite | Family | Check | Location | Purpose |
 |-------|--------|------|----------|---------|
 | **Unit** | Correctness | Quick | crate local tests | Internal invariants and focused logic |
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
@@ -38,31 +38,18 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | formatter | oxfmt | Formatter Oxfmt | excluded 19, known-fail-idempotence 4 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
 <!-- end:conformance-catalog -->
 
-## Gates
+## Checks
 
 Run these from `language/` unless noted otherwise.
 
-| Gate | Meaning |
+| Check | Meaning |
 |------|---------|
-| **Quick** | Fast deterministic language verification |
-| **Full** | `quick` plus ecosystem and stress coverage |
+| **Check Quick** | Fast deterministic language validation |
+| **Check Full** | `check-quick` plus ecosystem and stress coverage |
 
-`just test` is the language test aggregate used by `just quick`.
-`just test-emit` stays standalone until the emit pipeline is mature enough to trust in the fast gate.
-`just full` then adds the slower ecosystem and stress lanes.
-
-## Concurrency
-
-Use `DESTACK_TEST_THREADS` to control Rust `libtest` concurrency and the default custom harness worker count.
-Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker count than `libtest`.
-
-```bash
-# cap everything to 4 workers
-DESTACK_TEST_THREADS=4 just quick
-
-# keep rust tests at 4 but let a custom harness fan out further
-DESTACK_TEST_THREADS=4 DESTACK_TEST_JOBS=16 just test-conformance
-```
+`just test` is the language test aggregate used by `just check-quick`.
+`just test-emit` stays standalone until the emit pipeline is mature enough to trust in the fast check.
+`just check-full` then adds the slower ecosystem and stress lanes.
 
 ## Commands
 
@@ -71,8 +58,8 @@ Use these commands when iterating on the language stack.
 ```bash
 # aggregate lanes
 just test
-just quick
-just full
+just check-quick
+just check-full
 
 # core suites
 just test-unit

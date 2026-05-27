@@ -36,9 +36,9 @@ cargo test -p destack_core
 cargo test -p destack_test --test optimize
 just language/test-query
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

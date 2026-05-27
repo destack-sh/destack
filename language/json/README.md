@@ -52,9 +52,9 @@ cargo test -p destack_json
 cargo test -p destack_workspace
 cargo test -p destack_service
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

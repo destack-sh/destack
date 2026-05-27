@@ -13,9 +13,9 @@ cargo test -p destack_service
 just language/test-query
 just language/test-lsp
 
-# clean gate
-just language/quick
+# clean check
+just language/check-quick
 
-# exhaustive gate
-just language/full
+# exhaustive check
+just language/check-full
 ```

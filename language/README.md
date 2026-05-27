@@ -28,11 +28,11 @@ Run these commands from the repository root.
 just language/install
 just language/format
 just language/format-check
-just language/check
+just language/lint
 just language/build
 just language/test
-just language/quick
-just language/full
+just language/check-quick
+just language/check-full
 just language/bench
 just language/fuzz 60
 ```

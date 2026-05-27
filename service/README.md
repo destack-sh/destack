@@ -15,9 +15,9 @@ Run these commands from the repository root.
 ```sh
 just service/format
 just service/format-check
-just service/check
+just service/lint
 just service/build
 just service/test
-just service/quick
-just service/full
+just service/check-quick
+just service/check-full
 ```

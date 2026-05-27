@@ -8,11 +8,11 @@ Run these from the repository root.
 
 ```sh
 # focused local loop
-just library/check
+just library/lint
 
-# clean gate
-just library/quick
+# clean check
+just library/check-quick
 
-# exhaustive gate
-just library/full
+# exhaustive check
+just library/check-full
 ```

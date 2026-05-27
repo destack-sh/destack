@@ -25,9 +25,9 @@ Run these from the repository root.
 just bridge/test-vscode
 just bridge/test-vscode-bridge
 
-# clean gate
-just bridge/quick
+# clean check
+just bridge/check-quick
 
-# exhaustive gate
-just bridge/full
+# exhaustive check
+just bridge/check-full
 ```

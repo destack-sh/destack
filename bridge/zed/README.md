@@ -8,29 +8,11 @@ It wires LSP for Destack, JavaScript, TypeScript, and TSX buffers.
 
 The grammar sources are `language/grammar/destack/destack` for Destack and `language/grammar/mir` for Destack MIR.
 `extension.toml` points at those repository paths.
-The current grammar refs are `main` and should be pinned to a commit for release branches.
 
 ## Development
 
 Install it in Zed with `Install Dev Extension` and select `bridge/zed`.
 Start Zed from a terminal with `zed --foreground` to inspect extension logs.
-
-## Release
-
-The extension version in `extension.toml` must match the repository `VERSION.txt`.
-`destack dev version` updates both files.
-
-You can prepare a dry-run registry update from the repository root.
-
-```sh
-just bridge/publish-zed --dry-run
-```
-
-Live mode pushes a branch to your fork of `zed-industries/extensions` and opens or reuses a PR.
-
-```sh
-GH_TOKEN=<token> DESTACK_ZED_REGISTRY_PUSH_TO=<owner>/extensions just bridge/publish-zed ""
-```
 
 ## Local Binary Path
 
@@ -50,6 +32,23 @@ This avoids requiring `target/debug/destack` or `target/release/destack` in ever
 }
 ```
 
+## Release
+
+The extension version in `extension.toml` must match the repository `VERSION.txt`.
+`destack dev version` updates both files.
+
+You can prepare a dry-run registry update from the repository root.
+
+```sh
+just bridge/publish-zed --dry-run
+```
+
+Live mode pushes a branch to your fork of `zed-industries/extensions` and opens or reuses a PR.
+
+```sh
+GH_TOKEN=<token> DESTACK_ZED_REGISTRY_PUSH_TO=<owner>/extensions just bridge/publish-zed ""
+```
+
 ## LSP Coverage
 
 The extension registers `destack-lsp` for these Zed languages:
@@ -64,12 +63,7 @@ The extension registers `destack-lsp` for these Zed languages:
 Run these from the repository root.
 
 ```sh
-# focused local loop
 just bridge/test-zed
-
-# clean gate
-just bridge/quick
-
-# exhaustive gate
-just bridge/full
+just bridge/check-quick
+just bridge/check-full
 ```
