@@ -652,7 +652,12 @@ b0:
         panic!("expected heap reference value");
     };
 
-    assert_eq!(isolate.heap.scan(reference), Ok(TraceMap::empty()));
+    assert_eq!(
+        isolate
+            .heap
+            .scan(reference, isolate.isolate.trace_table().as_ref()),
+        Ok(TraceMap::empty())
+    );
 }
 
 /// Managed nominal stores write the struct field bytes.
@@ -708,7 +713,9 @@ b0:
     };
 
     assert_eq!(
-        isolate.heap.scan(reference),
+        isolate
+            .heap
+            .scan(reference, isolate.isolate.trace_table().as_ref()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -739,7 +746,9 @@ b0:
     let reference = decode_heap_reference(&bytes, 0);
 
     assert_eq!(
-        isolate.heap.scan(reference),
+        isolate
+            .heap
+            .scan(reference, isolate.isolate.trace_table().as_ref()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),

@@ -32,6 +32,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         layout_id_by_type: &'a HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
         heap_options: &'a heap::HeapOptions,
         shared_heap_options: &'a heap::SharedHeapOptions,
+        trace_table: &'a mir::TraceTable,
         value_types: &'a [ValueType],
         side_table: &'table mut SideTableBuilder,
     ) -> Result<Option<Self>> {
@@ -82,7 +83,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             context,
             func,
             frame_layout,
-            pool: Pool::new(side_table, frame_layout),
+            pool: Pool::new(side_table, frame_layout, trace_table),
         }))
     }
 
@@ -209,6 +210,7 @@ pub(crate) fn lower_function(
     layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, mir::LayoutId>,
     heap_options: &heap::HeapOptions,
     shared_heap_options: &heap::SharedHeapOptions,
+    trace_table: &mir::TraceTable,
     value_types: &[ValueType],
     side_table: &mut SideTableBuilder,
 ) -> Result<Option<Function>> {
@@ -223,6 +225,7 @@ pub(crate) fn lower_function(
         layout_id_by_type,
         heap_options,
         shared_heap_options,
+        trace_table,
         value_types,
         side_table,
     )?;

@@ -586,15 +586,14 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::AllocateHeapSmallNoscan => {
-                $step!({ super::execute_allocate_heap_small_noscan($machine, instruction) })
+            Op::AllocateHeapSite => {
+                $step!(super::execute_allocate_heap_site($machine, instruction))
             }
-            Op::AllocateHeap => $step!(super::execute_allocate_heap($machine, instruction)),
-            Op::AllocateSharedHeapSmallNoscan => {
-                $step!({ super::execute_allocate_shared_heap_small_noscan($machine, instruction) })
-            }
-            Op::AllocateSharedHeap => {
-                $step!(super::execute_allocate_shared_heap($machine, instruction))
+            Op::AllocateSharedHeapSite => {
+                $step!(super::execute_allocate_shared_heap_site(
+                    $machine,
+                    instruction
+                ))
             }
             Op::AllocateSlice => $step!(super::execute_allocate_slice($machine, instruction)),
             Op::AllocateSharedSlice => {

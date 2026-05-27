@@ -12,27 +12,7 @@ fn decode_alignment(alignment_log2: u32) -> usize {
 
 /// Execute local heap allocation.
 #[inline(always)]
-pub(crate) fn execute_allocate_heap_small_noscan(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
-
-    // reserve from the active young run, refill on capacity failure
-    let reference = match machine.reserve_young(allocation)? {
-        Some(reference) => reference,
-        None => machine.allocate_zeroed_heap_allocation(allocation)?,
-    };
-
-    // store result
-    machine.store_word_at(dest, Word::heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute local heap allocation.
-pub(crate) fn execute_allocate_heap(
+pub(crate) fn execute_allocate_heap_site(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -40,7 +20,7 @@ pub(crate) fn execute_allocate_heap(
     let allocation = AllocationSiteId(instruction.b);
 
     // allocate through the compiled heap layout
-    let reference = machine.allocate_zeroed_heap_allocation(allocation)?;
+    let reference = machine.allocate_zeroed_heap_site(allocation)?;
 
     // store result
     machine.store_word_at(dest, Word::heap_reference(reference));
@@ -49,27 +29,7 @@ pub(crate) fn execute_allocate_heap(
 }
 
 /// Execute shared heap allocation.
-pub(crate) fn execute_allocate_shared_heap_small_noscan(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
-
-    // reserve from the active worker run, refill on capacity failure
-    let reference = match machine.reserve_shared_small(allocation)? {
-        Some(reference) => reference,
-        None => machine.allocate_zeroed_shared_heap_allocation(allocation)?,
-    };
-
-    // store result
-    machine.store_word_at(dest, Word::shared_heap_reference(reference));
-
-    Ok(())
-}
-
-/// Execute shared heap allocation.
-pub(crate) fn execute_allocate_shared_heap(
+pub(crate) fn execute_allocate_shared_heap_site(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -77,7 +37,7 @@ pub(crate) fn execute_allocate_shared_heap(
     let allocation = AllocationSiteId(instruction.b);
 
     // allocate through the compiled shared heap layout
-    let reference = machine.allocate_zeroed_shared_heap_allocation(allocation)?;
+    let reference = machine.allocate_zeroed_shared_heap_site(allocation)?;
 
     // store result
     machine.store_word_at(dest, Word::shared_heap_reference(reference));

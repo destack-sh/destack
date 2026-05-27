@@ -483,7 +483,13 @@ pub(crate) fn materialize_value(
                 PointerClass::SharedHeap => {
                     let layout = shared.allocation_plan(shape);
                     let reference = shared
-                        .allocate_bytes(shared_gc, shared_cache, &layout, &bytes)
+                        .allocate_bytes(
+                            shared_gc,
+                            shared_cache,
+                            &layout,
+                            &bytes,
+                            program.trace_table(),
+                        )
                         .map_err(Error::from)?;
 
                     Ok(engine::Value::SharedHeapReference(reference))

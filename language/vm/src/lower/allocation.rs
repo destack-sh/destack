@@ -1,4 +1,4 @@
-use destack_heap::{AllocationClass, HeapOptions, SharedHeapOptions, SmallAllocationPlan};
+use destack_heap::{HeapOptions, SharedHeapOptions};
 use destack_mir as mir;
 
 use crate::program::{
@@ -33,7 +33,7 @@ impl<'a> BlockLowerer<'a> {
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
 
         // precompute the heap allocation shape
-        let (allocation, small) = allocation_site(
+        let allocation = allocation_site(
             pool,
             pointer_class,
             layout,
@@ -41,16 +41,14 @@ impl<'a> BlockLowerer<'a> {
             self.shared_heap_options,
         )?;
         let allocation = pool.allocation_site(allocation);
-        let op = allocation_op(pointer_class, small)?;
-        let slot_bytes = small.map_or(0, |small| small.slot_bytes() as u32);
-        let bucket_index = small.map_or(0, |small| small.bucket_index() as u32);
+        let op = allocation_op(pointer_class)?;
 
         Ok(Instruction::new(
             op,
             word_offset(self, destination)?,
             allocation.0,
-            slot_bytes,
-            bucket_index,
+            0,
+            0,
         ))
     }
 
@@ -84,7 +82,7 @@ impl<'a> BlockLowerer<'a> {
         // compile the backing element shape
         let element_layout = self.layout_for_type(element_type)?;
         let pointer_class = slice_backing_pointer_class(self.tree, result_type)?;
-        let (element, _) = allocation_site(
+        let element = allocation_site(
             pool,
             pointer_class,
             element_layout,
@@ -313,17 +311,22 @@ fn allocation_site(
     layout: &Layout,
     heap_options: &HeapOptions,
     shared_heap_options: &SharedHeapOptions,
-) -> Result<(AllocationSite, Option<SmallAllocationPlan>)> {
+) -> Result<AllocationSite> {
     // resolve the allocation class from the destination space
     let is_noscan = !layout.trace_map.has_reference();
     let has_shared_reference = layout.trace_map.has_shared_reference();
+    let trace_map = pool.trace_map(&layout.trace_map)?;
+    let trace_id = if is_noscan { None } else { Some(trace_map) };
     let class = match pointer_class {
         PointerClass::Heap => {
-            heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
+            heap_options.allocation_class(layout.byte_len, layout.alignment(), trace_id, is_noscan)
         }
-        PointerClass::SharedHeap => {
-            shared_heap_options.allocation_class(layout.byte_len, layout.alignment(), is_noscan)
-        }
+        PointerClass::SharedHeap => shared_heap_options.allocation_class(
+            layout.byte_len,
+            layout.alignment(),
+            trace_id,
+            is_noscan,
+        ),
         _ => {
             return Err(Error::InvalidPointerType {
                 actual: format!("{pointer_class:?}"),
@@ -332,11 +335,6 @@ fn allocation_site(
     };
 
     // intern allocation metadata once during lowering
-    let trace_map = pool.trace_map(layout.trace_map.clone());
-    let small = match class {
-        AllocationClass::Small(small) if is_noscan => Some(small),
-        _ => None,
-    };
     let class = pool.allocation_class(class);
 
     let allocation = AllocationSite {
@@ -348,16 +346,14 @@ fn allocation_site(
         class,
     };
 
-    Ok((allocation, small))
+    Ok(allocation)
 }
 
 /// Select one heap allocation operation from destination and size class.
-fn allocation_op(pointer_class: PointerClass, small: Option<SmallAllocationPlan>) -> Result<Op> {
-    match (pointer_class, small.is_some()) {
-        (PointerClass::Heap, true) => Ok(Op::AllocateHeapSmallNoscan),
-        (PointerClass::Heap, false) => Ok(Op::AllocateHeap),
-        (PointerClass::SharedHeap, true) => Ok(Op::AllocateSharedHeapSmallNoscan),
-        (PointerClass::SharedHeap, false) => Ok(Op::AllocateSharedHeap),
+fn allocation_op(pointer_class: PointerClass) -> Result<Op> {
+    match pointer_class {
+        PointerClass::Heap => Ok(Op::AllocateHeapSite),
+        PointerClass::SharedHeap => Ok(Op::AllocateSharedHeapSite),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),

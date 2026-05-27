@@ -161,10 +161,6 @@ pub(crate) struct ConstValueId(pub(crate) u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationClassId(pub(crate) u32);
 
-/// Identifier for one pooled trace map.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct TraceMapId(pub(crate) u32);
-
 /// Identifier for one pooled address projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ProjectionId(pub(crate) u32);
@@ -322,8 +318,6 @@ pub(crate) struct SideTable {
     constant: Box<[ConstValue]>,
     /// Pooled allocation classes.
     allocation_class: Box<[heap::AllocationClass]>,
-    /// Pooled trace maps.
-    trace_map: Box<[mir::TraceMap]>,
     /// Pooled address projections.
     projection: Box<[Projection]>,
     /// Pooled slice projectiones.
@@ -371,8 +365,6 @@ pub(crate) struct SideTableBuilder {
     constant: Vec<ConstValue>,
     /// Pooled allocation classes.
     allocation_class: Vec<heap::AllocationClass>,
-    /// Pooled trace maps.
-    trace_map: Vec<mir::TraceMap>,
     /// Pooled address projections.
     projection: Vec<Projection>,
     /// Pooled slice projectiones.
@@ -405,7 +397,6 @@ impl SideTableBuilder {
             allocation_site,
             constant,
             allocation_class,
-            trace_map,
             projection,
             slice_projection,
             u32_ranges,
@@ -422,7 +413,6 @@ impl SideTableBuilder {
             allocation_site: allocation_site.into_boxed_slice(),
             constant: constant.into_boxed_slice(),
             allocation_class: allocation_class.into_boxed_slice(),
-            trace_map: trace_map.into_boxed_slice(),
             projection: projection.into_boxed_slice(),
             slice_projection: slice_projection.into_boxed_slice(),
             check: check.into_boxed_slice(),
@@ -504,22 +494,6 @@ impl SideTableBuilder {
         self.allocation_class.push(allocation_class);
 
         AllocationClassId(id)
-    }
-
-    /// Add one trace map to the side table.
-    pub(crate) fn push_trace_map(&mut self, trace_map: mir::TraceMap) -> TraceMapId {
-        if let Some(id) = self
-            .trace_map
-            .iter()
-            .position(|existing| *existing == trace_map)
-        {
-            return TraceMapId(id as u32);
-        }
-
-        let id = self.trace_map.len() as u32;
-        self.trace_map.push(trace_map);
-
-        TraceMapId(id)
     }
 
     /// Add one address projection to the side table.
@@ -683,12 +657,6 @@ impl SideTable {
     #[inline(always)]
     pub(crate) fn allocation_class(&self, id: AllocationClassId) -> heap::AllocationClass {
         self.allocation_class[id.0 as usize]
-    }
-
-    /// Borrow one pooled trace map.
-    #[inline(always)]
-    pub(crate) fn trace_map(&self, id: TraceMapId) -> &mir::TraceMap {
-        &self.trace_map[id.0 as usize]
     }
 
     /// Borrow one pooled address projection.

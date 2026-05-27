@@ -1,5 +1,5 @@
 use crate::Word;
-use crate::tests::create_test_heap;
+use crate::tests::{create_test_heap, trace_table};
 use destack_heap::{
     AllocationShape, Heap, HeapError, HeapReference, HeapResult, Payload, RootSlot,
     visit_heap_references,
@@ -9,7 +9,7 @@ use destack_mir::TraceMap;
 /// Allocate one managed cell for tests.
 fn allocate(heap: &mut Heap) -> HeapReference {
     let trace_map = TraceMap::empty();
-    let shape = AllocationShape::new(1, 1, &trace_map);
+    let shape = AllocationShape::new(1, 1, None, &trace_map);
     let layout = heap.allocation_plan(shape);
 
     heap.allocate(&layout, Payload::Bytes(&[0]))
@@ -36,7 +36,7 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Word>) -> HeapReference {
             shared_offsets: Vec::new().into_boxed_slice(),
         }
     };
-    let shape = AllocationShape::new(bytes.len(), Word::BYTE_LEN, &trace_map);
+    let shape = AllocationShape::new(bytes.len(), Word::BYTE_LEN, None, &trace_map);
     let layout = heap.allocation_plan(shape);
 
     heap.allocate(&layout, Payload::Bytes(&bytes))
@@ -74,7 +74,7 @@ fn read_cell_bytes(heap: &Heap, reference: HeapReference, byte_len: usize) -> Ve
 
 /// Write managed heap bytes for GC assertions.
 fn write_cell_bytes(heap: &mut Heap, reference: HeapReference, bytes: &[u8]) {
-    heap.write_barrier(reference, 0, bytes.len())
+    heap.write_barrier(reference, 0, bytes.len(), trace_table())
         .expect("heap barrier should record");
     let address = heap.heap_base_address() + reference.offset();
     unsafe {
@@ -105,7 +105,7 @@ fn assert_cell_prefix(heap: &Heap, reference: HeapReference, expected: &[u8]) {
 fn test_reject_zero_byte_heap_allocation() {
     let mut heap = create_test_heap();
     let trace_map = TraceMap::empty();
-    let shape = AllocationShape::new(0, 1, &trace_map);
+    let shape = AllocationShape::new(0, 1, None, &trace_map);
     let layout = heap.allocation_plan(shape);
 
     let result = heap.allocate(&layout, Payload::Zeroed);
@@ -125,7 +125,7 @@ fn test_gc_collects_unreachable() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
@@ -142,7 +142,7 @@ fn test_gc_preserves_reachable() {
     let handle2 = allocate(&mut heap);
     let mut roots = [handle1, handle2];
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 2);
@@ -163,7 +163,7 @@ fn test_gc_follows_references() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let rewritten_root = roots[0];
     let rewritten_root_bytes = read_cell_bytes(&heap, rewritten_root, Word::BYTE_LEN);
@@ -191,7 +191,7 @@ fn test_gc_handles_cycles() {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-    let shape = AllocationShape::new(Word::BYTE_LEN, Word::BYTE_LEN, &trace_map);
+    let shape = AllocationShape::new(Word::BYTE_LEN, Word::BYTE_LEN, None, &trace_map);
     let layout = heap.allocation_plan(shape);
     let a = heap
         .allocate(&layout, Payload::Zeroed)
@@ -209,7 +209,7 @@ fn test_gc_handles_cycles() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let rewritten_a = roots[0];
     let rewritten_a_bytes = read_cell_bytes(&heap, rewritten_a, Word::BYTE_LEN);
@@ -240,7 +240,7 @@ fn test_gc_empty_roots() {
 
     let mut roots = [];
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
 
     assert_eq!(allocation_count(&heap), 0);
@@ -258,7 +258,7 @@ fn test_gc_multiple_references_to_same_cell() {
 
     assert_eq!(allocation_count(&heap), 3);
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let first_holder_bytes = read_cell_bytes(&heap, roots[0], Word::BYTE_LEN);
     let second_holder_bytes = read_cell_bytes(&heap, roots[1], Word::BYTE_LEN);
@@ -291,7 +291,7 @@ fn test_gc_traces_nested_heap_references() {
 
     assert_eq!(allocation_count(&heap), 4);
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let rewritten_parent = roots[0];
     let rewritten_parent_bytes = read_cell_bytes(&heap, rewritten_parent, Word::BYTE_LEN);
@@ -326,7 +326,7 @@ fn test_gc_invalid_root_fails() {
 
     let mut roots = [valid, invalid];
     let error = heap
-        .collect_full(&mut |visit| visit_roots(&mut roots, visit))
+        .collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect_err("invalid roots should fail collection");
 
     assert_eq!(
@@ -346,14 +346,14 @@ fn test_gc_repeated_collection() {
     let _garbage = allocate(&mut heap);
     let mut roots = [root];
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 
     let _more_garbage = allocate(&mut heap);
     let _even_more = allocate(&mut heap);
 
-    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit))
+    heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     assert_eq!(allocation_count(&heap), 1);
 }

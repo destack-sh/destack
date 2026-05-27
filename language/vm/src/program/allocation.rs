@@ -1,7 +1,7 @@
-use destack_heap as heap;
-use destack_mir::TraceMap;
+use destack_heap::{self as heap, AllocationSite as HeapAllocationSite};
+use destack_mir::{TraceId, TraceMap};
 
-use super::{AllocationClassId, TraceMapId};
+use super::AllocationClassId;
 
 /// The allocation site consumed by heap allocation instructions.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -11,7 +11,7 @@ pub(crate) struct AllocationSite {
     /// The required allocation base alignment in bytes.
     pub alignment: usize,
     /// The exact heap trace map id.
-    pub trace_map: TraceMapId,
+    pub trace_map: TraceId,
     /// Whether the payload contains no heap references.
     pub is_noscan: bool,
     /// Whether the payload may contain shared heap references.
@@ -24,26 +24,35 @@ impl AllocationSite {
     /// Return one borrowed heap allocation shape.
     #[inline(always)]
     pub(crate) fn shape<'a>(&self, trace_map: &'a TraceMap) -> heap::AllocationShape<'a> {
+        let trace_id = if self.is_noscan {
+            None
+        } else {
+            Some(self.trace_map)
+        };
+
         heap::AllocationShape {
             byte_len: self.byte_len,
             alignment: self.alignment,
+            trace_id,
             trace_map,
             is_noscan: self.is_noscan,
             has_shared_reference: self.has_shared_reference,
         }
     }
 
-    /// Return one heap allocation plan.
+    /// Return one heap allocation site.
     #[inline(always)]
-    pub(crate) fn heap_plan<'a>(
-        &self,
-        trace_map: &'a TraceMap,
-        class: heap::AllocationClass,
-    ) -> heap::AllocationPlan<'a> {
-        heap::AllocationPlan {
+    pub(crate) fn heap_site(&self, class: heap::AllocationClass) -> HeapAllocationSite {
+        let trace_id = if self.is_noscan {
+            None
+        } else {
+            Some(self.trace_map)
+        };
+
+        HeapAllocationSite {
             byte_len: self.byte_len,
             alignment: self.alignment,
-            trace_map,
+            trace_id,
             is_noscan: self.is_noscan,
             has_shared_reference: self.has_shared_reference,
             class,

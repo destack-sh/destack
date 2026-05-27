@@ -302,14 +302,10 @@ pub(crate) enum Op {
     // ============================================================================
     // allocation and lifetime
     // ============================================================================
-    /// Allocate a zeroed small noscan local heap value.
-    AllocateHeapSmallNoscan,
-    /// Allocate a zeroed local heap value.
-    AllocateHeap,
-    /// Allocate a zeroed small noscan shared heap value.
-    AllocateSharedHeapSmallNoscan,
-    /// Allocate a zeroed shared heap value.
-    AllocateSharedHeap,
+    /// Allocate a zeroed local heap value from a compiled site.
+    AllocateHeapSite,
+    /// Allocate a zeroed shared heap value from a compiled site.
+    AllocateSharedHeapSite,
     /// Allocate a zeroed local slice backing and descriptor.
     AllocateSlice,
     /// Allocate a zeroed shared slice backing and descriptor.
