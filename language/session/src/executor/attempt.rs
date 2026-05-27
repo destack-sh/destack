@@ -387,7 +387,7 @@ impl ProviderContext for ProviderAttempt {
     }
 
     /// Add an already-final diagnostic collection produced by this attempt.
-    fn emit_collection(&self, diagnostics: DiagnosticCollection) {
+    fn emit_diagnostics(&self, diagnostics: DiagnosticCollection) {
         if diagnostics.is_empty() {
             return;
         }
@@ -405,7 +405,7 @@ impl ProviderContext for ProviderAttempt {
         let diagnostic = diagnostic.to_diagnostic(self)?;
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
 
-        self.emit_collection(diagnostics);
+        self.emit_diagnostics(diagnostics);
 
         Ok(())
     }

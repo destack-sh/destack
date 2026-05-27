@@ -54,7 +54,6 @@ destack_formatter = { workspace = true }
 destack_linter = { workspace = true }
 destack_session = { workspace = true }
 pprof = { workspace = true }
-pretty_assertions = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]

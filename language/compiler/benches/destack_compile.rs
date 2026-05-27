@@ -3,6 +3,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use destack_artifact::{ArtifactKey, DiskCacheStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
 use destack_workspace::{
@@ -174,6 +175,7 @@ fn build_workspace(
     // compiler
     let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
+    let query = Arc::new(Query::new(repository.clone()));
     let session = Session::new(
         workspace_root.clone(),
         workspace_root,
@@ -181,6 +183,7 @@ fn build_workspace(
         reference,
         compiler.clone(),
         linter,
+        query,
         1,
         None,
     )

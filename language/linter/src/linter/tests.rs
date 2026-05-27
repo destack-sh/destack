@@ -243,7 +243,7 @@ fn parse_code_dir(
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
-    context.emit_collection(parser.diagnostics());
+    context.emit_diagnostics(parser.diagnostics());
 
     let (tokens, side_tokens) = parser.take_tokens();
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
@@ -548,7 +548,7 @@ impl ProviderContext for TestProviderContext {
     }
 
     /// Record an already-final diagnostic collection produced by this attempt.
-    fn emit_collection(&self, diagnostics: DiagnosticCollection) {
+    fn emit_diagnostics(&self, diagnostics: DiagnosticCollection) {
         if diagnostics.is_empty() {
             return;
         }
@@ -571,7 +571,7 @@ impl ProviderContext for TestProviderContext {
             .expect("linter test provider should finalize diagnostic");
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
 
-        self.emit_collection(diagnostics);
+        self.emit_diagnostics(diagnostics);
 
         Ok(())
     }
