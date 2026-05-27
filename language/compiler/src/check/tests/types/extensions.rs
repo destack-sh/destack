@@ -22,7 +22,7 @@ const value = point.sum();
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -83,7 +83,7 @@ point.length();
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point

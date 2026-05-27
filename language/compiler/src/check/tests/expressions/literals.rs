@@ -12,7 +12,7 @@ const widened: int32 = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const literal = 42;
 /// @type.symbol symbol=literal type=42

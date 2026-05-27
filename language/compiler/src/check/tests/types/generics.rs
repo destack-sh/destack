@@ -15,7 +15,7 @@ const text = identity("x");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
@@ -65,7 +65,7 @@ const second = identity(2);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
@@ -114,7 +114,7 @@ const text = identity<string>("x");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
@@ -153,7 +153,7 @@ const asInt = identity<int32>;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
@@ -190,7 +190,7 @@ const overridden = pair(1, "x");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @generic.slot symbol=pair.T index=0 kind=type
@@ -236,7 +236,7 @@ const bytes = take<4>([1, 2, 3, 4]);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
 /// @generic.slot symbol=take.N index=0 kind=static constraint=uint
@@ -279,7 +279,7 @@ const value = choose(1);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function choose<comptime Flag: boolean = true>(value: int32): int32 {
 /// @generic.slot symbol=choose.Flag index=0 kind=static constraint=boolean default=true
@@ -317,7 +317,7 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 type Tagged<comptime Tag: string> = { tag: Tag };
 /// @generic.slot symbol=Tagged.Tag index=0 kind=static constraint=string
@@ -356,7 +356,7 @@ identity<int32>("x");
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
@@ -406,7 +406,7 @@ const text = identity("x");
 
     compiler.assert_dir_checked_many(
         &["lib.ds", "main.ds"],
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 === lib.ds ===
 export function identity<T>(value: T): T {
@@ -468,7 +468,7 @@ const text = identity("x");
 
     compiler.assert_dir_checked_many(
         &["lib.ds", "main.ds"],
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 === lib.ds ===
 export function identity<T>(value: T) {

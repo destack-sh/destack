@@ -94,7 +94,7 @@ const slice = bytes[1..3];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes type=[uint8; 4]

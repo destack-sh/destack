@@ -59,16 +59,21 @@ type Drawable = {
 /// @type.symbol symbol=Drawable type={ draw(): void }
 
     draw(): void;
+    /// @type.symbol symbol=Drawable.draw type=() => void
+
 };
 
 function paint(item: Drawable): void {
+/// @generic.slot key=paint.T0 index=0 kind=type constraint=Drawable
 /// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
-/// @generic.slot symbol=paint.T0 index=0 kind=type constraint=Drawable
+/// @type.symbol symbol=item type=paint.T0
+/// @resolution.name source=Drawable target=Drawable
 
     item.draw();
     /// @resolution.name source=item target=item
     /// @resolution.member source=item.draw receiver=paint.T0 kind=symbol target=Drawable.draw
-    /// @resolution.call source="item.draw()" parameters=[] return=void kind=symbol target=Drawable.draw receiver=paint.T0
+    /// @resolution.call source=item.draw() parameters=[] return=void kind=symbol target=Drawable.draw receiver=paint.T0
+
 }
 "#);
 }
@@ -178,7 +183,7 @@ write("message", number);
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink

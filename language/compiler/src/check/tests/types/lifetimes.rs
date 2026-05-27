@@ -16,7 +16,7 @@ function first(a: &Node, b: &Node): &Node {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Node {
 /// @type.symbol symbol=Node type=Node
@@ -58,7 +58,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Node {
 /// @type.symbol symbol=Node type=Node

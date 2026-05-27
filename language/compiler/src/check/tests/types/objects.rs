@@ -12,7 +12,7 @@ const value: Person = { name: "Ada", extra: true };
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 type Person = { name: string };
 /// @type.symbol symbol=Person type={ name: string }
@@ -42,7 +42,7 @@ const value: Person = source;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 type Person = { name: string };
 /// @type.symbol symbol=Person type={ name: string }
@@ -74,7 +74,7 @@ const extra = value.extra;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function keep<T: { name: string }>(value: T): T {
 /// @generic.slot symbol=keep.T index=0 kind=type constraint={ name: string }

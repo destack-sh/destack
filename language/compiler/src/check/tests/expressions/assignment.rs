@@ -10,7 +10,7 @@ const value: int32 = "text";
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const value: int32 = "text";
 /// @type.symbol symbol=value type=int32
@@ -35,7 +35,7 @@ value = 2;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 let value: int32 = 1;
 /// @type.symbol symbol=value type=int32
@@ -61,7 +61,7 @@ value = "text";
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 let value: int32 = 1;
 /// @type.symbol symbol=value type=int32
@@ -91,7 +91,7 @@ value = 2;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const value: int32 = 1;
 /// @type.symbol symbol=value type=int32
@@ -121,7 +121,7 @@ state.count = 1;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state type={ count: int32 }
@@ -151,7 +151,7 @@ state.count = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const state: { readonly count: int32 } = { count: 0 };
 /// @type.symbol symbol=state type={ readonly count: int32 }
@@ -186,7 +186,7 @@ const copy = value;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 let value: string;
 /// @type.symbol symbol=value type=string
@@ -216,7 +216,7 @@ const copy = value;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 let value: string;
 /// @type.symbol symbol=value type=string
@@ -255,7 +255,7 @@ counter = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 import { counter } from "./counter.ds";
 /// @type.symbol symbol=counter type=int32
