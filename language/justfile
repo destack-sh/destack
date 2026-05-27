@@ -1,41 +1,17 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
-# all language crates
-packages := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
-packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_mir -p destack_native -p destack_parser -p destack_query -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+# selected crates
+packages := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_native -p destack_parser -p destack_qir -p destack_query -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_css -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_html -p destack_js -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_native -p destack_parser -p destack_qir -p destack_query -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
 
 _default:
     @just --list --unsorted
 
-# keep rust test concurrency on one repo wide knob when configured
-_run-rust-test *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"
-
-    if [ -n "${test_threads}" ]; then
-        export RUST_TEST_THREADS="${test_threads}"
-    fi
-
-    # provide the runtime execution helper explicitly on macOS
-    if [ "$(uname -s)" = "Darwin" ]; then
-        export DESTACK_RUNTIME_EXECUTION_HELPER="$({
-            CARGO_INCREMENTAL=0 cargo test -p destack_runtime --features execution --test runtime_execution --no-run --message-format=json             | python3 -c 'import json, sys; messages = (json.loads(line) for line in sys.stdin if line.lstrip().startswith("{")); executables = (message.get("executable") for message in messages if message.get("reason") == "compiler-artifact" and message.get("target", {}).get("name") == "runtime_execution" and message.get("executable")); executable = next(executables, None); print(executable) if executable else (_ for _ in ()).throw(SystemExit("failed to resolve runtime_execution helper executable"))'
-        })"
-    fi
-
-    cargo test {{args}}
-
-# keep custom harness worker pools on one repo wide knob when configured
-_run-destack-test test_binary *args:
-    cargo_bin="cargo"; if [ "${OS:-}" = "Windows_NT" ] && command -v cargo.exe >/dev/null 2>&1; then cargo_bin="cargo.exe"; fi; test_threads="${DESTACK_TEST_THREADS:-${RUST_TEST_THREADS:-}}"; test_jobs="${DESTACK_TEST_JOBS:-${DESTACK_TEST_THREADS:-}}"; if [ -n "${test_threads}" ]; then export RUST_TEST_THREADS="${test_threads}"; fi; command=( "${cargo_bin}" test --release -p destack_test --test "{{test_binary}}" ); if [ -n "${test_jobs}" ]; then command+=( -- -j "${test_jobs}" ); set -- {{args}}; if [ "$#" -gt 0 ]; then command+=( "$@" ); fi; else set -- {{args}}; if [ "$#" -gt 0 ]; then command+=( -- "$@" ); fi; fi; "${command[@]}"
-
 # --- build ---
 
-# run language static checks
-check:
+# run static checks
+lint:
     cargo clippy --release {{ packages }} --no-deps
 
 # run privileged runtime platform tests for process, fs, and net
@@ -82,7 +58,7 @@ check-runtime-linux-wayland:
 check-runtime-macos-rust:
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
-    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 just _run-rust-test -p destack_runtime -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test -p destack_runtime -- --nocapture
 
 # check runtime on macos host
 check-runtime-macos:
@@ -92,27 +68,27 @@ check-runtime-macos:
 check-runtime-windows-msvc:
     bash ../dev/toolchain/check-runtime-windows-msvc.sh
 
-# build language packages
+# build packages
 build:
     cargo build --release {{ packages }}
     just generate-schema
 
-# format language code
+# format code
 format:
     cargo fmt {{ packages }}
 
-# check language formatting
+# check formatting
 format-check:
     cargo fmt --check {{ packages }}
 
 # alias for format
 alias fmt := format
 
-# build language docs
+# build docs
 doc:
     cargo doc --release {{ packages }} --no-deps
 
-# clean language build artifacts
+# clean build artifacts
 clean:
     cargo clean
 
@@ -121,26 +97,13 @@ clean:
 # regenerate all generated code
 generate:
     just generate-unicode
-    just generate-lexer
     just generate-schema
     just generate-conformance-schema
     just generate-stress
 
-# check committed generated source and runtime artifacts for drift
-generate-check:
-    bash scripts/check-generated.sh
-
-# check all generated files for drift, including conformance metadata
-generate-check-full:
-    bash scripts/check-generated.sh full
-
 # regenerate unicode tables
 generate-unicode:
     cd unicode && python3 src/generate.py
-
-# regenerate lexer tables
-generate-lexer:
-    cd parser/src/lex && python3 generate.py
 
 # generate JSON schema
 generate-schema:
@@ -156,58 +119,57 @@ generate-conformance-schema:
 
 # generate parser and formatter stress fixtures
 generate-stress:
-    just _run-destack-test stress --generate
-
-# generate runtime binding catalog
-generate-bindings *args:
-    bash scripts/generate-bindings.sh {{args}}
+    cargo test --release -p destack_test --test stress -- --generate
 
 # --- test ---
 
-# run all language crate unit tests
+# run crate unit tests
 test-unit:
-    just _run-rust-test --release --lib {{ packages-no-linter }}
-    just _run-rust-test --release --lib -p destack_linter
+    cargo test --release --lib {{ packages-no-linter }}
+    cargo test --release --lib -p destack_linter
 
-# run the language test aggregate
+# run tests
 test:
     just test-unit
     just test-emit
     just test-specification
     just test-query
     just test-lsp
-    just test-resolver
     just test-formatter
     just test-grammar
     just test-conformance
 
-# run the language quick gate
-quick:
+# default check
+check:
+    just check-quick
+
+# normal check
+check-quick:
     just format-check
-    just check
+    just lint
     just test
 
-# run the language full gate
-full:
-    just quick
+# check with slow suites
+check-full:
+    just check-quick
     just test-stress
 
 # run all crate tests
 test-all:
-    just _run-rust-test --release --all-targets --no-fail-fast {{ packages-no-linter }}
-    just _run-rust-test --release --all-targets --no-fail-fast -p destack_linter
+    cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
+    cargo test --release --all-targets --no-fail-fast -p destack_linter
 
 # run linter tests
 test-linter:
-    just _run-rust-test --release --all-targets --no-fail-fast -p destack_linter
+    cargo test --release --all-targets --no-fail-fast -p destack_linter
 
 # run emit tests
 test-emit:
-    just _run-destack-test emit
+    cargo test --release -p destack_test --test emit
 
 # refresh emit snapshots from actual outputs
 test-emit-update:
-    just _run-destack-test emit --update-snapshots
+    cargo test --release -p destack_test --test emit -- --update-snapshots
 
 # run all conformance tests
 test-conformance:
@@ -216,35 +178,31 @@ test-conformance:
 
 # run ecma conformance tests
 test-conformance-ecma:
-    just _run-destack-test conformance-ecma
+    cargo test --release -p destack_test --test conformance-ecma
 
 # update ecma conformance baselines
 test-conformance-ecma-update:
-    just _run-destack-test conformance-ecma --update-known-failures
+    cargo test --release -p destack_test --test conformance-ecma -- --update-known-failures
 
 # run formatter tests
 test-formatter:
-    just _run-destack-test formatter
+    cargo test --release -p destack_test --test formatter
 
 # run formatter conformance tests
 test-conformance-formatter:
-    just _run-destack-test conformance-formatter
+    cargo test --release -p destack_test --test conformance-formatter
 
 # update formatter conformance known failures
 test-conformance-formatter-update:
-    just _run-destack-test conformance-formatter --update-known-failures
+    cargo test --release -p destack_test --test conformance-formatter -- --update-known-failures
 
 # regenerate shared conformance catalog sections
 update-conformance-catalog:
     cargo run -p destack_test --bin update_conformance_catalog
 
-# run resolver tests
-test-resolver:
-    just _run-rust-test --release -p destack_resolver
-
 # run specification tests (type checking specification)
 test-specification:
-    just _run-destack-test specification
+    cargo test --release -p destack_test --test specification
 
 # validate tree sitter overlay coverage
 test-grammar-overlay:
@@ -290,23 +248,23 @@ profile-grammar-delta args="--target destack --baseline tsx --top 30":
 
 # run query tests
 test-query:
-    just _run-destack-test query
+    cargo test --release -p destack_test --test query
 
 # run applied lsp tests
 test-lsp:
-    just _run-destack-test lsp
+    cargo test --release -p destack_test --test lsp
 
 # run all stress tests
 test-stress:
-    just _run-destack-test stress
+    cargo test --release -p destack_test --test stress
 
 # run parser stress tests
 test-stress-parser:
-    just _run-destack-test stress --parser
+    cargo test --release -p destack_test --test stress -- --parser
 
 # run formatter stress tests
 test-stress-formatter:
-    just _run-destack-test stress --formatter
+    cargo test --release -p destack_test --test stress -- --formatter
 
 # --- bench ---
 

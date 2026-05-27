@@ -6,23 +6,27 @@ set dotenv-filename := "../.env.local"
 _default:
     @just --list --unsorted
 
-# run library static checks
-check:
+# run static checks
+lint:
     bun x biome lint .
 
-# run the library test aggregate
+# run tests
 test:
     @echo "No library tests defined"
 
-# run the library quick gate
-quick:
+# default check
+check:
+    just check-quick
+
+# normal check
+check-quick:
     just format-check
-    just check
+    just lint
     just test
 
-# run the library full gate
-full:
-    just quick
+# check with slow suites
+check-full:
+    just check-quick
 
 # format code
 format:
@@ -35,7 +39,7 @@ format-check:
 # alias for format
 alias fmt := format
 
-# clean library build artifacts
+# clean build artifacts
 clean:
     rm -rf node_modules
 
