@@ -1,9 +1,8 @@
 use destack_dir as dir;
-use dir::NodeVisitor as _;
 
-use crate::check::{CheckModuleState, TypeLiteralTerm, TypeTerm};
+use crate::check::{CheckState, TypeLiteralTerm, TypeTerm};
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Walk one block.
     pub(in crate::check) fn walk_block(
         &mut self,
@@ -11,22 +10,21 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
     ) {
-        // apply static owner guards
-        if !self.static_allows(tree, id.into_any()) {
+        if !self.push_static_condition_for(tree, id.into_any(), None) {
             return;
         }
 
-        self.visit_any(tree, dir::NodeType::Block, id.id);
-
         // define expression block output
         if block.context == dir::BlockContext::Expression {
-            let variable = self.intern_local_type_variable(id);
+            let variable = self.intern_local_type_variable(tree.module_id, id);
             let term = match block.tail_expression {
-                Some(expression) => TypeTerm::Variable(self.intern_local_type_variable(expression)),
+                Some(expression) => {
+                    TypeTerm::Variable(self.intern_local_type_variable(tree.module_id, expression))
+                }
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             };
 
-            self.define_type(variable, term);
+            self.define_type(tree.module_id, variable, term);
         }
 
         // walk leading statements
@@ -39,10 +37,10 @@ impl CheckModuleState {
             }
             // check unreachable expression in isolated flow
             else {
-                let before = self.checkpoint_flow();
+                let before = self.checkpoint_flow(tree.module_id);
 
                 self.walk_expression(tree, *expression, tree.get(*expression));
-                self.restore_flow(before);
+                self.restore_flow(tree.module_id, before);
             }
         }
 
@@ -54,11 +52,13 @@ impl CheckModuleState {
             }
             // check unreachable tail in isolated flow
             else {
-                let before = self.checkpoint_flow();
+                let before = self.checkpoint_flow(tree.module_id);
 
                 self.walk_expression(tree, expression, tree.get(expression));
-                self.restore_flow(before);
+                self.restore_flow(tree.module_id, before);
             }
         }
+
+        self.pop_static_condition(tree.module_id);
     }
 }

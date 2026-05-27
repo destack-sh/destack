@@ -1,11 +1,11 @@
 use destack_dir as dir;
-use dir::NodeVisitor as _;
+use destack_source::ModuleId;
 
 use super::property::MemberReceiverContext;
 
-use crate::check::{CheckModuleState, ReceiverCapture, TypeTerm, VariableId};
+use crate::check::{CheckState, ReceiverCapture, TypeTerm, VariableId};
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Walk one declaration.
     pub(in crate::check) fn walk_declaration(
         &mut self,
@@ -13,12 +13,9 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) {
-        // apply static owner guards
-        if !self.static_allows(tree, id.into_any()) {
+        if !self.push_static_condition_for(tree, id.into_any(), None) {
             return;
         }
-
-        self.visit_any(tree, dir::NodeType::Declaration, id.id);
 
         match declaration {
             // global { ... }
@@ -36,12 +33,13 @@ impl CheckModuleState {
             // type X = T
             dir::Declaration::Type(declaration) => {
                 // define the declaration symbol output
-                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
                     if !declaration.is_nominal {
-                        let variable = self.intern_symbol_type_variable(symbol);
-                        let value = self.intern_local_type_variable(declaration.value);
+                        let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                        let value =
+                            self.intern_local_type_variable(tree.module_id, declaration.value);
 
-                        self.define_type(variable, TypeTerm::Variable(value));
+                        self.define_type(tree.module_id, variable, TypeTerm::Variable(value));
                     }
                 }
 
@@ -57,14 +55,14 @@ impl CheckModuleState {
                 self.walk_type_expression(tree, declaration.value, tree.get(declaration.value));
 
                 if declaration.is_nominal
-                    && let Some(symbol) = self.declaration_symbol(id.into_any())
+                    && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
                 {
-                    self.intern_symbol_type_variable(symbol);
+                    self.intern_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // struct S { ... }
             dir::Declaration::Struct(declaration) => {
-                let symbol = self.declaration_symbol(id.into_any());
+                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
 
                 // walk generic header
                 for parameter in &declaration.generic_parameters {
@@ -82,7 +80,7 @@ impl CheckModuleState {
                 // walk members with a nominal receiver
                 let receiver = symbol.map(|symbol| MemberReceiverContext {
                     owner: Some(symbol),
-                    ty: self.intern_symbol_type_variable(symbol),
+                    ty: self.intern_symbol_type_variable(tree.module_id, symbol),
                 });
 
                 for member in &declaration.members {
@@ -90,12 +88,12 @@ impl CheckModuleState {
                 }
 
                 if let Some(symbol) = symbol {
-                    self.intern_symbol_type_variable(symbol);
+                    self.intern_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // class C { ... }
             dir::Declaration::Class(declaration) => {
-                let symbol = self.declaration_symbol(id.into_any());
+                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
 
                 // walk generic header
                 for parameter in &declaration.generic_parameters {
@@ -108,10 +106,10 @@ impl CheckModuleState {
                 // walk superclass and implemented types
                 if let Some(extends_expression) = declaration.extends_expression {
                     // check superclass expression in declaration context
-                    let before_extends = self.checkpoint_flow();
+                    let before_extends = self.checkpoint_flow(tree.module_id);
 
                     self.walk_expression(tree, extends_expression, tree.get(extends_expression));
-                    self.restore_flow(before_extends);
+                    self.restore_flow(tree.module_id, before_extends);
                 }
                 for implemented_type in &declaration.implements_types {
                     self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
@@ -120,7 +118,7 @@ impl CheckModuleState {
                 // walk members with a nominal receiver
                 let receiver = symbol.map(|symbol| MemberReceiverContext {
                     owner: Some(symbol),
-                    ty: self.intern_symbol_type_variable(symbol),
+                    ty: self.intern_symbol_type_variable(tree.module_id, symbol),
                 });
 
                 for member in &declaration.members {
@@ -128,12 +126,12 @@ impl CheckModuleState {
                 }
 
                 if let Some(symbol) = symbol {
-                    self.intern_symbol_type_variable(symbol);
+                    self.intern_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // enum E { ... }
             dir::Declaration::Enum(declaration) => {
-                let symbol = self.declaration_symbol(id.into_any());
+                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
 
                 // walk generic header
                 for parameter in &declaration.generic_parameters {
@@ -154,7 +152,7 @@ impl CheckModuleState {
                 // walk members with a nominal receiver
                 let receiver = symbol.map(|symbol| MemberReceiverContext {
                     owner: Some(symbol),
-                    ty: self.intern_symbol_type_variable(symbol),
+                    ty: self.intern_symbol_type_variable(tree.module_id, symbol),
                 });
 
                 for member in &declaration.members {
@@ -162,15 +160,15 @@ impl CheckModuleState {
                 }
 
                 if let Some(symbol) = symbol {
-                    self.intern_symbol_type_variable(symbol);
+                    self.intern_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // interface I { ... }
             dir::Declaration::Interface(declaration) => {
                 // define the interface symbol output
-                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
+                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
                     if !declaration.is_nominal {
-                        self.intern_symbol_type_variable(symbol);
+                        self.intern_symbol_type_variable(tree.module_id, symbol);
                     }
                 }
 
@@ -185,10 +183,10 @@ impl CheckModuleState {
                 // walk inherited contracts and members
                 for heritage in &declaration.extends {
                     // check inherited contract expression in declaration context
-                    let before_heritage = self.checkpoint_flow();
+                    let before_heritage = self.checkpoint_flow(tree.module_id);
 
                     self.walk_expression(tree, heritage.expression, tree.get(heritage.expression));
-                    self.restore_flow(before_heritage);
+                    self.restore_flow(tree.module_id, before_heritage);
 
                     for argument in &heritage.generic_arguments {
                         self.walk_generic_argument(tree, *argument, tree.get(*argument));
@@ -199,15 +197,15 @@ impl CheckModuleState {
                 }
 
                 if declaration.is_nominal
-                    && let Some(symbol) = self.declaration_symbol(id.into_any())
+                    && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
                 {
-                    self.intern_symbol_type_variable(symbol);
+                    self.intern_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // extension T { ... }
             dir::Declaration::Extension(declaration) => {
-                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
-                    self.intern_symbol_type_variable(symbol);
+                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
+                    self.intern_symbol_type_variable(tree.module_id, symbol);
                 }
 
                 // walk generic header
@@ -231,7 +229,7 @@ impl CheckModuleState {
                 // extension members receive the target type as `this`
                 let receiver = Some(MemberReceiverContext {
                     owner: None,
-                    ty: self.intern_local_type_variable(declaration.target_type),
+                    ty: self.intern_local_type_variable(tree.module_id, declaration.target_type),
                 });
 
                 for member in &declaration.members {
@@ -243,15 +241,15 @@ impl CheckModuleState {
                 let return_type = self.intern_function_return_type_variable(id, declaration, tree);
 
                 // define the callable symbol output
-                if let Some(symbol) = self.declaration_symbol(id.into_any()) {
-                    let variable = self.intern_symbol_type_variable(symbol);
+                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
+                    let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
                     let term = self.build_function_signature_term(
                         &declaration.signature,
                         return_type,
                         tree,
                     );
 
-                    self.define_type(variable, TypeTerm::Function(term));
+                    self.define_type(tree.module_id, variable, TypeTerm::Function(term));
 
                     // walk signature and body in the function flow frame
                     self.walk_function_declaration(
@@ -266,6 +264,8 @@ impl CheckModuleState {
                 }
             }
         };
+
+        self.pop_static_condition(tree.module_id);
     }
 
     /// Walk one enum field.
@@ -275,20 +275,18 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::EnumField>,
         enum_field: &dir::EnumField,
     ) {
-        // apply static owner guards
-        if !self.static_allows(tree, id.into_any()) {
+        if !self.push_static_condition_for(tree, id.into_any(), None) {
             return;
         }
-
-        self.visit_any(tree, dir::NodeType::EnumField, id.id);
-
         if let Some(value) = enum_field.value {
             // check enum value in declaration context
-            let before_value = self.checkpoint_flow();
+            let before_value = self.checkpoint_flow(tree.module_id);
 
             self.walk_expression(tree, value, tree.get(value));
-            self.restore_flow(before_value);
+            self.restore_flow(tree.module_id, before_value);
         }
+
+        self.pop_static_condition(tree.module_id);
     }
 
     /// Walk one function signature and body with a flow frame.
@@ -324,18 +322,18 @@ impl CheckModuleState {
             dir::Expression::Block(block) => {
                 let block = tree.get(*block);
                 if block.context == dir::BlockContext::Expression {
-                    let value = self.intern_local_type_variable(body);
+                    let value = self.intern_local_type_variable(tree.module_id, body);
 
-                    self.constrain_return_value(body.into_any(), value);
+                    self.constrain_return_value(tree.module_id, body.into_any(), value);
                 } else {
-                    self.constrain_void_return(body.into_any());
+                    self.constrain_void_return(tree.module_id, body.into_any());
                 }
             }
             // expression
             _ => {
-                let value = self.intern_local_type_variable(body);
+                let value = self.intern_local_type_variable(tree.module_id, body);
 
-                self.constrain_return_value(body.into_any(), value);
+                self.constrain_return_value(tree.module_id, body.into_any(), value);
             }
         };
     }
@@ -385,7 +383,7 @@ impl CheckModuleState {
     ) -> Option<VariableId> {
         // use explicit return annotations
         if let Some(return_type) = declaration.signature.return_type {
-            return Some(self.intern_local_type_variable(return_type));
+            return Some(self.intern_local_type_variable(tree.module_id, return_type));
         }
 
         // use concise expression bodies directly
@@ -394,14 +392,14 @@ impl CheckModuleState {
             && let Some(body) = declaration.body
             && !matches!(tree.get(body), dir::Expression::Block(_))
         {
-            return Some(self.intern_local_type_variable(body));
+            return Some(self.intern_local_type_variable(tree.module_id, body));
         }
 
         // declarations without bodies do not infer returns
         declaration.body?;
 
         // otherwise use the declaration node as the inferred output
-        Some(self.intern_local_type_variable(id))
+        Some(self.intern_local_type_variable(tree.module_id, id))
     }
 
     /// Return the lexical receiver introduced by one function signature.
@@ -413,7 +411,7 @@ impl CheckModuleState {
     ) -> Option<ReceiverCapture> {
         // no `this` parameter means no lexical receiver
         let parameter = this_parameter?;
-        let Some(symbol) = self.declaration_symbol(parameter.into_any()) else {
+        let Some(symbol) = self.declaration_symbol(tree.module_id, parameter.into_any()) else {
             return None;
         };
 
@@ -426,19 +424,20 @@ impl CheckModuleState {
     /// Return the declared or inferred return type for one function signature.
     pub(in crate::check) fn intern_signature_return_type_variable(
         &mut self,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> Option<VariableId> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Some(self.intern_local_type_variable(return_type));
+            return Some(self.intern_local_type_variable(module, return_type));
         }
 
         // signatures without bodies do not infer returns
         body?;
 
         // otherwise use the declaration node as the inferred output
-        Some(self.intern_node_type_variable(source.into_global(self.input.module_id)))
+        Some(self.intern_node_type_variable(module, source.into_global(module)))
     }
 }

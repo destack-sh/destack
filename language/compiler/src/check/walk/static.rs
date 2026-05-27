@@ -1,32 +1,49 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
-use crate::check::{CheckModuleState, Decorator, StaticIfCondition, StaticTerm, VariableId};
+use crate::check::{
+    CheckState, Decorator, ReceiverCapture, StaticCondition, StaticIfCondition, StaticPredicate,
+    StaticTerm, TypeTerm, VariableId,
+};
 use crate::common::dir::r#static::{StaticContext, StaticFailure};
 
-impl CheckModuleState {
-    /// Return whether static decorators attached to one owner allow it.
-    pub(in crate::check) fn static_allows(
+impl CheckState<'_> {
+    /// Return the static condition attached to one owner.
+    pub(in crate::check) fn static_condition(
         &mut self,
         tree: &dir::Tree,
         owner: dir::LocalNodeIdAny,
-    ) -> bool {
-        let decorators = self.decorators_for_owner(owner);
+        receiver: Option<ReceiverCapture>,
+    ) -> StaticCondition {
+        let decorators = self.decorators_for_owner(tree.module_id, owner);
+        let mut condition = StaticCondition::Always;
 
-        // evaluate visible static guards in source order
+        // combine visible static guards in source order
         for decorator in decorators {
             match decorator {
                 Decorator::StaticIf(decorator) => {
-                    let StaticIfCondition::Present(condition) = decorator.condition else {
-                        self.report_invalid_static_condition(decorator.condition_anchor());
+                    let StaticIfCondition::Present(condition_expression) = decorator.condition
+                    else {
+                        self.report_invalid_static_condition(
+                            tree.module_id,
+                            decorator.condition_anchor(),
+                        );
 
-                        return false;
+                        return StaticCondition::Never;
                     };
-                    if !self.evaluate_static_guard(tree, condition) {
-                        return false;
+                    let next = self.evaluate_static_guard(tree, receiver, condition_expression);
+
+                    condition = condition.and(next);
+                    if condition.is_never() {
+                        return StaticCondition::Never;
                     }
                 }
                 Decorator::Other(call) => {
-                    let decorator_node = self.input.view().get(call.decorator).clone();
+                    let decorator_node = self
+                        .input(tree.module_id)
+                        .view()
+                        .get(call.decorator)
+                        .clone();
 
                     self.walk_decorator(tree, call.decorator, &decorator_node);
                 }
@@ -44,47 +61,199 @@ impl CheckModuleState {
             }
         }
 
+        condition
+    }
+
+    /// Push one static condition for subsequently walked work.
+    pub(in crate::check) fn push_static_condition(
+        &mut self,
+        module: ModuleId,
+        condition: StaticCondition,
+    ) {
+        self.flow_mut(module).push_static_condition(condition);
+    }
+
+    /// Pop the current static condition.
+    pub(in crate::check) fn pop_static_condition(&mut self, module: ModuleId) {
+        self.flow_mut(module).pop_static_condition();
+    }
+
+    /// Push the static condition attached to one owner.
+    pub(in crate::check) fn push_static_condition_for(
+        &mut self,
+        tree: &dir::Tree,
+        owner: dir::LocalNodeIdAny,
+        receiver: Option<ReceiverCapture>,
+    ) -> bool {
+        let owner_condition = self.static_condition(tree, owner, receiver);
+        let condition = self
+            .active_static_condition(tree.module_id)
+            .and(owner_condition.clone());
+
+        // record symbol availability after combining guards
+        if let Some(symbol) = self.declaration_symbol(tree.module_id, owner) {
+            self.availability_mut(tree.module_id)
+                .insert(symbol, condition.clone());
+        }
+
+        if condition.is_never() {
+            return false;
+        }
+        self.push_static_condition(tree.module_id, owner_condition);
+
         true
+    }
+
+    /// Return the currently active static condition.
+    pub(in crate::check) fn active_static_condition(&self, module: ModuleId) -> StaticCondition {
+        self.flow(module).current_static_condition()
     }
 
     /// Evaluate one static guard condition.
     fn evaluate_static_guard(
         &mut self,
         tree: &dir::Tree,
+        receiver: Option<ReceiverCapture>,
         condition: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        let context = StaticContext::new(
-            self.input.view(),
-            self.input.module.as_ref(),
-            &self.input.profile,
-            &self.input.profile.conditions,
-            &self.input.strings,
-        );
+    ) -> StaticCondition {
+        self.with_static_receiver(tree.module_id, receiver, |this| {
+            let context = StaticContext::new(
+                this.input(tree.module_id).view(),
+                this.input(tree.module_id).module.as_ref(),
+                &this.input(tree.module_id).profile,
+                &this.input(tree.module_id).profile.conditions,
+                &this.input(tree.module_id).strings,
+            );
 
-        match context.evaluate_boolean(condition) {
-            Ok(true) => true,
-            Ok(false) => false,
-            Err(StaticFailure::NotBoolean(expression)) => {
-                self.report_invalid_static_condition(expression.into_any());
+            match context.evaluate_boolean(condition) {
+                Ok(true) => StaticCondition::Always,
+                Ok(false) => StaticCondition::Never,
+                Err(StaticFailure::NotBoolean(expression)) => {
+                    this.report_invalid_static_condition(tree.module_id, expression.into_any());
 
-                false
-            }
-            Err(StaticFailure::NotStatic(expression)) => {
-                if self.is_deferred_static_guard(tree, condition) {
-                    // check deferred guard terms in static context
-                    let before_condition = self.checkpoint_flow();
+                    StaticCondition::Never
+                }
+                Err(StaticFailure::NotStatic(expression)) => {
+                    if this.is_deferred_static_guard(tree, condition) {
+                        let variable =
+                            this.define_static_expression_variable(tree.module_id, condition);
 
-                    self.walk_expression(tree, condition, tree.get(condition));
-                    self.restore_flow(before_condition);
+                        // define static guard leaves without runtime condition constraints
+                        this.walk_static_expression(tree, condition);
 
-                    true
-                } else {
-                    self.walk_expression(tree, expression, tree.get(expression));
-                    self.report_invalid_static_condition(expression.into_any());
+                        StaticCondition::When {
+                            conditions: smallvec::smallvec![StaticPredicate {
+                                module: tree.module_id,
+                                term: StaticTerm::Variable(variable),
+                            }],
+                        }
+                    } else {
+                        this.walk_expression(tree, expression, tree.get(expression));
+                        this.report_invalid_static_condition(tree.module_id, expression.into_any());
 
-                    false
+                        StaticCondition::Never
+                    }
                 }
             }
+        })
+    }
+
+    /// Run one callback with a static receiver visible.
+    fn with_static_receiver<R>(
+        &mut self,
+        module: ModuleId,
+        receiver: Option<ReceiverCapture>,
+        walk: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let has_receiver = receiver.is_some();
+        if let Some(receiver) = receiver {
+            self.flow_mut(module).push_receiver(receiver);
+        }
+        let result = walk(self);
+        if has_receiver {
+            self.flow_mut(module).pop_receiver();
+        }
+
+        result
+    }
+
+    /// Walk leaves needed to build one static expression.
+    pub(in crate::check) fn walk_static_expression(
+        &mut self,
+        tree: &dir::Tree,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) {
+        match tree.get(expression) {
+            // (C)
+            dir::Expression::Parenthesized { expression } => {
+                self.walk_static_expression(tree, *expression);
+            }
+            // this
+            dir::Expression::This => {
+                let source = expression.into_global_any(tree.module_id);
+                if let Some(receiver) = self.define_this_receiver_variable(source) {
+                    let variable = self.intern_local_type_variable(tree.module_id, expression);
+
+                    self.define_type(tree.module_id, variable, TypeTerm::Variable(receiver));
+                }
+            }
+            // this.X
+            dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
+                self.walk_static_expression(tree, *left);
+            }
+            // C && D, C == D
+            dir::Expression::Binary { left, right, .. } => {
+                self.walk_static_expression(tree, *left);
+                self.walk_static_expression(tree, *right);
+            }
+            // !C
+            dir::Expression::Unary { right, .. } => {
+                self.walk_static_expression(tree, *right);
+            }
+            // <T extends U>
+            dir::Expression::Type { value } => {
+                self.walk_static_type_expression(tree, *value);
+            }
+            // C[I]
+            dir::Expression::Index { left, index, .. } => {
+                self.walk_static_expression(tree, *left);
+                if let Some(index) = index {
+                    self.walk_static_expression(tree, *index);
+                }
+            }
+            // literal or unsupported static leaf
+            _ => {}
+        }
+    }
+
+    /// Walk leaves needed by a type-space static expression.
+    fn walk_static_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        expression: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        match tree.get(expression) {
+            // (T)
+            dir::TypeExpression::Parenthesized { expression } => {
+                self.walk_static_type_expression(tree, *expression);
+            }
+            // T extends U
+            dir::TypeExpression::Extends { left, right }
+            | dir::TypeExpression::Implements { left, right } => {
+                self.walk_type_expression(tree, *left, tree.get(*left));
+                self.walk_type_expression(tree, *right, tree.get(*right));
+            }
+            // T extends U ? X : Y
+            dir::TypeExpression::Conditional {
+                left: _,
+                extends_type: _,
+                then_type: _,
+                else_type: _,
+            } => {
+                self.walk_type_expression(tree, expression, tree.get(expression));
+            }
+            // other type expressions are walked normally when directly needed
+            _ => self.walk_type_expression(tree, expression, tree.get(expression)),
         }
     }
 
@@ -138,7 +307,7 @@ impl CheckModuleState {
                 path,
                 generic_arguments,
             } => {
-                self.type_reference_is_generic_parameter(id, path)
+                self.type_reference_is_generic_parameter(tree.module_id, id, path)
                     || generic_arguments
                         .iter()
                         .any(|argument| self.is_deferred_static_generic_argument(tree, *argument))
@@ -247,6 +416,7 @@ impl CheckModuleState {
     /// Return whether one reference names a generic parameter.
     fn type_reference_is_generic_parameter(
         &self,
+        module: ModuleId,
         source: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
     ) -> bool {
@@ -255,17 +425,17 @@ impl CheckModuleState {
         };
 
         if let Some(symbol) = self
-            .lookup_name(source.into_any(), *name, dir::SymbolSpace::Type)
+            .lookup_symbol_by_name(module, source.into_any(), *name, dir::SymbolSpace::Type)
             .unique_symbol()
-            && self.symbol_kind(symbol) == Some(dir::SymbolKind::GenericTypeParameter)
+            && self.symbol_kind(module, symbol) == Some(dir::SymbolKind::GenericTypeParameter)
         {
             return true;
         }
 
-        self.lookup_name(source.into_any(), *name, dir::SymbolSpace::Value)
+        self.lookup_symbol_by_name(module, source.into_any(), *name, dir::SymbolSpace::Value)
             .unique_symbol()
             .is_some_and(|symbol| {
-                self.symbol_kind(symbol) == Some(dir::SymbolKind::GenericValueParameter)
+                self.symbol_kind(module, symbol) == Some(dir::SymbolKind::GenericValueParameter)
             })
     }
 
@@ -275,11 +445,12 @@ impl CheckModuleState {
         id: dir::LocalNodeId<dir::TypeExpression>,
         tree: &dir::Tree,
     ) -> VariableId {
-        let source = id.into_global_any(self.input.module_id);
-        let variable = self.intern_node_static_variable(source);
+        let module = tree.module_id;
+        let source = id.into_global_any(module);
+        let variable = self.intern_node_static_variable(module, source);
 
         if let Some(term) = self.build_static_argument_term(id, tree) {
-            self.define_static(variable, term);
+            self.define_static(module, variable, term);
         }
 
         variable
@@ -316,6 +487,13 @@ impl CheckModuleState {
             dir::TypeExpression::Tuple { elements } => {
                 self.build_static_tuple_term(elements, tree)?
             }
+            // <L | R>
+            dir::TypeExpression::Union { elements } => StaticTerm::Join {
+                elements: elements
+                    .iter()
+                    .map(|element| self.static_argument_variable(*element, tree))
+                    .collect(),
+            },
             // <readonly [1, 2]>
             dir::TypeExpression::ArrayTuple { elements } => {
                 self.build_static_tuple_term(elements, tree)?
@@ -330,19 +508,30 @@ impl CheckModuleState {
                 };
                 if generic_arguments.is_empty()
                     && let Some(symbol) = self
-                        .lookup_name(id.into_any(), *name, dir::SymbolSpace::Value)
+                        .lookup_symbol_by_name(
+                            tree.module_id,
+                            id.into_any(),
+                            *name,
+                            dir::SymbolSpace::Value,
+                        )
                         .unique_symbol()
-                    && self.symbol_kind(symbol) == Some(dir::SymbolKind::GenericValueParameter)
+                    && self.symbol_kind(tree.module_id, symbol)
+                        == Some(dir::SymbolKind::GenericValueParameter)
                 {
-                    let variable = self.intern_symbol_static_variable(symbol);
+                    let variable = self.intern_symbol_static_variable(tree.module_id, symbol);
 
                     StaticTerm::Variable(variable)
                 }
                 // <LifetimeOf<T>>
                 else if let Some(symbol) = self
-                    .lookup_name(id.into_any(), *name, dir::SymbolSpace::Type)
+                    .lookup_symbol_by_name(
+                        tree.module_id,
+                        id.into_any(),
+                        *name,
+                        dir::SymbolSpace::Type,
+                    )
                     .unique_symbol()
-                    && let Some(item) = self.input.environment.language.item(symbol)
+                    && let Some(item) = self.input(tree.module_id).environment.language.item(symbol)
                     && Self::memory_static_intrinsic_item(item)
                 {
                     let arguments =
@@ -367,8 +556,8 @@ impl CheckModuleState {
                 let arguments = self.build_generic_arguments(generic_arguments, tree);
 
                 StaticTerm::Member {
-                    source: Some(id.into_global_any(self.input.module_id)),
-                    owner: self.intern_local_type_variable(*left),
+                    source: Some(id.into_global_any(tree.module_id)),
+                    owner: self.intern_local_type_variable(tree.module_id, *left),
                     key: dir::StaticKey::Name(*name),
                     arguments,
                 }

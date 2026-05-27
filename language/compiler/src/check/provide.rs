@@ -3,7 +3,7 @@ use destack_source::{ComponentId, ModuleId};
 use destack_workspace::{ProfileId, ProviderContext};
 use smallvec::SmallVec;
 
-use crate::check::CheckComponentState;
+use crate::check::CheckState;
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -45,8 +45,8 @@ impl Compiler {
         }
 
         // require pre-checked artifacts for component dependencies
-        let dependencies = graph.dependencies(component_modules.as_slice());
         let artifacts = self.artifact_reader(context);
+        let dependencies = graph.dependencies(component_modules.as_slice());
         let dependencies = dependencies
             .iter()
             .map(|dependency| ArtifactKey::dir_checked(*dependency, profile))
@@ -59,15 +59,15 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // check component
-        let mut check =
-            CheckComponentState::new(self, context, profile, component_modules, environment);
+        let mut check = CheckState::new(self, context, profile, component_modules, environment);
         check.load()?;
         check.walk()?;
+        check.prepare()?;
         check.solve()?;
 
-        // commit checked DIR
+        // commit checked DIR tables
         let (modules, diagnostics) = check.commit()?;
-        context.emit_collection(diagnostics);
+        context.emit_diagnostics(diagnostics);
         let checked = DirCheckedComponent {
             component: component_id,
             modules,

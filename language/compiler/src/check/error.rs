@@ -27,6 +27,24 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Type construction exceeded the checker complexity limit.
+    #[diagnostic(code = "EC102", message = "type is too complex")]
+    TypeTooComplex {
+        /// Report the type or expression that caused the expansion.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Transparent type expansion reached the same type again.
+    #[diagnostic(code = "EC103", message = "type is circular")]
+    CircularType {
+        /// Report the recursive type reference.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: relations
     // -------------------------------------------------------------------------
@@ -280,8 +298,20 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Refutable pattern appears outside a matching context.
+    #[diagnostic(
+        code = "EC406",
+        message = "refutable pattern requires a matching context"
+    )]
+    RefutablePattern {
+        /// Report the refutable pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Await expression has an invalid shape for its context.
-    #[diagnostic(code = "EC406", message = "invalid await expression: {message}")]
+    #[diagnostic(code = "EC407", message = "invalid await expression: {message}")]
     InvalidAwait {
         /// Report the await expression.
         anchor: DiagnosticAnchor,
@@ -292,7 +322,7 @@ pub enum CheckError {
     },
 
     /// Yield expression has an invalid shape for its context.
-    #[diagnostic(code = "EC407", message = "invalid yield expression: {message}")]
+    #[diagnostic(code = "EC408", message = "invalid yield expression: {message}")]
     InvalidYield {
         /// Report the yield expression.
         anchor: DiagnosticAnchor,

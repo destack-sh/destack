@@ -1,26 +1,18 @@
 use destack_dir as dir;
-use dir::NodeVisitor as _;
 
-use crate::check::{CheckModuleState, FlowPath, PatternRelation, VariableId};
+use crate::check::{CheckState, FlowPath, MatchCase, PatternRelation, VariableId};
 
 use super::expression::ConditionBranch;
 
-impl CheckModuleState {
+impl CheckState<'_> {
     /// Walk one match case.
     pub(in crate::check) fn walk_match_case(
         &mut self,
         tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::MatchCase>,
+        _id: dir::LocalNodeId<dir::MatchCase>,
         match_case: &dir::MatchCase,
         value: Option<(VariableId, Option<FlowPath>)>,
     ) {
-        // apply static owner guards
-        if !self.static_allows(tree, id.into_any()) {
-            return;
-        }
-
-        self.visit_any(tree, dir::NodeType::MatchCase, id.id);
-
         match match_case {
             // case pattern if guard => expression
             dir::MatchCase::Expression { selector, body } => {
@@ -53,9 +45,14 @@ impl CheckModuleState {
                 self.walk_pattern(tree, *pattern, tree.get(*pattern));
 
                 if let Some((value, path)) = value
-                    && let Some(term) = self.build_pattern_term(*pattern, tree)
+                    && let Some(term) = self.build_pattern_term(tree.module_id, *pattern, tree)
                 {
-                    self.constrain_pattern(PatternRelation::Match(term), pattern.into_any(), value);
+                    self.constrain_pattern(
+                        tree.module_id,
+                        PatternRelation::Match(term),
+                        pattern.into_any(),
+                        value,
+                    );
 
                     if let Some(path) = path {
                         self.apply_pattern_success_narrowings(tree, path, *pattern);
@@ -69,7 +66,7 @@ impl CheckModuleState {
                 if let Some(guard) = guard {
                     self.walk_expression(tree, *guard, tree.get(*guard));
 
-                    let variable = self.intern_local_type_variable(*guard);
+                    let variable = self.intern_local_type_variable(tree.module_id, *guard);
                     self.constrain_condition(guard.into_any(), variable);
                     self.apply_expression_narrowings(tree, *guard, ConditionBranch::True);
                 }
@@ -77,5 +74,43 @@ impl CheckModuleState {
             // default
             dir::MatchSelector::Default => {}
         };
+    }
+
+    /// Return match case terms for active cases.
+    pub(in crate::check) fn build_match_case_terms(
+        &mut self,
+        tree: &dir::Tree,
+        cases: &[dir::LocalNodeId<dir::MatchCase>],
+    ) -> Vec<MatchCase> {
+        cases
+            .iter()
+            .filter_map(|case| self.build_match_case_term(tree, tree.get(*case)))
+            .collect()
+    }
+
+    /// Return one match case term.
+    fn build_match_case_term(
+        &mut self,
+        tree: &dir::Tree,
+        match_case: &dir::MatchCase,
+    ) -> Option<MatchCase> {
+        self.build_match_selector_term(tree, match_case.selector())
+    }
+
+    /// Return one match selector term.
+    fn build_match_selector_term(
+        &mut self,
+        tree: &dir::Tree,
+        selector: &dir::MatchSelector,
+    ) -> Option<MatchCase> {
+        let term = match selector {
+            dir::MatchSelector::Default => MatchCase::Default,
+            dir::MatchSelector::Pattern { pattern, guard } => MatchCase::PatternTerm {
+                pattern: self.build_pattern_term(tree.module_id, *pattern, tree)?,
+                guard: guard.map(|guard| self.intern_local_type_variable(tree.module_id, guard)),
+            },
+        };
+
+        Some(term)
     }
 }
