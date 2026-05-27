@@ -11,7 +11,7 @@ const constValues = [1, 2];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 let mutableValues = [1, 2];
 /// @type.symbol symbol=mutableValues type=collections.array.Array<int32>
@@ -39,7 +39,7 @@ const first = values[0];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const values = [1, 2] as const;
 /// @type.symbol symbol=values type=readonly [1, 2]
@@ -65,7 +65,7 @@ const value = 1 as int32;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_coercion(),
+        DirRows::checked().with_reference_types().with_coercion(),
         r#"
 const value = 1 as int32;
 /// @type.symbol symbol=value type=int32
@@ -90,7 +90,7 @@ const mode = config.mode;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 type Mode = "dev" | "prod";
 /// @type.symbol symbol=Mode type="dev" | "prod"

@@ -20,7 +20,7 @@ const length = point.length();
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -89,7 +89,7 @@ const x = point.x;
 
     compiler.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 import { Point } from "./geometry.ds";
 /// @type.symbol symbol=Point type=geometry.Point

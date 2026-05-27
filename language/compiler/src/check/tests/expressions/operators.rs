@@ -10,7 +10,7 @@ const value = 1 + 2;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const value = 1 + 2;
 /// @type.symbol symbol=value type=int32
@@ -51,7 +51,7 @@ const sum = left + right;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Vector {
 /// @type.symbol symbol=Vector type=Vector

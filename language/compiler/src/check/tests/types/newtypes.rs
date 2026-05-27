@@ -40,7 +40,7 @@ const id = UserId(42);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 newtype UserId = int64;
 /// @type.symbol symbol=UserId type=UserId
@@ -68,7 +68,7 @@ const pair = Pair(1, "x");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 newtype Pair = (int32, string);
 /// @type.symbol symbol=Pair type=Pair
@@ -97,7 +97,7 @@ const config = Config({ debug: true });
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config type=Config
@@ -127,7 +127,7 @@ const id: UserId = 42;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 newtype UserId = int64;
 /// @type.symbol symbol=UserId type=UserId
@@ -156,7 +156,7 @@ const config: Config = { debug: true };
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config type=Config

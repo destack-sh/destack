@@ -11,7 +11,7 @@ const copy = value;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const value = 1;
 /// @type.symbol symbol=value type=1
@@ -56,7 +56,7 @@ const value = answer;
 
     session.assert_dir_checked_many(
         &["globals.ds", "main.ds"],
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 === globals.ds ===
 global {
@@ -87,7 +87,7 @@ const debug = import.meta.debug;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 const runtime = import.meta.runtime;
 /// @type.symbol symbol=runtime type="destack" | "js"
@@ -128,7 +128,7 @@ const features = import.meta.labels.feature;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 module {
     const role = "server";

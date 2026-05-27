@@ -11,7 +11,7 @@ const next = () => count + 1;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types().with_capture(),
         r#"
 let count = 1;
 /// @type.symbol symbol=count type=int32
@@ -49,7 +49,7 @@ const boo = () => {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types().with_capture(),
         r#"
 let a = 0;
 /// @type.symbol symbol=a type=int32
@@ -111,7 +111,7 @@ const next = () => count + step;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types().with_capture(),
         r#"
 let count = 1;
 /// @type.symbol symbol=count type=int32
@@ -162,7 +162,7 @@ const send: ^Function<(string,), void> = (message) => {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types().with_capture(),
         r#"
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
@@ -221,7 +221,7 @@ const load = async () => await client.read();
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types().with_capture(),
         r#"
 class Client {
 /// @type.symbol symbol=Client type=Client
@@ -265,7 +265,7 @@ class Counter {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types().with_capture(),
         r#"
 class Counter {
 /// @type.symbol symbol=Counter type=Counter

@@ -18,7 +18,7 @@ const counter = new Counter(1);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
@@ -74,7 +74,7 @@ const number = new Box(1);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 class Box {
 /// @type.symbol symbol=Box type=Box
@@ -145,7 +145,7 @@ new Box(true);
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 class Box {
 /// @type.symbol symbol=Box type=Box

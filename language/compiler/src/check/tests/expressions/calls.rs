@@ -14,7 +14,7 @@ const value = add(1, 2);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().without_reference_types(),
+        DirRows::checked().with_node_types().without_reference_types(),
         r#"
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
@@ -62,7 +62,7 @@ const value = add(1, 2);
 
     compiler.assert_dir_checked(
         "main.ds",
-        DirRows::checked().without_reference_types(),
+        DirRows::checked().with_node_types().without_reference_types(),
         r#"
 import { add } from "./math.ds";
 /// @type.symbol symbol=add type=(int32, int32) => int32
@@ -89,7 +89,7 @@ const text = transform(1);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().without_reference_types(),
+        DirRows::checked().with_node_types().without_reference_types(),
         r#"
 declare const transform: Function<(int32,), string>;
 /// @type.symbol symbol=transform type=(int32) => string
@@ -124,7 +124,7 @@ const result = parse("id");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().without_reference_types(),
+        DirRows::checked().with_node_types().without_reference_types(),
         r#"
 function parse(value: string): "string" {
 /// @type.symbol symbol=parse#1 type=(string) => "string"
@@ -167,7 +167,9 @@ parse(true);
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().without_reference_types(),
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types(),
         r#"
 declare function parse(value: string): int32;
 /// @type.symbol symbol=parse#1 type=(string) => int32
@@ -200,7 +202,9 @@ value();
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().without_reference_types(),
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types(),
         r#"
 const value = 1;
 /// @type.symbol symbol=value type=1

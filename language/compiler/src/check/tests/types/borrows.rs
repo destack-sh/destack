@@ -18,7 +18,7 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Node {
 /// @type.symbol symbol=Node type=Node
@@ -72,7 +72,7 @@ function project<A: Lifetime, B: Lifetime>(value: Borrowed<int32, A>): void {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 function project<A: Lifetime, B: Lifetime>(value: Borrowed<int32, A>): void {
 /// @type.symbol symbol=project type=(Borrowed<int32, project.A, "mutable">) => void

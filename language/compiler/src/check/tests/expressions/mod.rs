@@ -1,5 +1,6 @@
 mod assignment;
 mod calls;
+mod control;
 mod freshness;
 mod lambdas;
 mod literals;

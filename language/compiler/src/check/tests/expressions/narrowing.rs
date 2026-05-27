@@ -24,7 +24,7 @@ function read<L: Lifetime>(shape: Borrowed<Rectangle | Circle, L>): int32 {
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
@@ -95,7 +95,7 @@ function value<L: Lifetime, R: Lifetime>(
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 struct Text {
 /// @type.symbol symbol=Text type=Text

@@ -61,7 +61,7 @@ const value = Status.Active.isActive();
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_reference_types(),
         r#"
 enum Status {
 /// @type.symbol symbol=Status type=Status
