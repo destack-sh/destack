@@ -1557,8 +1557,8 @@ dependencies = [
 name = "destack_runtime"
 version = "0.55.4"
 dependencies = [
+ "criterion",
  "destack_artifact",
- "destack_compiler",
  "destack_core",
  "destack_dir",
  "destack_engine",
