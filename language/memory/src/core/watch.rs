@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
-use crate::{MemoryError, MemoryResult, MemoryTable};
+use crate::{MemoryError, MemoryResult};
 
 /// The maximum number of concurrently watched address spaces.
 const MAX_WRITE_WATCH_ENTRIES: usize = 16 * 1024;
@@ -10,12 +10,14 @@ const WRITE_WATCH_ENTRY_PAGE_LEN: usize = 256;
 /// The number of lazily allocated watch table pages.
 const WRITE_WATCH_PAGE_COUNT: usize = MAX_WRITE_WATCH_ENTRIES / WRITE_WATCH_ENTRY_PAGE_LEN;
 
-/// The process wide write watch pages.
-/// These are process wide because they're entered via global fault entrypoints.
-static WATCH_PAGES: OnceLock<Box<[WatchPage]>> = OnceLock::new();
+/// The process wide write watch registry.
+static WRITE_WATCH_TABLE: OnceLock<WriteWatchTable> = OnceLock::new();
 
 /// The process wide write watch table.
-pub(crate) struct WriteWatchTable;
+pub(crate) struct WriteWatchTable {
+    /// The lazily allocated watch pages.
+    pages: Box<[WatchPage]>,
+}
 
 impl WriteWatchTable {
     /// Register one write watched virtual range.
@@ -25,9 +27,10 @@ impl WriteWatchTable {
         context: *const (),
     ) -> MemoryResult<WriteWatchRegistration> {
         let base = base as usize;
+        let table = Self::global();
 
         // reuse already allocated pages before growing the table
-        for (page_index, page) in Self::pages().iter().enumerate() {
+        for (page_index, page) in table.pages.iter().enumerate() {
             let Some(entries) = page.entries() else {
                 continue;
             };
@@ -41,7 +44,7 @@ impl WriteWatchTable {
         }
 
         // allocate exactly one new page when no existing entry is free
-        for (page_index, page) in Self::pages().iter().enumerate() {
+        for (page_index, page) in table.pages.iter().enumerate() {
             if page.entries().is_some() {
                 continue;
             }
@@ -55,18 +58,17 @@ impl WriteWatchTable {
             }
         }
 
-        Err(MemoryError::CapacityExceeded {
-            table: MemoryTable::WriteWatch,
+        Err(MemoryError::TooManyWriteWatchRanges {
             capacity: MAX_WRITE_WATCH_ENTRIES,
         })
     }
 
     /// Return the registered page table context for one watched address.
     pub(crate) fn context(address: usize) -> Option<*const ()> {
-        let pages = WATCH_PAGES.get()?;
+        let table = WRITE_WATCH_TABLE.get()?;
 
         // scan watched ranges without signal unsafe locks
-        for page in pages {
+        for page in table.pages.iter() {
             let Some(entries) = page.entries() else {
                 continue;
             };
@@ -85,7 +87,8 @@ impl WriteWatchTable {
 
     /// Unregister one write watched virtual range.
     pub(crate) fn unregister(registration: &WriteWatchRegistration) {
-        let Some(entries) = Self::pages()[registration.page].entries() else {
+        let table = Self::global();
+        let Some(entries) = table.pages[registration.page].entries() else {
             return;
         };
         let entry = &entries[registration.entry];
@@ -95,14 +98,19 @@ impl WriteWatchTable {
             .store(WatchState::Empty.byte(), Ordering::Release);
     }
 
-    /// Return the process wide write watch pages.
-    fn pages() -> &'static [WatchPage] {
-        WATCH_PAGES.get_or_init(|| {
-            (0..WRITE_WATCH_PAGE_COUNT)
-                .map(|_| WatchPage::empty())
-                .collect::<Vec<_>>()
-                .into_boxed_slice()
-        })
+    /// Return the process wide write watch table.
+    fn global() -> &'static Self {
+        WRITE_WATCH_TABLE.get_or_init(Self::new)
+    }
+
+    /// Create one empty write watch table.
+    fn new() -> Self {
+        let pages = (0..WRITE_WATCH_PAGE_COUNT)
+            .map(|_| WatchPage::empty())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        Self { pages }
     }
 }
 
