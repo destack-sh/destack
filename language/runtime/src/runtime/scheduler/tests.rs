@@ -1,6 +1,7 @@
 use destack_core::{Capture, CaptureMode};
-use destack_workspace::{ClockSource, Environment, RuntimeOptions, SchedulerOptions};
-use {destack_engine as engine, destack_native as native};
+use destack_engine as engine;
+use destack_native as native;
+use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::host::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -19,10 +20,10 @@ use crate::runtime::time::{Instant, Nanos};
 use crate::runtime::{TickResult, Worker};
 use crate::world::World;
 
-/// Build runtime options with one explicit clock source.
-fn runtime_options_with_clock_source(source: ClockSource) -> RuntimeOptions {
+/// Build runtime options with one explicit execution mode.
+fn runtime_options_with_execution(mode: ExecutionMode) -> RuntimeOptions {
     let mut options = RuntimeOptions::default();
-    options.set_clock_source(source);
+    options.execution.mode = mode;
 
     options
 }
@@ -139,50 +140,6 @@ fn test_tick_dispatches_event_waiter_by_task_priority() {
         runtime.has_pending_work(),
         "yielded waiter wake task should stay queued"
     );
-}
-
-/// Stops draining when one microtask budget is configured.
-#[test]
-fn test_tick_respects_microtask_budget() {
-    // configure one microtask budget of one
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
-    runtime.configure_scheduler(SchedulerOptions {
-        microtask_budget: Some(1),
-        ..SchedulerOptions::default()
-    });
-
-    // enqueue two microtasks and run one tick
-    runtime.enqueue_microtask_native(1, 51);
-    runtime.enqueue_microtask_native(2, 52);
-
-    let _ = runtime.tick();
-
-    // one microtask should remain queued for the next tick
-    assert!(
-        runtime.has_microtasks(),
-        "one microtask should remain after budgeted drain"
-    );
-}
-
-/// Does not treat sequential microtasks as nested depth.
-#[test]
-fn test_max_microtask_depth_allows_sequential_microtasks() {
-    // configure one depth limit of one with budget for two microtasks
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestEngine::default());
-    runtime.configure_scheduler(SchedulerOptions {
-        microtask_budget: Some(2),
-        max_microtask_depth: Some(1),
-        ..SchedulerOptions::default()
-    });
-
-    // enqueue two sequential microtasks
-    runtime.enqueue_microtask_native(3, 53);
-    runtime.enqueue_microtask_native(4, 54);
-
-    // both microtasks should run in one tick without depth failure
-    let progressed = runtime.tick();
-    assert!(progressed, "tick should execute queued microtasks");
-    assert!(!runtime.has_microtasks(), "both microtasks should complete");
 }
 
 /// Dequeues microtasks before macrotasks.
@@ -332,8 +289,8 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
 /// Returns idle in virtual time when waiting work is pending but not ready.
 #[test]
 fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
-    // build one runtime with a virtual clock source
-    let options = runtime_options_with_clock_source(ClockSource::Virtual);
+    // build one runtime with a runtime-owned clock source
+    let options = runtime_options_with_execution(ExecutionMode::Strict);
     let mut runtime = TestRuntime::build(&options, TestEngine::default());
 
     // enqueue one timer that is not yet ready
@@ -350,7 +307,7 @@ fn test_run_loop_until_task_complete_returns_idle_for_virtual_time_waits() {
 #[test]
 fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     // configure one virtual runtime with one future timer
-    let options = runtime_options_with_clock_source(ClockSource::Virtual);
+    let options = runtime_options_with_execution(ExecutionMode::Strict);
     let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let default_worker_id = runtime.default_worker_id();
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
@@ -384,7 +341,7 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
 fn test_world_tick_drives_runtime() {
     // configure one explicit shared world and runtime
     let options = RuntimeOptions::default();
-    let mut world = World::new(&options, Environment::default(), None).expect("world");
+    let mut world = World::new(&options, Environment::default()).expect("world");
     let runtime_id = world
         .spawn_runtime(
             destack_workspace::Environment::default(),
@@ -431,7 +388,7 @@ fn test_world_tick_drives_runtime() {
 #[test]
 fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     // configure one virtual runtime with two workers and one equal deadline
-    let options = runtime_options_with_clock_source(ClockSource::Virtual);
+    let options = runtime_options_with_execution(ExecutionMode::Strict);
     let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let default_worker_id = runtime.default_worker_id();
     let secondary_worker_id = runtime.spawn_worker(TestEngine::default());
@@ -460,7 +417,7 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
 #[test]
 fn test_runtime_tick_advances_to_simulation_deadline() {
     // configure one virtual runtime with one simulated wakeup
-    let options = runtime_options_with_clock_source(ClockSource::Virtual);
+    let options = runtime_options_with_execution(ExecutionMode::Strict);
     let runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let mut runtime = runtime;
     runtime

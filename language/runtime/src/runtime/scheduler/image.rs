@@ -86,9 +86,6 @@ impl EventLoop {
         let snapshot = self.snapshot(CaptureMode::Suspend, parent_engine)?;
         let mut forked = Self::default();
 
-        // scheduler options
-        forked.configure(self.options.clone())?;
-
         // queued state
         forked.restore_snapshot(&snapshot, child_engine)?;
 

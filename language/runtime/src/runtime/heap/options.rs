@@ -1,13 +1,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_heap::{
-    DEFAULT_GC_MINIMUM_WORK_BYTES, DEFAULT_YOUNG_PROMOTION_AGE, GcOptions, HeapLimits, HeapOptions,
+    DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES,
+    DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES, DEFAULT_PAGE_BYTES,
+    DEFAULT_SHARED_SMALL_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_BYTES,
+    DEFAULT_SPACE_BYTES, DEFAULT_YOUNG_PROMOTION_AGE, GcOptions, HeapLimits, HeapOptions,
     HeapSpaceLimits, RawLimits, SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits,
     SharedRawLimits, SizeClassTable,
 };
-use destack_workspace::{
-    HeapLayoutOptions, HeapOptions as WorkspaceHeapOptions, HeapSizeClasses, LocalGcOptions,
-    LocalHeapLimitOptions, SharedGcOptions, SharedHeapLimitOptions,
-};
+use destack_workspace::{HeapOptions as WorkspaceHeapOptions, LocalHeapOptions};
 
 /// Resolved heap construction options for one worker-local heap.
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ pub struct ResolvedHeapOptions {
     pub options: HeapOptions,
 }
 
-/// Resolved heap construction options for one world-shared heap.
+/// Resolved heap construction options for one runtime-shared heap.
 #[derive(Debug, Clone)]
 pub struct ResolvedSharedHeapOptions {
     /// The exact retained-byte limits for this heap.
@@ -31,8 +31,12 @@ pub struct ResolvedSharedHeapOptions {
 pub fn resolve_local_heap_options(
     options: &WorkspaceHeapOptions,
 ) -> RuntimeResult<ResolvedHeapOptions> {
-    let heap_options = resolve_local_heap_policy(&options.gc.local, &options.layout, "heap.local")?;
-    let limits = resolve_local_heap_limits(&options.limit.local);
+    let heap_options = resolve_local_heap_policy(options, "heap.local")?;
+    let limits = HeapLimits {
+        max_bytes: options.local.max_bytes,
+        heap: HeapSpaceLimits { max_bytes: None },
+        raw: RawLimits { max_bytes: None },
+    };
 
     Ok(ResolvedHeapOptions {
         limits,
@@ -40,15 +44,16 @@ pub fn resolve_local_heap_options(
     })
 }
 
-/// Resolve runtime heap options into world-shared heap settings.
+/// Resolve runtime heap options into runtime-shared heap settings.
 pub fn resolve_shared_heap_options(
     options: &WorkspaceHeapOptions,
 ) -> RuntimeResult<ResolvedSharedHeapOptions> {
-    check_shared_heap_limits(&options.limit.shared)?;
-
-    let heap_options =
-        resolve_shared_heap_policy(&options.gc.shared, &options.layout, "heap.shared")?;
-    let limits = resolve_shared_heap_limits(&options.limit.shared);
+    let heap_options = resolve_shared_heap_policy(options, "heap.shared")?;
+    let limits = SharedHeapLimits {
+        max_bytes: options.shared.max_bytes,
+        heap: SharedHeapSpaceLimits { max_bytes: None },
+        raw: SharedRawLimits { max_bytes: None },
+    };
 
     Ok(ResolvedSharedHeapOptions {
         limits,
@@ -56,52 +61,24 @@ pub fn resolve_shared_heap_options(
     })
 }
 
-/// Resolve one shared-memory size-class table.
-fn resolve_size_classes(size_classes: &HeapSizeClasses) -> RuntimeResult<SizeClassTable> {
-    match size_classes {
-        HeapSizeClasses::Default => Ok(SizeClassTable::default()),
-        HeapSizeClasses::Named(name) => {
-            if name == "default" {
-                Ok(SizeClassTable::default())
-            } else {
-                Err(RuntimeError::Internal {
-                    message: format!("unknown heap size-class preset: {name}"),
-                }
-                .boxed())
-            }
-        }
-        HeapSizeClasses::Explicit(classes) => {
-            SizeClassTable::new(classes.clone()).map_err(|error| {
-                RuntimeError::ConfigurationInvalid {
-                    scope: "heap.layout.sizeClasses".into(),
-                    detail: format!("{error:?}"),
-                }
-                .boxed()
-            })
-        }
-    }
-}
-
-/// Build one local heap policy plus layout geometry into heap options.
+/// Build one local heap policy into exact heap construction options.
 fn resolve_local_heap_policy(
-    gc: &impl HeapGcConfig,
-    layout: &HeapLayoutOptions,
+    options: &WorkspaceHeapOptions,
     scope: &'static str,
 ) -> RuntimeResult<HeapOptions> {
-    let size_classes = resolve_size_classes(&layout.size_classes)?;
     let heap_options = HeapOptions {
-        gc: resolved_gc_options(gc),
-        size_classes,
-        heap_young_bytes: layout.heap_young_bytes,
-        max_heap_young_allocation_bytes: layout.max_heap_young_allocation_bytes,
+        gc: local_gc_options(options),
+        size_classes: SizeClassTable::default(),
+        heap_young_bytes: options.local.young_bytes,
+        max_heap_young_allocation_bytes: DEFAULT_MAX_MANAGED_YOUNG_ALLOCATION_BYTES,
         young_promotion_age: DEFAULT_YOUNG_PROMOTION_AGE,
-        heap_small_bytes: layout.heap_span_bytes,
-        raw_small_bytes: layout.raw_span_bytes,
-        heap_space_bytes: layout.heap_space_bytes,
-        raw_space_bytes: layout.raw_space_bytes,
-        page_bytes: layout.page_bytes,
-        allocator_chunk_bytes: layout.chunk_bytes,
-        small_allocation_alignment_bytes: layout.small_alignment_bytes,
+        heap_small_bytes: DEFAULT_SMALL_BYTES,
+        raw_small_bytes: DEFAULT_SMALL_BYTES,
+        heap_space_bytes: DEFAULT_SPACE_BYTES,
+        raw_space_bytes: DEFAULT_SPACE_BYTES,
+        page_bytes: DEFAULT_PAGE_BYTES,
+        allocator_chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
+        small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
     };
 
     heap_options.validate_local().map_err(|error| {
@@ -115,22 +92,20 @@ fn resolve_local_heap_policy(
     Ok(heap_options)
 }
 
-/// Build one shared heap policy plus layout geometry into heap options.
+/// Build one shared heap policy into exact heap construction options.
 fn resolve_shared_heap_policy(
-    gc: &impl HeapGcConfig,
-    layout: &HeapLayoutOptions,
+    options: &WorkspaceHeapOptions,
     scope: &'static str,
 ) -> RuntimeResult<SharedHeapOptions> {
-    let size_classes = resolve_size_classes(&layout.size_classes)?;
     let heap_options = SharedHeapOptions {
-        gc: resolved_gc_options(gc),
-        size_classes,
-        heap_small_bytes: layout.shared_heap_span_bytes,
-        heap_space_bytes: layout.heap_space_bytes,
-        raw_space_bytes: layout.raw_space_bytes,
-        page_bytes: layout.page_bytes,
-        allocator_chunk_bytes: layout.chunk_bytes,
-        small_allocation_alignment_bytes: layout.small_alignment_bytes,
+        gc: shared_gc_options(options),
+        size_classes: SizeClassTable::default(),
+        heap_small_bytes: DEFAULT_SHARED_SMALL_BYTES,
+        heap_space_bytes: DEFAULT_SPACE_BYTES,
+        raw_space_bytes: DEFAULT_SPACE_BYTES,
+        page_bytes: DEFAULT_PAGE_BYTES,
+        allocator_chunk_bytes: DEFAULT_ALLOCATOR_CHUNK_BYTES,
+        small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
     };
 
     heap_options.validate().map_err(|error| {
@@ -144,109 +119,38 @@ fn resolve_shared_heap_policy(
     Ok(heap_options)
 }
 
-/// Build one resolved heap collector config.
-fn resolved_gc_options(gc: &impl HeapGcConfig) -> GcOptions {
+/// Resolve local collector policy.
+fn local_gc_options(options: &WorkspaceHeapOptions) -> GcOptions {
     GcOptions {
-        growth_percent: gc.growth_percent(),
-        trigger_percent: gc.trigger_percent(),
-        soft_limit_bytes: gc.memory_limit_bytes(),
-        minimum_heap_bytes: gc.minimum_heap_bytes(),
+        growth_percent: options.growth_percent,
+        trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
+        soft_limit_bytes: options.memory_limit_bytes,
+        minimum_heap_bytes: Some(local_min_bytes(&options.local)),
         minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
     }
 }
 
-/// Resolve one worker-local heap limit profile.
-fn resolve_local_heap_limits(limits: &LocalHeapLimitOptions) -> HeapLimits {
-    HeapLimits {
-        max_bytes: limits.max_bytes,
-        heap: HeapSpaceLimits {
-            max_bytes: limits.heap_max_bytes,
-        },
-        raw: RawLimits {
-            max_bytes: limits.raw_max_bytes,
-        },
+/// Resolve shared collector policy.
+fn shared_gc_options(options: &WorkspaceHeapOptions) -> GcOptions {
+    GcOptions {
+        growth_percent: options.growth_percent,
+        trigger_percent: DEFAULT_GC_TRIGGER_PERCENT,
+        soft_limit_bytes: options.memory_limit_bytes,
+        minimum_heap_bytes: Some(
+            options
+                .shared
+                .min_bytes
+                .unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES),
+        ),
+        minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
     }
 }
 
-/// Resolve one world-shared heap limit profile.
-fn resolve_shared_heap_limits(limits: &SharedHeapLimitOptions) -> SharedHeapLimits {
-    SharedHeapLimits {
-        max_bytes: limits.max_bytes,
-        heap: SharedHeapSpaceLimits {
-            max_bytes: limits.heap_max_bytes,
-        },
-        raw: SharedRawLimits {
-            max_bytes: limits.raw_max_bytes,
-        },
-    }
-}
+/// Resolve the local heap minimum from nursery width.
+fn local_min_bytes(options: &LocalHeapOptions) -> u64 {
+    let young_min_bytes = 4 * options.young_bytes as u64;
 
-/// Check the semantic shape of one shared-heap limit profile.
-fn check_shared_heap_limits(limits: &SharedHeapLimitOptions) -> RuntimeResult<()> {
-    let has_total_limit = limits.max_bytes.is_some();
-    let has_partial_space_limits = limits.heap_max_bytes.is_some() ^ limits.raw_max_bytes.is_some();
-
-    // mixed total plus one-sided caps is ambiguous
-    if has_total_limit && has_partial_space_limits {
-        return Err(RuntimeError::ConfigurationInvalid {
-            scope: "heap.limit.shared".into(),
-            detail:
-                "shared total heap limits cannot be combined with only one explicit shared-space cap"
-                    .into(),
-        }
-        .boxed());
-    }
-
-    Ok(())
-}
-
-/// One GC config surface that can feed heap pacing.
-trait HeapGcConfig {
-    /// Return the configured growth target percentage.
-    fn growth_percent(&self) -> u32;
-
-    /// Return the configured trigger percentage.
-    fn trigger_percent(&self) -> u32;
-
-    /// Return the configured soft memory limit.
-    fn memory_limit_bytes(&self) -> Option<u64>;
-
-    /// Return the configured minimum live heap floor.
-    fn minimum_heap_bytes(&self) -> Option<u64>;
-}
-
-impl HeapGcConfig for LocalGcOptions {
-    fn growth_percent(&self) -> u32 {
-        self.growth_percent
-    }
-
-    fn trigger_percent(&self) -> u32 {
-        self.trigger_percent
-    }
-
-    fn memory_limit_bytes(&self) -> Option<u64> {
-        self.memory_limit_bytes
-    }
-
-    fn minimum_heap_bytes(&self) -> Option<u64> {
-        self.minimum_heap_bytes
-    }
-}
-
-impl HeapGcConfig for SharedGcOptions {
-    fn growth_percent(&self) -> u32 {
-        self.growth_percent
-    }
-
-    fn trigger_percent(&self) -> u32 {
-        self.trigger_percent
-    }
-
-    fn memory_limit_bytes(&self) -> Option<u64> {
-        self.memory_limit_bytes
-    }
-
-    fn minimum_heap_bytes(&self) -> Option<u64> {
-        self.minimum_heap_bytes
-    }
+    options
+        .min_bytes
+        .unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES.max(young_min_bytes))
 }

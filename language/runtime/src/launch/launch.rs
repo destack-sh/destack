@@ -70,7 +70,7 @@ impl Launch {
             entry,
             entry_args,
         } = self;
-        let mut world = World::new(&options, environment.clone(), None)?;
+        let mut world = World::new(&options, environment.clone())?;
 
         // bootstrap the initial runtime
         let runtime_id = world.spawn_runtime(environment, &options, engine)?;

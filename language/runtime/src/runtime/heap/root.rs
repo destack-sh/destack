@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::Mutex;
 
-use destack_heap::{HeapReference, Root, RootSink, SharedHeapReference};
+use destack_heap::SharedHeapReference;
 
 use crate::runtime::WorkerId;
 
@@ -19,63 +19,7 @@ impl SharedRootEpoch {
     }
 }
 
-/// Heap roots copied out for runtime coordination.
-#[derive(Debug, Default)]
-pub struct RootSet {
-    /// Worker heap roots.
-    heap: Vec<HeapReference>,
-    /// Runtime heap roots.
-    shared_heap: Vec<SharedHeapReference>,
-}
-
-impl RootSet {
-    /// Create an empty root set.
-    pub fn new() -> Self {
-        Self {
-            heap: Vec::new(),
-            shared_heap: Vec::new(),
-        }
-    }
-
-    /// Record one worker heap root.
-    pub fn push_heap(&mut self, reference: HeapReference) {
-        if reference.is_null() {
-            return;
-        }
-
-        self.heap.push(reference);
-    }
-
-    /// Record one runtime heap root.
-    pub fn push_shared_heap(&mut self, reference: SharedHeapReference) {
-        if reference.is_null() {
-            return;
-        }
-
-        self.shared_heap.push(reference);
-    }
-
-    /// Return worker heap roots.
-    pub fn heap(&self) -> &[HeapReference] {
-        self.heap.as_slice()
-    }
-
-    /// Return runtime heap roots.
-    pub fn shared_heap(&self) -> &[SharedHeapReference] {
-        self.shared_heap.as_slice()
-    }
-}
-
-impl RootSink for RootSet {
-    fn push(&mut self, root: Root) {
-        match root {
-            Root::HeapReference(reference) => Self::push_heap(self, reference),
-            Root::SharedHeapReference(reference) => Self::push_shared_heap(self, reference),
-        }
-    }
-}
-
-/// Shared root set state for one mark cycle.
+/// Shared root publication state for one mark cycle.
 #[derive(Debug, Default)]
 struct SharedRootSetState {
     /// Active shared mark-root publication epoch.

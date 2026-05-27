@@ -1,18 +1,14 @@
-use destack_workspace::{SchedulerOptions, SchedulerPolicy};
 use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 
 use super::timer::TimerQueue;
 use super::{Microtask, MicrotaskId, Task, TaskId, Waiter, Wake, WakeKey};
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::HostEvent;
 use crate::host::poller::PollerEvent;
-use crate::host::{HostError, HostEvent};
 
 /// Event loop for tasks, microtasks, timers, waiters, and wakes.
 #[derive(Debug, Default)]
 pub struct EventLoop {
-    /// Configured event loop options.
-    pub(super) options: SchedulerOptions,
     /// Pending macrotasks.
     pub(super) tasks: VecDeque<Task>,
     /// Pending microtasks that drain before macrotasks.
@@ -31,20 +27,6 @@ pub struct EventLoop {
 }
 
 impl EventLoop {
-    /// Configure event loop options.
-    pub fn configure(&mut self, options: SchedulerOptions) -> RuntimeResult<()> {
-        // validate options before applying them
-        self.validate_scheduler_options(&options)?;
-        self.options = options;
-
-        Ok(())
-    }
-
-    /// Borrow the configured scheduler options.
-    pub fn options(&self) -> &SchedulerOptions {
-        &self.options
-    }
-
     /// Enqueue a macrotask for execution.
     pub fn enqueue_task(&mut self, task: Task) {
         // insert higher priority tasks ahead of lower priority tasks
@@ -124,51 +106,5 @@ impl EventLoop {
         }
 
         self.waiters.is_empty()
-    }
-
-    /// Validate one scheduler options payload.
-    fn validate_scheduler_options(&self, options: &SchedulerOptions) -> RuntimeResult<()> {
-        // enforce the currently implemented queue policy
-        if options.policy != SchedulerPolicy::Fifo {
-            return Err(RuntimeError::from(HostError::invalid_argument_value(
-                "options.scheduler.policy",
-                "only fifo scheduling policy is currently supported",
-            ))
-            .boxed());
-        }
-
-        // reject unsupported access limits until task throttling lands
-        if options.task_limit.is_some() {
-            return Err(RuntimeError::from(HostError::invalid_argument_value(
-                "options.scheduler.task_limit",
-                "task limit is not implemented yet",
-            ))
-            .boxed());
-        }
-
-        // reject unsupported preemption until engine preempt points land
-        if options.preempt_interval_ns.is_some() {
-            return Err(RuntimeError::from(HostError::invalid_argument_value(
-                "options.scheduler.preempt_interval_ns",
-                "preempt interval is not implemented yet",
-            ))
-            .boxed());
-        }
-
-        // reject invalid budget and timing values
-        if matches!(options.tick_budget_ns, Some(0))
-            || matches!(options.microtask_budget, Some(0))
-            || matches!(options.max_microtask_depth, Some(0))
-            || matches!(options.timer_resolution_ns, Some(0))
-            || matches!(options.max_timer_coalesce_ns, Some(0))
-        {
-            return Err(RuntimeError::from(HostError::invalid_argument_value(
-                "options.scheduler",
-                "scheduler budget and timer values must be greater than zero",
-            ))
-            .boxed());
-        }
-
-        Ok(())
     }
 }

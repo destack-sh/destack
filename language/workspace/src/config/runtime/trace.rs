@@ -4,20 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use super::ReplayPayloadMode;
 
-/// Trace recording mode for one world.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum TraceMode {
-    /// Do not record or replay one trace log.
-    #[default]
-    Off,
-    /// Record one trace log from live execution.
-    Record,
-    /// Replay one trace log as authoritative input.
-    Replay,
-}
-
 /// Restore contract for one world checkpoint or replay boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -36,8 +22,6 @@ pub enum RestoreMode {
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceOptions {
-    /// The configured trace mode.
-    pub mode: TraceMode,
     /// The configured restore contract.
     pub restore: RestoreMode,
     /// Base path for trace logs.

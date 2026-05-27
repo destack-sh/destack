@@ -10,8 +10,8 @@ use crate::host::core::HostQueue;
 use crate::host::poller::{HostPollerInstance, create_host_poller};
 use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, ResourceId, compile_target_host};
-use crate::runtime::random::{Random, RandomStreamId};
-use crate::runtime::time::{Clock, Instant, Nanos};
+use crate::runtime::random::{Random, RandomSource, RandomStreamId};
+use crate::runtime::time::{Clock, ClockSource, Instant, Nanos};
 use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
 use crate::simulation::Simulation;
 use crate::world::policy::Policy;
@@ -20,7 +20,7 @@ use crate::world::trace::{
     EntrypointCall, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
     TraceSequence,
 };
-use destack_workspace::{Environment, RandomSource, ReplayPayloadMode, RuntimeOptions};
+use destack_workspace::{Environment, ReplayPayloadMode, RuntimeOptions};
 
 use super::topology::Topology;
 pub(crate) use super::topology::{
@@ -82,7 +82,15 @@ impl World {
     }
 
     /// Create one world from explicit runtime seed state.
-    pub(crate) fn new(
+    pub fn new(
+        options: &RuntimeOptions,
+        environment: impl Into<Arc<Environment>>,
+    ) -> RuntimeResult<Self> {
+        Self::with_host_clock_source(options, environment, None)
+    }
+
+    /// Create one world from explicit runtime seed state and host clock source.
+    pub(crate) fn with_host_clock_source(
         options: &RuntimeOptions,
         environment: impl Into<Arc<Environment>>,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
@@ -101,8 +109,8 @@ impl World {
 
         // execution configuration
         let execution_mode = options.execution_mode();
-        let clock_source = options.clock_source();
-        let random_source = options.random_source();
+        let clock_source = ClockSource::from_execution_mode(execution_mode);
+        let random_source = RandomSource::from_execution_mode(execution_mode);
         let replay_payload = match options.replay_payload_mode() {
             ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
             ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
@@ -125,10 +133,13 @@ impl World {
         }
 
         // live state inputs
-        let time_options = options.time_options();
         let host = compile_target_host(host_clock_source);
-        let clock = Clock::from_options(&time_options);
-        let random = Random::from_options(&options.random_options());
+        let default_clock_epoch_nanos = match clock_source {
+            ClockSource::Host => 0,
+            ClockSource::Runtime => host.wall_nanos(),
+        };
+        let clock = Clock::from_options(clock_source, &options.clock, default_clock_epoch_nanos);
+        let random = Random::from_options(random_source, &options.random);
         let policy = Policy::default();
         let scenarios: Vec<Scenario> = Vec::new();
         let trace = Trace::new(execution_mode, trace_header);
@@ -154,8 +165,8 @@ impl World {
         // history backing
         let allocator = Arc::new(
             heap::Allocator::try_new(
-                options.heap.layout.page_bytes,
-                options.heap.layout.chunk_bytes,
+                heap::DEFAULT_PAGE_BYTES,
+                heap::DEFAULT_ALLOCATOR_CHUNK_BYTES,
             )
             .map_err(Box::<RuntimeError>::from)?,
         );
@@ -176,7 +187,7 @@ impl World {
             workers: BTreeMap::new(),
         });
         let root_trace_image = Arc::new(state.trace.capture_image());
-        let collector_mode = SharedCollectorMode::from_scheduler_mode(options.scheduler.mode);
+        let collector_mode = SharedCollectorMode::from_execution_mode(execution_mode);
         let collector =
             SharedCollector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
         let history = Arc::new(RwLock::new(History::new_root(
@@ -188,7 +199,7 @@ impl World {
             root_image,
             root_trace_image,
         )));
-        let poller_backend = options.scheduler.poller_backend;
+        let poller_backend = options.host.poller.backend;
         let poller = create_host_poller(poller_backend)?;
         let world = Self {
             host,
@@ -320,7 +331,7 @@ impl World {
     }
 
     /// Return the effective world clock source.
-    pub fn clock_source(&self) -> destack_workspace::ClockSource {
+    pub fn clock_source(&self) -> ClockSource {
         self.state.clock.source()
     }
 
@@ -344,8 +355,8 @@ impl World {
     /// Return the current world wall time.
     pub fn wall(&self) -> Nanos {
         match self.state.clock.source() {
-            destack_workspace::ClockSource::Host => Nanos::new(self.host.wall_nanos()),
-            destack_workspace::ClockSource::Virtual => self.state.clock.wall(),
+            ClockSource::Host => Nanos::new(self.host.wall_nanos()),
+            ClockSource::Runtime => self.state.clock.wall(),
         }
     }
 
@@ -357,8 +368,8 @@ impl World {
     /// Return the current world monotonic time.
     pub fn mono(&self) -> Nanos {
         match self.state.clock.source() {
-            destack_workspace::ClockSource::Host => Nanos::new(self.host.mono_nanos()),
-            destack_workspace::ClockSource::Virtual => self.state.clock.mono(),
+            ClockSource::Host => Nanos::new(self.host.mono_nanos()),
+            ClockSource::Runtime => self.state.clock.mono(),
         }
     }
 
@@ -374,7 +385,7 @@ impl World {
 
     /// Fill one buffer with secure world-routed random bytes.
     pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        // deterministic worlds reject secure host entropy by default
+        // runtime-owned randomness rejects secure host entropy by default
         if self.state.random.source() == RandomSource::Deterministic {
             return Err(RuntimeError::from(HostError::not_supported(
                 "destack.random.secure.bytes",
@@ -387,7 +398,7 @@ impl World {
 
     /// Try to fill one buffer with secure world-routed random bytes without blocking.
     pub fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        // deterministic worlds reject secure host entropy by default
+        // runtime-owned randomness rejects secure host entropy by default
         if self.state.random.source() == RandomSource::Deterministic {
             return Err(RuntimeError::from(HostError::not_supported(
                 "destack.random.secure.bytesTry",

@@ -89,7 +89,7 @@ impl BindingAccess {
     const fn allows_determinism(&self, determinism: BindingDeterminism) -> bool {
         match self.mode {
             ExecutionMode::Fast => true,
-            ExecutionMode::Deterministic => {
+            ExecutionMode::Strict => {
                 matches!(
                     determinism,
                     BindingDeterminism::Pure | BindingDeterminism::Deterministic

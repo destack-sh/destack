@@ -1,15 +1,16 @@
 use destack_core::{Capture, CaptureMode};
+use destack_engine as engine;
+use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use {destack_engine as engine, destack_heap as heap};
 
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingAccess, BindingRegistry};
 use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
-use crate::runtime::heap::{HeapHandle, HeapHandleTable, RootSet, resolve_local_heap_options};
+use crate::runtime::heap::{HeapHandle, HeapHandleTable, resolve_local_heap_options};
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
 use crate::runtime::{RuntimeFinalizers, RuntimeFinalizersImage, ScenarioRunner, SharedHeap};
 use crate::world::scenario::ScenarioRunnerSnapshot;
@@ -42,8 +43,8 @@ pub struct Worker {
 
     /// Shared GC worker queue handle.
     pub(crate) shared_gc_worker: heap::SharedGcWorker,
-    /// Worker-local shared heap allocator.
-    pub(crate) shared_allocator: heap::SharedAllocator,
+    /// Worker-local shared allocation cache.
+    pub(crate) shared_cache: heap::SharedAllocationCache,
     /// Authoritative worker heap.
     pub(crate) heap: heap::Heap,
     /// Worker-owned static byte space.
@@ -267,7 +268,7 @@ impl Worker {
         // heap and statics
         let heap_options = resolve_local_heap_options(&options.heap)?;
         let heap = heap::Heap::with_allocator_limits_and_options(
-            shared.allocator(),
+            shared.allocator.clone(),
             heap_options.limits,
             heap_options.options,
         )
@@ -275,19 +276,18 @@ impl Worker {
         let mut heap = heap;
         let mut statics = engine::StaticSpace::empty();
         let shared_gc_worker = shared.register_collector_worker();
-        let mut shared_allocator = shared.heap().allocator();
+        let mut shared_cache = shared.heap.allocation_cache();
         let context = MemoryContext {
             heap: &mut heap,
-            shared_heap: shared.heap(),
-            shared_allocator: &mut shared_allocator,
+            shared_heap: shared.heap.as_ref(),
+            shared_cache: &mut shared_cache,
             shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
         };
         engine.initialize(context)?;
 
-        let mut event_loop = Box::new(EventLoop::default());
-        event_loop.configure(options.scheduler_options().clone())?;
+        let event_loop = Box::new(EventLoop::default());
 
         // worker state
         Ok(Self {
@@ -302,7 +302,7 @@ impl Worker {
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
-            shared_allocator,
+            shared_cache,
             heap,
             statics,
             engine,
@@ -352,11 +352,13 @@ impl Worker {
 
         // runtime selector metadata
         let runtime_name = options
+            .identity
             .name
             .clone()
             .unwrap_or_else(|| "runtime".to_string());
-        let runtime_entity =
-            Entity::new(runtime_id.entity_id(), EntityKind::RUNTIME).named(runtime_name);
+        let runtime_entity = Entity::new(runtime_id.entity_id(), EntityKind::RUNTIME)
+            .named(runtime_name)
+            .labels(options.identity.labels.clone());
 
         let worker_name = worker_options
             .name
@@ -519,15 +521,6 @@ impl Worker {
         self.heap.collect_step(&mut roots, budget_bytes)
     }
 
-    /// Collect roots from engine, scheduler, and registered providers.
-    pub fn collect_roots(&mut self) -> RuntimeResult<RootSet> {
-        let mut roots = RootSet::new();
-
-        self.visit_roots(&mut roots)?;
-
-        Ok(roots)
-    }
-
     /// Collect shared heap roots from engine, scheduler, and registered providers.
     pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
         let mut roots = Vec::new();
@@ -552,9 +545,9 @@ impl Worker {
         self.heap.finish_shared_edge_scan();
     }
 
-    /// Publish allocator-local shared heap buffers.
-    pub(crate) fn flush_shared_allocator(&mut self, shared: &heap::SharedHeap) {
-        shared.flush_allocator(&mut self.shared_allocator);
+    /// Publish worker-local shared heap buffers.
+    pub(crate) fn flush_shared_cache(&mut self, shared: &heap::SharedHeap) {
+        shared.flush_allocation_cache(&mut self.shared_cache);
     }
 
     /// Scan bounded local-to-shared reference work into the provided root buffer.
@@ -622,8 +615,8 @@ impl Worker {
             statics: self.statics.clone(),
             engine_image: self.engine.image(engine::MemoryContext {
                 heap: &mut self.heap,
-                shared_heap: shared.heap(),
-                shared_allocator: &mut self.shared_allocator,
+                shared_heap: shared.heap.as_ref(),
+                shared_cache: &mut self.shared_cache,
                 shared_gc_worker: &self.shared_gc_worker,
                 worker_static: &mut self.statics,
                 runtime_static,
@@ -668,11 +661,11 @@ impl Worker {
 
         let mut heap = self.heap.fork()?;
         let mut statics = self.statics.clone();
-        let mut shared_allocator = shared.heap().allocator();
+        let mut shared_cache = shared.heap.allocation_cache();
         let mut engine = self.engine.fork(engine::MemoryContext {
             heap: &mut heap,
-            shared_heap: shared.heap(),
-            shared_allocator: &mut shared_allocator,
+            shared_heap: shared.heap.as_ref(),
+            shared_cache: &mut shared_cache,
             shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
@@ -691,7 +684,7 @@ impl Worker {
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
-            shared_allocator,
+            shared_cache,
             heap,
             statics,
             engine,
@@ -731,19 +724,18 @@ impl Worker {
         // diagnostics and event loop
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
         let mut event_loop = Box::new(EventLoop::default());
-        event_loop.configure(options.scheduler_options().clone())?;
 
         // heap and engine
         let heap_options = resolve_local_heap_options(&options.heap)?;
         let mut heap = heap::Heap::from_snapshot_with_allocator(
             &image.heap,
-            shared.allocator(),
+            shared.allocator.clone(),
             heap_options.limits,
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut statics = image.statics.clone();
         let shared_gc_worker = shared.register_collector_worker();
-        let mut shared_allocator = shared.heap().allocator();
+        let mut shared_cache = shared.heap.allocation_cache();
 
         // rebuild the engine from the materialized worker image
         let mut engine = Engine::from_image(&image.engine_image)?;
@@ -751,8 +743,8 @@ impl Worker {
         // restore backend execution state over the restored heap
         let context = MemoryContext {
             heap: &mut heap,
-            shared_heap: shared.heap(),
-            shared_allocator: &mut shared_allocator,
+            shared_heap: shared.heap.as_ref(),
+            shared_cache: &mut shared_cache,
             shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
             runtime_static,
@@ -761,8 +753,8 @@ impl Worker {
         engine.restore(
             engine::MemoryContext {
                 heap: &mut heap,
-                shared_heap: shared.heap(),
-                shared_allocator: &mut shared_allocator,
+                shared_heap: shared.heap.as_ref(),
+                shared_cache: &mut shared_cache,
                 shared_gc_worker: &shared_gc_worker,
                 worker_static: &mut statics,
                 runtime_static,
@@ -792,7 +784,7 @@ impl Worker {
             bindings,
             handles: HeapHandleTable::default(),
             shared_gc_worker,
-            shared_allocator,
+            shared_cache,
             heap,
             statics,
             engine,

@@ -11,10 +11,15 @@ use crate::host::poller::HostPoller;
 use crate::runtime::SharedHeap;
 use crate::runtime::engine::{Continuation, Entry, Outcome};
 use crate::runtime::scheduler::{Microtask, Task, TaskId, Wake};
-use crate::runtime::time::Nanos;
+use crate::runtime::time::{ClockSource, Nanos};
 use crate::world::WorldState;
-use destack_workspace::ClockSource;
-use {destack_engine as engine, destack_heap as heap};
+use destack_engine as engine;
+use destack_heap as heap;
+
+/// The default maximum number of microtasks drained in one turn.
+const DEFAULT_MICROTASK_BUDGET: usize = usize::MAX;
+/// The default maximum nested microtask depth.
+const DEFAULT_MAX_MICROTASK_DEPTH: usize = usize::MAX;
 
 impl Worker {
     /// Build one runtime-owned binding call context.
@@ -57,7 +62,7 @@ impl Worker {
         let mut call_context = self.binding_call_context(world, host, host_queue);
         let Worker {
             heap,
-            shared_allocator,
+            shared_cache,
             shared_gc_worker,
             statics,
             engine,
@@ -67,8 +72,8 @@ impl Worker {
             runtime: NonNull::from(&mut call_context).cast(),
             memory: engine::MemoryContext {
                 heap,
-                shared_heap: shared.heap(),
-                shared_allocator,
+                shared_heap: shared.heap.as_ref(),
+                shared_cache,
                 shared_gc_worker,
                 worker_static: statics,
                 runtime_static,
@@ -328,7 +333,7 @@ impl Worker {
 
     /// Assist one active shared collection from this worker safepoint.
     fn assist_shared_gc(&mut self, runtime_heap: &SharedHeap) -> RuntimeResult<bool> {
-        let shared = runtime_heap.heap();
+        let shared = runtime_heap.heap.as_ref();
         let budget_bytes = shared.take_assist_budget_bytes();
         if budget_bytes == 0 || shared.gc_phase() == heap::SharedGcPhase::Idle {
             return Ok(false);
@@ -362,8 +367,6 @@ impl Worker {
     ) -> RuntimeResult<(bool, Option<engine::Value>)> {
         // track whether this tick processed any event loop work
         let mut progressed = false;
-        let tick_start_mono_nanos = world.mono_nanos();
-
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
             let (drained, budget_exhausted) =
@@ -374,9 +377,6 @@ impl Worker {
             if budget_exhausted {
                 return Ok((progressed, None));
             }
-        }
-        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
-            return Ok((progressed, None));
         }
 
         // run one queued macrotask before pulling external wakes
@@ -394,10 +394,6 @@ impl Worker {
             }
 
             return Ok((true, None));
-        }
-
-        if self.is_tick_budget_exhausted(world, tick_start_mono_nanos) {
-            return Ok((progressed, None));
         }
 
         // dispatch one wake into the task queue
@@ -556,28 +552,12 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
     ) -> RuntimeResult<(usize, bool)> {
-        // resolve the microtask safety limits for this drain cycle
-        let microtask_budget = self
-            .event_loop
-            .options()
-            .microtask_budget
-            .map(|budget| runtime_limit_as_usize(budget, "microtask_budget"))
-            .transpose()?
-            .unwrap_or(usize::MAX);
-        let max_microtask_depth = self
-            .event_loop
-            .options()
-            .max_microtask_depth
-            .map(|depth| runtime_limit_as_usize(depth, "max_microtask_depth"))
-            .transpose()?
-            .unwrap_or(usize::MAX);
-
         // drain microtasks until the queue or budget is exhausted
         let mut num_drained_microtasks = 0usize;
         let mut budget_exhausted = false;
         loop {
             // stop when the configured budget is consumed
-            if num_drained_microtasks >= microtask_budget {
+            if num_drained_microtasks >= DEFAULT_MICROTASK_BUDGET {
                 budget_exhausted = self.event_loop.has_microtasks();
                 break;
             }
@@ -593,7 +573,7 @@ impl Worker {
                 host,
                 host_queue,
                 microtask,
-                max_microtask_depth,
+                DEFAULT_MAX_MICROTASK_DEPTH,
             )?;
             num_drained_microtasks = num_drained_microtasks.saturating_add(1);
         }
@@ -615,7 +595,7 @@ impl Worker {
         let mut call_context = self.binding_call_context(world, host, host_queue);
         let Worker {
             heap,
-            shared_allocator,
+            shared_cache,
             shared_gc_worker,
             statics,
             engine,
@@ -625,8 +605,8 @@ impl Worker {
             runtime: NonNull::from(&mut call_context).cast(),
             memory: engine::MemoryContext {
                 heap,
-                shared_heap: shared.heap(),
-                shared_allocator,
+                shared_heap: shared.heap.as_ref(),
+                shared_cache,
                 shared_gc_worker,
                 worker_static: statics,
                 runtime_static,
@@ -646,14 +626,14 @@ impl Worker {
         remaining_timeout_nanos: Option<u64>,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
-        if world.clock.source() == ClockSource::Virtual {
+        if world.clock.source() == ClockSource::Runtime {
             return Ok(false);
         }
 
         // compute one timeout from the next scheduled timer deadline
         let (wall_now, mono_now) = match world.clock.source() {
             ClockSource::Host => (Nanos::new(host.wall_nanos()), Nanos::new(host.mono_nanos())),
-            ClockSource::Virtual => (world.wall(), world.mono()),
+            ClockSource::Runtime => (world.wall(), world.mono()),
         };
         let timeout_nanos = self.event_loop.timeout_until_next_timer(wall_now, mono_now);
         let timeout_nanos = match (timeout_nanos, remaining_timeout_nanos.map(Nanos::new)) {
@@ -707,23 +687,4 @@ impl Worker {
 
         Ok(host_event_count)
     }
-
-    /// Return whether the current tick exhausted the configured budget.
-    fn is_tick_budget_exhausted(&self, world: &mut WorldState, tick_start_mono_nanos: u64) -> bool {
-        let Some(tick_budget_nanos) = self.event_loop.options().tick_budget_ns else {
-            return false;
-        };
-
-        let now = world.mono_nanos();
-        now.saturating_sub(tick_start_mono_nanos) >= tick_budget_nanos
-    }
-}
-
-/// Convert one configured runtime limit into a host usize.
-fn runtime_limit_as_usize(value: u64, label: &str) -> RuntimeResult<usize> {
-    usize::try_from(value)
-        .map_err(|_| RuntimeError::Internal {
-            message: format!("runtime {label} exceeds host usize: {value}"),
-        })
-        .map_err(Box::new)
 }

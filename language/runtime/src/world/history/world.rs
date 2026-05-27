@@ -234,7 +234,7 @@ impl World {
         };
 
         let mut options = RuntimeOptions::default();
-        options.set_execution_mode(ExecutionMode::Replay);
+        options.execution.mode = ExecutionMode::Replay;
         options.trace.chunk_size_mb = replay_chunk_size_mb;
         options.trace.payload = replay_payload;
 
@@ -475,7 +475,7 @@ impl World {
         let result = (|| {
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.state.trace.mode();
-            let collector = self.history.read().collector();
+            let collector = self.history.read().collector.clone();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
                 let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {

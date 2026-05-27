@@ -13,18 +13,19 @@ use crate::runtime::time::Instant;
 use crate::runtime::worker::{Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage};
 use crate::world::{RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
+use destack_engine as engine;
+use destack_heap as heap;
 use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use {destack_engine as engine, destack_heap as heap};
 
 /// Runtime container that owns one or more workers in one shared world.
 pub struct Runtime {
     /// Runtime identifier in world topology.
     id: RuntimeId,
     /// Immutable ambient environment shared by newly spawned workers.
-    environment: Arc<Environment>,
+    pub(crate) environment: Arc<Environment>,
     /// Runtime options captured for worker defaults and reconstruction.
     options: Arc<RuntimeOptions>,
     /// Runtime-owned shared heap and collection state.
@@ -97,11 +98,6 @@ impl Runtime {
         Ok(runtime)
     }
 
-    /// Return the shared environment backing for this runtime.
-    pub(crate) fn environment(&self) -> Arc<Environment> {
-        self.environment.clone()
-    }
-
     /// Return the current default worker id.
     pub fn default_worker_id(&self) -> WorkerId {
         self.default_worker_id
@@ -156,12 +152,12 @@ impl Runtime {
         }
     }
 
-    /// Publish allocator-local shared heap buffers across all workers.
-    pub(crate) fn flush_shared_allocators(&mut self) {
-        let shared = self.shared.heap();
+    /// Publish worker-local shared heap buffers across all workers.
+    pub(crate) fn flush_shared_caches(&mut self) {
+        let shared = self.shared.heap.as_ref();
 
         for worker in self.workers.values_mut() {
-            worker.flush_shared_allocator(shared);
+            worker.flush_shared_cache(shared);
         }
     }
 
@@ -731,7 +727,7 @@ mod tests {
     use crate::world::World;
     use destack_engine as engine;
     use destack_heap::{AllocationShape, Payload};
-    use destack_mir::ReferenceMap;
+    use destack_mir::TraceMap;
     use destack_workspace::{Environment, RuntimeOptions};
 
     /// Allocate one shared byte payload for runtime tests.
@@ -739,10 +735,10 @@ mod tests {
         heap: &destack_heap::SharedHeap,
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
-        let reference_map = ReferenceMap::empty();
-        let shape = AllocationShape::new(bytes.len(), 1, &reference_map);
-        let layout = heap.allocation_layout(shape);
-        let mut allocator = heap.allocator();
+        let trace_map = TraceMap::Empty;
+        let shape = AllocationShape::new(bytes.len(), 1, &trace_map);
+        let layout = heap.allocation_plan(shape);
+        let mut allocator = heap.allocation_cache();
         let worker = heap.register_collector_worker();
 
         heap.allocate(&worker, &mut allocator, &layout, Payload::Bytes(bytes))
@@ -752,8 +748,12 @@ mod tests {
     fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> SharedHeap {
         let history = world.history.read();
 
-        SharedHeap::new(history.allocator(), history.collector(), options)
-            .expect("runtime shared heap should construct")
+        SharedHeap::new(
+            history.allocator.clone(),
+            history.collector.clone(),
+            options,
+        )
+        .expect("runtime shared heap should construct")
     }
 
     /// Spawned workers inherit runtime source graph conditions.
@@ -779,7 +779,7 @@ mod tests {
     fn test_deliver_host_event_queues_shared_root_rescan_during_mark() {
         let options = RuntimeOptions::default();
         let mut world =
-            World::new(&options, Environment::default(), None).expect("world should construct");
+            World::new(&options, Environment::default()).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
 
@@ -794,7 +794,7 @@ mod tests {
         )
         .expect("worker should construct");
         let worker_id = worker.id;
-        let shared_root = allocate_shared_bytes(shared.heap(), &[0xA1])
+        let shared_root = allocate_shared_bytes(shared.heap.as_ref(), &[0xA1])
             .expect("shared allocation should succeed");
         let host = compile_target_host(None);
         let host_queue = HostQueue::new();
@@ -830,7 +830,7 @@ mod tests {
         .expect("runtime should construct");
 
         // active shared mark
-        runtime.shared.heap().request_gc();
+        runtime.shared.heap.request_gc();
         runtime
             .tick_shared_gc()
             .expect("shared gc should start through runtime roots");
@@ -877,7 +877,7 @@ mod tests {
     fn test_runtime_tick_publishes_pending_shared_roots_from_worker() {
         let options = RuntimeOptions::default();
         let mut world =
-            World::new(&options, Environment::default(), None).expect("world should construct");
+            World::new(&options, Environment::default()).expect("world should construct");
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
 
@@ -892,7 +892,7 @@ mod tests {
         )
         .expect("worker should construct");
         let worker_id = worker.id;
-        let shared_root = allocate_shared_bytes(shared.heap(), &[0xB2])
+        let shared_root = allocate_shared_bytes(shared.heap.as_ref(), &[0xB2])
             .expect("shared allocation should succeed");
         let host = compile_target_host(None);
         let host_queue = HostQueue::new();
@@ -928,7 +928,7 @@ mod tests {
         .expect("runtime should construct");
 
         // active shared mark
-        runtime.shared.heap().request_gc();
+        runtime.shared.heap.request_gc();
         runtime
             .tick_shared_gc()
             .expect("shared gc should start through runtime roots");

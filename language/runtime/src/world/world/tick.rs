@@ -5,9 +5,9 @@ use crate::host::core::poll_host_events;
 use crate::host::poller::HostPoller;
 use crate::host::time::TimerClock;
 use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
+use crate::runtime::time::ClockSource;
 use crate::runtime::{TickResult, WorkerId};
 use crate::world::trace::Observation;
-use destack_workspace::ClockSource;
 
 use super::{RuntimeId, WorkerWake, World};
 
@@ -90,7 +90,7 @@ impl World {
         }
 
         // host time cannot advance under world control
-        if world.clock.source() != ClockSource::Virtual {
+        if world.clock.source() != ClockSource::Runtime {
             return Ok(TickResult::Idle);
         }
 
@@ -107,7 +107,7 @@ impl World {
 
         // record the resolved world time jump
         let deadline = world.trace.resolve_time_advance(deadline)?;
-        world.clock.advance_virtual_to(deadline);
+        world.clock.advance_runtime_to(deadline);
         world.trace.record_time_advance(deadline)?;
 
         // collect due worker timers across runtimes

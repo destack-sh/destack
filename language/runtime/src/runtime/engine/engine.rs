@@ -1,4 +1,7 @@
-use {destack_engine as engine, destack_heap as heap, destack_native as native, destack_vm as vm};
+use destack_engine as engine;
+use destack_heap as heap;
+use destack_native as native;
+use destack_vm as vm;
 
 use super::{CallContext, Continuation, ContinuationImage, Entry, Image, MemoryContext, Outcome};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -234,7 +237,8 @@ impl Engine {
     pub fn from_image(image: &Image) -> RuntimeResult<Self> {
         match image {
             Image::Vm(image) => {
-                let engine = vm::Isolate::new(image.clone()).map_err(Box::<RuntimeError>::from)?;
+                let engine =
+                    vm::Isolate::from_image(image.clone()).map_err(Box::<RuntimeError>::from)?;
 
                 Ok(Self::Vm(engine))
             }

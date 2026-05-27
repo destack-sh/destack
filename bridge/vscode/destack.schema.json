@@ -224,7 +224,10 @@
       "$ref": "#/$defs/RuntimeOptions",
       "default": {
         "runtime": "destack",
-        "name": null,
+        "identity": {
+          "name": null,
+          "labels": {}
+        },
         "conditions": {
           "modes": [],
           "roles": [],
@@ -237,35 +240,21 @@
           "host": null,
           "runtime": null
         },
-        "scheduler": {
-          "mode": "parallel",
-          "tickBudgetNs": null,
-          "microtaskBudget": null,
-          "maxMicrotaskDepth": null,
-          "timerResolutionNs": null,
-          "maxTimerCoalesceNs": null,
-          "preemptIntervalNs": null,
-          "pollerBackend": "auto",
-          "policy": "fifo",
-          "taskLimit": null
+        "execution": {
+          "mode": "strict"
         },
         "worker": {
           "limit": null,
           "threadLimit": null,
           "stackBytes": null
         },
-        "time": {
-          "source": "host",
-          "epochNs": null,
-          "timeZone": null
+        "clock": {
+          "epochNs": null
         },
         "random": {
-          "source": "host",
-          "seed": null,
-          "perRunnable": false
+          "seed": null
         },
         "trace": {
-          "mode": "off",
           "restore": "world",
           "path": null,
           "template": null,
@@ -273,44 +262,16 @@
           "payload": "resultsOnly"
         },
         "heap": {
-          "gc": {
-            "local": {
-              "growthPercent": 100,
-              "triggerPercent": 75,
-              "memoryLimitBytes": null,
-              "minimumHeapBytes": 4194304
-            },
-            "shared": {
-              "growthPercent": 100,
-              "triggerPercent": 75,
-              "memoryLimitBytes": null,
-              "minimumHeapBytes": 4194304
-            }
+          "memoryLimitBytes": null,
+          "growthPercent": 100,
+          "local": {
+            "youngBytes": 1048576,
+            "minBytes": null,
+            "maxBytes": null
           },
-          "limit": {
-            "local": {
-              "maxBytes": null,
-              "heapMaxBytes": null,
-              "rawMaxBytes": null
-            },
-            "shared": {
-              "maxBytes": null,
-              "heapMaxBytes": null,
-              "rawMaxBytes": null
-            }
-          },
-          "layout": {
-            "sizeClasses": "default",
-            "heapYoungBytes": 1048576,
-            "maxHeapYoungAllocationBytes": 32768,
-            "heapSpanBytes": 81920,
-            "sharedHeapSpanBytes": 1048576,
-            "rawSpanBytes": 81920,
-            "heapSpaceBytes": 68719476736,
-            "rawSpaceBytes": 68719476736,
-            "pageBytes": 8192,
-            "chunkBytes": 67108864,
-            "smallAlignmentBytes": 8
+          "shared": {
+            "minBytes": null,
+            "maxBytes": null
           }
         },
         "diagnostic": {
@@ -318,6 +279,9 @@
           "capacity": 1024
         },
         "host": {
+          "poller": {
+            "backend": "auto"
+          },
           "fs": {
             "temporaryDirectory": null,
             "cacheDirectory": null
@@ -335,18 +299,10 @@
           "audio": {
             "backend": null,
             "outputDevice": null,
-            "inputDevice": null,
-            "targetLatencyFrames": null,
-            "targetPeriodFrames": null,
-            "eventQueueCapacity": null,
-            "defaultEventPollIntervalNs": null,
-            "eventMonitorPollIntervalNs": null,
-            "maxStreamReadBytes": null,
-            "maxQueuedFrames": null,
-            "workerPollIntervalNs": null
+            "inputDevice": null
           },
           "display": {
-            "eventQueueCapacity": null
+            "backend": null
           },
           "input": {
             "backend": null
@@ -357,30 +313,13 @@
           },
           "tls": {
             "trustStorePath": null,
-            "clientCertificateStore": null
+            "systemCertificateFiles": [],
+            "systemCertificateDirectories": []
           },
           "os": {
             "defaultLocale": null,
             "dataDirectory": null,
             "stateDirectory": null
-          },
-          "crypto": {
-            "keyStorePaths": {
-              "user": null,
-              "machine": null
-            },
-            "systemCertificateFiles": [],
-            "systemCertificateDirectories": [],
-            "macosKeychainSnapshotService": null,
-            "macosKeychainSnapshotAccount": null
-          }
-        },
-        "platform": {
-          "windows": {
-            "posixDomainSid": null,
-            "net": {
-              "packetBackend": "disabled"
-            }
           }
         }
       }
@@ -1881,13 +1820,13 @@
           "$ref": "#/$defs/Runtime",
           "default": "destack"
         },
-        "name": {
-          "description": "Stable runtime name for policy selection.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+        "identity": {
+          "description": "Runtime topology and policy identity.",
+          "$ref": "#/$defs/RuntimeIdentityOptions",
+          "default": {
+            "name": null,
+            "labels": {}
+          }
         },
         "conditions": {
           "description": "Active source graph conditions for runtime policy selection.",
@@ -1905,20 +1844,11 @@
             "runtime": null
           }
         },
-        "scheduler": {
-          "description": "Runtime scheduler configuration.",
-          "$ref": "#/$defs/SchedulerOptions",
+        "execution": {
+          "description": "Runtime execution configuration.",
+          "$ref": "#/$defs/ExecutionOptions",
           "default": {
-            "mode": "parallel",
-            "tickBudgetNs": null,
-            "microtaskBudget": null,
-            "maxMicrotaskDepth": null,
-            "timerResolutionNs": null,
-            "maxTimerCoalesceNs": null,
-            "preemptIntervalNs": null,
-            "pollerBackend": "auto",
-            "policy": "fifo",
-            "taskLimit": null
+            "mode": "strict"
           }
         },
         "worker": {
@@ -1930,29 +1860,24 @@
             "stackBytes": null
           }
         },
-        "time": {
-          "description": "Runtime clock source configuration.",
-          "$ref": "#/$defs/TimeOptions",
+        "clock": {
+          "description": "Runtime clock seed configuration.",
+          "$ref": "#/$defs/ClockOptions",
           "default": {
-            "source": "host",
-            "epochNs": null,
-            "timeZone": null
+            "epochNs": null
           }
         },
         "random": {
           "description": "Runtime randomness source configuration.",
           "$ref": "#/$defs/RandomOptions",
           "default": {
-            "source": "host",
-            "seed": null,
-            "perRunnable": false
+            "seed": null
           }
         },
         "trace": {
           "description": "Runtime trace configuration.",
           "$ref": "#/$defs/TraceOptions",
           "default": {
-            "mode": "off",
             "restore": "world",
             "path": null,
             "template": null,
@@ -1964,44 +1889,16 @@
           "description": "Runtime heap configuration.",
           "$ref": "#/$defs/HeapOptions",
           "default": {
-            "gc": {
-              "local": {
-                "growthPercent": 100,
-                "triggerPercent": 75,
-                "memoryLimitBytes": null,
-                "minimumHeapBytes": 4194304
-              },
-              "shared": {
-                "growthPercent": 100,
-                "triggerPercent": 75,
-                "memoryLimitBytes": null,
-                "minimumHeapBytes": 4194304
-              }
+            "memoryLimitBytes": null,
+            "growthPercent": 100,
+            "local": {
+              "youngBytes": 1048576,
+              "minBytes": null,
+              "maxBytes": null
             },
-            "limit": {
-              "local": {
-                "maxBytes": null,
-                "heapMaxBytes": null,
-                "rawMaxBytes": null
-              },
-              "shared": {
-                "maxBytes": null,
-                "heapMaxBytes": null,
-                "rawMaxBytes": null
-              }
-            },
-            "layout": {
-              "sizeClasses": "default",
-              "heapYoungBytes": 1048576,
-              "maxHeapYoungAllocationBytes": 32768,
-              "heapSpanBytes": 81920,
-              "sharedHeapSpanBytes": 1048576,
-              "rawSpanBytes": 81920,
-              "heapSpaceBytes": 68719476736,
-              "rawSpaceBytes": 68719476736,
-              "pageBytes": 8192,
-              "chunkBytes": 67108864,
-              "smallAlignmentBytes": 8
+            "shared": {
+              "minBytes": null,
+              "maxBytes": null
             }
           }
         },
@@ -2017,6 +1914,9 @@
           "description": "Runtime host module defaults.",
           "$ref": "#/$defs/HostOptions",
           "default": {
+            "poller": {
+              "backend": "auto"
+            },
             "fs": {
               "temporaryDirectory": null,
               "cacheDirectory": null
@@ -2034,18 +1934,10 @@
             "audio": {
               "backend": null,
               "outputDevice": null,
-              "inputDevice": null,
-              "targetLatencyFrames": null,
-              "targetPeriodFrames": null,
-              "eventQueueCapacity": null,
-              "defaultEventPollIntervalNs": null,
-              "eventMonitorPollIntervalNs": null,
-              "maxStreamReadBytes": null,
-              "maxQueuedFrames": null,
-              "workerPollIntervalNs": null
+              "inputDevice": null
             },
             "display": {
-              "eventQueueCapacity": null
+              "backend": null
             },
             "input": {
               "backend": null
@@ -2056,34 +1948,13 @@
             },
             "tls": {
               "trustStorePath": null,
-              "clientCertificateStore": null
+              "systemCertificateFiles": [],
+              "systemCertificateDirectories": []
             },
             "os": {
               "defaultLocale": null,
               "dataDirectory": null,
               "stateDirectory": null
-            },
-            "crypto": {
-              "keyStorePaths": {
-                "user": null,
-                "machine": null
-              },
-              "systemCertificateFiles": [],
-              "systemCertificateDirectories": [],
-              "macosKeychainSnapshotService": null,
-              "macosKeychainSnapshotAccount": null
-            }
-          }
-        },
-        "platform": {
-          "description": "Platform-specific host runtime overrides.",
-          "$ref": "#/$defs/PlatformOptions",
-          "default": {
-            "windows": {
-              "posixDomainSid": null,
-              "net": {
-                "packetBackend": "disabled"
-              }
             }
           }
         }
@@ -2103,6 +1974,28 @@
           "const": "js"
         }
       ]
+    },
+    "RuntimeIdentityOptions": {
+      "description": "Runtime identity used for topology and policy selection.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Stable runtime name for policy selection.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "labels": {
+          "description": "Stable runtime labels for topology and policy selection.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      }
     },
     "ConditionSet": {
       "description": "Active source graph and runtime selection conditions.",
@@ -2321,164 +2214,39 @@
         }
       ]
     },
-    "SchedulerOptions": {
-      "description": "Runtime scheduler configuration.",
+    "ExecutionOptions": {
+      "description": "Runtime execution configuration.",
       "type": "object",
       "properties": {
         "mode": {
-          "description": "Runtime scheduler mode.",
-          "$ref": "#/$defs/SchedulerMode",
-          "default": "parallel"
-        },
-        "tickBudgetNs": {
-          "description": "Event loop tick budget in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "microtaskBudget": {
-          "description": "Maximum number of microtasks per tick.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "maxMicrotaskDepth": {
-          "description": "Maximum microtask nesting depth.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "timerResolutionNs": {
-          "description": "Timer resolution in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "maxTimerCoalesceNs": {
-          "description": "Maximum timer coalescing window in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "preemptIntervalNs": {
-          "description": "Preemption interval for long-running tasks in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "pollerBackend": {
-          "description": "Platform poller backend selection.",
-          "$ref": "#/$defs/PollerBackend",
-          "default": "auto"
-        },
-        "policy": {
-          "description": "Scheduling policy for ready work.",
-          "$ref": "#/$defs/SchedulerPolicy",
-          "default": "fifo"
-        },
-        "taskLimit": {
-          "description": "Maximum number of live scheduled tasks.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
+          "description": "Execution mode for scheduling and effect handling.",
+          "$ref": "#/$defs/ExecutionMode",
+          "default": "strict"
         }
       }
     },
-    "SchedulerMode": {
-      "description": "Runtime scheduler mode.",
+    "ExecutionMode": {
+      "description": "Execution mode for runtime scheduling and replay.",
       "oneOf": [
         {
-          "description": "Run all world progress cooperatively on one scheduler.",
+          "description": "Strict execution through runtime-owned facts and effect boundaries.",
           "type": "string",
-          "const": "cooperative"
+          "const": "strict"
         },
         {
-          "description": "Allow host-parallel progress across multiple workers.",
+          "description": "Fast execution without determinism guarantees.",
           "type": "string",
-          "const": "parallel"
-        }
-      ]
-    },
-    "PollerBackend": {
-      "description": "Platform poller backend selection.",
-      "oneOf": [
-        {
-          "description": "Choose the best available backend for the platform.",
-          "type": "string",
-          "const": "auto"
+          "const": "fast"
         },
         {
-          "description": "Use io_uring (Linux only).",
+          "description": "Record external effects for replay.",
           "type": "string",
-          "const": "ioUring"
+          "const": "record"
         },
         {
-          "description": "Use epoll (Linux only).",
+          "description": "Replay external effects from the log.",
           "type": "string",
-          "const": "epoll"
-        },
-        {
-          "description": "Use kqueue (BSD/macOS only).",
-          "type": "string",
-          "const": "kqueue"
-        },
-        {
-          "description": "Use poll (portable Unix backend).",
-          "type": "string",
-          "const": "poll"
-        },
-        {
-          "description": "Use the Windows readiness backend.",
-          "type": "string",
-          "const": "windows"
-        }
-      ]
-    },
-    "SchedulerPolicy": {
-      "description": "Runtime task scheduling policy.",
-      "oneOf": [
-        {
-          "description": "First-in, first-out scheduling.",
-          "type": "string",
-          "const": "fifo"
-        },
-        {
-          "description": "Fair scheduling with time slicing.",
-          "type": "string",
-          "const": "fair"
-        },
-        {
-          "description": "Work-stealing scheduling for throughput.",
-          "type": "string",
-          "const": "workstealing"
+          "const": "replay"
         }
       ]
     },
@@ -2518,17 +2286,12 @@
         }
       }
     },
-    "TimeOptions": {
+    "ClockOptions": {
       "description": "Runtime clock configuration.",
       "type": "object",
       "properties": {
-        "source": {
-          "description": "Clock source selection.",
-          "$ref": "#/$defs/ClockSource",
-          "default": "host"
-        },
         "epochNs": {
-          "description": "Epoch in nanoseconds for virtual time.",
+          "description": "Runtime wall-clock epoch in nanoseconds.",
           "type": [
             "integer",
             "null"
@@ -2536,41 +2299,13 @@
           "format": "uint64",
           "minimum": 0,
           "default": null
-        },
-        "timeZone": {
-          "description": "Time zone identifier or fixed offset string.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
         }
       }
-    },
-    "ClockSource": {
-      "description": "Time source selection for runtime clocks.",
-      "oneOf": [
-        {
-          "description": "Use the host clock directly.",
-          "type": "string",
-          "const": "host"
-        },
-        {
-          "description": "Use a virtualized clock derived from runtime state.",
-          "type": "string",
-          "const": "virtual"
-        }
-      ]
     },
     "RandomOptions": {
       "description": "Runtime randomness configuration.",
       "type": "object",
       "properties": {
-        "source": {
-          "description": "Randomness source selection.",
-          "$ref": "#/$defs/RandomSource",
-          "default": "host"
-        },
         "seed": {
           "description": "Seed for deterministic randomness streams.",
           "type": [
@@ -2580,38 +2315,13 @@
           "format": "uint64",
           "minimum": 0,
           "default": null
-        },
-        "perRunnable": {
-          "description": "Whether to use a per-runnable random stream.",
-          "type": "boolean",
-          "default": false
         }
       }
-    },
-    "RandomSource": {
-      "description": "Randomness source selection for the runtime.",
-      "oneOf": [
-        {
-          "description": "Use the host randomness source.",
-          "type": "string",
-          "const": "host"
-        },
-        {
-          "description": "Use deterministic runtime-managed randomness.",
-          "type": "string",
-          "const": "deterministic"
-        }
-      ]
     },
     "TraceOptions": {
       "description": "Runtime trace configuration.",
       "type": "object",
       "properties": {
-        "mode": {
-          "description": "The configured trace mode.",
-          "$ref": "#/$defs/TraceMode",
-          "default": "off"
-        },
         "restore": {
           "description": "The configured restore contract.",
           "$ref": "#/$defs/RestoreMode",
@@ -2650,26 +2360,6 @@
         }
       }
     },
-    "TraceMode": {
-      "description": "Trace recording mode for one world.",
-      "oneOf": [
-        {
-          "description": "Do not record or replay one trace log.",
-          "type": "string",
-          "const": "off"
-        },
-        {
-          "description": "Record one trace log from live execution.",
-          "type": "string",
-          "const": "record"
-        },
-        {
-          "description": "Replay one trace log as authoritative input.",
-          "type": "string",
-          "const": "replay"
-        }
-      ]
-    },
     "RestoreMode": {
       "description": "Restore contract for one world checkpoint or replay boundary.",
       "oneOf": [
@@ -2704,89 +2394,16 @@
       "description": "Runtime heap configuration.",
       "type": "object",
       "properties": {
-        "gc": {
-          "description": "Garbage-collection policy.",
-          "$ref": "#/$defs/HeapGcOptions",
-          "default": {
-            "local": {
-              "growthPercent": 100,
-              "triggerPercent": 75,
-              "memoryLimitBytes": null,
-              "minimumHeapBytes": 4194304
-            },
-            "shared": {
-              "growthPercent": 100,
-              "triggerPercent": 75,
-              "memoryLimitBytes": null,
-              "minimumHeapBytes": 4194304
-            }
-          }
+        "memoryLimitBytes": {
+          "description": "Soft memory limit inherited by local and shared heap collectors.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
         },
-        "limit": {
-          "description": "Hard limits.",
-          "$ref": "#/$defs/HeapLimitOptions",
-          "default": {
-            "local": {
-              "maxBytes": null,
-              "heapMaxBytes": null,
-              "rawMaxBytes": null
-            },
-            "shared": {
-              "maxBytes": null,
-              "heapMaxBytes": null,
-              "rawMaxBytes": null
-            }
-          }
-        },
-        "layout": {
-          "description": "Layout and allocator geometry.",
-          "$ref": "#/$defs/HeapLayoutOptions",
-          "default": {
-            "sizeClasses": "default",
-            "heapYoungBytes": 1048576,
-            "maxHeapYoungAllocationBytes": 32768,
-            "heapSpanBytes": 81920,
-            "sharedHeapSpanBytes": 1048576,
-            "rawSpanBytes": 81920,
-            "heapSpaceBytes": 68719476736,
-            "rawSpaceBytes": 68719476736,
-            "pageBytes": 8192,
-            "chunkBytes": 67108864,
-            "smallAlignmentBytes": 8
-          }
-        }
-      }
-    },
-    "HeapGcOptions": {
-      "description": "Runtime heap garbage-collection configuration.",
-      "type": "object",
-      "properties": {
-        "local": {
-          "description": "Local-heap collector pacing.",
-          "$ref": "#/$defs/LocalGcOptions",
-          "default": {
-            "growthPercent": 100,
-            "triggerPercent": 75,
-            "memoryLimitBytes": null,
-            "minimumHeapBytes": 4194304
-          }
-        },
-        "shared": {
-          "description": "Shared-heap collector pacing.",
-          "$ref": "#/$defs/SharedGcOptions",
-          "default": {
-            "growthPercent": 100,
-            "triggerPercent": 75,
-            "memoryLimitBytes": null,
-            "minimumHeapBytes": 4194304
-          }
-        }
-      }
-    },
-    "LocalGcOptions": {
-      "description": "Runtime local-heap collector pacing.",
-      "type": "object",
-      "properties": {
         "growthPercent": {
           "description": "The proportional heap growth target percentage.",
           "type": "integer",
@@ -2794,292 +2411,83 @@
           "minimum": 0,
           "default": 100
         },
-        "triggerPercent": {
-          "description": "Heap trigger as a percentage of the current goal.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0,
-          "default": 75
-        },
-        "memoryLimitBytes": {
-          "description": "Optional soft memory limit in bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "minimumHeapBytes": {
-          "description": "Minimum heap floor in bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": 4194304
-        }
-      }
-    },
-    "SharedGcOptions": {
-      "description": "Runtime shared-heap collector pacing.",
-      "type": "object",
-      "properties": {
-        "growthPercent": {
-          "description": "The proportional heap growth target percentage.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0,
-          "default": 100
-        },
-        "triggerPercent": {
-          "description": "Heap trigger as a percentage of the current goal.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0,
-          "default": 75
-        },
-        "memoryLimitBytes": {
-          "description": "Optional soft memory limit in bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "minimumHeapBytes": {
-          "description": "Minimum heap floor in bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": 4194304
-        }
-      }
-    },
-    "HeapLimitOptions": {
-      "description": "Runtime heap hard-limit configuration.",
-      "type": "object",
-      "properties": {
         "local": {
-          "description": "Local-heap hard limits.",
-          "$ref": "#/$defs/LocalHeapLimitOptions",
+          "description": "Worker-local heap policy.",
+          "$ref": "#/$defs/LocalHeapOptions",
           "default": {
-            "maxBytes": null,
-            "heapMaxBytes": null,
-            "rawMaxBytes": null
+            "youngBytes": 1048576,
+            "minBytes": null,
+            "maxBytes": null
           }
         },
         "shared": {
-          "description": "Shared-heap hard limits.",
-          "$ref": "#/$defs/SharedHeapLimitOptions",
+          "description": "Runtime-shared heap policy.",
+          "$ref": "#/$defs/SharedHeapOptions",
           "default": {
-            "maxBytes": null,
-            "heapMaxBytes": null,
-            "rawMaxBytes": null
+            "minBytes": null,
+            "maxBytes": null
           }
         }
       }
     },
-    "LocalHeapLimitOptions": {
-      "description": "Hard limits for one local heap.",
+    "LocalHeapOptions": {
+      "description": "Runtime local-heap policy.",
       "type": "object",
       "properties": {
-        "maxBytes": {
-          "description": "Hard limit for total retained heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "heapMaxBytes": {
-          "description": "Hard limit for retained heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "rawMaxBytes": {
-          "description": "Hard limit for retained raw heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        }
-      }
-    },
-    "SharedHeapLimitOptions": {
-      "description": "Hard limits for one shared heap.",
-      "type": "object",
-      "properties": {
-        "maxBytes": {
-          "description": "Hard limit for total retained heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "heapMaxBytes": {
-          "description": "Hard limit for retained heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "rawMaxBytes": {
-          "description": "Hard limit for retained raw heap bytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        }
-      }
-    },
-    "HeapLayoutOptions": {
-      "description": "Runtime heap layout and allocator geometry configuration.",
-      "type": "object",
-      "properties": {
-        "sizeClasses": {
-          "description": "The configured size-class table for small allocations.",
-          "$ref": "#/$defs/HeapSizeClasses",
-          "default": "default"
-        },
-        "heapYoungBytes": {
-          "description": "The byte width for heap young space.",
+        "youngBytes": {
+          "description": "The byte width for worker-local young space.",
           "type": "integer",
           "format": "uint",
           "minimum": 0,
           "default": 1048576
         },
-        "maxHeapYoungAllocationBytes": {
-          "description": "The maximum payload size admitted into heap young space.",
-          "type": "integer",
-          "format": "uint",
+        "minBytes": {
+          "description": "Minimum heap bytes before normal growth pacing applies.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
           "minimum": 0,
-          "default": 32768
+          "default": null
         },
-        "heapSpanBytes": {
-          "description": "The byte width for heap small-allocation spans.",
-          "type": "integer",
-          "format": "uint",
+        "maxBytes": {
+          "description": "Hard limit for total retained local heap bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
           "minimum": 0,
-          "default": 81920
-        },
-        "sharedHeapSpanBytes": {
-          "description": "The byte width for shared heap worker-allocation spans.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 1048576
-        },
-        "rawSpanBytes": {
-          "description": "The byte width for raw small-allocation spans.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 81920
-        },
-        "heapSpaceBytes": {
-          "description": "The virtual byte capacity for managed heap space.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 68719476736
-        },
-        "rawSpaceBytes": {
-          "description": "The virtual byte capacity for raw heap space.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 68719476736
-        },
-        "pageBytes": {
-          "description": "The byte width for heap pages and page-sized chunks.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 8192
-        },
-        "chunkBytes": {
-          "description": "The byte width for one allocator chunk.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 67108864
-        },
-        "smallAlignmentBytes": {
-          "description": "The required alignment for configured small-allocation classes.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 8
+          "default": null
         }
       }
     },
-    "HeapSizeClasses": {
-      "description": "Runtime heap size-class configuration.",
-      "oneOf": [
-        {
-          "description": "The built-in default size-class table.",
-          "type": "string",
-          "const": "default"
-        },
-        {
-          "description": "One named built-in size-class table.",
-          "type": "object",
-          "properties": {
-            "named": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "named"
+    "SharedHeapOptions": {
+      "description": "Runtime shared-heap policy.",
+      "type": "object",
+      "properties": {
+        "minBytes": {
+          "description": "Minimum heap bytes before normal growth pacing applies.",
+          "type": [
+            "integer",
+            "null"
           ],
-          "additionalProperties": false
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
         },
-        {
-          "description": "One explicit size-class table in bytes.",
-          "type": "object",
-          "properties": {
-            "explicit": {
-              "type": "array",
-              "items": {
-                "type": "integer",
-                "format": "uint",
-                "minimum": 0
-              }
-            }
-          },
-          "required": [
-            "explicit"
+        "maxBytes": {
+          "description": "Hard limit for total retained shared heap bytes.",
+          "type": [
+            "integer",
+            "null"
           ],
-          "additionalProperties": false
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
         }
-      ]
+      }
     },
     "RuntimeDiagnosticOptions": {
       "description": "Runtime diagnostics configuration.",
@@ -3141,6 +2549,13 @@
       "description": "Runtime host module defaults.",
       "type": "object",
       "properties": {
+        "poller": {
+          "description": "Host poller defaults.",
+          "$ref": "#/$defs/HostPollerOptions",
+          "default": {
+            "backend": "auto"
+          }
+        },
         "fs": {
           "description": "Filesystem host defaults.",
           "$ref": "#/$defs/HostFsOptions",
@@ -3173,22 +2588,14 @@
           "default": {
             "backend": null,
             "outputDevice": null,
-            "inputDevice": null,
-            "targetLatencyFrames": null,
-            "targetPeriodFrames": null,
-            "eventQueueCapacity": null,
-            "defaultEventPollIntervalNs": null,
-            "eventMonitorPollIntervalNs": null,
-            "maxStreamReadBytes": null,
-            "maxQueuedFrames": null,
-            "workerPollIntervalNs": null
+            "inputDevice": null
           }
         },
         "display": {
           "description": "Display host defaults.",
           "$ref": "#/$defs/HostDisplayOptions",
           "default": {
-            "eventQueueCapacity": null
+            "backend": null
           }
         },
         "input": {
@@ -3211,7 +2618,8 @@
           "$ref": "#/$defs/HostTlsOptions",
           "default": {
             "trustStorePath": null,
-            "clientCertificateStore": null
+            "systemCertificateFiles": [],
+            "systemCertificateDirectories": []
           }
         },
         "os": {
@@ -3222,22 +2630,54 @@
             "dataDirectory": null,
             "stateDirectory": null
           }
-        },
-        "crypto": {
-          "description": "Crypto host defaults.",
-          "$ref": "#/$defs/HostCryptoOptions",
-          "default": {
-            "keyStorePaths": {
-              "user": null,
-              "machine": null
-            },
-            "systemCertificateFiles": [],
-            "systemCertificateDirectories": [],
-            "macosKeychainSnapshotService": null,
-            "macosKeychainSnapshotAccount": null
-          }
         }
       }
+    },
+    "HostPollerOptions": {
+      "description": "Runtime host-poller configuration.",
+      "type": "object",
+      "properties": {
+        "backend": {
+          "description": "Host poller backend selection.",
+          "$ref": "#/$defs/PollerBackend",
+          "default": "auto"
+        }
+      }
+    },
+    "PollerBackend": {
+      "description": "Host poller backend selection.",
+      "oneOf": [
+        {
+          "description": "Choose the best available backend for the platform.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Use io_uring on Linux.",
+          "type": "string",
+          "const": "ioUring"
+        },
+        {
+          "description": "Use epoll on Linux.",
+          "type": "string",
+          "const": "epoll"
+        },
+        {
+          "description": "Use kqueue on BSD and macOS.",
+          "type": "string",
+          "const": "kqueue"
+        },
+        {
+          "description": "Use poll on Unix.",
+          "type": "string",
+          "const": "poll"
+        },
+        {
+          "description": "Use the Windows readiness backend.",
+          "type": "string",
+          "const": "windows"
+        }
+      ]
     },
     "HostFsOptions": {
       "description": "Filesystem host defaults.",
@@ -3348,86 +2788,6 @@
             "null"
           ],
           "default": null
-        },
-        "targetLatencyFrames": {
-          "description": "Optional target latency in frames.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint32",
-          "minimum": 0,
-          "default": null
-        },
-        "targetPeriodFrames": {
-          "description": "Optional target period size in frames.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint32",
-          "minimum": 0,
-          "default": null
-        },
-        "eventQueueCapacity": {
-          "description": "Optional default event queue capacity.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "defaultEventPollIntervalNs": {
-          "description": "Optional default event polling interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "eventMonitorPollIntervalNs": {
-          "description": "Optional event monitor polling interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "maxStreamReadBytes": {
-          "description": "Optional maximum bytes per stream read.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "maxQueuedFrames": {
-          "description": "Optional maximum queued stream frames.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
-        },
-        "workerPollIntervalNs": {
-          "description": "Optional worker polling interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0,
-          "default": null
         }
       }
     },
@@ -3435,14 +2795,12 @@
       "description": "Display host defaults.",
       "type": "object",
       "properties": {
-        "eventQueueCapacity": {
-          "description": "Optional default event queue capacity.",
+        "backend": {
+          "description": "Optional preferred display backend name.",
           "type": [
-            "integer",
+            "string",
             "null"
           ],
-          "format": "uint64",
-          "minimum": 0,
           "default": null
         }
       }
@@ -3495,13 +2853,21 @@
           ],
           "default": null
         },
-        "clientCertificateStore": {
-          "description": "Optional client certificate store identifier.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
+        "systemCertificateFiles": {
+          "description": "Override list for Unix system certificate bundle files.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "systemCertificateDirectories": {
+          "description": "Override list for Unix system certificate directories.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
         }
       }
     },
@@ -3534,142 +2900,6 @@
           "default": null
         }
       }
-    },
-    "HostCryptoOptions": {
-      "description": "Crypto host defaults.",
-      "type": "object",
-      "properties": {
-        "keyStorePaths": {
-          "description": "Host key store path overrides.",
-          "$ref": "#/$defs/HostCryptoStorePaths",
-          "default": {
-            "user": null,
-            "machine": null
-          }
-        },
-        "systemCertificateFiles": {
-          "description": "Override list for Unix system certificate bundle files.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "systemCertificateDirectories": {
-          "description": "Override list for Unix system certificate directories.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "macosKeychainSnapshotService": {
-          "description": "Optional macOS Keychain service for snapshot keys.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "macosKeychainSnapshotAccount": {
-          "description": "Optional macOS Keychain account for snapshot keys.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        }
-      }
-    },
-    "HostCryptoStorePaths": {
-      "description": "Host key store path overrides.",
-      "type": "object",
-      "properties": {
-        "user": {
-          "description": "Override path for the user store.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "machine": {
-          "description": "Override path for the machine store.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        }
-      }
-    },
-    "PlatformOptions": {
-      "description": "Platform-specific runtime overrides.",
-      "type": "object",
-      "properties": {
-        "windows": {
-          "description": "Windows runtime overrides.",
-          "$ref": "#/$defs/WindowsOptions",
-          "default": {
-            "posixDomainSid": null,
-            "net": {
-              "packetBackend": "disabled"
-            }
-          }
-        }
-      }
-    },
-    "WindowsOptions": {
-      "description": "Windows runtime overrides.",
-      "type": "object",
-      "properties": {
-        "posixDomainSid": {
-          "description": "Optional POSIX domain SID for uid or gid mapping.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "net": {
-          "description": "Windows network overrides.",
-          "$ref": "#/$defs/WindowsNetOptions",
-          "default": {
-            "packetBackend": "disabled"
-          }
-        }
-      }
-    },
-    "WindowsNetOptions": {
-      "description": "Windows network overrides.",
-      "type": "object",
-      "properties": {
-        "packetBackend": {
-          "description": "Packet backend mode for Windows packet operations.",
-          "$ref": "#/$defs/WindowsPacketBackend",
-          "default": "disabled"
-        }
-      }
-    },
-    "WindowsPacketBackend": {
-      "description": "Windows packet backend selection.",
-      "oneOf": [
-        {
-          "description": "Disable packet backends.",
-          "type": "string",
-          "const": "disabled"
-        },
-        {
-          "description": "Use the raw-socket packet backend.",
-          "type": "string",
-          "const": "rawSocket"
-        },
-        {
-          "description": "Use the host-bridge packet backend.",
-          "type": "string",
-          "const": "hostBridge"
-        }
-      ]
     },
     "FormatterOptions": {
       "description": "Formatter options.\n\nControls code style decisions made by the formatter.\nDefault values match the standard formatter defaults used by Destack.",
@@ -5760,7 +4990,10 @@
           "$ref": "#/$defs/RuntimeOptions",
           "default": {
             "runtime": "destack",
-            "name": null,
+            "identity": {
+              "name": null,
+              "labels": {}
+            },
             "conditions": {
               "modes": [],
               "roles": [],
@@ -5773,35 +5006,21 @@
               "host": null,
               "runtime": null
             },
-            "scheduler": {
-              "mode": "parallel",
-              "tickBudgetNs": null,
-              "microtaskBudget": null,
-              "maxMicrotaskDepth": null,
-              "timerResolutionNs": null,
-              "maxTimerCoalesceNs": null,
-              "preemptIntervalNs": null,
-              "pollerBackend": "auto",
-              "policy": "fifo",
-              "taskLimit": null
+            "execution": {
+              "mode": "strict"
             },
             "worker": {
               "limit": null,
               "threadLimit": null,
               "stackBytes": null
             },
-            "time": {
-              "source": "host",
-              "epochNs": null,
-              "timeZone": null
+            "clock": {
+              "epochNs": null
             },
             "random": {
-              "source": "host",
-              "seed": null,
-              "perRunnable": false
+              "seed": null
             },
             "trace": {
-              "mode": "off",
               "restore": "world",
               "path": null,
               "template": null,
@@ -5809,44 +5028,16 @@
               "payload": "resultsOnly"
             },
             "heap": {
-              "gc": {
-                "local": {
-                  "growthPercent": 100,
-                  "triggerPercent": 75,
-                  "memoryLimitBytes": null,
-                  "minimumHeapBytes": 4194304
-                },
-                "shared": {
-                  "growthPercent": 100,
-                  "triggerPercent": 75,
-                  "memoryLimitBytes": null,
-                  "minimumHeapBytes": 4194304
-                }
+              "memoryLimitBytes": null,
+              "growthPercent": 100,
+              "local": {
+                "youngBytes": 1048576,
+                "minBytes": null,
+                "maxBytes": null
               },
-              "limit": {
-                "local": {
-                  "maxBytes": null,
-                  "heapMaxBytes": null,
-                  "rawMaxBytes": null
-                },
-                "shared": {
-                  "maxBytes": null,
-                  "heapMaxBytes": null,
-                  "rawMaxBytes": null
-                }
-              },
-              "layout": {
-                "sizeClasses": "default",
-                "heapYoungBytes": 1048576,
-                "maxHeapYoungAllocationBytes": 32768,
-                "heapSpanBytes": 81920,
-                "sharedHeapSpanBytes": 1048576,
-                "rawSpanBytes": 81920,
-                "heapSpaceBytes": 68719476736,
-                "rawSpaceBytes": 68719476736,
-                "pageBytes": 8192,
-                "chunkBytes": 67108864,
-                "smallAlignmentBytes": 8
+              "shared": {
+                "minBytes": null,
+                "maxBytes": null
               }
             },
             "diagnostic": {
@@ -5854,6 +5045,9 @@
               "capacity": 1024
             },
             "host": {
+              "poller": {
+                "backend": "auto"
+              },
               "fs": {
                 "temporaryDirectory": null,
                 "cacheDirectory": null
@@ -5871,18 +5065,10 @@
               "audio": {
                 "backend": null,
                 "outputDevice": null,
-                "inputDevice": null,
-                "targetLatencyFrames": null,
-                "targetPeriodFrames": null,
-                "eventQueueCapacity": null,
-                "defaultEventPollIntervalNs": null,
-                "eventMonitorPollIntervalNs": null,
-                "maxStreamReadBytes": null,
-                "maxQueuedFrames": null,
-                "workerPollIntervalNs": null
+                "inputDevice": null
               },
               "display": {
-                "eventQueueCapacity": null
+                "backend": null
               },
               "input": {
                 "backend": null
@@ -5893,30 +5079,13 @@
               },
               "tls": {
                 "trustStorePath": null,
-                "clientCertificateStore": null
+                "systemCertificateFiles": [],
+                "systemCertificateDirectories": []
               },
               "os": {
                 "defaultLocale": null,
                 "dataDirectory": null,
                 "stateDirectory": null
-              },
-              "crypto": {
-                "keyStorePaths": {
-                  "user": null,
-                  "machine": null
-                },
-                "systemCertificateFiles": [],
-                "systemCertificateDirectories": [],
-                "macosKeychainSnapshotService": null,
-                "macosKeychainSnapshotAccount": null
-              }
-            },
-            "platform": {
-              "windows": {
-                "posixDomainSid": null,
-                "net": {
-                  "packetBackend": "disabled"
-                }
               }
             }
           }

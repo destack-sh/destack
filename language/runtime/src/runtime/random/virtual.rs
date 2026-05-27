@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
-use super::{RandomStreamId, ScopedRandomStreamKey};
+use super::{RandomStreamId, WorkerRandomStreamKey};
 
 /// Step size for deterministic random streams.
 const STREAM_INCREMENT: u64 = 0x9e3779b97f4a7c15;
@@ -32,10 +32,10 @@ pub(crate) struct VirtualRandom {
     state: AtomicU64,
     /// Next user-defined stream identifier.
     next_stream_id: AtomicU64,
-    /// Per-stream deterministic state.
+    /// Per stream deterministic state.
     streams: Mutex<HashMap<RandomStreamId, u64>>,
-    /// Cached scoped stream identities keyed by runtime and worker scope.
-    scoped_streams: Mutex<HashMap<ScopedRandomStreamKey, RandomStreamId>>,
+    /// Cached stream identities keyed by runtime and worker scope.
+    worker_streams: Mutex<HashMap<WorkerRandomStreamKey, RandomStreamId>>,
 }
 
 impl VirtualRandom {
@@ -46,7 +46,7 @@ impl VirtualRandom {
             state: AtomicU64::new(root_seed),
             next_stream_id: AtomicU64::new(1),
             streams: Mutex::new(HashMap::new()),
-            scoped_streams: Mutex::new(HashMap::new()),
+            worker_streams: Mutex::new(HashMap::new()),
         }
     }
 
@@ -63,34 +63,26 @@ impl VirtualRandom {
 
         // reset deterministic streams
         self.streams.lock().clear();
-        self.scoped_streams.lock().clear();
+        self.worker_streams.lock().clear();
     }
 
-    /// Resolve one scoped implicit random stream id.
-    pub(crate) fn scoped_stream_id(
-        &self,
-        runtime_id: u64,
-        worker_id: u64,
-        task_id: Option<u64>,
-        microtask_id: Option<u64>,
-    ) -> RandomStreamId {
+    /// Resolve one worker scoped implicit random stream id.
+    pub(crate) fn worker_stream_id(&self, runtime_id: u64, worker_id: u64) -> RandomStreamId {
         // resolve one stable key for this runtime and worker scope
-        let key = ScopedRandomStreamKey {
+        let key = WorkerRandomStreamKey {
             runtime_id,
             worker_id,
-            task_id,
-            microtask_id,
         };
 
-        // reuse an existing scoped stream mapping when available
-        let mut scoped_streams = self.scoped_streams.lock();
-        if let Some(stream_id) = scoped_streams.get(&key) {
+        // reuse an existing stream mapping when available
+        let mut worker_streams = self.worker_streams.lock();
+        if let Some(stream_id) = worker_streams.get(&key) {
             return *stream_id;
         }
 
-        // allocate and cache a stable scoped stream id
+        // allocate and cache a stable worker stream id
         let stream_id = self.new_stream_id();
-        scoped_streams.insert(key, stream_id);
+        worker_streams.insert(key, stream_id);
 
         stream_id
     }
@@ -294,7 +286,7 @@ impl VirtualRandom {
         Vec<u8>,
         u64,
         std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
-        std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
+        std::collections::BTreeMap<WorkerRandomStreamKey, RandomStreamId>,
     ) {
         // capture default stream state
         let default_stream = self.export_stream_state_bytes(RandomStreamId::DEFAULT);
@@ -308,9 +300,9 @@ impl VirtualRandom {
         }
         drop(locked_streams);
 
-        // capture scoped stream bindings in stable order
-        let scoped_streams = self
-            .scoped_streams
+        // capture worker stream bindings in stable order
+        let worker_streams = self
+            .worker_streams
             .lock()
             .iter()
             .map(|(key, stream_id)| (*key, *stream_id))
@@ -321,7 +313,7 @@ impl VirtualRandom {
             default_stream,
             self.next_stream_id.load(Ordering::Relaxed),
             streams,
-            scoped_streams,
+            worker_streams,
         )
     }
 
@@ -332,13 +324,13 @@ impl VirtualRandom {
         default_stream: &[u8],
         next_stream_id: u64,
         streams: &std::collections::BTreeMap<RandomStreamId, Vec<u8>>,
-        scoped_streams: &std::collections::BTreeMap<ScopedRandomStreamKey, RandomStreamId>,
+        worker_streams: &std::collections::BTreeMap<WorkerRandomStreamKey, RandomStreamId>,
     ) -> Result<(), StreamStateDecodeError> {
         // reset deterministic state
         self.state.store(root_seed, Ordering::Relaxed);
         self.next_stream_id.store(next_stream_id, Ordering::Relaxed);
         self.streams.lock().clear();
-        self.scoped_streams.lock().clear();
+        self.worker_streams.lock().clear();
 
         // restore default stream state
         self.import_stream_state_bytes(RandomStreamId::DEFAULT, default_stream)?;
@@ -348,10 +340,10 @@ impl VirtualRandom {
             self.import_stream_state_bytes(*stream_id, bytes)?;
         }
 
-        // restore scoped stream bindings
-        let mut locked_scoped_streams = self.scoped_streams.lock();
-        for (key, stream_id) in scoped_streams {
-            locked_scoped_streams.insert(*key, *stream_id);
+        // restore worker stream bindings
+        let mut locked_worker_streams = self.worker_streams.lock();
+        for (key, stream_id) in worker_streams {
+            locked_worker_streams.insert(*key, *stream_id);
         }
 
         Ok(())

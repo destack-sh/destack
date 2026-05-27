@@ -24,8 +24,8 @@ impl World {
         let environment = environment.into();
         let mode = self.state.trace.mode();
         let history = self.history.read();
-        let allocator = history.allocator();
-        let collector = history.collector();
+        let allocator = history.allocator.clone();
+        let collector = history.collector.clone();
         drop(history);
         let world = &mut self.state;
         let mut runtime = Runtime::from_options_in_world(
@@ -38,7 +38,7 @@ impl World {
         )?;
         let runtime_id = runtime.runtime_id();
 
-        // fast and deterministic modes do not need one structural spawn image
+        // fast and strict modes do not need one structural spawn image
         let replay_image = if mode == ExecutionMode::Record {
             Some(runtime.capture_image(CaptureMode::Suspend)?)
         } else {
@@ -277,8 +277,8 @@ impl World {
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
             .collect();
         let history = self.history.read();
-        let allocator = history.allocator();
-        let collector = history.collector();
+        let allocator = history.allocator.clone();
+        let collector = history.collector.clone();
         drop(history);
 
         let runtime = Runtime::from_image(
@@ -319,7 +319,8 @@ impl World {
                 }
                 .boxed()
             })?
-            .environment();
+            .environment
+            .clone();
 
         let world = &mut self.state;
         world.register_worker_topology(runtime_id, worker_id, worker_entity)?;

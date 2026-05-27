@@ -33,10 +33,10 @@ export enum Engine {
 
 /// Execution selection for one world.
 export enum Execution {
-    /// Fast execution with minimal deterministic constraints.
-    Fast = 1,
-    /// Deterministic execution without external replay recording.
-    Deterministic = 2,
+    /// Strict execution through runtime-owned facts and effect boundaries.
+    Strict = 1,
+    /// Fast execution with minimal runtime mediation.
+    Fast = 2,
     /// Record execution for later replay.
     Record = 3,
     /// Replay one previously recorded trace.

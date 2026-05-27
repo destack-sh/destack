@@ -154,9 +154,6 @@ impl Trace {
 
     /// Return the active execution mode.
     pub fn mode(&self) -> ExecutionMode {
-        if !cfg!(feature = "replay") {
-            return ExecutionMode::Fast;
-        }
         self.mode
     }
 
@@ -470,8 +467,8 @@ impl Trace {
     /// Resolve one requested virtual-time advance under the active replay mode.
     pub fn resolve_time_advance(&self, requested_deadline: Instant) -> RuntimeResult<Instant> {
         match self.mode() {
-            // fast, deterministic, and record use the requested deadline
-            ExecutionMode::Fast | ExecutionMode::Deterministic | ExecutionMode::Record => {
+            // fast, strict, and record use the requested deadline
+            ExecutionMode::Fast | ExecutionMode::Strict | ExecutionMode::Record => {
                 Ok(requested_deadline)
             }
 
@@ -514,8 +511,8 @@ impl Trace {
 
                 Ok(replayed_mutation)
             }
-            // deterministic and record modes keep local mutation behavior
-            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_mutation),
+            // strict and record modes keep local mutation behavior
+            ExecutionMode::Strict | ExecutionMode::Record => Ok(requested_mutation),
         }
     }
 
@@ -544,7 +541,7 @@ impl Trace {
 
                 Ok(replayed_invocation)
             }
-            ExecutionMode::Deterministic | ExecutionMode::Record => Ok(requested_invocation),
+            ExecutionMode::Strict | ExecutionMode::Record => Ok(requested_invocation),
         }
     }
 
@@ -649,8 +646,8 @@ impl Trace {
                 let payload = self.read_binding_payload(spec)?;
                 decode(context, payload)
             }
-            // deterministic mode validates payload policy, then runs without recording
-            ExecutionMode::Deterministic => {
+            // strict mode validates payload policy, then runs without recording
+            ExecutionMode::Strict => {
                 self.payload_policy_for_requested(spec, requested_payload)?;
                 call(context)
             }

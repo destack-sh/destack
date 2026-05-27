@@ -2,12 +2,67 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+/// Runtime host-poller configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(default)]
+#[serde(rename_all = "camelCase")]
+pub struct HostPollerOptions {
+    /// Host poller backend selection.
+    pub backend: PollerBackend,
+}
+
+/// Host poller backend selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum PollerBackend {
+    /// Choose the best available backend for the platform.
+    #[default]
+    Auto,
+    /// Use io_uring on Linux.
+    IoUring,
+    /// Use epoll on Linux.
+    Epoll,
+    /// Use kqueue on BSD and macOS.
+    Kqueue,
+    /// Use poll on Unix.
+    Poll,
+    /// Use the Windows readiness backend.
+    Windows,
+}
+
+impl std::str::FromStr for PollerBackend {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().replace('-', "_").as_str() {
+            "auto" => Ok(Self::Auto),
+            "io_uring" | "uring" => Ok(Self::IoUring),
+            "epoll" => Ok(Self::Epoll),
+            "kqueue" => Ok(Self::Kqueue),
+            "poll" => Ok(Self::Poll),
+            "windows" => Ok(Self::Windows),
+            _ => Err(()),
+        }
+    }
+}
+
+impl PollerBackend {
+    /// Parse a poller backend from a string.
+    pub fn parse(value: &str) -> Option<Self> {
+        value.parse().ok()
+    }
+}
+
 /// Runtime host module defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct HostOptions {
+    /// Host poller defaults.
+    pub poller: HostPollerOptions,
     /// Filesystem host defaults.
     pub fs: HostFsOptions,
     /// Network host defaults.
@@ -26,38 +81,6 @@ pub struct HostOptions {
     pub tls: HostTlsOptions,
     /// OS host defaults.
     pub os: HostOsOptions,
-    /// Crypto host defaults.
-    pub crypto: HostCryptoOptions,
-}
-
-/// Crypto host defaults.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
-#[serde(rename_all = "camelCase")]
-pub struct HostCryptoOptions {
-    /// Host key store path overrides.
-    pub key_store_paths: HostCryptoStorePaths,
-    /// Override list for Unix system certificate bundle files.
-    pub system_certificate_files: Vec<PathBuf>,
-    /// Override list for Unix system certificate directories.
-    pub system_certificate_directories: Vec<PathBuf>,
-    /// Optional macOS Keychain service for snapshot keys.
-    pub macos_keychain_snapshot_service: Option<String>,
-    /// Optional macOS Keychain account for snapshot keys.
-    pub macos_keychain_snapshot_account: Option<String>,
-}
-
-/// Host key store path overrides.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
-#[serde(rename_all = "camelCase")]
-pub struct HostCryptoStorePaths {
-    /// Override path for the user store.
-    pub user: Option<PathBuf>,
-    /// Override path for the machine store.
-    pub machine: Option<PathBuf>,
 }
 
 /// Filesystem host defaults.
@@ -112,22 +135,6 @@ pub struct HostAudioOptions {
     pub output_device: Option<String>,
     /// Optional preferred input device identifier.
     pub input_device: Option<String>,
-    /// Optional target latency in frames.
-    pub target_latency_frames: Option<u32>,
-    /// Optional target period size in frames.
-    pub target_period_frames: Option<u32>,
-    /// Optional default event queue capacity.
-    pub event_queue_capacity: Option<u64>,
-    /// Optional default event polling interval in nanoseconds.
-    pub default_event_poll_interval_ns: Option<u64>,
-    /// Optional event monitor polling interval in nanoseconds.
-    pub event_monitor_poll_interval_ns: Option<u64>,
-    /// Optional maximum bytes per stream read.
-    pub max_stream_read_bytes: Option<u64>,
-    /// Optional maximum queued stream frames.
-    pub max_queued_frames: Option<u64>,
-    /// Optional worker polling interval in nanoseconds.
-    pub worker_poll_interval_ns: Option<u64>,
 }
 
 /// Display host defaults.
@@ -136,8 +143,8 @@ pub struct HostAudioOptions {
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct HostDisplayOptions {
-    /// Optional default event queue capacity.
-    pub event_queue_capacity: Option<u64>,
+    /// Optional preferred display backend name.
+    pub backend: Option<String>,
 }
 
 /// Input host defaults.
@@ -170,8 +177,10 @@ pub struct HostGpuOptions {
 pub struct HostTlsOptions {
     /// Optional trust store path override.
     pub trust_store_path: Option<PathBuf>,
-    /// Optional client certificate store identifier.
-    pub client_certificate_store: Option<String>,
+    /// Override list for Unix system certificate bundle files.
+    pub system_certificate_files: Vec<PathBuf>,
+    /// Override list for Unix system certificate directories.
+    pub system_certificate_directories: Vec<PathBuf>,
 }
 
 /// OS host defaults.

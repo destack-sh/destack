@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
 use crate::host::resource::ResourceRebinders;
+use crate::runtime::random::RandomSource;
+use crate::runtime::time::ClockSource;
 use crate::world::history::{
     CheckpointId, History, HistorySnapshot, ImageId, Revision, RevisionId,
 };
-use destack_workspace::{
-    ClockSource, ExecutionMode, RandomSource, ReplayPayloadMode, RuntimeOptions, SchedulerMode,
-};
+use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 use postcard::to_allocvec;
 
 use super::{World, WorldImage};
@@ -93,8 +93,6 @@ impl WorldSnapshot {
 pub struct SnapshotOptions {
     /// Execution mode for the rebuilt world.
     pub execution: ExecutionMode,
-    /// Scheduler mode for the rebuilt world.
-    pub scheduler_mode: SchedulerMode,
     /// Effective world clock source.
     pub clock_source: ClockSource,
     /// Effective world random source.
@@ -121,7 +119,6 @@ impl World {
 
         SnapshotOptions {
             execution: self.state.trace.mode(),
-            scheduler_mode: self.history.read().collector().mode().to_scheduler_mode(),
             clock_source: self.state.clock.source(),
             random_source: self.state.random.source(),
             replay_payload,
@@ -133,10 +130,7 @@ impl World {
     fn runtime_options_from_snapshot(snapshot: &WorldSnapshot) -> RuntimeOptions {
         let mut options = RuntimeOptions::default();
 
-        options.set_execution_mode(snapshot.options.execution);
-        options.set_clock_source(snapshot.options.clock_source);
-        options.set_random_source(snapshot.options.random_source);
-        options.scheduler.mode = snapshot.options.scheduler_mode;
+        options.execution.mode = snapshot.options.execution;
         options.trace.chunk_size_mb = snapshot.options.replay_chunk_size_mb;
         options.trace.payload = snapshot.options.replay_payload;
 
@@ -377,7 +371,7 @@ impl World {
             .boxed());
         }
 
-        let collector = self.history.read().collector();
+        let collector = self.history.read().collector.clone();
         *self.history.write() = History::from_snapshot(snapshot.history.clone(), collector)?;
         let (image, trace_image) = {
             let (_, image, trace_image) = self.revision_data(snapshot.revision_id)?;
