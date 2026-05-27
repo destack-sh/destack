@@ -82,7 +82,9 @@ impl Runtime {
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
-        let shared = SharedHeap::new(allocator, collector, options)?;
+        let engine = engine.into();
+        let trace_table = engine.trace_table()?;
+        let shared = SharedHeap::new(allocator, collector, options, trace_table)?;
         let statics = engine::StaticSpace::empty();
         let default_worker = Worker::new_in_world(
             environment.clone(),
@@ -645,8 +647,21 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
         let environment = image.environment.clone();
-        let shared =
-            SharedHeap::from_snapshot(&image.shared_heap, &image.options, allocator, collector)?;
+        let Some((_, first_worker_image)) = worker_images.first_key_value() else {
+            return Err(RuntimeError::Internal {
+                message: "runtime image has no workers".to_string(),
+            }
+            .boxed());
+        };
+        let first_engine = Engine::from_image(&first_worker_image.engine_image)?;
+        let trace_table = first_engine.trace_table()?;
+        let shared = SharedHeap::from_snapshot(
+            &image.shared_heap,
+            &image.options,
+            allocator,
+            collector,
+            trace_table,
+        )?;
         let statics = image.statics.clone();
         let mut workers = BTreeMap::new();
 
@@ -727,7 +742,7 @@ mod tests {
     use crate::world::World;
     use destack_engine as engine;
     use destack_heap::{AllocationShape, Payload};
-    use destack_mir::TraceMap;
+    use destack_mir::{TraceMap, TraceTable};
     use destack_workspace::{Environment, RuntimeOptions};
 
     /// Allocate one shared byte payload for runtime tests.
@@ -736,12 +751,18 @@ mod tests {
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
-        let shape = AllocationShape::new(bytes.len(), 1, &trace_map);
+        let shape = AllocationShape::new(bytes.len(), 1, None, &trace_map);
         let layout = heap.allocation_plan(shape);
         let mut allocator = heap.allocation_cache();
         let worker = heap.register_collector_worker();
 
-        heap.allocate(&worker, &mut allocator, &layout, Payload::Bytes(bytes))
+        heap.allocate(
+            &worker,
+            &mut allocator,
+            &layout,
+            Payload::Bytes(bytes),
+            &TraceTable::new(),
+        )
     }
 
     /// Build runtime-owned shared heap state for one test world.
@@ -752,6 +773,7 @@ mod tests {
             history.allocator.clone(),
             history.collector.clone(),
             options,
+            Arc::new(TraceTable::new()),
         )
         .expect("runtime shared heap should construct")
     }

@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use destack_engine as engine;
 use destack_heap as heap;
+use destack_mir as mir;
 use destack_native as native;
 use destack_vm as vm;
 
@@ -15,6 +18,14 @@ pub enum Engine {
 }
 
 impl Engine {
+    /// Return the program trace table used by heap metadata.
+    pub fn trace_table(&self) -> RuntimeResult<Arc<mir::TraceTable>> {
+        match self {
+            Self::Vm(engine) => Ok(engine.trace_table()),
+            Self::Native(engine) => Ok(engine.program().trace_table()),
+        }
+    }
+
     /// Initialize worker-owned static bytes.
     pub fn initialize(&mut self, context: MemoryContext<'_>) -> RuntimeResult<()> {
         match self {

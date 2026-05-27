@@ -3,6 +3,7 @@ use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
 use destack_heap::{SharedGcPhase, SharedHeap};
+use destack_mir as mir;
 use destack_workspace::ExecutionMode;
 use parking_lot::{Condvar, Mutex};
 
@@ -25,6 +26,8 @@ pub struct SharedCollection {
     heap: Arc<SharedHeap>,
     /// Shared roots consumed by mark steps.
     roots: Arc<SharedRootSet>,
+    /// Program trace table used by shared heap metadata.
+    trace: Arc<mir::TraceTable>,
     /// Collection state changed by world and collector threads.
     state: Mutex<SharedCollectionState>,
     /// Wake quiescence waiters when pending collection work drains.
@@ -143,10 +146,15 @@ impl SharedCollector {
 
 impl SharedCollection {
     /// Create one runtime-owned shared collection state.
-    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<SharedRootSet>) -> Arc<Self> {
+    pub(crate) fn new(
+        heap: Arc<SharedHeap>,
+        roots: Arc<SharedRootSet>,
+        trace_table: Arc<mir::TraceTable>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             heap,
             roots,
+            trace: trace_table,
             state: Mutex::new(SharedCollectionState::default()),
             quiesce: Condvar::new(),
             failure: Mutex::new(None),
@@ -272,7 +280,12 @@ impl SharedCollection {
         let budget_bytes = self.heap.take_collection_budget_bytes(1);
         let progress = self
             .heap
-            .collect_step(roots.as_ref(), roots_complete, budget_bytes)
+            .collect_step(
+                roots.as_ref(),
+                roots_complete,
+                budget_bytes,
+                self.trace.as_ref(),
+            )
             .map_err(Box::<RuntimeError>::from)?;
 
         if self.heap.gc_phase() != SharedGcPhase::Mark || roots_complete {

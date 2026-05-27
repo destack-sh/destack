@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry as HashEntry;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 
 use destack_engine::{ProgramLayout, StaticSpace};
+use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
 use crate::{EntryId, EntrySymbol, Text};
@@ -17,6 +19,8 @@ pub struct Object {
     pub static_space: StaticSpace,
     /// Runtime layout tables for this program.
     pub layout: ProgramLayout,
+    /// Heap trace table for managed allocation metadata.
+    pub trace_table: Arc<mir::TraceTable>,
     /// The entries by id.
     entries: Vec<EntrySymbol>,
     /// Entry id by runtime entry name.
@@ -29,6 +33,7 @@ impl Object {
         text: Text,
         static_space: StaticSpace,
         layout: ProgramLayout,
+        trace_table: Arc<mir::TraceTable>,
         entries: Vec<EntrySymbol>,
     ) -> Result<Self, ObjectError> {
         let mut entry_by_name = HashMap::new();
@@ -59,6 +64,7 @@ impl Object {
             text,
             static_space,
             layout,
+            trace_table,
             entries,
             entry_by_name,
         })

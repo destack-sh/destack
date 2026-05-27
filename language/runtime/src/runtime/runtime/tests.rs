@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use destack_engine as engine;
+use destack_mir::TraceTable;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 use destack_vm as vm;
@@ -531,6 +532,7 @@ pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Sh
         history.allocator.clone(),
         history.collector.clone(),
         options,
+        Arc::new(TraceTable::new()),
     )
     .expect("runtime shared heap should build")
 }

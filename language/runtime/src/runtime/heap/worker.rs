@@ -101,7 +101,12 @@ impl Runtime {
         let progress = self
             .shared
             .heap
-            .collect_step(roots.as_ref(), roots_complete, budget_bytes)
+            .collect_step(
+                roots.as_ref(),
+                roots_complete,
+                budget_bytes,
+                self.shared.trace_table(),
+            )
             .map_err(Box::<RuntimeError>::from)?;
         let is_active = self.shared.heap.gc_phase() != SharedGcPhase::Idle;
         let after_cycles = self.shared.heap.gc_state().completed_cycles;
