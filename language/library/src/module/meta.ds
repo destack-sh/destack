@@ -23,6 +23,9 @@ export type Platform =
 /// The semantic runtime contract for the build.
 export type Runtime = "destack" | "js";
 
+/// The package release stage.
+export type Stage = "experimental" | "alpha" | "beta" | "stable";
+
 /// The target host environment that provides imports and ambient effects.
 export type Host = "unknown" | "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
@@ -80,6 +83,10 @@ export interface ImportMeta {
     readonly targetName: string | undefined;
     /// Active deliverable product name.
     readonly product: string | undefined;
+    /// Active package version.
+    readonly version: string | undefined;
+    /// Active package release stage.
+    readonly stage: Stage | undefined;
     /// Tree tag builder declared by the current module.
     readonly tree: TreeTagBuilder | undefined;
     /// Auto-derive providers declared by the current module.

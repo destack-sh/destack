@@ -23,6 +23,8 @@ pub struct ConditionSet {
     pub target: Option<String>,
     /// Active product.
     pub product: Option<String>,
+    /// Active package release stage.
+    pub stage: Option<String>,
     /// Active target platform.
     pub platform: Option<Platform>,
     /// Active host environment.
@@ -40,6 +42,7 @@ impl Hash for ConditionSet {
         hash_condition_names(&self.tags, state);
         self.target.hash(state);
         self.product.hash(state);
+        self.stage.hash(state);
         self.platform.hash(state);
         self.host.hash(state);
         self.runtime.hash(state);
@@ -65,6 +68,11 @@ impl ConditionSet {
     /// Return whether this set contains one tag.
     pub fn contains_tag(&self, name: &str) -> bool {
         self.tags.contains(name)
+    }
+
+    /// Return whether this set has one stage.
+    pub fn contains_stage(&self, name: &str) -> bool {
+        self.stage.as_deref() == Some(name)
     }
 }
 

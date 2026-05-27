@@ -2674,10 +2674,12 @@ Like many JS/TS-adjacent runtimes, Destack supports importing additional file ty
 ### Conditions
 
 Conditions generalise the idea behind `module.tests.ds` and `[cfg(attr)]`-style feature gating into a flexible "condition system" for, well, conditionally including sources and parts of sources into some builds (but not others).
-We recognize `conditions` of `mode`, `feature`, `role`, and a general `tag`, in addition to all the usual target gates (e.g. `host`, `runtime`, `target`, `platform`):
+We recognize `conditions` of `mode`, `feature`, `role`, `stage`, and a general `tag`, in addition to all the usual target gates (e.g. `host`, `runtime`, `target`, `platform`):
 
 ```json:destack.json
 {
+    "version": "2026.5.27-alpha.1",
+    "stage": "alpha",
     "conditions": {
         "modes": {
             "test": {},
@@ -2694,15 +2696,33 @@ We recognize `conditions` of `mode`, `feature`, `role`, and a general `tag`, in 
             "client": {}
         },
         "aliases": {
+            "alpha": { "stage": "alpha" },
             "browser": { "host": "browser" }
         }
     },
     "compiler": {
-        "modes": ["preview"]
+        "modes": ["preview"],
+        "features": ["rendererv2"]
+    },
+    "products": {
+        "cli": {
+            "stage": "stable",
+            "targets": {
+                "main": "native"
+            }
+        }
+    },
+    "targets": {
+        "native": {
+            "stage": "stable",
+            "emit": "native"
+        }
     }
 }
 ```
 
+The active stage is scalar.
+Profiles, products, and targets may override the release stage for the resolved profile.
 
 The active conditions are available within code via `import.meta.<condition>` (like `import.meta.roles`) as usual for in-code dynamic gating:
 
@@ -2774,6 +2794,8 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
 | `import.meta.targetName` | active build target name | `string | undefined` | `"web"`, `"native"` |
 | `import.meta.product` | active deliverable product name | `Product | undefined` | `"app"`, `"server"` |
+| `import.meta.version` | active package version | `string | undefined` | `"2026.5.27-alpha.1"` |
+| `import.meta.stage` | active package release stage | `Stage | undefined` | `"alpha"`, `"stable"` |
 | `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
 | `import.meta.modes` | active source graph modes | `readonly Mode[]` | `["test"]`, `["dev", "lint"]` |
 | `import.meta.roles` | active source graph roles | `readonly Role[]` | `["server"]`, `["client"]` |

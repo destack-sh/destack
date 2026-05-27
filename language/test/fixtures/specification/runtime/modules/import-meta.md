@@ -64,6 +64,10 @@ const arch: string | undefined = import.meta.target.arch;
 ```ds
 const targetName: string | undefined = import.meta.targetName;
 const product: string | undefined = import.meta.product;
+const version: string | undefined = import.meta.version;
+
+const stage = import.meta.stage;
+stage satisfies "experimental" | "alpha" | "beta" | "stable" | undefined;
 
 const host = import.meta.host;
 host satisfies "unknown" | "native" | "browser" | "wasi" | "emscripten" | "freestanding";
