@@ -4,7 +4,7 @@ import { isProductionStage } from "./stage";
 
 export const canonicalDomain = "destack.sh";
 
-const redirectDomains = [
+export const redirectDomains = [
     "destack.app",
     "destack.blog",
     "destack.cloud",
@@ -18,6 +18,19 @@ const redirectDomains = [
     "destack.tech",
 ];
 
+export const redirectHosts = [
+    "www.destack.sh",
+    ...redirectDomains.flatMap((domain) => [domain, `www.${domain}`]),
+];
+
+export function zoneDomain(host: string) {
+    if (host.startsWith("www.")) {
+        return host.slice("www.".length);
+    }
+
+    return host;
+}
+
 export function siteDomain(stage: string) {
     if (!isProductionStage(stage)) {
         return undefined;
@@ -26,6 +39,5 @@ export function siteDomain(stage: string) {
     return {
         name: canonicalDomain,
         dns: sst.cloudflare.dns(),
-        redirects: ["www.destack.sh", ...redirectDomains.flatMap((domain) => [domain, `www.${domain}`])],
     };
 }
