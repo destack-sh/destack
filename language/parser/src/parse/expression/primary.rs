@@ -526,8 +526,11 @@ impl Parser {
         keyword: Keyword,
         header: DeclarationHeader,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        // preserve decorator member paths
-        let is_decorator_identifier = self.flags.is_in_decorator()
+        // preserve keyword decorator names
+        let is_value_keyword = matches!(keyword, Keyword::This | Keyword::Super)
+            || (keyword == Keyword::Import && self.next_token_type() == TokenType::Dot);
+        let is_decorator_identifier = self.flags.is_in_decorator_head()
+            && !is_value_keyword
             && !matches!(
                 keyword,
                 Keyword::Function

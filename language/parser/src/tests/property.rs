@@ -976,6 +976,101 @@ fn test_parse_decorated_computed_class_field() {
 }
 
 #[test]
+fn test_parse_member_decorator_argument_this_member_expression() {
+    let mut test = TestParser::new(
+        r#"class Segment {
+  @if(this.Width == 4)
+  narrow: string
+}"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
+            assert_eq!(members.len(), 1);
+
+            let decorators = parser.tree.get_decorators(members[0].id);
+            assert_eq!(decorators.len(), 1);
+            assert_node!(parser.tree, decorators[0], destack_dir::Decorator { expression, .. } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
+                    assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                        assert_string!(parser, *name, "if");
+                    });
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Binary { left, operator, .. } => {
+                            assert_eq!(*operator, BinaryOperator::Equal);
+                            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                                assert_string!(parser, *name.as_ref().expect("expected member name"), "Width");
+                                assert_node!(parser.tree, *left, Expression::This);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_member_decorator_argument_import_meta_expression() {
+    let mut test = TestParser::new(
+        r#"class Segment {
+  @if(import.meta.roles.includes("server"))
+  narrow: string
+}"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert!(
+        parser.errors.is_empty(),
+        "unexpected parser errors: {:?}",
+        parser.errors
+    );
+    assert_eq!(expressions.len(), 1);
+
+    let expression_id = parser.unwrap_label_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
+            assert_eq!(members.len(), 1);
+
+            let decorators = parser.tree.get_decorators(members[0].id);
+            assert_eq!(decorators.len(), 1);
+            assert_node!(parser.tree, decorators[0], destack_dir::Decorator { expression, .. } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
+                    assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                        assert_string!(parser, *name, "if");
+                    });
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::Call { left, arguments, .. } => {
+                            assert_eq!(arguments.len(), 1);
+                            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                                assert_string!(parser, *name.as_ref().expect("expected member name"), "includes");
+                                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                                    assert_string!(parser, *name.as_ref().expect("expected member name"), "roles");
+                                    assert_node!(parser.tree, *left, Expression::ImportMeta);
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_member_type_with_value() {
     let mut test = TestParser::new("type Item = string");
     let mut parser = test.prepare();

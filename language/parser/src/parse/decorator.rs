@@ -60,7 +60,8 @@ impl Parser {
             .flags
             .not_in_position()
             .not_in_sequence_expression()
-            .in_decorator();
+            .in_decorator()
+            .in_decorator_head();
         decorator_flags.set_in_type(false);
         decorator_flags.set_in_static(false);
         decorator_flags.set_in_super_type(false);
