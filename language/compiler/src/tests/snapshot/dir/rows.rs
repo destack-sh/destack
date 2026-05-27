@@ -7,6 +7,8 @@ pub(crate) struct DirRows {
     pub(super) binding_nodes: bool,
     /// Whether to render type table rows.
     pub(super) types: bool,
+    /// Whether to render expression node type rows.
+    pub(super) type_nodes: bool,
     /// Whether to render identifier type rows.
     pub(super) type_references: bool,
     /// Whether to render static table rows.
@@ -45,6 +47,7 @@ impl DirRows {
             binding: false,
             binding_nodes: false,
             types: false,
+            type_nodes: false,
             type_references: false,
             statics: false,
             resolution: false,
@@ -106,12 +109,12 @@ impl DirRows {
     pub(crate) const fn checked() -> Self {
         Self {
             types: true,
-            type_references: true,
+            type_nodes: false,
+            type_references: false,
             resolution: true,
             instance: true,
             relation: true,
             extension: true,
-            capture: true,
             ..Self::none()
         }
     }
@@ -126,6 +129,20 @@ impl DirRows {
     /// Include static table rows.
     pub(crate) const fn with_statics(mut self) -> Self {
         self.statics = true;
+        self
+    }
+
+    /// Include expression node type rows.
+    pub(crate) const fn with_node_types(mut self) -> Self {
+        self.types = true;
+        self.type_nodes = true;
+        self
+    }
+
+    /// Include identifier expression type rows.
+    pub(crate) const fn with_reference_types(mut self) -> Self {
+        self.type_nodes = true;
+        self.type_references = true;
         self
     }
 
@@ -150,6 +167,12 @@ impl DirRows {
     /// Include coercion table rows.
     pub(crate) const fn with_coercion(mut self) -> Self {
         self.coercion = true;
+        self
+    }
+
+    /// Include capture table rows.
+    pub(crate) const fn with_capture(mut self) -> Self {
+        self.capture = true;
         self
     }
 

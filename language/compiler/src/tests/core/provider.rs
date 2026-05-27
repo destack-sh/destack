@@ -437,7 +437,7 @@ impl ProviderContext for TestProviderContext<'_> {
     }
 
     /// Add an already-final diagnostic collection produced by this attempt.
-    fn emit_collection(&self, diagnostics: DiagnosticCollection) {
+    fn emit_diagnostics(&self, diagnostics: DiagnosticCollection) {
         self.diagnostics.borrow_mut().merge_from(&diagnostics);
     }
 
