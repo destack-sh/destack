@@ -15,9 +15,9 @@ export function Hero() {
                     <span class="underline underline-offset-2 decoration-2">destack</span> is a <span>fully integrated stack</span> for building <span class="">correct</span>, <span class="">optimal</span>, <span class="">integrated</span> software with a <span class="underline underline-offset-2 decoration-2">single-binary TypeScript++ toolchain</span>, VM, AOT compiler, and <span class="">deep</span> code analysis.
                 </p>
                 <ul class="mt-3 flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-sm font-extrabold lowercase">
-                    <Claim>deeply understand your systems</Claim>
-                    <Claim>ship better software faster</Claim>
-                    <Claim>sleep well at night</Claim>
+                    <Claim>understand your systems deeply</Claim>
+                    <Claim>ship well and proudly</Claim>
+                    <Claim>sleep well all night</Claim>
                 </ul>
             </section>
 
