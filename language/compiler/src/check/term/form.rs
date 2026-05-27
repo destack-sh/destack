@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckComponentState, Decision, GenericSubstitution, Progress, StaticRelation, StaticTerm,
-    VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, StaticRelation, StaticTerm, VariableId,
 };
 
 /// Check-local memory form term.
@@ -68,7 +67,7 @@ impl FormTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let form = match self {
             Self::Borrowed { lifetime, access } => Self::Borrowed {
@@ -85,7 +84,7 @@ impl FormTerm {
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Decide exact memory form equality.
     pub(in crate::check) fn decide_form_equal(
         &self,
@@ -175,8 +174,8 @@ impl CheckComponentState<'_> {
         }
     }
 
-    /// Relate two memory forms by equality.
-    pub(in crate::check) fn relate_form_equal(
+    /// Constrain two memory forms by equality.
+    pub(in crate::check) fn constrain_form_equal(
         &mut self,
         left: &FormTerm,
         right: &FormTerm,
@@ -192,13 +191,13 @@ impl CheckComponentState<'_> {
                     access: right_access,
                 },
             ) => {
-                let lifetime = self.relate_static_equal(*left_lifetime, *right_lifetime)?;
-                let access = self.relate_static_equal(*left_access, *right_access)?;
+                let lifetime = self.solve_static_equality(*left_lifetime, *right_lifetime)?;
+                let access = self.solve_static_equality(*left_access, *right_access)?;
 
                 lifetime.merge(access)
             }
             (FormTerm::Placed { place: left }, FormTerm::Placed { place: right }) => {
-                self.relate_static_equal(*left, *right)?
+                self.solve_static_equality(*left, *right)?
             }
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
@@ -210,15 +209,15 @@ impl CheckComponentState<'_> {
         Ok(progress)
     }
 
-    /// Relate two memory forms by assignability.
-    pub(in crate::check) fn relate_form_assignable(
+    /// Constrain two memory forms by assignability.
+    pub(in crate::check) fn constrain_form_assignable(
         &mut self,
         source: &FormTerm,
         target: &FormTerm,
     ) -> CompilerResult<Progress> {
         let progress = match (source, target) {
             (FormTerm::Placed { place: source }, FormTerm::Placed { place: target }) => {
-                self.relate_static_equal(*source, *target)?
+                self.solve_static_equality(*source, *target)?
             }
             (FormTerm::Borrowed { .. }, FormTerm::Borrowed { .. })
             | (FormTerm::Managed, FormTerm::Managed)
@@ -231,8 +230,8 @@ impl CheckComponentState<'_> {
         Ok(progress)
     }
 
-    /// Apply expected form fields to one form term.
-    pub(in crate::check) fn expect_form(
+    /// Expect one form term to satisfy expected form fields.
+    pub(in crate::check) fn expect_form_term(
         &mut self,
         form: &FormTerm,
         target: &FormTerm,
@@ -245,8 +244,8 @@ impl CheckComponentState<'_> {
                     access: target_access,
                 },
             ) => {
-                let lifetime = self.relate_static_equal(*lifetime, *target_lifetime)?;
-                let access = self.relate_static_equal(*access, *target_access)?;
+                let lifetime = self.solve_static_equality(*lifetime, *target_lifetime)?;
+                let access = self.solve_static_equality(*access, *target_access)?;
 
                 lifetime.merge(access)
             }
@@ -255,7 +254,7 @@ impl CheckComponentState<'_> {
                 FormTerm::Placed {
                     place: target_place,
                 },
-            ) => self.relate_static_equal(*place, *target_place)?,
+            ) => self.solve_static_equality(*place, *target_place)?,
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)

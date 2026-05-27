@@ -2,79 +2,86 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{ArgumentTerm, CheckComponentState, FormTerm, StaticTerm, TypeTerm, VariableId};
+use crate::check::{
+    ArgumentTerm, CheckState, ConstraintOrigin, FormTerm, StaticTerm, TermId, TypeTerm, VariableId,
+};
 
-impl CheckComponentState<'_> {
-    pub(in crate::check) fn reduce_memory_type(
+impl CheckState<'_> {
+    pub(in crate::check) fn reduce_memory_term(
         &mut self,
         module: ModuleId,
         item: dir::LanguageItem,
-        arguments: &[ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(target) = Self::type_argument(arguments, 0) else {
+        let Some(target) = self.generic_argument_type_variable(arguments, 0) else {
             return Ok(None);
         };
+        let origin = self.variable_origin(target)?;
         let Some(term) = (match item {
             dir::LanguageItem::PayloadOf => self.memory_payload_type(target)?,
             dir::LanguageItem::BaseOf => self.memory_base_type(module, target)?,
             dir::LanguageItem::WithBase => {
-                let Some(base) = Self::type_argument(arguments, 1) else {
+                let Some(base) = self.generic_argument_type_variable(arguments, 1) else {
                     return Ok(None);
                 };
 
-                self.memory_with_base_type(module, target, base)?
+                self.memory_with_base_type(module, origin, target, base)?
             }
             dir::LanguageItem::WithPlace => {
-                let Some(place) = Self::static_argument(arguments, 1) else {
+                let Some(place) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
                 let Some(place) = self.place_value(place)? else {
                     return Ok(None);
                 };
-                let place = self
-                    .push_solved_static_value_variable(module, dir::StaticTerm::Place { place })?;
+                let place = self.solve_anonymous_static_value(
+                    module,
+                    origin,
+                    dir::StaticTerm::Place { place },
+                )?;
 
-                self.memory_with_place_type(module, target, place)?
+                self.memory_with_place_type(module, origin, target, place)?
             }
             dir::LanguageItem::WithSpace => {
-                let Some(space) = Self::static_argument(arguments, 1) else {
+                let Some(space) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
                 let Some(space) = self.space_value(space)? else {
                     return Ok(None);
                 };
-                let place = self.push_solved_static_value_variable(
+                let place = self.solve_anonymous_static_value(
                     module,
+                    origin,
                     dir::StaticTerm::Place {
                         place: dir::Place::Space(space),
                     },
                 )?;
 
-                self.memory_with_place_type(module, target, place)?
+                self.memory_with_place_type(module, origin, target, place)?
             }
             dir::LanguageItem::WithLifetime => {
-                let Some(lifetime) = Self::static_argument(arguments, 1) else {
+                let Some(lifetime) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
 
-                self.memory_with_lifetime_type(module, target, lifetime)?
+                self.memory_with_lifetime_type(module, origin, target, lifetime)?
             }
             dir::LanguageItem::WithAccess => {
-                let Some(access) = Self::static_argument(arguments, 1) else {
+                let Some(access) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
 
-                self.memory_with_access_type(module, target, access)?
+                self.memory_with_access_type(module, origin, target, access)?
             }
             dir::LanguageItem::WithOwnership => {
-                let Some(ownership) = Self::static_argument(arguments, 1) else {
+                let Some(ownership) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
-                let Some(lifetime) = Self::static_argument(arguments, 2) else {
+                let Some(lifetime) = self.generic_argument_static_variable(arguments, 2) else {
                     return Ok(None);
                 };
 
-                self.memory_with_ownership_type(module, target, ownership, lifetime)?
+                self.memory_with_ownership_type(module, origin, target, ownership, lifetime)?
             }
             _ => return Ok(None),
         }) else {
@@ -85,29 +92,25 @@ impl CheckComponentState<'_> {
     }
 
     /// Return one type argument.
-    pub(in crate::check) fn type_argument(
-        arguments: &[ArgumentTerm],
+    pub(in crate::check) fn generic_argument_type_variable(
+        &self,
+        arguments: &[TermId<ArgumentTerm>],
         index: usize,
     ) -> Option<VariableId> {
-        match arguments.get(index) {
-            Some(ArgumentTerm::Type(variable) | ArgumentTerm::SpreadType(variable)) => {
-                Some(*variable)
-            }
-            _ => None,
-        }
+        arguments
+            .get(index)
+            .and_then(|argument| self.argument_type_variable(*argument))
     }
 
     /// Return one static argument.
-    pub(in crate::check) fn static_argument(
-        arguments: &[ArgumentTerm],
+    pub(in crate::check) fn generic_argument_static_variable(
+        &self,
+        arguments: &[TermId<ArgumentTerm>],
         index: usize,
     ) -> Option<VariableId> {
-        match arguments.get(index) {
-            Some(ArgumentTerm::Static(variable) | ArgumentTerm::SpreadStatic(variable)) => {
-                Some(*variable)
-            }
-            _ => None,
-        }
+        arguments
+            .get(index)
+            .and_then(|argument| self.argument_static_variable(*argument))
     }
 
     /// Return the immediate payload under one memory form.
@@ -150,6 +153,7 @@ impl CheckComponentState<'_> {
     fn memory_with_base_type(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         target: VariableId,
         base: VariableId,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -158,10 +162,11 @@ impl CheckComponentState<'_> {
         };
         let term = match target {
             TypeTerm::Form { form, payload } => {
-                let Some(payload) = self.memory_with_base_type(module, payload, base)? else {
+                let Some(payload) = self.memory_with_base_type(module, origin, payload, base)?
+                else {
                     return Ok(None);
                 };
-                let payload = self.push_solved_type_variable(module, payload)?;
+                let payload = self.solve_anonymous_type(module, origin, payload)?;
 
                 TypeTerm::Form { form, payload }
             }
@@ -175,6 +180,7 @@ impl CheckComponentState<'_> {
     fn memory_with_ownership_type(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         target: VariableId,
         ownership: VariableId,
         lifetime: VariableId,
@@ -187,15 +193,18 @@ impl CheckComponentState<'_> {
         };
         let term = match target {
             TypeTerm::Form {
-                form: wrapper @ (FormTerm::Placed { .. } | FormTerm::Readonly),
+                form: wrapper,
                 payload,
-            } => {
+            } if matches!(
+                self.terms.get(wrapper),
+                FormTerm::Placed { .. } | FormTerm::Readonly
+            ) => {
                 let Some(payload) =
-                    self.memory_with_ownership_type(module, payload, ownership, lifetime)?
+                    self.memory_with_ownership_type(module, origin, payload, ownership, lifetime)?
                 else {
                     return Ok(None);
                 };
-                let payload = self.push_solved_type_variable(module, payload)?;
+                let payload = self.solve_anonymous_type(module, origin, payload)?;
 
                 TypeTerm::Form {
                     form: wrapper,
@@ -205,7 +214,7 @@ impl CheckComponentState<'_> {
             TypeTerm::Form { payload, .. } => TypeTerm::Form { form, payload },
             _ => TypeTerm::Form {
                 form,
-                payload: self.push_solved_type_variable(module, target)?,
+                payload: self.solve_anonymous_type(module, origin, target)?,
             },
         };
 
@@ -216,6 +225,7 @@ impl CheckComponentState<'_> {
     fn memory_with_place_type(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         target: VariableId,
         place: VariableId,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -223,23 +233,24 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let payload = match target {
-            TypeTerm::Form {
-                form: FormTerm::Placed { .. },
-                payload,
-            } => payload,
-            _ => self.push_solved_type_variable(module, target)?,
+            TypeTerm::Form { form, payload }
+                if matches!(self.terms.get(form), FormTerm::Placed { .. }) =>
+            {
+                payload
+            }
+            _ => self.solve_anonymous_type(module, origin, target)?,
         };
 
-        Ok(Some(TypeTerm::Form {
-            form: FormTerm::Placed { place },
-            payload,
-        }))
+        let form = self.terms.push(FormTerm::Placed { place });
+
+        Ok(Some(TypeTerm::Form { form, payload }))
     }
 
     /// Rewrite the borrow lifetime inside a type.
     fn memory_with_lifetime_type(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         target: VariableId,
         lifetime: VariableId,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -247,28 +258,24 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let term = match target {
-            TypeTerm::Form {
-                form: FormTerm::Borrowed { access, .. },
-                payload,
-            } => TypeTerm::Form {
-                form: FormTerm::Borrowed { lifetime, access },
-                payload,
-            },
-            TypeTerm::Form {
-                form: wrapper @ (FormTerm::Placed { .. } | FormTerm::Readonly),
-                payload,
-            } => {
-                let Some(payload) = self.memory_with_lifetime_type(module, payload, lifetime)?
-                else {
-                    return Ok(None);
-                };
-                let payload = self.push_solved_type_variable(module, payload)?;
+            TypeTerm::Form { form, payload } => match self.terms.get(form).clone() {
+                FormTerm::Borrowed { access, .. } => {
+                    let form = self.terms.push(FormTerm::Borrowed { lifetime, access });
 
-                TypeTerm::Form {
-                    form: wrapper,
-                    payload,
+                    TypeTerm::Form { form, payload }
                 }
-            }
+                FormTerm::Placed { .. } | FormTerm::Readonly => {
+                    let Some(payload) =
+                        self.memory_with_lifetime_type(module, origin, payload, lifetime)?
+                    else {
+                        return Ok(None);
+                    };
+                    let payload = self.solve_anonymous_type(module, origin, payload)?;
+
+                    TypeTerm::Form { form, payload }
+                }
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => target,
+            },
             _ => target,
         };
 
@@ -279,6 +286,7 @@ impl CheckComponentState<'_> {
     fn memory_with_access_type(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         target: VariableId,
         access: VariableId,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -286,27 +294,24 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let term = match target {
-            TypeTerm::Form {
-                form: FormTerm::Borrowed { lifetime, .. },
-                payload,
-            } => TypeTerm::Form {
-                form: FormTerm::Borrowed { lifetime, access },
-                payload,
-            },
-            TypeTerm::Form {
-                form: wrapper @ (FormTerm::Placed { .. } | FormTerm::Readonly),
-                payload,
-            } => {
-                let Some(payload) = self.memory_with_access_type(module, payload, access)? else {
-                    return Ok(None);
-                };
-                let payload = self.push_solved_type_variable(module, payload)?;
+            TypeTerm::Form { form, payload } => match self.terms.get(form).clone() {
+                FormTerm::Borrowed { lifetime, .. } => {
+                    let form = self.terms.push(FormTerm::Borrowed { lifetime, access });
 
-                TypeTerm::Form {
-                    form: wrapper,
-                    payload,
+                    TypeTerm::Form { form, payload }
                 }
-            }
+                FormTerm::Placed { .. } | FormTerm::Readonly => {
+                    let Some(payload) =
+                        self.memory_with_access_type(module, origin, payload, access)?
+                    else {
+                        return Ok(None);
+                    };
+                    let payload = self.solve_anonymous_type(module, origin, payload)?;
+
+                    TypeTerm::Form { form, payload }
+                }
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => target,
+            },
             _ => target,
         };
 
@@ -318,7 +323,8 @@ impl CheckComponentState<'_> {
         &mut self,
         ownership: VariableId,
         lifetime: VariableId,
-    ) -> CompilerResult<Option<FormTerm>> {
+    ) -> CompilerResult<Option<TermId<FormTerm>>> {
+        let origin = self.variable_origin(ownership)?;
         let Some(ownership) = self.ownership_value(ownership)? else {
             return Ok(None);
         };
@@ -327,13 +333,13 @@ impl CheckComponentState<'_> {
             "owned" => FormTerm::Owned,
             "borrowed" => FormTerm::Borrowed {
                 lifetime,
-                access: self.mutable_access_variable(lifetime.module)?,
+                access: self.mutable_access_variable(lifetime.module, origin)?,
             },
             "raw" => FormTerm::Raw,
             _ => return Ok(None),
         };
 
-        Ok(Some(form))
+        Ok(Some(self.terms.push(form)))
     }
 
     /// Return a memory intrinsic static value.
@@ -341,9 +347,9 @@ impl CheckComponentState<'_> {
         &self,
         module: ModuleId,
         item: dir::LanguageItem,
-        arguments: &[ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(target) = Self::type_argument(arguments, 0) else {
+        let Some(target) = self.generic_argument_type_variable(arguments, 0) else {
             return Ok(None);
         };
         let value = match item {
@@ -364,7 +370,7 @@ impl CheckComponentState<'_> {
                 }
             }
             dir::LanguageItem::PlaceIn => {
-                let Some(space) = Self::static_argument(arguments, 1) else {
+                let Some(space) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
 
@@ -400,7 +406,7 @@ impl CheckComponentState<'_> {
             | dir::LanguageItem::IsRaw => self.memory_ownership_predicate_value(item, target)?,
             dir::LanguageItem::IsShared => self.memory_shared_value(module, target)?,
             dir::LanguageItem::IsSharedIn => {
-                let Some(space) = Self::static_argument(arguments, 1) else {
+                let Some(space) = self.generic_argument_static_variable(arguments, 1) else {
                     return Ok(None);
                 };
 
@@ -422,7 +428,7 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form { form, payload } => match form {
+            TypeTerm::Form { form, payload } => match self.terms.get(form) {
                 FormTerm::Managed => Some(self.ownership_static(module, "managed")?),
                 FormTerm::Owned => Some(self.ownership_static(module, "owned")?),
                 FormTerm::Borrowed { .. } => Some(self.ownership_static(module, "borrowed")?),
@@ -447,14 +453,11 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form {
-                form: FormTerm::Placed { place },
-                ..
-            } => self.static_value(place)?,
-            TypeTerm::Form {
-                form: FormTerm::Readonly,
-                payload,
-            } => self.memory_place_value(module, payload)?,
+            TypeTerm::Form { form, payload } => match self.terms.get(form) {
+                FormTerm::Placed { place } => self.static_value(*place)?,
+                FormTerm::Readonly => self.memory_place_value(module, payload)?,
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Borrowed { .. } | FormTerm::Raw => None,
+            },
             _ => None,
         };
 
@@ -510,14 +513,13 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form {
-                form: FormTerm::Borrowed { lifetime, .. },
-                ..
-            } => self.static_value(lifetime)?,
-            TypeTerm::Form {
-                form: FormTerm::Placed { .. } | FormTerm::Readonly,
-                payload,
-            } => self.memory_lifetime_value(module, payload)?,
+            TypeTerm::Form { form, payload } => match self.terms.get(form) {
+                FormTerm::Borrowed { lifetime, .. } => self.static_value(*lifetime)?,
+                FormTerm::Placed { .. } | FormTerm::Readonly => {
+                    self.memory_lifetime_value(module, payload)?
+                }
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => None,
+            },
             _ => None,
         };
 
@@ -534,14 +536,13 @@ impl CheckComponentState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form {
-                form: FormTerm::Borrowed { access, .. },
-                ..
-            } => self.static_value(access)?,
-            TypeTerm::Form {
-                form: FormTerm::Placed { .. } | FormTerm::Readonly,
-                payload,
-            } => self.memory_access_value(module, payload)?,
+            TypeTerm::Form { form, payload } => match self.terms.get(form) {
+                FormTerm::Borrowed { access, .. } => self.static_value(*access)?,
+                FormTerm::Placed { .. } | FormTerm::Readonly => {
+                    self.memory_access_value(module, payload)?
+                }
+                FormTerm::Managed | FormTerm::Owned | FormTerm::Raw => None,
+            },
             _ => None,
         };
 
@@ -618,9 +619,12 @@ impl CheckComponentState<'_> {
             StaticTerm::Variable(_)
             | StaticTerm::Expression(_)
             | StaticTerm::Member { .. }
-            | StaticTerm::Operation(_)
+            | StaticTerm::Join { .. }
             | StaticTerm::Layout(_)
-            | StaticTerm::Intrinsic { .. } => None,
+            | StaticTerm::Intrinsic { .. }
+            | StaticTerm::Equal { .. }
+            | StaticTerm::TypeRelation { .. }
+            | StaticTerm::Conditional { .. } => None,
         };
 
         Ok(value)
@@ -629,10 +633,10 @@ impl CheckComponentState<'_> {
     /// Return one static argument's solved value.
     fn static_argument_value(
         &self,
-        arguments: &[ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
         index: usize,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(variable) = Self::static_argument(arguments, index) else {
+        let Some(variable) = self.generic_argument_static_variable(arguments, index) else {
             return Ok(None);
         };
 
@@ -722,7 +726,7 @@ impl CheckComponentState<'_> {
         let name = match term {
             dir::StaticTerm::ScalarLiteral {
                 value: dir::ScalarLiteral::String(string),
-            } => Some(self.module(module)?.input.strings.get(*string)),
+            } => Some(self.input(module).strings.get(*string)),
             _ => None,
         };
 
@@ -735,7 +739,7 @@ impl CheckComponentState<'_> {
         module: ModuleId,
         string: dir::StringId,
     ) -> CompilerResult<Option<dir::Space>> {
-        let space = match self.module(module)?.input.strings.get(string) {
+        let space = match self.input(module).strings.get(string) {
             "local" => Some(dir::Space::Local),
             "shared" => Some(dir::Space::Shared),
             "static" => Some(dir::Space::Static),
@@ -748,7 +752,7 @@ impl CheckComponentState<'_> {
 
     /// Return one static ownership label.
     fn ownership_static(&self, module: ModuleId, name: &str) -> CompilerResult<dir::StaticTerm> {
-        let string = self.module(module)?.input.strings.intern(name);
+        let string = self.input(module).strings.intern(name);
 
         Ok(dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::String(string),
@@ -763,9 +767,14 @@ impl CheckComponentState<'_> {
     }
 
     /// Return a solved mutable access variable.
-    fn mutable_access_variable(&mut self, module: ModuleId) -> CompilerResult<VariableId> {
-        self.push_solved_static_value_variable(
+    fn mutable_access_variable(
+        &mut self,
+        module: ModuleId,
+        origin: ConstraintOrigin,
+    ) -> CompilerResult<VariableId> {
+        self.solve_anonymous_static_value(
             module,
+            origin,
             dir::StaticTerm::Access {
                 access: dir::Access::Mutable,
             },

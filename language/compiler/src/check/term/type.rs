@@ -4,11 +4,13 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, AwaitTerm, CallTerm, CheckComponentState, ConstructTerm, Decision, FormTerm,
-    FunctionTerm, GenericSubstitution, IdentityTerm, IndexTerm, IndexWriteTerm, InstanceCheckTerm,
-    KeyMembershipTerm, MemberCallTerm, MemberProtocol, OperatorTerm, Progress, ShapeMemberTerm,
-    Solution, StaticRelation, TaggedTemplateTerm, TemplateTerm, TryTerm, TupleElementTerm,
-    TypeOperationTerm, TypeRelation, VariableId, VariableOrigin,
+    ArgumentTerm, AwaitTerm, CallTerm, CheckState, ConstraintOrigin, ConstructTerm, Decision,
+    FormTerm, FunctionTerm, GenericSlotId, GenericSubstitution, IdentityTerm, ImportMetaTerm,
+    IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm, MemberProtocol,
+    MemberTerm, OperatorTerm, Progress, RangeValueTerm, ReceiverTerm, Reduction, ShapeMemberTerm,
+    Solution, StaticRelation, StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm,
+    TermId, TryFailureTerm, TryTerm, TupleElementTerm, TypeOperationTerm, TypeRelation,
+    TypeValueTerm, VariableId, VariableOutput, YieldTerm,
 };
 
 /// How an expected type flows into one defining term.
@@ -126,10 +128,7 @@ pub(in crate::check) enum TypeTerm {
     /// ```ts
     /// T
     /// ```
-    Parameter {
-        /// The referenced generic parameter symbol.
-        symbol: dir::GlobalSymbolId,
-    },
+    Parameter(GenericSlotId),
     /// This type.
     ///
     /// ```ts
@@ -160,6 +159,15 @@ pub(in crate::check) enum TypeTerm {
     ///
     /// The type of `y` can alias the type variable for `x`.
     Variable(VariableId),
+    /// Static value projected into type position.
+    ///
+    /// ```ts
+    /// type Tagged<comptime Tag: string> = { tag: Tag };
+    /// ```
+    StaticValue {
+        /// The static value variable.
+        value: VariableId,
+    },
     /// Canonical memory form over a value type.
     ///
     /// ```ts
@@ -169,7 +177,7 @@ pub(in crate::check) enum TypeTerm {
     /// The syntax becomes a borrowed form over payload `T`.
     Form {
         /// The form constructor.
-        form: FormTerm,
+        form: TermId<FormTerm>,
         /// The carried payload type.
         payload: VariableId,
     },
@@ -184,7 +192,7 @@ pub(in crate::check) enum TypeTerm {
         /// The declaration symbol.
         symbol: dir::GlobalSymbolId,
         /// The applied static arguments.
-        arguments: Vec<ArgumentTerm>,
+        arguments: Vec<TermId<ArgumentTerm>>,
     },
     /// Homogeneous array type.
     Array {
@@ -196,16 +204,7 @@ pub(in crate::check) enum TypeTerm {
     /// ```ts
     /// T.Item
     /// ```
-    Member {
-        /// The source member expression when this term came from runtime syntax.
-        source: Option<dir::GlobalNodeIdAny>,
-        /// The owner type.
-        owner: VariableId,
-        /// The selected member key.
-        key: dir::StaticKey,
-        /// The applied static arguments.
-        arguments: Vec<ArgumentTerm>,
-    },
+    Member(TermId<MemberTerm>),
     /// Fixed-length array type.
     FixedArray {
         /// The repeated element type.
@@ -227,17 +226,17 @@ pub(in crate::check) enum TypeTerm {
         /// The tuple source form.
         form: dir::TupleForm,
         /// The tuple elements.
-        elements: Vec<TupleElementTerm>,
+        elements: Vec<TermId<TupleElementTerm>>,
         /// Whether the tuple is readonly.
         is_readonly: bool,
     },
     /// Structural object shape type.
     Shape {
         /// The shape members.
-        members: Vec<ShapeMemberTerm>,
+        members: Vec<TermId<ShapeMemberTerm>>,
     },
     /// Function type.
-    Function(FunctionTerm),
+    Function(TermId<FunctionTerm>),
     /// Compact scalar interval type.
     Range {
         /// The inclusive lower bound.
@@ -262,80 +261,128 @@ pub(in crate::check) enum TypeTerm {
     /// ```ts
     /// keyof T
     /// ```
-    Operation(TypeOperationTerm),
+    Operation(TermId<TypeOperationTerm>),
     /// Runtime call expression.
     ///
     /// ```ts
     /// fn(value)
     /// ```
-    Call(CallTerm),
+    Call(TermId<CallTerm>),
     /// Runtime construct expression.
     ///
     /// ```ts
     /// new User(value)
     /// ```
-    Construct(ConstructTerm),
+    Construct(TermId<ConstructTerm>),
+    /// Runtime range value expression.
+    ///
+    /// ```ts
+    /// start..end
+    /// ```
+    RangeValue(TermId<RangeValueTerm>),
+    /// Runtime tree expression.
+    ///
+    /// ```tsx
+    /// <Tag />
+    /// ```
+    Tree(TermId<TreeTerm>),
+    /// Runtime reflected type value.
+    ///
+    /// ```ts
+    /// type T
+    /// ```
+    TypeValue(TermId<TypeValueTerm>),
+    /// Runtime import metadata value.
+    ///
+    /// ```ts
+    /// import.meta
+    /// ```
+    ImportMeta(TermId<ImportMetaTerm>),
+    /// Runtime contextual receiver.
+    ///
+    /// ```ts
+    /// this
+    /// ```
+    Receiver(TermId<ReceiverTerm>),
+    /// Runtime super receiver context.
+    ///
+    /// ```ts
+    /// super
+    /// ```
+    Super(TermId<SuperTerm>),
     /// Runtime operator expression.
     ///
     /// ```ts
     /// -value
     /// left + right
     /// ```
-    Operator(OperatorTerm),
+    Operator(TermId<OperatorTerm>),
     /// Runtime index access.
     ///
     /// ```ts
     /// value[key]
     /// ```
-    Index(IndexTerm),
-    /// Runtime index write.
+    Index(TermId<IndexTerm>),
+    /// Runtime index set.
     ///
     /// ```ts
     /// value[key] = next
     /// ```
-    IndexWrite(IndexWriteTerm),
+    IndexSet(TermId<IndexSetTerm>),
     /// Runtime key membership check.
     ///
     /// ```ts
     /// "name" in value
     /// ```
-    KeyMembership(KeyMembershipTerm),
+    KeyMembership(TermId<KeyMembershipTerm>),
     /// Runtime nominal instance check.
     ///
     /// ```ts
     /// value instanceof Error
     /// ```
-    InstanceCheck(InstanceCheckTerm),
+    InstanceCheck(TermId<InstanceCheckTerm>),
     /// Runtime identity equality check.
     ///
     /// ```ts
     /// left === right
     /// ```
-    Identity(IdentityTerm),
+    Identity(TermId<IdentityTerm>),
     /// Runtime await expression.
     ///
     /// ```ts
     /// await value
     /// ```
-    Await(AwaitTerm),
+    Await(TermId<AwaitTerm>),
     /// Runtime try expression.
     ///
     /// ```ts
     /// value?
     /// ```
-    Try(TryTerm),
+    Try(TermId<TryTerm>),
+    /// Runtime yield expression.
+    ///
+    /// ```ts
+    /// yield value
+    /// ```
+    Yield(TermId<YieldTerm>),
+    /// Runtime try failure projection.
+    ///
+    /// ```ts
+    /// try { value? } catch (error) { ... }
+    /// ```
+    TryFailure(TermId<TryFailureTerm>),
     /// Runtime template string expression.
     ///
     /// ```ts
     /// `hello ${name}`
     /// ```
-    Template(TemplateTerm),
+    Template(TermId<TemplateTerm>),
     /// Runtime tagged template expression.
     ///
     /// ```ts
     /// sql`select ${id}`
     /// ```
-    TaggedTemplate(TaggedTemplateTerm),
+    TaggedTemplate(TermId<TaggedTemplateTerm>),
     /// Type predicate.
     Predicate {
         /// Whether this is an assertion predicate.
@@ -369,31 +416,33 @@ pub(in crate::check) enum TypeTerm {
 
 impl TypeTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
         let mut variables = SmallVec::new();
 
         match self {
             Self::Variable(variable) => variables.push(*variable),
+            Self::StaticValue { value } => variables.push(*value),
             Self::Form { form, payload } => {
                 variables.push(*payload);
-                variables.extend(form.referenced_variables());
+                variables.extend(state.terms.get(*form).referenced_variables());
             }
             Self::Reference {
                 source: _,
                 symbol: _,
                 arguments,
             } => {
-                variables.extend(arguments.iter().map(ArgumentTerm::variable));
+                variables.extend(
+                    arguments
+                        .iter()
+                        .flat_map(|argument| state.argument_variables(*argument)),
+                );
             }
             Self::Array { element } => variables.push(*element),
-            Self::Member {
-                source: _,
-                owner,
-                key: _,
-                arguments,
-            } => {
-                variables.push(*owner);
-                variables.extend(arguments.iter().map(ArgumentTerm::variable));
+            Self::Member(member) => {
+                variables.extend(state.terms.get(*member).referenced_variables(state));
             }
             Self::FixedArray {
                 element,
@@ -412,14 +461,16 @@ impl TypeTerm {
                 elements,
                 is_readonly: _,
             } => {
-                variables.extend(elements.iter().map(|element| element.ty));
+                variables.extend(elements.iter().map(|element| state.terms.get(*element).ty));
             }
             Self::Shape { members } => {
                 for member in members {
-                    variables.extend(member.referenced_variables());
+                    variables.extend(state.terms.get(*member).referenced_variables());
                 }
             }
-            Self::Function(function) => variables.extend(function.referenced_variables()),
+            Self::Function(function) => {
+                variables.extend(state.terms.get(*function).referenced_variables(state));
+            }
             Self::Range {
                 start: _,
                 end: _,
@@ -428,21 +479,51 @@ impl TypeTerm {
             Self::Union { elements } | Self::Intersection { elements } => {
                 variables.extend(elements.iter().copied());
             }
-            Self::Operation(operation) => variables.extend(operation.referenced_variables()),
-            Self::Call(call) => variables.extend(call.referenced_variables()),
-            Self::Construct(construct) => variables.extend(construct.referenced_variables()),
-            Self::Operator(operator) => variables.extend(operator.referenced_variables()),
-            Self::Index(index) => variables.extend(index.referenced_variables()),
-            Self::IndexWrite(write) => variables.extend(write.referenced_variables()),
-            Self::KeyMembership(membership) => {
-                variables.extend(membership.referenced_variables());
+            Self::Operation(operation) => {
+                variables.extend(state.terms.get(*operation).referenced_variables(state));
             }
-            Self::InstanceCheck(instance) => variables.extend(instance.referenced_variables()),
-            Self::Identity(identity) => variables.extend(identity.referenced_variables()),
-            Self::Await(awaited) => variables.push(awaited.value),
-            Self::Try(tried) => variables.extend(tried.referenced_variables()),
-            Self::Template(template) => variables.extend(template.referenced_variables()),
-            Self::TaggedTemplate(template) => variables.extend(template.referenced_variables()),
+            Self::Call(call) => variables.extend(state.terms.get(*call).referenced_variables(state)),
+            Self::Construct(construct) => {
+                variables.extend(state.terms.get(*construct).referenced_variables(state));
+            }
+            Self::RangeValue(range) => {
+                variables.extend(state.terms.get(*range).referenced_variables());
+            }
+            Self::Tree(tree) => variables.extend(state.terms.get(*tree).referenced_variables(state)),
+            Self::TypeValue(value) => {
+                variables.extend(state.terms.get(*value).referenced_variables());
+            }
+            Self::ImportMeta(_) => {}
+            Self::Receiver(receiver) => {
+                variables.extend(state.terms.get(*receiver).referenced_variables());
+            }
+            Self::Super(term) => variables.extend(state.terms.get(*term).referenced_variables()),
+            Self::Operator(operator) => {
+                variables.extend(state.terms.get(*operator).referenced_variables());
+            }
+            Self::Index(index) => variables.extend(state.terms.get(*index).referenced_variables()),
+            Self::IndexSet(set) => variables.extend(state.terms.get(*set).referenced_variables()),
+            Self::KeyMembership(membership) => {
+                variables.extend(state.terms.get(*membership).referenced_variables());
+            }
+            Self::InstanceCheck(instance) => {
+                variables.extend(state.terms.get(*instance).referenced_variables());
+            }
+            Self::Identity(identity) => {
+                variables.extend(state.terms.get(*identity).referenced_variables());
+            }
+            Self::Await(awaited) => variables.push(state.terms.get(*awaited).value),
+            Self::Try(tried) => variables.extend(state.terms.get(*tried).referenced_variables()),
+            Self::Yield(yielded) => variables.extend(state.terms.get(*yielded).referenced_variables()),
+            Self::TryFailure(tried) => {
+                variables.extend(state.terms.get(*tried).referenced_variables());
+            }
+            Self::Template(template) => {
+                variables.extend(state.terms.get(*template).referenced_variables());
+            }
+            Self::TaggedTemplate(template) => {
+                variables.extend(state.terms.get(*template).referenced_variables(state));
+            }
             Self::Predicate {
                 asserts: _,
                 subject: _,
@@ -457,7 +538,7 @@ impl TypeTerm {
                 variables.push(*environment);
             }
             Self::Literal(_)
-            | Self::Parameter { symbol: _ }
+            | Self::Parameter(_)
             | Self::This
             | Self::Intrinsic
             | Self::ConstAssertion => {}
@@ -465,11 +546,41 @@ impl TypeTerm {
 
         variables
     }
+
+    /// Return whether this term must reduce before it can be a stable solution.
+    pub(in crate::check) fn is_pending_reduction(&self) -> bool {
+        matches!(
+            self,
+            Self::Reference { .. }
+                | Self::Member { .. }
+                | Self::StaticValue { .. }
+                | Self::Call(_)
+                | Self::Construct(_)
+                | Self::RangeValue(_)
+                | Self::Tree(_)
+                | Self::TypeValue(_)
+                | Self::ImportMeta(_)
+                | Self::Receiver(_)
+                | Self::Super(_)
+                | Self::Operator(_)
+                | Self::Index(_)
+                | Self::IndexSet(_)
+                | Self::KeyMembership(_)
+                | Self::InstanceCheck(_)
+                | Self::Identity(_)
+                | Self::Await(_)
+                | Self::Try(_)
+                | Self::Yield(_)
+                | Self::TryFailure(_)
+                | Self::Template(_)
+                | Self::TaggedTemplate(_)
+        )
+    }
 }
 
-impl CheckComponentState<'_> {
-    /// Apply expected literal type context to one expression variable.
-    pub(in crate::check) fn expect_literal_type(
+impl CheckState<'_> {
+    /// Expect one literal expression variable to use its contextual type.
+    pub(in crate::check) fn expect_literal_term(
         &mut self,
         variable: VariableId,
         source: &TypeTerm,
@@ -481,7 +592,7 @@ impl CheckComponentState<'_> {
         let TypeTerm::Literal(target_type) = target else {
             return Ok(Progress::Unchanged);
         };
-        if !Self::can_expect_literal(target_type) {
+        if !Self::can_expect_literal_term(target_type) {
             return Ok(Progress::Unchanged);
         }
         if self.decide_type_term_relation(TypeRelation::Assignable, source, target)?
@@ -489,15 +600,15 @@ impl CheckComponentState<'_> {
         {
             return Ok(Progress::Unchanged);
         }
-        let check_module = self.module_mut(variable.module)?;
-        let check_variable = check_module.variable_mut(variable);
-        if !matches!(check_variable.origin, VariableOrigin::Node(_)) {
+        let check_variable = self.variable(variable);
+        if !matches!(check_variable.output, Some(VariableOutput::Node(_))) {
             return Ok(Progress::Unchanged);
         }
 
-        check_variable.solution = Some(Solution::Type(target.clone()));
+        let target = self.terms.push(target.clone());
+        let changed = self.solve_variable(variable, Solution::Type(target));
 
-        Ok(Progress::changed(variable))
+        Ok(Progress::from_change(variable, changed))
     }
 
     /// Decide one type term relation.
@@ -536,34 +647,31 @@ impl CheckComponentState<'_> {
         self.decide_type_term_relation(relation, &left, &right)
     }
 
-    /// Apply an expected result type to the term that defines it.
+    /// Expect the defining term to satisfy the result type.
     pub(in crate::check) fn expect_type_term(
         &mut self,
         result: VariableId,
         term: &TypeTerm,
     ) -> CompilerResult<Progress> {
-        let upper_bounds = self
-            .module(result.module)?
-            .variable(result)
-            .upper_bounds
-            .clone();
+        let upper_bounds = self.upper_bounds(result);
         let mut progress = Progress::Unchanged;
 
-        // push the exact result when it is known
+        // push exact external result when it is known
         let Some(result_term) = self.solved_type_term(result)? else {
-            return self.expect_type_term_upper_bounds(result, term, &upper_bounds);
+            return self.expect_type_upper_bounds(result, term, &upper_bounds);
         };
-        progress = progress.merge(self.expect_type_term_result(
-            result,
-            result,
-            &result_term,
-            term,
-            TypeExpectationMode::Exact,
-        )?);
+        if &result_term != term {
+            progress = progress.merge(self.expect_type_definition(
+                result,
+                result,
+                &result_term,
+                term,
+                TypeExpectationMode::Exact,
+            )?);
+        }
 
         // push solved upper bounds as contextual expectations
-        progress =
-            progress.merge(self.expect_type_term_upper_bounds(result, term, &upper_bounds)?);
+        progress = progress.merge(self.expect_type_upper_bounds(result, term, &upper_bounds)?);
 
         Ok(progress)
     }
@@ -573,53 +681,160 @@ impl CheckComponentState<'_> {
         &mut self,
         module: ModuleId,
         term: &TypeTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let term = match term {
-            TypeTerm::Variable(variable) => self.solved_type_term(*variable)?,
-            TypeTerm::Member {
-                source,
-                owner,
-                key,
-                arguments,
-            } if arguments.is_empty() => self.reduce_member_type(module, *source, *owner, *key)?,
-            TypeTerm::Operation(TypeOperationTerm::Exclude { source, target }) => {
-                self.reduce_exclude_type(module, *source, *target)?
+    ) -> CompilerResult<Reduction<TypeTerm>> {
+        let reduction = match term {
+            TypeTerm::Variable(variable) => match self.solved_type_term(*variable)? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Member(member) => {
+                let member = self.terms.get(*member);
+
+                match self.reduce_member_term(
+                    module,
+                    member.source,
+                    member.owner,
+                    member.key,
+                    &member.arguments,
+                )? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
             }
-            TypeTerm::Operation(TypeOperationTerm::BestCommon { elements }) => {
-                self.reduce_best_common_type(module, elements)?
-            }
-            TypeTerm::Operation(TypeOperationTerm::Widen { source }) => {
-                self.reduce_widen_type(*source)?
-            }
-            TypeTerm::Operation(TypeOperationTerm::Intrinsic { item, arguments }) => {
-                self.reduce_memory_type(module, *item, arguments)?
-            }
+            TypeTerm::Operation(operation) => match self.terms.get(*operation).clone() {
+                TypeOperationTerm::Exclude { source, target } => {
+                    let origin = self.variable_origin(source)?;
+
+                    match self.reduce_exclude_term(module, origin, source, target)? {
+                        Some(term) => Reduction::value(term),
+                        None => Reduction::pending(),
+                    }
+                }
+                TypeOperationTerm::BestCommon { elements } => {
+                    match self.reduce_best_common_term(module, &elements)? {
+                        Some(term) => Reduction::value(term),
+                        None => Reduction::pending(),
+                    }
+                }
+                TypeOperationTerm::Widen { source } => match self.reduce_widen_term(source)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                },
+                TypeOperationTerm::Intrinsic { item, arguments } => {
+                    match self.reduce_memory_term(module, item, &arguments)? {
+                        Some(term) => Reduction::value(term),
+                        None => Reduction::pending(),
+                    }
+                }
+                TypeOperationTerm::Conditional {
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                } => match self.reduce_conditional_term(left, right, then_type, else_type)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                },
+                TypeOperationTerm::Index { left, index } => {
+                    match self.reduce_type_index_term(module, left, index)? {
+                        Some(term) => Reduction::value(term),
+                        None => Reduction::pending(),
+                    }
+                }
+                TypeOperationTerm::TemplateLiteral { .. }
+                | TypeOperationTerm::Infer { .. }
+                | TypeOperationTerm::KeyOf { .. }
+                | TypeOperationTerm::Mapped { .. } => Reduction::value(term.clone()),
+            },
             TypeTerm::Reference {
                 source,
                 symbol,
                 arguments,
-            } => self.reduce_named_type(module, *source, *symbol, arguments)?,
-            TypeTerm::Call(call) => self.reduce_call_type(module, call)?,
-            TypeTerm::Construct(construct) => self.reduce_construct_type(module, construct)?,
-            TypeTerm::Operator(operator) => self.reduce_operator_type(operator)?,
-            TypeTerm::Index(index) => self.reduce_index_type(module, index)?,
-            TypeTerm::IndexWrite(write) => self.reduce_index_write_type(module, write)?,
-            TypeTerm::KeyMembership(_)
-            | TypeTerm::InstanceCheck(_)
-            | TypeTerm::Identity(_)
-            | TypeTerm::Template(_)
-            | TypeTerm::TaggedTemplate(_) => None,
-            TypeTerm::Await(awaited) => self.reduce_await_type(awaited)?,
-            TypeTerm::Try(tried) => self.reduce_try_type(module, tried)?,
-            TypeTerm::Member { .. } => None,
-            term => Some(term.clone()),
+            } => self.reduce_reference_term(module, *source, *symbol, arguments)?,
+            TypeTerm::StaticValue { value } => {
+                match self.reduce_static_value_term(module, *value)? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::Call(call) => self.reduce_call_term(module, self.terms.get(*call))?,
+            TypeTerm::Construct(construct) => {
+                self.reduce_construct_term(module, self.terms.get(*construct))?
+            }
+            TypeTerm::RangeValue(range) => self.reduce_range_value_term(module, self.terms.get(*range))?,
+            TypeTerm::Tree(tree) => self.reduce_tree_term(module, self.terms.get(*tree))?,
+            TypeTerm::TypeValue(value) => self.reduce_type_value_term(module, self.terms.get(*value))?,
+            TypeTerm::ImportMeta(meta) => self.reduce_import_meta_term(module, self.terms.get(*meta))?,
+            TypeTerm::Receiver(receiver) => self.reduce_receiver_term(self.terms.get(*receiver))?,
+            TypeTerm::Super(term) => self.reduce_super_term(module, self.terms.get(*term))?,
+            TypeTerm::Operator(operator) => match self.reduce_operator_term(self.terms.get(*operator))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Index(index) => self.reduce_index_term(module, self.terms.get(*index))?,
+            TypeTerm::IndexSet(set) => self.reduce_index_set_term(module, self.terms.get(*set))?,
+            TypeTerm::KeyMembership(membership) => {
+                match self.reduce_key_membership_term(self.terms.get(*membership))? {
+                    Some(term) => Reduction::value(term),
+                    None => Reduction::pending(),
+                }
+            }
+            TypeTerm::InstanceCheck(instance) => match self.reduce_instance_check_term(self.terms.get(*instance))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Identity(identity) => match self.reduce_identity_term(self.terms.get(*identity))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Template(template) => match self.reduce_template_term(self.terms.get(*template))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::TaggedTemplate(template) => {
+                self.reduce_tagged_template_term(self.terms.get(*template))?
+            }
+            TypeTerm::Await(awaited) => match self.reduce_await_term(self.terms.get(*awaited))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Try(tried) => match self.reduce_try_term(module, self.terms.get(*tried))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Yield(yielded) => match self.reduce_yield_term(self.terms.get(*yielded))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::TryFailure(tried) => match self.reduce_try_failure_term(module, self.terms.get(*tried))? {
+                Some(term) => Reduction::value(term),
+                None => Reduction::pending(),
+            },
+            TypeTerm::Literal(_)
+            | TypeTerm::Parameter(_)
+            | TypeTerm::This
+            | TypeTerm::Intrinsic
+            | TypeTerm::ConstAssertion
+            | TypeTerm::Form { .. }
+            | TypeTerm::Array { .. }
+            | TypeTerm::FixedArray { .. }
+            | TypeTerm::Slice { .. }
+            | TypeTerm::Tuple { .. }
+            | TypeTerm::Shape { .. }
+            | TypeTerm::Function(_)
+            | TypeTerm::Range { .. }
+            | TypeTerm::Union { .. }
+            | TypeTerm::Intersection { .. }
+            | TypeTerm::Predicate { .. }
+            | TypeTerm::Dynamic { .. }
+            | TypeTerm::Closure { .. } => Reduction::value(term.clone()),
         };
 
-        Ok(term)
+        Ok(reduction)
     }
 
     /// Decompose equality between solved type terms into smaller relations.
-    pub(in crate::check) fn relate_solved_type_equal(
+    pub(in crate::check) fn constrain_solved_type_equal(
         &mut self,
         left: &TypeTerm,
         right: &TypeTerm,
@@ -635,8 +850,8 @@ impl CheckComponentState<'_> {
                     payload: right_value,
                 },
             ) => {
-                let form = self.relate_form_equal(left_form, right_form)?;
-                let value = self.relate_type_equal(*left_value, *right_value)?;
+                let form = self.constrain_form_equal(self.terms.get(*left_form), self.terms.get(*right_form))?;
+                let value = self.solve_type_equality(*left_value, *right_value)?;
 
                 form.merge(value)
             }
@@ -657,7 +872,7 @@ impl CheckComponentState<'_> {
                     element: right_element,
                     is_readonly: _,
                 },
-            ) => self.relate_type_equal(*left_element, *right_element)?,
+            ) => self.solve_type_equality(*left_element, *right_element)?,
             (
                 TypeTerm::FixedArray {
                     element: left_element,
@@ -670,8 +885,8 @@ impl CheckComponentState<'_> {
                     is_readonly: _,
                 },
             ) => {
-                let element = self.relate_type_equal(*left_element, *right_element)?;
-                let length = self.relate_static_equal(*left_length, *right_length)?;
+                let element = self.solve_type_equality(*left_element, *right_element)?;
+                let length = self.solve_static_equality(*left_length, *right_length)?;
 
                 element.merge(length)
             }
@@ -688,13 +903,27 @@ impl CheckComponentState<'_> {
                 },
             ) => {
                 if left_form == right_form {
-                    self.relate_tuple_elements_equal(left, right)?
+                    self.constrain_tuple_elements_equal(left, right)?
                 } else {
                     Progress::Unchanged
                 }
             }
             (TypeTerm::Shape { members: left }, TypeTerm::Shape { members: right }) => {
-                self.relate_shape_members_equal(left, right)?
+                self.constrain_shape_members_equal(left, right)?
+            }
+            (
+                TypeTerm::Reference {
+                    source: _,
+                    symbol: left_symbol,
+                    arguments: left_arguments,
+                },
+                TypeTerm::Reference {
+                    source: _,
+                    symbol: right_symbol,
+                    arguments: right_arguments,
+                },
+            ) if left_symbol == right_symbol => {
+                self.constrain_argument_list_equal(left_arguments, right_arguments)?
             }
             _ => Progress::Unchanged,
         };
@@ -703,7 +932,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Decompose assignability between solved type terms into smaller relations.
-    pub(in crate::check) fn relate_solved_type_assignable(
+    pub(in crate::check) fn constrain_solved_type_assignable(
         &mut self,
         source: &TypeTerm,
         target: &TypeTerm,
@@ -719,8 +948,11 @@ impl CheckComponentState<'_> {
                     payload: target_value,
                 },
             ) => {
-                let form = self.relate_form_assignable(source_form, target_form)?;
-                let value = self.relate_type_assignable(*source_value, *target_value)?;
+                let form = self.constrain_form_assignable(
+                    self.terms.get(*source_form),
+                    self.terms.get(*target_form),
+                )?;
+                let value = self.solve_type_assignability(*source_value, *target_value)?;
 
                 form.merge(value)
             }
@@ -750,7 +982,7 @@ impl CheckComponentState<'_> {
                     element: target_element,
                     is_readonly: _,
                 },
-            ) => self.relate_type_assignable(*source_element, *target_element)?,
+            ) => self.solve_type_assignability(*source_element, *target_element)?,
             (
                 TypeTerm::FixedArray {
                     element: source_element,
@@ -761,7 +993,7 @@ impl CheckComponentState<'_> {
                     element: target_element,
                     is_readonly: _,
                 },
-            ) => self.relate_type_assignable(*source_element, *target_element)?,
+            ) => self.solve_type_assignability(*source_element, *target_element)?,
             (
                 TypeTerm::FixedArray {
                     element: source_element,
@@ -774,8 +1006,8 @@ impl CheckComponentState<'_> {
                     is_readonly: _,
                 },
             ) => {
-                let element = self.relate_type_assignable(*source_element, *target_element)?;
-                let length = self.relate_static_equal(*source_length, *target_length)?;
+                let element = self.solve_type_assignability(*source_element, *target_element)?;
+                let length = self.solve_static_equality(*source_length, *target_length)?;
 
                 element.merge(length)
             }
@@ -792,13 +1024,27 @@ impl CheckComponentState<'_> {
                 },
             ) => {
                 if source_form == target_form {
-                    self.relate_tuple_elements_assignable(source, target)?
+                    self.constrain_tuple_elements_assignable(source, target)?
                 } else {
                     Progress::Unchanged
                 }
             }
             (TypeTerm::Shape { members: source }, TypeTerm::Shape { members: target }) => {
-                self.relate_shape_members_assignable(source, target)?
+                self.constrain_shape_members_assignable(source, target)?
+            }
+            (
+                TypeTerm::Reference {
+                    source: _,
+                    symbol: source_symbol,
+                    arguments: source_arguments,
+                },
+                TypeTerm::Reference {
+                    source: _,
+                    symbol: target_symbol,
+                    arguments: target_arguments,
+                },
+            ) if source_symbol == target_symbol => {
+                self.constrain_argument_list_equal(source_arguments, target_arguments)?
             }
             _ => Progress::Unchanged,
         };
@@ -813,11 +1059,11 @@ impl TypeTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Option<TypeTerm>> {
         let term = match self {
             TypeTerm::Variable(variable) => {
-                if let Some(argument) = substitution.type_variable(*variable) {
+                if let Some(argument) = state.substitution_type_variable(substitution, *variable) {
                     TypeTerm::Variable(argument)
                 } else if let Some(term) = state.solved_type_term(*variable)? {
                     if let Some(term) = term.substitute(module, substitution, state)? {
@@ -829,15 +1075,23 @@ impl TypeTerm {
                     TypeTerm::Variable(*variable)
                 }
             }
-            TypeTerm::Parameter { symbol } => {
-                if let Some(argument) = substitution.type_symbol(*symbol) {
+            TypeTerm::Parameter(slot_id) => {
+                if let Some(argument) = state.substitution_type_slot(substitution, *slot_id) {
                     TypeTerm::Variable(argument)
+                } else if let Some(argument) = state.substitution_static_slot(substitution, *slot_id) {
+                    TypeTerm::StaticValue { value: argument }
                 } else {
                     self.clone()
                 }
             }
+            TypeTerm::StaticValue { value } => TypeTerm::StaticValue {
+                value: state.substitute_static_variable(module, substitution, *value)?,
+            },
             TypeTerm::Form { form, payload } => TypeTerm::Form {
-                form: form.substitute(module, substitution, state)?,
+                form: {
+                    let form = state.terms.get(*form).substitute(module, substitution, state)?;
+                    state.terms.push(form)
+                },
                 payload: state.substitute_type_variable(module, substitution, *payload)?,
             },
             TypeTerm::Reference {
@@ -846,37 +1100,30 @@ impl TypeTerm {
                 arguments,
             } => {
                 if arguments.is_empty()
-                    && let Some(argument) = substitution.type_symbol(*symbol)
+                    && let Some(argument) = state.substitution_type_symbol(substitution, *symbol)
                 {
                     TypeTerm::Variable(argument)
+                } else if arguments.is_empty()
+                    && let Some(argument) = state.substitution_static_symbol(substitution, *symbol)
+                {
+                    TypeTerm::StaticValue { value: argument }
                 } else {
                     TypeTerm::Reference {
                         source: *source,
                         symbol: *symbol,
-                        arguments: ArgumentTerm::substitute_all(
-                            arguments,
-                            module,
-                            substitution,
-                            state,
-                        )?,
+                        arguments: state.substitute_arguments(module, substitution, arguments)?,
                     }
                 }
             }
             TypeTerm::Array { element } => TypeTerm::Array {
                 element: state.substitute_type_variable(module, substitution, *element)?,
             },
-            TypeTerm::Member {
-                source,
-                owner,
-                key,
-                arguments,
-            } => TypeTerm::Member {
-                source: *source,
-                owner: state.substitute_type_variable(module, substitution, *owner)?,
-                key: *key,
-                arguments: ArgumentTerm::substitute_all(arguments, module, substitution, state)?
-                    .into(),
-            },
+            TypeTerm::Member(member) => {
+                let member = state.terms.get(*member).substitute(module, substitution, state)?;
+                let member = state.terms.push(member);
+
+                TypeTerm::Member(member)
+            }
             TypeTerm::FixedArray {
                 element,
                 length,
@@ -899,14 +1146,17 @@ impl TypeTerm {
                 is_readonly,
             } => TypeTerm::Tuple {
                 form: *form,
-                elements: TupleElementTerm::substitute_all(elements, module, substitution, state)?,
+                elements: state.substitute_tuple_elements(module, substitution, elements)?,
                 is_readonly: *is_readonly,
             },
             TypeTerm::Shape { members } => TypeTerm::Shape {
-                members: ShapeMemberTerm::substitute_all(members, module, substitution, state)?,
+                members: state.substitute_shape_members(module, substitution, members)?,
             },
             TypeTerm::Function(function) => {
-                TypeTerm::Function(function.substitute(module, substitution, state)?)
+                let function = state.terms.get(*function).substitute(module, substitution, state)?;
+                let function = state.terms.push(function);
+
+                TypeTerm::Function(function)
             }
             TypeTerm::Union { elements } => TypeTerm::Union {
                 elements: state.substitute_type_variables(module, substitution, elements)?,
@@ -915,147 +1165,335 @@ impl TypeTerm {
                 elements: state.substitute_type_variables(module, substitution, elements)?,
             },
             TypeTerm::Operation(operation) => {
-                TypeTerm::Operation(operation.substitute(module, substitution, state)?)
+                let operation = state.terms.get(*operation).substitute(module, substitution, state)?;
+                let operation = state.terms.push(operation);
+
+                TypeTerm::Operation(operation)
             }
-            TypeTerm::Call(call) => TypeTerm::Call(CallTerm {
-                source: call.source,
-                callee: state.substitute_type_variable(module, substitution, call.callee)?,
-                member: call
+            TypeTerm::Call(call) => {
+                let call = state.terms.get(*call);
+                let member = call
                     .member
-                    .as_ref()
-                    .map(|member| -> CompilerResult<MemberCallTerm> {
-                        Ok(MemberCallTerm {
+                    .map(|member| -> CompilerResult<TermId<MemberCallTerm>> {
+                        let member = state.terms.get(member);
+                        let protocol = member
+                            .protocol
+                            .map(|protocol| -> CompilerResult<MemberProtocol> {
+                                Ok(MemberProtocol {
+                                    item: protocol.item,
+                                    arguments: state.substitute_arguments(
+                                        module,
+                                        substitution,
+                                        &protocol.arguments,
+                                    )?,
+                                })
+                            })
+                            .transpose()?;
+                        let member = MemberCallTerm {
                             receiver: state.substitute_type_variable(
                                 module,
                                 substitution,
                                 member.receiver,
                             )?,
                             key: member.key,
-                            arguments: ArgumentTerm::substitute_all(
-                                &member.arguments,
+                            arguments: state.substitute_arguments(
                                 module,
                                 substitution,
-                                state,
+                                &member.arguments,
                             )?,
-                            protocol: member
-                                .protocol
-                                .as_ref()
-                                .map(|protocol| -> CompilerResult<MemberProtocol> {
-                                    Ok(MemberProtocol {
-                                        item: protocol.item,
-                                        arguments: ArgumentTerm::substitute_all(
-                                            &protocol.arguments,
-                                            module,
-                                            substitution,
-                                            state,
-                                        )?,
-                                    })
-                                })
-                                .transpose()?,
-                        })
+                            protocol,
+                        };
+
+                        Ok(state.terms.push(member))
                     })
+                    .transpose()?;
+                let call = CallTerm {
+                    source: call.source,
+                    callee: state.substitute_type_variable(module, substitution, call.callee)?,
+                    member,
+                    candidates: call.candidates,
+                    generic_arguments: state.substitute_arguments(
+                        module,
+                        substitution,
+                        &call.generic_arguments,
+                    )?,
+                    arguments: state.substitute_type_variables(
+                        module,
+                        substitution,
+                        &call.arguments,
+                    )?,
+                };
+                let call = state.terms.push(call);
+
+                TypeTerm::Call(call)
+            }
+            TypeTerm::Construct(construct) => {
+                let construct = state.terms.get(*construct);
+                let construct = ConstructTerm {
+                    source: construct.source,
+                    callee: state.substitute_type_variable(module, substitution, construct.callee)?,
+                    generic_arguments: state.substitute_arguments(
+                        module,
+                        substitution,
+                        &construct.generic_arguments,
+                    )?,
+                    arguments: state.substitute_type_variables(
+                        module,
+                        substitution,
+                        &construct.arguments,
+                    )?,
+                };
+                let construct = state.terms.push(construct);
+
+                TypeTerm::Construct(construct)
+            }
+            TypeTerm::RangeValue(range) => {
+                let range = state.terms.get(*range);
+                let range = RangeValueTerm {
+                    source: range.source,
+                    start: range
+                    .start
+                    .map(|start| state.substitute_type_variable(module, substitution, start))
                     .transpose()?,
-                candidates: call.candidates.clone(),
-                generic_arguments: ArgumentTerm::substitute_all(
-                    &call.generic_arguments,
-                    module,
-                    substitution,
-                    state,
-                )?,
-                arguments: state.substitute_type_variables(
-                    module,
-                    substitution,
-                    &call.arguments,
-                )?,
-            }),
-            TypeTerm::Construct(construct) => TypeTerm::Construct(ConstructTerm {
-                source: construct.source,
-                callee: state.substitute_type_variable(module, substitution, construct.callee)?,
-                generic_arguments: ArgumentTerm::substitute_all(
-                    &construct.generic_arguments,
-                    module,
-                    substitution,
-                    state,
-                )?,
-                arguments: state.substitute_type_variables(
-                    module,
-                    substitution,
-                    &construct.arguments,
-                )?,
-            }),
-            TypeTerm::Operator(operator) => TypeTerm::Operator(OperatorTerm {
-                source: operator.source,
-                kind: operator.kind,
-                receiver: state.substitute_type_variable(
-                    module,
-                    substitution,
-                    operator.receiver,
-                )?,
-                argument: operator
-                    .argument
-                    .map(|argument| state.substitute_type_variable(module, substitution, argument))
+                    end: range
+                    .end
+                    .map(|end| state.substitute_type_variable(module, substitution, end))
                     .transpose()?,
-            }),
-            TypeTerm::Index(index) => TypeTerm::Index(IndexTerm {
-                source: index.source,
-                receiver: state.substitute_type_variable(module, substitution, index.receiver)?,
-                index: state.substitute_type_variable(module, substitution, index.index)?,
-                key: index.key,
-            }),
-            TypeTerm::IndexWrite(write) => TypeTerm::IndexWrite(IndexWriteTerm {
-                source: write.source,
-                receiver: state.substitute_type_variable(module, substitution, write.receiver)?,
-                index: state.substitute_type_variable(module, substitution, write.index)?,
-                value: state.substitute_type_variable(module, substitution, write.value)?,
-                key: write.key,
-            }),
-            TypeTerm::KeyMembership(membership) => TypeTerm::KeyMembership(KeyMembershipTerm {
-                source: membership.source,
-                key: state.substitute_type_variable(module, substitution, membership.key)?,
-                receiver: state.substitute_type_variable(
-                    module,
-                    substitution,
-                    membership.receiver,
-                )?,
-                static_key: membership.static_key,
-            }),
-            TypeTerm::InstanceCheck(instance) => TypeTerm::InstanceCheck(InstanceCheckTerm {
-                source: instance.source,
-                value: state.substitute_type_variable(module, substitution, instance.value)?,
-                target: state.substitute_type_variable(module, substitution, instance.target)?,
-            }),
-            TypeTerm::Identity(identity) => TypeTerm::Identity(IdentityTerm {
-                source: identity.source,
-                operator: identity.operator,
-                left: state.substitute_type_variable(module, substitution, identity.left)?,
-                right: state.substitute_type_variable(module, substitution, identity.right)?,
-            }),
-            TypeTerm::Await(awaited) => TypeTerm::Await(AwaitTerm {
-                source: awaited.source,
-                value: state.substitute_type_variable(module, substitution, awaited.value)?,
-            }),
-            TypeTerm::Try(tried) => TypeTerm::Try(TryTerm {
-                source: tried.source,
-                value: state.substitute_type_variable(module, substitution, tried.value)?,
-                kind: tried.kind,
-            }),
-            TypeTerm::Template(template) => TypeTerm::Template(TemplateTerm {
-                source: template.source,
-                strings: template.strings.clone(),
-                spans: state.substitute_type_variables(module, substitution, &template.spans)?,
-            }),
-            TypeTerm::TaggedTemplate(template) => TypeTerm::TaggedTemplate(TaggedTemplateTerm {
-                source: template.source,
-                tag: state.substitute_type_variable(module, substitution, template.tag)?,
-                generic_arguments: ArgumentTerm::substitute_all(
-                    &template.generic_arguments,
-                    module,
-                    substitution,
-                    state,
-                )?,
-                strings: template.strings.clone(),
-                spans: state.substitute_type_variables(module, substitution, &template.spans)?,
-            }),
+                    end_kind: range.end_kind,
+                };
+                let range = state.terms.push(range);
+
+                TypeTerm::RangeValue(range)
+            }
+            TypeTerm::Tree(tree) => {
+                let tree = state.terms.get(*tree);
+                let tree = TreeTerm {
+                    source: tree.source,
+                    tag: tree
+                    .tag
+                    .map(|tag| state.substitute_type_variable(module, substitution, tag))
+                    .transpose()?,
+                    generic_arguments: state.substitute_arguments(
+                        module,
+                        substitution,
+                        &tree.generic_arguments,
+                    )?,
+                    arguments: state.substitute_type_variables(
+                        module,
+                        substitution,
+                        &tree.arguments,
+                    )?,
+                    elements: state.substitute_type_variables(module, substitution, &tree.elements)?,
+                };
+                let tree = state.terms.push(tree);
+
+                TypeTerm::Tree(tree)
+            }
+            TypeTerm::TypeValue(value) => {
+                let value = state.terms.get(*value);
+                let value = TypeValueTerm {
+                    source: value.source,
+                    ty: state.substitute_type_variable(module, substitution, value.ty)?,
+                };
+                let value = state.terms.push(value);
+
+                TypeTerm::TypeValue(value)
+            }
+            TypeTerm::ImportMeta(meta) => TypeTerm::ImportMeta(*meta),
+            TypeTerm::Receiver(receiver) => {
+                let receiver = state.terms.get(*receiver);
+                let receiver = ReceiverTerm {
+                    source: receiver.source,
+                    kind: receiver.kind,
+                    ty: state.substitute_type_variable(module, substitution, receiver.ty)?,
+                };
+                let receiver = state.terms.push(receiver);
+
+                TypeTerm::Receiver(receiver)
+            }
+            TypeTerm::Super(term) => {
+                let term = state.terms.get(*term);
+                let term = SuperTerm {
+                    source: term.source,
+                    receiver: term
+                        .receiver
+                        .map(|receiver| state.substitute_type_variable(module, substitution, receiver))
+                        .transpose()?,
+                };
+                let term = state.terms.push(term);
+
+                TypeTerm::Super(term)
+            }
+            TypeTerm::Operator(operator) => {
+                let operator = state.terms.get(*operator);
+                let operator = OperatorTerm {
+                    source: operator.source,
+                    kind: operator.kind,
+                    receiver: state.substitute_type_variable(
+                        module,
+                        substitution,
+                        operator.receiver,
+                    )?,
+                    argument: operator
+                        .argument
+                        .map(|argument| {
+                            state.substitute_type_variable(module, substitution, argument)
+                        })
+                        .transpose()?,
+                };
+                let operator = state.terms.push(operator);
+
+                TypeTerm::Operator(operator)
+            }
+            TypeTerm::Index(index) => {
+                let index = state.terms.get(*index);
+                let index = IndexTerm {
+                    source: index.source,
+                    receiver: state.substitute_type_variable(module, substitution, index.receiver)?,
+                    index: state.substitute_type_variable(module, substitution, index.index)?,
+                    key: index.key,
+                };
+                let index = state.terms.push(index);
+
+                TypeTerm::Index(index)
+            }
+            TypeTerm::IndexSet(set) => {
+                let set = state.terms.get(*set);
+                let set = IndexSetTerm {
+                    source: set.source,
+                    receiver: state.substitute_type_variable(module, substitution, set.receiver)?,
+                    index: state.substitute_type_variable(module, substitution, set.index)?,
+                    value: state.substitute_type_variable(module, substitution, set.value)?,
+                    key: set.key,
+                };
+                let set = state.terms.push(set);
+
+                TypeTerm::IndexSet(set)
+            }
+            TypeTerm::KeyMembership(membership) => {
+                let membership = state.terms.get(*membership);
+                let membership = KeyMembershipTerm {
+                    source: membership.source,
+                    key: state.substitute_type_variable(module, substitution, membership.key)?,
+                    receiver: state.substitute_type_variable(
+                        module,
+                        substitution,
+                        membership.receiver,
+                    )?,
+                    static_key: membership.static_key,
+                };
+                let membership = state.terms.push(membership);
+
+                TypeTerm::KeyMembership(membership)
+            }
+            TypeTerm::InstanceCheck(instance) => {
+                let instance = state.terms.get(*instance);
+                let instance = InstanceCheckTerm {
+                    source: instance.source,
+                    value: state.substitute_type_variable(module, substitution, instance.value)?,
+                    target: state.substitute_type_variable(module, substitution, instance.target)?,
+                };
+                let instance = state.terms.push(instance);
+
+                TypeTerm::InstanceCheck(instance)
+            }
+            TypeTerm::Identity(identity) => {
+                let identity = state.terms.get(*identity);
+                let identity = IdentityTerm {
+                    source: identity.source,
+                    operator: identity.operator,
+                    left: state.substitute_type_variable(module, substitution, identity.left)?,
+                    right: state.substitute_type_variable(module, substitution, identity.right)?,
+                };
+                let identity = state.terms.push(identity);
+
+                TypeTerm::Identity(identity)
+            }
+            TypeTerm::Await(awaited) => {
+                let awaited = state.terms.get(*awaited);
+                let awaited = AwaitTerm {
+                    source: awaited.source,
+                    value: state.substitute_type_variable(module, substitution, awaited.value)?,
+                };
+                let awaited = state.terms.push(awaited);
+
+                TypeTerm::Await(awaited)
+            }
+            TypeTerm::Try(tried) => {
+                let tried = state.terms.get(*tried);
+                let tried = TryTerm {
+                    source: tried.source,
+                    value: state.substitute_type_variable(module, substitution, tried.value)?,
+                    kind: tried.kind,
+                };
+                let tried = state.terms.push(tried);
+
+                TypeTerm::Try(tried)
+            }
+            TypeTerm::Yield(yielded) => {
+                let yielded = state.terms.get(*yielded);
+                let yielded = YieldTerm {
+                    source: yielded.source,
+                    value: yielded
+                    .value
+                    .map(|value| state.substitute_type_variable(module, substitution, value))
+                    .transpose()?,
+                    yield_type: yielded
+                    .yield_type
+                    .map(|ty| state.substitute_type_variable(module, substitution, ty))
+                    .transpose()?,
+                    resume_type: yielded
+                    .resume_type
+                    .map(|ty| state.substitute_type_variable(module, substitution, ty))
+                    .transpose()?,
+                    delegate_return_type: yielded
+                    .delegate_return_type
+                    .map(|ty| state.substitute_type_variable(module, substitution, ty))
+                    .transpose()?,
+                    cardinality: yielded.cardinality,
+                };
+                let yielded = state.terms.push(yielded);
+
+                TypeTerm::Yield(yielded)
+            }
+            TypeTerm::TryFailure(tried) => {
+                let tried = state.terms.get(*tried);
+                let tried = TryFailureTerm {
+                    source: tried.source,
+                    value: state.substitute_type_variable(module, substitution, tried.value)?,
+                };
+                let tried = state.terms.push(tried);
+
+                TypeTerm::TryFailure(tried)
+            }
+            TypeTerm::Template(template) => {
+                let template = state.terms.get(*template);
+                let template = TemplateTerm {
+                    source: template.source,
+                    strings: template.strings.clone(),
+                    spans: state.substitute_type_variables(module, substitution, &template.spans)?,
+                };
+                let template = state.terms.push(template);
+
+                TypeTerm::Template(template)
+            }
+            TypeTerm::TaggedTemplate(template) => {
+                let template = state.terms.get(*template);
+                let template = TaggedTemplateTerm {
+                    source: template.source,
+                    tag: state.substitute_type_variable(module, substitution, template.tag)?,
+                    generic_arguments: state.substitute_arguments(
+                        module,
+                        substitution,
+                        &template.generic_arguments,
+                    )?,
+                    strings: template.strings.clone(),
+                    spans: state.substitute_type_variables(module, substitution, &template.spans)?,
+                };
+                let template = state.terms.push(template);
+
+                TypeTerm::TaggedTemplate(template)
+            }
             TypeTerm::Predicate {
                 asserts,
                 subject,
@@ -1088,7 +1526,7 @@ impl TypeTerm {
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Decide exact equality for type variable lists.
     pub(in crate::check) fn decide_type_variable_list_equal(
         &self,
@@ -1129,8 +1567,8 @@ impl CheckComponentState<'_> {
         Ok(decision)
     }
 
-    /// Apply solved upper bounds to the term that defines a variable.
-    fn expect_type_term_upper_bounds(
+    /// Expect the defining term to satisfy solved upper bounds.
+    fn expect_type_upper_bounds(
         &mut self,
         result: VariableId,
         term: &TypeTerm,
@@ -1143,7 +1581,7 @@ impl CheckComponentState<'_> {
             let Some(expected) = self.solved_type_term(*upper_bound)? else {
                 continue;
             };
-            progress = progress.merge(self.expect_type_term_result(
+            progress = progress.merge(self.expect_type_definition(
                 result,
                 *upper_bound,
                 &expected,
@@ -1155,8 +1593,8 @@ impl CheckComponentState<'_> {
         Ok(progress)
     }
 
-    /// Apply one expected result type to the term that defines it.
-    fn expect_type_term_result(
+    /// Expect one defining term to satisfy one result type.
+    fn expect_type_definition(
         &mut self,
         result: VariableId,
         expected: VariableId,
@@ -1166,9 +1604,9 @@ impl CheckComponentState<'_> {
     ) -> CompilerResult<Progress> {
         let progress = match term {
             TypeTerm::Variable(variable) => match mode {
-                TypeExpectationMode::Exact => self.relate_type_equal(*variable, expected)?,
+                TypeExpectationMode::Exact => self.solve_type_equality(*variable, expected)?,
                 TypeExpectationMode::UpperBound => {
-                    self.relate_type_assignable(*variable, expected)?
+                    self.solve_type_assignability(*variable, expected)?
                 }
             },
             TypeTerm::Form { form, payload } => {
@@ -1179,8 +1617,8 @@ impl CheckComponentState<'_> {
                 else {
                     return Ok(Progress::Unchanged);
                 };
-                let form = self.expect_form(form, &result_form)?;
-                let payload = self.relate_type_assignable(*payload, *result_payload)?;
+                let form = self.expect_form_term(self.terms.get(*form), self.terms.get(*result_form))?;
+                let payload = self.solve_type_assignability(*payload, *result_payload)?;
 
                 form.merge(payload)
             }
@@ -1192,7 +1630,7 @@ impl CheckComponentState<'_> {
                     return Ok(Progress::Unchanged);
                 };
 
-                self.relate_type_assignable(*element, *result_element)?
+                self.solve_type_assignability(*element, *result_element)?
             }
             TypeTerm::Slice {
                 element,
@@ -1206,7 +1644,7 @@ impl CheckComponentState<'_> {
                     return Ok(Progress::Unchanged);
                 };
 
-                self.relate_type_assignable(*element, *result_element)?
+                self.solve_type_assignability(*element, *result_element)?
             }
             TypeTerm::FixedArray {
                 element,
@@ -1221,8 +1659,8 @@ impl CheckComponentState<'_> {
                 else {
                     return Ok(Progress::Unchanged);
                 };
-                let element = self.relate_type_assignable(*element, *result_element)?;
-                let length = self.relate_static_equal(*length, *result_length)?;
+                let element = self.solve_type_assignability(*element, *result_element)?;
+                let length = self.solve_static_equality(*length, *result_length)?;
 
                 element.merge(length)
             }
@@ -1240,7 +1678,7 @@ impl CheckComponentState<'_> {
                     return Ok(Progress::Unchanged);
                 };
 
-                self.expect_tuple_elements(elements, &result_elements)?
+                self.expect_tuple_element_terms(elements, &result_elements)?
             }
             TypeTerm::Shape { members } => {
                 let TypeTerm::Shape {
@@ -1250,44 +1688,90 @@ impl CheckComponentState<'_> {
                     return Ok(Progress::Unchanged);
                 };
 
-                self.expect_shape_members(members, &result_members)?
+                self.expect_shape_member_terms(members, &result_members)?
             }
-            TypeTerm::Call(call) => self.expect_call_result(call, expected)?,
+            TypeTerm::Call(call) => self.expect_call_term(self.terms.get(*call), expected)?,
             TypeTerm::Construct(construct) => {
-                self.expect_construct_result(result.module, construct, expected)?
+                self.expect_construct_term(result.module, self.terms.get(*construct), expected)?
             }
-            TypeTerm::Operator(operator) => self.expect_operator_result(operator, expected)?,
-            TypeTerm::Index(index) => self.expect_index_result(index, expected)?,
-            TypeTerm::IndexWrite(write) => self.expect_index_write_result(write, expected)?,
+            TypeTerm::Operator(operator) => {
+                self.expect_operator_term(self.terms.get(*operator), expected)?
+            }
+            TypeTerm::Index(index) => self.expect_index_term(self.terms.get(*index), expected)?,
+            TypeTerm::IndexSet(set) => self.expect_index_set_term(self.terms.get(*set), expected)?,
             TypeTerm::KeyMembership(_)
             | TypeTerm::InstanceCheck(_)
             | TypeTerm::Identity(_)
-            | TypeTerm::Template(_)
-            | TypeTerm::TaggedTemplate(_) => Progress::Unchanged,
-            TypeTerm::Await(awaited) => self.expect_await_result(awaited, expected)?,
-            TypeTerm::Try(tried) => self.expect_try_result(tried, expected)?,
-            TypeTerm::Operation(TypeOperationTerm::Exclude { source, target: _ }) => {
-                self.relate_type_assignable(*source, expected)?
+            | TypeTerm::Template(_) => Progress::Unchanged,
+            TypeTerm::TaggedTemplate(template) => {
+                self.expect_tagged_template_term(self.terms.get(*template), expected)?
             }
-            TypeTerm::Operation(TypeOperationTerm::Conditional { .. })
-            | TypeTerm::Operation(TypeOperationTerm::Index { .. })
-            | TypeTerm::Operation(TypeOperationTerm::TemplateLiteral { .. })
-            | TypeTerm::Operation(TypeOperationTerm::Infer { .. })
-            | TypeTerm::Operation(TypeOperationTerm::KeyOf { .. })
-            | TypeTerm::Operation(TypeOperationTerm::Mapped { .. })
-            | TypeTerm::Operation(TypeOperationTerm::BestCommon { .. })
-            | TypeTerm::Operation(TypeOperationTerm::Widen { .. })
-            | TypeTerm::Operation(TypeOperationTerm::Intrinsic { .. })
-            | TypeTerm::Member { .. }
+            TypeTerm::Await(awaited) => self.expect_await_term(self.terms.get(*awaited), expected)?,
+            TypeTerm::Try(tried) => self.expect_try_term(self.terms.get(*tried), expected)?,
+            TypeTerm::Yield(yielded) => self.expect_yield_term(self.terms.get(*yielded), expected)?,
+            TypeTerm::TryFailure(tried) => {
+                self.expect_try_failure_term(self.terms.get(*tried), expected)?
+            }
+            TypeTerm::Operation(operation) => match self.terms.get(*operation).clone() {
+                TypeOperationTerm::Exclude { source, target: _ } => {
+                    self.solve_type_assignability(source, expected)?
+                }
+                TypeOperationTerm::BestCommon { elements } => {
+                    self.expect_best_common_term(result, &elements, expected, expected_term)?
+                }
+                TypeOperationTerm::Conditional {
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                } => self.expect_conditional_term(
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                    expected,
+                    mode == TypeExpectationMode::Exact,
+                )?,
+                TypeOperationTerm::Widen { source } => {
+                    self.expect_widen_term(source, expected, expected_term)?
+                }
+                TypeOperationTerm::Index { left, index } => self.expect_type_index_term(
+                    left,
+                    index,
+                    expected,
+                    mode == TypeExpectationMode::Exact,
+                )?,
+                TypeOperationTerm::TemplateLiteral { .. }
+                | TypeOperationTerm::Infer { .. }
+                | TypeOperationTerm::KeyOf { .. }
+                | TypeOperationTerm::Mapped { .. }
+                | TypeOperationTerm::Intrinsic { .. } => Progress::Unchanged,
+            },
+            TypeTerm::RangeValue(range) => {
+                self.expect_range_value_term(self.terms.get(*range), expected_term)?
+            }
+            TypeTerm::Function(function) => {
+                let TypeTerm::Function(expected_function) = expected_term else {
+                    return Ok(Progress::Unchanged);
+                };
+
+                self.expect_function_term(self.terms.get(*function), self.terms.get(*expected_function))?
+            }
+            TypeTerm::Member(_)
             | TypeTerm::Reference { .. }
-            | TypeTerm::Function(_)
+            | TypeTerm::StaticValue { .. }
             | TypeTerm::Range { .. }
+            | TypeTerm::Tree(_)
+            | TypeTerm::TypeValue(_)
+            | TypeTerm::ImportMeta(_)
+            | TypeTerm::Receiver(_)
+            | TypeTerm::Super(_)
             | TypeTerm::Union { .. }
             | TypeTerm::Intersection { .. }
             | TypeTerm::Predicate { .. }
             | TypeTerm::Dynamic { .. }
             | TypeTerm::Closure { .. }
-            | TypeTerm::Parameter { .. }
+            | TypeTerm::Parameter(_)
             | TypeTerm::This
             | TypeTerm::Intrinsic
             | TypeTerm::ConstAssertion
@@ -1349,7 +1833,7 @@ impl CheckComponentState<'_> {
                     payload: right_value,
                 },
             ) => {
-                let form = self.decide_form_equal(left_form, right_form)?;
+                let form = self.decide_form_equal(self.terms.get(*left_form), self.terms.get(*right_form))?;
                 if form != Decision::Yes {
                     return Ok(form);
                 }
@@ -1447,7 +1931,7 @@ impl CheckComponentState<'_> {
                 self.decide_shape_members_equal(left, right)?
             }
             (TypeTerm::Function(left), TypeTerm::Function(right)) => {
-                self.decide_function_equal(left, right)?
+                self.decide_function_equal(self.terms.get(*left), self.terms.get(*right))?
             }
             (
                 TypeTerm::Range {
@@ -1516,7 +2000,10 @@ impl CheckComponentState<'_> {
                     payload: target_value,
                 },
             ) => {
-                let form = self.decide_form_assignable(source_form, target_form)?;
+                let form = self.decide_form_assignable(
+                    self.terms.get(*source_form),
+                    self.terms.get(*target_form),
+                )?;
                 if form != Decision::Yes {
                     return Ok(form);
                 }
@@ -1625,33 +2112,172 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one named type reference when it names a non-nominal type alias.
-    fn reduce_named_type(
+    fn reduce_reference_term(
         &mut self,
         module: ModuleId,
         source: Option<dir::GlobalNodeIdAny>,
         symbol: dir::GlobalSymbolId,
-        arguments: &[ArgumentTerm],
-    ) -> CompilerResult<Option<TypeTerm>> {
+        arguments: &[TermId<ArgumentTerm>],
+    ) -> CompilerResult<Reduction<TypeTerm>> {
         let Some(value) = self.type_alias_body(symbol)? else {
-            return Ok(Some(TypeTerm::Reference {
+            if let Some(source) = source
+                && source.local_id.ty == dir::NodeType::Expression
+                && !arguments.is_empty()
+            {
+                return self.reduce_function_reference_term(module, source, symbol, arguments);
+            }
+
+            return Ok(Reduction::value(TypeTerm::Reference {
                 source,
                 symbol,
                 arguments: arguments.to_vec(),
             }));
         };
-        let value = self
-            .module_mut(symbol.module_id)?
-            .type_expression_variable(value);
+        let value = self.intern_local_type_variable(symbol.module_id, value);
         let Some(term) = self.solved_type_term(value)? else {
+            return Ok(Reduction::pending());
+        };
+        if !arguments.is_empty() && !self.variables.is_open {
+            return Ok(Reduction::value(TypeTerm::Reference {
+                source,
+                symbol,
+                arguments: arguments.to_vec(),
+            }));
+        }
+        let term = if arguments.is_empty() {
+            term
+        } else {
+            let substitution = self.generic_substitution(symbol, arguments)?;
+            let Some(term) = term.substitute(module, &substitution, self)? else {
+                return Ok(Reduction::pending());
+            };
+
+            term
+        };
+
+        let reduction = self.reduce_type_term(module, &term)?;
+        if reduction.value.is_some() {
+            return Ok(reduction);
+        }
+        if term.is_pending_reduction() {
+            return Ok(reduction);
+        }
+
+        Ok(Reduction {
+            value: Some(term),
+            progress: reduction.progress,
+        })
+    }
+
+    /// Reduce one static value used as a type.
+    fn reduce_static_value_term(
+        &mut self,
+        module: ModuleId,
+        value: VariableId,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let Some(term) = self.solved_static_term(value)? else {
             return Ok(None);
         };
-        if arguments.is_empty() {
-            return Ok(Some(term));
-        }
-        let substitution = self.generic_substitution(symbol, arguments)?;
-        let term = term.substitute(module, &substitution, self)?;
+        let origin = self.variable_origin(value)?;
+        let Some(term) = self.type_from_static_term(module, value.module, origin, &term)? else {
+            return Ok(None);
+        };
 
-        Ok(term)
+        Ok(Some(term))
+    }
+
+    /// Return the singleton type described by one static value.
+    fn type_from_static_term(
+        &mut self,
+        module: ModuleId,
+        value_module: ModuleId,
+        origin: ConstraintOrigin,
+        term: &StaticTerm,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let term = match term {
+            StaticTerm::Variable(variable) => {
+                let Some(term) = self.solved_static_term(*variable)? else {
+                    return Ok(None);
+                };
+
+                return self.type_from_static_term(module, variable.module, origin, &term);
+            }
+            StaticTerm::Expression(expression) => {
+                let Some(term) = self.build_static_expression_value(expression.clone())? else {
+                    return Ok(None);
+                };
+
+                return self.type_from_static_term(
+                    module,
+                    expression.module_id,
+                    origin,
+                    &StaticTerm::Literal(term),
+                );
+            }
+            StaticTerm::Literal(dir::StaticTerm::ScalarLiteral { value }) => {
+                TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
+            }
+            StaticTerm::Literal(dir::StaticTerm::Type { ty }) => {
+                let variable = self.materialize_type_id(ty.into_global(value_module));
+
+                TypeTerm::Variable(variable)
+            }
+            StaticTerm::Literal(dir::StaticTerm::TypeLiteral { value }) => {
+                let ty = dir::Type::from(value.clone());
+                let Some(literal) = TypeLiteralTerm::from_type(&ty) else {
+                    return Ok(None);
+                };
+
+                TypeTerm::Literal(literal)
+            }
+            StaticTerm::Literal(dir::StaticTerm::Symbol { symbol }) => {
+                let Some(slot_id) = self.generic_slot_for_symbol(*symbol) else {
+                    return Ok(None);
+                };
+
+                TypeTerm::Parameter(slot_id)
+            }
+            StaticTerm::Literal(dir::StaticTerm::Object { properties }) => {
+                let mut members = Vec::with_capacity(properties.len());
+                for property in properties {
+                    let dir::StaticProperty::Field { key, value } = property else {
+                        return Ok(None);
+                    };
+                    let Some(term) = self.type_from_static_term(
+                        module,
+                        value_module,
+                        origin,
+                        &StaticTerm::Literal(value.clone()),
+                    )?
+                    else {
+                        return Ok(None);
+                    };
+                    let ty = self.solve_anonymous_type(module, origin, term)?;
+
+                    let member = ShapeMemberTerm::Field {
+                        key: *key,
+                        ty,
+                        is_optional: false,
+                        is_readonly: false,
+                    };
+                    let member = self.terms.push(member);
+
+                    members.push(member);
+                }
+
+                TypeTerm::Shape { members }
+            }
+            StaticTerm::Literal(_) => return Ok(None),
+            StaticTerm::Member { .. }
+            | StaticTerm::Join { .. }
+            | StaticTerm::Layout(_)
+            | StaticTerm::Intrinsic { .. }
+            | StaticTerm::Equal { .. }
+            | StaticTerm::TypeRelation { .. }
+            | StaticTerm::Conditional { .. } => return Ok(None),
+        };
+
+        Ok(Some(term))
     }
 
     /// Return the body expression for one reducible type alias.
@@ -1659,18 +2285,17 @@ impl CheckComponentState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
-        if !self.modules.contains_key(&symbol.module_id) {
+        if !self.inputs.contains_key(&symbol.module_id) {
             return Ok(None);
         }
-        let module = self.module(symbol.module_id)?;
-        let Some(node) = module.symbol_source_node(symbol) else {
+        let Some(node) = self.symbol_source_node(symbol.module_id, symbol) else {
             return Ok(None);
         };
         if node.ty != dir::NodeType::Declaration {
             return Ok(None);
         }
         let declaration = dir::LocalNodeId::<dir::Declaration>::new(node.id);
-        let declaration = module.input.view().get(declaration);
+        let declaration = self.input(symbol.module_id).view().get(declaration);
         let value = match declaration {
             dir::Declaration::Type(declaration) if !declaration.is_nominal => {
                 Some(declaration.value)
@@ -1804,7 +2429,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Return whether a literal can take one expected atom.
-    fn can_expect_literal(target: &TypeLiteralTerm) -> bool {
+    fn can_expect_literal_term(target: &TypeLiteralTerm) -> bool {
         matches!(
             target,
             TypeLiteralTerm::Null | TypeLiteralTerm::Object | TypeLiteralTerm::Primitive(_)

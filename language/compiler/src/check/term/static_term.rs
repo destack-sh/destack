@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckComponentState, Decision, GenericSubstitution, LayoutTerm,
-    StaticOperationTerm, StaticRelation, VariableId,
+    ArgumentTerm, CheckState, Decision, GenericSubstitution, LayoutTerm, Reduction, StaticRelation,
+    TermId, TypeRelation, VariableId,
 };
 
 /// Term used to define a static variable.
@@ -42,14 +42,17 @@ pub(in crate::check) enum StaticTerm {
         /// The selected member key.
         key: dir::StaticKey,
         /// The applied static arguments.
-        arguments: Vec<ArgumentTerm>,
+        arguments: Vec<TermId<ArgumentTerm>>,
     },
-    /// Static value operation.
+    /// Static value join.
     ///
     /// ```ts
     /// L | R
     /// ```
-    Operation(StaticOperationTerm),
+    Join {
+        /// The joined values.
+        elements: Vec<VariableId>,
+    },
     /// Concrete layout query.
     ///
     /// ```ts
@@ -65,13 +68,55 @@ pub(in crate::check) enum StaticTerm {
         /// The intrinsic language item.
         item: dir::LanguageItem,
         /// The intrinsic arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
+        arguments: SmallVec<[TermId<ArgumentTerm>; 4]>,
+    },
+    /// Static equality comparison.
+    ///
+    /// ```ts
+    /// this.Width == 4
+    /// ```
+    Equal {
+        /// The left static value.
+        left: TermId<StaticTerm>,
+        /// The right static value.
+        right: TermId<StaticTerm>,
+        /// Whether the equality result is negated.
+        is_negated: bool,
+    },
+    /// Type relation used as a static boolean.
+    ///
+    /// ```ts
+    /// T extends string
+    /// ```
+    TypeRelation {
+        /// The required type relation.
+        relation: TypeRelation,
+        /// The left type.
+        left: VariableId,
+        /// The right type.
+        right: VariableId,
+    },
+    /// Static conditional value.
+    ///
+    /// ```ts
+    /// C ? T : F
+    /// ```
+    Conditional {
+        /// The static boolean condition.
+        condition: TermId<StaticTerm>,
+        /// The value selected when the condition holds.
+        then_value: TermId<StaticTerm>,
+        /// The value selected when the condition does not hold.
+        else_value: TermId<StaticTerm>,
     },
 }
 
 impl StaticTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
         let mut variables = SmallVec::new();
 
         match self {
@@ -83,12 +128,41 @@ impl StaticTerm {
                 arguments,
             } => {
                 variables.push(*owner);
-                variables.extend(arguments.iter().map(ArgumentTerm::variable));
+                variables.extend(
+                    arguments
+                        .iter()
+                        .flat_map(|argument| state.argument_variables(*argument)),
+                );
             }
-            Self::Operation(operation) => variables.extend(operation.referenced_variables()),
+            Self::Join { elements } => variables.extend(elements.iter().copied()),
             Self::Layout(layout) => variables.extend(layout.referenced_variables()),
             Self::Intrinsic { item: _, arguments } => {
-                variables.extend(arguments.iter().map(ArgumentTerm::variable));
+                variables.extend(
+                    arguments
+                        .iter()
+                        .flat_map(|argument| state.argument_variables(*argument)),
+                );
+            }
+            Self::Equal { left, right, .. } => {
+                variables.extend(state.terms.get(*left).referenced_variables(state));
+                variables.extend(state.terms.get(*right).referenced_variables(state));
+            }
+            Self::TypeRelation {
+                relation: _,
+                left,
+                right,
+            } => {
+                variables.push(*left);
+                variables.push(*right);
+            }
+            Self::Conditional {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                variables.extend(state.terms.get(*condition).referenced_variables(state));
+                variables.extend(state.terms.get(*then_value).referenced_variables(state));
+                variables.extend(state.terms.get(*else_value).referenced_variables(state));
             }
             Self::Literal(_) | Self::Expression(_) => {}
         }
@@ -101,11 +175,11 @@ impl StaticTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<StaticTerm> {
         let term = match self {
             StaticTerm::Literal(dir::StaticTerm::Symbol { symbol }) => {
-                if let Some(argument) = substitution.static_symbol(*symbol) {
+                if let Some(argument) = state.substitution_static_symbol(substitution, *symbol) {
                     if let Some(term) = state.solved_static_term(argument)? {
                         term
                     } else {
@@ -118,7 +192,7 @@ impl StaticTerm {
             StaticTerm::Literal(dir::StaticTerm::Lifetime {
                 lifetime: dir::Lifetime::Symbol(symbol),
             }) => {
-                if let Some(argument) = substitution.static_symbol(*symbol) {
+                if let Some(argument) = state.substitution_static_symbol(substitution, *symbol) {
                     if let Some(term) = state.solved_static_term(argument)? {
                         term
                     } else {
@@ -128,9 +202,16 @@ impl StaticTerm {
                     self.clone()
                 }
             }
-            StaticTerm::Operation(operation) => {
-                StaticTerm::Operation(operation.substitute(module, substitution, state)?)
+            StaticTerm::Expression(expression) => {
+                if let Some(term) = state.build_static_expression_term(expression.clone())? {
+                    term.substitute(module, substitution, state)?
+                } else {
+                    self.clone()
+                }
             }
+            StaticTerm::Join { elements } => StaticTerm::Join {
+                elements: state.substitute_static_variables(module, substitution, elements)?,
+            },
             StaticTerm::Layout(layout) => {
                 StaticTerm::Layout(layout.substitute(module, substitution, state)?)
             }
@@ -143,24 +224,71 @@ impl StaticTerm {
                 source: *source,
                 owner: state.substitute_type_variable(module, substitution, *owner)?,
                 key: *key,
-                arguments: ArgumentTerm::substitute_all(arguments, module, substitution, state)?
-                    .into(),
+                arguments: state.substitute_arguments(module, substitution, arguments)?,
             },
             StaticTerm::Intrinsic { item, arguments } => StaticTerm::Intrinsic {
                 item: *item,
-                arguments: ArgumentTerm::substitute_all(arguments, module, substitution, state)?
+                arguments: state
+                    .substitute_arguments(module, substitution, arguments)?
                     .into(),
             },
-            StaticTerm::Variable(_) | StaticTerm::Expression(_) | StaticTerm::Literal(_) => {
-                self.clone()
+            StaticTerm::Equal {
+                left,
+                right,
+                is_negated,
+            } => StaticTerm::Equal {
+                left: state.substitute_static_term(module, substitution, *left)?,
+                right: state.substitute_static_term(module, substitution, *right)?,
+                is_negated: *is_negated,
+            },
+            StaticTerm::TypeRelation {
+                relation,
+                left,
+                right,
+            } => StaticTerm::TypeRelation {
+                relation: *relation,
+                left: state.substitute_type_variable(module, substitution, *left)?,
+                right: state.substitute_type_variable(module, substitution, *right)?,
+            },
+            StaticTerm::Conditional {
+                condition,
+                then_value,
+                else_value,
+            } => StaticTerm::Conditional {
+                condition: state.substitute_static_term(module, substitution, *condition)?,
+                then_value: state.substitute_static_term(module, substitution, *then_value)?,
+                else_value: state.substitute_static_term(module, substitution, *else_value)?,
+            },
+            StaticTerm::Variable(variable) => {
+                if let Some(argument) = state.substitution_static_variable(substitution, *variable) {
+                    StaticTerm::Variable(argument)
+                } else if let Some(term) = state.solved_static_term(*variable)? {
+                    term.substitute(module, substitution, state)?
+                } else {
+                    self.clone()
+                }
             }
+            StaticTerm::Literal(_) => self.clone(),
         };
 
         Ok(term)
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
+    /// Substitute generic arguments through one static term id.
+    pub(in crate::check) fn substitute_static_term(
+        &mut self,
+        module: ModuleId,
+        substitution: &GenericSubstitution,
+        term: TermId<StaticTerm>,
+    ) -> CompilerResult<TermId<StaticTerm>> {
+        let term = self.terms.get(term).substitute(module, substitution, self)?;
+        let term = self.terms.push(term);
+
+        Ok(term)
+    }
+
     /// Decide one static term relation.
     pub(in crate::check) fn decide_static_term_relation(
         &self,
@@ -207,11 +335,15 @@ impl CheckComponentState<'_> {
                 term
             }
             StaticTerm::Expression(expression) => {
-                if let Some(term) = self.static_expression_term(expression.clone())? {
-                    StaticTerm::Literal(term)
-                } else {
-                    term.clone()
-                }
+                let Some(term) = self.build_static_expression_term(expression.clone())? else {
+                    return Ok(None);
+                };
+
+                let Some(term) = self.reduce_static_term(module, &term)? else {
+                    return Ok(None);
+                };
+
+                term
             }
             StaticTerm::Member {
                 source: _,
@@ -225,21 +357,35 @@ impl CheckComponentState<'_> {
                 let Some(owner) = self.solved_type_term(*owner)? else {
                     return Ok(None);
                 };
+                let owner = match self.reduce_type_term(module, &owner)? {
+                    Reduction {
+                        value: Some(value),
+                        progress: _,
+                    } => value,
+                    Reduction {
+                        value: None,
+                        progress: _,
+                    } => owner,
+                };
                 let Some(term) = self.member_static_term(module, &owner, key)? else {
+                    return Ok(None);
+                };
+
+                let Some(term) = self.reduce_static_term(module, &term)? else {
                     return Ok(None);
                 };
 
                 term
             }
-            StaticTerm::Operation(operation) => {
-                let Some(term) = self.reduce_static_operation(module, operation)? else {
+            StaticTerm::Join { elements } => {
+                let Some(term) = self.reduce_static_join(module, elements)? else {
                     return Ok(None);
                 };
 
                 StaticTerm::Literal(term)
             }
             StaticTerm::Layout(layout) => {
-                let Some(term) = self.reduce_layout_static(module, layout)? else {
+                let Some(term) = self.reduce_layout_term(module, layout)? else {
                     return Ok(None);
                 };
 
@@ -251,6 +397,81 @@ impl CheckComponentState<'_> {
                 };
 
                 StaticTerm::Literal(term)
+            }
+            StaticTerm::Equal {
+                left,
+                right,
+                is_negated,
+            } => {
+                let left = self.terms.get(*left);
+                let Some(left) = self.reduce_static_term(module, &left)? else {
+                    return Ok(None);
+                };
+                let right = self.terms.get(*right);
+                let Some(right) = self.reduce_static_term(module, &right)? else {
+                    return Ok(None);
+                };
+                let decision =
+                    self.decide_static_term_relation(StaticRelation::Equal, &left, &right)?;
+                let value = match decision {
+                    Decision::Yes => !*is_negated,
+                    Decision::No => *is_negated,
+                    Decision::Undecidable => return Ok(None),
+                };
+
+                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                    value: dir::ScalarLiteral::Boolean(value),
+                })
+            }
+            StaticTerm::TypeRelation {
+                relation,
+                left,
+                right,
+            } => {
+                let decision = self.decide_type_relation(*relation, *left, *right)?;
+                let value = match decision {
+                    Decision::Yes => true,
+                    Decision::No => false,
+                    Decision::Undecidable => return Ok(None),
+                };
+
+                StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                    value: dir::ScalarLiteral::Boolean(value),
+                })
+            }
+            StaticTerm::Conditional {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                let condition = self.terms.get(*condition);
+                let Some(condition) = self.reduce_static_term(module, &condition)? else {
+                    return Ok(None);
+                };
+
+                match condition {
+                    StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                        value: dir::ScalarLiteral::Boolean(true),
+                    }) => {
+                        let then_value = self.terms.get(*then_value);
+                        let Some(term) = self.reduce_static_term(module, &then_value)? else {
+                            return Ok(None);
+                        };
+
+                        term
+                    }
+                    StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                        value: dir::ScalarLiteral::Boolean(false),
+                    }) => {
+                        let else_value = self.terms.get(*else_value);
+                        let Some(term) = self.reduce_static_term(module, &else_value)? else {
+                            return Ok(None);
+                        };
+
+                        term
+                    }
+                    _ => return Ok(None),
+                }
             }
             StaticTerm::Literal(_) => term.clone(),
         };
@@ -290,15 +511,47 @@ impl CheckComponentState<'_> {
             | (_, StaticTerm::Expression(_))
             | (StaticTerm::Member { .. }, _)
             | (_, StaticTerm::Member { .. })
-            | (StaticTerm::Operation(_), _)
-            | (_, StaticTerm::Operation(_))
+            | (StaticTerm::Join { .. }, _)
+            | (_, StaticTerm::Join { .. })
             | (StaticTerm::Layout(_), _)
             | (_, StaticTerm::Layout(_))
             | (StaticTerm::Intrinsic { .. }, _)
-            | (_, StaticTerm::Intrinsic { .. }) => Decision::Undecidable,
+            | (_, StaticTerm::Intrinsic { .. })
+            | (StaticTerm::Equal { .. }, _)
+            | (_, StaticTerm::Equal { .. })
+            | (StaticTerm::TypeRelation { .. }, _)
+            | (_, StaticTerm::TypeRelation { .. })
+            | (StaticTerm::Conditional { .. }, _)
+            | (_, StaticTerm::Conditional { .. }) => Decision::Undecidable,
         };
 
         Ok(decision)
+    }
+
+    /// Reduce one static join.
+    fn reduce_static_join(
+        &mut self,
+        module: ModuleId,
+        elements: &[VariableId],
+    ) -> CompilerResult<Option<dir::StaticTerm>> {
+        let mut lifetimes = Vec::with_capacity(elements.len());
+
+        // collect solved lifetime elements
+        for element in elements {
+            let Some(term) = self.static_value(*element)? else {
+                return Ok(None);
+            };
+            let dir::StaticTerm::Lifetime { .. } = term else {
+                return Ok(None);
+            };
+            let lifetime = self.intern_static(module, term);
+
+            lifetimes.push(lifetime);
+        }
+
+        Ok(Some(dir::StaticTerm::Lifetime {
+            lifetime: dir::Lifetime::Join(lifetimes),
+        }))
     }
 
     /// Decide exact DIR static equality.

@@ -4,8 +4,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckComponentState, FormTerm, GenericSubstitution, ShapeMemberTerm, StaticTerm, TypeTerm,
-    VariableId,
+    CheckState, FormTerm, GenericSubstitution, LayoutDecision, LayoutFailure, LayoutResolution,
+    ShapeMemberTerm, StaticTerm, TermId, TypeTerm, VariableId,
 };
 
 /// Compile-time query over a concrete type layout.
@@ -126,7 +126,7 @@ impl LayoutTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
             source: self.source,
@@ -136,9 +136,9 @@ impl LayoutTerm {
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
     /// Reduce one layout query when its target type is solved.
-    pub(in crate::check) fn reduce_layout_static(
+    pub(in crate::check) fn reduce_layout_term(
         &mut self,
         module: ModuleId,
         term: &LayoutTerm,
@@ -185,10 +185,12 @@ impl CheckComponentState<'_> {
             TypeTerm::Literal(atom) => {
                 let ty = atom.to_type();
 
-                self.dir_type_layout(module, &ty, pointer_bytes)?
+                self.committed_type_layout(module, &ty, pointer_bytes)?
             }
             TypeTerm::Form { form, payload } => {
-                self.form_term_layout(module, form, LayoutType::Variable(*payload), pointer_bytes)?
+                let form = self.terms.get(*form).clone();
+
+                self.form_term_layout(module, &form, LayoutType::Variable(*payload), pointer_bytes)?
             }
             TypeTerm::FixedArray {
                 element,
@@ -206,7 +208,7 @@ impl CheckComponentState<'_> {
             } => {
                 let fields = elements.iter().map(|element| LayoutFieldInput {
                     key: None,
-                    ty: LayoutType::Variable(element.ty),
+                    ty: LayoutType::Variable(self.terms.get(*element).ty),
                 });
 
                 self.aggregate_layout(module, fields, AggregateLayoutShape::Tuple, pointer_bytes)?
@@ -228,8 +230,8 @@ impl CheckComponentState<'_> {
         Ok(layout)
     }
 
-    /// Return a concrete layout for one committed DIR type.
-    fn dir_type_layout(
+    /// Return a concrete layout for one committed type.
+    fn committed_type_layout(
         &mut self,
         module: ModuleId,
         ty: &dir::Type,
@@ -257,7 +259,14 @@ impl CheckComponentState<'_> {
 
                 self.aggregate_layout(module, fields, AggregateLayoutShape::Tuple, pointer_bytes)?
             }
-            dir::Type::Shape(shape) => self.dir_shape_layout(module, shape, pointer_bytes)?,
+            dir::Type::Shape(shape) => {
+                let fields = shape.fields.iter().map(|field| LayoutFieldInput {
+                    key: Some(field.key),
+                    ty: LayoutType::TypeId(field.ty),
+                });
+
+                self.aggregate_layout(module, fields, AggregateLayoutShape::Struct, pointer_bytes)?
+            }
             dir::Type::Function(_) | dir::Type::Closure(_) => Some(function_layout(pointer_bytes)),
             dir::Type::Union(union) => {
                 let variants = union.elements.iter().copied().map(LayoutType::TypeId);
@@ -289,9 +298,9 @@ impl CheckComponentState<'_> {
                 Some(pointer_layout(pointer_bytes))
             }
             dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
-                let value = self.module(module)?.get_type(form.value);
+                let value = self.local_type(module, form.value);
 
-                self.dir_type_layout(module, &value, pointer_bytes)?
+                self.committed_type_layout(module, &value, pointer_bytes)?
             }
         };
 
@@ -325,8 +334,8 @@ impl CheckComponentState<'_> {
         array: &dir::FixedArrayType,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<ConcreteLayout>> {
-        let element_type = self.module(module)?.get_type(array.element);
-        let element = self.dir_type_layout(module, &element_type, pointer_bytes)?;
+        let element_type = self.local_type(module, array.element);
+        let element = self.committed_type_layout(module, &element_type, pointer_bytes)?;
         let Some(element) = element else {
             return Ok(None);
         };
@@ -379,29 +388,14 @@ impl CheckComponentState<'_> {
         }))
     }
 
-    /// Return a concrete layout for one DIR shape.
-    fn dir_shape_layout(
-        &mut self,
-        module: ModuleId,
-        shape: &dir::ShapeType,
-        pointer_bytes: u32,
-    ) -> CompilerResult<Option<ConcreteLayout>> {
-        let fields = shape.fields.iter().map(|field| LayoutFieldInput {
-            key: Some(field.key),
-            ty: LayoutType::TypeId(field.ty),
-        });
-
-        self.aggregate_layout(module, fields, AggregateLayoutShape::Struct, pointer_bytes)
-    }
-
     /// Return a concrete layout for one check shape.
     fn shape_layout(
         &mut self,
         module: ModuleId,
-        members: &[ShapeMemberTerm],
+        members: &[TermId<ShapeMemberTerm>],
         pointer_bytes: u32,
     ) -> CompilerResult<Option<ConcreteLayout>> {
-        let fields = members.iter().filter_map(|member| match member {
+        let fields = members.iter().filter_map(|member| match self.terms.get(*member) {
             ShapeMemberTerm::Field { key, ty, .. } => Some(LayoutFieldInput {
                 key: Some(*key),
                 ty: LayoutType::Variable(*ty),
@@ -511,7 +505,7 @@ impl CheckComponentState<'_> {
         module: ModuleId,
         value: dir::LocalStaticId,
     ) -> CompilerResult<Option<u32>> {
-        let value = self.module(module)?.get_static(value);
+        let value = self.local_static(module, value);
         let dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::Integer(value),
         } = value
@@ -571,29 +565,27 @@ impl CheckComponentState<'_> {
         term: &LayoutTerm,
         layout: ConcreteLayout,
     ) -> CompilerResult<()> {
-        let outcome = crate::check::LayoutOutcome::Resolved(crate::check::LayoutResolution {
+        let decision = LayoutDecision::Resolved(LayoutResolution {
             source: term.source,
             target: term.target,
             query: term.query,
             layout,
         });
 
-        self.module_mut(term.source.module_id)?
-            .record_layout_outcome(term.source, outcome);
+        self.record_layout_decision(term.source, decision);
 
         Ok(())
     }
 
     /// Record a failed layout query.
     fn record_layout_rejection(&mut self, term: &LayoutTerm) -> CompilerResult<()> {
-        let outcome = crate::check::LayoutOutcome::Rejected(crate::check::LayoutFailure {
+        let decision = LayoutDecision::Rejected(LayoutFailure {
             source: term.source,
             target: term.target,
             query: term.query,
         });
 
-        self.module_mut(term.source.module_id)?
-            .record_layout_outcome(term.source, outcome);
+        self.record_layout_decision(term.source, decision);
 
         Ok(())
     }
@@ -604,15 +596,15 @@ impl LayoutType {
     fn layout(
         self,
         module: ModuleId,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<ConcreteLayout>> {
         match self {
             Self::Variable(variable) => state.type_layout(module, variable, pointer_bytes),
             Self::TypeId(ty) => {
-                let ty = state.module(module)?.get_type(ty);
+                let ty = state.local_type(module, ty);
 
-                state.dir_type_layout(module, &ty, pointer_bytes)
+                state.committed_type_layout(module, &ty, pointer_bytes)
             }
         }
     }

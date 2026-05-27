@@ -2,9 +2,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    ArgumentTerm, CallTarget, CallableSelection, CallableSignature, CheckComponentState,
-    ConstructFailure, ConstructOutcome, ConstructResolution, FunctionTerm, GenericInstance,
-    Progress, ShapeMemberTerm, TypeLiteralTerm, TypeTerm, VariableId,
+    ArgumentTerm, CallFailure, CallTarget, CallableSelection, CallableSignature, CheckState,
+    ConstraintOrigin, ConstructDecision, ConstructFailure, ConstructResolution,
+    FunctionParameterTerm, FunctionTerm, GenericInstance, Progress, Reduction, ShapeMemberTerm,
+    TermId, TypeLiteralTerm, TypeTerm, VariableId,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -18,21 +19,28 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::check) struct ConstructTerm {
     /// The source construct expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The constructed expression type.
+    /// The construct callee type.
     pub(in crate::check) callee: VariableId,
     /// The explicit construct generic arguments.
-    pub(in crate::check) generic_arguments: Vec<ArgumentTerm>,
+    pub(in crate::check) generic_arguments: Vec<TermId<ArgumentTerm>>,
     /// The argument expression types.
     pub(in crate::check) arguments: Vec<VariableId>,
 }
 
 impl ConstructTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> smallvec::SmallVec<[VariableId; 4]> {
         let mut variables = smallvec::SmallVec::new();
 
         variables.push(self.callee);
-        variables.extend(self.generic_arguments.iter().map(ArgumentTerm::variable));
+        variables.extend(
+            self.generic_arguments
+                .iter()
+                .flat_map(|argument| state.argument_variables(*argument)),
+        );
         variables.extend(self.arguments.iter().copied());
 
         variables
@@ -59,74 +67,80 @@ pub(in crate::check) enum ConstructCandidates {
     Present(Vec<ConstructCandidate>),
 }
 
-impl CheckComponentState<'_> {
-    /// Reduce one runtime construct to its return type.
-    pub(in crate::check) fn reduce_construct_type(
+impl CheckState<'_> {
+    /// Reduce one runtime construct expression to its return type.
+    pub(in crate::check) fn reduce_construct_term(
         &mut self,
         module: ModuleId,
         construct: &ConstructTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Reduction<TypeTerm>> {
         let result = self.resolve_construct(module, construct, None)?;
+        let progress = result.progress();
         let function = match &result {
-            CallableSelection::Resolved { target, function } => {
-                let (symbol, instance) = target.as_construct_target();
+            CallableSelection::Resolved {
+                target, function, ..
+            } => {
+                let (symbol, instance) = target.as_constructor_target();
 
                 self.record_construct_resolution(construct, symbol, instance, function)?;
 
                 function
             }
-            CallableSelection::NotCallable => {
-                self.record_construct_rejection(construct, ConstructFailure::NotConstructible)?;
+            CallableSelection::Rejected(failure) => {
+                let failure = construct_failure_from_call_failure(failure);
 
-                return Ok(None);
-            }
-            CallableSelection::NoMatch => {
-                self.record_construct_rejection(construct, ConstructFailure::NoMatch)?;
+                self.record_construct_rejection(construct, failure)?;
 
-                return Ok(None);
+                return Ok(Reduction::progress(progress));
             }
-            CallableSelection::Pending => return Ok(None),
+            CallableSelection::Pending { .. } => return Ok(Reduction::progress(progress)),
         };
 
         let term = match function.return_type {
             Some(return_type) => TypeTerm::Variable(return_type),
             None => TypeTerm::Literal(TypeLiteralTerm::Void),
         };
-        let term = self.push_solved_type_variable(module, term)?;
+        let origin = ConstraintOrigin::Node(construct.source);
+        let term = self.solve_anonymous_type(module, origin, term)?;
 
-        Ok(Some(TypeTerm::Variable(term)))
+        Ok(Reduction {
+            value: Some(TypeTerm::Variable(term)),
+            progress,
+        })
     }
 
-    /// Apply an expected construct result to resolved construct candidates.
-    pub(in crate::check) fn expect_construct_result(
+    /// Expect resolved construct candidates to produce the expected result.
+    pub(in crate::check) fn expect_construct_term(
         &mut self,
         module: ModuleId,
         construct: &ConstructTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
         let resolved = self.resolve_construct(module, construct, Some(result))?;
+        let progress = resolved.progress();
         let progress = match &resolved {
-            CallableSelection::Resolved { target, function } => {
-                let (symbol, instance) = target.as_construct_target();
+            CallableSelection::Resolved {
+                target, function, ..
+            } => {
+                let (symbol, instance) = target.as_constructor_target();
 
                 self.record_construct_resolution(construct, symbol, instance, function)?;
 
                 match function.return_type {
-                    Some(return_type) => self.relate_type_assignable(return_type, result)?,
-                    None => Progress::Unchanged,
+                    Some(return_type) => {
+                        progress.merge(self.solve_type_assignability(return_type, result)?)
+                    }
+                    None => progress,
                 }
             }
-            CallableSelection::NotCallable => {
-                self.record_construct_rejection(construct, ConstructFailure::NotConstructible)?;
+            CallableSelection::Rejected(failure) => {
+                let failure = construct_failure_from_call_failure(failure);
 
-                Progress::Unchanged
-            }
-            CallableSelection::NoMatch => {
-                self.record_construct_rejection(construct, ConstructFailure::NoMatch)?;
+                self.record_construct_rejection(construct, failure)?;
 
-                Progress::Unchanged
+                progress
             }
-            CallableSelection::Pending => Progress::Unchanged,
+            CallableSelection::Pending { .. } => progress,
         };
 
         Ok(progress)
@@ -139,12 +153,18 @@ impl CheckComponentState<'_> {
         construct: &ConstructTerm,
         expected: Option<VariableId>,
     ) -> CompilerResult<CallableSelection> {
+        if let Some(selection) = self.recorded_construct_selection(construct)? {
+            return Ok(selection);
+        }
+
         let Some(callee) = self.solved_type_term(construct.callee)? else {
-            return Ok(CallableSelection::Pending);
+            return Ok(CallableSelection::pending());
         };
         let candidates = match self.construct_candidates(module, construct.callee, &callee)? {
-            ConstructCandidates::Pending => return Ok(CallableSelection::Pending),
-            ConstructCandidates::Absent => return Ok(CallableSelection::NotCallable),
+            ConstructCandidates::Pending => return Ok(CallableSelection::pending()),
+            ConstructCandidates::Absent => {
+                return Ok(CallableSelection::rejected(CallFailure::NotCallable));
+            }
             ConstructCandidates::Present(candidates) => candidates,
         };
         let mut saw_pending = false;
@@ -161,21 +181,21 @@ impl CheckComponentState<'_> {
                 &construct.arguments,
                 expected,
                 match candidate.symbol {
-                    Some(symbol) => CallTarget::Construct { symbol },
+                    Some(symbol) => CallTarget::Constructor { symbol },
                     None => CallTarget::Value,
                 },
             )?;
             match result {
                 CallableSelection::Resolved { .. } => return Ok(result),
-                CallableSelection::Pending => saw_pending = true,
-                CallableSelection::NoMatch | CallableSelection::NotCallable => {}
+                CallableSelection::Pending { .. } => saw_pending = true,
+                CallableSelection::Rejected(_) => {}
             }
         }
 
         if saw_pending {
-            Ok(CallableSelection::Pending)
+            Ok(CallableSelection::pending())
         } else {
-            Ok(CallableSelection::NoMatch)
+            Ok(CallableSelection::rejected(CallFailure::NoMatch))
         }
     }
 
@@ -212,7 +232,7 @@ impl CheckComponentState<'_> {
         module: ModuleId,
         callee: VariableId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[crate::check::ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<ConstructCandidates> {
         let constructors = self.visible_role_member_symbols(
             symbol,
@@ -260,10 +280,10 @@ impl CheckComponentState<'_> {
         &mut self,
         callee: VariableId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[crate::check::ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<ConstructCandidates> {
-        if self.symbol_form(symbol)? == dir::SymbolForm::Newtype {
-            return self.newtype_construct_candidate(callee, symbol, arguments);
+        if self.construct_symbol_kind(symbol)? == dir::SymbolKind::Newtype {
+            return self.newtype_constructor_candidate(callee, symbol, arguments);
         }
 
         let instance = (!arguments.is_empty()).then(|| GenericInstance {
@@ -283,20 +303,21 @@ impl CheckComponentState<'_> {
             instance,
             function,
         };
+
         Ok(ConstructCandidates::Present(vec![candidate]))
     }
 
     /// Return an implicit constructor candidate for a newtype backing type.
-    fn newtype_construct_candidate(
+    fn newtype_constructor_candidate(
         &mut self,
         callee: VariableId,
         symbol: dir::GlobalSymbolId,
-        arguments: &[crate::check::ArgumentTerm],
+        arguments: &[TermId<ArgumentTerm>],
     ) -> CompilerResult<ConstructCandidates> {
         let Some(backing) = self.newtype_backing_type(symbol)? else {
             return Ok(ConstructCandidates::Pending);
         };
-        let parameters = self.newtype_construct_parameters(backing)?;
+        let parameters = self.newtype_constructor_parameters(backing)?;
         let instance = (!arguments.is_empty()).then(|| GenericInstance {
             symbol,
             arguments: arguments.to_vec(),
@@ -319,16 +340,30 @@ impl CheckComponentState<'_> {
     }
 
     /// Return the constructor parameters implied by a newtype backing type.
-    fn newtype_construct_parameters(
+    fn newtype_constructor_parameters(
         &mut self,
         backing: VariableId,
-    ) -> CompilerResult<Vec<VariableId>> {
+    ) -> CompilerResult<Vec<TermId<FunctionParameterTerm>>> {
         let Some(term) = self.solved_type_term(backing)? else {
-            return Ok(vec![backing]);
+            let parameter = self.terms.push(FunctionParameterTerm::required(backing));
+
+            return Ok(vec![parameter]);
         };
         let parameters = match term {
-            TypeTerm::Tuple { elements, .. } => elements.iter().map(|element| element.ty).collect(),
-            _ => vec![backing],
+            TypeTerm::Tuple { elements, .. } => elements
+                .iter()
+                .map(|element| {
+                    let element = self.terms.get(*element);
+                    let parameter = FunctionParameterTerm {
+                        ty: element.ty,
+                        is_optional: element.is_optional,
+                        is_rest: element.is_rest,
+                    };
+
+                    self.terms.push(parameter)
+                })
+                .collect(),
+            _ => vec![self.terms.push(FunctionParameterTerm::required(backing))],
         };
 
         Ok(parameters)
@@ -339,20 +374,20 @@ impl CheckComponentState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<VariableId>> {
-        let Some(module) = self.modules.get_mut(&symbol.module_id) else {
+        if !self.inputs.contains_key(&symbol.module_id) {
             return Ok(None);
         };
-        let Some(source) = module.symbol_source_node(symbol) else {
+        let Some(source) = self.symbol_source_node(symbol.module_id, symbol) else {
             return Ok(None);
         };
         if source.ty != dir::NodeType::Declaration {
             return Ok(None);
         }
         let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(source.id);
-        let declaration = module.input.view().get(declaration_id).clone();
+        let declaration = self.input(symbol.module_id).view().get(declaration_id).clone();
         let backing = match declaration {
             dir::Declaration::Type(declaration) if declaration.is_nominal => {
-                Some(module.type_expression_variable(declaration.value))
+                Some(self.intern_local_type_variable(symbol.module_id, declaration.value))
             }
             _ => None,
         };
@@ -360,26 +395,31 @@ impl CheckComponentState<'_> {
         Ok(backing)
     }
 
-    /// Return the declaration form for one symbol.
-    fn symbol_form(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<dir::SymbolForm> {
-        let Some(module) = self.modules.get(&symbol.module_id) else {
+    /// Return the declaration kind for one construct symbol.
+    fn construct_symbol_kind(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<dir::SymbolKind> {
+        let Some(module) = self.inputs.get(&symbol.module_id) else {
             return Err(CompilerError::Internal {
                 message: format!("construct symbol {symbol:?} is outside the check component"),
             });
         };
         let bindings = module.binding_table();
-        let form = bindings.get_symbol(symbol.local_id).form;
+        let Some(symbol) = bindings.get_symbol_maybe(symbol.local_id) else {
+            return Err(CompilerError::Internal {
+                message: "construct symbol is not visible in its module".to_string(),
+            });
+        };
 
-        Ok(form)
+        Ok(symbol.kind)
     }
 
     /// Return construct candidates from one shape term.
     fn shape_construct_candidates(
         &mut self,
         module: ModuleId,
-        members: &[ShapeMemberTerm],
+        members: &[TermId<ShapeMemberTerm>],
     ) -> CompilerResult<ConstructCandidates> {
         for member in members {
+            let member = self.terms.get(*member);
             let ShapeMemberTerm::ConstructSignature { ty } = member else {
                 continue;
             };
@@ -401,21 +441,52 @@ impl CheckComponentState<'_> {
         Ok(ConstructCandidates::Absent)
     }
 
-    /// Record one rejected construct for diagnostics.
+    /// Return the already chosen decision for one construct expression.
+    fn recorded_construct_selection(
+        &self,
+        construct: &ConstructTerm,
+    ) -> CompilerResult<Option<CallableSelection>> {
+        let Some(decision) = self
+            .solutions
+            .construct
+            .get(&construct.source)
+            .cloned()
+        else {
+            return Ok(None);
+        };
+
+        let selection = match decision {
+            ConstructDecision::Resolved(resolution) => {
+                let target = match resolution.symbol {
+                    Some(symbol) => CallTarget::Constructor { symbol }
+                        .into_resolution_target(resolution.instance),
+                    None => CallTarget::Value.into_resolution_target(None),
+                };
+
+                CallableSelection::resolved(target, resolution.function, Progress::Unchanged)
+            }
+            ConstructDecision::Rejected(failure) => {
+                CallableSelection::rejected(call_failure_from_construct_failure(failure))
+            }
+        };
+
+        Ok(Some(selection))
+    }
+
+    /// Record one rejected construct expression for diagnostics.
     fn record_construct_rejection(
         &mut self,
         construct: &ConstructTerm,
         failure: ConstructFailure,
     ) -> CompilerResult<()> {
-        let outcome = ConstructOutcome::Rejected(failure);
+        let decision = ConstructDecision::Rejected(failure);
 
-        self.module_mut(construct.source.module_id)?
-            .record_construct_outcome(construct.source, outcome);
+        self.record_construct_decision(construct.source, decision);
 
         Ok(())
     }
 
-    /// Record one resolved construct for commit.
+    /// Record one resolved construct expression for commit.
     fn record_construct_resolution(
         &mut self,
         construct: &ConstructTerm,
@@ -429,11 +500,26 @@ impl CheckComponentState<'_> {
             instance: instance.cloned(),
             function: function.clone(),
         };
-        let outcome = ConstructOutcome::Resolved(resolution);
+        let decision = ConstructDecision::Resolved(resolution);
 
-        self.module_mut(construct.source.module_id)?
-            .record_construct_outcome(construct.source, outcome);
+        self.record_construct_decision(construct.source, decision);
 
         Ok(())
+    }
+}
+
+/// Convert call failure detail to construct failure detail.
+fn construct_failure_from_call_failure(failure: &CallFailure) -> ConstructFailure {
+    match failure {
+        CallFailure::NotCallable => ConstructFailure::NotConstructible,
+        CallFailure::NoMatch | CallFailure::ArgumentType { .. } => ConstructFailure::NoMatch,
+    }
+}
+
+/// Convert construct failure detail to call failure detail.
+fn call_failure_from_construct_failure(failure: ConstructFailure) -> CallFailure {
+    match failure {
+        ConstructFailure::NotConstructible => CallFailure::NotCallable,
+        ConstructFailure::NoMatch => CallFailure::NoMatch,
     }
 }

@@ -4,8 +4,8 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
 use crate::check::{
-    ArgumentTerm, CheckComponentState, Decision, GenericSubstitution, TypeLiteralTerm,
-    TypeRelation, TypeTerm, VariableId,
+    ArgumentTerm, CheckState, ConstraintOrigin, Decision, GenericSubstitution, Progress, Reduction,
+    Solution, TermId, TypeLiteralTerm, TypeRelation, TypeTerm, VariableId,
 };
 
 /// Type-level operation term.
@@ -71,7 +71,7 @@ pub(in crate::check) enum TypeOperationTerm {
     /// ```
     Mapped {
         /// The mapped parameter.
-        parameter: MappedParameterTerm,
+        parameter: TermId<MappedParameterTerm>,
         /// The mapped modifiers.
         modifiers: dir::MappedTypeModifiers,
         /// The mapped value type.
@@ -115,7 +115,7 @@ pub(in crate::check) enum TypeOperationTerm {
         /// The intrinsic language item.
         item: dir::LanguageItem,
         /// The intrinsic arguments.
-        arguments: SmallVec<[ArgumentTerm; 4]>,
+        arguments: SmallVec<[TermId<ArgumentTerm>; 4]>,
     },
 }
 
@@ -134,7 +134,10 @@ pub(in crate::check) struct MappedParameterTerm {
 
 impl TypeOperationTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
         match self {
             Self::Conditional {
                 left,
@@ -154,7 +157,7 @@ impl TypeOperationTerm {
                 modifiers: _,
                 value,
             } => {
-                let mut variables = parameter.referenced_variables();
+                let mut variables = state.terms.get(*parameter).referenced_variables();
 
                 variables.push(*value);
 
@@ -164,7 +167,10 @@ impl TypeOperationTerm {
             Self::Widen { source } => smallvec![*source],
             Self::Exclude { source, target } => smallvec![*source, *target],
             Self::Intrinsic { item: _, arguments } => {
-                arguments.iter().map(ArgumentTerm::variable).collect()
+                arguments
+                    .iter()
+                    .flat_map(|argument| state.argument_variables(*argument))
+                    .collect()
             }
         }
     }
@@ -174,7 +180,7 @@ impl TypeOperationTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let operation = match self {
             Self::Conditional {
@@ -212,7 +218,11 @@ impl TypeOperationTerm {
                 modifiers,
                 value,
             } => Self::Mapped {
-                parameter: parameter.substitute(module, substitution, state)?,
+                parameter: {
+                    let parameter = state.terms.get(*parameter).substitute(module, substitution, state)?;
+
+                    state.terms.push(parameter)
+                },
                 modifiers: *modifiers,
                 value: state.substitute_type_variable(module, substitution, *value)?,
             },
@@ -228,7 +238,8 @@ impl TypeOperationTerm {
             },
             Self::Intrinsic { item, arguments } => Self::Intrinsic {
                 item: *item,
-                arguments: ArgumentTerm::substitute_all(arguments, module, substitution, state)?
+                arguments: state
+                    .substitute_arguments(module, substitution, arguments)?
                     .into(),
             },
         };
@@ -253,7 +264,7 @@ impl MappedParameterTerm {
         &self,
         module: ModuleId,
         substitution: &GenericSubstitution,
-        state: &mut CheckComponentState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
             name: self.name,
@@ -267,16 +278,114 @@ impl MappedParameterTerm {
     }
 }
 
-impl CheckComponentState<'_> {
+impl CheckState<'_> {
+    /// Reduce one conditional type expression.
+    pub(in crate::check) fn reduce_conditional_term(
+        &self,
+        left: VariableId,
+        right: VariableId,
+        then_type: VariableId,
+        else_type: VariableId,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
+        let selected = match decision {
+            Decision::Yes => then_type,
+            Decision::No => else_type,
+            Decision::Undecidable => return Ok(None),
+        };
+
+        Ok(Some(TypeTerm::Variable(selected)))
+    }
+
+    /// Expect selected conditional branches to satisfy one expected type.
+    pub(in crate::check) fn expect_conditional_term(
+        &mut self,
+        left: VariableId,
+        right: VariableId,
+        then_type: VariableId,
+        else_type: VariableId,
+        expected: VariableId,
+        is_exact: bool,
+    ) -> CompilerResult<Progress> {
+        let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
+        let progress = match decision {
+            // constrain the selected branch
+            Decision::Yes => self.expect_conditional_branch(then_type, expected, is_exact)?,
+            // constrain the selected branch
+            Decision::No => self.expect_conditional_branch(else_type, expected, is_exact)?,
+            // constrain every possible branch
+            Decision::Undecidable => {
+                let then_type = self.expect_conditional_branch(then_type, expected, is_exact)?;
+                let else_type = self.expect_conditional_branch(else_type, expected, is_exact)?;
+
+                then_type.merge(else_type)
+            }
+        };
+
+        Ok(progress)
+    }
+
+    /// Reduce one indexed access type with a literal key.
+    pub(in crate::check) fn reduce_type_index_term(
+        &mut self,
+        module: ModuleId,
+        left: VariableId,
+        index: VariableId,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let Some(left) = self.solved_type_term(left)? else {
+            return Ok(None);
+        };
+        let left = match self.reduce_type_term(module, &left)? {
+            Reduction {
+                value: Some(term), ..
+            } => term,
+            Reduction { value: None, .. } => left,
+        };
+        let Some(index) = self.solved_type_term(index)? else {
+            return Ok(None);
+        };
+        let Some(key) = Self::type_term_static_key(&index) else {
+            return Ok(None);
+        };
+
+        self.resolve_member_type(module, &left, &key, &[])
+    }
+
+    /// Expect one indexed access type to satisfy one expected type.
+    pub(in crate::check) fn expect_type_index_term(
+        &mut self,
+        left: VariableId,
+        index: VariableId,
+        expected: VariableId,
+        is_exact: bool,
+    ) -> CompilerResult<Progress> {
+        let Some(term) = self.reduce_type_index_term(expected.module, left, index)? else {
+            return Ok(Progress::Unchanged);
+        };
+        let origin = self.variable_origin(left)?;
+        let term = self.solve_anonymous_type(expected.module, origin, term)?;
+        let progress = if is_exact {
+            self.solve_type_equality(term, expected)?
+        } else {
+            self.solve_type_assignability(term, expected)?
+        };
+
+        Ok(progress)
+    }
+
     /// Widen a literal type inferred through assignability.
     pub(in crate::check) fn widen_inferred_type(term: TypeTerm) -> TypeTerm {
         let TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) = term else {
             return term;
         };
         let ty = match literal {
-            dir::ScalarLiteral::Integer(_) | dir::ScalarLiteral::Float(_) => {
-                TypeLiteralTerm::number()
+            dir::ScalarLiteral::Integer(_) => {
+                TypeLiteralTerm::Primitive(dir::PrimitiveType::Integer(dir::IntegerType::Fixed {
+                    width: 32,
+                    is_signed: true,
+                }))
             }
+            dir::ScalarLiteral::Float(_) => TypeLiteralTerm::number(),
             dir::ScalarLiteral::Bigint(_) => TypeLiteralTerm::bigint(),
             dir::ScalarLiteral::String(_) => TypeLiteralTerm::Primitive(dir::PrimitiveType::String),
             dir::ScalarLiteral::Null => TypeLiteralTerm::Null,
@@ -291,7 +400,7 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one inferred mutable storage type.
-    pub(in crate::check) fn reduce_widen_type(
+    pub(in crate::check) fn reduce_widen_term(
         &mut self,
         source: VariableId,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -303,8 +412,25 @@ impl CheckComponentState<'_> {
         Ok(Some(term))
     }
 
+    /// Expect a widened source term to satisfy one expected type.
+    pub(in crate::check) fn expect_widen_term(
+        &mut self,
+        source: VariableId,
+        expected: VariableId,
+        expected_term: &TypeTerm,
+    ) -> CompilerResult<Progress> {
+        let literal = if let Some(source_term) = self.solved_type_term(source)? {
+            self.expect_literal_term(source, &source_term, expected_term)?
+        } else {
+            Progress::Unchanged
+        };
+        let assignable = self.solve_type_assignability(source, expected)?;
+
+        Ok(literal.merge(assignable))
+    }
+
     /// Reduce one best common type term.
-    pub(in crate::check) fn reduce_best_common_type(
+    pub(in crate::check) fn reduce_best_common_term(
         &mut self,
         module: ModuleId,
         elements: &[VariableId],
@@ -324,23 +450,54 @@ impl CheckComponentState<'_> {
             candidates.push(term);
         }
 
-        let term = self.reduce_best_common_terms(module, candidates)?;
+        let origin = self.variable_origin(elements[0])?;
+        let term = self.reduce_best_common_terms(module, origin, candidates)?;
 
         // push the chosen candidate back into element expressions
         for element in elements {
             let Some(element_term) = self.solved_type_term(*element)? else {
                 return Ok(None);
             };
-            self.expect_literal_type(*element, &element_term, &term)?;
+            self.expect_literal_term(*element, &element_term, &term)?;
         }
 
         Ok(Some(term))
+    }
+
+    /// Expect best common type elements to satisfy one expected type.
+    pub(in crate::check) fn expect_best_common_term(
+        &mut self,
+        result: VariableId,
+        elements: &[VariableId],
+        expected: VariableId,
+        expected_term: &TypeTerm,
+    ) -> CompilerResult<Progress> {
+        let mut progress = Progress::Unchanged;
+
+        // push the expected element type into every literal element
+        for element in elements {
+            if let Some(element_term) = self.solved_type_term(*element)? {
+                progress = progress.merge(self.expect_literal_term(
+                    *element,
+                    &element_term,
+                    expected_term,
+                )?);
+            }
+
+            progress = progress.merge(self.solve_type_assignability(*element, expected)?);
+        }
+
+        let expected_term = self.terms.push(expected_term.clone());
+        let changed = self.solve_variable(result, Solution::Type(expected_term));
+
+        Ok(progress.merge(Progress::from_change(result, changed)))
     }
 
     /// Reduce a concrete set of candidate terms to their best common type.
     pub(in crate::check) fn reduce_best_common_terms(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         candidates: Vec<TypeTerm>,
     ) -> CompilerResult<TypeTerm> {
         // choose the first candidate that accepts every element
@@ -353,7 +510,7 @@ impl CheckComponentState<'_> {
 
         // preserve heterogeneous literal arrays as widened unions
         for candidate in candidates {
-            variables.push(self.push_solved_type_variable(module, candidate)?);
+            variables.push(self.solve_anonymous_type(module, origin, candidate)?);
         }
 
         Ok(TypeTerm::Union {
@@ -362,9 +519,10 @@ impl CheckComponentState<'_> {
     }
 
     /// Reduce one type exclusion term.
-    pub(in crate::check) fn reduce_exclude_type(
+    pub(in crate::check) fn reduce_exclude_term(
         &mut self,
         module: ModuleId,
+        origin: ConstraintOrigin,
         source: VariableId,
         target: VariableId,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -384,13 +542,17 @@ impl CheckComponentState<'_> {
                     form: target_form,
                     payload: target_value,
                 },
-            ) if source_form.same_constructor(target_form) => {
+            ) if self
+                .terms
+                .get(*source_form)
+                .same_constructor(self.terms.get(*target_form)) =>
+            {
                 let Some(payload) =
-                    self.reduce_exclude_type(module, *source_value, *target_value)?
+                    self.reduce_exclude_term(module, origin, *source_value, *target_value)?
                 else {
                     return Ok(None);
                 };
-                let payload = self.push_solved_type_variable(module, payload)?;
+                let payload = self.solve_anonymous_type(module, origin, payload)?;
 
                 TypeTerm::Form {
                     form: source_form.clone(),
@@ -460,5 +622,29 @@ impl CheckComponentState<'_> {
         };
 
         Ok(term)
+    }
+
+    /// Expect one conditional branch to satisfy the expected result.
+    fn expect_conditional_branch(
+        &mut self,
+        branch: VariableId,
+        expected: VariableId,
+        is_exact: bool,
+    ) -> CompilerResult<Progress> {
+        if is_exact {
+            self.solve_type_equality(branch, expected)
+        } else {
+            self.solve_type_assignability(branch, expected)
+        }
+    }
+
+    /// Return the structural key represented by one literal type.
+    fn type_term_static_key(term: &TypeTerm) -> Option<dir::StaticKey> {
+        match term {
+            TypeTerm::Literal(TypeLiteralTerm::Scalar(dir::ScalarLiteral::String(name))) => {
+                Some(dir::StaticKey::Name(*name))
+            }
+            _ => None,
+        }
     }
 }
