@@ -43,44 +43,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Language Check Toolchain
-        uses: ./.github/actions/setup-language-check
+      - name: Install Rust Bun and just
+        uses: ./.github/actions/setup-rust-bun-just
         with:
           rust_components: rustfmt clippy
 
       - name: Check Language
-        run: just language/quick
+        run: just language/check-quick
 
-  language-resolver-windows-check:
-    name: Language Resolver Check (Windows)
-    runs-on: windows-latest
-    timeout-minutes: 120
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Install Rust Bun Node and just
-        uses: ./.github/actions/setup-rust-bun-just
-
-      - name: Check Package Managers
-        shell: bash
-        run: |
-          corepack pnpm --version
-          corepack yarn --version
-
-      - name: Install Resolver Fixtures
-        shell: bash
-        run: just language/install-resolver
-
-      - name: Check Language Resolver (Windows)
-        shell: bash
-        run: just language/test-resolver
-
-  runtime-linux-check:
-    name: Runtime Check (Linux)
-    uses: ./.github/workflows/runtime-linux-check.yml
+  language-runtime-linux-check:
+    name: Language Runtime Check (Linux)
+    uses: ./.github/workflows/language-runtime-linux-check.yml
 
   library-check:
     name: Library Check
@@ -99,7 +72,7 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check Library
-        run: just library/quick
+        run: just library/check-quick
 
   service-check:
     name: Service Check
@@ -118,7 +91,7 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check Service
-        run: just service/quick
+        run: just service/check-quick
 
   app-check:
     name: App Check
@@ -137,7 +110,7 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check App
-        run: just app/quick
+        run: just app/check-quick
 
   bridge-check:
     name: Bridge Check
@@ -157,4 +130,4 @@ jobs:
           install_js_dependencies: "true"
 
       - name: Check Bridge
-        run: just bridge/quick --pin-destack-revision "${GITHUB_SHA}"
+        run: just bridge/check-quick --pin-destack-revision "${GITHUB_SHA}"

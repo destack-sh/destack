@@ -1,4 +1,4 @@
-name: Runtime Check (macOS)
+name: Language Runtime Check (macOS)
 
 on:
   workflow_call:
@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  runtime-macos-check:
-    name: Runtime Check (macOS)
+  language-runtime-macos-check:
+    name: Language Runtime Check (macOS)
     runs-on: macos-14
     timeout-minutes: 90
     steps:
@@ -22,7 +22,7 @@ jobs:
         with:
           rust_components: clippy
 
-      - name: Check Runtime (macOS)
+      - name: Check Language Runtime (macOS)
         run: just language/check-runtime-macos
 
       - name: Show sccache Stats

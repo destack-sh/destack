@@ -33,11 +33,7 @@ check_command() {
 	required="$2"
 	description="$3"
 
-	if [ "${command_name}" = "java" ]; then
-		command_path="$(runtime_java_path || true)"
-	else
-		command_path="$(runtime_command_path "${command_name}")"
-	fi
+	command_path="$(runtime_command_path "${command_name}")"
 
 	if [ -n "${command_path}" ]; then
 		print_ok "${description}: ${command_path}"
