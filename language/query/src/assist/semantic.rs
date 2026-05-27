@@ -358,16 +358,12 @@ pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
         };
 
         let (token_type, modifiers) = match member {
-            dir::Member::AssociatedType {
-                is_static,
-                is_abstract,
-                ..
-            } => {
-                let mods = modifiers_from_member_flags(true, false, *is_static, *is_abstract);
+            dir::Member::AssociatedType { is_abstract, .. } => {
+                let mods = modifiers_from_member_flags(true, false, false, *is_abstract);
                 (SemanticTokenType::Type, mods)
             }
-            dir::Member::AssociatedConst { is_static, .. } => {
-                let mut mods = modifiers_from_member_flags(true, true, *is_static, false);
+            dir::Member::AssociatedConst { .. } => {
+                let mut mods = modifiers_from_member_flags(true, true, false, false);
                 mods = mods.union(SemanticTokenModifiers::READONLY);
                 (SemanticTokenType::Property, mods)
             }

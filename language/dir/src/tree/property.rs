@@ -145,6 +145,24 @@ impl Property {
             Property::Field { .. } | Property::Spread { .. } | Property::Error => None,
         }
     }
+
+    /// Return whether this property has a `static` modifier.
+    pub const fn has_static_modifier(&self) -> bool {
+        false
+    }
+
+    /// Return whether this property body has an implicit receiver.
+    pub const fn has_implicit_receiver(&self) -> bool {
+        matches!(self, Self::Method { .. })
+    }
+
+    /// Return whether this property belongs to the object surface.
+    pub const fn is_instance_member(&self) -> bool {
+        matches!(
+            self,
+            Self::Field { .. } | Self::Method { .. } | Self::Spread { .. }
+        )
+    }
 }
 
 /// A member of a declaration body.
@@ -161,7 +179,6 @@ pub enum Member {
         is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
-        is_static: bool,
     },
     /// Associated compile-time constant.
     AssociatedConst {
@@ -170,7 +187,6 @@ pub enum Member {
         value: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
         is_ambient: bool,
-        is_static: bool,
     },
     /// Named field.
     Field {
@@ -301,15 +317,36 @@ impl Member {
         }
     }
 
-    /// Check whether the member is static.
-    pub fn is_static(&self) -> bool {
+    /// Return whether this member has a `static` modifier.
+    pub const fn has_static_modifier(&self) -> bool {
         match self {
-            Member::AssociatedType { is_static, .. }
-            | Member::AssociatedConst { is_static, .. }
-            | Member::Field { is_static, .. }
-            | Member::Method { is_static, .. } => *is_static,
-            Member::StaticBlock { .. } => true,
-            Member::ComptimeBlock { .. } | Member::Error => false,
+            Member::Field { is_static, .. } | Member::Method { is_static, .. } => *is_static,
+            Member::AssociatedType { .. }
+            | Member::AssociatedConst { .. }
+            | Member::StaticBlock { .. }
+            | Member::ComptimeBlock { .. }
+            | Member::Error => false,
+        }
+    }
+
+    /// Return whether this member body has an implicit receiver.
+    pub const fn has_implicit_receiver(&self) -> bool {
+        match self {
+            Member::Field { is_static, .. } | Member::Method { is_static, .. } => !*is_static,
+            Member::AssociatedType { .. } | Member::AssociatedConst { .. } => true,
+            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } | Member::Error => false,
+        }
+    }
+
+    /// Return whether this member belongs to the instance surface.
+    pub const fn is_instance_member(&self) -> bool {
+        match self {
+            Member::Field { is_static, .. } | Member::Method { is_static, .. } => !*is_static,
+            Member::AssociatedType { .. }
+            | Member::AssociatedConst { .. }
+            | Member::StaticBlock { .. }
+            | Member::ComptimeBlock { .. }
+            | Member::Error => false,
         }
     }
 }

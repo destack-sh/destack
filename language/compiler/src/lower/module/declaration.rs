@@ -215,7 +215,7 @@ impl ModuleLowerer<'_> {
             else {
                 continue;
             };
-            if !member.is_static() {
+            if !member.has_static_modifier() {
                 continue;
             }
 

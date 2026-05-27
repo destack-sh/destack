@@ -659,6 +659,11 @@ impl Parser {
             return Ok(None);
         }
 
+        // reject impossible associated modifiers
+        if modifiers.is_some_and(|modifiers| modifiers.is_static) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         // keyword and name
         self.bump(); // eat type keyword
         let (name, name_span) = self.eat_identifier_with_span()?;
@@ -713,7 +718,6 @@ impl Parser {
             is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
             is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
             is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
-            is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
         };
         let member_id = self.insert_node(member, self.get_span_from(start));
         self.tree.set_main_span(member_id, name_span);
@@ -2180,6 +2184,13 @@ impl Parser {
             associated_comptime_name,
         } = self.eat_property_member_head(modifiers, allow_constructor_mode, false)?;
 
+        // reject impossible associated modifiers
+        if associated_comptime_name.is_some()
+            && modifiers.is_some_and(|modifiers| modifiers.is_static)
+        {
+            return Err(ParseError::unexpected(self.get_span_from(&start)));
+        }
+
         // getters and setters require method form
         if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && !is_method {
             return Err(ParserError::unexpected(self.peek()?.span));
@@ -2338,7 +2349,6 @@ impl Parser {
                     value: default,
                     visibility: modifiers.and_then(|modifiers| modifiers.visibility),
                     is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
-                    is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
                 }
             } else {
                 let Some(key) = key else {

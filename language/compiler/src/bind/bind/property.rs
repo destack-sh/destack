@@ -75,6 +75,23 @@ impl Compiler {
         id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
     ) {
+        // bind implicit this
+        if member.has_implicit_receiver() {
+            let has_name = matches!(
+                member,
+                dir::Member::Method {
+                    signature,
+                    is_static: false,
+                    ..
+                } if signature.this_parameter.is_none()
+            );
+            let key = has_name.then(|| dir::StaticKey::Name(self.strings().intern("this")));
+            let symbol =
+                state.insert_symbol(dir::SymbolRole::Local, dir::SymbolKind::Variable, key, None);
+
+            state.bindings.bind_implicit_receiver(id, symbol);
+        }
+
         match member {
             dir::Member::AssociatedType {
                 generic_parameters,
@@ -141,13 +158,8 @@ impl Compiler {
                 key,
                 signature,
                 body,
-                is_static,
                 ..
             } => {
-                if signature.this_parameter.is_none() && !*is_static {
-                    self.bind_implicit_this_symbol(state, id);
-                }
-
                 // visit method key
                 if let Some(key) = key {
                     dir::walk_key(state, tree, key);
@@ -169,23 +181,6 @@ impl Compiler {
             }
             dir::Member::Error => {}
         }
-    }
-
-    /// Bind the implicit member receiver symbol in the current method scope.
-    pub(in crate::bind) fn bind_implicit_this_symbol<T: dir::Node>(
-        &self,
-        state: &mut BindState<'_>,
-        owner: dir::LocalNodeId<T>,
-    ) {
-        let key = dir::StaticKey::Name(self.strings().intern("this"));
-        let symbol = state.insert_symbol(
-            dir::SymbolRole::Local,
-            dir::SymbolKind::Variable,
-            Some(key),
-            None,
-        );
-
-        state.bindings.bind_implicit_receiver(owner, symbol);
     }
 
     /// Bind one object property.
