@@ -16,10 +16,8 @@ pub enum MemoryError {
         /// The requested byte length.
         byte_len: Option<usize>,
     },
-    /// One process wide memory table reached capacity.
-    CapacityExceeded {
-        /// The table that reached capacity.
-        table: MemoryTable,
+    /// Too many write watched memory ranges are active.
+    TooManyWriteWatchRanges {
         /// The maximum number of entries.
         capacity: usize,
     },
@@ -82,13 +80,6 @@ pub enum MemoryOperation {
     InstallWriteWatch,
 }
 
-/// A bounded process wide memory table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MemoryTable {
-    /// The write watch registration table.
-    WriteWatch,
-}
-
 impl Display for MemoryError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
@@ -117,10 +108,10 @@ impl Display for MemoryError {
                 }
                 (None, None) => write!(formatter, "memory system operation failed: {operation}"),
             },
-            Self::CapacityExceeded { table, capacity } => {
+            Self::TooManyWriteWatchRanges { capacity } => {
                 write!(
                     formatter,
-                    "memory table capacity exceeded: {table}, capacity {capacity}"
+                    "too many write watched memory ranges: capacity {capacity}"
                 )
             }
             Self::InvalidByteRange {
@@ -152,14 +143,6 @@ impl Display for MemoryOperation {
             Self::MapFrameRange => write!(formatter, "map frame range"),
             Self::ProtectPages => write!(formatter, "protect pages"),
             Self::InstallWriteWatch => write!(formatter, "install write watch"),
-        }
-    }
-}
-
-impl Display for MemoryTable {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::WriteWatch => write!(formatter, "write watch"),
         }
     }
 }
