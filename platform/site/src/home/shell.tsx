@@ -1,10 +1,14 @@
 import { A } from "@solidjs/router";
 import type { JSX } from "solid-js";
 
+import { Icon } from "./icon";
+
+const githubUrl = "https://github.com/destack-sh/destack";
+
 const communityLinks = [
     ["discord", "https://discord.gg/xUFQ45TWYd"],
     ["twitter", "https://twitter.com/destack"],
-    ["github", "https://github.com/destack-sh/destack"],
+    ["github", githubUrl],
 ] as const;
 
 type PageShellProps = {
@@ -13,11 +17,16 @@ type PageShellProps = {
 
 export function PageShell(props: PageShellProps) {
     return (
-        <main class="grid min-h-[100svh] min-w-0 grid-rows-[3rem_minmax(0,1fr)_3rem] overflow-x-hidden bg-destack-page font-mono text-neutral-950 lg:h-[100svh] lg:overflow-hidden">
+        <main class="grid min-h-svh min-w-0 grid-rows-[3rem_minmax(0,1fr)_3rem] overflow-x-hidden bg-destack-page font-mono text-neutral-950 lg:h-svh lg:overflow-hidden">
+            {/* top bar */}
             <TopBar />
-            <section class="mx-auto grid h-full min-h-0 min-w-0 w-full max-w-[82rem] grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 pt-7 pb-12">
+
+            {/* page body */}
+            <section class="mx-auto grid h-full min-h-0 w-full max-w-328 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-6 px-6 pt-7 pb-12">
                 {props.children}
             </section>
+
+            {/* footer */}
             <Footer />
         </main>
     );
@@ -26,20 +35,14 @@ export function PageShell(props: PageShellProps) {
 function TopBar() {
     return (
         <header class="border-b border-neutral-950 bg-destack-ink text-destack-panel">
-            <div class="mx-auto flex h-12 max-w-[82rem] items-center justify-between px-10">
+            <div class="mx-auto flex h-12 max-w-328 items-center justify-between px-10">
+                {/* brand */}
                 <A class="flex items-center gap-2 text-sm font-extrabold" href="/">
-                    <span class="grid size-7 place-items-center overflow-hidden rounded-full">
-                        <img
-                            alt=""
-                            class="size-8 max-w-none"
-                            height="32"
-                            src="/brand/favicon/favicon-simple.svg"
-                            width="32"
-                        />
-                    </span>
+                    <Icon class="size-7" />
                     <span>destack</span>
                 </A>
 
+                {/* community links, separated by slashes */}
                 <nav class="hidden items-center gap-2 text-sm font-extrabold lowercase md:flex">
                     {communityLinks.map(([label, href], index) => (
                         <>
@@ -58,11 +61,14 @@ function TopBar() {
 function Footer() {
     return (
         <footer class="border-t border-neutral-950 bg-destack-ink text-destack-panel">
-            <div class="mx-auto flex h-12 max-w-[82rem] items-center justify-between px-10 text-sm font-extrabold lowercase">
-                <span>destack.sh</span>
-                <span>
+            <div class="mx-auto flex h-12 max-w-328 items-center justify-between px-10 text-sm font-extrabold lowercase">
+                {/* copyright */}
+                <span class="text-destack-panel/70">© Symbol Industries</span>
+
+                {/* open source link */}
+                <a class="hover:text-destack-accent" href={githubUrl}>
                     <span class="border-b-4 border-destack-panel/40">100%</span> open source
-                </span>
+                </a>
             </div>
         </footer>
     );

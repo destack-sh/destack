@@ -102,7 +102,7 @@ export const exampleAreas = [
     },
 ] as const satisfies readonly ExampleArea[];
 
-export const compiledExamples = {
+export const compiledExamples: Partial<Record<SnippetKey, CompiledExample>> = {
     "types/primitives": compiled(
         `loadUser:
     call    readUserRow
