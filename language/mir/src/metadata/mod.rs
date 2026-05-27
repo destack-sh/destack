@@ -7,6 +7,7 @@ mod layout;
 mod memory;
 mod metadata;
 mod profile;
+mod trace;
 mod r#type;
 
 pub use data::*;
@@ -18,4 +19,5 @@ pub use layout::*;
 pub use memory::*;
 pub use metadata::*;
 pub use profile::*;
+pub use trace::*;
 pub use r#type::*;
