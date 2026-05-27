@@ -327,6 +327,23 @@ impl Compiler {
         id: dir::LocalNodeId<dir::TypeMember>,
         type_member: &dir::TypeMember,
     ) {
+        // bind implicit this
+        if type_member.has_implicit_receiver() {
+            let has_name = matches!(
+                type_member,
+                dir::TypeMember::Method {
+                    signature,
+                    is_static: false,
+                    ..
+                } if signature.this_parameter.is_none()
+            );
+            let key = has_name.then(|| dir::StaticKey::Name(self.strings().intern("this")));
+            let symbol =
+                state.insert_symbol(dir::SymbolRole::Local, dir::SymbolKind::Variable, key, None);
+
+            state.bindings.bind_implicit_receiver(id, symbol);
+        }
+
         match type_member {
             dir::TypeMember::Field {
                 key, declared_type, ..
@@ -344,13 +361,9 @@ impl Compiler {
                 key,
                 signature,
                 body,
-                is_static,
+                is_static: _,
                 ..
             } => {
-                if signature.this_parameter.is_none() && !*is_static {
-                    self.bind_implicit_this_symbol(state, id);
-                }
-
                 // visit method key
                 dir::walk_key(state, tree, key);
 

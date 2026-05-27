@@ -265,7 +265,7 @@ impl ModuleLowerer<'_> {
         signature: &dir::FunctionSignature,
     ) -> bool {
         // reject static and private methods
-        if member.is_static() || self.member_is_private(member) {
+        if member.has_static_modifier() || self.member_is_private(member) {
             return false;
         }
 

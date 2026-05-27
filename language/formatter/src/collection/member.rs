@@ -127,19 +127,6 @@ fn write_ambient_prefix<'ast>(
     Ok(())
 }
 
-/// Write one static prefix.
-fn write_static_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_static: bool,
-) -> FormatResult<()> {
-    // static
-    if is_static {
-        write!(f, [Keyword::Static, space()])?;
-    }
-
-    Ok(())
-}
-
 /// Write one abstract prefix.
 fn write_abstract_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -269,12 +256,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_ambient,
                     is_abstract,
                     is_override,
-                    is_static,
                 } => {
                     // prefixes
                     write_ambient_prefix(f, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
-                    write_static_prefix(f, *is_static)?;
                     write_abstract_prefix(f, *is_abstract)?;
                     write_override_prefix(f, *is_override)?;
 
@@ -309,12 +294,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     value,
                     visibility,
                     is_ambient,
-                    is_static,
                 } => {
                     // prefixes
                     write_ambient_prefix(f, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
-                    write_static_prefix(f, *is_static)?;
 
                     // keyword pair
                     write!(

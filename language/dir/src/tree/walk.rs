@@ -1593,7 +1593,6 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_ambient: _,
             is_abstract: _,
             is_override: _,
-            is_static: _,
         } => {
             for parameter_id in generic_parameters {
                 let parameter = tree.get(*parameter_id);
@@ -1618,7 +1617,6 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             value,
             visibility: _,
             is_ambient: _,
-            is_static: _,
         } => {
             if let Some(declared_type) = declared_type {
                 let declared_type_expression = tree.get(*declared_type);

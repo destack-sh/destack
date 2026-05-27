@@ -1190,9 +1190,8 @@ fn test_parse_member_associated_comptime_const() {
     let mut test = TestParser::new("comptime const Rows: number = 128");
     let mut parser = test.prepare();
     let member_id = parser.eat_member().unwrap();
-    assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), is_static, .. } => {
+    assert_node!(parser.tree, member_id, Member::AssociatedConst { name, declared_type: Some(ty), value: Some(value), .. } => {
         assert_string!(parser, *name, "Rows");
-        assert!(!*is_static);
         assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
             assert_eq!(*value, TypeLiteral::Number);
         });
@@ -1232,6 +1231,27 @@ fn test_parse_member_associated_comptime_const_type_relation_default() {
     });
 
     test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_member_rejects_static_associated_type() {
+    let mut test = TestParser::new("static type Item = string");
+    let mut parser = test.prepare();
+    let error = parser.eat_member().unwrap_err();
+
+    assert_eq!(parser.get_span_str(error.leaf_span()), "type");
+}
+
+#[test]
+fn test_parse_member_rejects_static_associated_comptime_const() {
+    let mut test = TestParser::new("static comptime const Rows: number = 128");
+    let mut parser = test.prepare();
+    let error = parser.eat_member().unwrap_err();
+
+    assert_eq!(
+        parser.get_span_str(error.leaf_span()),
+        "static comptime const Rows"
+    );
 }
 
 #[test]

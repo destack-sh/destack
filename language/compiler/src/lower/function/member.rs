@@ -12,8 +12,6 @@ enum StaticMemberKind {
     Field,
     /// Static method member.
     Method,
-    /// Static associated type member.
-    Type,
 }
 
 impl FunctionLowerer<'_> {
@@ -189,9 +187,6 @@ impl FunctionLowerer<'_> {
             let (is_static, kind) = match member {
                 dir::Member::Field { is_static, .. } => (is_static, StaticMemberKind::Field),
                 dir::Member::Method { is_static, .. } => (is_static, StaticMemberKind::Method),
-                dir::Member::AssociatedType { is_static, .. } => {
-                    (is_static, StaticMemberKind::Type)
-                }
                 _ => return None,
             };
 

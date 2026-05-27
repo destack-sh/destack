@@ -199,7 +199,7 @@ impl AccessorItem for Member {
     }
 
     fn owner(&self) -> AccessorOwner {
-        if self.is_static() {
+        if self.has_static_modifier() {
             return AccessorOwner::Static;
         }
 
@@ -214,6 +214,14 @@ impl AccessorItem for TypeMember {
 
     fn signature(&self) -> Option<&dir::FunctionSignature> {
         self.signature()
+    }
+
+    fn owner(&self) -> AccessorOwner {
+        if self.has_static_modifier() {
+            return AccessorOwner::Static;
+        }
+
+        AccessorOwner::Instance
     }
 }
 

@@ -132,6 +132,51 @@ impl TypeMember {
             _ => None,
         }
     }
+
+    /// Return whether this type member has a `static` modifier.
+    pub const fn has_static_modifier(&self) -> bool {
+        match self {
+            TypeMember::Field { is_static, .. } | TypeMember::Method { is_static, .. } => {
+                *is_static
+            }
+            TypeMember::CallSignature { .. }
+            | TypeMember::ConstructSignature { .. }
+            | TypeMember::IndexSignature { .. }
+            | TypeMember::AssociatedType { .. }
+            | TypeMember::AssociatedConst { .. }
+            | TypeMember::Error => false,
+        }
+    }
+
+    /// Return whether this type member body has an implicit receiver.
+    pub const fn has_implicit_receiver(&self) -> bool {
+        match self {
+            TypeMember::Field { is_static, .. } | TypeMember::Method { is_static, .. } => {
+                !*is_static
+            }
+            TypeMember::CallSignature { .. }
+            | TypeMember::ConstructSignature { .. }
+            | TypeMember::IndexSignature { .. }
+            | TypeMember::AssociatedType { .. }
+            | TypeMember::AssociatedConst { .. } => true,
+            TypeMember::Error => false,
+        }
+    }
+
+    /// Return whether this type member belongs to the instance surface.
+    pub const fn is_instance_member(&self) -> bool {
+        match self {
+            TypeMember::Field { is_static, .. } | TypeMember::Method { is_static, .. } => {
+                !*is_static
+            }
+            TypeMember::IndexSignature { .. } => true,
+            TypeMember::CallSignature { .. }
+            | TypeMember::ConstructSignature { .. }
+            | TypeMember::AssociatedType { .. }
+            | TypeMember::AssociatedConst { .. }
+            | TypeMember::Error => false,
+        }
+    }
 }
 
 /// A mapped type parameter.

@@ -281,7 +281,7 @@ impl ModuleLowerer<'_> {
                     };
 
                     // skip non instance members
-                    if member.is_static() || self.member_is_private(member) {
+                    if member.has_static_modifier() || self.member_is_private(member) {
                         continue;
                     }
 
