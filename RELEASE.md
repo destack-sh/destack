@@ -4,6 +4,16 @@ Destack releases are (Git) tag driven:
  - The canonical release tag format is `vX.Y.Z`.
  - The monorepo version for all components is in [VERSION.txt](VERSION.txt).
 
+## Channels
+
+Destack uses stack-wide release channels.
+
+| Channel | Meaning |
+|---------|---------|
+| `stable` | Public supported releases from `vX.Y.Z` tags |
+| `nightly` | Signed early-access builds from `main` published on the rolling `nightly` prerelease tag |
+| `canary` | Internal validation builds, not a public installer channel |
+
 ## Commands
 
 Use the repository root's `just` recipes.
@@ -20,8 +30,8 @@ Use the repository root's `just` recipes.
 
 Run the standard flow.
 
-1. Run `just quick`.
-2. Run `just full`.
+1. Run `just check-quick`.
+2. Run `just check-full`.
 3. Run `just release`, `just release minor`, or `just release major`.
 4. Review the release commit and tag.
 5. Run `just release-push`.
@@ -33,8 +43,8 @@ Pushing the `vX.Y.Z` tag triggers [.github/workflows/release.yml](.github/workfl
 Run these from the repository root when preparing or checking a release.
 
 ```sh
-just quick
-just full
+just check-quick
+just check-full
 just validate-release
 just publish --dry-run
 ```
