@@ -3,16 +3,18 @@ use destack_source::ModuleId;
 use destack_dir as dir;
 use indexmap::IndexMap;
 
-use crate::check::{StaticTerm, TypeTerm};
+use crate::check::{
+    CheckState, Constraint, ConstraintOrigin, Definition, Obligation, StaticTerm, TermId, TypeTerm,
+};
 
-use super::{CheckModuleState, ConstraintOrigin, GenericArgumentKey, GenericParameter};
+use super::{GenericArgumentKey, GenericParameter};
 
 /// Component-valid id for one check variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(in crate::check) struct VariableId {
-    /// The module that owns the variable.
+    /// The module that produced the variable.
     pub(in crate::check) module: ModuleId,
-    /// The variable index inside the owning module.
+    /// The variable index inside the checked component.
     pub(in crate::check) index: u32,
 }
 
@@ -38,20 +40,34 @@ pub(in crate::check) struct Variable {
     /// The variable kind.
     pub(in crate::check) kind: VariableKind,
     /// The source that produced the variable.
-    pub(in crate::check) origin: VariableOrigin,
-    /// The solved value, when known.
-    pub(in crate::check) solution: Option<Solution>,
-    /// Variables that must be assignable to this variable.
-    pub(in crate::check) lower_bounds: Vec<VariableId>,
-    /// Variables that this variable must be assignable to.
-    pub(in crate::check) upper_bounds: Vec<VariableId>,
+    pub(in crate::check) source: ConstraintOrigin,
+    /// The committed output that receives this variable when solved.
+    pub(in crate::check) output: Option<VariableOutput>,
 }
 
-/// Variables and variable indexes for one module.
+/// Variable relation bounds collected by the solver.
 #[derive(Debug)]
-pub(in crate::check) struct CheckVariableState {
+pub(in crate::check) struct VariableBounds {
+    /// Variables that must be assignable to this variable.
+    pub(in crate::check) lower: IndexMap<VariableId, Vec<VariableId>>,
+    /// Variables that this variable must be assignable to.
+    pub(in crate::check) upper: IndexMap<VariableId, Vec<VariableId>>,
+}
+
+/// Variables and variable indexes for one checked component.
+#[derive(Debug)]
+pub(in crate::check) struct VariableTable {
+    /// Whether new variables may still be allocated.
+    pub(in crate::check) is_open: bool,
     /// Check variables in allocation order.
-    pub(in crate::check) all: Vec<Variable>,
+    pub(in crate::check) variables: Vec<Variable>,
+    /// Variable definitions in collection order.
+    pub(in crate::check) definitions: Vec<Definition>,
+    /// Variable constraints in collection order.
+    pub(in crate::check) constraints: Vec<Constraint>,
+    /// Check obligations in collection order.
+    pub(in crate::check) obligations: Vec<Obligation>,
+
     /// Type variables keyed by source node.
     pub(in crate::check) type_by_node: IndexMap<dir::GlobalNodeIdAny, VariableId>,
     /// Type variables keyed by source symbol.
@@ -68,17 +84,19 @@ pub(in crate::check) struct CheckVariableState {
     pub(in crate::check) generic_argument: IndexMap<GenericArgumentKey, VariableId>,
     /// Next generic slot index keyed by owner.
     pub(in crate::check) generic_slot_index: IndexMap<dir::GlobalSymbolId, dir::GenericSlotIndex>,
-    /// Next induced generic name index keyed by owner.
-    pub(in crate::check) induced_generic_index: IndexMap<dir::GlobalSymbolId, u32>,
     /// Generic parameter variables keyed by owning symbol.
     pub(in crate::check) generic_parameter_by_owner: IndexMap<dir::GlobalSymbolId, Vec<VariableId>>,
 }
 
-impl CheckVariableState {
+impl VariableTable {
     /// Create empty variable state.
     pub(in crate::check) fn new() -> Self {
         Self {
-            all: Vec::new(),
+            is_open: true,
+            variables: Vec::new(),
+            definitions: Vec::new(),
+            constraints: Vec::new(),
+            obligations: Vec::new(),
             type_by_node: IndexMap::new(),
             type_by_symbol: IndexMap::new(),
             static_by_node: IndexMap::new(),
@@ -87,8 +105,22 @@ impl CheckVariableState {
             static_by_id: IndexMap::new(),
             generic_argument: IndexMap::new(),
             generic_slot_index: IndexMap::new(),
-            induced_generic_index: IndexMap::new(),
             generic_parameter_by_owner: IndexMap::new(),
+        }
+    }
+
+    /// Close the variable graph before solving.
+    pub(in crate::check) fn close(&mut self) {
+        self.is_open = false;
+    }
+}
+
+impl VariableBounds {
+    /// Create empty variable bounds.
+    pub(in crate::check) fn new() -> Self {
+        Self {
+            lower: IndexMap::new(),
+            upper: IndexMap::new(),
         }
     }
 }
@@ -98,15 +130,14 @@ impl Variable {
     pub(in crate::check) fn new(
         id: VariableId,
         kind: VariableKind,
-        origin: VariableOrigin,
+        source: ConstraintOrigin,
+        output: Option<VariableOutput>,
     ) -> Self {
         Self {
             id,
             kind,
-            origin,
-            solution: None,
-            lower_bounds: Vec::new(),
-            upper_bounds: Vec::new(),
+            source,
+            output,
         }
     }
 }
@@ -124,14 +155,14 @@ pub(in crate::check) enum VariableKind {
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Solution {
     /// Solved type term.
-    Type(TypeTerm),
+    Type(TermId<TypeTerm>),
     /// Solved static term.
-    Static(StaticTerm),
+    Static(TermId<StaticTerm>),
 }
 
-/// Source that produced one variable.
+/// Output target attached to one variable.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum VariableOrigin {
+pub(in crate::check) enum VariableOutput {
     /// Variable recorded as one generic slot.
     ///
     /// ```ts
@@ -160,66 +191,66 @@ pub(in crate::check) enum VariableOrigin {
     ///
     /// The binding symbol `value` has its own type variable.
     Symbol(dir::GlobalSymbolId),
-
-    /// Variable generated by check or solver rules.
-    ///
-    /// ```ts
-    /// WithLifetime<T, L>
-    /// ```
-    Generated {
-        /// The source or constraint that caused generation.
-        origin: ConstraintOrigin,
-    },
 }
 
-impl VariableOrigin {
-    /// Create a generated origin without a more specific source.
-    pub(in crate::check) fn generated() -> Self {
-        Self::Generated {
-            origin: ConstraintOrigin::Synthetic,
+impl VariableOutput {
+    /// Return the diagnostic source implied by this output.
+    pub(in crate::check) fn source(&self) -> ConstraintOrigin {
+        match self {
+            Self::Generic(generic) => ConstraintOrigin::Symbol(generic.slot().owner),
+            Self::Node(node) => ConstraintOrigin::Node(*node),
+            Self::Symbol(symbol) => ConstraintOrigin::Symbol(*symbol),
         }
     }
-
-    /// Create a generated origin from one constraint origin.
-    pub(in crate::check) fn generated_from(origin: ConstraintOrigin) -> Self {
-        Self::Generated { origin }
-    }
 }
 
-impl CheckModuleState {
-    /// Push one check variable.
-    pub(in crate::check) fn push_variable(
+impl CheckState<'_> {
+    /// Allocate one output backed check variable.
+    pub(in crate::check) fn allocate_variable(
         &mut self,
+        module: ModuleId,
         kind: VariableKind,
-        origin: VariableOrigin,
+        output: VariableOutput,
     ) -> VariableId {
-        let id = VariableId::new(self.input.module, self.work.variables.all.len() as u32);
-        let variable = Variable::new(id, kind, origin);
-        self.work.variables.all.push(variable);
+        let source = output.source();
+        assert!(
+            self.variables.is_open,
+            "check variable graph is closed before solve"
+        );
+        let id = VariableId::new(module, self.variables.variables.len() as u32);
+        let variable = Variable::new(id, kind, source, Some(output));
+        self.variables.variables.push(variable);
+
+        id
+    }
+
+    /// Allocate one anonymous check variable.
+    pub(in crate::check) fn allocate_anonymous_variable(
+        &mut self,
+        module: ModuleId,
+        kind: VariableKind,
+        source: ConstraintOrigin,
+    ) -> VariableId {
+        assert!(
+            self.variables.is_open,
+            "check variable graph is closed before solve"
+        );
+        let id = VariableId::new(module, self.variables.variables.len() as u32);
+        let variable = Variable::new(id, kind, source, None);
+        self.variables.variables.push(variable);
 
         id
     }
 
     /// Return one variable.
-    pub(in crate::check) fn variable(&self, id: VariableId) -> &Variable {
-        &self.work.variables.all[id.index as usize]
-    }
-
-    /// Return one variable mutably.
-    pub(in crate::check) fn variable_mut(&mut self, id: VariableId) -> &mut Variable {
-        &mut self.work.variables.all[id.index as usize]
-    }
-
-    /// Return the solved value for one variable.
-    pub(in crate::check) fn variable_solution(&self, id: VariableId) -> Option<&Solution> {
-        self.variable(id).solution.as_ref()
+    pub(in crate::check) fn variable(&self, id: VariableId) -> Variable {
+        self.variables.variables[id.index as usize].clone()
     }
 
     /// Solve one variable and return whether it changed.
     pub(in crate::check) fn solve_variable(&mut self, id: VariableId, value: Solution) -> bool {
-        let variable = self.variable_mut(id);
-        let Some(existing) = &variable.solution else {
-            variable.solution = Some(value);
+        let Some(existing) = self.solutions.solution.get(&id) else {
+            self.solutions.solution.insert(id, value);
 
             return true;
         };
@@ -233,209 +264,207 @@ impl CheckModuleState {
     }
 
     /// Add one lower bound to a variable.
-    pub(in crate::check) fn bound_variable_below(
+    pub(in crate::check) fn add_lower_bound(
         &mut self,
         variable: VariableId,
         lower_bound: VariableId,
     ) -> bool {
-        let variable = self.variable_mut(variable);
-        if variable.lower_bounds.contains(&lower_bound) {
+        let bounds = self.solutions.bound.lower.entry(variable).or_default();
+        if bounds.contains(&lower_bound) {
             return false;
         }
 
-        variable.lower_bounds.push(lower_bound);
+        bounds.push(lower_bound);
 
         true
     }
 
     /// Add one upper bound to a variable.
-    pub(in crate::check) fn bound_variable_above(
+    pub(in crate::check) fn add_upper_bound(
         &mut self,
         variable: VariableId,
         upper_bound: VariableId,
     ) -> bool {
-        let variable = self.variable_mut(variable);
-        if variable.upper_bounds.contains(&upper_bound) {
+        let bounds = self.solutions.bound.upper.entry(variable).or_default();
+        if bounds.contains(&upper_bound) {
             return false;
         }
 
-        variable.upper_bounds.push(upper_bound);
+        bounds.push(upper_bound);
 
         true
     }
 
+    /// Return lower bounds for one variable.
+    pub(in crate::check) fn lower_bounds(&self, variable: VariableId) -> Vec<VariableId> {
+        self.solutions
+            .bound
+            .lower
+            .get(&variable)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Return upper bounds for one variable.
+    pub(in crate::check) fn upper_bounds(&self, variable: VariableId) -> Vec<VariableId> {
+        self.solutions
+            .bound
+            .upper
+            .get(&variable)
+            .cloned()
+            .unwrap_or_default()
+    }
+
     /// Return one variable's source node for diagnostics.
     pub(in crate::check) fn variable_source_node(&self, id: VariableId) -> dir::LocalNodeIdAny {
-        let module_node = self.input.bound.module_node;
+        let module_node = self.input(id.module).bound.module_node;
 
-        match &self.variable(id).origin {
-            VariableOrigin::Node(node) if node.module_id == self.input.module => node.local_id,
-            VariableOrigin::Symbol(symbol) if symbol.module_id == self.input.module => {
-                match self.symbol_source_node(*symbol) {
+        match self.variable(id).source {
+            ConstraintOrigin::Node(node) if node.module_id == id.module => node.local_id,
+            ConstraintOrigin::Symbol(symbol) if symbol.module_id == id.module => {
+                match self.symbol_source_node(id.module, symbol) {
                     Some(node) => node,
                     None => module_node,
                 }
             }
-            VariableOrigin::Generic(generic)
-                if generic.slot().owner.module_id == self.input.module =>
-            {
-                match self.symbol_source_node(generic.slot().owner) {
-                    Some(node) => node,
-                    None => module_node,
-                }
-            }
-            VariableOrigin::Generated { origin } => match origin {
-                ConstraintOrigin::Node(node) if node.module_id == self.input.module => {
-                    node.local_id
-                }
-                ConstraintOrigin::Symbol(symbol) if symbol.module_id == self.input.module => {
-                    match self.symbol_source_node(*symbol) {
-                        Some(node) => node,
-                        None => module_node,
-                    }
-                }
-                ConstraintOrigin::Synthetic
-                | ConstraintOrigin::Node(_)
-                | ConstraintOrigin::Symbol(_) => module_node,
-            },
-            VariableOrigin::Symbol(_) | VariableOrigin::Node(_) | VariableOrigin::Generic(_) => {
-                module_node
-            }
+            ConstraintOrigin::Node(_) | ConstraintOrigin::Symbol(_) => module_node,
         }
     }
 
     /// Return the solved type for one variable.
-    pub(in crate::check) fn variable_type_solution(&self, id: VariableId) -> Option<&TypeTerm> {
-        match self.variable_solution(id) {
-            Some(Solution::Type(term)) => Some(term),
+    pub(in crate::check) fn variable_type_solution(&self, id: VariableId) -> Option<TypeTerm> {
+        match self.solutions.solution.get(&id).cloned() {
+            Some(Solution::Type(term)) => Some(self.term(term)),
             _ => None,
         }
     }
 
     /// Return or create a type variable for one node.
-    pub(in crate::check) fn node_type_variable(
+    pub(in crate::check) fn intern_node_type_variable(
         &mut self,
+        module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> VariableId {
-        if let Some(variable) = self.work.variables.type_by_node.get(&node).copied() {
+        if let Some(variable) = self.variables.type_by_node.get(&node).copied() {
             return variable;
         }
 
-        let variable = self.push_variable(VariableKind::Type, VariableOrigin::Node(node));
-        self.work.variables.type_by_node.insert(node, variable);
+        let variable =
+            self.allocate_variable(module, VariableKind::Type, VariableOutput::Node(node));
+        self.variables.type_by_node.insert(node, variable);
 
         variable
     }
 
     /// Return or create a type variable for one symbol.
-    pub(in crate::check) fn symbol_type_variable(
+    pub(in crate::check) fn intern_symbol_type_variable(
         &mut self,
+        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> VariableId {
-        if let Some(variable) = self.work.variables.type_by_symbol.get(&symbol).copied() {
+        if let Some(variable) = self.variables.type_by_symbol.get(&symbol).copied() {
             return variable;
         }
 
-        let variable = self.push_variable(VariableKind::Type, VariableOrigin::Symbol(symbol));
+        let variable =
+            self.allocate_variable(module, VariableKind::Type, VariableOutput::Symbol(symbol));
 
-        // seed declarations that already have checked input types
-        if let Some(type_id) = self.visible_symbol_type_id(symbol) {
-            let materialized = self.materialize_type_id(type_id.into_global(self.input.module));
-            let term = TypeTerm::Variable(materialized);
-
-            self.solve_variable(variable, Solution::Type(term));
-        }
-
-        self.work.variables.type_by_symbol.insert(symbol, variable);
+        self.variables.type_by_symbol.insert(symbol, variable);
 
         variable
     }
 
     /// Return or create a static variable for one node.
-    pub(in crate::check) fn node_static_variable(
+    pub(in crate::check) fn intern_node_static_variable(
         &mut self,
+        module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> VariableId {
-        if let Some(variable) = self.work.variables.static_by_node.get(&node).copied() {
+        if let Some(variable) = self.variables.static_by_node.get(&node).copied() {
             return variable;
         }
 
-        let variable = self.push_variable(VariableKind::Static, VariableOrigin::Node(node));
-        self.work.variables.static_by_node.insert(node, variable);
+        let variable =
+            self.allocate_variable(module, VariableKind::Static, VariableOutput::Node(node));
+        self.variables.static_by_node.insert(node, variable);
 
         variable
     }
 
-    /// Return or create a type variable for one expression node.
-    pub(in crate::check) fn expression_type_variable(
+    /// Return or create a type variable for one local node.
+    pub(in crate::check) fn intern_local_type_variable<T: dir::Node + Clone>(
         &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
+        module: ModuleId,
+        id: dir::LocalNodeId<T>,
     ) -> VariableId {
-        self.node_type_variable(id.into_global_any(self.input.module))
-    }
-
-    /// Return or create a type variable for one type expression node.
-    pub(in crate::check) fn type_expression_variable(
-        &mut self,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> VariableId {
-        self.node_type_variable(id.into_global_any(self.input.module))
+        self.intern_node_type_variable(module, id.into_global_any(module))
     }
 
     /// Return or create a static variable for one expression node.
-    pub(in crate::check) fn static_expression_variable(
+    pub(in crate::check) fn define_static_expression_variable(
         &mut self,
+        module: ModuleId,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> VariableId {
-        let expression = id.into_global(self.input.module);
-        let variable = self.node_static_variable(expression.clone().into_any());
+        let expression = id.into_global(module);
+        let variable = self.intern_node_static_variable(module, expression.clone().into_any());
         let term = StaticTerm::Expression(expression);
 
-        self.define_static_term(variable, term);
+        self.define_static(module, variable, term);
 
         variable
     }
 
     /// Return or create a static variable for one symbol.
-    pub(in crate::check) fn symbol_static_variable(
+    pub(in crate::check) fn intern_symbol_static_variable(
         &mut self,
+        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> VariableId {
-        if let Some(variable) = self.work.variables.static_by_symbol.get(&symbol).copied() {
+        if let Some(variable) = self.variables.static_by_symbol.get(&symbol).copied() {
             return variable;
         }
 
-        let variable = self.push_variable(VariableKind::Static, VariableOrigin::Symbol(symbol));
+        let variable =
+            self.allocate_variable(module, VariableKind::Static, VariableOutput::Symbol(symbol));
 
-        // seed declarations that already have checked input statics
-        if let Some(static_id) = self.visible_symbol_static_id(symbol) {
-            let materialized = self.materialize_static_id(static_id.into_global(self.input.module));
-            let term = StaticTerm::Variable(materialized);
-
-            self.solve_variable(variable, Solution::Static(term));
-        }
-
-        self.work
-            .variables
-            .static_by_symbol
-            .insert(symbol, variable);
+        self.variables.static_by_symbol.insert(symbol, variable);
 
         variable
     }
 
-    /// Return one synthetic static value variable.
-    pub(in crate::check) fn static_value_variable(&mut self, value: dir::StaticTerm) -> VariableId {
-        let variable = self.push_variable(VariableKind::Static, VariableOrigin::generated());
+    /// Define one type variable from one term.
+    pub(in crate::check) fn define_anonymous_type(
+        &mut self,
+        module: ModuleId,
+        origin: ConstraintOrigin,
+        term: TypeTerm,
+    ) -> VariableId {
+        let variable = self.allocate_anonymous_variable(module, VariableKind::Type, origin);
 
-        self.define_static_term(variable, StaticTerm::Literal(value));
+        self.define_type(module, variable, term);
+
+        variable
+    }
+
+    /// Define one static literal variable.
+    pub(in crate::check) fn define_static_literal(
+        &mut self,
+        module: ModuleId,
+        origin: ConstraintOrigin,
+        value: dir::StaticTerm,
+    ) -> VariableId {
+        let variable = self.allocate_anonymous_variable(module, VariableKind::Static, origin);
+
+        self.define_static(module, variable, StaticTerm::Literal(value));
 
         variable
     }
 
     /// Return the solved static value for one variable.
-    pub(in crate::check) fn variable_static_solution(&self, id: VariableId) -> Option<&StaticTerm> {
-        match self.variable_solution(id) {
-            Some(Solution::Static(term)) => Some(term),
+    pub(in crate::check) fn variable_static_solution(&self, id: VariableId) -> Option<StaticTerm> {
+        match self.solutions.solution.get(&id).cloned() {
+            Some(Solution::Static(term)) => Some(self.term(term)),
             _ => None,
         }
     }
