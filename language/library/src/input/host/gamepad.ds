@@ -162,63 +162,55 @@ export struct GamepadState {
     motion?: GamepadMotion;
 }
 
-/// Read one gamepad state snapshot.
-@binding("destack.input.gamepad.state.read", {
-    effect: "external",
-    requires: ["host.input.gamepad"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readGamepadState(
-    device: InputDeviceHandle,
-): Result<GamepadState, HostError>;
+/// Gamepad binding family.
+export interface InputGamepad {
+    /// Read one gamepad state snapshot.
+    @binding("destack.input.gamepad.state.read", {
+        effect: "external",
+        requires: ["host.input.gamepad"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readGamepadState(device: InputDeviceHandle): Result<GamepadState, HostError>;
 
-/// Set one gamepad player index.
-@binding("destack.input.gamepad.player.index.set", {
-    effect: "external",
-    requires: ["host.input.gamepad"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setGamepadPlayerIndex(
-    device: InputDeviceHandle,
-    playerIndex: uint8,
-): Result<void, HostError>;
+    /// Set one gamepad player index.
+    @binding("destack.input.gamepad.player.index.set", {
+        effect: "external",
+        requires: ["host.input.gamepad"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setGamepadPlayerIndex(device: InputDeviceHandle, playerIndex: uint8): Result<void, HostError>;
 
-/// Set one gamepad light color.
-@binding("destack.input.gamepad.light.set", {
-    effect: "external",
-    requires: ["host.input.gamepad"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setGamepadLight(
-    device: InputDeviceHandle,
-    red: uint8,
-    green: uint8,
-    blue: uint8,
-): Result<void, HostError>;
+    /// Set one gamepad light color.
+    @binding("destack.input.gamepad.light.set", {
+        effect: "external",
+        requires: ["host.input.gamepad"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setGamepadLight(
+        device: InputDeviceHandle,
+        red: uint8,
+        green: uint8,
+        blue: uint8,
+    ): Result<void, HostError>;
 
-/// Enable or disable gamepad motion sensors.
-@binding("destack.input.gamepad.motion.set", {
-    effect: "external",
-    requires: ["host.input.gamepad"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setGamepadMotion(
-    device: InputDeviceHandle,
-    isEnabled: boolean,
-): Result<void, HostError>;
+    /// Enable or disable gamepad motion sensors.
+    @binding("destack.input.gamepad.motion.set", {
+        effect: "external",
+        requires: ["host.input.gamepad"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setGamepadMotion(device: InputDeviceHandle, isEnabled: boolean): Result<void, HostError>;
 
-/// Set the gamepad motion sensor sample rate.
-@binding("destack.input.gamepad.motion.rate.set", {
-    effect: "external",
-    requires: ["host.input.gamepad"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setGamepadMotionRate(
-    device: InputDeviceHandle,
-    sampleRateHz: float64,
-): Result<void, HostError>;
+    /// Set the gamepad motion sensor sample rate.
+    @binding("destack.input.gamepad.motion.rate.set", {
+        effect: "external",
+        requires: ["host.input.gamepad"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setGamepadMotionRate(device: InputDeviceHandle, sampleRateHz: float64): Result<void, HostError>;
+}

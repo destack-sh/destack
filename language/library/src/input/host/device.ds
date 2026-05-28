@@ -145,65 +145,59 @@ export struct InputDeviceControls {
     buttons: Array<InputButton>;
 }
 
-/// List input devices.
-@binding("destack.input.device.list", {
-    effect: "external",
-    requires: ["host.input.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listInputDevices(
-    query: &readonly InputDeviceQuery,
-): Result<Array<InputDevice>, HostError>;
+/// Device binding family.
+export interface InputDevice {
+    /// List input devices.
+    @binding("destack.input.device.list", {
+        effect: "external",
+        requires: ["host.input.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listInputDevices(query: &readonly InputDeviceQuery): Result<Array<InputDevice>, HostError>;
 
-/// Open one input device.
-@binding("destack.input.device.open", {
-    effect: "external",
-    requires: ["host.input.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openInputDevice(id: &readonly string): Result<InputDeviceHandle, HostError>;
+    /// Open one input device.
+    @binding("destack.input.device.open", {
+        effect: "external",
+        requires: ["host.input.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openInputDevice(id: &readonly string): Result<InputDeviceHandle, HostError>;
 
-/// Close one input device.
-@binding("destack.input.device.close", {
-    effect: "external",
-    requires: ["host.input.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeInputDevice(device: InputDeviceHandle): Result<void, HostError>;
+    /// Close one input device.
+    @binding("destack.input.device.close", {
+        effect: "external",
+        requires: ["host.input.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeInputDevice(device: InputDeviceHandle): Result<void, HostError>;
 
-/// Describe one input device.
-@binding("destack.input.device.describe", {
-    effect: "external",
-    requires: ["host.input.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function describeInputDevice(
-    device: InputDeviceHandle,
-): Result<InputDevice, HostError>;
+    /// Describe one input device.
+    @binding("destack.input.device.describe", {
+        effect: "external",
+        requires: ["host.input.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    describeInputDevice(device: InputDeviceHandle): Result<InputDevice, HostError>;
 
-/// Query controls for one input device.
-@binding("destack.input.device.controls.read", {
-    effect: "external",
-    requires: ["host.input.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readInputDeviceControls(
-    device: InputDeviceHandle,
-): Result<InputDeviceControls, HostError>;
+    /// Query controls for one input device.
+    @binding("destack.input.device.controls.read", {
+        effect: "external",
+        requires: ["host.input.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readInputDeviceControls(device: InputDeviceHandle): Result<InputDeviceControls, HostError>;
 
-/// Enable or disable exclusive device grab.
-@binding("destack.input.device.grab", {
-    effect: "external",
-    requires: ["host.input.grab"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function grabInputDevice(
-    device: InputDeviceHandle,
-    isEnabled: boolean,
-): Result<void, HostError>;
+    /// Enable or disable exclusive device grab.
+    @binding("destack.input.device.grab", {
+        effect: "external",
+        requires: ["host.input.grab"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    grabInputDevice(device: InputDeviceHandle, isEnabled: boolean): Result<void, HostError>;
+}

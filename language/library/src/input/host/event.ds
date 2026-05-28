@@ -392,38 +392,41 @@ export newtype InputEvent =
     | InputEventText
     | InputEventComposition;
 
-/// Open an input event subscription.
-@binding("destack.input.event.open", {
-    effect: "external",
-    requires: ["host.input.event"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function openInputEvents(
-    subscription: &readonly InputEventSubscription,
-): Result<InputEventHandle, HostError>;
+/// Event binding family.
+export interface InputEvent {
+    /// Open an input event subscription.
+    @binding("destack.input.event.open", {
+        effect: "external",
+        requires: ["host.input.event"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    openInputEvents(
+        subscription: &readonly InputEventSubscription,
+    ): Result<InputEventHandle, HostError>;
 
-/// Close an input event subscription.
-@binding("destack.input.event.close", {
-    effect: "external",
-    requires: ["host.input.event"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closeInputEvents(events: InputEventHandle): Result<void, HostError>;
+    /// Close an input event subscription.
+    @binding("destack.input.event.close", {
+        effect: "external",
+        requires: ["host.input.event"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeInputEvents(events: InputEventHandle): Result<void, HostError>;
 
-/// Read input events.
-@binding("destack.input.event.read", {
-    effect: "external",
-    requires: ["host.input.event"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readInputEvents(
-    events: InputEventHandle,
-    maxEvents: uint32,
-    timeoutNs?: uint64,
-): Result<Array<InputEvent>, HostError>;
+    /// Read input events.
+    @binding("destack.input.event.read", {
+        effect: "external",
+        requires: ["host.input.event"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readInputEvents(
+        events: InputEventHandle,
+        maxEvents: uint32,
+        timeoutNs?: uint64,
+    ): Result<Array<InputEvent>, HostError>;
+}

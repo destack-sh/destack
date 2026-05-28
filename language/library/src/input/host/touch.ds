@@ -48,11 +48,14 @@ export struct TouchState {
     contacts: Array<TouchContact>;
 }
 
-/// Read one touch state snapshot.
-@binding("destack.input.touch.state.read", {
-    effect: "external",
-    requires: ["host.input.touch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readTouchState(device: InputDeviceHandle): Result<TouchState, HostError>;
+/// Touch binding family.
+export interface InputTouch {
+    /// Read one touch state snapshot.
+    @binding("destack.input.touch.state.read", {
+        effect: "external",
+        requires: ["host.input.touch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTouchState(device: InputDeviceHandle): Result<TouchState, HostError>;
+}

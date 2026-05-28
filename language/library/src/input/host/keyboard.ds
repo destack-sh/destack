@@ -80,24 +80,23 @@ export struct KeyboardState {
     isComposing: boolean;
 }
 
-/// Read one keyboard state snapshot.
-@binding("destack.input.keyboard.state.read", {
-    effect: "external",
-    requires: ["host.input.keyboard"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readKeyboardState(
-    device: InputDeviceHandle,
-): Result<KeyboardState, HostError>;
+/// Keyboard binding family.
+export interface InputKeyboard {
+    /// Read one keyboard state snapshot.
+    @binding("destack.input.keyboard.state.read", {
+        effect: "external",
+        requires: ["host.input.keyboard"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readKeyboardState(device: InputDeviceHandle): Result<KeyboardState, HostError>;
 
-/// Query keyboard layout metadata.
-@binding("destack.input.keyboard.layout.read", {
-    effect: "external",
-    requires: ["host.input.keyboard"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readKeyboardLayout(
-    device: InputDeviceHandle,
-): Result<KeyboardLayout, HostError>;
+    /// Query keyboard layout metadata.
+    @binding("destack.input.keyboard.layout.read", {
+        effect: "external",
+        requires: ["host.input.keyboard"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readKeyboardLayout(device: InputDeviceHandle): Result<KeyboardLayout, HostError>;
+}
