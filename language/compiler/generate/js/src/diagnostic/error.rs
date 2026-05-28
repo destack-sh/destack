@@ -1,4 +1,5 @@
-use {destack_dir as dir, destack_js as js};
+use destack_dir as dir;
+use destack_js as js;
 
 use crate::{CodegenJsWarning, ModuleLowerer};
 

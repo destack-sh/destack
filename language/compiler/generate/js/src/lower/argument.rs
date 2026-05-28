@@ -1,4 +1,5 @@
-use {destack_dir as dir, destack_js as js};
+use destack_dir as dir;
+use destack_js as js;
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
@@ -42,8 +43,6 @@ impl ModuleLowerer<'_> {
         match parameter {
             dir::Parameter::Named {
                 name,
-                visibility,
-                is_readonly,
                 is_optional,
                 declared_type: _,
                 default,
@@ -57,12 +56,8 @@ impl ModuleLowerer<'_> {
                     },
                     None,
                     None,
-                    if *is_readonly {
-                        Some(js::Mutability::Immutable)
-                    } else {
-                        None
-                    },
-                    visibility.map(|visibility| self.lower_visibility(visibility)),
+                    None,
+                    None,
                     None,
                     None,
                 );
@@ -142,24 +137,11 @@ impl ModuleLowerer<'_> {
             }
             dir::Parameter::VariadicNamed {
                 name,
-                visibility,
-                is_readonly,
                 declared_type: _,
                 ..
             } => {
-                let modifiers = self.build_binding_modifier(
-                    None,
-                    None,
-                    None,
-                    if *is_readonly {
-                        Some(js::Mutability::Immutable)
-                    } else {
-                        None
-                    },
-                    visibility.map(|visibility| self.lower_visibility(visibility)),
-                    None,
-                    None,
-                );
+                let modifiers =
+                    self.build_binding_modifier(None, None, None, None, None, None, None);
                 let name = *name;
                 let ty = self
                     .types

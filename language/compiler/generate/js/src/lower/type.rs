@@ -1,5 +1,6 @@
 use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
-use {destack_dir as dir, destack_js as js};
+use destack_dir as dir;
+use destack_js as js;
 
 impl ModuleLowerer<'_> {
     /// Lower one type annotation expression into a JS type.
@@ -311,7 +312,8 @@ impl ModuleLowerer<'_> {
         let argument = self.dir_tree.get(argument_id);
 
         match argument {
-            dir::GenericArgument::Type { value, .. } => {
+            dir::GenericArgument::Type { value, .. }
+            | dir::GenericArgument::AssociatedType { value, .. } => {
                 self.lower_type_annotation_expression(*value)
             }
             dir::GenericArgument::SpreadType { .. } => Err(CodegenJsError::UnsupportedConstruct {
@@ -320,7 +322,9 @@ impl ModuleLowerer<'_> {
                     "variadic generic arguments must be elaborated before JS lowering".to_string(),
                 ),
             }),
-            dir::GenericArgument::Value { .. } | dir::GenericArgument::SpreadValue { .. } => {
+            dir::GenericArgument::Value { .. }
+            | dir::GenericArgument::SpreadValue { .. }
+            | dir::GenericArgument::AssociatedConst { .. } => {
                 Err(CodegenJsError::UnsupportedConstruct {
                     node: argument_id.into_global_any(self.module.id),
                     message: Some(
