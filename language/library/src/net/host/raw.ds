@@ -149,154 +149,140 @@ export struct NetworkPacketRingOptions {
     retireTimeoutMilliseconds: uint32;
 }
 
-/// List host packet backends.
-@binding("destack.net.raw.packetBackends", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listPacketBackends(): Result<Array<NetworkPacketBackendStatus>, HostError>;
+/// Raw socket and packet binding family.
+export interface NetRaw {
+    /// List host packet backends.
+    @binding("destack.net.raw.packetBackends", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listPacketBackends(): Result<Array<NetworkPacketBackendStatus>, HostError>;
 
-/// Open a raw IP socket.
-@binding("destack.net.raw.socket", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openRawSocket(
-    family: SocketFamily,
-    protocol: int32,
-): Result<SocketHandle, HostError>;
+    /// Open a raw IP socket.
+    @binding("destack.net.raw.socket", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, HostError>;
 
-/// Enable or disable IP header inclusion on a raw socket.
-@binding("destack.net.raw.headerIncluded", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setHeaderIncluded(
-    socket: SocketHandle,
-    isEnabled: boolean,
-): Result<void, HostError>;
+    /// Enable or disable IP header inclusion on a raw socket.
+    @binding("destack.net.raw.headerIncluded", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setHeaderIncluded(socket: SocketHandle, isEnabled: boolean): Result<void, HostError>;
 
-/// Open a packet capture or injection endpoint.
-@binding("destack.net.raw.packetOpen", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openPacketEndpoint(
-    options: NetworkPacketOpenOptions,
-): Result<PacketHandle, HostError>;
+    /// Open a packet capture or injection endpoint.
+    @binding("destack.net.raw.packetOpen", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openPacketEndpoint(options: NetworkPacketOpenOptions): Result<PacketHandle, HostError>;
 
-/// Receive one packet from a packet endpoint.
-@binding("destack.net.raw.packetReceive", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function receivePacket(
-    packet: PacketHandle,
-    payload: &[uint8],
-): Result<NetworkPacketRecord, HostError>;
+    /// Receive one packet from a packet endpoint.
+    @binding("destack.net.raw.packetReceive", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    receivePacket(packet: PacketHandle, payload: &[uint8]): Result<NetworkPacketRecord, HostError>;
 
-/// Send one packet through a packet endpoint.
-@binding("destack.net.raw.packetSend", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendPacket(
-    packet: PacketHandle,
-    payload: &readonly [uint8],
-): Result<uint64, HostError>;
+    /// Send one packet through a packet endpoint.
+    @binding("destack.net.raw.packetSend", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    sendPacket(packet: PacketHandle, payload: &readonly [uint8]): Result<uint64, HostError>;
 
-/// Attach one packet filter program to an endpoint.
-@binding("destack.net.raw.packetFilter", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setPacketFilter(
-    packet: PacketHandle,
-    program: &readonly [uint8],
-): Result<void, HostError>;
+    /// Attach one packet filter program to an endpoint.
+    @binding("destack.net.raw.packetFilter", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setPacketFilter(packet: PacketHandle, program: &readonly [uint8]): Result<void, HostError>;
 
-/// Clear the active packet filter program.
-@binding("destack.net.raw.packetClearFilter", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function clearPacketFilter(packet: PacketHandle): Result<void, HostError>;
+    /// Clear the active packet filter program.
+    @binding("destack.net.raw.packetClearFilter", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    clearPacketFilter(packet: PacketHandle): Result<void, HostError>;
 
-/// Set packet fanout on an endpoint.
-@binding("destack.net.raw.packetFanout", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setPacketFanout(
-    packet: PacketHandle,
-    options: NetworkPacketFanoutOptions,
-): Result<void, HostError>;
+    /// Set packet fanout on an endpoint.
+    @binding("destack.net.raw.packetFanout", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setPacketFanout(
+        packet: PacketHandle,
+        options: NetworkPacketFanoutOptions,
+    ): Result<void, HostError>;
 
-/// Clear packet fanout from an endpoint.
-@binding("destack.net.raw.packetClearFanout", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function clearPacketFanout(packet: PacketHandle): Result<void, HostError>;
+    /// Clear packet fanout from an endpoint.
+    @binding("destack.net.raw.packetClearFanout", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    clearPacketFanout(packet: PacketHandle): Result<void, HostError>;
 
-/// Configure one packet receive ring.
-@binding("destack.net.raw.packetReceiveRing", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setPacketReceiveRing(
-    packet: PacketHandle,
-    options: NetworkPacketRingOptions,
-): Result<void, HostError>;
+    /// Configure one packet receive ring.
+    @binding("destack.net.raw.packetReceiveRing", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setPacketReceiveRing(
+        packet: PacketHandle,
+        options: NetworkPacketRingOptions,
+    ): Result<void, HostError>;
 
-/// Configure one packet transmit ring.
-@binding("destack.net.raw.packetSendRing", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setPacketSendRing(
-    packet: PacketHandle,
-    options: NetworkPacketRingOptions,
-): Result<void, HostError>;
+    /// Configure one packet transmit ring.
+    @binding("destack.net.raw.packetSendRing", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setPacketSendRing(
+        packet: PacketHandle,
+        options: NetworkPacketRingOptions,
+    ): Result<void, HostError>;
 
-/// Clear packet ring configuration.
-@binding("destack.net.raw.packetClearRing", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function clearPacketRing(packet: PacketHandle): Result<void, HostError>;
+    /// Clear packet ring configuration.
+    @binding("destack.net.raw.packetClearRing", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    clearPacketRing(packet: PacketHandle): Result<void, HostError>;
 
-/// Read packet endpoint statistics.
-@binding("destack.net.raw.packetStats", {
-    effect: "external",
-    requires: ["host.net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function packetStats(packet: PacketHandle): Result<NetworkPacketStats, HostError>;
+    /// Read packet endpoint statistics.
+    @binding("destack.net.raw.packetStats", {
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    packetStats(packet: PacketHandle): Result<NetworkPacketStats, HostError>;
+}

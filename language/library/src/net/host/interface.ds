@@ -45,29 +45,32 @@ export struct NetworkInterface {
     addresses: Array<NetworkInterfaceAddress>;
 }
 
-/// List network interfaces.
-@binding("destack.net.interface.list", {
-    effect: "external",
-    requires: ["host.net.interface"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listNetworkInterfaces(): Result<Array<NetworkInterface>, HostError>;
+/// Network interface binding family.
+export interface NetInterface {
+    /// List network interfaces.
+    @binding("destack.net.interface.list", {
+        effect: "external",
+        requires: ["host.net.interface"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    list(): Result<Array<NetworkInterface>, HostError>;
 
-/// Resolve an interface name to an index.
-@binding("destack.net.interface.index", {
-    effect: "external",
-    requires: ["host.net.interface"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function networkInterfaceIndex(name: &readonly string): Result<uint32, HostError>;
+    /// Resolve an interface name to an index.
+    @binding("destack.net.interface.index", {
+        effect: "external",
+        requires: ["host.net.interface"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    index(name: &readonly string): Result<uint32, HostError>;
 
-/// Resolve an interface index to a name.
-@binding("destack.net.interface.name", {
-    effect: "external",
-    requires: ["host.net.interface"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function networkInterfaceName(index: uint32): Result<^string, HostError>;
+    /// Resolve an interface index to a name.
+    @binding("destack.net.interface.name", {
+        effect: "external",
+        requires: ["host.net.interface"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    name(index: uint32): Result<^string, HostError>;
+}

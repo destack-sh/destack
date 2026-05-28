@@ -41,31 +41,32 @@ export struct NetworkRouteEntry {
     kind: NetworkRouteKind;
 }
 
-/// List route table entries.
-@binding("destack.net.route.list", {
-    effect: "external",
-    requires: ["host.net.route.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listNetworkRoutes(
-    family: SocketFamily,
-): Result<Array<NetworkRouteEntry>, HostError>;
+/// Network route binding family.
+export interface NetRoute {
+    /// List route table entries.
+    @binding("destack.net.route.list", {
+        effect: "external",
+        requires: ["host.net.route.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    list(family: SocketFamily): Result<Array<NetworkRouteEntry>, HostError>;
 
-/// Add a route table entry.
-@binding("destack.net.route.add", {
-    effect: "external",
-    requires: ["host.net.route.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function addNetworkRoute(route: NetworkRouteEntry): Result<void, HostError>;
+    /// Add a route table entry.
+    @binding("destack.net.route.add", {
+        effect: "external",
+        requires: ["host.net.route.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    add(route: NetworkRouteEntry): Result<void, HostError>;
 
-/// Remove a route table entry.
-@binding("destack.net.route.remove", {
-    effect: "external",
-    requires: ["host.net.route.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function removeNetworkRoute(route: NetworkRouteEntry): Result<void, HostError>;
+    /// Remove a route table entry.
+    @binding("destack.net.route.remove", {
+        effect: "external",
+        requires: ["host.net.route.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    remove(route: NetworkRouteEntry): Result<void, HostError>;
+}

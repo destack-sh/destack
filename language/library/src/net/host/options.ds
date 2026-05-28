@@ -212,52 +212,49 @@ export struct RawSocketOption {
     name: int32;
 }
 
-/// Set one normalized socket option.
-@binding("destack.net.options.set", {
-    effect: "external",
-    requires: ["host.net.option"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSocketOption(
-    socket: SocketHandle,
-    option: SocketOptionValue,
-): Result<void, HostError>;
+/// Socket option binding family.
+export interface NetOptions {
+    /// Set one normalized socket option.
+    @binding("destack.net.options.set", {
+        effect: "external",
+        requires: ["host.net.option"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    set(socket: SocketHandle, option: SocketOptionValue): Result<void, HostError>;
 
-/// Read one normalized socket option.
-@binding("destack.net.options.get", {
-    effect: "external",
-    requires: ["host.net.option"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getSocketOption(
-    socket: SocketHandle,
-    option: SocketOption,
-): Result<SocketOptionValue, HostError>;
+    /// Read one normalized socket option.
+    @binding("destack.net.options.get", {
+        effect: "external",
+        requires: ["host.net.option"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    get(socket: SocketHandle, option: SocketOption): Result<SocketOptionValue, HostError>;
 
-/// Set one raw socket option from bytes.
-@binding("destack.net.options.setRaw", {
-    effect: "external",
-    requires: ["host.net.option"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setRawSocketOption(
-    socket: SocketHandle,
-    option: RawSocketOption,
-    value: &readonly [uint8],
-): Result<void, HostError>;
+    /// Set one raw socket option from bytes.
+    @binding("destack.net.options.setRaw", {
+        effect: "external",
+        requires: ["host.net.option"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setRaw(
+        socket: SocketHandle,
+        option: RawSocketOption,
+        value: &readonly [uint8],
+    ): Result<void, HostError>;
 
-/// Read one raw socket option into a caller-owned buffer.
-@binding("destack.net.options.getRaw", {
-    effect: "external",
-    requires: ["host.net.option"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getRawSocketOption(
-    socket: SocketHandle,
-    option: RawSocketOption,
-    value: &[uint8],
-): Result<uint64, HostError>;
+    /// Read one raw socket option into a caller-owned buffer.
+    @binding("destack.net.options.getRaw", {
+        effect: "external",
+        requires: ["host.net.option"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    getRaw(
+        socket: SocketHandle,
+        option: RawSocketOption,
+        value: &[uint8],
+    ): Result<uint64, HostError>;
+}
