@@ -1,7 +1,8 @@
 use destack_core::StringId;
+use destack_dir as dir;
 use destack_dir::is_identifier;
+use destack_js as js;
 use smallvec::smallvec;
-use {destack_dir as dir, destack_js as js};
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 

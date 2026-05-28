@@ -1,4 +1,5 @@
-use {destack_dir as dir, destack_js as js};
+use destack_dir as dir;
+use destack_js as js;
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
@@ -161,7 +162,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
-            dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { ty: _, fields } => {
+            dir::Pattern::Object { fields } | dir::Pattern::NominalObject { ty: _, fields } => {
                 let fields = fields
                     .iter()
                     .map(|field| self.lower_pattern_field(*field))

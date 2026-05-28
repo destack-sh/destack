@@ -1,7 +1,8 @@
 use crate::{CodegenJsError, CodegenJsResult};
 use destack_artifact::DirParsed;
+use destack_fir as fir;
+use destack_js as js;
 use destack_source::{File, NodeSpanType, Span};
-use {destack_fir as fir, destack_js as js};
 
 /// One printed script module payload.
 #[derive(Debug, Clone)]
