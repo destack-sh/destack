@@ -33,13 +33,11 @@ user.clone() satisfies User;
 user.debug() satisfies string;
 ```
 
-### module derive providers run automatically
+### module derives run automatically
 
 ```ds
-import { Clone } from "destack:decorator";
-
 module {
-    const derive = [Clone];
+    const derive = ["Clone"];
 }
 
 struct User {
