@@ -4,13 +4,13 @@ Symbol values and member access.
 
 ## symbols
 
-### symbol constructor
+### symbol create
 
-Symbols can be created via Symbol().
+Symbols can be created via `Symbol.create`.
 
 
 ```ds
-const x: symbol = Symbol("id");
+const x: symbol = Symbol.create("id");
 ```
 
 ## symbol members
@@ -20,7 +20,7 @@ const x: symbol = Symbol("id");
 Symbols expose Symbol standard members.
 
 ```ds
-const value: symbol = Symbol("id");
+const value: symbol = Symbol.create("id");
 const text = value.toString();
 text satisfies string;
 ```
@@ -30,7 +30,7 @@ text satisfies string;
 Symbol values are not assignable to string.
 
 ```ds
-const value: string = Symbol("id");
+const value: string = Symbol.create("id");
 ```
 
 - contains: not assignable
@@ -40,7 +40,7 @@ const value: string = Symbol("id");
 Symbol values can flow into unions that include symbol.
 
 ```ds
-const value: symbol | string = Symbol("id");
+const value: symbol | string = Symbol.create("id");
 value satisfies symbol | string;
 ```
 
@@ -49,7 +49,7 @@ value satisfies symbol | string;
 Symbol values are not assignable to number.
 
 ```ds
-const value: number = Symbol("id");
+const value: number = Symbol.create("id");
 ```
 
 - contains: not assignable
