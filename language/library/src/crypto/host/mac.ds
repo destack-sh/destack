@@ -18,77 +18,77 @@ export struct CryptoMacParameters {
     tagLength?: uint32;
 }
 
-/// Compute one message authentication code in one shot.
-@binding("destack.crypto.mac.compute", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function computeMac(
-    key: CryptoKeyHandle,
-    parameters: &readonly CryptoMacParameters,
-    payload: &readonly [uint8],
-): Result<Array<uint8>, HostError>;
+/// Mac binding family.
+export interface CryptoMac {
+    /// Compute one message authentication code in one shot.
+    @binding("destack.crypto.mac.compute", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.mac"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    computeMac(
+        key: CryptoKeyHandle,
+        parameters: &readonly CryptoMacParameters,
+        payload: &readonly [uint8],
+    ): Result<Array<uint8>, HostError>;
 
-/// Verify one message authentication code in one shot.
-@binding("destack.crypto.mac.verify", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function verifyMac(
-    key: CryptoKeyHandle,
-    parameters: &readonly CryptoMacParameters,
-    payload: &readonly [uint8],
-    tag: &readonly [uint8],
-): Result<boolean, HostError>;
+    /// Verify one message authentication code in one shot.
+    @binding("destack.crypto.mac.verify", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.mac"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    verifyMac(
+        key: CryptoKeyHandle,
+        parameters: &readonly CryptoMacParameters,
+        payload: &readonly [uint8],
+        tag: &readonly [uint8],
+    ): Result<boolean, HostError>;
 
-/// Open one streaming MAC context.
-@binding("destack.crypto.mac.open", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openMac(
-    key: CryptoKeyHandle,
-    parameters: &readonly CryptoMacParameters,
-): Result<CryptoMacHandle, HostError>;
+    /// Open one streaming MAC context.
+    @binding("destack.crypto.mac.open", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.mac"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openMac(
+        key: CryptoKeyHandle,
+        parameters: &readonly CryptoMacParameters,
+    ): Result<CryptoMacHandle, HostError>;
 
-/// Update one streaming MAC context.
-@binding("destack.crypto.mac.update", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function updateMac(
-    mac: CryptoMacHandle,
-    payload: &readonly [uint8],
-): Result<void, HostError>;
+    /// Update one streaming MAC context.
+    @binding("destack.crypto.mac.update", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.mac"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    updateMac(mac: CryptoMacHandle, payload: &readonly [uint8]): Result<void, HostError>;
 
-/// Finalize one streaming MAC context and return one tag.
-@binding("destack.crypto.mac.finish", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function finishMac(mac: CryptoMacHandle): Result<Array<uint8>, HostError>;
+    /// Finalize one streaming MAC context and return one tag.
+    @binding("destack.crypto.mac.finish", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.mac"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    finishMac(mac: CryptoMacHandle): Result<Array<uint8>, HostError>;
 
-/// Close one streaming MAC context.
-@binding("destack.crypto.mac.close", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeMac(mac: CryptoMacHandle): Result<void, HostError>;
+    /// Close one streaming MAC context.
+    @binding("destack.crypto.mac.close", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.mac"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeMac(mac: CryptoMacHandle): Result<void, HostError>;
+}

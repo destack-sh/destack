@@ -153,28 +153,29 @@ export struct CryptoKdfBits {
     length: uint32;
 }
 
-/// Derive raw bytes.
-@binding("destack.crypto.kdf.deriveBits", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.kdf"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deriveKdfBits(
-    request: &readonly CryptoKdfBits,
-): Result<Array<uint8>, HostError>;
+/// Kdf binding family.
+export interface CryptoKdf {
+    /// Derive raw bytes.
+    @binding("destack.crypto.kdf.deriveBits", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.kdf"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveKdfBits(request: &readonly CryptoKdfBits): Result<Array<uint8>, HostError>;
 
-/// Derive one key.
-@binding("destack.crypto.kdf.deriveKey", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.kdf", "host.crypto.store.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deriveKdfKey(
-    store: CryptoStoreHandle,
-    kdf: &readonly CryptoKdf,
-    key: &readonly CryptoDerivedKey,
-): Result<CryptoKeyHandle, HostError>;
+    /// Derive one key.
+    @binding("destack.crypto.kdf.deriveKey", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.kdf", "host.crypto.store.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveKdfKey(
+        store: CryptoStoreHandle,
+        kdf: &readonly CryptoKdf,
+        key: &readonly CryptoDerivedKey,
+    ): Result<CryptoKeyHandle, HostError>;
+}

@@ -78,46 +78,49 @@ export struct CryptoAgreementBits {
     length: uint32;
 }
 
-/// Derive one shared secret from one local private key and one peer public key.
-@binding("destack.crypto.agreement.deriveSharedSecret", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.key.agree"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deriveSharedSecret(
-    privateKey: CryptoKeyHandle,
-    peerPublicKey: CryptoKeyHandle,
-    algorithm: CryptoKeyAgreementAlgorithm,
-): Result<Array<uint8>, HostError>;
+/// Agreement binding family.
+export interface CryptoAgreement {
+    /// Derive one shared secret from one local private key and one peer public key.
+    @binding("destack.crypto.agreement.deriveSharedSecret", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.key.agree"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveSharedSecret(
+        privateKey: CryptoKeyHandle,
+        peerPublicKey: CryptoKeyHandle,
+        algorithm: CryptoKeyAgreementAlgorithm,
+    ): Result<Array<uint8>, HostError>;
 
-/// Derive raw bytes from one local private key and one peer public key.
-@binding("destack.crypto.agreement.deriveBits", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.key.agree", "host.crypto.kdf"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deriveAgreementBits(
-    privateKey: CryptoKeyHandle,
-    peerPublicKey: CryptoKeyHandle,
-    request: &readonly CryptoAgreementBits,
-): Result<Array<uint8>, HostError>;
+    /// Derive raw bytes from one local private key and one peer public key.
+    @binding("destack.crypto.agreement.deriveBits", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.key.agree", "host.crypto.kdf"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveAgreementBits(
+        privateKey: CryptoKeyHandle,
+        peerPublicKey: CryptoKeyHandle,
+        request: &readonly CryptoAgreementBits,
+    ): Result<Array<uint8>, HostError>;
 
-/// Derive one key from one local private key and one peer public key.
-@binding("destack.crypto.agreement.deriveKey", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.key.agree", "host.crypto.kdf", "host.crypto.store.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deriveAgreementKey(
-    store: CryptoStoreHandle,
-    privateKey: CryptoKeyHandle,
-    peerPublicKey: CryptoKeyHandle,
-    derivation: &readonly CryptoAgreementDerivation,
-    key: &readonly CryptoDerivedKey,
-): Result<CryptoKeyHandle, HostError>;
+    /// Derive one key from one local private key and one peer public key.
+    @binding("destack.crypto.agreement.deriveKey", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.key.agree", "host.crypto.kdf", "host.crypto.store.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveAgreementKey(
+        store: CryptoStoreHandle,
+        privateKey: CryptoKeyHandle,
+        peerPublicKey: CryptoKeyHandle,
+        derivation: &readonly CryptoAgreementDerivation,
+        key: &readonly CryptoDerivedKey,
+    ): Result<CryptoKeyHandle, HostError>;
+}

@@ -154,59 +154,60 @@ export struct CryptoCertificateListPage {
     nextCursor?: string;
 }
 
-/// Read crypto provider capabilities.
-@binding("destack.crypto.capability.read", {
-    effect: "external",
-    requires: ["host.crypto.capability.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readCryptoProviderCapability(): Result<CryptoProviderCapability, HostError>;
+/// Store binding family.
+export interface CryptoStore {
+    /// Read crypto provider capabilities.
+    @binding("destack.crypto.capability.read", {
+        effect: "external",
+        requires: ["host.crypto.capability.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readCryptoProviderCapability(): Result<CryptoProviderCapability, HostError>;
 
-/// Open one crypto store.
-@binding("destack.crypto.store.open", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.store.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openCryptoStore(
-    options: &readonly CryptoStoreOptions,
-): Result<CryptoStoreHandle, HostError>;
+    /// Open one crypto store.
+    @binding("destack.crypto.store.open", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openCryptoStore(options: &readonly CryptoStoreOptions): Result<CryptoStoreHandle, HostError>;
 
-/// Close one crypto store.
-@binding("destack.crypto.store.close", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.store.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeCryptoStore(store: CryptoStoreHandle): Result<void, HostError>;
+    /// Close one crypto store.
+    @binding("destack.crypto.store.close", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeCryptoStore(store: CryptoStoreHandle): Result<void, HostError>;
 
-/// List keys from one store.
-@binding("destack.crypto.store.keys.list", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.store.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listCryptoKeys(
-    store: CryptoStoreHandle,
-    query: &readonly CryptoKeyQuery,
-): Result<CryptoKeyListPage, HostError>;
+    /// List keys from one store.
+    @binding("destack.crypto.store.keys.list", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCryptoKeys(
+        store: CryptoStoreHandle,
+        query: &readonly CryptoKeyQuery,
+    ): Result<CryptoKeyListPage, HostError>;
 
-/// List certificates from one store.
-@binding("destack.crypto.store.certificates.list", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.store.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listCryptoCertificates(
-    store: CryptoStoreHandle,
-    query: &readonly CryptoCertificateQuery,
-): Result<CryptoCertificateListPage, HostError>;
+    /// List certificates from one store.
+    @binding("destack.crypto.store.certificates.list", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCryptoCertificates(
+        store: CryptoStoreHandle,
+        query: &readonly CryptoCertificateQuery,
+    ): Result<CryptoCertificateListPage, HostError>;
+}

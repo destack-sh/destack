@@ -189,65 +189,66 @@ export struct CryptoCertificateVerifyResult {
     usedSystemTrustAnchor: boolean;
 }
 
-/// Import one certificate into one store.
-@binding("destack.crypto.certificate.import", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.certificate.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function importCertificate(
-    store: CryptoStoreHandle,
-    format: CryptoCertificateFormat,
-    certificate: &readonly [uint8],
-): Result<CryptoCertificateHandle, HostError>;
+/// Certificate binding family.
+export interface CryptoCertificate {
+    /// Import one certificate into one store.
+    @binding("destack.crypto.certificate.import", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.certificate.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    importCertificate(
+        store: CryptoStoreHandle,
+        format: CryptoCertificateFormat,
+        certificate: &readonly [uint8],
+    ): Result<CryptoCertificateHandle, HostError>;
 
-/// Export one certificate from one handle.
-@binding("destack.crypto.certificate.export", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.certificate.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function exportCertificate(
-    certificate: CryptoCertificateHandle,
-    format: CryptoCertificateFormat,
-): Result<Array<uint8>, HostError>;
+    /// Export one certificate from one handle.
+    @binding("destack.crypto.certificate.export", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.certificate.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    exportCertificate(
+        certificate: CryptoCertificateHandle,
+        format: CryptoCertificateFormat,
+    ): Result<Array<uint8>, HostError>;
 
-/// Describe one certificate.
-@binding("destack.crypto.certificate.describe", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.certificate.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function describeCertificate(
-    certificate: CryptoCertificateHandle,
-): Result<CryptoCertificateDescriptor, HostError>;
+    /// Describe one certificate.
+    @binding("destack.crypto.certificate.describe", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.certificate.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    describeCertificate(
+        certificate: CryptoCertificateHandle,
+    ): Result<CryptoCertificateDescriptor, HostError>;
 
-/// Verify one certificate chain against one trust policy.
-@binding("destack.crypto.certificate.verify", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.certificate.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function verifyCertificateChain(
-    request: &readonly CryptoCertificateVerifyRequest,
-): Result<CryptoCertificateVerifyResult, HostError>;
+    /// Verify one certificate chain against one trust policy.
+    @binding("destack.crypto.certificate.verify", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.certificate.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    verifyCertificateChain(
+        request: &readonly CryptoCertificateVerifyRequest,
+    ): Result<CryptoCertificateVerifyResult, HostError>;
 
-/// Delete one certificate from one store when allowed.
-@binding("destack.crypto.certificate.delete", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.crypto.certificate.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function deleteCertificate(
-    certificate: CryptoCertificateHandle,
-): Result<void, HostError>;
+    /// Delete one certificate from one store when allowed.
+    @binding("destack.crypto.certificate.delete", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.certificate.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deleteCertificate(certificate: CryptoCertificateHandle): Result<void, HostError>;
+}
