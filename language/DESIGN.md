@@ -66,6 +66,7 @@ Destack requires sound and predictable types and understands only TypeScript-sha
 | **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be initialized before use |
 | **Declaration parameter inference** | `function f(x = 1) {}` | not supported | public declaration surfaces need explicit parameter types |
 | **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value and type arguments share generic forms |
+| **`Record<K, V>`** | `Record<string, User>` | closed utility type | use `Map<K, V>` for dynamic keyed storage |
 | **Circular inference** | mutually inferred module exports | not supported across modules | downstream uses do not refine upstream declarations |
 | **Enum coercion** | `Level.A` as `number` | no implicit coercion | enum fields are nominal constants and need explicit conversion |
 
@@ -849,14 +850,14 @@ struct ErasedLogger {
 }
 ```
 
-Structural type expressions are constraints, but structural value expressions still synthesize concrete anonymous shapes when they are used as values
+Structural type expressions are constraints, but structural value expressions still synthesize concrete anonymous shapes when they are used as values.
 Here the annotation is transparent, and the object expression supplies the concrete value shape checked against it:
 
 ```ds
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 ```
 
-It should be noted that `newtype` is always treated as a concrete type, wheras `newtype` on an `interface` is merely a nominality modifier.
+It should be noted that `newtype` is always treated as a concrete type, whereas `newtype` on an `interface` is merely a nominality modifier.
 So, `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `type Shape = Rectangle | Circle` remains a transparent union constraint until a value or storage boundary chooses a representation.
 
 ### Dynamic
@@ -1426,15 +1427,17 @@ point.x satisfies int32 | float32;
 Readonly fields only need, well, reads, so they can widen through ordinary implicit casts and nested structural views.
 However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike` would be rejected because writing through `PointLike` would no longer be correct (it would have to implicitly widen, but it doesn't and cannot know that!).
 
-Index signatures also work, and dispatch through the `Index` / `IndexSet` operator interfaces.
-Readonly index signatures require `Index<K>`, mutable index signatures require both `Index<K>` and `IndexSet<K, V>`.
-Object literals can satisfy finite readonly index signatures from their known fields, while dynamic records and custom types satisfy them by implementing the operator interfaces.
+#### Index Signatures
+
+Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) are transparent (structural) constraints for object-shaped values, and can be satisfied with both fixed object shapes and types implementing `Index` for readonly / `IndexSet` for writable shapes.
+It's important to note that while Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_  are not concrete.
 
 ```ds
 interface Bag<T> {
-    [key: string]: T | undefined;
+    readonly [key: string]: T;
 }
 
+// finite object view
 const counts: Bag<int32> = { apples: 3, oranges: 2 };
 
 function read<T>(bag: Bag<T>, key: string): T | undefined {
@@ -1442,6 +1445,12 @@ function read<T>(bag: Bag<T>, key: string): T | undefined {
 }
 
 read(counts, "apples") satisfies int32 | undefined;
+
+// mutable indexed container
+const dynamicCounts = Map<string, int32>.new();
+dynamicCounts.set("apples", 3);
+dynamicCounts.has("apples") satisfies boolean;
+dynamicCounts satisfies { [key: string]: int32 };
 ```
 
 #### Unions
@@ -1670,8 +1679,8 @@ Finally arms run as usual after the `try` / `catch` body, including when `?` lea
 
 ### Trees (TSX)
 
-TypeScript XML (`.tsx`) is a great way of writing UI-shaped code and has even seen some adoption for other tree-shaped data structures as well.
-Destack (`.ds`) natively supports `.tsx` like constructs with the same rules:
+TypeScript XML (`.tsx`) is a great way of writing UI-shaped code and has even seen some successful adoption for other tree-shaped data structures as well.
+It's not perfect, but it is very useful in many situations, and Destack (`.ds`) natively supports `.tsx`-like constructs with the same rules:
 
 ```ds
 // Wall.ds
@@ -1693,7 +1702,7 @@ Destack (`.ds`) natively supports `.tsx` like constructs with the same rules:
 </Level>;
 ```
 
-Unlike in TypeScript, in Destack types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are programmable via `TreeTagBuilder`.
+Unlike in TypeScript, in Destack, types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic types (lowercase tags like `<div>`) are created via `TreeTagBuilder`.
 Essentially, `TreeTag` generalises `jsxFactory` and `TreeTagBuilder` generalises `jsxFragmentFactory`:
  - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
  - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
@@ -1767,7 +1776,7 @@ module {}
 
 #### Taint
 
-Destack systematises the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its annotation system:
+Destack systematises the idea of "taints", "source", and "unsafe" modifiers on expressions and declarations using its taint system:
  - `@taint("tag")` marks a value as carrying some domain, `@untaint("tag")` unmarks it as no longer carrying that domain.
  - `@source("domain")` marks an operation that produces some domain, `@sink("domain")` marks an operation that receives some domain.
  - `@unsafe` marks an operation that is unsafe to call, `@safe` marks an operation that is safe to call.
@@ -1788,8 +1797,8 @@ function get<T>(items: Slice<T>, index: usize): T {
 
 #### Derive
 
-Similar to Rust, Destack supports `@derive` providers for extending certain declarations at compile time.
-Unlike in Rust, a derive provider is just a nominal decorator that happens to implement the `Macro<Target>` interface, and `derive`-like macros do not need to be implemented in a different package (or "crate") or in any special syntax.
+Similar to Rust, Destack supports `@derive` providers for extending annotated declarations at compile time during the macro expansion phase.
+Unlike in Rust, a derive provider is just a nominal decorator that happens to implement the `Macro<Target>` interface, and `derive`-like macros do not need to be implemented in a different package.
 
 ```ds
 @derive(Clone, Debug)
@@ -1804,12 +1813,26 @@ newtype Shape =
     | { kind: "circle"; radius: int32 };
 ```
 
-At the library level, a `derive` provider is just a nominal provider value that implements `Macro`, with some additional instrumentation.
-Really, `derive` is basically a convenience wrapper for applying multiple `Macro` providers to a single target in a well known way.
 
-Auto-derive uses the same providers.
-Configured auto-derive providers run over every nominal declaration (`class`, `struct`, `enum`, and `newtype`), and providers that do not apply simply emit nothing.
-Explicit `@derive(...)` is stricter: if a provider is written directly on a declaration and cannot apply, it should report an error.
+Destack supports all the common capability-like derives one would expect from a systems-y language, with the notable addition of `Serialize`, `Deserialize`, and `Tagged`:
+
+| Derive | Library identity | Applies to | Explicit failure |
+|--------|------------------|------------|------------------|
+| `Copy` | `destack:memory.Copy` | nominal value types whose fields are all copyable | field or representation is not copyable |
+| `Clone` | `destack:memory.Clone` | nominal value types whose fields are cloneable | field is not cloneable |
+| `Default` | `destack:memory.Default` | nominal value types whose fields have defaults | field has no default |
+| `Debug` | `destack:ops.Debug` | nominal value types | field is not debug-formatable |
+| `PartialEqual` | `destack:ops.PartialEqual` | nominal value types | field is not partially comparable for equality |
+| `Equal` | `destack:ops.Equal` | nominal value types | field does not have total equality |
+| `PartialCompare` | `destack:ops.PartialCompare` | nominal value types | field is not partially orderable |
+| `Compare` | `destack:ops.Compare` | nominal value types | field is not totally orderable |
+| `Hash` | `destack:ops.Hash` | nominal value types | field is not hashable |
+| `Serialize` | `destack:serde.Serialize` | nominal value types | field cannot be serialized by the selected serializer |
+| `Deserialize` | `destack:serde.Deserialize` | nominal value types | field cannot be deserialized by the selected deserializer |
+| `Tagged` | `destack:decorator.Tagged` | discriminated newtype unions | declaration is not a supported tagged union |
+
+Also unlike Rust, Destack's `derive` supports automatic globally configured (and module/target/..-overridable) derives that are applied by default without explicit `derive` annotation whenever possible.
+This is very convenient since most types do in fact want all the same basic well known `derive`s, but we can trivially disable this globally or override it per-item with an empty `@derive()` or at the module level with `module { derive: [] }`.
 
 #### Static If
 
@@ -1828,7 +1851,7 @@ interface FileSystem<Mode: "fast" | "slow" = "fast"> {
 }
 ```
 
-Static ifs may annotate any meaningfully _removable_ source contribution - if removing the annotated node would leave the parent with a coherent shape, the guard may apply, otherwise the guard is rejected:
+Static ifs may annotate any meaningfully _removable_ source contribution - if removing the annotated node would leave the parent with a coherent shape, we can guard it, otherwise the guard is rejected:
 
 | Node | Example | Context | Allowed | Note |
 |------|---------|---------|---------|------|
@@ -1858,12 +1881,11 @@ Usually, we would configure via the compiler / target / profile options, but som
 
 ```ds
 import { HtmlTree } from "destack:ui/html";
-import { Clone, Debug } from "destack:decorator";
 
 @noHeap
 module {
     const tree = HtmlTree;
-    const derive = [Debug, Clone];
+    const derive = ["Debug", "Clone"];
     const product = "editor";
 }
 ```
@@ -1887,9 +1909,8 @@ It should be noted that module declarations (like global declarations) are prope
 ### Globals
 
 TypeScript supports ambient global typings, which were designed for typing the "magic" global objects provided by embedders, but it has no way to contribute _value_ globals in userland.
-Destack supports "real" value `global { ... }` declarations that can then be automatically included everywhere by (explicit) reference in the compiler / target configuration.
+Destack supports "real" value `global { ... }` declarations to define such globals that can then be automatically included everywhere by (explicit) reference in the compiler / target configuration.
 The active set of modules to consider for `global` declarations is configured via the `globals` field in the compiler / target configuration.
-
 
 ```ds
 // browser-globals.ds
@@ -2054,7 +2075,7 @@ The `Macro` system is based on three rules:
  1. Macro expansion is recursive and runs until there is nothing more to expand (or we encounter an error).
  2. Macros run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in implementation details with full type information.
  3. Macros interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
- 4. Macro invocations are exclusively triggered by decorators implementing `Macro` and by the (sparingly used) auto-derive providers.
+ 4. Macro invocations are exclusively triggered by decorators implementing `Macro`; compiler-owned derives are a separate expansion path.
 
 | Operation | Example | Meaning |
 |-----------|---------|---------|
@@ -2893,7 +2914,7 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.lint` | `lint` mode shorthand | `boolean` | `true`, `false` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string | boolean | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
 | `import.meta.tree` | current module tree tag builder | `TreeTagBuilder | undefined` | `HtmlTree` |
-| `import.meta.derive` | current module auto derive providers | `readonly Macro<unknown>[]` | `[Clone, Debug]` |
+| `import.meta.derive` | current module auto derives | `readonly Derive[]` | `["Clone", "Debug"]` |
 | `import.meta.labels` | current module labels | `{ readonly [key: string]: unknown }` | `{ feature: ["checkout"] }` |
 
 ### Data Modules
