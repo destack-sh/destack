@@ -396,41 +396,42 @@ export newtype AccessibilityAction =
     | AccessibilityActionSetSequentialFocusStart
     | AccessibilityActionCustom;
 
-/// Open one inbound accessibility action stream.
-@binding("destack.accessibility.action.open", {
-    effect: "external",
-    requires: ["host.accessibility.action"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function openAccessibilityActions(
-    window: WindowHandle,
-    options: &readonly AccessibilityActionOptions,
-): Result<AccessibilityActionHandle, HostError>;
+/// Action binding family.
+export interface AccessibilityAction {
+    /// Open one inbound accessibility action stream.
+    @binding("destack.accessibility.action.open", {
+        effect: "external",
+        requires: ["host.accessibility.action"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    openAccessibilityActions(
+        window: WindowHandle,
+        options: &readonly AccessibilityActionOptions,
+    ): Result<AccessibilityActionHandle, HostError>;
 
-/// Close one inbound accessibility action stream.
-@binding("destack.accessibility.action.close", {
-    effect: "external",
-    requires: ["host.accessibility.action"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closeAccessibilityActions(
-    actions: AccessibilityActionHandle,
-): Result<void, HostError>;
+    /// Close one inbound accessibility action stream.
+    @binding("destack.accessibility.action.close", {
+        effect: "external",
+        requires: ["host.accessibility.action"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeAccessibilityActions(actions: AccessibilityActionHandle): Result<void, HostError>;
 
-/// Read accessibility actions.
-@binding("destack.accessibility.action.read", {
-    effect: "external",
-    requires: ["host.accessibility.action"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readAccessibilityActions(
-    actions: AccessibilityActionHandle,
-    maxActions: uint32,
-    timeoutNs?: uint64,
-): Result<Array<AccessibilityAction>, HostError>;
+    /// Read accessibility actions.
+    @binding("destack.accessibility.action.read", {
+        effect: "external",
+        requires: ["host.accessibility.action"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readAccessibilityActions(
+        actions: AccessibilityActionHandle,
+        maxActions: uint32,
+        timeoutNs?: uint64,
+    ): Result<Array<AccessibilityAction>, HostError>;
+}
