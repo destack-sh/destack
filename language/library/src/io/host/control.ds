@@ -22,16 +22,19 @@ export struct IoControlResult {
     bytes: uint32;
 }
 
-/// Execute one resource control request.
-@binding("destack.io.control", {
-    effect: "external",
-    requires: ["host.io.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function executeIoControl(
-    resource: ResourceId,
-    request: IoControlRequest,
-    input: &readonly [uint8],
-    output: &[uint8],
-): Result<IoControlResult, HostError>;
+/// Control binding family.
+export interface IoControl {
+    /// Execute one resource control request.
+    @binding("destack.io.control", {
+        effect: "external",
+        requires: ["host.io.control"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    executeIoControl(
+        resource: ResourceId,
+        request: IoControlRequest,
+        input: &readonly [uint8],
+        output: &[uint8],
+    ): Result<IoControlResult, HostError>;
+}
