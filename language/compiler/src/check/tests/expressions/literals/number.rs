@@ -56,3 +56,65 @@ const value: int32 = 42;
 "#,
     );
 }
+
+#[test]
+fn test_const_float_preserves_literal_type() {
+    let session = TestSession::single(
+        r#"
+const value = 3.14;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const value = 3.14;
+/// @type.symbol symbol=value type=3.14
+/// @type.node source=3.14 type=3.14
+"#,
+    );
+}
+
+#[test]
+fn test_let_float_widens_to_float_type() {
+    let session = TestSession::single(
+        r#"
+let value = 3.14;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+let value = 3.14;
+/// @type.symbol symbol=value type=float64
+/// @type.node source=3.14 type=float64
+"#,
+    );
+}
+
+#[test]
+fn test_number_literal_rejects_string_context() {
+    let session = TestSession::single(
+        r#"
+const value: string = 123;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const value: string = 123;
+/// @type.symbol symbol=value type=string
+/// @type.node source=123 type=123
+
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.label line=2 column=23 source="const value: string = 123;"
+"#,
+    );
+}
