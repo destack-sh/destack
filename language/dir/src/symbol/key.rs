@@ -11,13 +11,13 @@ pub enum SymbolKey {
     Registry(StringId),
 }
 
-/// Key for some static "identifier" (name, numeric, symbol).
+/// Key for some static "identifier" (name, positional index, symbol).
 #[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq, Serialize, Deserialize)]
 pub enum StaticKey {
     /// Regular name key (like `x` or `"weird identifier"`).
     Name(StringId),
-    /// Numeric name key (like `1` or `1e3`).
-    Number(StringId),
+    /// Positional index key (like `0` or `1`).
+    Index(usize),
     /// Symbol key.
     Symbol(SymbolKey),
 }
@@ -33,7 +33,7 @@ impl StaticKey {
     pub fn name(&self) -> Option<StringId> {
         match self {
             StaticKey::Name(name) => Some(*name),
-            StaticKey::Number(name) => Some(*name),
+            StaticKey::Index(_) => None,
             StaticKey::Symbol(_) => None,
         }
     }
@@ -42,9 +42,7 @@ impl StaticKey {
     pub fn matches(&self, other: &StaticKey) -> bool {
         match (self, other) {
             (StaticKey::Name(left), StaticKey::Name(right)) => left == right,
-            (StaticKey::Number(left), StaticKey::Number(right)) => left == right,
-            (StaticKey::Name(left), StaticKey::Number(right)) => left == right,
-            (StaticKey::Number(left), StaticKey::Name(right)) => left == right,
+            (StaticKey::Index(left), StaticKey::Index(right)) => left == right,
             (StaticKey::Symbol(left), StaticKey::Symbol(right)) => left == right,
             _ => false,
         }
@@ -52,12 +50,12 @@ impl StaticKey {
 
     /// Return true when this key behaves as a string like key.
     pub fn is_string_like(&self) -> bool {
-        matches!(self, StaticKey::Name(_) | StaticKey::Number(_))
+        matches!(self, StaticKey::Name(_))
     }
 
     /// Return true when this key behaves as a number like key.
     pub fn is_number_like(&self) -> bool {
-        matches!(self, StaticKey::Number(_))
+        matches!(self, StaticKey::Index(_))
     }
 
     /// Return true when this key behaves as a symbol like key.
@@ -71,9 +69,7 @@ impl StaticKey {
             StaticKey::Name(name) => {
                 format!("'{}'", strings.get(*name))
             }
-            StaticKey::Number(name) => {
-                format!("'{}'", strings.get(*name))
-            }
+            StaticKey::Index(index) => format!("#{index}"),
             StaticKey::Symbol(symbol) => symbol.debug_string(strings),
         }
     }
