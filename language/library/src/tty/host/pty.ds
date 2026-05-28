@@ -21,41 +21,41 @@ export struct PtyPair {
     terminal: TtyHandle;
 }
 
-/// Open one pseudo terminal pair.
-@binding("destack.tty.pty.open", {
-    effect: "external",
-    requires: ["host.tty.pty"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openPty(options: &readonly PtyOpenOptions): Result<PtyPair, HostError>;
+/// Pty binding family.
+export interface TtyPty {
+    /// Open one pseudo terminal pair.
+    @binding("destack.tty.pty.open", {
+        effect: "external",
+        requires: ["host.tty.pty"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openPty(options: &readonly PtyOpenOptions): Result<PtyPair, HostError>;
 
-/// Read bytes from one pseudo terminal controller.
-@binding("destack.tty.pty.read", {
-    effect: "external",
-    requires: ["host.tty.pty.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readPty(pty: PtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
+    /// Read bytes from one pseudo terminal controller.
+    @binding("destack.tty.pty.read", {
+        effect: "external",
+        requires: ["host.tty.pty.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readPty(pty: PtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
 
-/// Write bytes to one pseudo terminal controller.
-@binding("destack.tty.pty.write", {
-    effect: "external",
-    requires: ["host.tty.pty.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writePty(
-    pty: PtyHandle,
-    buffer: &readonly [uint8],
-): Result<uint64, HostError>;
+    /// Write bytes to one pseudo terminal controller.
+    @binding("destack.tty.pty.write", {
+        effect: "external",
+        requires: ["host.tty.pty.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writePty(pty: PtyHandle, buffer: &readonly [uint8]): Result<uint64, HostError>;
 
-/// Close one pseudo terminal controller.
-@binding("destack.tty.pty.close", {
-    effect: "external",
-    requires: ["host.tty.close"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closePty(pty: PtyHandle): Result<void, HostError>;
+    /// Close one pseudo terminal controller.
+    @binding("destack.tty.pty.close", {
+        effect: "external",
+        requires: ["host.tty.close"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closePty(pty: PtyHandle): Result<void, HostError>;
+}

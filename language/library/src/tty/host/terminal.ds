@@ -29,119 +29,113 @@ export struct TtySize {
     yPixels: uint32;
 }
 
-/// Open one standard input terminal handle.
-@binding("destack.tty.standardInput.open", {
-    effect: "external",
-    requires: ["host.tty.open", "host.tty.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openStandardInputTty(): Result<TtyHandle, HostError>;
+/// Terminal binding family.
+export interface TtyTerminal {
+    /// Open one standard input terminal handle.
+    @binding("destack.tty.standardInput.open", {
+        effect: "external",
+        requires: ["host.tty.open", "host.tty.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openStandardInputTty(): Result<TtyHandle, HostError>;
 
-/// Open one standard output terminal handle.
-@binding("destack.tty.standardOutput.open", {
-    effect: "external",
-    requires: ["host.tty.open", "host.tty.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openStandardOutputTty(): Result<TtyHandle, HostError>;
+    /// Open one standard output terminal handle.
+    @binding("destack.tty.standardOutput.open", {
+        effect: "external",
+        requires: ["host.tty.open", "host.tty.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openStandardOutputTty(): Result<TtyHandle, HostError>;
 
-/// Open one standard error terminal handle.
-@binding("destack.tty.standardError.open", {
-    effect: "external",
-    requires: ["host.tty.open", "host.tty.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openStandardErrorTty(): Result<TtyHandle, HostError>;
+    /// Open one standard error terminal handle.
+    @binding("destack.tty.standardError.open", {
+        effect: "external",
+        requires: ["host.tty.open", "host.tty.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openStandardErrorTty(): Result<TtyHandle, HostError>;
 
-/// Close one terminal handle.
-@binding("destack.tty.close", {
-    effect: "external",
-    requires: ["host.tty.close"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeTty(tty: TtyHandle): Result<void, HostError>;
+    /// Close one terminal handle.
+    @binding("destack.tty.close", {
+        effect: "external",
+        requires: ["host.tty.close"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeTty(tty: TtyHandle): Result<void, HostError>;
 
-/// Return whether one file handle is attached to a terminal.
-@binding("destack.tty.file.isTerminal", {
-    effect: "external",
-    requires: ["host.tty.status"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function isTerminalFile(handle: FileHandle): Result<boolean, HostError>;
+    /// Return whether one file handle is attached to a terminal.
+    @binding("destack.tty.file.isTerminal", {
+        effect: "external",
+        requires: ["host.tty.status"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    isTerminalFile(handle: FileHandle): Result<boolean, HostError>;
 
-/// Read bytes from a terminal.
-@binding("destack.tty.read", {
-    effect: "external",
-    requires: ["host.tty.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readTty(tty: TtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
+    /// Read bytes from a terminal.
+    @binding("destack.tty.read", {
+        effect: "external",
+        requires: ["host.tty.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTty(tty: TtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
 
-/// Write bytes to a terminal.
-@binding("destack.tty.write", {
-    effect: "external",
-    requires: ["host.tty.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeTty(
-    tty: TtyHandle,
-    buffer: &readonly [uint8],
-): Result<uint64, HostError>;
+    /// Write bytes to a terminal.
+    @binding("destack.tty.write", {
+        effect: "external",
+        requires: ["host.tty.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeTty(tty: TtyHandle, buffer: &readonly [uint8]): Result<uint64, HostError>;
 
-/// Read terminal mode flags.
-@binding("destack.tty.mode.read", {
-    effect: "external",
-    requires: ["host.tty.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readTtyMode(tty: TtyHandle): Result<TtyMode, HostError>;
+    /// Read terminal mode flags.
+    @binding("destack.tty.mode.read", {
+        effect: "external",
+        requires: ["host.tty.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTtyMode(tty: TtyHandle): Result<TtyMode, HostError>;
 
-/// Apply terminal mode flags.
-@binding("destack.tty.mode.set", {
-    effect: "external",
-    requires: ["host.tty.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTtyMode(
-    tty: TtyHandle,
-    mode: &readonly TtyMode,
-): Result<void, HostError>;
+    /// Apply terminal mode flags.
+    @binding("destack.tty.mode.set", {
+        effect: "external",
+        requires: ["host.tty.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTtyMode(tty: TtyHandle, mode: &readonly TtyMode): Result<void, HostError>;
 
-/// Enable or disable raw terminal mode.
-@binding("destack.tty.mode.raw.set", {
-    effect: "external",
-    requires: ["host.tty.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setRawTtyMode(tty: TtyHandle, enabled: boolean): Result<void, HostError>;
+    /// Enable or disable raw terminal mode.
+    @binding("destack.tty.mode.raw.set", {
+        effect: "external",
+        requires: ["host.tty.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setRawTtyMode(tty: TtyHandle, enabled: boolean): Result<void, HostError>;
 
-/// Read terminal size.
-@binding("destack.tty.size.read", {
-    effect: "external",
-    requires: ["host.tty.size"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readTtySize(tty: TtyHandle): Result<TtySize, HostError>;
+    /// Read terminal size.
+    @binding("destack.tty.size.read", {
+        effect: "external",
+        requires: ["host.tty.size"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTtySize(tty: TtyHandle): Result<TtySize, HostError>;
 
-/// Apply terminal size.
-@binding("destack.tty.size.set", {
-    effect: "external",
-    requires: ["host.tty.size"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTtySize(
-    tty: TtyHandle,
-    size: &readonly TtySize,
-): Result<void, HostError>;
+    /// Apply terminal size.
+    @binding("destack.tty.size.set", {
+        effect: "external",
+        requires: ["host.tty.size"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTtySize(tty: TtyHandle, size: &readonly TtySize): Result<void, HostError>;
+}
