@@ -20,8 +20,8 @@ export class Deque<T> {
 }
 
 extension<T> of Deque<T> implements
-    Index<number>,
-    IndexSet<number, T>,
+    Index<usize>,
+    IndexSet<usize, T>,
     Iterable<T>,
     Iterable<&T>,
     Iterable<&readonly T>,
@@ -71,20 +71,17 @@ extension<T> of Deque<T> implements
     }
 
     /// Return the element at `index` by value.
-    index(index: number): T {
+    index(index: usize): T {
         todo("Deque.index")
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(
-        this: WithAccess<&Deque<T>, A>,
-        index: number,
-    ): WithAccess<&T, A> {
+    index<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>, index: usize): WithAccess<&T, A> {
         todo("Deque.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive Deque<T>, index: number, value: T): void {
+    indexSet(this: &exclusive Deque<T>, index: usize, value: T): void {
         todo("Deque.indexSet");
     }
 

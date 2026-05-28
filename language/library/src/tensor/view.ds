@@ -92,7 +92,11 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> {
 extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> implements
     IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.
-    indexSet(coordinate: Coordinate<Rank>, value: T): void {
+    indexSet(
+        this: &exclusive TensorView<T, Rank, "exclusive">,
+        coordinate: Coordinate<Rank>,
+        value: T,
+    ): void {
         todo("TensorView.indexSet");
     }
 }

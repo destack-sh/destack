@@ -14,11 +14,11 @@ export newtype interface Index<I> {
 
 /// Interface for index assignment `a[i] = v`.
 ///
-/// `a[i] = v` becomes `a.indexSet(i, v)`.
+/// `a[i] = v` becomes `a.indexSet(i, v)` through an exclusive receiver.
 ///
 /// Types that implement `IndexSet` should typically also implement `Index`.
 @languageItem("ops.IndexSet")
 export newtype interface IndexSet<I, V> {
     /// Store `value` at `key`.
-    indexSet(key: I, value: V): void;
+    indexSet(this: &exclusive this, key: I, value: V): void;
 }

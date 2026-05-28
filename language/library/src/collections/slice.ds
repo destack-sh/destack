@@ -163,25 +163,22 @@ extension<T> of Slice<T> implements
     }
 }
 
-extension<T> of Slice<T> implements Index<number>, IndexSet<number, T> {
+extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     /// The indexed output type.
     type Output = T;
 
     /// Return the element at `index` by value.
-    index(index: number): T {
+    index(index: usize): T {
         todo("Slice.index")
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
-        index: number,
-    ): WithAccess<&T, A> {
+    index<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>, index: usize): WithAccess<&T, A> {
         todo("Slice.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive Slice<T>, index: number, value: T): void {
+    indexSet(this: &exclusive Slice<T>, index: usize, value: T): void {
         todo("Slice.indexSet");
     }
 }
