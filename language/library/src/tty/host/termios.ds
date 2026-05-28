@@ -52,84 +52,81 @@ export struct TermiosAttributes {
     outputSpeedCode: uint64;
 }
 
-/// Read full POSIX termios attributes.
-@binding("destack.tty.termios.attributes.read", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function readTermiosAttributes(tty: TtyHandle): Result<TermiosAttributes, HostError>;
+/// Termios binding family.
+export interface TtyTermios {
+    /// Read full POSIX termios attributes.
+    @binding("destack.tty.termios.attributes.read", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    readTermiosAttributes(tty: TtyHandle): Result<TermiosAttributes, HostError>;
 
-/// Apply full termios attributes to one terminal handle.
-@binding("destack.tty.termios.attributes.set", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setTermiosAttributes(
-    tty: TtyHandle,
-    attributes: &readonly TermiosAttributes,
-    action: TermiosSetAction,
-): Result<void, HostError>;
+    /// Apply full termios attributes to one terminal handle.
+    @binding("destack.tty.termios.attributes.set", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setTermiosAttributes(
+        tty: TtyHandle,
+        attributes: &readonly TermiosAttributes,
+        action: TermiosSetAction,
+    ): Result<void, HostError>;
 
-/// Wait for pending output to drain on one terminal handle.
-@binding("destack.tty.termios.drain", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function drainTermios(tty: TtyHandle): Result<void, HostError>;
+    /// Wait for pending output to drain on one terminal handle.
+    @binding("destack.tty.termios.drain", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    drainTermios(tty: TtyHandle): Result<void, HostError>;
 
-/// Flush one terminal queue.
-@binding("destack.tty.termios.flush", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function flushTermios(tty: TtyHandle, queue: TermiosQueue): Result<void, HostError>;
+    /// Flush one terminal queue.
+    @binding("destack.tty.termios.flush", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    flushTermios(tty: TtyHandle, queue: TermiosQueue): Result<void, HostError>;
 
-/// Apply terminal flow control action.
-@binding("destack.tty.termios.flow", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function flowTermios(
-    tty: TtyHandle,
-    action: TermiosFlowAction,
-): Result<void, HostError>;
+    /// Apply terminal flow control action.
+    @binding("destack.tty.termios.flow", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    flowTermios(tty: TtyHandle, action: TermiosFlowAction): Result<void, HostError>;
 
-/// Send one terminal break condition.
-@binding("destack.tty.termios.break.send", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function sendTermiosBreak(tty: TtyHandle, duration: uint32): Result<void, HostError>;
+    /// Send one terminal break condition.
+    @binding("destack.tty.termios.break.send", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    sendTermiosBreak(tty: TtyHandle, duration: uint32): Result<void, HostError>;
 
-/// Read controlling terminal process group id.
-@binding("destack.tty.termios.processGroup.read", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function readTermiosProcessGroup(tty: TtyHandle): Result<ProcessId, HostError>;
+    /// Read controlling terminal process group id.
+    @binding("destack.tty.termios.processGroup.read", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    readTermiosProcessGroup(tty: TtyHandle): Result<ProcessId, HostError>;
 
-/// Set controlling terminal process group id.
-@binding("destack.tty.termios.processGroup.set", {
-    effect: "external",
-    requires: ["host.tty.termios"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setTermiosProcessGroup(
-    tty: TtyHandle,
-    processGroupId: ProcessId,
-): Result<void, HostError>;
+    /// Set controlling terminal process group id.
+    @binding("destack.tty.termios.processGroup.set", {
+        effect: "external",
+        requires: ["host.tty.termios"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setTermiosProcessGroup(tty: TtyHandle, processGroupId: ProcessId): Result<void, HostError>;
+}
