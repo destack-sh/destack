@@ -213,72 +213,71 @@ export struct GpuBindGroupDescriptor {
     label: string;
 }
 
-/// Create a bind group layout.
-@binding("destack.gpu.bind.group.layout.create", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createBindGroupLayout(
-    device: GpuDeviceHandle,
-    entries: &readonly [GpuBindGroupLayoutEntry],
-    descriptor: &readonly GpuBindGroupLayoutDescriptor,
-): Result<GpuBindGroupLayoutHandle, HostError>;
+/// Bind binding family.
+export interface GpuBind {
+    /// Create a bind group layout.
+    @binding("destack.gpu.bind.group.layout.create", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createBindGroupLayout(
+        device: GpuDeviceHandle,
+        entries: &readonly [GpuBindGroupLayoutEntry],
+        descriptor: &readonly GpuBindGroupLayoutDescriptor,
+    ): Result<GpuBindGroupLayoutHandle, HostError>;
 
-/// Destroy a bind group layout.
-@binding("destack.gpu.bind.group.layout.destroy", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyBindGroupLayout(
-    layout: GpuBindGroupLayoutHandle,
-): Result<void, HostError>;
+    /// Destroy a bind group layout.
+    @binding("destack.gpu.bind.group.layout.destroy", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyBindGroupLayout(layout: GpuBindGroupLayoutHandle): Result<void, HostError>;
 
-/// Create a pipeline layout.
-@binding("destack.gpu.bind.pipeline.layout.create", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createPipelineLayout(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuPipelineLayoutDescriptor,
-): Result<GpuPipelineLayoutHandle, HostError>;
+    /// Create a pipeline layout.
+    @binding("destack.gpu.bind.pipeline.layout.create", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createPipelineLayout(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuPipelineLayoutDescriptor,
+    ): Result<GpuPipelineLayoutHandle, HostError>;
 
-/// Destroy a pipeline layout.
-@binding("destack.gpu.bind.pipeline.layout.destroy", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyPipelineLayout(
-    layout: GpuPipelineLayoutHandle,
-): Result<void, HostError>;
+    /// Destroy a pipeline layout.
+    @binding("destack.gpu.bind.pipeline.layout.destroy", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyPipelineLayout(layout: GpuPipelineLayoutHandle): Result<void, HostError>;
 
-/// Create a bind group.
-@binding("destack.gpu.bind.group.create", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createBindGroup(
-    device: GpuDeviceHandle,
-    layout: GpuBindGroupLayoutHandle,
-    entries: &readonly [GpuBindGroupEntry],
-    descriptor: &readonly GpuBindGroupDescriptor,
-): Result<GpuBindGroupHandle, HostError>;
+    /// Create a bind group.
+    @binding("destack.gpu.bind.group.create", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createBindGroup(
+        device: GpuDeviceHandle,
+        layout: GpuBindGroupLayoutHandle,
+        entries: &readonly [GpuBindGroupEntry],
+        descriptor: &readonly GpuBindGroupDescriptor,
+    ): Result<GpuBindGroupHandle, HostError>;
 
-/// Destroy a bind group.
-@binding("destack.gpu.bind.group.destroy", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyBindGroup(bindGroup: GpuBindGroupHandle): Result<void, HostError>;
+    /// Destroy a bind group.
+    @binding("destack.gpu.bind.group.destroy", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyBindGroup(bindGroup: GpuBindGroupHandle): Result<void, HostError>;
+}

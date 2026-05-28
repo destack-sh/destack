@@ -513,81 +513,84 @@ export struct GpuRenderPipelineDescriptor {
     multiviewMask?: uint32;
 }
 
-/// Create a shader module.
-@binding("destack.gpu.pipeline.shader.create", {
-    effect: "external",
-    requires: ["host.gpu.pipeline"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createShader(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuShaderDescriptor,
-    bytes: &readonly [uint8],
-): Result<GpuShaderHandle, HostError>;
+/// Pipeline binding family.
+export interface GpuPipeline {
+    /// Create a shader module.
+    @binding("destack.gpu.pipeline.shader.create", {
+        effect: "external",
+        requires: ["host.gpu.pipeline"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createShader(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuShaderDescriptor,
+        bytes: &readonly [uint8],
+    ): Result<GpuShaderHandle, HostError>;
 
-/// Destroy a shader module.
-@binding("destack.gpu.pipeline.shader.destroy", {
-    effect: "external",
-    requires: ["host.gpu.pipeline"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyShader(shader: GpuShaderHandle): Result<void, HostError>;
+    /// Destroy a shader module.
+    @binding("destack.gpu.pipeline.shader.destroy", {
+        effect: "external",
+        requires: ["host.gpu.pipeline"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyShader(shader: GpuShaderHandle): Result<void, HostError>;
 
-/// Read a shader-compilation diagnostics snapshot.
-@binding("destack.gpu.pipeline.shader.compilation", {
-    effect: "external",
-    requires: ["host.gpu.pipeline"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readShaderCompilation(
-    shader: GpuShaderHandle,
-    timeoutNs: uint64,
-): Result<GpuCompilationInfo, HostError>;
+    /// Read a shader-compilation diagnostics snapshot.
+    @binding("destack.gpu.pipeline.shader.compilation", {
+        effect: "external",
+        requires: ["host.gpu.pipeline"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readShaderCompilation(
+        shader: GpuShaderHandle,
+        timeoutNs: uint64,
+    ): Result<GpuCompilationInfo, HostError>;
 
-/// Create a compute pipeline.
-@binding("destack.gpu.pipeline.compute.create", {
-    effect: "external",
-    requires: ["host.gpu.pipeline"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createComputePipeline(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuComputePipelineDescriptor,
-): Result<GpuPipelineHandle, HostError>;
+    /// Create a compute pipeline.
+    @binding("destack.gpu.pipeline.compute.create", {
+        effect: "external",
+        requires: ["host.gpu.pipeline"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createComputePipeline(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuComputePipelineDescriptor,
+    ): Result<GpuPipelineHandle, HostError>;
 
-/// Create a render pipeline.
-@binding("destack.gpu.pipeline.render.create", {
-    effect: "external",
-    requires: ["host.gpu.pipeline"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createRenderPipeline(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuRenderPipelineDescriptor,
-): Result<GpuPipelineHandle, HostError>;
+    /// Create a render pipeline.
+    @binding("destack.gpu.pipeline.render.create", {
+        effect: "external",
+        requires: ["host.gpu.pipeline"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createRenderPipeline(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuRenderPipelineDescriptor,
+    ): Result<GpuPipelineHandle, HostError>;
 
-/// Resolve one bind-group layout from one pipeline.
-@binding("destack.gpu.pipeline.bind.group.layout", {
-    effect: "external",
-    requires: ["host.gpu.bind"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function pipelineBindGroupLayout(
-    pipeline: GpuPipelineHandle,
-    groupIndex: uint32,
-): Result<GpuBindGroupLayoutHandle, HostError>;
+    /// Resolve one bind-group layout from one pipeline.
+    @binding("destack.gpu.pipeline.bind.group.layout", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    pipelineBindGroupLayout(
+        pipeline: GpuPipelineHandle,
+        groupIndex: uint32,
+    ): Result<GpuBindGroupLayoutHandle, HostError>;
 
-/// Destroy a pipeline object.
-@binding("destack.gpu.pipeline.destroy", {
-    effect: "external",
-    requires: ["host.gpu.pipeline"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyPipeline(pipeline: GpuPipelineHandle): Result<void, HostError>;
+    /// Destroy a pipeline object.
+    @binding("destack.gpu.pipeline.destroy", {
+        effect: "external",
+        requires: ["host.gpu.pipeline"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyPipeline(pipeline: GpuPipelineHandle): Result<void, HostError>;
+}

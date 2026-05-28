@@ -735,179 +735,178 @@ export struct GpuTextureState {
     dimension: GpuTextureDimension;
 }
 
-/// Create a GPU buffer.
-@binding("destack.gpu.resource.buffer.create", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createBuffer(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuBufferDescriptor,
-): Result<GpuBufferHandle, HostError>;
+/// Resource binding family.
+export interface GpuResource {
+    /// Create a GPU buffer.
+    @binding("destack.gpu.resource.buffer.create", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createBuffer(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuBufferDescriptor,
+    ): Result<GpuBufferHandle, HostError>;
 
-/// Destroy a GPU buffer.
-@binding("destack.gpu.resource.buffer.destroy", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyBuffer(buffer: GpuBufferHandle): Result<void, HostError>;
+    /// Destroy a GPU buffer.
+    @binding("destack.gpu.resource.buffer.destroy", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyBuffer(buffer: GpuBufferHandle): Result<void, HostError>;
 
-/// Write a byte range to a GPU buffer.
-@binding("destack.gpu.resource.buffer.write", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeBuffer(
-    buffer: GpuBufferHandle,
-    offset: uint64,
-    bytes: &readonly [uint8],
-): Result<void, HostError>;
+    /// Write a byte range to a GPU buffer.
+    @binding("destack.gpu.resource.buffer.write", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeBuffer(
+        buffer: GpuBufferHandle,
+        offset: uint64,
+        bytes: &readonly [uint8],
+    ): Result<void, HostError>;
 
-/// Read a byte range from a GPU buffer.
-@binding("destack.gpu.resource.buffer.read", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readBuffer(
-    buffer: GpuBufferHandle,
-    offset: uint64,
-    length: uint64,
-): Result<Array<uint8>, HostError>;
+    /// Read a byte range from a GPU buffer.
+    @binding("destack.gpu.resource.buffer.read", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readBuffer(
+        buffer: GpuBufferHandle,
+        offset: uint64,
+        length: uint64,
+    ): Result<Array<uint8>, HostError>;
 
-/// Map a buffer range.
-@binding("destack.gpu.resource.buffer.map", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function mapBuffer(
-    buffer: GpuBufferHandle,
-    offset: uint64,
-    length: uint64,
-    mode: GpuMapMode,
-): Result<GpuMappedBufferRange, HostError>;
+    /// Map a buffer range.
+    @binding("destack.gpu.resource.buffer.map", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    mapBuffer(
+        buffer: GpuBufferHandle,
+        offset: uint64,
+        length: uint64,
+        mode: GpuMapMode,
+    ): Result<GpuMappedBufferRange, HostError>;
 
-/// Unmap a mapped buffer.
-@binding("destack.gpu.resource.buffer.unmap", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function unmapBuffer(buffer: GpuBufferHandle): Result<void, HostError>;
+    /// Unmap a mapped buffer.
+    @binding("destack.gpu.resource.buffer.unmap", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    unmapBuffer(buffer: GpuBufferHandle): Result<void, HostError>;
 
-/// Read a buffer state snapshot.
-@binding("destack.gpu.resource.buffer.state.read", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readBufferState(buffer: GpuBufferHandle): Result<GpuBufferState, HostError>;
+    /// Read a buffer state snapshot.
+    @binding("destack.gpu.resource.buffer.state.read", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readBufferState(buffer: GpuBufferHandle): Result<GpuBufferState, HostError>;
 
-/// Create a texture resource.
-@binding("destack.gpu.resource.texture.create", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createTexture(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuTextureDescriptor,
-): Result<GpuTextureHandle, HostError>;
+    /// Create a texture resource.
+    @binding("destack.gpu.resource.texture.create", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createTexture(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuTextureDescriptor,
+    ): Result<GpuTextureHandle, HostError>;
 
-/// Destroy a texture resource.
-@binding("destack.gpu.resource.texture.destroy", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyTexture(texture: GpuTextureHandle): Result<void, HostError>;
+    /// Destroy a texture resource.
+    @binding("destack.gpu.resource.texture.destroy", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyTexture(texture: GpuTextureHandle): Result<void, HostError>;
 
-/// Read a texture state snapshot.
-@binding("destack.gpu.resource.texture.state.read", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readTextureState(
-    texture: GpuTextureHandle,
-): Result<GpuTextureState, HostError>;
+    /// Read a texture state snapshot.
+    @binding("destack.gpu.resource.texture.state.read", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTextureState(texture: GpuTextureHandle): Result<GpuTextureState, HostError>;
 
-/// Create a texture view.
-@binding("destack.gpu.resource.texture.view.create", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createTextureView(
-    texture: GpuTextureHandle,
-    descriptor: &readonly GpuTextureViewDescriptor,
-): Result<GpuTextureViewHandle, HostError>;
+    /// Create a texture view.
+    @binding("destack.gpu.resource.texture.view.create", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createTextureView(
+        texture: GpuTextureHandle,
+        descriptor: &readonly GpuTextureViewDescriptor,
+    ): Result<GpuTextureViewHandle, HostError>;
 
-/// Destroy a texture view.
-@binding("destack.gpu.resource.texture.view.destroy", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyTextureView(view: GpuTextureViewHandle): Result<void, HostError>;
+    /// Destroy a texture view.
+    @binding("destack.gpu.resource.texture.view.destroy", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyTextureView(view: GpuTextureViewHandle): Result<void, HostError>;
 
-/// Create a sampler resource.
-@binding("destack.gpu.resource.sampler.create", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createSampler(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuSamplerDescriptor,
-): Result<GpuSamplerHandle, HostError>;
+    /// Create a sampler resource.
+    @binding("destack.gpu.resource.sampler.create", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createSampler(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuSamplerDescriptor,
+    ): Result<GpuSamplerHandle, HostError>;
 
-/// Destroy a sampler resource.
-@binding("destack.gpu.resource.sampler.destroy", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroySampler(sampler: GpuSamplerHandle): Result<void, HostError>;
+    /// Destroy a sampler resource.
+    @binding("destack.gpu.resource.sampler.destroy", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroySampler(sampler: GpuSamplerHandle): Result<void, HostError>;
 
-/// Create an external texture resource.
-@binding("destack.gpu.resource.external.texture.create", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createExternalTexture(
-    device: GpuDeviceHandle,
-    descriptor: &readonly GpuExternalTextureDescriptor,
-    planeViews: &readonly [GpuTextureViewHandle],
-): Result<GpuExternalTextureHandle, HostError>;
+    /// Create an external texture resource.
+    @binding("destack.gpu.resource.external.texture.create", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createExternalTexture(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuExternalTextureDescriptor,
+        planeViews: &readonly [GpuTextureViewHandle],
+    ): Result<GpuExternalTextureHandle, HostError>;
 
-/// Destroy an external texture resource.
-@binding("destack.gpu.resource.external.texture.destroy", {
-    effect: "external",
-    requires: ["host.gpu.resource"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function destroyExternalTexture(
-    externalTexture: GpuExternalTextureHandle,
-): Result<void, HostError>;
+    /// Destroy an external texture resource.
+    @binding("destack.gpu.resource.external.texture.destroy", {
+        effect: "external",
+        requires: ["host.gpu.resource"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyExternalTexture(externalTexture: GpuExternalTextureHandle): Result<void, HostError>;
+}
