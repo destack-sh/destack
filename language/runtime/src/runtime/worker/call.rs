@@ -313,17 +313,15 @@ impl BindingCallContext<'_> {
 
     /// Return one policy-violation error for one binding descriptor.
     fn policy_violation_error(&self, spec: BindingDescriptor) -> RuntimeError {
-        RuntimeError::PolicyViolation {
-            name: spec.name.to_string(),
-        }
+        RuntimeError::policy_violation(spec.name.to_string())
     }
 
     /// Return one affinity-violation error for one binding descriptor.
     fn affinity_violation_error(&self, spec: BindingDescriptor) -> RuntimeError {
-        RuntimeError::AffinityViolation {
-            name: spec.name.to_string(),
-            affinity: binding_affinity_name(spec.affinity()).to_string(),
-        }
+        RuntimeError::affinity_violation(
+            spec.name.to_string(),
+            binding_affinity_name(spec.affinity()).to_string(),
+        )
     }
 
     /// Ensure the current execution context satisfies one binding affinity.

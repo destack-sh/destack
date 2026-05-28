@@ -34,10 +34,7 @@ impl Validator {
                 if let Some(last) = self.last_monotonic_nanos
                     && deadline.get() < last
                 {
-                    return Err(RuntimeError::TraceMismatch {
-                        name: "time".to_string(),
-                    }
-                    .boxed());
+                    return Err(RuntimeError::trace_mismatch("time".to_string()).boxed());
                 }
 
                 self.last_monotonic_nanos = Some(deadline.get());
@@ -49,10 +46,9 @@ impl Validator {
                         if let Some(last) = self.last_monotonic_nanos
                             && *time_nanos < last
                         {
-                            return Err(RuntimeError::TraceMismatch {
-                                name: ENTROPY_CHANNEL.to_string(),
-                            }
-                            .boxed());
+                            return Err(
+                                RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed()
+                            );
                         }
 
                         self.last_monotonic_nanos = Some(*time_nanos);
@@ -65,10 +61,9 @@ impl Validator {
                     ..
                 } => {
                     if bytes.len() != *len as usize {
-                        return Err(RuntimeError::TraceMismatch {
-                            name: ENTROPY_CHANNEL.to_string(),
-                        }
-                        .boxed());
+                        return Err(
+                            RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed()
+                        );
                     }
                 }
 
@@ -193,10 +188,7 @@ impl Trace {
         }
 
         if sequence.get() > self.log.next_sequence().get() {
-            return Err(RuntimeError::TraceMismatch {
-                name: "sequence".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
         }
 
         let header = self.log.header();
@@ -205,12 +197,9 @@ impl Trace {
         replay_trace.seek_sequence(TraceSequence::new(0))?;
 
         while replay_trace.sequence()? != sequence {
-            let event = replay_trace.next_event()?.ok_or_else(|| {
-                RuntimeError::TraceExhausted {
-                    sequence: sequence.get(),
-                }
-                .boxed()
-            })?;
+            let event = replay_trace
+                .next_event()?
+                .ok_or_else(|| RuntimeError::trace_exhausted(sequence.get()).boxed())?;
             captured_trace.record_event(event)?;
         }
 
@@ -253,10 +242,7 @@ impl Trace {
 
     /// Return one trace mismatch error for one event channel.
     fn trace_mismatch_error(name: &str) -> Box<RuntimeError> {
-        RuntimeError::TraceMismatch {
-            name: name.to_string(),
-        }
-        .boxed()
+        RuntimeError::trace_mismatch(name.to_string()).boxed()
     }
 
     /// Require replay execution mode for one event channel.
@@ -274,7 +260,7 @@ impl Trace {
 
         let Some(record) = self.next_event()? else {
             let sequence = self.log.next_sequence().get();
-            return Err(RuntimeError::TraceExhausted { sequence }.boxed());
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
 
         Ok(record)
@@ -291,10 +277,7 @@ impl Trace {
         if requested == BindingReplayPayload::ArgumentsAndResults
             && supported == BindingReplayPayload::Results
         {
-            return Err(RuntimeError::TracePayloadUnsupported {
-                name: spec.name.to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_payload_unsupported(spec.name.to_string()).boxed());
         }
 
         match requested {
@@ -341,10 +324,7 @@ impl Trace {
 
     /// Return one trace mismatch error for the entropy channel.
     pub(crate) fn entropy_mismatch_error(&self) -> Box<RuntimeError> {
-        RuntimeError::TraceMismatch {
-            name: ENTROPY_CHANNEL.to_string(),
-        }
-        .boxed()
+        RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed()
     }
 
     /// Read and validate one entropy sample from trace.
@@ -358,7 +338,7 @@ impl Trace {
 
         let Some(record) = self.next_event()? else {
             let sequence = self.log().next_sequence().get();
-            return Err(RuntimeError::TraceExhausted { sequence }.boxed());
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
 
         let TraceRecord::Outcome(Outcome::Entropy(sample)) = record else {
@@ -575,20 +555,12 @@ impl Trace {
         }
 
         // encode the payload with the configured codec
-        let payload_size = serialized_size(payload).map_err(|_| {
-            RuntimeError::TraceEncodeFailed {
-                name: spec.name.to_string(),
-            }
-            .boxed()
-        })?;
+        let payload_size = serialized_size(payload)
+            .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
         let mut scratch = self.scratch.lock();
         scratch.resize(payload_size, 0);
-        let payload_bytes = postcard::to_slice(payload, &mut scratch).map_err(|_| {
-            RuntimeError::TraceEncodeFailed {
-                name: spec.name.to_string(),
-            }
-            .boxed()
-        })?;
+        let payload_bytes = postcard::to_slice(payload, &mut scratch)
+            .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
 
         // record the encoded payload
         self.record_binding_call(spec, payload_bytes)
@@ -603,12 +575,8 @@ impl Trace {
         let call = self.next_binding_call(spec)?;
 
         // decode the payload bytes
-        let payload = postcard::from_bytes(&call.payload).map_err(|_| {
-            RuntimeError::TraceDecodeFailed {
-                name: spec.name.to_string(),
-            }
-            .boxed()
-        })?;
+        let payload = postcard::from_bytes(&call.payload)
+            .map_err(|_| RuntimeError::trace_decode_failed(spec.name.to_string()).boxed())?;
         Ok(payload)
     }
 
@@ -630,10 +598,7 @@ impl Trace {
         Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
     {
         if spec.replay_kind != BindingReplayKind::BindingCall {
-            return Err(RuntimeError::TraceMismatch {
-                name: spec.name.to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch(spec.name.to_string()).boxed());
         }
 
         let mode = self.mode();

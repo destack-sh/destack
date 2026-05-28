@@ -83,7 +83,7 @@ impl SharedHeap {
     pub(crate) fn snapshot(&self) -> RuntimeResult<heap::SharedHeapSnapshot> {
         self.heap
             .image()
-            .and_then(|image| image.snapshot())
+            .map(|image| image.snapshot())
             .map_err(Box::<RuntimeError>::from)
     }
 

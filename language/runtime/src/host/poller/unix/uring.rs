@@ -331,13 +331,7 @@ impl HostPoller for IoUringPoller {
             .registrations
             .get(&resource_id)
             .map(|entry| (entry.token, entry.fd, entry.pending))
-            .ok_or_else(|| {
-                RuntimeError::ResourceNotFound {
-                    resource_id: resource_id.local_id,
-                    resource_kind: None,
-                }
-                .boxed()
-            })?;
+            .ok_or_else(|| RuntimeError::resource_not_found(resource_id.local_id, None).boxed())?;
 
         if was_pending {
             self.submit_poll_remove(existing_token)?;

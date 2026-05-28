@@ -273,17 +273,11 @@ impl TraceLog {
     /// Record one trace record in the log.
     pub(crate) fn record_event(&self, event: TraceRecord) -> RuntimeResult<TraceSequence> {
         // compute the encoded size before touching trace state
-        let encoded_len = serialized_size(&event).map_err(|_| {
-            RuntimeError::TraceEncodeFailed {
-                name: "event".to_string(),
-            }
-            .boxed()
-        })? as u64;
+        let encoded_len = serialized_size(&event)
+            .map_err(|_| RuntimeError::trace_encode_failed("event".to_string()).boxed())?
+            as u64;
         if encoded_len > u32::MAX as u64 {
-            return Err(RuntimeError::TraceEncodeFailed {
-                name: "event".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_encode_failed("event".to_string()).boxed());
         }
         let record_len = encoded_len + TRACE_EVENT_LENGTH_BYTES as u64;
 
@@ -310,12 +304,7 @@ impl TraceLog {
         chunk.bytes.resize(end, 0);
         chunk.bytes[start..payload_start].copy_from_slice(&(encoded_len as u32).to_le_bytes());
         let encoded_len = postcard::to_slice(&event, &mut chunk.bytes[payload_start..end])
-            .map_err(|_| {
-                RuntimeError::TraceEncodeFailed {
-                    name: "event".to_string(),
-                }
-                .boxed()
-            })?
+            .map_err(|_| RuntimeError::trace_encode_failed("event".to_string()).boxed())?
             .len();
         let encoded_end = payload_start + encoded_len;
 

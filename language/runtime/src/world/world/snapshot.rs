@@ -46,12 +46,7 @@ impl WorldSnapshot {
         self.history
             .revisions
             .get(&self.revision_id)
-            .ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: self.revision_id.get(),
-                }
-                .boxed()
-            })
+            .ok_or_else(|| RuntimeError::revision_not_found(self.revision_id.get()).boxed())
     }
 
     /// Return the captured image metadata.
@@ -59,31 +54,22 @@ impl WorldSnapshot {
         let revision = self.revision()?;
 
         self.history.images.get(&revision.image_id).ok_or_else(|| {
-            RuntimeError::RevisionImageMissing {
-                revision_id: self.revision_id.get(),
-                image_id: revision.image_id.get(),
-            }
-            .boxed()
+            RuntimeError::revision_image_missing(self.revision_id.get(), revision.image_id.get())
+                .boxed()
         })
     }
 
     /// Encode one snapshot into bytes.
     pub fn encode(&self) -> RuntimeResult<Vec<u8>> {
         to_allocvec(self).map_err(|_| {
-            RuntimeError::InconsistentImage {
-                detail: "failed to encode world snapshot".to_string(),
-            }
-            .boxed()
+            RuntimeError::inconsistent_image("failed to encode world snapshot".to_string()).boxed()
         })
     }
 
     /// Decode one snapshot from bytes.
     pub fn decode(bytes: &[u8]) -> RuntimeResult<Self> {
         postcard::from_bytes(bytes).map_err(|_| {
-            RuntimeError::InconsistentImage {
-                detail: "failed to decode world snapshot".to_string(),
-            }
-            .boxed()
+            RuntimeError::inconsistent_image("failed to decode world snapshot".to_string()).boxed()
         })
     }
 }
@@ -154,9 +140,10 @@ impl World {
         let history = self.history.read();
         history.image(image_id)?;
         let revision = history.revision_for_image_id(image_id).ok_or_else(|| {
-            RuntimeError::InconsistentImage {
-                detail: format!("image {} does not belong to one revision", image_id.get()),
-            }
+            RuntimeError::inconsistent_image(format!(
+                "image {} does not belong to one revision",
+                image_id.get()
+            ))
             .boxed()
         })?;
 
@@ -291,12 +278,10 @@ impl World {
     ) -> RuntimeResult<WorldSnapshot> {
         let revision = {
             let history = self.history.read();
-            let checkpoint = history.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-                RuntimeError::CheckpointNotFound {
-                    checkpoint_id: checkpoint_id.get(),
-                }
-                .boxed()
-            })?;
+            let checkpoint = history
+                .checkpoints
+                .get(&checkpoint_id)
+                .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
 
             checkpoint.revision_id
         };
@@ -308,12 +293,10 @@ impl World {
     pub fn snapshot_checkpoint(&self, checkpoint_id: CheckpointId) -> RuntimeResult<WorldSnapshot> {
         let revision = {
             let history = self.history.read();
-            let checkpoint = history.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-                RuntimeError::CheckpointNotFound {
-                    checkpoint_id: checkpoint_id.get(),
-                }
-                .boxed()
-            })?;
+            let checkpoint = history
+                .checkpoints
+                .get(&checkpoint_id)
+                .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
 
             checkpoint.revision_id
         };
@@ -333,10 +316,7 @@ impl World {
             .trace_images
             .get(&snapshot.revision_id)
             .ok_or_else(|| {
-                RuntimeError::RevisionTraceImageMissing {
-                    revision_id: snapshot.revision_id.get(),
-                }
-                .boxed()
+                RuntimeError::revision_trace_image_missing(snapshot.revision_id.get()).boxed()
             })?;
         let environment = trace_image.header().environment.clone();
         let mut world = Self::empty(revision.branch_id, &options, environment, None)?;
@@ -364,10 +344,10 @@ impl World {
         let revision = snapshot.revision()?;
 
         if revision.branch_id != self.state.branch_id {
-            return Err(RuntimeError::SnapshotBranchMismatch {
-                snapshot_branch_id: revision.branch_id.get(),
-                world_branch_id: self.state.branch_id.get(),
-            }
+            return Err(RuntimeError::snapshot_branch_mismatch(
+                revision.branch_id.get(),
+                self.state.branch_id.get(),
+            )
             .boxed());
         }
 

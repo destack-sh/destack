@@ -123,12 +123,7 @@ impl WorldImage {
         self.runtimes
             .get(&runtime_id)
             .map(Arc::as_ref)
-            .ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())
     }
 
     /// Return labels for one runtime image.
@@ -137,11 +132,11 @@ impl WorldImage {
         runtime_id: RuntimeId,
     ) -> RuntimeResult<&BTreeMap<String, String>> {
         let entity_id = runtime_id.entity_id();
-        let entity = self.topology.entities().get(entity_id.as_str()).ok_or(
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            },
-        )?;
+        let entity = self
+            .topology
+            .entities()
+            .get(entity_id.as_str())
+            .ok_or(RuntimeError::runtime_not_found(runtime_id.0))?;
 
         Ok(&entity.labels)
     }
@@ -152,9 +147,7 @@ impl WorldImage {
             .topology
             .entities()
             .get(&runtime_id.entity_id())
-            .ok_or(RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            })?;
+            .ok_or(RuntimeError::runtime_not_found(runtime_id.0))?;
 
         Ok(entity.name.as_str())
     }
@@ -164,33 +157,28 @@ impl WorldImage {
         self.workers
             .get(&worker_id)
             .map(Arc::as_ref)
-            .ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())
     }
 
     /// Return labels for one worker image.
     pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&BTreeMap<String, String>> {
         let entity_id = worker_id.entity_id();
-        let entity = self.topology.entities().get(entity_id.as_str()).ok_or(
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            },
-        )?;
+        let entity = self
+            .topology
+            .entities()
+            .get(entity_id.as_str())
+            .ok_or(RuntimeError::worker_not_found(worker_id.0))?;
 
         Ok(&entity.labels)
     }
 
     /// Return the topology name for one worker image.
     pub fn worker_name(&self, worker_id: WorkerId) -> RuntimeResult<&str> {
-        let entity = self.topology.entities().get(&worker_id.entity_id()).ok_or(
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            },
-        )?;
+        let entity = self
+            .topology
+            .entities()
+            .get(&worker_id.entity_id())
+            .ok_or(RuntimeError::worker_not_found(worker_id.0))?;
 
         Ok(entity.name.as_str())
     }
@@ -206,12 +194,7 @@ impl WorldImage {
             .keys()
             .copied()
             .find(|runtime_id| self.runtime_owns_worker(*runtime_id, worker_id))
-            .ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())
     }
 
     /// Return one logical world resource by id.
@@ -326,10 +309,7 @@ impl World {
     /// Return the encoded size and hash for one image.
     pub(crate) fn image_size_and_hash(image: &WorldImage) -> RuntimeResult<(u64, u128)> {
         let bytes = to_allocvec(image).map_err(|_| {
-            RuntimeError::InconsistentImage {
-                detail: "failed to encode world image".to_string(),
-            }
-            .boxed()
+            RuntimeError::inconsistent_image("failed to encode world image".to_string()).boxed()
         })?;
         let size_bytes = bytes.len() as u64;
         let hash = fnv1a_128(&bytes);

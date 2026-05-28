@@ -5,327 +5,352 @@ use destack_vm as vm;
 
 use crate::diagnostic::HostError;
 
-/// Error type for runtime execution and host binding failures.
+/// Error type for runtime execution failures.
 #[derive(Debug, Clone)]
-#[repr(u16)]
 pub enum RuntimeError {
     /// VM runtime error bubbled through the runtime boundary.
-    Vm(Box<vm::Error>) = 1,
+    Vm(Box<vm::Error>),
     /// Host binding failure.
-    Host(Box<HostError>) = 2,
+    Host(Box<HostError>),
+    /// Binding boundary failure.
+    Binding {
+        /// Fully qualified binding name.
+        name: String,
+        /// Binding failure reason.
+        reason: BindingError,
+    },
+    /// Runtime entity failure.
+    Entity {
+        /// Entity failure reason.
+        reason: EntityError,
+    },
+    /// Runtime execution failure.
+    Runtime {
+        /// Runtime failure reason.
+        reason: RuntimeFailure,
+    },
+    /// Trace failure.
+    Trace {
+        /// Trace failure reason.
+        reason: TraceFailure,
+    },
+    /// Runtime engine operation failed.
+    Engine {
+        /// Engine kind that failed.
+        engine: String,
+        /// Engine failure reason.
+        reason: EngineError,
+    },
+    /// Capture, restore, or image failure.
+    Capture {
+        /// Capture failure reason.
+        reason: CaptureError,
+    },
+    /// Runtime configuration is invalid.
+    Configuration {
+        /// The configuration scope that failed validation.
+        scope: String,
+        /// Human-readable validation detail.
+        detail: String,
+    },
+    /// Runtime memory failure.
+    Memory {
+        /// Memory failure reason.
+        reason: MemoryError,
+    },
+    /// Internal runtime error.
+    Internal { message: String },
+}
+
+/// Binding boundary failure reason.
+#[derive(Debug, Clone)]
+pub enum BindingError {
     /// Binding name was not found in the registry.
-    BindingNotFound {
-        /// Fully qualified binding name.
-        name: String,
-    } = 100,
+    NotFound,
     /// Binding call rejected by policy.
-    PolicyViolation {
-        /// Fully qualified binding name.
-        name: String,
-    } = 101,
+    PolicyViolation,
     /// Binding call rejected due to a missing required action.
     ActionDenied {
-        /// Fully qualified binding name.
-        name: String,
         /// Required action that was not granted.
         action: String,
-    } = 102,
+    },
     /// Binding call rejected due to an execution-affinity mismatch.
     AffinityViolation {
-        /// Fully qualified binding name.
-        name: String,
         /// Required affinity for this binding.
         affinity: String,
-    } = 114,
-    /// Resource identifier was not found.
-    ResourceNotFound {
-        /// Resource id or handle.
-        resource_id: u64,
-        /// Optional resource type or table name.
-        resource_kind: Option<String>,
-    } = 103,
-    /// Event loop became idle before completing a task.
-    EventLoopIdle { task_id: u64 } = 104,
-    /// Trace ended before the requested event.
-    TraceExhausted {
-        /// Sequence number of the missing event.
-        sequence: u64,
-    } = 107,
-    /// Trace did not match the current execution.
-    TraceMismatch {
-        /// Binding name for the mismatch.
-        name: String,
-    } = 108,
-    /// Trace payload policy is not supported by a binding.
-    TracePayloadUnsupported {
-        /// Binding name for the mismatch.
-        name: String,
-    } = 109,
-    /// Trace payload failed to encode.
-    TraceEncodeFailed {
-        /// Binding name for the failed payload.
-        name: String,
-    } = 111,
-    /// Trace payload failed to decode.
-    TraceDecodeFailed {
-        /// Binding name for the failed payload.
-        name: String,
-    } = 112,
-    /// World branch identifier was not found in lineage.
-    BranchNotFound {
-        /// Missing branch identifier.
-        branch_id: u128,
-    } = 115,
-    /// World revision identifier was not found in lineage.
-    RevisionNotFound {
-        /// Missing revision identifier.
-        revision_id: u128,
-    } = 116,
-    /// World checkpoint identifier was not found in lineage.
-    CheckpointNotFound {
-        /// Missing checkpoint identifier.
-        checkpoint_id: u128,
-    } = 117,
-    /// World image identifier was not found in lineage.
-    ImageNotFound {
-        /// Missing image identifier.
-        image_id: u128,
-    } = 118,
-    /// One world moment was not found in lineage.
-    MomentNotFound {
-        /// Branch identifier for the missing moment.
-        branch_id: u128,
-        /// Trace sequence for the missing moment.
-        sequence: u64,
-    } = 144,
-    /// One requested moment does not belong to the active world branch.
-    MomentBranchMismatch {
-        /// Requested moment branch identifier.
-        moment_branch_id: u128,
-        /// Active world branch identifier.
-        world_branch_id: u128,
-    } = 145,
-    /// Observation subscription identifier was not found.
-    ObservationSubscriptionNotFound {
-        /// Missing observation subscription identifier.
-        subscription_id: u64,
-    } = 141,
-    /// World runtime identifier was not found.
-    RuntimeNotFound {
-        /// Missing runtime identifier.
-        runtime_id: u64,
-    } = 127,
-    /// Runtime worker identifier was not found.
-    WorkerNotFound {
-        /// Missing worker identifier.
-        worker_id: u64,
-    } = 128,
-    /// World or runtime already contains the requested runtime identifier.
-    RuntimeAlreadyExists {
-        /// Conflicting runtime identifier.
-        runtime_id: u64,
-    } = 129,
-    /// Runtime already contains the requested worker identifier.
-    WorkerAlreadyExists {
-        /// Conflicting worker identifier.
-        worker_id: u64,
-    } = 130,
+    },
+}
+
+/// Runtime entity failure reason.
+#[derive(Debug, Clone)]
+pub enum EntityError {
+    /// Entity was not found.
+    NotFound(Entity),
+    /// Entity already exists.
+    AlreadyExists(Entity),
+    /// Entity is missing from topology.
+    MissingTopology(Entity),
     /// Runtime image is missing its declared default worker.
     DefaultWorkerMissing {
         /// Runtime identifier with the invalid default-worker reference.
         runtime_id: u64,
         /// Missing default worker identifier.
         worker_id: u64,
-    } = 131,
-    /// Runtime cannot remove its last remaining worker.
-    LastWorkerRemoval = 132,
-    /// Runtime cannot remove the default worker until a replacement is selected.
-    DefaultWorkerRemoval = 133,
-    /// World topology is missing one runtime identity record.
-    TopologyRuntimeMissing {
-        /// Missing runtime identifier.
-        runtime_id: u64,
-    } = 135,
-    /// World topology is missing one worker identity record.
-    TopologyWorkerMissing {
-        /// Missing worker identifier.
-        worker_id: u64,
-    } = 136,
-    /// World-controlled virtual time cannot advance while host time is active.
-    HostTimeAdvance = 137,
-    /// Engine adapter received an entry for the wrong engine kind.
-    EngineEntryMismatch {
-        /// Engine kind that received the entry.
-        engine: String,
-        /// Entry kind that was requested.
-        entry: String,
-    } = 138,
-    /// Engine adapter received a continuation for the wrong engine kind.
-    EngineContinuationMismatch {
-        /// Engine kind that received the continuation.
-        engine: String,
-        /// Continuation kind that was requested.
-        continuation: String,
-    } = 139,
-    /// Engine adapter received an image for the wrong engine kind.
-    EngineImageMismatch {
-        /// Engine kind that received the image.
-        engine: String,
-        /// Image kind that was requested.
-        image: String,
-    } = 149,
-    /// Engine backend is not implemented yet.
-    EngineUnsupported {
-        /// Requested engine kind.
-        engine: String,
-    } = 148,
-    /// Engine returned a yield status without a materialized continuation.
-    EngineYieldMissing {
-        /// Engine kind that yielded.
-        engine: String,
-    } = 150,
-    /// Engine reported a low-level trap.
-    EngineTrap {
-        /// Engine kind that trapped.
-        engine: String,
-    } = 151,
-    /// Engine requested deoptimization without a materialization payload.
-    EngineDeoptMissing {
-        /// Engine kind that requested deoptimization.
-        engine: String,
-    } = 152,
-    /// Engine reported a language panic.
-    EnginePanic {
-        /// Engine kind that panicked.
-        engine: String,
-    } = 153,
+    },
     /// Runtime image contains duplicate worker records.
     DuplicateWorkerImage {
         /// Runtime identifier owning the duplicate worker image.
         runtime_id: u64,
         /// Duplicate worker identifier.
         worker_id: u64,
-    } = 140,
-    /// Runtime configuration is invalid.
-    ConfigurationInvalid {
-        /// The configuration scope that failed validation.
-        scope: String,
-        /// Human-readable validation detail.
-        detail: String,
-    } = 147,
+    },
     /// One revision points at one missing world image.
     RevisionImageMissing {
         /// Revision identifier with the dangling image reference.
         revision_id: u128,
         /// Missing image identifier.
         image_id: u128,
-    } = 119,
+    },
     /// One revision points at one missing trace image.
     RevisionTraceImageMissing {
         /// Revision identifier with the dangling trace-image reference.
         revision_id: u128,
-    } = 120,
+    },
+    /// One requested moment does not belong to the active world branch.
+    MomentBranchMismatch {
+        /// Requested moment branch identifier.
+        moment_branch_id: u128,
+        /// Active world branch identifier.
+        world_branch_id: u128,
+    },
+}
+
+/// Runtime entity reference.
+#[derive(Debug, Clone)]
+pub enum Entity {
+    /// Host or runtime resource.
+    Resource {
+        /// Resource id or handle.
+        resource_id: u64,
+        /// Optional resource type or table name.
+        resource_kind: Option<String>,
+    },
+    /// World branch.
+    Branch {
+        /// Branch identifier.
+        branch_id: u128,
+    },
+    /// World revision.
+    Revision {
+        /// Revision identifier.
+        revision_id: u128,
+    },
+    /// Durable checkpoint.
+    Checkpoint {
+        /// Checkpoint identifier.
+        checkpoint_id: u128,
+    },
+    /// World image.
+    Image {
+        /// Image identifier.
+        image_id: u128,
+    },
+    /// World moment.
+    Moment {
+        /// Branch identifier.
+        branch_id: u128,
+        /// Trace sequence.
+        sequence: u64,
+    },
+    /// Observation subscription.
+    ObservationSubscription {
+        /// Observation subscription identifier.
+        subscription_id: u64,
+    },
+    /// Runtime.
+    Runtime {
+        /// Runtime identifier.
+        runtime_id: u64,
+    },
+    /// Worker.
+    Worker {
+        /// Worker identifier.
+        worker_id: u64,
+    },
+}
+
+/// Runtime execution failure reason.
+#[derive(Debug, Clone)]
+pub enum RuntimeFailure {
+    /// Event loop became idle before completing a task.
+    EventLoopIdle { task_id: u64 },
+    /// Runtime cannot remove its last remaining worker.
+    LastWorkerRemoval,
+    /// Runtime cannot remove the default worker until a replacement is selected.
+    DefaultWorkerRemoval,
+    /// World-controlled virtual time cannot advance while host time is active.
+    HostTimeAdvance,
+}
+
+/// Runtime memory failure reason.
+#[derive(Debug, Clone)]
+pub enum MemoryError {
+    /// One runtime memory scope exceeded its configured hard limit.
+    LimitExceeded {
+        /// The limited memory scope.
+        scope: String,
+        /// The exact retained bytes currently in use.
+        used_bytes: u64,
+        /// The configured hard limit in bytes.
+        max_bytes: u64,
+    },
+}
+
+/// Trace failure reason.
+#[derive(Debug, Clone)]
+pub enum TraceFailure {
+    /// Trace ended before the requested event.
+    Exhausted {
+        /// Sequence number of the missing event.
+        sequence: u64,
+    },
+    /// Trace did not match the current execution.
+    Mismatch {
+        /// Channel or binding name for the mismatch.
+        name: String,
+    },
+    /// Trace payload policy is not supported by a binding.
+    PayloadUnsupported {
+        /// Binding name for the mismatch.
+        name: String,
+    },
+    /// Trace payload failed to encode.
+    EncodeFailed {
+        /// Binding name for the failed payload.
+        name: String,
+    },
+    /// Trace payload failed to decode.
+    DecodeFailed {
+        /// Binding name for the failed payload.
+        name: String,
+    },
+}
+
+/// Capture, restore, or image failure reason.
+#[derive(Debug, Clone)]
+pub enum CaptureError {
     /// Exclusive access is already held.
-    ExclusiveAccessHeld = 122,
+    ExclusiveAccessHeld,
     /// Shared activity was attempted while exclusive access is held.
-    ExclusiveAccessConflict = 123,
+    ExclusiveAccessConflict,
     /// Snapshot branch metadata does not match the target world.
     SnapshotBranchMismatch {
         /// Captured snapshot branch identifier.
         snapshot_branch_id: u128,
         /// Active world branch identifier.
         world_branch_id: u128,
-    } = 124,
+    },
     /// Capture failed because one subsystem cannot honestly materialize the requested mode.
-    CaptureBarrier {
+    Barrier {
         /// The component that rejected capture.
         component: String,
         /// The requested capture mode.
         mode: String,
         /// Human-readable barrier detail.
         detail: String,
-    } = 125,
+    },
     /// One captured image or snapshot is internally inconsistent.
     InconsistentImage {
         /// Human-readable inconsistency detail.
         detail: String,
-    } = 126,
-    /// One runtime heap exceeded its configured hard limit.
-    HeapLimitExceeded {
-        /// The limited heap scope.
-        scope: String,
-        /// The exact retained heap bytes currently in use.
-        used_bytes: u64,
-        /// The configured hard limit in bytes.
-        max_bytes: u64,
-    } = 146,
-    /// Internal runtime error.
-    Internal { message: String } = 113,
+    },
 }
 
-impl RuntimeError {
-    /// Return a human-readable error message.
-    pub fn message(&self) -> String {
+impl BindingError {
+    /// Return the stable runtime error code for this binding failure.
+    pub const fn code(&self) -> u16 {
         match self {
-            RuntimeError::Vm(error) => error.message(),
-            RuntimeError::Host(error) => error.message(),
-            RuntimeError::BindingNotFound { name } => format!("binding not found: {name}"),
-            RuntimeError::PolicyViolation { name } => {
-                format!("binding forbidden by policy: {name}")
-            }
-            RuntimeError::ActionDenied { name, action } => {
+            Self::NotFound => 100,
+            Self::PolicyViolation => 101,
+            Self::ActionDenied { .. } => 102,
+            Self::AffinityViolation { .. } => 114,
+        }
+    }
+
+    /// Return a human-readable binding failure message.
+    pub fn message(&self, name: &str) -> String {
+        match self {
+            Self::NotFound => format!("binding not found: {name}"),
+            Self::PolicyViolation => format!("binding forbidden by policy: {name}"),
+            Self::ActionDenied { action } => {
                 format!("binding action denied: {name} requires {action}")
             }
-            RuntimeError::AffinityViolation { name, affinity } => {
+            Self::AffinityViolation { affinity } => {
                 format!("binding affinity denied: {name} requires {affinity}")
             }
-            RuntimeError::ResourceNotFound {
-                resource_id,
-                resource_kind,
+        }
+    }
+
+    /// Return the VM import name payload for this binding failure.
+    fn import_name(self, name: String) -> String {
+        match self {
+            Self::NotFound | Self::PolicyViolation => name,
+            Self::ActionDenied { action } => format!("{name} ({action})"),
+            Self::AffinityViolation { affinity } => format!("{name} ({affinity})"),
+        }
+    }
+}
+
+impl EntityError {
+    /// Return the stable runtime error code for this entity failure.
+    pub const fn code(&self) -> u16 {
+        match self {
+            Self::NotFound(entity) => entity.not_found_code(),
+            Self::AlreadyExists(entity) => entity.already_exists_code(),
+            Self::MissingTopology(Entity::Runtime { .. }) => 135,
+            Self::MissingTopology(Entity::Worker { .. }) => 136,
+            Self::MissingTopology(_) => 126,
+            Self::DefaultWorkerMissing { .. } => 131,
+            Self::DuplicateWorkerImage { .. } => 140,
+            Self::RevisionImageMissing { .. } => 119,
+            Self::RevisionTraceImageMissing { .. } => 120,
+            Self::MomentBranchMismatch { .. } => 145,
+        }
+    }
+
+    /// Return a human-readable entity failure message.
+    pub fn message(&self) -> String {
+        match self {
+            Self::NotFound(entity) => format!("{} not found", entity.description()),
+            Self::AlreadyExists(entity) => format!("{} already exists", entity.description()),
+            Self::MissingTopology(entity) => {
+                format!(
+                    "{} is not registered in world topology",
+                    entity.description()
+                )
+            }
+            Self::DefaultWorkerMissing {
+                runtime_id,
+                worker_id,
             } => {
-                if let Some(resource_kind) = resource_kind {
-                    format!("resource not found: {resource_kind} {resource_id}")
-                } else {
-                    format!("resource not found: {resource_id}")
-                }
+                format!("runtime {runtime_id} is missing default worker {worker_id}")
             }
-            RuntimeError::EventLoopIdle { task_id } => {
-                format!("event loop idle before completing task {task_id}")
-            }
-            RuntimeError::TraceExhausted { sequence } => {
-                format!("trace exhausted at {sequence}")
-            }
-            RuntimeError::TraceMismatch { name } => {
-                format!("trace mismatch for {name}")
-            }
-            RuntimeError::TracePayloadUnsupported { name } => {
-                format!("trace payload unsupported for {name}")
-            }
-            RuntimeError::TraceEncodeFailed { name } => {
-                format!("failed to encode trace payload for {name}")
-            }
-            RuntimeError::TraceDecodeFailed { name } => {
-                format!("failed to decode trace payload for {name}")
-            }
-            RuntimeError::BranchNotFound { branch_id } => {
-                format!("branch not found: {branch_id}")
-            }
-            RuntimeError::RevisionNotFound { revision_id } => {
-                format!("revision not found: {revision_id}")
-            }
-            RuntimeError::CheckpointNotFound { checkpoint_id } => {
-                format!("checkpoint not found: {checkpoint_id}")
-            }
-            RuntimeError::ImageNotFound { image_id } => {
-                format!("image not found: {image_id}")
-            }
-            RuntimeError::MomentNotFound {
-                branch_id,
-                sequence,
+            Self::DuplicateWorkerImage {
+                runtime_id,
+                worker_id,
             } => {
-                format!("moment not found: branch {branch_id} at sequence {sequence}")
+                format!("runtime {runtime_id} image contains duplicate worker {worker_id}")
             }
-            RuntimeError::MomentBranchMismatch {
+            Self::RevisionImageMissing {
+                revision_id,
+                image_id,
+            } => {
+                format!("revision {revision_id} is missing image {image_id}")
+            }
+            Self::RevisionTraceImageMissing { revision_id } => {
+                format!("revision {revision_id} is missing trace image")
+            }
+            Self::MomentBranchMismatch {
                 moment_branch_id,
                 world_branch_id,
             } => {
@@ -333,92 +358,169 @@ impl RuntimeError {
                     "moment branch mismatch: moment branch {moment_branch_id} does not match world branch {world_branch_id}"
                 )
             }
-            RuntimeError::ObservationSubscriptionNotFound { subscription_id } => {
-                format!("observation subscription not found: {subscription_id}")
-            }
-            RuntimeError::RuntimeNotFound { runtime_id } => {
-                format!("runtime not found: {runtime_id}")
-            }
-            RuntimeError::WorkerNotFound { worker_id } => {
-                format!("worker not found: {worker_id}")
-            }
-            RuntimeError::RuntimeAlreadyExists { runtime_id } => {
-                format!("runtime already exists: {runtime_id}")
-            }
-            RuntimeError::WorkerAlreadyExists { worker_id } => {
-                format!("worker already exists: {worker_id}")
-            }
-            RuntimeError::DefaultWorkerMissing {
-                runtime_id,
-                worker_id,
+        }
+    }
+}
+
+impl Entity {
+    /// Return the previous stable not-found error code.
+    pub const fn not_found_code(&self) -> u16 {
+        match self {
+            Self::Resource { .. } => 103,
+            Self::Branch { .. } => 115,
+            Self::Revision { .. } => 116,
+            Self::Checkpoint { .. } => 117,
+            Self::Image { .. } => 118,
+            Self::Runtime { .. } => 127,
+            Self::Worker { .. } => 128,
+            Self::ObservationSubscription { .. } => 141,
+            Self::Moment { .. } => 144,
+        }
+    }
+
+    /// Return the previous stable already-exists error code.
+    pub const fn already_exists_code(&self) -> u16 {
+        match self {
+            Self::Runtime { .. } => 129,
+            Self::Worker { .. } => 130,
+            _ => 126,
+        }
+    }
+
+    /// Return a human-readable entity reference.
+    pub fn description(&self) -> String {
+        match self {
+            Self::Resource {
+                resource_id,
+                resource_kind,
             } => {
-                format!("runtime {runtime_id} is missing default worker {worker_id}")
+                if let Some(resource_kind) = resource_kind {
+                    format!("resource {resource_kind} {resource_id}")
+                } else {
+                    format!("resource {resource_id}")
+                }
             }
-            RuntimeError::LastWorkerRemoval => "runtime must keep at least one worker".to_string(),
-            RuntimeError::DefaultWorkerRemoval => {
+            Self::Branch { branch_id } => format!("branch {branch_id}"),
+            Self::Revision { revision_id } => format!("revision {revision_id}"),
+            Self::Checkpoint { checkpoint_id } => format!("checkpoint {checkpoint_id}"),
+            Self::Image { image_id } => format!("image {image_id}"),
+            Self::Moment {
+                branch_id,
+                sequence,
+            } => {
+                format!("moment branch {branch_id} at sequence {sequence}")
+            }
+            Self::ObservationSubscription { subscription_id } => {
+                format!("observation subscription {subscription_id}")
+            }
+            Self::Runtime { runtime_id } => format!("runtime {runtime_id}"),
+            Self::Worker { worker_id } => format!("worker {worker_id}"),
+        }
+    }
+}
+
+impl RuntimeFailure {
+    /// Return the stable runtime error code for this runtime failure.
+    pub const fn code(&self) -> u16 {
+        match self {
+            Self::EventLoopIdle { .. } => 104,
+            Self::LastWorkerRemoval => 132,
+            Self::DefaultWorkerRemoval => 133,
+            Self::HostTimeAdvance => 137,
+        }
+    }
+
+    /// Return a human-readable runtime failure message.
+    pub fn message(&self) -> String {
+        match self {
+            Self::EventLoopIdle { task_id } => {
+                format!("event loop idle before completing task {task_id}")
+            }
+            Self::LastWorkerRemoval => "runtime must keep at least one worker".to_string(),
+            Self::DefaultWorkerRemoval => {
                 "cannot remove default worker: set a new default worker first".to_string()
             }
-            RuntimeError::TopologyRuntimeMissing { runtime_id } => {
-                format!("runtime {runtime_id} is not registered in world topology")
-            }
-            RuntimeError::TopologyWorkerMissing { worker_id } => {
-                format!("worker {worker_id} is not registered in world topology")
-            }
-            RuntimeError::HostTimeAdvance => {
+            Self::HostTimeAdvance => {
                 "cannot advance virtual time while world uses host time".to_string()
             }
-            RuntimeError::EngineEntryMismatch { engine, entry } => {
-                format!("{engine} engine cannot run {entry} entry")
-            }
-            RuntimeError::EngineContinuationMismatch {
-                engine,
-                continuation,
+        }
+    }
+}
+
+impl MemoryError {
+    /// Return the stable runtime error code for this memory failure.
+    pub const fn code(&self) -> u16 {
+        match self {
+            Self::LimitExceeded { .. } => 146,
+        }
+    }
+
+    /// Return a human-readable memory failure message.
+    pub fn message(&self) -> String {
+        match self {
+            Self::LimitExceeded {
+                scope,
+                used_bytes,
+                max_bytes,
             } => {
-                format!("{engine} engine cannot handle {continuation} continuation")
+                format!(
+                    "{scope} memory limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
+                )
             }
-            RuntimeError::EngineImageMismatch { engine, image } => {
-                format!("{engine} engine cannot restore {image} image")
+        }
+    }
+}
+
+impl TraceFailure {
+    /// Return the stable runtime error code for this trace failure.
+    pub const fn code(&self) -> u16 {
+        match self {
+            Self::Exhausted { .. } => 107,
+            Self::Mismatch { .. } => 108,
+            Self::PayloadUnsupported { .. } => 109,
+            Self::EncodeFailed { .. } => 111,
+            Self::DecodeFailed { .. } => 112,
+        }
+    }
+
+    /// Return a human-readable trace failure message.
+    pub fn message(&self) -> String {
+        match self {
+            Self::Exhausted { sequence } => format!("trace exhausted at {sequence}"),
+            Self::Mismatch { name } => format!("trace mismatch for {name}"),
+            Self::PayloadUnsupported { name } => {
+                format!("trace payload unsupported for {name}")
             }
-            RuntimeError::EngineUnsupported { engine } => {
-                format!("{engine} engine is not implemented")
+            Self::EncodeFailed { name } => {
+                format!("failed to encode trace payload for {name}")
             }
-            RuntimeError::EngineYieldMissing { engine } => {
-                format!("{engine} engine yielded without a continuation")
+            Self::DecodeFailed { name } => {
+                format!("failed to decode trace payload for {name}")
             }
-            RuntimeError::EngineTrap { engine } => {
-                format!("{engine} engine trapped")
-            }
-            RuntimeError::EngineDeoptMissing { engine } => {
-                format!("{engine} engine deoptimized without materialization")
-            }
-            RuntimeError::EnginePanic { engine } => {
-                format!("{engine} engine panicked")
-            }
-            RuntimeError::DuplicateWorkerImage {
-                runtime_id,
-                worker_id,
-            } => {
-                format!("runtime {runtime_id} image contains duplicate worker {worker_id}")
-            }
-            RuntimeError::ConfigurationInvalid { scope, detail } => {
-                format!("invalid runtime configuration for {scope}: {detail}")
-            }
-            RuntimeError::RevisionImageMissing {
-                revision_id,
-                image_id,
-            } => {
-                format!("revision {revision_id} is missing image {image_id}")
-            }
-            RuntimeError::RevisionTraceImageMissing { revision_id } => {
-                format!("revision {revision_id} is missing trace image")
-            }
-            RuntimeError::ExclusiveAccessHeld => {
-                "world is already under exclusive access".to_string()
-            }
-            RuntimeError::ExclusiveAccessConflict => {
+        }
+    }
+}
+
+impl CaptureError {
+    /// Return the stable runtime error code for this capture failure.
+    pub const fn code(&self) -> u16 {
+        match self {
+            Self::ExclusiveAccessHeld => 122,
+            Self::ExclusiveAccessConflict => 123,
+            Self::SnapshotBranchMismatch { .. } => 124,
+            Self::Barrier { .. } => 125,
+            Self::InconsistentImage { .. } => 126,
+        }
+    }
+
+    /// Return a human-readable capture failure message.
+    pub fn message(&self) -> String {
+        match self {
+            Self::ExclusiveAccessHeld => "world is already under exclusive access".to_string(),
+            Self::ExclusiveAccessConflict => {
                 "world is under exclusive access for capture or restore".to_string()
             }
-            RuntimeError::SnapshotBranchMismatch {
+            Self::SnapshotBranchMismatch {
                 snapshot_branch_id,
                 world_branch_id,
             } => {
@@ -426,25 +528,348 @@ impl RuntimeError {
                     "snapshot active branch {snapshot_branch_id} does not match world branch {world_branch_id}"
                 )
             }
-            RuntimeError::CaptureBarrier {
+            Self::Barrier {
                 component,
                 mode,
                 detail,
             } => {
                 format!("{component} cannot capture for {mode}: {detail}")
             }
-            RuntimeError::InconsistentImage { detail } => {
+            Self::InconsistentImage { detail } => {
                 format!("captured image is inconsistent: {detail}")
             }
-            RuntimeError::HeapLimitExceeded {
-                scope,
-                used_bytes,
-                max_bytes,
-            } => {
-                format!(
-                    "{scope} heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
-                )
+        }
+    }
+}
+
+/// Engine failure reason.
+#[derive(Debug, Clone)]
+pub enum EngineError {
+    /// Requested engine entry is unavailable.
+    EntryUnavailable { entry: String },
+    /// Continuation belongs to a different engine kind.
+    ContinuationMismatch { continuation: String },
+    /// Image belongs to a different engine kind.
+    ImageMismatch { image: String },
+    /// Engine feature is unsupported.
+    Unsupported { feature: String },
+    /// Engine yielded without a materialized continuation.
+    YieldMissing,
+    /// Engine trapped.
+    Trap,
+    /// Engine deoptimized without materialization.
+    DeoptMissing,
+    /// Engine panicked.
+    Panic,
+}
+
+impl RuntimeError {
+    /// Return a binding-not-found error.
+    pub fn binding_not_found(name: impl Into<String>) -> Self {
+        Self::Binding {
+            name: name.into(),
+            reason: BindingError::NotFound,
+        }
+    }
+
+    /// Return a binding policy violation.
+    pub fn policy_violation(name: impl Into<String>) -> Self {
+        Self::Binding {
+            name: name.into(),
+            reason: BindingError::PolicyViolation,
+        }
+    }
+
+    /// Return a binding action denial.
+    pub fn action_denied(name: impl Into<String>, action: impl Into<String>) -> Self {
+        Self::Binding {
+            name: name.into(),
+            reason: BindingError::ActionDenied {
+                action: action.into(),
+            },
+        }
+    }
+
+    /// Return a binding affinity violation.
+    pub fn affinity_violation(name: impl Into<String>, affinity: impl Into<String>) -> Self {
+        Self::Binding {
+            name: name.into(),
+            reason: BindingError::AffinityViolation {
+                affinity: affinity.into(),
+            },
+        }
+    }
+
+    /// Return a resource-not-found error.
+    pub fn resource_not_found(resource_id: u64, resource_kind: Option<String>) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Resource {
+                resource_id,
+                resource_kind,
+            }),
+        }
+    }
+
+    /// Return a branch-not-found error.
+    pub fn branch_not_found(branch_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Branch { branch_id }),
+        }
+    }
+
+    /// Return a revision-not-found error.
+    pub fn revision_not_found(revision_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Revision { revision_id }),
+        }
+    }
+
+    /// Return a checkpoint-not-found error.
+    pub fn checkpoint_not_found(checkpoint_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Checkpoint { checkpoint_id }),
+        }
+    }
+
+    /// Return an image-not-found error.
+    pub fn image_not_found(image_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Image { image_id }),
+        }
+    }
+
+    /// Return a moment-not-found error.
+    pub fn moment_not_found(branch_id: u128, sequence: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Moment {
+                branch_id,
+                sequence,
+            }),
+        }
+    }
+
+    /// Return a moment branch mismatch error.
+    pub fn moment_branch_mismatch(moment_branch_id: u128, world_branch_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::MomentBranchMismatch {
+                moment_branch_id,
+                world_branch_id,
+            },
+        }
+    }
+
+    /// Return an observation-subscription-not-found error.
+    pub fn observation_subscription_not_found(subscription_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::ObservationSubscription { subscription_id }),
+        }
+    }
+
+    /// Return a runtime-not-found error.
+    pub fn runtime_not_found(runtime_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Runtime { runtime_id }),
+        }
+    }
+
+    /// Return a worker-not-found error.
+    pub fn worker_not_found(worker_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::NotFound(Entity::Worker { worker_id }),
+        }
+    }
+
+    /// Return a runtime-already-exists error.
+    pub fn runtime_already_exists(runtime_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::AlreadyExists(Entity::Runtime { runtime_id }),
+        }
+    }
+
+    /// Return a worker-already-exists error.
+    pub fn worker_already_exists(worker_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::AlreadyExists(Entity::Worker { worker_id }),
+        }
+    }
+
+    /// Return a missing default worker error.
+    pub fn default_worker_missing(runtime_id: u64, worker_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::DefaultWorkerMissing {
+                runtime_id,
+                worker_id,
+            },
+        }
+    }
+
+    /// Return a missing topology runtime error.
+    pub fn topology_runtime_missing(runtime_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::MissingTopology(Entity::Runtime { runtime_id }),
+        }
+    }
+
+    /// Return a missing topology worker error.
+    pub fn topology_worker_missing(worker_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::MissingTopology(Entity::Worker { worker_id }),
+        }
+    }
+
+    /// Return a duplicate worker image error.
+    pub fn duplicate_worker_image(runtime_id: u64, worker_id: u64) -> Self {
+        Self::Entity {
+            reason: EntityError::DuplicateWorkerImage {
+                runtime_id,
+                worker_id,
+            },
+        }
+    }
+
+    /// Return a revision image missing error.
+    pub fn revision_image_missing(revision_id: u128, image_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::RevisionImageMissing {
+                revision_id,
+                image_id,
+            },
+        }
+    }
+
+    /// Return a revision trace image missing error.
+    pub fn revision_trace_image_missing(revision_id: u128) -> Self {
+        Self::Entity {
+            reason: EntityError::RevisionTraceImageMissing { revision_id },
+        }
+    }
+
+    /// Return an event-loop-idle error.
+    pub fn event_loop_idle(task_id: u64) -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::EventLoopIdle { task_id },
+        }
+    }
+
+    /// Return a last-worker-removal error.
+    pub fn last_worker_removal() -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::LastWorkerRemoval,
+        }
+    }
+
+    /// Return a default-worker-removal error.
+    pub fn default_worker_removal() -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::DefaultWorkerRemoval,
+        }
+    }
+
+    /// Return a host-time-advance error.
+    pub fn host_time_advance() -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::HostTimeAdvance,
+        }
+    }
+
+    /// Return a trace-exhausted error.
+    pub fn trace_exhausted(sequence: u64) -> Self {
+        Self::Trace {
+            reason: TraceFailure::Exhausted { sequence },
+        }
+    }
+
+    /// Return a trace mismatch error.
+    pub fn trace_mismatch(name: impl Into<String>) -> Self {
+        Self::Trace {
+            reason: TraceFailure::Mismatch { name: name.into() },
+        }
+    }
+
+    /// Return a trace payload unsupported error.
+    pub fn trace_payload_unsupported(name: impl Into<String>) -> Self {
+        Self::Trace {
+            reason: TraceFailure::PayloadUnsupported { name: name.into() },
+        }
+    }
+
+    /// Return a trace encode failure.
+    pub fn trace_encode_failed(name: impl Into<String>) -> Self {
+        Self::Trace {
+            reason: TraceFailure::EncodeFailed { name: name.into() },
+        }
+    }
+
+    /// Return a trace decode failure.
+    pub fn trace_decode_failed(name: impl Into<String>) -> Self {
+        Self::Trace {
+            reason: TraceFailure::DecodeFailed { name: name.into() },
+        }
+    }
+
+    /// Return an exclusive access error.
+    pub fn exclusive_access_held() -> Self {
+        Self::Capture {
+            reason: CaptureError::ExclusiveAccessHeld,
+        }
+    }
+
+    /// Return an exclusive access conflict.
+    pub fn exclusive_access_conflict() -> Self {
+        Self::Capture {
+            reason: CaptureError::ExclusiveAccessConflict,
+        }
+    }
+
+    /// Return a snapshot branch mismatch.
+    pub fn snapshot_branch_mismatch(snapshot_branch_id: u128, world_branch_id: u128) -> Self {
+        Self::Capture {
+            reason: CaptureError::SnapshotBranchMismatch {
+                snapshot_branch_id,
+                world_branch_id,
+            },
+        }
+    }
+
+    /// Return a capture barrier.
+    pub fn capture_barrier(
+        component: impl Into<String>,
+        mode: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::Capture {
+            reason: CaptureError::Barrier {
+                component: component.into(),
+                mode: mode.into(),
+                detail: detail.into(),
+            },
+        }
+    }
+
+    /// Return an inconsistent image error.
+    pub fn inconsistent_image(detail: impl Into<String>) -> Self {
+        Self::Capture {
+            reason: CaptureError::InconsistentImage {
+                detail: detail.into(),
+            },
+        }
+    }
+
+    /// Return a human-readable error message.
+    pub fn message(&self) -> String {
+        match self {
+            RuntimeError::Vm(error) => error.message(),
+            RuntimeError::Host(error) => error.message(),
+            RuntimeError::Binding { name, reason } => reason.message(name),
+            RuntimeError::Entity { reason } => reason.message(),
+            RuntimeError::Runtime { reason } => reason.message(),
+            RuntimeError::Trace { reason } => reason.message(),
+            RuntimeError::Engine { engine, reason } => reason.message(engine),
+            RuntimeError::Capture { reason } => reason.message(),
+            RuntimeError::Configuration { scope, detail } => {
+                format!("invalid runtime configuration for {scope}: {detail}")
             }
+            RuntimeError::Memory { reason } => reason.message(),
             RuntimeError::Internal { message } => format!("internal error: {message}"),
         }
     }
@@ -457,8 +882,19 @@ impl RuntimeError {
     /// Return the numeric error code.
     #[inline]
     pub fn code(&self) -> u16 {
-        // SAFETY: repr(u16) ensures the discriminant is valid.
-        unsafe { *(self as *const Self as *const u16) }
+        match self {
+            Self::Vm(_) => 1,
+            Self::Host(_) => 2,
+            Self::Binding { reason, .. } => reason.code(),
+            Self::Entity { reason } => reason.code(),
+            Self::Runtime { reason } => reason.code(),
+            Self::Trace { reason } => reason.code(),
+            Self::Internal { .. } => 113,
+            Self::Engine { .. } => 138,
+            Self::Capture { reason } => reason.code(),
+            Self::Memory { reason } => reason.code(),
+            Self::Configuration { .. } => 147,
+        }
     }
 
     /// Return a sub-code for status mapping.
@@ -479,6 +915,38 @@ impl RuntimeError {
     }
 }
 
+impl EngineError {
+    /// Return a human-readable engine failure message.
+    pub fn message(&self, engine: &str) -> String {
+        match self {
+            Self::EntryUnavailable { entry } => {
+                format!("{engine} engine cannot run {entry} entry")
+            }
+            Self::ContinuationMismatch { continuation } => {
+                format!("{engine} engine cannot handle {continuation} continuation")
+            }
+            Self::ImageMismatch { image } => {
+                format!("{engine} engine cannot restore {image} image")
+            }
+            Self::Unsupported { feature } => {
+                format!("{engine} engine does not support {feature}")
+            }
+            Self::YieldMissing => {
+                format!("{engine} engine yielded without a continuation")
+            }
+            Self::Trap => {
+                format!("{engine} engine trapped")
+            }
+            Self::DeoptMissing => {
+                format!("{engine} engine deoptimized without materialization")
+            }
+            Self::Panic => {
+                format!("{engine} engine panicked")
+            }
+        }
+    }
+}
+
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.message())
@@ -490,14 +958,19 @@ impl std::error::Error for RuntimeError {}
 impl From<vm::Error> for RuntimeError {
     fn from(error: vm::Error) -> Self {
         match error {
-            vm::Error::HeapLimitExceeded {
-                scope,
-                used_bytes,
-                max_bytes,
-            } => RuntimeError::HeapLimitExceeded {
-                scope,
-                used_bytes,
-                max_bytes,
+            vm::Error::Resource {
+                reason:
+                    vm::ResourceError::HeapLimitExceeded {
+                        scope,
+                        used_bytes,
+                        max_bytes,
+                    },
+            } => RuntimeError::Memory {
+                reason: MemoryError::LimitExceeded {
+                    scope,
+                    used_bytes,
+                    max_bytes,
+                },
             },
             error => RuntimeError::Vm(Box::new(error)),
         }
@@ -546,7 +1019,7 @@ impl From<heap::HeapError> for Box<RuntimeError> {
             | heap::HeapError::InvalidSizeClassPolicyWaste { .. }
             | heap::HeapError::InvalidSizeClass { .. }
             | heap::HeapError::MisalignedSizeClass { .. }
-            | heap::HeapError::SmallSpanTooSmall { .. } => RuntimeError::ConfigurationInvalid {
+            | heap::HeapError::SmallSpanTooSmall { .. } => RuntimeError::Configuration {
                 scope: "heap".into(),
                 detail: error.to_string(),
             }
@@ -556,20 +1029,12 @@ impl From<heap::HeapError> for Box<RuntimeError> {
                 region,
                 used_bytes,
                 max_bytes,
-            } => RuntimeError::HeapLimitExceeded {
-                scope: region.to_string(),
-                used_bytes,
-                max_bytes,
-            }
-            .boxed(),
-
-            heap::HeapError::TotalLimitExceeded {
-                used_bytes,
-                max_bytes,
-            } => RuntimeError::HeapLimitExceeded {
-                scope: "total".into(),
-                used_bytes,
-                max_bytes,
+            } => RuntimeError::Memory {
+                reason: MemoryError::LimitExceeded {
+                    scope: region.to_string(),
+                    used_bytes,
+                    max_bytes,
+                },
             }
             .boxed(),
 
@@ -608,26 +1073,22 @@ impl From<Box<RuntimeError>> for vm::Error {
         match *error {
             RuntimeError::Vm(error) => *error,
             RuntimeError::Host(error) => (*error).into(),
-            RuntimeError::BindingNotFound { name } => vm::Error::BindingFunctionNotFound { name },
-            RuntimeError::PolicyViolation { name } => vm::Error::BindingCallForbidden { name },
-            RuntimeError::ActionDenied { name, action } => vm::Error::BindingCallForbidden {
-                name: format!("{name} ({action})"),
-            },
-            RuntimeError::AffinityViolation { name, affinity } => vm::Error::BindingCallForbidden {
-                name: format!("{name} ({affinity})"),
-            },
-            RuntimeError::HeapLimitExceeded {
-                scope,
-                used_bytes,
-                max_bytes,
-            } => vm::Error::HeapLimitExceeded {
-                scope,
-                used_bytes,
-                max_bytes,
-            },
-            other => vm::Error::Panic {
-                message: other.message(),
-            },
+            RuntimeError::Binding {
+                name,
+                reason: BindingError::NotFound,
+            } => vm::Error::import_not_found(name),
+            RuntimeError::Binding { name, reason } => {
+                vm::Error::import_forbidden(reason.import_name(name))
+            }
+            RuntimeError::Memory {
+                reason:
+                    MemoryError::LimitExceeded {
+                        scope,
+                        used_bytes,
+                        max_bytes,
+                    },
+            } => vm::Error::heap_limit_exceeded(scope, used_bytes, max_bytes),
+            other => vm::Error::panic(other.message()),
         }
     }
 }

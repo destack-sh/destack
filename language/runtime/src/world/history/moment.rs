@@ -36,12 +36,10 @@ impl World {
     /// Return the exact history coordinate for one committed revision.
     pub fn revision_moment(&self, revision_id: RevisionId) -> RuntimeResult<Moment> {
         let history = self.history.read();
-        let revision = history.revisions.get(&revision_id).ok_or_else(|| {
-            RuntimeError::RevisionNotFound {
-                revision_id: revision_id.get(),
-            }
-            .boxed()
-        })?;
+        let revision = history
+            .revisions
+            .get(&revision_id)
+            .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
 
         Ok(Moment::new(revision.branch_id, revision.sequence))
     }

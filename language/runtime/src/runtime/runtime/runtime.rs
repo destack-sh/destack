@@ -117,10 +117,7 @@ impl Runtime {
             return Ok(());
         }
 
-        Err(RuntimeError::WorkerNotFound {
-            worker_id: worker_id.0,
-        }
-        .boxed())
+        Err(RuntimeError::worker_not_found(worker_id.0).boxed())
     }
 
     /// Return all active worker ids.
@@ -196,12 +193,7 @@ impl Runtime {
         let worker = workers
             .get_mut(&worker_id)
             .map(Box::as_mut)
-            .ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })?;
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
         Ok(callback(shared, statics, worker))
     }
@@ -231,23 +223,21 @@ impl Runtime {
     /// Remove one worker from this runtime and return its boxed handle.
     pub fn remove_worker(&mut self, worker_id: WorkerId) -> RuntimeResult<Box<Worker>> {
         // remove the target worker from the registry
-        let removed_worker = self.workers.remove(&worker_id).ok_or_else(|| {
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            }
-            .boxed()
-        })?;
+        let removed_worker = self
+            .workers
+            .remove(&worker_id)
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
         // reject removing the last remaining worker
         if self.workers.is_empty() {
             self.workers.insert(worker_id, removed_worker);
-            return Err(RuntimeError::LastWorkerRemoval.boxed());
+            return Err(RuntimeError::last_worker_removal().boxed());
         }
 
         // reject implicit default fallback to keep ownership explicit
         if self.default_worker_id == worker_id {
             self.workers.insert(worker_id, removed_worker);
-            return Err(RuntimeError::DefaultWorkerRemoval.boxed());
+            return Err(RuntimeError::default_worker_removal().boxed());
         }
 
         Ok(removed_worker)
@@ -268,12 +258,7 @@ impl Runtime {
             .workers
             .get_mut(&worker_id)
             .map(Box::as_mut)
-            .ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                }
-                .boxed()
-            })?;
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
         worker.run_entrypoint(
             world,
             &self.shared,
@@ -360,10 +345,7 @@ impl Runtime {
 
         // reject duplicate ids loudly: runtime ownership must stay one to one
         if self.workers.insert(worker_id, worker).is_some() {
-            return Err(RuntimeError::WorkerAlreadyExists {
-                worker_id: worker_id.0,
-            }
-            .boxed());
+            return Err(RuntimeError::worker_already_exists(worker_id.0).boxed());
         }
 
         // active shared mark cycles must see the new worker roots
@@ -378,9 +360,7 @@ impl Runtime {
     fn join_mark(&mut self, worker_id: WorkerId) -> RuntimeResult<()> {
         let worker = self
             .worker_mut(worker_id)
-            .ok_or(RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            })?;
+            .ok_or(RuntimeError::worker_not_found(worker_id.0))?;
 
         worker.start_shared_edge_scan();
         self.shared.join_mark(worker_id);
@@ -527,12 +507,9 @@ impl Runtime {
                 continue;
             }
 
-            let worker = self.worker_mut(wake.worker_id).ok_or_else(|| {
-                RuntimeError::WorkerNotFound {
-                    worker_id: wake.worker_id.0,
-                }
-                .boxed()
-            })?;
+            let worker = self
+                .worker_mut(wake.worker_id)
+                .ok_or_else(|| RuntimeError::worker_not_found(wake.worker_id.0).boxed())?;
             worker.event_loop.enqueue_wake(wake.wake);
             worker.scenario.on_ingress_ready(world)?;
         }
@@ -576,11 +553,7 @@ impl Runtime {
             }
 
             if worker_images.insert(worker.id, Arc::new(image)).is_some() {
-                return Err(RuntimeError::DuplicateWorkerImage {
-                    runtime_id: self.id.0,
-                    worker_id: worker.id.0,
-                }
-                .boxed());
+                return Err(RuntimeError::duplicate_worker_image(self.id.0, worker.id.0).boxed());
             }
         }
 
@@ -593,12 +566,10 @@ impl Runtime {
         mode: CaptureMode,
         worker_id: WorkerId,
     ) -> RuntimeResult<WorkerImage> {
-        let worker = self.workers.get_mut(&worker_id).ok_or_else(|| {
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            }
-            .boxed()
-        })?;
+        let worker = self
+            .workers
+            .get_mut(&worker_id)
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
         worker.capture_image(mode, &self.shared, &self.statics)
     }
@@ -679,20 +650,18 @@ impl Runtime {
                 rebind_context,
             )?;
             if workers.insert(*worker_id, Box::new(worker)).is_some() {
-                return Err(RuntimeError::DuplicateWorkerImage {
-                    runtime_id: runtime_id.0,
-                    worker_id: worker_id.0,
-                }
-                .boxed());
+                return Err(
+                    RuntimeError::duplicate_worker_image(runtime_id.0, worker_id.0).boxed(),
+                );
             }
         }
 
         // validate the default worker after reconstruction
         if !workers.contains_key(&image.default_worker_id) {
-            return Err(RuntimeError::DefaultWorkerMissing {
-                runtime_id: runtime_id.0,
-                worker_id: image.default_worker_id.0,
-            }
+            return Err(RuntimeError::default_worker_missing(
+                runtime_id.0,
+                image.default_worker_id.0,
+            )
             .boxed());
         }
 

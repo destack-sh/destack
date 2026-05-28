@@ -7,7 +7,7 @@ use destack_source::FileId;
 use destack_vm as vm;
 use destack_workspace::{Environment, RuntimeOptions};
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::{RuntimeError, RuntimeFailure, RuntimeResult};
 use crate::host::core::{Host, HostQueue, poll_host_events};
 use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
@@ -390,7 +390,16 @@ impl TestRuntime {
         );
 
         match output {
-            Err(error) if matches!(error.as_ref(), RuntimeError::EventLoopIdle { .. }) => Ok(None),
+            Err(error)
+                if matches!(
+                    error.as_ref(),
+                    RuntimeError::Runtime {
+                        reason: RuntimeFailure::EventLoopIdle { .. }
+                    }
+                ) =>
+            {
+                Ok(None)
+            }
             result => result,
         }
     }

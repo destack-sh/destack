@@ -47,10 +47,7 @@ impl World {
 
         // install the live runtime
         if self.runtimes.insert(runtime_id, runtime).is_some() {
-            return Err(RuntimeError::RuntimeAlreadyExists {
-                runtime_id: runtime_id.0,
-            }
-            .boxed());
+            return Err(RuntimeError::runtime_already_exists(runtime_id.0).boxed());
         }
 
         // record structural spawn state for replay
@@ -111,12 +108,10 @@ impl World {
     ) -> RuntimeResult<WorkerId> {
         let mode = self.state.trace.mode();
         let world = &mut self.state;
-        let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
+        let runtime = self
+            .runtimes
+            .get_mut(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
         let worker_id = runtime.spawn_worker(world, worker_options, engine)?;
 
@@ -172,22 +167,16 @@ impl World {
 
     /// Borrow one stored runtime immutably.
     pub(crate) fn runtime(&self, runtime_id: RuntimeId) -> RuntimeResult<&Runtime> {
-        self.runtimes.get(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })
+        self.runtimes
+            .get(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())
     }
 
     /// Borrow one stored runtime mutably.
     pub fn runtime_mut(&mut self, runtime_id: RuntimeId) -> RuntimeResult<&mut Runtime> {
-        self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })
+        self.runtimes
+            .get_mut(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())
     }
 
     /// Remove one stored runtime without recording a new mutation.
@@ -209,12 +198,10 @@ impl World {
             self.remove_worker_metadata(worker_id);
         }
 
-        let runtime = self.runtimes.remove(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
+        let runtime = self
+            .runtimes
+            .remove(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
         Ok(runtime)
     }
@@ -226,12 +213,10 @@ impl World {
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
-        let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
+        let runtime = self
+            .runtimes
+            .get_mut(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
         let worker_id = runtime.default_worker_id();
 
@@ -257,10 +242,10 @@ impl World {
     ) -> RuntimeResult<()> {
         // validate image shape before mutating topology
         if !worker_images.contains_key(&runtime_image.default_worker_id) {
-            return Err(RuntimeError::DefaultWorkerMissing {
-                runtime_id: runtime_id.0,
-                worker_id: runtime_image.default_worker_id.0,
-            }
+            return Err(RuntimeError::default_worker_missing(
+                runtime_id.0,
+                runtime_image.default_worker_id.0,
+            )
             .boxed());
         }
 
@@ -292,10 +277,7 @@ impl World {
         )?;
 
         if self.runtimes.insert(runtime_id, runtime).is_some() {
-            return Err(RuntimeError::RuntimeAlreadyExists {
-                runtime_id: runtime_id.0,
-            }
-            .boxed());
+            return Err(RuntimeError::runtime_already_exists(runtime_id.0).boxed());
         }
 
         Ok(())
@@ -313,23 +295,16 @@ impl World {
         let environment = self
             .runtimes
             .get(&runtime_id)
-            .ok_or_else(|| {
-                RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })?
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?
             .environment
             .clone();
 
         let world = &mut self.state;
         world.register_worker_topology(runtime_id, worker_id, worker_entity)?;
-        let runtime = self.runtimes.get(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
+        let runtime = self
+            .runtimes
+            .get(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
         let worker = {
             Worker::from_image(
                 world,
@@ -344,12 +319,10 @@ impl World {
             )?
         };
 
-        let runtime = self.runtimes.get_mut(&runtime_id).ok_or_else(|| {
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            }
-            .boxed()
-        })?;
+        let runtime = self
+            .runtimes
+            .get_mut(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
         runtime.insert_restored_worker(worker)?;
 

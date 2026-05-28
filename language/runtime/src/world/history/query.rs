@@ -308,10 +308,10 @@ impl<'a> HistoryQuery<'a> {
     /// Validate one committed-history query range.
     fn require_committed_query_range(self, start: Moment, end: Moment) -> RuntimeResult<()> {
         if start.branch_id != end.branch_id {
-            return Err(RuntimeError::MomentBranchMismatch {
-                moment_branch_id: start.branch_id.get(),
-                world_branch_id: end.branch_id.get(),
-            }
+            return Err(RuntimeError::moment_branch_mismatch(
+                start.branch_id.get(),
+                end.branch_id.get(),
+            )
             .boxed());
         }
 
@@ -325,11 +325,9 @@ impl<'a> HistoryQuery<'a> {
 
         let committed_head = self.branch_head_moment(end.branch_id)?;
         if end.sequence.get() > committed_head.sequence.get() {
-            return Err(RuntimeError::MomentNotFound {
-                branch_id: end.branch_id.get(),
-                sequence: end.sequence.get(),
-            }
-            .boxed());
+            return Err(
+                RuntimeError::moment_not_found(end.branch_id.get(), end.sequence.get()).boxed(),
+            );
         }
 
         Ok(())
@@ -426,10 +424,10 @@ impl World {
     /// Resolve one authoritative trace record for one branch-local transition.
     pub fn transition_record(&self, transition: &Transition) -> RuntimeResult<TraceRecord> {
         if transition.after.branch_id != self.state.branch_id {
-            return Err(RuntimeError::MomentBranchMismatch {
-                moment_branch_id: transition.after.branch_id.get(),
-                world_branch_id: self.state.branch_id.get(),
-            }
+            return Err(RuntimeError::moment_branch_mismatch(
+                transition.after.branch_id.get(),
+                self.state.branch_id.get(),
+            )
             .boxed());
         }
 
@@ -440,18 +438,18 @@ impl World {
     /// Validate one query range against the active world branch.
     fn require_query_range(&self, start: Moment, end: Moment) -> RuntimeResult<()> {
         if start.branch_id != self.state.branch_id {
-            return Err(RuntimeError::MomentBranchMismatch {
-                moment_branch_id: start.branch_id.get(),
-                world_branch_id: self.state.branch_id.get(),
-            }
+            return Err(RuntimeError::moment_branch_mismatch(
+                start.branch_id.get(),
+                self.state.branch_id.get(),
+            )
             .boxed());
         }
 
         if end.branch_id != self.state.branch_id {
-            return Err(RuntimeError::MomentBranchMismatch {
-                moment_branch_id: end.branch_id.get(),
-                world_branch_id: self.state.branch_id.get(),
-            }
+            return Err(RuntimeError::moment_branch_mismatch(
+                end.branch_id.get(),
+                self.state.branch_id.get(),
+            )
             .boxed());
         }
 
@@ -465,11 +463,9 @@ impl World {
 
         let current_moment = self.moment();
         if end.sequence.get() > current_moment.sequence.get() {
-            return Err(RuntimeError::MomentNotFound {
-                branch_id: end.branch_id.get(),
-                sequence: end.sequence.get(),
-            }
-            .boxed());
+            return Err(
+                RuntimeError::moment_not_found(end.branch_id.get(), end.sequence.get()).boxed(),
+            );
         }
 
         Ok(())

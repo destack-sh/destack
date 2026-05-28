@@ -310,6 +310,7 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     let options = runtime_options_with_execution(ExecutionMode::Strict);
     let mut runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let default_worker_id = runtime.default_worker_id();
+    let mono_before = runtime.mono_nanos();
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
     let continuation = runtime.completing_continuation(default_worker_id, 111);
     runtime.with_worker_mut(default_worker_id, |worker| {
@@ -327,8 +328,8 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     );
     assert_eq!(
         runtime.mono_nanos(),
-        fire_at_nanos,
-        "virtual monotonic time should advance with wall time"
+        mono_before.saturating_add(5_000),
+        "virtual monotonic time should advance by the same delta"
     );
 
     // the next tick should dispatch the newly ready timer task
@@ -420,20 +421,23 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     let options = runtime_options_with_execution(ExecutionMode::Strict);
     let runtime = TestWorldRuntime::build(&options, TestEngine::default());
     let mut runtime = runtime;
+    let wall_before = runtime.wall_nanos();
+    let mono_before = runtime.mono_nanos();
+    let deadline = Instant::new(wall_before.saturating_add(7_500));
     runtime
         .world_mut()
         .simulation_mut()
-        .schedule_event(Instant::new(7_500));
+        .schedule_event(deadline);
 
     // the first tick should advance world time to the simulated deadline
     let outcome = runtime.tick();
     assert_eq!(outcome, TickResult::TimeAdvanced);
-    assert_eq!(runtime.wall_nanos(), 7_500);
-    assert_eq!(runtime.mono_nanos(), 7_500);
+    assert_eq!(runtime.wall_nanos(), deadline.get());
+    assert_eq!(runtime.mono_nanos(), mono_before.saturating_add(7_500));
     let world = runtime.world();
     let simulation = world.simulation();
     assert_eq!(simulation.ready_events().len(), 1);
-    assert_eq!(simulation.ready_events()[0].at(), Instant::new(7_500));
+    assert_eq!(simulation.ready_events()[0].at(), deadline);
 }
 
 /// Register one timer waiter on one explicit worker.

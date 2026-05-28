@@ -1,4 +1,6 @@
-use crate::diagnostic::RuntimeError;
+use crate::diagnostic::{
+    BindingError, Entity, EntityError, RuntimeError, RuntimeFailure, TraceFailure,
+};
 use crate::host::HostError;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
@@ -85,37 +87,46 @@ impl From<&RuntimeError> for TraceError {
         match error {
             RuntimeError::Vm(error) => Self::Vm(error.as_ref().clone()),
             RuntimeError::Host(error) => Self::Host(error.as_ref().clone()),
-            RuntimeError::BindingNotFound { name } => Self::BindingNotFound { name: name.clone() },
-            RuntimeError::PolicyViolation { name } => Self::PolicyViolation { name: name.clone() },
-            RuntimeError::ActionDenied { name, action } => Self::ActionDenied {
-                name: name.clone(),
-                action: action.clone(),
+            RuntimeError::Binding { name, reason } => match reason {
+                BindingError::NotFound => Self::BindingNotFound { name: name.clone() },
+                BindingError::PolicyViolation => Self::PolicyViolation { name: name.clone() },
+                BindingError::ActionDenied { action } => Self::ActionDenied {
+                    name: name.clone(),
+                    action: action.clone(),
+                },
+                BindingError::AffinityViolation { affinity } => Self::AffinityViolation {
+                    name: name.clone(),
+                    affinity: affinity.clone(),
+                },
             },
-            RuntimeError::AffinityViolation { name, affinity } => Self::AffinityViolation {
-                name: name.clone(),
-                affinity: affinity.clone(),
-            },
-            RuntimeError::ResourceNotFound {
-                resource_id,
-                resource_kind,
+            RuntimeError::Entity {
+                reason:
+                    EntityError::NotFound(Entity::Resource {
+                        resource_id,
+                        resource_kind,
+                    }),
             } => Self::ResourceNotFound {
                 resource_id: *resource_id,
                 resource_kind: resource_kind.clone(),
             },
-            RuntimeError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id: *task_id },
-            RuntimeError::TraceExhausted { sequence } => Self::TraceExhausted {
-                sequence: *sequence,
+            RuntimeError::Runtime {
+                reason: RuntimeFailure::EventLoopIdle { task_id },
+            } => Self::EventLoopIdle { task_id: *task_id },
+            RuntimeError::Trace { reason } => match reason {
+                TraceFailure::Exhausted { sequence } => Self::TraceExhausted {
+                    sequence: *sequence,
+                },
+                TraceFailure::Mismatch { name } => Self::TraceMismatch { name: name.clone() },
+                TraceFailure::PayloadUnsupported { name } => {
+                    Self::TracePayloadUnsupported { name: name.clone() }
+                }
+                TraceFailure::EncodeFailed { name } => {
+                    Self::TraceEncodeFailed { name: name.clone() }
+                }
+                TraceFailure::DecodeFailed { name } => {
+                    Self::TraceDecodeFailed { name: name.clone() }
+                }
             },
-            RuntimeError::TraceMismatch { name } => Self::TraceMismatch { name: name.clone() },
-            RuntimeError::TracePayloadUnsupported { name } => {
-                Self::TracePayloadUnsupported { name: name.clone() }
-            }
-            RuntimeError::TraceEncodeFailed { name } => {
-                Self::TraceEncodeFailed { name: name.clone() }
-            }
-            RuntimeError::TraceDecodeFailed { name } => {
-                Self::TraceDecodeFailed { name: name.clone() }
-            }
             RuntimeError::Internal { message } => Self::Internal {
                 message: message.clone(),
             },
@@ -131,25 +142,22 @@ impl From<TraceError> for RuntimeError {
         match error {
             TraceError::Vm(error) => Self::Vm(Box::new(error)),
             TraceError::Host(error) => Self::Host(error.boxed()),
-            TraceError::BindingNotFound { name } => Self::BindingNotFound { name },
-            TraceError::PolicyViolation { name } => Self::PolicyViolation { name },
-            TraceError::ActionDenied { name, action } => Self::ActionDenied { name, action },
+            TraceError::BindingNotFound { name } => Self::binding_not_found(name),
+            TraceError::PolicyViolation { name } => Self::policy_violation(name),
+            TraceError::ActionDenied { name, action } => Self::action_denied(name, action),
             TraceError::AffinityViolation { name, affinity } => {
-                Self::AffinityViolation { name, affinity }
+                Self::affinity_violation(name, affinity)
             }
             TraceError::ResourceNotFound {
                 resource_id,
                 resource_kind,
-            } => Self::ResourceNotFound {
-                resource_id,
-                resource_kind,
-            },
-            TraceError::EventLoopIdle { task_id } => Self::EventLoopIdle { task_id },
-            TraceError::TraceExhausted { sequence } => Self::TraceExhausted { sequence },
-            TraceError::TraceMismatch { name } => Self::TraceMismatch { name },
-            TraceError::TracePayloadUnsupported { name } => Self::TracePayloadUnsupported { name },
-            TraceError::TraceEncodeFailed { name } => Self::TraceEncodeFailed { name },
-            TraceError::TraceDecodeFailed { name } => Self::TraceDecodeFailed { name },
+            } => Self::resource_not_found(resource_id, resource_kind),
+            TraceError::EventLoopIdle { task_id } => Self::event_loop_idle(task_id),
+            TraceError::TraceExhausted { sequence } => Self::trace_exhausted(sequence),
+            TraceError::TraceMismatch { name } => Self::trace_mismatch(name),
+            TraceError::TracePayloadUnsupported { name } => Self::trace_payload_unsupported(name),
+            TraceError::TraceEncodeFailed { name } => Self::trace_encode_failed(name),
+            TraceError::TraceDecodeFailed { name } => Self::trace_decode_failed(name),
             TraceError::Internal { message } => Self::Internal { message },
         }
     }
