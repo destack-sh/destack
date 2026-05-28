@@ -1,2 +1,3 @@
+export { Tls } from "./host/tls.ds";
 export * from "./tls.ds";
 export * as host from "./host";

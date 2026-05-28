@@ -1,1 +1,2 @@
+export { Audio } from "./host/audio.ds";
 export * as host from "./host";

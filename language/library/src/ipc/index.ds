@@ -1,1 +1,2 @@
+export { Ipc } from "./host/ipc.ds";
 export * as host from "./host";

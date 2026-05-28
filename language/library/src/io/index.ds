@@ -1,1 +1,2 @@
+export { Io } from "./host/io.ds";
 export * as host from "./host";
