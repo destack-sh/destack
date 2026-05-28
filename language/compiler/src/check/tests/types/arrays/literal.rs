@@ -1,0 +1,211 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_fixed_array_annotation_contextualizes_array_literal() {
+    let session = TestSession::single(
+        r#"
+const pair: [int32; 2] = [1, 2];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const pair: [int32; 2] = [1, 2];
+/// @type.symbol symbol=pair type=[int32; 2]
+/// @type.node source=[1, 2] type=[int32; 2]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+"#,
+    );
+}
+
+#[test]
+fn test_fixed_array_annotation_rejects_mismatched_literal_length() {
+    let session = TestSession::single(
+        r#"
+const pair: [int32; 2] = [1, 2, 3];
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const pair: [int32; 2] = [1, 2, 3];
+/// @type.symbol symbol=pair type=[int32; 2]
+/// @type.node source=[1, 2, 3] type=[int32; 2]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
+
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type is not assignable"
+/// @diagnostic.label line=2 column=28 source="const pair: [int32; 2] = [1, 2, 3];"
+"#,
+    );
+}
+
+#[test]
+fn test_fixed_array_length_hole_infers_literal_length() {
+    let session = TestSession::single(
+        r#"
+const bytes: [uint8; _] = [1, 2, 3, 4];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const bytes: [uint8; _] = [1, 2, 3, 4];
+/// @type.symbol symbol=bytes type=[uint8; 4]
+/// @type.node source=[1, 2, 3, 4] type=[uint8; 4]
+/// @type.node source=1 type=uint8
+/// @type.node source=2 type=uint8
+/// @type.node source=3 type=uint8
+/// @type.node source=4 type=uint8
+"#,
+    );
+}
+
+#[test]
+fn test_fixed_array_holes_infer_widened_element_type_and_length() {
+    let session = TestSession::single(
+        r#"
+const values: [_; _] = [1, 2, 3, 4];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const values: [_; _] = [1, 2, 3, 4];
+/// @type.symbol symbol=values type=[int32; 4]
+/// @type.node source=[1, 2, 3, 4] type=[int32; 4]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
+/// @type.node source=4 type=int32
+"#,
+    );
+}
+
+#[test]
+fn test_fixed_array_element_hole_infers_widened_element_type() {
+    let session = TestSession::single(
+        r#"
+const values: [_; 3] = [1, 2, 3];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const values: [_; 3] = [1, 2, 3];
+/// @type.symbol symbol=values type=[int32; 3]
+/// @type.node source=[1, 2, 3] type=[int32; 3]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
+"#,
+    );
+}
+
+#[test]
+fn test_fixed_array_literal_union_element_context_preserves_literal_union() {
+    let session = TestSession::single(
+        r#"
+const values: [1 | 2 | 3; 3] = [1, 2, 3];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+const values: [1 | 2 | 3; 3] = [1, 2, 3];
+/// @type.symbol symbol=values type=[1 | 2 | 3; 3]
+/// @type.node source=[1, 2, 3] type=[1 | 2 | 3; 3]
+/// @type.node source=1 type=1 | 2 | 3
+/// @type.node source=2 type=1 | 2 | 3
+/// @type.node source=3 type=1 | 2 | 3
+"#,
+    );
+}
+
+#[test]
+fn test_fixed_array_cast_infers_element_and_length() {
+    let session = TestSession::single(
+        r#"
+const values = [1, 2, 3] as [_; _];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_coercion(),
+        r#"
+const values = [1, 2, 3] as [_; _];
+/// @type.symbol symbol=values type=[int32; 3]
+/// @type.node source="[1, 2, 3] as [_; _]" type=[int32; 3]
+/// @type.node source=[1, 2, 3] type=[int32; 3]
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
+/// @coercion.node source="[1, 2, 3] as [_; _]" from=[int32; 3] to=[int32; 3] origin=explicit
+"#,
+    );
+}
+
+#[test]
+fn test_slice_cast_infers_widened_element_type() {
+    let session = TestSession::single(
+        r#"
+const values = [1, 2, 3] as Slice<_>;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_coercion(),
+        r#"
+const values = [1, 2, 3] as Slice<_>;
+/// @type.symbol symbol=values type=Slice<int32>
+/// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<int32>
+/// @type.node source=[1, 2, 3] type=Slice<int32>
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
+/// @coercion.node source="[1, 2, 3] as Slice<_>" from=Slice<int32> to=Slice<int32> origin=explicit
+"#,
+    );
+}
+
+#[test]
+fn test_bracket_slice_cast_infers_widened_element_type() {
+    let session = TestSession::single(
+        r#"
+const values = [1, 2, 3] as [_];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_coercion(),
+        r#"
+const values = [1, 2, 3] as [_];
+/// @type.symbol symbol=values type=Slice<int32>
+/// @type.node source="[1, 2, 3] as [_]" type=Slice<int32>
+/// @type.node source=[1, 2, 3] type=Slice<int32>
+/// @type.node source=1 type=int32
+/// @type.node source=2 type=int32
+/// @type.node source=3 type=int32
+/// @coercion.node source="[1, 2, 3] as [_]" from=Slice<int32> to=Slice<int32> origin=explicit
+"#,
+    );
+}
