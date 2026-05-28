@@ -164,7 +164,7 @@ fn add_call_resolution_row(
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
         .optional_field("source", builder.node_source(node_id))
-        .list_field(
+        .type_tuple_field(
             "parameters",
             resolution
                 .parameters
