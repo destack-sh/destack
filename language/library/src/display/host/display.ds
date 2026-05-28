@@ -1,0 +1,23 @@
+import { DisplayBackend } from "./backend.ds";
+import { DisplayDrag } from "./drag.ds";
+import { DisplayEvent } from "./event.ds";
+import { DisplayFrame } from "./frame.ds";
+import { DisplayMonitor } from "./monitor.ds";
+import { DisplayWindow } from "./window.ds";
+
+/// Display binding family.
+@languageItem("display.Display")
+export interface Display {
+    /// Backend bindings.
+    readonly backend: DisplayBackend;
+    /// Drag bindings.
+    readonly drag: DisplayDrag;
+    /// Event bindings.
+    readonly event: DisplayEvent;
+    /// Frame bindings.
+    readonly frame: DisplayFrame;
+    /// Monitor bindings.
+    readonly monitor: DisplayMonitor;
+    /// Window bindings.
+    readonly window: DisplayWindow;
+}

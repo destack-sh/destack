@@ -1,0 +1,14 @@
+import { TtyPty } from "./pty.ds";
+import { TtyTerminal } from "./terminal.ds";
+import { TtyTermios } from "./termios.ds";
+
+/// TTY binding family.
+@languageItem("tty.Tty")
+export interface Tty {
+    /// PTY bindings.
+    readonly pty: TtyPty;
+    /// Terminal bindings.
+    readonly terminal: TtyTerminal;
+    /// termios bindings.
+    readonly termios: TtyTermios;
+}
