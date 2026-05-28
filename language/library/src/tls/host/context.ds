@@ -56,107 +56,105 @@ export struct TlsContextOptions {
     alpnProtocols: [[uint8]];
 }
 
-/// Open one TLS context.
-@binding("destack.tls.context.open", {
-    effect: "external",
-    requires: ["host.tls.context"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openTlsContext(
-    options: &readonly TlsContextOptions,
-): Result<TlsContextHandle, HostError>;
+/// Context binding family.
+export interface TlsContext {
+    /// Open one TLS context.
+    @binding("destack.tls.context.open", {
+        effect: "external",
+        requires: ["host.tls.context"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openTlsContext(options: &readonly TlsContextOptions): Result<TlsContextHandle, HostError>;
 
-/// Close one TLS context.
-@binding("destack.tls.context.close", {
-    effect: "external",
-    requires: ["host.tls.context"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeTlsContext(context: TlsContextHandle): Result<void, HostError>;
+    /// Close one TLS context.
+    @binding("destack.tls.context.close", {
+        effect: "external",
+        requires: ["host.tls.context"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeTlsContext(context: TlsContextHandle): Result<void, HostError>;
 
-/// Set one local certificate chain and private key on a TLS context.
-@binding("destack.tls.context.identity.pem.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.identity.use", "host.tls.identity.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsIdentityPem(
-    context: TlsContextHandle,
-    certificateChainPem: &readonly [uint8],
-    privateKeyPem: &readonly [uint8],
-): Result<void, HostError>;
+    /// Set one local certificate chain and private key on a TLS context.
+    @binding("destack.tls.context.identity.pem.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.identity.use", "host.tls.identity.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsIdentityPem(
+        context: TlsContextHandle,
+        certificateChainPem: &readonly [uint8],
+        privateKeyPem: &readonly [uint8],
+    ): Result<void, HostError>;
 
-/// Set trust anchors on a TLS context from one PEM bundle.
-@binding("destack.tls.context.trust.pem.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.trust.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsTrustAnchorsPem(
-    context: TlsContextHandle,
-    trustAnchorsPem: &readonly [uint8],
-): Result<void, HostError>;
+    /// Set trust anchors on a TLS context from one PEM bundle.
+    @binding("destack.tls.context.trust.pem.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.trust.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsTrustAnchorsPem(
+        context: TlsContextHandle,
+        trustAnchorsPem: &readonly [uint8],
+    ): Result<void, HostError>;
 
-/// Set allowed TLS cipher suites for one context.
-@binding("destack.tls.context.cipherSuites.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.policy"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsCipherSuites(
-    context: TlsContextHandle,
-    suites: &readonly [string],
-): Result<void, HostError>;
+    /// Set allowed TLS cipher suites for one context.
+    @binding("destack.tls.context.cipherSuites.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.policy"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsCipherSuites(
+        context: TlsContextHandle,
+        suites: &readonly [string],
+    ): Result<void, HostError>;
 
-/// Set allowed TLS key exchange groups for one context.
-@binding("destack.tls.context.groups.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.policy"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsGroups(
-    context: TlsContextHandle,
-    groups: &readonly [string],
-): Result<void, HostError>;
+    /// Set allowed TLS key exchange groups for one context.
+    @binding("destack.tls.context.groups.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.policy"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsGroups(context: TlsContextHandle, groups: &readonly [string]): Result<void, HostError>;
 
-/// Set allowed TLS signature algorithms for one context.
-@binding("destack.tls.context.signatureAlgorithms.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.policy"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsSignatureAlgorithms(
-    context: TlsContextHandle,
-    algorithms: &readonly [string],
-): Result<void, HostError>;
+    /// Set allowed TLS signature algorithms for one context.
+    @binding("destack.tls.context.signatureAlgorithms.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.policy"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsSignatureAlgorithms(
+        context: TlsContextHandle,
+        algorithms: &readonly [string],
+    ): Result<void, HostError>;
 
-/// Set hostname verification mode for one context.
-@binding("destack.tls.context.hostnameVerification.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.hostname.verify"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsHostnameVerification(
-    context: TlsContextHandle,
-    mode: TlsHostnameVerificationMode,
-): Result<void, HostError>;
+    /// Set hostname verification mode for one context.
+    @binding("destack.tls.context.hostnameVerification.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.hostname.verify"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsHostnameVerification(
+        context: TlsContextHandle,
+        mode: TlsHostnameVerificationMode,
+    ): Result<void, HostError>;
 
-/// Set session resumption policy for one context.
-@binding("destack.tls.context.resumption.set", {
-    effect: "external",
-    requires: ["host.tls.context", "host.tls.resumption"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTlsSessionResumption(
-    context: TlsContextHandle,
-    mode: TlsSessionResumptionMode,
-): Result<void, HostError>;
+    /// Set session resumption policy for one context.
+    @binding("destack.tls.context.resumption.set", {
+        effect: "external",
+        requires: ["host.tls.context", "host.tls.resumption"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTlsSessionResumption(
+        context: TlsContextHandle,
+        mode: TlsSessionResumptionMode,
+    ): Result<void, HostError>;
+}
