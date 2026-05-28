@@ -65,6 +65,7 @@ export * as test from "./test";
 export * as tensor from "./tensor";
 export * as telemetry from "./telemetry";
 export * as time from "./time";
+export * as topology from "./topology";
 export * as tls from "./tls";
 export * as tty from "./tty";
 export * as types from "./types";

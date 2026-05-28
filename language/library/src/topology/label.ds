@@ -1,0 +1,10 @@
+/// Topology label map.
+export type LabelSet = { readonly [key: string]: string };
+
+/// Topology label selector.
+export struct LabelSelector {
+    /// Label key to match.
+    key: string;
+    /// Optional exact value match.
+    value?: string;
+}

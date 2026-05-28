@@ -1,0 +1,120 @@
+import { LabelSelector, LabelSet } from "./label.ds";
+
+/// Topology entity identifier.
+export newtype EntityId = string;
+
+/// Topology entity kind.
+export newtype EntityKind = string;
+
+/// Concrete topology entity record.
+export struct EntityRecord {
+    /// Entity identifier.
+    id: EntityId;
+    /// Entity kind.
+    kind: EntityKind;
+    /// Optional entity name.
+    name?: string;
+    /// Entity labels.
+    labels?: LabelSet;
+}
+
+/// Selector that matches every entity.
+export struct EntityAny {
+    /// Selector discriminator.
+    kind: "any";
+}
+
+/// Selector that matches one entity by id.
+export struct EntityById {
+    /// Selector discriminator.
+    kind: "id";
+    /// Entity id to match.
+    id: EntityId;
+}
+
+/// Selector that matches a fixed entity id set.
+export struct EntityByIds {
+    /// Selector discriminator.
+    kind: "ids";
+    /// Entity ids to match.
+    ids: [EntityId];
+}
+
+/// Selector that matches entities by kind.
+export struct EntityByKind {
+    /// Selector discriminator.
+    kind: "kind";
+    /// Entity kind to match.
+    entityKind: EntityKind;
+}
+
+/// Selector that matches entities by labels.
+export struct EntityByLabels {
+    /// Selector discriminator.
+    kind: "labels";
+    /// Label selector clauses.
+    labels: [LabelSelector];
+}
+
+/// Selector that chooses one deterministic entity from another selector.
+export struct EntityChooseOne {
+    /// Selector discriminator.
+    kind: "chooseOne";
+    /// Source selector.
+    selector: EntitySelector;
+}
+
+/// Topology entity selector.
+@derive(Tagged)
+export newtype EntitySelector =
+    | EntityAny
+    | EntityById
+    | EntityByIds
+    | EntityByKind
+    | EntityByLabels
+    | EntityChooseOne;
+
+/// Programmable entity projection.
+export newtype interface Entity {
+    /// Entity kind for this projected value.
+    type Kind: EntityKind;
+
+    /// Return this value's entity identifier.
+    entityId(this: &readonly this): EntityId;
+
+    /// Return this value's entity name.
+    entityName(this: &readonly this): string | undefined;
+
+    /// Return this value's entity labels.
+    entityLabels(this: &readonly this): LabelSet | undefined;
+}
+
+/// Match every topology entity.
+export function anyEntity(): EntitySelector {
+    EntityAny { kind: "any" }
+}
+
+/// Match one topology entity by id.
+export function entityId(id: EntityId): EntitySelector {
+    EntityById { kind: "id", id }
+}
+
+/// Match topology entities by kind.
+export function entityKind(kind: EntityKind): EntitySelector {
+    EntityByKind { kind: "kind", entityKind: kind }
+}
+
+/// Match topology entities by labels.
+export function entitiesByLabels(labels: [LabelSelector]): EntitySelector {
+    EntityByLabels { kind: "labels", labels }
+}
+
+/// Project one value to an entity record.
+export function entityOf<T: Entity>(value: &readonly T): EntityRecord {
+    EntityRecord {
+        id: value.entityId(),
+        kind: T.Kind,
+        name: value.entityName(),
+        labels: value.entityLabels(),
+    }
+}
