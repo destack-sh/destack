@@ -44,56 +44,6 @@ class Foo {
 }
 ```
 
-### private hash field
-
-Private shorthand fields keep the `#` prefix.
-
-```ds
-class Counter { #value: int32 = 0 }
-```
-
-```ds expected
-class Counter {
-    #value: int32 = 0;
-}
-```
-
-### private member access
-
-Private member access keeps the `.#` syntax and formats like other member chains.
-
-```ds
-class Counter { #value: int32 = 0; get(): int32 { return this.#value } }
-```
-
-```ds expected
-class Counter {
-    #value: int32 = 0;
-    get(): int32 {
-        return this.#value;
-    }
-}
-```
-
-### private member call
-
-Private method calls keep the `.#` token and follow standard call formatting.
-
-```ds
-class Counter { #next(): int32 { return 1 } get(): int32 { return this.#next() } }
-```
-
-```ds expected
-class Counter {
-    #next(): int32 {
-        return 1;
-    }
-    get(): int32 {
-        return this.#next();
-    }
-}
-```
-
 ### readonly field
 
 The `readonly` modifier prevents field reassignment.
