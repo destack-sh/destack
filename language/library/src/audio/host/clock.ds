@@ -29,13 +29,14 @@ export struct AudioClockSample {
     driftPpm?: float64;
 }
 
-/// Read one stream clock sample.
-@binding("destack.audio.clock.stream", {
-    effect: "external",
-    requires: ["host.audio.clock"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function audioStreamClock(
-    stream: AudioStreamHandle,
-): Result<AudioClockSample, HostError>;
+/// Clock binding family.
+export interface AudioClock {
+    /// Read one stream clock sample.
+    @binding("destack.audio.clock.stream", {
+        effect: "external",
+        requires: ["host.audio.clock"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    audioStreamClock(stream: AudioStreamHandle): Result<AudioClockSample, HostError>;
+}

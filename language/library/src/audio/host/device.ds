@@ -153,48 +153,47 @@ export struct AudioDevice {
     formats: Array<AudioFormatRange>;
 }
 
-/// List audio devices.
-@binding("destack.audio.device.list", {
-    effect: "external",
-    requires: ["host.audio.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listAudioDevices(
-    query: &readonly AudioDeviceQuery,
-): Result<Array<AudioDevice>, HostError>;
+/// Device binding family.
+export interface AudioDevice {
+    /// List audio devices.
+    @binding("destack.audio.device.list", {
+        effect: "external",
+        requires: ["host.audio.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listAudioDevices(query: &readonly AudioDeviceQuery): Result<Array<AudioDevice>, HostError>;
 
-/// Return the default device identifier for one direction.
-@binding("destack.audio.device.default", {
-    effect: "external",
-    requires: ["host.audio.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function defaultAudioDevice(
-    backend: &readonly AudioBackendSelection,
-    direction: AudioDirection,
-): Result<^string, HostError>;
+    /// Return the default device identifier for one direction.
+    @binding("destack.audio.device.default", {
+        effect: "external",
+        requires: ["host.audio.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    defaultAudioDevice(
+        backend: &readonly AudioBackendSelection,
+        direction: AudioDirection,
+    ): Result<^string, HostError>;
 
-/// Describe one audio device.
-@binding("destack.audio.device.describe", {
-    effect: "external",
-    requires: ["host.audio.device"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function describeAudioDevice(
-    backend: &readonly AudioBackendSelection,
-    deviceId: &readonly string,
-): Result<AudioDevice, HostError>;
+    /// Describe one audio device.
+    @binding("destack.audio.device.describe", {
+        effect: "external",
+        requires: ["host.audio.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    describeAudioDevice(
+        backend: &readonly AudioBackendSelection,
+        deviceId: &readonly string,
+    ): Result<AudioDevice, HostError>;
 
-/// Trigger one backend device rescan.
-@binding("destack.audio.device.rescan", {
-    effect: "external",
-    requires: ["host.audio.device.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function rescanAudioDevices(
-    backend: &readonly AudioBackendSelection,
-): Result<void, HostError>;
+    /// Trigger one backend device rescan.
+    @binding("destack.audio.device.rescan", {
+        effect: "external",
+        requires: ["host.audio.device.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    rescanAudioDevices(backend: &readonly AudioBackendSelection): Result<void, HostError>;
+}

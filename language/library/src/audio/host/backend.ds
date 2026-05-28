@@ -89,11 +89,14 @@ export struct AudioBackend {
     flags: AudioBackendFlags;
 }
 
-/// List host audio backends.
-@binding("destack.audio.backend.list", {
-    effect: "external",
-    requires: ["host.audio.backend"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listAudioBackends(): Result<Array<AudioBackend>, HostError>;
+/// Backend binding family.
+export interface AudioBackend {
+    /// List host audio backends.
+    @binding("destack.audio.backend.list", {
+        effect: "external",
+        requires: ["host.audio.backend"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listAudioBackends(): Result<Array<AudioBackend>, HostError>;
+}
