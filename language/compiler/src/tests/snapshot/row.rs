@@ -53,6 +53,16 @@ impl SnapshotRow {
         self.field(key, format!("[{value}]"))
     }
 
+    /// Add one tuple-shaped type field to the row.
+    pub(crate) fn type_tuple_field<I>(self, key: &'static str, values: I) -> Self
+    where
+        I: IntoIterator<Item = String>,
+    {
+        let value = values.into_iter().collect::<Vec<_>>().join(", ");
+
+        self.type_field(key, format!("({value})"))
+    }
+
     /// Add one list field when it is nonempty.
     pub(crate) fn optional_list_field<I>(self, key: &'static str, values: I) -> Self
     where

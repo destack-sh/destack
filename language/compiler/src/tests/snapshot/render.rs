@@ -224,9 +224,9 @@ impl<'a> SnapshotRenderer<'a> {
         match table {
             "binding" => 0,
             "generic" => 1,
-            "resolution" => 2,
-            "instance" => 3,
-            "type" => 4,
+            "type" => 2,
+            "resolution" => 3,
+            "instance" => 4,
             "static" => 5,
             "relation" => 6,
             "extension" => 7,

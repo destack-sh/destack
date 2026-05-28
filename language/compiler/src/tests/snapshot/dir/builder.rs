@@ -719,8 +719,39 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.local_id.id);
         let expression = self.tree.get(expression_id);
+        if self.expression_has_boring_type_node(expression) {
+            return false;
+        }
 
         self.type_references || !expression.is_reference()
+    }
+
+    /// Return whether one expression type row is structural noise.
+    fn expression_has_boring_type_node(&self, expression: &dir::Expression) -> bool {
+        matches!(
+            expression,
+            dir::Expression::Block(_)
+                | dir::Expression::Import { .. }
+                | dir::Expression::Export { .. }
+                | dir::Expression::Let { .. }
+                | dir::Expression::LetElse { .. }
+                | dir::Expression::Using { .. }
+                | dir::Expression::Return { .. }
+        ) || self.expression_is_named_declaration(expression)
+    }
+
+    /// Return whether one expression is a named declaration wrapper.
+    fn expression_is_named_declaration(&self, expression: &dir::Expression) -> bool {
+        let dir::Expression::Declaration(declaration) = expression else {
+            return false;
+        };
+        let declaration = self.tree.get(*declaration);
+
+        !matches!(
+            declaration,
+            dir::Declaration::Function(function)
+                if function.signature.form == dir::FunctionForm::Lambda
+        )
     }
 
     /// Return whether one node is nested inside non-runtime type context.

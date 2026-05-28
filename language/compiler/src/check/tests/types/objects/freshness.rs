@@ -1,0 +1,71 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_non_fresh_object_allows_extra_properties() {
+    let session = TestSession::single(
+        r#"
+type Person = { name: string };
+
+const source = { name: "Ada", extra: true };
+const value: Person = source;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+type Person = { name: string };
+/// @type.symbol symbol=Person type={ name: string }
+
+const source = { name: "Ada", extra: true };
+/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
+/// @type.symbol symbol=source type={ name: string; extra: boolean }
+
+const value: Person = source;
+/// @resolution.name source=Person target=Person
+/// @resolution.name source=source target=source
+/// @type.symbol symbol=value type=Person
+"#,
+    );
+}
+
+#[test]
+fn test_generic_object_literal_freshness_only_guides_inference() {
+    let session = TestSession::single(
+        r#"
+function keep<T: { name: string }>(value: T): T {
+    return value;
+}
+
+const value = keep({ name: "Ada", extra: true });
+const extra = value.extra;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+function keep<T: { name: string }>(value: T): T {
+/// @generic.slot symbol=keep.T index=0 kind=type constraint={ name: string }
+/// @type.symbol symbol=keep type=<T: { name: string }>(T) => T
+
+    return value;
+}
+
+const value = keep({ name: "Ada", extra: true });
+/// @resolution.name source=keep target=keep
+/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
+/// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
+/// @generic.application source="keep({ name: \"Ada\", extra: true })" id="keep<{ name: string; extra: boolean }>"
+/// @type.symbol symbol=value type={ name: string; extra: boolean }
+
+const extra = value.extra;
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=symbol target=value.extra
+/// @type.symbol symbol=extra type=boolean
+
+/// @generic.instance id="keep<{ name: string; extra: boolean }>" symbol=keep arguments=[{ name: string; extra: boolean }]
+"#);
+}

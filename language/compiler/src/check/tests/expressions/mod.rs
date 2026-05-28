@@ -1,10 +1,9 @@
 mod assignment;
 mod calls;
 mod control;
-mod freshness;
-mod lambdas;
+mod functions;
 mod literals;
 mod members;
-mod narrowing;
 mod operators;
-mod references;
+mod static_if;
+mod values;
