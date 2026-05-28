@@ -203,26 +203,26 @@ export struct FileStatus {
     mount: uint64;
 }
 
-/// Read status for a filesystem entry.
-@binding("destack.fs.status.entry", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readEntryStatus(
-    entry: &readonly FilesystemEntry,
-    options: FileStatusOptions,
-): Result<FileStatus, HostError>;
+/// Filesystem status binding family.
+export interface FsStatus {
+    /// Read status for a filesystem entry.
+    @binding("destack.fs.status.entry", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readEntry(
+        entry: &readonly FilesystemEntry,
+        options: FileStatusOptions,
+    ): Result<FileStatus, HostError>;
 
-/// Read status for an open file.
-@binding("destack.fs.status.file", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readFileStatus(
-    file: FileHandle,
-    options: FileStatusOptions,
-): Result<FileStatus, HostError>;
+    /// Read status for an open file.
+    @binding("destack.fs.status.file", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readFile(file: FileHandle, options: FileStatusOptions): Result<FileStatus, HostError>;
+}

@@ -33,53 +33,50 @@ export struct XattrTargetFile {
 /// Target for extended attribute operations.
 export newtype XattrTarget = XattrTargetEntry | XattrTargetFile;
 
-/// Read one extended attribute into an output buffer.
-@binding("destack.fs.xattr.read", {
-    effect: "external",
-    requires: ["host.fs.xattr"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function readXattr(
-    target: &readonly XattrTarget,
-    name: &readonly [uint8],
-    buffer: &[uint8],
-): Result<uint64, HostError>;
+/// Filesystem extended attribute binding family.
+export interface FsXattr {
+    /// Read one extended attribute into an output buffer.
+    @binding("destack.fs.xattr.read", {
+        effect: "external",
+        requires: ["host.fs.xattr"],
+        families: ["unix"],
+        simulation: true,
+    })
+    read(
+        target: &readonly XattrTarget,
+        name: &readonly [uint8],
+        buffer: &[uint8],
+    ): Result<uint64, HostError>;
 
-/// Write one extended attribute.
-@binding("destack.fs.xattr.write", {
-    effect: "external",
-    requires: ["host.fs.xattr"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function writeXattr(
-    target: &readonly XattrTarget,
-    name: &readonly [uint8],
-    value: &readonly [uint8],
-    flags: XattrFlags,
-): Result<void, HostError>;
+    /// Write one extended attribute.
+    @binding("destack.fs.xattr.write", {
+        effect: "external",
+        requires: ["host.fs.xattr"],
+        families: ["unix"],
+        simulation: true,
+    })
+    write(
+        target: &readonly XattrTarget,
+        name: &readonly [uint8],
+        value: &readonly [uint8],
+        flags: XattrFlags,
+    ): Result<void, HostError>;
 
-/// List extended attribute names into an output buffer.
-@binding("destack.fs.xattr.list", {
-    effect: "external",
-    requires: ["host.fs.xattr"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function listXattrs(
-    target: &readonly XattrTarget,
-    buffer: &[uint8],
-): Result<uint64, HostError>;
+    /// List extended attribute names into an output buffer.
+    @binding("destack.fs.xattr.list", {
+        effect: "external",
+        requires: ["host.fs.xattr"],
+        families: ["unix"],
+        simulation: true,
+    })
+    list(target: &readonly XattrTarget, buffer: &[uint8]): Result<uint64, HostError>;
 
-/// Remove one extended attribute.
-@binding("destack.fs.xattr.remove", {
-    effect: "external",
-    requires: ["host.fs.xattr"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function removeXattr(
-    target: &readonly XattrTarget,
-    name: &readonly [uint8],
-): Result<void, HostError>;
+    /// Remove one extended attribute.
+    @binding("destack.fs.xattr.remove", {
+        effect: "external",
+        requires: ["host.fs.xattr"],
+        families: ["unix"],
+        simulation: true,
+    })
+    remove(target: &readonly XattrTarget, name: &readonly [uint8]): Result<void, HostError>;
+}

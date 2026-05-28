@@ -19,83 +19,80 @@ export const FILE_ACCESS_WRITE: FileAccessMask = FileAccessMask(0x2);
 /// Check for read permission.
 export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
 
-/// Check access to a filesystem entry.
-@binding("destack.fs.attribute.checkAccess", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function checkFileAccess(
-    entry: &readonly FilesystemEntry,
-    access: FileAccessMask,
-): Result<void, HostError>;
+/// Filesystem attribute binding family.
+export interface FsAttribute {
+    /// Check access to a filesystem entry.
+    @binding("destack.fs.attribute.checkAccess", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    checkAccess(entry: &readonly FilesystemEntry, access: FileAccessMask): Result<void, HostError>;
 
-/// Set the permission mode for an entry.
-@binding("destack.fs.attribute.mode", {
-    effect: "external",
-    requires: ["host.fs.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setEntryMode(
-    entry: &readonly FilesystemEntry,
-    mode: FileMode,
-    isFollowing: boolean,
-): Result<void, HostError>;
+    /// Set the permission mode for an entry.
+    @binding("destack.fs.attribute.mode", {
+        effect: "external",
+        requires: ["host.fs.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setMode(
+        entry: &readonly FilesystemEntry,
+        mode: FileMode,
+        isFollowing: boolean,
+    ): Result<void, HostError>;
 
-/// Set the permission mode for an open file.
-@binding("destack.fs.attribute.fileMode", {
-    effect: "external",
-    requires: ["host.fs.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setFileMode(file: FileHandle, mode: FileMode): Result<void, HostError>;
+    /// Set the permission mode for an open file.
+    @binding("destack.fs.attribute.fileMode", {
+        effect: "external",
+        requires: ["host.fs.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setOpenMode(file: FileHandle, mode: FileMode): Result<void, HostError>;
 
-/// Set the owner for an entry.
-@binding("destack.fs.attribute.owner", {
-    effect: "external",
-    requires: ["host.fs.owner"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setEntryOwner(
-    entry: &readonly FilesystemEntry,
-    owner: &readonly FileOwner,
-    isFollowing: boolean,
-): Result<void, HostError>;
+    /// Set the owner for an entry.
+    @binding("destack.fs.attribute.owner", {
+        effect: "external",
+        requires: ["host.fs.owner"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setOwner(
+        entry: &readonly FilesystemEntry,
+        owner: &readonly FileOwner,
+        isFollowing: boolean,
+    ): Result<void, HostError>;
 
-/// Set the owner for an open file.
-@binding("destack.fs.attribute.fileOwner", {
-    effect: "external",
-    requires: ["host.fs.owner"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setFileOwner(
-    file: FileHandle,
-    owner: &readonly FileOwner,
-): Result<void, HostError>;
+    /// Set the owner for an open file.
+    @binding("destack.fs.attribute.fileOwner", {
+        effect: "external",
+        requires: ["host.fs.owner"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setOpenOwner(file: FileHandle, owner: &readonly FileOwner): Result<void, HostError>;
 
-/// Set access and modification times for an entry.
-@binding("destack.fs.attribute.times", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setEntryTimes(
-    entry: &readonly FilesystemEntry,
-    times: FileTimes,
-    isFollowing: boolean,
-): Result<void, HostError>;
+    /// Set access and modification times for an entry.
+    @binding("destack.fs.attribute.times", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setTimes(
+        entry: &readonly FilesystemEntry,
+        times: FileTimes,
+        isFollowing: boolean,
+    ): Result<void, HostError>;
 
-/// Set access and modification times for an open file.
-@binding("destack.fs.attribute.fileTimes", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setFileTimes(file: FileHandle, times: FileTimes): Result<void, HostError>;
+    /// Set access and modification times for an open file.
+    @binding("destack.fs.attribute.fileTimes", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setOpenTimes(file: FileHandle, times: FileTimes): Result<void, HostError>;
+}

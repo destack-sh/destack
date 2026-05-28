@@ -48,67 +48,63 @@ export struct DirectoryBatch {
     hasEnded: boolean;
 }
 
-/// Create one directory entry.
-@binding("destack.fs.directory.create", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createDirectory(
-    entry: &readonly FilesystemEntry,
-    mode: FileMode,
-): Result<void, HostError>;
+/// Filesystem directory binding family.
+export interface FsDirectory {
+    /// Create one directory entry.
+    @binding("destack.fs.directory.create", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    create(entry: &readonly FilesystemEntry, mode: FileMode): Result<void, HostError>;
 
-/// Remove one empty directory entry.
-@binding("destack.fs.directory.remove", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function removeDirectory(entry: &readonly FilesystemEntry): Result<void, HostError>;
+    /// Remove one empty directory entry.
+    @binding("destack.fs.directory.remove", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    remove(entry: &readonly FilesystemEntry): Result<void, HostError>;
 
-/// Open one directory stream.
-@binding("destack.fs.directory.open", {
-    effect: "external",
-    requires: ["host.fs.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openDirectory(
-    entry: &readonly FilesystemEntry,
-): Result<DirectoryHandle, HostError>;
+    /// Open one directory stream.
+    @binding("destack.fs.directory.open", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    open(entry: &readonly FilesystemEntry): Result<DirectoryHandle, HostError>;
 
-/// Read directory entries into an output slice.
-@binding("destack.fs.directory.read", {
-    effect: "external",
-    requires: ["host.fs.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readDirectory(
-    directory: DirectoryHandle,
-    entries: &[DirectoryEntry],
-    names: &PathBuffer,
-): Result<DirectoryBatch, HostError>;
+    /// Read directory entries into an output slice.
+    @binding("destack.fs.directory.read", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    read(
+        directory: DirectoryHandle,
+        entries: &[DirectoryEntry],
+        names: &PathBuffer,
+    ): Result<DirectoryBatch, HostError>;
 
-/// Reset a directory stream to the first entry.
-@binding("destack.fs.directory.rewind", {
-    effect: "external",
-    requires: ["host.fs.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function rewindDirectory(directory: DirectoryHandle): Result<void, HostError>;
+    /// Reset a directory stream to the first entry.
+    @binding("destack.fs.directory.rewind", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    rewind(directory: DirectoryHandle): Result<void, HostError>;
 
-/// Create one unique directory from a caller supplied template.
-@binding("destack.fs.directory.temporary", {
-    effect: "external",
-    requires: ["host.fs.temp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createTemporaryDirectory(
-    template: &readonly FilesystemEntry,
-): Result<FilesystemEntry, HostError>;
+    /// Create one unique directory from a caller supplied template.
+    @binding("destack.fs.directory.temporary", {
+        effect: "external",
+        requires: ["host.fs.temp"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createTemporary(template: &readonly FilesystemEntry): Result<FilesystemEntry, HostError>;
+}

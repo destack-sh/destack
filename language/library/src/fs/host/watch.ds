@@ -120,27 +120,30 @@ export struct FileWatchBatch {
     hasOverflow: boolean;
 }
 
-/// Start watching one filesystem entry.
-@binding("destack.fs.watch.open", {
-    effect: "external",
-    requires: ["host.fs.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openFileWatch(
-    entry: &readonly FilesystemEntry,
-    options: FileWatchOptions,
-): Result<WatchHandle, HostError>;
+/// Filesystem watch binding family.
+export interface FsWatch {
+    /// Start watching one filesystem entry.
+    @binding("destack.fs.watch.open", {
+        effect: "external",
+        requires: ["host.fs.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    open(
+        entry: &readonly FilesystemEntry,
+        options: FileWatchOptions,
+    ): Result<WatchHandle, HostError>;
 
-/// Read watch events into an output slice.
-@binding("destack.fs.watch.read", {
-    effect: "external",
-    requires: ["host.fs.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readFileWatch(
-    watch: WatchHandle,
-    events: &[FileWatchEvent],
-    paths: &PathBuffer,
-): Result<FileWatchBatch, HostError>;
+    /// Read watch events into an output slice.
+    @binding("destack.fs.watch.read", {
+        effect: "external",
+        requires: ["host.fs.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    read(
+        watch: WatchHandle,
+        events: &[FileWatchEvent],
+        paths: &PathBuffer,
+    ): Result<FileWatchBatch, HostError>;
+}
