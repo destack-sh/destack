@@ -148,6 +148,23 @@ impl Parser {
 
             Ok(Some(self.declaration_expression(start, declaration)))
         }
+        // type alias declarations
+        else if matches!(
+            keyword,
+            Keyword::Type | Keyword::Newtype | Keyword::Readonly
+        ) && !self.next_token().token.is_on_new_line()
+            && self.lookahead(|parser| {
+                parser.bump();
+                parser.identifier_starts_type_alias()
+            })
+        {
+            let keyword =
+                self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
+            let type_keyword = self.type_keyword_header(keyword)?;
+            let declaration = self.eat_type_alias_declaration(start, header, type_keyword)?;
+
+            Ok(Some(self.declaration_expression(start, declaration)))
+        }
         // using declarations
         else if keyword == Keyword::Using
             && self.can_parse_using_declaration(&header, Asynchrony::Sync)

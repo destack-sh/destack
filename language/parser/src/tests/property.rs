@@ -907,20 +907,6 @@ fn test_parse_object_property_constructor_method_as_key() {
 }
 
 #[test]
-fn test_parse_constructor_parameter_property_readonly_public_modifier_order_reports_error() {
-    let mut test = TestParser::new_with_language(
-        r"class D extends B {
-  constructor(readonly public foo: string) {}
-}",
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-    parser.parse();
-
-    assert_eq!(parser.errors.len(), 1);
-}
-
-#[test]
 fn test_parse_member_computed_optional_method() {
     let mut test = TestParser::new_with_language(
         "[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void",

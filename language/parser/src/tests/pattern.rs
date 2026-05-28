@@ -267,7 +267,7 @@ fn test_parse_pattern_dereference_tagged_tuple() {
     let pattern_id = parser.eat_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
-        assert_node!(parser.tree, *right, Pattern::TaggedTuple { ty, fields } => {
+        assert_node!(parser.tree, *right, Pattern::Newtype { ty, fields } => {
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                 assert_path!(parser, *path, "Result.Ok");
             });
@@ -287,7 +287,7 @@ fn test_parse_pattern_dereference_tagged_object() {
     let pattern_id = parser.eat_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
-        assert_node!(parser.tree, *right, Pattern::TaggedObject { ty, fields } => {
+        assert_node!(parser.tree, *right, Pattern::NominalObject { ty, fields } => {
             assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                 assert_path!(parser, *path, "Point");
             });
@@ -582,9 +582,9 @@ fn test_parse_pattern_tuple_with_path() {
     let pattern_id = parser.eat_pattern().unwrap();
 
     // Result.Success(_, ..)
-    assert_node!(parser.tree, pattern_id, Pattern::TaggedTuple { ty, fields } => {
+    assert_node!(parser.tree, pattern_id, Pattern::Newtype { ty, fields } => {
         // Result.Success
-        let _ = ty; // ty is required for TaggedTuple
+        let _ = ty; // ty is required for Newtype
         assert_eq!(fields.len(), 2);
 
         // _
@@ -872,7 +872,7 @@ fn test_parse_pattern_struct_with_path() {
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
-    assert_node!(parser.tree, pattern_id, Pattern::TaggedObject { ty, fields } => {
+    assert_node!(parser.tree, pattern_id, Pattern::NominalObject { ty, fields } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
             assert_path!(parser, *path, "Vector2");
         });
@@ -901,7 +901,7 @@ fn test_parse_pattern_struct_with_nested_tagged_object_field() {
 
     assert!(parser.errors.is_empty());
 
-    assert_node!(parser.tree, pattern_id, Pattern::TaggedObject { ty, fields } => {
+    assert_node!(parser.tree, pattern_id, Pattern::NominalObject { ty, fields } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
             assert_path!(parser, *path, "Shape.Line");
         });
@@ -909,7 +909,7 @@ fn test_parse_pattern_struct_with_nested_tagged_object_field() {
 
         assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), is_shorthand: false } => {
             assert_name!(parser, *name, "start");
-            assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::NominalObject { ty, fields } => {
                 assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                     assert_path!(parser, *path, "Point");
                 });

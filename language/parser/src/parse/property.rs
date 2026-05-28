@@ -1,11 +1,10 @@
 #![allow(clippy::type_complexity)]
 
 use destack_dir::{
-    AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorTypeDeclaration,
-    Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
-    FunctionTypeDeclaration, Key, Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType,
-    Parameter, Property, StringId, TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember,
-    Visibility,
+    AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorType, Expression,
+    FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionType, Key, Keyword,
+    LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
+    TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -100,12 +99,10 @@ struct ParsedMethodTail {
 }
 
 /// Build one call signature declaration from a parsed function signature.
-fn function_type_declaration_from_signature(
-    signature: FunctionSignature,
-) -> FunctionTypeDeclaration {
+fn function_type_from_signature(signature: FunctionSignature) -> FunctionType {
     debug_assert!(signature.role.is_none() || signature.role == Some(FunctionRole::Call));
 
-    FunctionTypeDeclaration {
+    FunctionType {
         generic_parameters: signature.generic_parameters,
         where_clauses: signature.where_clauses,
         this_parameter: signature.this_parameter,
@@ -115,15 +112,13 @@ fn function_type_declaration_from_signature(
 }
 
 /// Build one construct signature declaration from a parsed function signature.
-fn constructor_type_declaration_from_signature(
-    signature: FunctionSignature,
-) -> ConstructorTypeDeclaration {
+fn constructor_type_from_signature(signature: FunctionSignature) -> ConstructorType {
     debug_assert!(matches!(
         signature.role,
         Some(FunctionRole::Constructor | FunctionRole::New)
     ));
 
-    ConstructorTypeDeclaration {
+    ConstructorType {
         is_abstract: signature.is_abstract,
         generic_parameters: signature.generic_parameters,
         where_clauses: signature.where_clauses,
@@ -1808,11 +1803,11 @@ impl Parser {
                 },
                 (None, Some(FunctionRole::New | FunctionRole::Constructor)) => {
                     TypeMember::ConstructSignature {
-                        signature: constructor_type_declaration_from_signature(signature),
+                        signature: constructor_type_from_signature(signature),
                     }
                 }
                 (None, None | Some(FunctionRole::Call)) => TypeMember::CallSignature {
-                    signature: function_type_declaration_from_signature(signature),
+                    signature: function_type_from_signature(signature),
                 },
                 (None, Some(FunctionRole::Getter | FunctionRole::Setter)) => {
                     return Err(ParserError::unexpected(self.peek()?.span));

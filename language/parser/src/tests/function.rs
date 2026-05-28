@@ -383,7 +383,7 @@ fn test_parse_function_type_with_this_parameter() {
     // type T = (this: Foo, value: Bar) => Baz
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 assert!(function.this_parameter.is_some());
                 assert_eq!(function.parameters.len(), 1);
                 // value: Bar
@@ -821,7 +821,7 @@ fn test_parse_function_with_function_return_type() {
         assert_string!(parser, name.expect("expected name").string(), "foo");
 
         // (str: string) => boolean
-        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
+        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Function(function) => {
             assert_eq!(function.parameters.len(), 1);
             // str: string
             assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
@@ -1292,7 +1292,7 @@ function onResolve(
         assert_eq!(signature.parameters.len(), 1);
         assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
             assert_string!(parser, *name, "callback");
-            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Function(function) => {
                 assert_eq!(function.parameters.len(), 1);
                 // args
                 assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: None, .. } => {
@@ -1336,7 +1336,7 @@ fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
             assert_eq!(signature.parameters.len(), 3);
 
             // (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Function(function) => {
                 assert_eq!(function.parameters.len(), 2);
 
                 // fiberId?: FiberId.FiberId

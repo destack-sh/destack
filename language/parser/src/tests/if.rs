@@ -610,7 +610,7 @@ fn test_parse_if_let_tagged_object_pattern() {
             assert!(ty.is_none());
             let value_id = value.expect("expected if let value");
             assert_expression_path!(parser, parser.tree.get(value_id), "value");
-            assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::NominalObject { ty, fields } => {
                 assert_expression_path!(parser, parser.tree.get(*ty), "Point");
                 assert_eq!(fields.len(), 2);
                 // x

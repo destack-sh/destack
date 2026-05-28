@@ -2,8 +2,8 @@ use crate::parse::DeclarationHeader;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_core::StringId;
 use destack_dir::{
-    EnumKind, Expression, InferForm, Keyword, LocalNodeId, NodeType, Path, TokenType,
-    TypeExpression, TypeKind, TypeLiteral,
+    Expression, InferForm, Keyword, LocalNodeId, NodeType, Path, TokenType, TypeExpression,
+    TypeLiteral,
 };
 use destack_source::{NodeSpanList, NodeSpanType, Span};
 use smallvec::SmallVec;
@@ -274,52 +274,8 @@ impl Parser {
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         let header = DeclarationHeader::default();
         let type_expression = match keyword {
-            Keyword::Newtype if self.next_keyword() == Some(Keyword::Interface) => {
-                self.eat_keyword(Keyword::Newtype)?;
-                let declaration = self.eat_interface(start, header, TypeKind::Nominal)?;
-                Some(self.insert_node(
-                    TypeExpression::Declaration { declaration },
-                    self.get_span_from(start),
-                ))
-            }
             Keyword::Type | Keyword::Newtype | Keyword::Readonly => {
                 Some(self.eat_type(start, header)?)
-            }
-            Keyword::Struct | Keyword::Class => {
-                let declaration = self.eat_struct_or_class(start, header, true)?;
-                Some(self.insert_node(
-                    TypeExpression::Declaration { declaration },
-                    self.get_span_from(start),
-                ))
-            }
-            Keyword::Interface => {
-                let declaration = self.eat_interface(start, header, TypeKind::Structural)?;
-                Some(self.insert_node(
-                    TypeExpression::Declaration { declaration },
-                    self.get_span_from(start),
-                ))
-            }
-            Keyword::Enum => {
-                let declaration = self.eat_enum(start, EnumKind::Enum, header)?;
-                Some(self.insert_node(
-                    TypeExpression::Declaration { declaration },
-                    self.get_span_from(start),
-                ))
-            }
-            Keyword::Extension => {
-                let declaration = self.eat_extension(start, header)?;
-                Some(self.insert_node(
-                    TypeExpression::Declaration { declaration },
-                    self.get_span_from(start),
-                ))
-            }
-            Keyword::Const if self.next_keyword() == Some(Keyword::Enum) => {
-                self.eat_keyword(Keyword::Const)?;
-                let declaration = self.eat_enum(start, EnumKind::Const, header)?;
-                Some(self.insert_node(
-                    TypeExpression::Declaration { declaration },
-                    self.get_span_from(start),
-                ))
             }
             Keyword::Const => {
                 self.bump();

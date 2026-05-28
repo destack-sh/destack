@@ -215,7 +215,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    let pattern = Pattern::TaggedTuple {
+                    let pattern = Pattern::Newtype {
                         ty: expression_id,
                         fields,
                     };
@@ -238,7 +238,7 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     );
-                    let pattern = Pattern::TaggedObject { ty: ty_id, fields };
+                    let pattern = Pattern::NominalObject { ty: ty_id, fields };
                     self.eat_close_token_or_recover_missing(
                         TokenType::CloseBrace,
                         NodeType::Pattern,

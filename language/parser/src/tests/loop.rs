@@ -294,7 +294,7 @@ for (const Shape.Line { start: Point { x, y }, end } of lines) {}
 
         assert_node!(binding, ForEachBinding::Pattern { pattern, keyword } => {
             assert_eq!(*keyword, Some(BindingKeyword::Const));
-            assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::NominalObject { ty, fields } => {
                 assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                     assert_path!(parser, *path, "Shape.Line");
                 });
@@ -302,7 +302,7 @@ for (const Shape.Line { start: Point { x, y }, end } of lines) {}
 
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), .. } => {
                     assert_name!(parser, *name, "start");
-                    assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+                    assert_node!(parser.tree, *pattern, Pattern::NominalObject { ty, fields } => {
                         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments: _ } => {
                             assert_path!(parser, *path, "Point");
                         });

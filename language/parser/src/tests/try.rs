@@ -387,7 +387,7 @@ fn test_parse_untyped_catch_expression_parameter() {
     let try_id = parser.eat_try().unwrap();
     assert_node!(parser.tree, try_id, Expression::Try { catch: Some(catch), .. } => {
         assert_node!(parser.tree, *catch, Catch { pattern: Some(catch_pattern), ty: None, body } => {
-        assert_node!(parser.tree, *catch_pattern, Pattern::TaggedTuple { ty, fields } => {
+        assert_node!(parser.tree, *catch_pattern, Pattern::Newtype { ty, fields } => {
             assert_expression_path!(parser, parser.tree.get(*ty), "answer");
             assert!(fields.is_empty());
         });

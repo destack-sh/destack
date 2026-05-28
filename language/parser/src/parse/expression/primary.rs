@@ -689,24 +689,9 @@ impl Parser {
         }
 
         let type_expression = self.eat_type(start, header)?;
-        let expression = self.expression_from_type_value(type_expression);
+        let expression = self.insert_type_expression_value(type_expression);
 
         Ok(Some(expression))
-    }
-
-    /// Build a value expression from a parsed type form.
-    fn expression_from_type_value(
-        &mut self,
-        type_expression: LocalNodeId<TypeExpression>,
-    ) -> LocalNodeId<Expression> {
-        if let TypeExpression::Declaration { declaration } = self.tree.get(type_expression) {
-            return self.insert_node(
-                Expression::Declaration(*declaration),
-                self.tree.get_span(type_expression),
-            );
-        }
-
-        self.insert_type_expression_value(type_expression)
     }
 
     /// Parse `import.meta` or `import.source`.

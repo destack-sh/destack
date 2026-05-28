@@ -2,7 +2,7 @@ use destack_dir::{
     Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator, DecoratorPosition,
     Expression, FunctionDeclaration, FunctionRole, GenericArgument, GenericParameter, IfForm,
     IntegerType, Key, Keyword, Member, Name, NodeType, Parameter, Pattern, PatternField, Property,
-    ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral, Visibility,
+    ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -363,20 +363,6 @@ fn test_parse_parameter_multiline() {
 }
 
 #[test]
-fn test_parse_parameter_with_modifiers() {
-    // private readonly const x: 1
-    let mut test = TestParser::new("private readonly const x: 1");
-    let mut parser = test.prepare();
-    let parameter_id = parser.eat_parameter().unwrap();
-
-    assert_node!(parser.tree, parameter_id, Parameter::Named { visibility, is_readonly, declared_type: Some(declared_type), .. } => {
-        assert_eq!(*visibility, Some(Visibility::Private));
-        assert!(*is_readonly);
-        assert_node!(parser.tree, *declared_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(1) });
-    });
-}
-
-#[test]
 fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
     let mut test = TestParser::new_with_language(
         r#"<
@@ -733,61 +719,6 @@ fn test_parse_variadic_value_generic_parameter() {
 }
 
 #[test]
-fn test_parse_parameter_with_readonly_public_modifier_order_reports_error() {
-    // readonly public x: number
-    let mut test =
-        TestParser::new_with_language("readonly public x: number", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let parameter_id = parser.eat_parameter().unwrap();
-
-    // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, "public")]);
-
-    // readonly public x: number
-    assert_node!(parser.tree, parameter_id, Parameter::Named { visibility, is_readonly, name, declared_type: Some(declared_type), default: None, .. } => {
-        assert_string!(parser, *name, "x");
-        assert_eq!(*visibility, Some(Visibility::Public));
-        assert!(*is_readonly);
-        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Number });
-    });
-}
-
-#[test]
-fn test_parse_constructor_parameter_with_readonly_public_modifier_order_reports_error() {
-    // class D { constructor(readonly public x: number) {} }
-    let mut test = TestParser::new_with_language(
-        "class D { constructor(readonly public x: number) {} }",
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-    let expressions = parser.parse();
-
-    // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, "public")]);
-
-    // class D { constructor(readonly public x: number) {} }
-    assert_eq!(expressions.len(), 1);
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { members, .. }) => {
-            assert_eq!(members.len(), 1);
-
-            assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                assert_eq!(signature.role, Some(FunctionRole::Constructor));
-                assert_eq!(signature.parameters.len(), 1);
-
-                assert_node!(parser.tree, signature.parameters[0], Parameter::Named { visibility, is_readonly, name, declared_type: Some(declared_type), default: None, .. } => {
-                    assert_string!(parser, *name, "x");
-                    assert_eq!(*visibility, Some(Visibility::Public));
-                    assert!(*is_readonly);
-                    assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Number });
-                });
-            });
-        });
-    });
-}
-
-#[test]
 fn test_parse_parameter_readonly_name() {
     // readonly: int32
     let mut test = TestParser::new("readonly: int32");
@@ -851,7 +782,7 @@ fn test_parse_comptime_modifier_allows_block_line_break() {
 fn test_parse_parameter_decorators() {
     let input = r#"
 class Test {
-    constructor(@p1 t1, @p2 private t2, @p3 ...t3) {}
+    constructor(@p1 t1, @p2 t2, @p3 ...t3) {}
 
     method(@p1 t1, @p1 @p2 ...t2) {}
 }
@@ -885,9 +816,8 @@ class Test {
                 });
 
                 // @p2 t2
-                assert_node!(parser.tree, signature.parameters[1], Parameter::Named { visibility, name, declared_type: None, default: None, .. } => {
+                assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type: None, default: None, .. } => {
                     assert_string!(parser, *name, "t2");
-                    assert_eq!(*visibility, Some(Visibility::Private));
                 });
                 let t2_annotations = parser.tree.get_decorators(signature.parameters[1].id);
                 assert_eq!(t2_annotations.len(), 1);
@@ -1585,5 +1515,25 @@ fn test_parse_generic_arguments_with_nested_generics_and_union() {
                 assert!(matches!(parser.tree.get(elements[0]), TypeExpression::KeyOf { .. }));
                 assert!(matches!(parser.tree.get(elements[1]), TypeExpression::KeyOf { .. }));
             });
+    });
+}
+
+#[test]
+fn test_parse_associated_generic_refinements() {
+    let mut test = TestParser::new_with_language(
+        "<type Item = uint8, comptime Width = 16>",
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let generic_arguments = parser.eat_generic_arguments().unwrap();
+
+    assert_eq!(generic_arguments.len(), 2);
+    assert_node!(parser.tree, generic_arguments[0], GenericArgument::AssociatedType { name, value } => {
+        assert_string!(parser, *name, "Item");
+        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 8, is_signed: false }) });
+    });
+    assert_node!(parser.tree, generic_arguments[1], GenericArgument::AssociatedConst { name, value } => {
+        assert_string!(parser, *name, "Width");
+        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(16)));
     });
 }

@@ -472,9 +472,9 @@ fn test_parse_type_literal_call_signature_with_const_parameter_conditional_bound
     let mut test = TestParser::new_with_language(
         r#"type T = {
   <
-Self extends Field<any> | Field.ValueAny,
-const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Self) => Field.ValueAny })
-  >(f: Mapping): Self
+Value extends Field<any> | Field.ValueAny,
+const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Value) => Field.ValueAny })
+  >(f: Mapping): Value
 }"#,
         LanguageType::TypeScript,
     );
@@ -490,9 +490,9 @@ const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?:
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 2);
 
-                    // Self extends Field<any> | Field.ValueAny
+                    // Value extends Field<any> | Field.ValueAny
                     assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(ty), .. } => {
-                        assert_string!(parser, *name, "Self");
+                        assert_string!(parser, *name, "Value");
                         assert_node!(parser.tree, *ty, TypeExpression::Union { elements } => {
                             assert_eq!(elements.len(), 2);
                         });
@@ -507,13 +507,13 @@ const Mapping extends (Self extends Field<infer S> ? { readonly [K in keyof S]?:
                         });
                     });
 
-                    // (f: Mapping): Self
+                    // (f: Mapping): Value
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "f");
                         assert_expression_path!(parser, parser.tree.get(*ty), "Mapping");
                     });
-                    assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "Self");
+                    assert_expression_path!(parser, parser.tree.get(signature.return_type.expect("expected return type")), "Value");
                 });
             });
         });
@@ -951,7 +951,7 @@ fn test_parse_type_arrow_with_conditional_return() {
     // type T = <X>() => X extends A | B ? true : false
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Conditional { .. });
             });
         });
@@ -1000,7 +1000,7 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::Field { declared_type, .. } => {
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                         assert!(!function.generic_parameters.is_empty());
                     });
                 });
@@ -1067,7 +1067,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
                     assert_node!(key, Key::Name(Name::Identifier(name)) => {
                         assert_string!(parser, *name, "method");
                     });
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert!(function.where_clauses.is_empty());
                         assert!(function.this_parameter.is_none());
@@ -1078,10 +1078,8 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
                             assert!(default.is_none());
                         });
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type, .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type, .. } => {
                             assert_string!(parser, *name, "MISMATCH");
-                            assert!(visibility.is_none());
-                            assert!(!*is_readonly);
                             assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
                         });
                         assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
@@ -1152,7 +1150,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
             assert!(mutability.is_none());
             assert!(generic_parameters.is_empty());
             assert!(where_clauses.is_empty());
-            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 assert_eq!(function.generic_parameters.len(), 1);
                 assert!(function.where_clauses.is_empty());
                 assert!(function.this_parameter.is_none());
@@ -1163,10 +1161,8 @@ fn test_parse_function_type_nested_conditional_constraint() {
                     assert_expected_nested_conditional_constraint(&parser, constraint.expect("expected constraint"));
                 });
                 assert_eq!(function.parameters.len(), 1);
-                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type, .. } => {
+                assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type, .. } => {
                     assert_string!(parser, *name, "MISMATCH");
-                    assert!(visibility.is_none());
-                    assert!(!*is_readonly);
                     assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
                 });
                 assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
@@ -1226,7 +1222,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
                         assert_string!(parser, *name, "toMatchObjectType");
                     });
 
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert!(function.where_clauses.is_empty());
                         assert!(function.this_parameter.is_none());
@@ -1238,10 +1234,8 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
                         });
 
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, visibility, is_readonly, declared_type, .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::VariadicNamed { name, declared_type, .. } => {
                             assert_string!(parser, *name, "MISMATCH");
-                            assert!(visibility.is_none());
-                            assert!(!*is_readonly);
                             assert_mismatch_args(&parser, declared_type.expect("expected parameter type"));
                         });
                         assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::ScalarLiteral { value } => {
@@ -1287,7 +1281,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
                         assert_string!(parser, *name, "f");
                     });
 
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert!(function.where_clauses.is_empty());
                         assert!(function.this_parameter.is_none());
@@ -1305,10 +1299,8 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
                         });
 
                         assert_eq!(function.parameters.len(), 1);
-                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, visibility, is_readonly, is_optional, declared_type, default, .. } => {
+                        assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, is_optional, declared_type, default, .. } => {
                             assert_string!(parser, *name, "x");
-                            assert!(visibility.is_none());
-                            assert!(!*is_readonly);
                             assert!(!*is_optional);
                             assert!(default.is_none());
                             assert_plain_type_reference(&parser, declared_type.expect("expected parameter type"), "U");
@@ -1342,7 +1334,7 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
             assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
                 assert_eq!(members.len(), 1);
                 assert_node!(parser.tree, members[0], TypeMember::Field { declared_type, .. } => {
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                         assert_eq!(function.generic_parameters.len(), 1);
                         assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
                             assert_string!(parser, *name, "U");
@@ -1396,7 +1388,7 @@ fn test_parse_type_literal_where_field_after_function_type() {
                 // setSelectedFields: (fields: FieldOption[]) => void
                 assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                     assert_string!(parser, *name, "setSelectedFields");
-                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                         assert_eq!(function.parameters.len(), 1);
                     });
                 });

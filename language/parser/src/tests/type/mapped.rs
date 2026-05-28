@@ -138,7 +138,7 @@ fn test_parse_mapped_type() {
                     assert_string!(parser, strings[1], "");
                 });
                 let value = value.expect("expected value type");
-                assert_node!(parser.tree, value, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, value, TypeExpression::Function(function) => {
                     assert_eq!(function.parameters.len(), 0);
                     let return_type = function.return_type.expect("expected return type");
                     assert_node!(parser.tree, return_type, TypeExpression::Index { left, index } => {

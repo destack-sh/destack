@@ -387,7 +387,7 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
             // addInspectorRequest: <Data>(result: FetcherResult<Data>) => void
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                 assert_string!(parser, *name, "addInspectorRequest");
-                assert_node!(parser.tree, *declared_type, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, *declared_type, TypeExpression::Function(function) => {
                     let nested_generic_parameters = &function.generic_parameters;
                     assert_eq!(nested_generic_parameters.len(), 1);
 

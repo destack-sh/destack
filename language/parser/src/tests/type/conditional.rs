@@ -341,7 +341,7 @@ fn test_parse_conditional_type_with_function_right() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { extends_type, then_type, else_type, .. } => {
-                assert_node!(parser.tree, *extends_type, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, *extends_type, TypeExpression::Function(function) => {
                     assert_eq!(function.parameters.len(), 1);
                 });
                 assert_expression_path!(parser, parser.tree.get(*then_type), "C");
@@ -363,7 +363,7 @@ fn test_parse_conditional_type_with_abstract_construct_signature() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "A");
-                assert_node!(parser.tree, *extends_type, TypeExpression::ConstructorTypeDeclaration(function) => {
+                assert_node!(parser.tree, *extends_type, TypeExpression::Constructor(function) => {
                     assert!(function.is_abstract);
                     assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Infer { name, constraint, .. } => {
                         assert_string!(parser, name.expect("expected infer name"), "U");
@@ -390,7 +390,7 @@ fn test_parse_conditional_type_with_multiline_abstract_construct_signature() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { extends_type, .. } => {
-                assert_node!(parser.tree, *extends_type, TypeExpression::ConstructorTypeDeclaration(function) => {
+                assert_node!(parser.tree, *extends_type, TypeExpression::Constructor(function) => {
                     assert!(function.is_abstract);
                 });
             });
@@ -411,7 +411,7 @@ fn test_parse_type_union_with_construct_signature() {
                 assert_eq!(elements.len(), 2);
                 assert_expression_path!(parser, parser.tree.get(elements[0]), "RegExp");
                 assert_node!(parser.tree, elements[1], TypeExpression::Parenthesized { expression } => {
-                    assert_node!(parser.tree, *expression, TypeExpression::ConstructorTypeDeclaration(function) => {
+                    assert_node!(parser.tree, *expression, TypeExpression::Constructor(function) => {
                         assert_eq!(function.parameters.len(), 0);
                     });
                 });
