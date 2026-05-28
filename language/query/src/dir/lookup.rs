@@ -880,10 +880,10 @@ fn pattern_symbol_at_offset(
         }
         Pattern::TypeExpression { .. } => None,
         Pattern::Tuple { fields }
-        | Pattern::TaggedTuple { fields, .. }
+        | Pattern::Newtype { fields, .. }
         | Pattern::Sequence { fields }
         | Pattern::Object { fields }
-        | Pattern::TaggedObject { fields, .. } => {
+        | Pattern::NominalObject { fields, .. } => {
             for field_id in fields {
                 if let Some(symbol_at) =
                     pattern_field_symbol_at_offset(ctx, dir_tree, *field_id, offset)

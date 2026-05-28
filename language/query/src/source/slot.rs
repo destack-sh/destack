@@ -604,8 +604,8 @@ fn collect_pattern_binding_names(
         dir::Pattern::Tuple { fields }
         | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
-        | dir::Pattern::TaggedTuple { fields, .. }
-        | dir::Pattern::TaggedObject { fields, .. } => {
+        | dir::Pattern::Newtype { fields, .. }
+        | dir::Pattern::NominalObject { fields, .. } => {
             for field_id in fields {
                 let field = parsed_tree.get(*field_id);
 

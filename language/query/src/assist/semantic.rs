@@ -172,7 +172,7 @@ pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
     }
 
     // collect parameter tokens
-    for (parameter_id, parameter) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
+    for (parameter_id, _) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
         let source_node_id = dir_tree.get_source(parameter_id);
         let Some(span) = ctx.dir().tree().get_span_by_id(source_node_id) else {
             continue;
@@ -185,15 +185,9 @@ pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
             .get_side_span_by_id(source_node_id, NodeSpanType::Main)
             .unwrap_or(span);
 
-        let mut modifiers = SemanticTokenModifiers::DECLARATION;
-
-        // mark readonly parameters directly from their final fields
-        if parameter_is_readonly(parameter) {
-            modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
-        }
-
         tokens.push(
-            SemanticToken::new(name_span, SemanticTokenType::Parameter).with_modifiers(modifiers),
+            SemanticToken::new(name_span, SemanticTokenType::Parameter)
+                .with_modifiers(SemanticTokenModifiers::DECLARATION),
         );
     }
 
@@ -551,17 +545,6 @@ fn modifiers_from_member_flags(
     }
 
     modifiers
-}
-
-/// Return whether a parameter is readonly.
-fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
-    match parameter {
-        dir::Parameter::Named { is_readonly, .. }
-        | dir::Parameter::VariadicNamed { is_readonly, .. } => *is_readonly,
-        dir::Parameter::Pattern { .. }
-        | dir::Parameter::VariadicPattern { .. }
-        | dir::Parameter::Error => false,
-    }
 }
 
 /// Map SymbolKind to SemanticTokenType.

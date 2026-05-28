@@ -418,10 +418,10 @@ fn rename_pattern_binding_name(
             rename_pattern_binding_name(ctx, strings, dir_tree, *pattern, target_symbol)
         }
         dir::Pattern::Tuple { .. }
-        | dir::Pattern::TaggedTuple { .. }
+        | dir::Pattern::Newtype { .. }
         | dir::Pattern::Sequence { .. }
         | dir::Pattern::Object { .. }
-        | dir::Pattern::TaggedObject { .. }
+        | dir::Pattern::NominalObject { .. }
         | dir::Pattern::Union { .. }
         | dir::Pattern::Wildcard
         | dir::Pattern::Expression { .. }
