@@ -50,6 +50,9 @@ impl ResolveState<'_> {
             dir::Expression::ImportMeta => {
                 self.require_syntax_language_item(dir::LanguageItem::ImportMeta);
             }
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { .. }) => {
+                self.require_syntax_language_item(dir::LanguageItem::RegExp);
+            }
             dir::Expression::Type { .. } => {
                 self.require_syntax_language_item(dir::LanguageItem::Type);
                 dir::walk_expression(self, tree, id, expression);
