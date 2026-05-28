@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, LocalNodeId, Name, Node, NodeType, Pattern, StaticKey, StringId, SymbolKind,
-    SymbolSpace, TypeExpression, VarianceModifier, Visibility,
+    SymbolSpace, TypeExpression, VarianceModifier,
 };
 
 /// A generic parameter in static parameter position.
@@ -87,8 +87,6 @@ pub enum Parameter {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
-        visibility: Option<Visibility>,
-        is_readonly: bool,
         is_optional: bool,
         is_comptime: bool,
     },
@@ -104,8 +102,6 @@ pub enum Parameter {
     VariadicNamed {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
-        visibility: Option<Visibility>,
-        is_readonly: bool,
         is_comptime: bool,
     },
     /// Variadic pattern parameter.
@@ -175,6 +171,16 @@ pub enum GenericArgument {
     Value { value: LocalNodeId<Expression> },
     /// Spread value generic argument.
     SpreadValue { value: LocalNodeId<Expression> },
+    /// Associated type refinement.
+    AssociatedType {
+        name: StringId,
+        value: LocalNodeId<TypeExpression>,
+    },
+    /// Associated compile-time constant refinement.
+    AssociatedConst {
+        name: StringId,
+        value: LocalNodeId<Expression>,
+    },
     /// Malformed generic argument slot.
     Error,
 }

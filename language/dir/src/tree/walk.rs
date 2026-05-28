@@ -299,11 +299,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_member(tree, *member_id, member);
             }
         }
-        TypeExpression::Declaration { declaration } => {
-            let declaration_node = tree.get(*declaration);
-            visitor.visit_declaration(tree, *declaration, declaration_node);
-        }
-        TypeExpression::FunctionTypeDeclaration(function) => {
+        TypeExpression::Function(function) => {
             for generic_parameter_id in &function.generic_parameters {
                 let generic_parameter = tree.get(*generic_parameter_id);
                 visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
@@ -329,7 +325,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_expression(tree, return_type, return_type_node);
             }
         }
-        TypeExpression::ConstructorTypeDeclaration(function) => {
+        TypeExpression::Constructor(function) => {
             for generic_parameter_id in &function.generic_parameters {
                 let generic_parameter = tree.get(*generic_parameter_id);
                 visitor.visit_generic_parameter(tree, *generic_parameter_id, generic_parameter);
@@ -653,11 +649,15 @@ pub fn walk_generic_argument<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::GenericArgument, id.id);
 
     match generic_argument {
-        GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+        GenericArgument::Type { value }
+        | GenericArgument::SpreadType { value }
+        | GenericArgument::AssociatedType { value, .. } => {
             let value_type = tree.get(*value);
             visitor.visit_type_expression(tree, *value, value_type);
         }
-        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+        GenericArgument::Value { value }
+        | GenericArgument::SpreadValue { value }
+        | GenericArgument::AssociatedConst { value, .. } => {
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
@@ -1742,8 +1742,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     match parameter {
         Parameter::Named {
             name: _,
-            visibility: _,
-            is_readonly: _,
             is_optional: _,
             is_comptime: _,
             declared_type,
@@ -1778,8 +1776,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         }
         Parameter::VariadicNamed {
             name: _,
-            visibility: _,
-            is_readonly: _,
             is_comptime: _,
             declared_type,
         } => {
@@ -1904,7 +1900,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::TaggedTuple { ty, fields } => {
+        Pattern::Newtype { ty, fields } => {
             let ty_expression = tree.get(*ty);
             visitor.visit_type_expression(tree, *ty, ty_expression);
             for field_id in fields {
@@ -1924,7 +1920,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::TaggedObject { ty, fields } => {
+        Pattern::NominalObject { ty, fields } => {
             let type_node = tree.get(*ty);
             visitor.visit_type_expression(tree, *ty, type_node);
             for field_id in fields {

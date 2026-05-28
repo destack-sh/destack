@@ -310,7 +310,7 @@ pub struct ShapeType {
 
 /// A function type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FunctionType {
+pub struct FunctionTypeShape {
     /// The function asynchrony.
     pub asynchrony: Asynchrony,
     /// The generic parameter types.
@@ -430,7 +430,7 @@ pub enum Type {
     /// Structural object shape type.
     Shape(ShapeType),
     /// Function type.
-    Function(FunctionType),
+    Function(FunctionTypeShape),
     /// Closure type with an explicit captured environment.
     Closure(ClosureType),
 

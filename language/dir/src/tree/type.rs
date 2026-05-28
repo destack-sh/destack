@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
-    LocalNodeId, Mutability, Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind,
-    StaticKey, StringId, SymbolKind, SymbolSpace, TupleElement, TypeLiteral, VarianceBound,
-    WhereClause,
+    Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
+    Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
+    SymbolKind, SymbolSpace, TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -27,11 +26,9 @@ pub enum TypeMember {
         is_optional: bool,
     },
     /// Call signature declaration.
-    CallSignature { signature: FunctionTypeDeclaration },
+    CallSignature { signature: FunctionType },
     /// Construct signature declaration.
-    ConstructSignature {
-        signature: ConstructorTypeDeclaration,
-    },
+    ConstructSignature { signature: ConstructorType },
     /// Index signature.
     IndexSignature {
         name: StringId,
@@ -216,9 +213,9 @@ pub enum TypePredicateSubject {
     This,
 }
 
-/// One function type declaration in type space.
+/// One function type in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FunctionTypeDeclaration {
+pub struct FunctionType {
     /// The generic parameters of the function type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the function type.
@@ -231,9 +228,9 @@ pub struct FunctionTypeDeclaration {
     pub return_type: Option<LocalNodeId<TypeExpression>>,
 }
 
-/// One constructor type declaration in type space.
+/// One constructor type in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ConstructorTypeDeclaration {
+pub struct ConstructorType {
     /// The generic parameters of the constructor type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the constructor type.
@@ -366,34 +363,23 @@ pub enum TypeExpression {
         members: Vec<LocalNodeId<TypeMember>>,
     },
 
-    /// Embedded declaration type.
-    ///
-    /// Examples:
-    /// ```
-    /// struct User { name: string }
-    /// interface Named { name: string }
-    /// ```
-    Declaration {
-        declaration: LocalNodeId<Declaration>,
-    },
-
-    /// Function type declaration.
+    /// Function type.
     ///
     /// Examples:
     /// ```
     /// (value: T) => U
     /// <T>(value: T): T
     /// ```
-    FunctionTypeDeclaration(FunctionTypeDeclaration),
+    Function(FunctionType),
 
-    /// Constructor type declaration.
+    /// Constructor type.
     ///
     /// Examples:
     /// ```
     /// new (value: string) => User
     /// abstract new <T>(value: T): Box<T>
     /// ```
-    ConstructorTypeDeclaration(ConstructorTypeDeclaration),
+    Constructor(ConstructorType),
 
     /// Qualified type reference with optional generic arguments.
     ///
