@@ -41,15 +41,15 @@ impl Compiler {
         environment: &mut LanguageEnvironment,
     ) -> CompilerResult<()> {
         for (target_id, decorators) in tree.get_all_decorators() {
-            // recover declaration target
+            // recover decorated target
             let node_type = tree.get_node_type(*target_id);
             let target = dir::LocalNodeIdAny::new(*target_id, node_type);
 
-            // collect language item markers attached to this declaration
+            // collect language item markers attached to this target
             for decorator_id in decorators {
                 let decorator = tree.get(*decorator_id);
                 if let Some(key) = self.extract_language_item_key(tree, decorator) {
-                    self.collect_language_item(module, bindings, target, key, environment)?;
+                    self.collect_language_item(module, tree, bindings, target, key, environment)?;
                 }
             }
         }
@@ -61,6 +61,7 @@ impl Compiler {
     fn collect_language_item(
         &self,
         module: ModuleId,
+        tree: &dir::Tree,
         bindings: &dir::BindingTable<'_>,
         target: dir::LocalNodeIdAny,
         key: &str,
@@ -74,8 +75,7 @@ impl Compiler {
         };
 
         // find decorated symbol
-        let global_target = target.into_global(module);
-        let Some(symbol_id) = bindings.symbol_for_declaration(global_target) else {
+        let Some(symbol_id) = self.language_item_symbol(module, tree, bindings, target) else {
             return Err(CompilerError::Internal {
                 message: format!("language item has no symbol: {key}"),
             });
@@ -103,6 +103,49 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Return the symbol targeted by one `@languageItem` decorator.
+    fn language_item_symbol(
+        &self,
+        module: ModuleId,
+        tree: &dir::Tree,
+        bindings: &dir::BindingTable<'_>,
+        target: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalSymbolId> {
+        let global_target = target.into_global(module);
+        if let Some(symbol_id) = bindings.symbol_for_declaration(global_target) {
+            return Some(symbol_id);
+        }
+
+        // route variable expressions through their declarator pattern
+        if target.ty == dir::NodeType::Expression {
+            let expression_id = target.into_typed::<dir::Expression>();
+            let expression = tree.get(expression_id);
+            let declarators = match expression {
+                dir::Expression::Let { declarators, .. } => declarators,
+                dir::Expression::Using { declarators, .. } => declarators,
+                _ => return None,
+            };
+            let [declarator_id] = declarators.as_slice() else {
+                return None;
+            };
+            let declarator = tree.get(*declarator_id);
+            let pattern = declarator.pattern.into_global_any(module);
+
+            return bindings.symbol_for_declaration(pattern);
+        }
+
+        // route direct declarator decorators through their pattern
+        if target.ty == dir::NodeType::Declarator {
+            let declarator_id = target.into_typed::<dir::Declarator>();
+            let declarator = tree.get(declarator_id);
+            let pattern = declarator.pattern.into_global_any(module);
+
+            return bindings.symbol_for_declaration(pattern);
+        }
+
+        None
     }
 
     /// Read the stable language item key from one decorator.

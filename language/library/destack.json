@@ -9,6 +9,9 @@
     "./accessibility": {
       "path": "./src/accessibility/index.ds"
     },
+    "./accessibility/host": {
+      "path": "./src/accessibility/host/index.ds"
+    },
     "./assert": {
       "path": "./src/assert/index.ds"
     },
@@ -17,6 +20,9 @@
     },
     "./audio": {
       "path": "./src/audio/index.ds"
+    },
+    "./audio/host": {
+      "path": "./src/audio/host/index.ds"
     },
     "./bench": {
       "path": "./src/bench/index.ds"
@@ -36,11 +42,17 @@
     "./console": {
       "path": "./src/console/index.ds"
     },
+    "./context": {
+      "path": "./src/context/index.ds"
+    },
     "./convert": {
       "path": "./src/convert/index.ds"
     },
     "./crypto": {
       "path": "./src/crypto/index.ds"
+    },
+    "./crypto/host": {
+      "path": "./src/crypto/host/index.ds"
     },
     "./debug": {
       "path": "./src/debug/index.ds"
@@ -51,8 +63,14 @@
     "./device": {
       "path": "./src/device/index.ds"
     },
+    "./device/host": {
+      "path": "./src/device/host/index.ds"
+    },
     "./display": {
       "path": "./src/display/index.ds"
+    },
+    "./display/host": {
+      "path": "./src/display/host/index.ds"
     },
     "./dns": {
       "path": "./src/dns/index.ds"
@@ -63,11 +81,17 @@
     "./fs": {
       "path": "./src/fs/index.ds"
     },
+    "./fs/host": {
+      "path": "./src/fs/host/index.ds"
+    },
     "./fuzz": {
       "path": "./src/fuzz/index.ds"
     },
     "./gpu": {
       "path": "./src/gpu/index.ds"
+    },
+    "./gpu/host": {
+      "path": "./src/gpu/host/index.ds"
     },
     "./http": {
       "path": "./src/http/index.ds"
@@ -78,11 +102,20 @@
     "./input": {
       "path": "./src/input/index.ds"
     },
+    "./input/host": {
+      "path": "./src/input/host/index.ds"
+    },
     "./io": {
       "path": "./src/io/index.ds"
     },
+    "./io/host": {
+      "path": "./src/io/host/index.ds"
+    },
     "./ipc": {
       "path": "./src/ipc/index.ds"
+    },
+    "./ipc/host": {
+      "path": "./src/ipc/host/index.ds"
     },
     "./iter": {
       "path": "./src/iter/index.ds"
@@ -99,17 +132,26 @@
     "./memory": {
       "path": "./src/memory/index.ds"
     },
+    "./memory/host": {
+      "path": "./src/memory/host/index.ds"
+    },
     "./module": {
       "path": "./src/module/index.ds"
     },
     "./net": {
       "path": "./src/net/index.ds"
     },
+    "./net/host": {
+      "path": "./src/net/host/index.ds"
+    },
     "./ops": {
       "path": "./src/ops/index.ds"
     },
     "./os": {
       "path": "./src/os/index.ds"
+    },
+    "./os/host": {
+      "path": "./src/os/host/index.ds"
     },
     "./path": {
       "path": "./src/path/index.ds"
@@ -120,8 +162,14 @@
     "./process": {
       "path": "./src/process/index.ds"
     },
+    "./process/host": {
+      "path": "./src/process/host/index.ds"
+    },
     "./random": {
       "path": "./src/random/index.ds"
+    },
+    "./random/host": {
+      "path": "./src/random/host/index.ds"
     },
     "./range": {
       "path": "./src/range/index.ds"
@@ -168,11 +216,20 @@
     "./time": {
       "path": "./src/time/index.ds"
     },
+    "./time/host": {
+      "path": "./src/time/host/index.ds"
+    },
     "./tls": {
       "path": "./src/tls/index.ds"
     },
+    "./tls/host": {
+      "path": "./src/tls/host/index.ds"
+    },
     "./tty": {
       "path": "./src/tty/index.ds"
+    },
+    "./tty/host": {
+      "path": "./src/tty/host/index.ds"
     },
     "./types": {
       "path": "./src/types/index.ds"
