@@ -18,11 +18,14 @@ export struct OsPressure {
     loadAverage?: OsLoadAverage;
 }
 
-/// Read operating-system pressure.
-@binding("destack.os.pressure.read", {
-    effect: "external",
-    requires: ["host.os.pressure.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readOsPressure(): Result<OsPressure, HostError>;
+/// Pressure binding family.
+export interface OsPressure {
+    /// Read operating-system pressure.
+    @binding("destack.os.pressure.read", {
+        effect: "external",
+        requires: ["host.os.pressure.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readOsPressure(): Result<OsPressure, HostError>;
+}

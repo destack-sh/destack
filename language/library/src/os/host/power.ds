@@ -10,11 +10,14 @@ export enum OsPowerSource {
     Unknown = 3,
 }
 
-/// Read operating-system power source.
-@binding("destack.os.powerSource.read", {
-    effect: "external",
-    requires: ["host.os.power.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readOsPowerSource(): Result<OsPowerSource, HostError>;
+/// Power binding family.
+export interface OsPower {
+    /// Read operating-system power source.
+    @binding("destack.os.powerSource.read", {
+        effect: "external",
+        requires: ["host.os.power.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readOsPowerSource(): Result<OsPowerSource, HostError>;
+}

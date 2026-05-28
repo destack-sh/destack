@@ -1,4 +1,22 @@
+import { OsCapacity } from "./capacity.ds";
+import { OsIdentity } from "./identity.ds";
+import { OsPower } from "./power.ds";
+import { OsPressure } from "./pressure.ds";
+
 export * from "./capacity.ds";
 export * from "./identity.ds";
 export * from "./power.ds";
 export * from "./pressure.ds";
+
+/// Operating system binding family.
+@languageItem("os.Os")
+export interface Os {
+    /// Capacity bindings.
+    readonly capacity: OsCapacity;
+    /// Identity bindings.
+    readonly identity: OsIdentity;
+    /// Power bindings.
+    readonly power: OsPower;
+    /// Pressure bindings.
+    readonly pressure: OsPressure;
+}
