@@ -20,68 +20,65 @@ export struct SemaphoreOptions {
     flags: SemaphoreFlags;
 }
 
-/// Create one named semaphore.
-@binding("destack.ipc.semaphore.create", {
-    effect: "external",
-    requires: ["host.ipc.semaphore"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createSemaphore(
-    name: &readonly string,
-    options: SemaphoreOptions,
-): Result<SemaphoreHandle, HostError>;
+/// Semaphore binding family.
+export interface IpcSemaphore {
+    /// Create one named semaphore.
+    @binding("destack.ipc.semaphore.create", {
+        effect: "external",
+        requires: ["host.ipc.semaphore"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createSemaphore(
+        name: &readonly string,
+        options: SemaphoreOptions,
+    ): Result<SemaphoreHandle, HostError>;
 
-/// Open one named semaphore.
-@binding("destack.ipc.semaphore.open", {
-    effect: "external",
-    requires: ["host.ipc.semaphore"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openSemaphore(
-    name: &readonly string,
-    flags: SemaphoreFlags,
-): Result<SemaphoreHandle, HostError>;
+    /// Open one named semaphore.
+    @binding("destack.ipc.semaphore.open", {
+        effect: "external",
+        requires: ["host.ipc.semaphore"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openSemaphore(
+        name: &readonly string,
+        flags: SemaphoreFlags,
+    ): Result<SemaphoreHandle, HostError>;
 
-/// Close one semaphore handle.
-@binding("destack.ipc.semaphore.close", {
-    effect: "external",
-    requires: ["host.ipc.semaphore"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeSemaphore(semaphore: SemaphoreHandle): Result<void, HostError>;
+    /// Close one semaphore handle.
+    @binding("destack.ipc.semaphore.close", {
+        effect: "external",
+        requires: ["host.ipc.semaphore"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeSemaphore(semaphore: SemaphoreHandle): Result<void, HostError>;
 
-/// Remove one named semaphore.
-@binding("destack.ipc.semaphore.remove", {
-    effect: "external",
-    requires: ["host.ipc.semaphore"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function removeSemaphore(name: &readonly string): Result<void, HostError>;
+    /// Remove one named semaphore.
+    @binding("destack.ipc.semaphore.remove", {
+        effect: "external",
+        requires: ["host.ipc.semaphore"],
+        families: ["unix"],
+        simulation: true,
+    })
+    removeSemaphore(name: &readonly string): Result<void, HostError>;
 
-/// Wait for one semaphore count.
-@binding("destack.ipc.semaphore.wait", {
-    effect: "external",
-    requires: ["host.ipc.semaphore"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function waitSemaphore(
-    semaphore: SemaphoreHandle,
-    timeoutNanoseconds?: uint64,
-): Result<void, HostError>;
+    /// Wait for one semaphore count.
+    @binding("destack.ipc.semaphore.wait", {
+        effect: "external",
+        requires: ["host.ipc.semaphore"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    waitSemaphore(semaphore: SemaphoreHandle, timeoutNanoseconds?: uint64): Result<void, HostError>;
 
-/// Increment one semaphore count.
-@binding("destack.ipc.semaphore.post", {
-    effect: "external",
-    requires: ["host.ipc.semaphore"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function postSemaphore(
-    semaphore: SemaphoreHandle,
-    count: uint32,
-): Result<void, HostError>;
+    /// Increment one semaphore count.
+    @binding("destack.ipc.semaphore.post", {
+        effect: "external",
+        requires: ["host.ipc.semaphore"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    postSemaphore(semaphore: SemaphoreHandle, count: uint32): Result<void, HostError>;
+}

@@ -1,3 +1,11 @@
+import { IpcEvent } from "./event.ds";
+import { IpcFutex } from "./futex.ds";
+import { IpcMemory } from "./memory.ds";
+import { IpcMessage } from "./message.ds";
+import { IpcPipe } from "./pipe.ds";
+import { IpcSemaphore } from "./semaphore.ds";
+import { IpcUnix } from "./unix.ds";
+
 export * from "./event.ds";
 export * from "./futex.ds";
 export * from "./memory.ds";
@@ -5,3 +13,22 @@ export * from "./message.ds";
 export * from "./pipe.ds";
 export * from "./semaphore.ds";
 export * from "./unix.ds";
+
+/// IPC binding family.
+@languageItem("ipc.Ipc")
+export interface Ipc {
+    /// Event bindings.
+    readonly event: IpcEvent;
+    /// Futex bindings.
+    readonly futex: IpcFutex;
+    /// Memory bindings.
+    readonly memory: IpcMemory;
+    /// Message bindings.
+    readonly message: IpcMessage;
+    /// Pipe bindings.
+    readonly pipe: IpcPipe;
+    /// Semaphore bindings.
+    readonly semaphore: IpcSemaphore;
+    /// Unix socket bindings.
+    readonly unix: IpcUnix;
+}

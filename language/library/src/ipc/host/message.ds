@@ -30,59 +30,62 @@ export struct MessageQueueMessage {
     priority: uint32;
 }
 
-/// Open or create one POSIX message queue.
-@binding("destack.ipc.message.open", {
-    effect: "external",
-    requires: ["host.ipc.message"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function openMessageQueue(
-    name: &readonly string,
-    options: MessageQueueOpenOptions,
-): Result<MessageQueueHandle, HostError>;
+/// Message binding family.
+export interface IpcMessage {
+    /// Open or create one POSIX message queue.
+    @binding("destack.ipc.message.open", {
+        effect: "external",
+        requires: ["host.ipc.message"],
+        families: ["unix"],
+        simulation: true,
+    })
+    openMessageQueue(
+        name: &readonly string,
+        options: MessageQueueOpenOptions,
+    ): Result<MessageQueueHandle, HostError>;
 
-/// Close one message queue handle.
-@binding("destack.ipc.message.close", {
-    effect: "external",
-    requires: ["host.ipc.message"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function closeMessageQueue(queue: MessageQueueHandle): Result<void, HostError>;
+    /// Close one message queue handle.
+    @binding("destack.ipc.message.close", {
+        effect: "external",
+        requires: ["host.ipc.message"],
+        families: ["unix"],
+        simulation: true,
+    })
+    closeMessageQueue(queue: MessageQueueHandle): Result<void, HostError>;
 
-/// Remove one named message queue.
-@binding("destack.ipc.message.remove", {
-    effect: "external",
-    requires: ["host.ipc.message"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function removeMessageQueue(name: &readonly string): Result<void, HostError>;
+    /// Remove one named message queue.
+    @binding("destack.ipc.message.remove", {
+        effect: "external",
+        requires: ["host.ipc.message"],
+        families: ["unix"],
+        simulation: true,
+    })
+    removeMessageQueue(name: &readonly string): Result<void, HostError>;
 
-/// Send one message to a queue.
-@binding("destack.ipc.message.send", {
-    effect: "external",
-    requires: ["host.ipc.message"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function sendMessageQueue(
-    queue: MessageQueueHandle,
-    priority: uint32,
-    payload: &readonly [uint8],
-    timeoutNanoseconds?: uint64,
-): Result<void, HostError>;
+    /// Send one message to a queue.
+    @binding("destack.ipc.message.send", {
+        effect: "external",
+        requires: ["host.ipc.message"],
+        families: ["unix"],
+        simulation: true,
+    })
+    sendMessageQueue(
+        queue: MessageQueueHandle,
+        priority: uint32,
+        payload: &readonly [uint8],
+        timeoutNanoseconds?: uint64,
+    ): Result<void, HostError>;
 
-/// Receive one message from a queue.
-@binding("destack.ipc.message.receive", {
-    effect: "external",
-    requires: ["host.ipc.message"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function receiveMessageQueue(
-    queue: MessageQueueHandle,
-    buffer: &[uint8],
-    timeoutNanoseconds?: uint64,
-): Result<MessageQueueMessage, HostError>;
+    /// Receive one message from a queue.
+    @binding("destack.ipc.message.receive", {
+        effect: "external",
+        requires: ["host.ipc.message"],
+        families: ["unix"],
+        simulation: true,
+    })
+    receiveMessageQueue(
+        queue: MessageQueueHandle,
+        buffer: &[uint8],
+        timeoutNanoseconds?: uint64,
+    ): Result<MessageQueueMessage, HostError>;
+}

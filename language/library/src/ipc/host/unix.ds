@@ -27,30 +27,33 @@ export struct UnixSocketMessage {
     credentials?: UnixSocketCredentials;
 }
 
-/// Send one Unix-domain socket message with transferred handles.
-@binding("destack.ipc.unix.send", {
-    effect: "external",
-    requires: ["host.ipc.unix", "host.ipc.handle.pass"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function sendUnixSocketMessage(
-    socket: SocketHandle,
-    payload: &readonly [uint8],
-    handles: &readonly [TransferredHandle],
-    flags: SocketMessageFlags,
-): Result<uint64, HostError>;
+/// Unix binding family.
+export interface IpcUnix {
+    /// Send one Unix-domain socket message with transferred handles.
+    @binding("destack.ipc.unix.send", {
+        effect: "external",
+        requires: ["host.ipc.unix", "host.ipc.handle.pass"],
+        families: ["unix"],
+        simulation: true,
+    })
+    sendUnixSocketMessage(
+        socket: SocketHandle,
+        payload: &readonly [uint8],
+        handles: &readonly [TransferredHandle],
+        flags: SocketMessageFlags,
+    ): Result<uint64, HostError>;
 
-/// Receive one Unix-domain socket message with transferred handles.
-@binding("destack.ipc.unix.receive", {
-    effect: "external",
-    requires: ["host.ipc.unix", "host.ipc.handle.pass"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function receiveUnixSocketMessage(
-    socket: SocketHandle,
-    payload: &[uint8],
-    handles: &[TransferredHandle],
-    flags: SocketMessageFlags,
-): Result<UnixSocketMessage, HostError>;
+    /// Receive one Unix-domain socket message with transferred handles.
+    @binding("destack.ipc.unix.receive", {
+        effect: "external",
+        requires: ["host.ipc.unix", "host.ipc.handle.pass"],
+        families: ["unix"],
+        simulation: true,
+    })
+    receiveUnixSocketMessage(
+        socket: SocketHandle,
+        payload: &[uint8],
+        handles: &[TransferredHandle],
+        flags: SocketMessageFlags,
+    ): Result<UnixSocketMessage, HostError>;
+}
