@@ -302,8 +302,14 @@ fn generic_argument_value(
 ) -> Option<GenericArgumentValue> {
     let argument = tree.get(argument_id);
     match argument {
-        dir::GenericArgument::Type { value } => Some(GenericArgumentValue::Type(*value)),
-        dir::GenericArgument::Value { value } => Some(GenericArgumentValue::Value(*value)),
+        dir::GenericArgument::Type { value }
+        | dir::GenericArgument::AssociatedType { value, .. } => {
+            Some(GenericArgumentValue::Type(*value))
+        }
+        dir::GenericArgument::Value { value }
+        | dir::GenericArgument::AssociatedConst { value, .. } => {
+            Some(GenericArgumentValue::Value(*value))
+        }
         dir::GenericArgument::SpreadType { .. }
         | dir::GenericArgument::SpreadValue { .. }
         | dir::GenericArgument::Error => None,

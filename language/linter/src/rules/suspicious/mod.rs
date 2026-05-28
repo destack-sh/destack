@@ -12,11 +12,8 @@ mod no_empty;
 mod no_empty_function;
 mod no_empty_pattern;
 mod no_empty_static_block;
-mod no_ex_assign;
 mod no_extra_non_null_assertion;
 mod no_identical_branches;
-mod no_inner_declarations;
-mod no_large_try_block;
 mod no_loop_func;
 mod no_misleading_character_class;
 mod no_mixed_key_types;
@@ -28,10 +25,8 @@ mod no_self_assign;
 mod no_shadow_restricted_names;
 mod no_single_element_tuple;
 mod no_template_curly_in_string;
-mod no_throw_literal;
 mod no_unused_except_recursion;
 mod no_useless_backreference;
-mod no_useless_catch;
 mod no_useless_computed_key;
 mod no_useless_concat;
 mod no_useless_constructor;
@@ -59,11 +54,8 @@ pub use no_empty::*;
 pub use no_empty_function::*;
 pub use no_empty_pattern::*;
 pub use no_empty_static_block::*;
-pub use no_ex_assign::*;
 pub use no_extra_non_null_assertion::*;
 pub use no_identical_branches::*;
-pub use no_inner_declarations::*;
-pub use no_large_try_block::*;
 pub use no_loop_func::*;
 pub use no_misleading_character_class::*;
 pub use no_mixed_key_types::*;
@@ -75,10 +67,8 @@ pub use no_self_assign::*;
 pub use no_shadow_restricted_names::*;
 pub use no_single_element_tuple::*;
 pub use no_template_curly_in_string::*;
-pub use no_throw_literal::*;
 pub use no_unused_except_recursion::*;
 pub use no_useless_backreference::*;
-pub use no_useless_catch::*;
 pub use no_useless_computed_key::*;
 pub use no_useless_concat::*;
 pub use no_useless_constructor::*;
@@ -106,12 +96,9 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoEmpty),
         boxed(NoEmptyFunction),
         boxed(NoEmptyPattern),
-        boxed(NoExAssign),
         boxed(NoEmptyStaticBlock),
         boxed(NoExtraNonNullAssertion),
         boxed(NoIdenticalBranches),
-        boxed(NoInnerDeclarations),
-        boxed(NoLargeTryBlock),
         boxed(NoLoopFunc),
         boxed(NoMisleadingCharacterClass),
         boxed(NoMixedKeyTypes),
@@ -123,10 +110,8 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoShadowRestrictedNames),
         boxed(NoSingleElementTuple),
         boxed(NoTemplateCurlyInString),
-        boxed(NoThrowLiteral),
         boxed(NoUnusedExceptRecursion),
         boxed(NoUselessBackreference),
-        boxed(NoUselessCatch),
         boxed(NoUselessComputedKey),
         boxed(NoUselessConcat),
         boxed(NoUselessConstructor),

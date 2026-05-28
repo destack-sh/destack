@@ -172,10 +172,12 @@ fn generic_argument_value_type_expression(
 ) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
     let argument = tree.get(argument_id);
     match argument {
-        dir::GenericArgument::Type { value } => Some(*value),
+        dir::GenericArgument::Type { value }
+        | dir::GenericArgument::AssociatedType { value, .. } => Some(*value),
         dir::GenericArgument::SpreadType { .. }
         | dir::GenericArgument::Value { .. }
-        | dir::GenericArgument::SpreadValue { .. } => None,
+        | dir::GenericArgument::SpreadValue { .. }
+        | dir::GenericArgument::AssociatedConst { .. } => None,
         dir::GenericArgument::Error => None,
     }
 }
@@ -300,9 +302,8 @@ fn type_argument_needs_parentheses(expression: &dir::TypeExpression) -> bool {
             | dir::TypeExpression::Array { .. }
             | dir::TypeExpression::Slice { .. }
             | dir::TypeExpression::Object { .. }
-            | dir::TypeExpression::Declaration { .. }
-            | dir::TypeExpression::FunctionTypeDeclaration(_)
-            | dir::TypeExpression::ConstructorTypeDeclaration(_)
+            | dir::TypeExpression::Function(_)
+            | dir::TypeExpression::Constructor(_)
             | dir::TypeExpression::Reference { .. }
             | dir::TypeExpression::Member { .. }
             | dir::TypeExpression::Const

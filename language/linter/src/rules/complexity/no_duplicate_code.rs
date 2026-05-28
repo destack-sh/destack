@@ -1600,26 +1600,13 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
         self.push_debug("parameter_kind", std::mem::discriminant(parameter));
         match parameter {
             dir::Parameter::Named {
-                name,
-                visibility,
-                is_readonly,
-                is_optional,
-                ..
+                name, is_optional, ..
             } => {
                 self.push_identifier_id("parameter_name", *name);
-                self.push_debug_optional("parameter_visibility", *visibility);
-                self.push_bool("parameter_is_readonly", *is_readonly);
                 self.push_bool("parameter_is_optional", *is_optional);
             }
-            dir::Parameter::VariadicNamed {
-                name,
-                visibility,
-                is_readonly,
-                ..
-            } => {
+            dir::Parameter::VariadicNamed { name, .. } => {
                 self.push_identifier_id("parameter_name", *name);
-                self.push_debug_optional("parameter_visibility", *visibility);
-                self.push_bool("parameter_is_readonly", *is_readonly);
                 self.push_bool("parameter_is_optional", false);
             }
             dir::Parameter::Pattern { is_optional, .. } => {
@@ -1671,7 +1658,7 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
             dir::Pattern::Binding { name, .. } => {
                 self.push_identifier_id("pattern_binding_name", *name);
             }
-            dir::Pattern::TaggedTuple { .. } | dir::Pattern::TaggedObject { .. } => {
+            dir::Pattern::Newtype { .. } | dir::Pattern::NominalObject { .. } => {
                 self.push_same("pattern_tagged", "true");
             }
             _ => {}

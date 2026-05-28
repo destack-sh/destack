@@ -71,10 +71,10 @@ fn pattern_assignment_value_expression_id(
         | dir::Pattern::Range { .. }
         | dir::Pattern::TypeExpression { .. }
         | dir::Pattern::Tuple { .. }
-        | dir::Pattern::TaggedTuple { .. }
+        | dir::Pattern::Newtype { .. }
         | dir::Pattern::Sequence { .. }
         | dir::Pattern::Object { .. }
-        | dir::Pattern::TaggedObject { .. }
+        | dir::Pattern::NominalObject { .. }
         | dir::Pattern::Union { .. } => None,
     }
 }

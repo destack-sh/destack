@@ -43,8 +43,8 @@ impl LintRule for NoRedundantPattern {
                 dir::Pattern::Object { .. }
                     | dir::Pattern::Sequence { .. }
                     | dir::Pattern::Tuple { .. }
-                    | dir::Pattern::TaggedObject { .. }
-                    | dir::Pattern::TaggedTuple { .. }
+                    | dir::Pattern::NominalObject { .. }
+                    | dir::Pattern::Newtype { .. }
             );
 
             if !is_destructuring {
@@ -100,11 +100,9 @@ fn binds_anything(ctx: &LintModuleContext<'_>, pattern_id: dir::LocalNodeId<dir:
             .iter()
             .any(|field_id| field_binds_anything(ctx, *field_id)),
 
-        dir::Pattern::TaggedObject { fields, .. } | dir::Pattern::TaggedTuple { fields, .. } => {
-            fields
-                .iter()
-                .any(|field_id| field_binds_anything(ctx, *field_id))
-        }
+        dir::Pattern::NominalObject { fields, .. } | dir::Pattern::Newtype { fields, .. } => fields
+            .iter()
+            .any(|field_id| field_binds_anything(ctx, *field_id)),
 
         // union patterns bind if any arm binds
         dir::Pattern::Union { patterns } => patterns.iter().any(|p| binds_anything(ctx, *p)),

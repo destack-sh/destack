@@ -1,11 +1,8 @@
 mod array_type;
-mod catch_error_name;
 mod comment_casing;
 mod comment_layout;
 mod comment_punctuation;
 mod consistent_extension_style;
-mod consistent_type_definitions;
-mod consistent_type_imports;
 mod default_param_last;
 mod dot_notation;
 mod explicit_function_return_type;
@@ -16,7 +13,6 @@ mod no_collapsible_if;
 mod no_duplicate_string;
 mod no_duplicate_type_constituents;
 mod no_else_return;
-mod no_empty_interface;
 mod no_extra_boolean_cast;
 mod no_lonely_if;
 mod no_negated_condition;
@@ -48,7 +44,6 @@ mod prefer_nullish_coalescing;
 mod prefer_numeric_literals;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
-mod prefer_promise_reject_errors;
 mod prefer_readonly;
 mod prefer_self_closing_tree;
 mod prefer_set_over_empty_map;
@@ -61,8 +56,6 @@ mod prefer_tuple_destructure;
 mod prefer_tuple_swap;
 mod prefer_unary_negation;
 mod promise_function_async;
-mod require_jsdoc;
-mod require_returns_doc;
 mod restrict_template_expressions;
 mod sort_imports;
 mod symbol_description;
@@ -71,13 +64,10 @@ mod yoda;
 use crate::{BoxedLintRule, boxed};
 
 pub use array_type::*;
-pub use catch_error_name::*;
 pub use comment_casing::*;
 pub use comment_layout::*;
 pub use comment_punctuation::*;
 pub use consistent_extension_style::*;
-pub use consistent_type_definitions::*;
-pub use consistent_type_imports::*;
 pub use default_param_last::*;
 pub use dot_notation::*;
 pub use explicit_function_return_type::*;
@@ -88,7 +78,6 @@ pub use no_collapsible_if::*;
 pub use no_duplicate_string::*;
 pub use no_duplicate_type_constituents::*;
 pub use no_else_return::*;
-pub use no_empty_interface::*;
 pub use no_extra_boolean_cast::*;
 pub use no_lonely_if::*;
 pub use no_negated_condition::*;
@@ -120,7 +109,6 @@ pub use prefer_nullish_coalescing::*;
 pub use prefer_numeric_literals::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
-pub use prefer_promise_reject_errors::*;
 pub use prefer_readonly::*;
 pub use prefer_self_closing_tree::*;
 pub use prefer_set_over_empty_map::*;
@@ -133,8 +121,6 @@ pub use prefer_tuple_destructure::*;
 pub use prefer_tuple_swap::*;
 pub use prefer_unary_negation::*;
 pub use promise_function_async::*;
-pub use require_jsdoc::*;
-pub use require_returns_doc::*;
 pub use restrict_template_expressions::*;
 pub use sort_imports::*;
 pub use symbol_description::*;
@@ -143,14 +129,11 @@ pub use yoda::*;
 /// Get all style rules.
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
-        boxed(CatchErrorName),
         boxed(ArrayType),
         boxed(CommentCasing),
         boxed(CommentLayout),
         boxed(CommentPunctuation),
         boxed(ConsistentExtensionStyle),
-        boxed(ConsistentTypeDefinitions),
-        boxed(ConsistentTypeImports),
         boxed(DefaultParamLast),
         boxed(DotNotation),
         boxed(ExplicitFunctionReturnType),
@@ -161,7 +144,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoDuplicateString),
         boxed(NoDuplicateTypeConstituents),
         boxed(NoElseReturn),
-        boxed(NoEmptyInterface),
         boxed(NoExtraBooleanCast),
         boxed(NoLonelyIf),
         boxed(NoNegatedCondition),
@@ -189,7 +171,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferLoop),
         boxed(PreferMatch),
         boxed(PreferPatternOverGuard),
-        boxed(PreferPromiseRejectErrors),
         boxed(PreferReadonly),
         boxed(PreferSelfClosingTree),
         boxed(PreferStruct),
@@ -206,8 +187,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferTemplate),
         boxed(PreferUnaryNegation),
         boxed(PromiseFunctionAsync),
-        boxed(RequireJsdoc),
-        boxed(RequireReturnsDoc),
         boxed(RestrictTemplateExpressions),
         boxed(SortImports),
         boxed(SymbolDescription),
