@@ -1,0 +1,55 @@
+import { LabelSelector } from "destack:topology";
+
+/// Binding selector for simulated host calls.
+export struct Selector {
+    /// Optional binding module name.
+    module?: string;
+    /// Optional binding facet name.
+    facet?: string;
+    /// Optional binding operation name.
+    operation?: string;
+    /// Optional full binding name.
+    binding?: string;
+    /// Optional required action.
+    action?: string;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Match every binding attempt.
+export function any(): Selector {
+    Selector {}
+}
+
+/// Match one binding module.
+export function module(name: string): Selector {
+    Selector { module: name }
+}
+
+/// Match one full binding name.
+export function binding(name: string): Selector {
+    Selector { binding: name }
+}
+
+extension of Selector {
+    /// Return this selector with one facet.
+    facet(this: Selector, name: string): Selector {
+        this.facet = name;
+
+        this
+    }
+
+    /// Return this selector with one operation.
+    operation(this: Selector, name: string): Selector {
+        this.operation = name;
+
+        this
+    }
+
+    /// Return this selector with one action.
+    action(this: Selector, name: string): Selector {
+        this.action = name;
+
+        this
+    }
+}

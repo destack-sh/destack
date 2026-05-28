@@ -5,18 +5,25 @@ import { HostError } from "destack:error/host";
 import * as runtime from "destack:runtime";
 import * as test from "destack:test";
 
-import { Trace } from "./trace.ds";
+import { Fault } from "../fault/fault.ds";
+import { Rule, RuleId, Selector } from "../scenario/rule.ds";
+import { Scenario } from "../scenario/scenario.ds";
+import { Trigger } from "../scenario/trigger.ds";
+import { Simulation } from "./simulation.ds";
 
 /// Simulation callback context.
 export newtype interface Context extends test.CaseContext {
+    /// Active simulation.
+    readonly simulation: Simulation;
+
     /// Simulation world.
     readonly world: runtime.World;
 
     /// Active simulation scenario.
-    readonly scenario: runtime.Scenario;
+    readonly scenario: Scenario;
 
-    /// Recorded simulation trace.
-    readonly trace: Trace;
+    /// Runtime causal trace.
+    readonly trace: runtime.Trace;
 
     /// Create one runtime in this simulation world.
     runtime(options?: runtime.RuntimeCreateOptions): Result<runtime.Runtime, HostError>;
@@ -28,16 +35,16 @@ export newtype interface Context extends test.CaseContext {
     ): Result<runtime.Worker, HostError>;
 
     /// Install one rule in the active simulation scenario.
-    rule(rule: runtime.ScenarioRule): Result<void, HostError>;
+    rule(rule: Rule): RuleId;
 
     /// Install one fault in the active simulation scenario.
-    fault(fault: runtime.Fault, trigger?: runtime.ScenarioTrigger): Result<void, HostError>;
+    fault(select: Selector, fault: Fault, trigger?: Trigger): RuleId;
 
     /// Install one simulated binding implementation.
     bind<T>(name: string, implementation: T): T;
 
-    /// Advance the simulation world by one tick.
-    tick(): Result<runtime.TickResult, HostError>;
+    /// Advance the simulation world by one deterministic step.
+    step(): Result<runtime.TickResult, HostError>;
 
     /// Run the simulation until no work is ready.
     runUntilIdle(): Promise<void>;

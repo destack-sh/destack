@@ -1,0 +1,80 @@
+import { todo } from "destack:error";
+import { LabelSet } from "destack:topology";
+
+import { Attempt } from "../binding/attempt.ds";
+import { FaultSet } from "../fault/fault.ds";
+import { Rule, RuleId } from "./rule.ds";
+
+/// Stable scenario identifier.
+export newtype ScenarioId = uint64;
+
+/// Scenario construction options.
+export struct ScenarioOptions {
+    /// Optional scenario name.
+    name?: string;
+    /// Initial enabled state.
+    enabled?: boolean;
+    /// Scenario labels.
+    labels?: LabelSet;
+    /// Initial rule list.
+    rules?: [Rule];
+}
+
+/// Active simulation scenario.
+export class Scenario {
+    /// Stable scenario identifier.
+    readonly id: ScenarioId;
+    /// Optional scenario name.
+    readonly name?: string;
+    /// Scenario labels.
+    readonly labels?: LabelSet;
+    /// Create a scenario.
+    constructor(options?: ScenarioOptions) {
+        todo("simulation.Scenario.constructor");
+    }
+
+    /// Return whether this scenario is enabled.
+    isEnabled(this: &readonly Scenario): boolean {
+        todo("simulation.Scenario.isEnabled")
+    }
+
+    /// Enable this scenario.
+    enable(this: &exclusive Scenario): void {
+        todo("simulation.Scenario.enable");
+    }
+
+    /// Disable this scenario.
+    disable(this: &exclusive Scenario): void {
+        todo("simulation.Scenario.disable");
+    }
+
+    /// Add one rule.
+    add(this: &exclusive Scenario, rule: Rule): RuleId {
+        todo("simulation.Scenario.add")
+    }
+
+    /// Replace one rule.
+    replace(this: &exclusive Scenario, id: RuleId, rule: Rule): void {
+        todo("simulation.Scenario.replace");
+    }
+
+    /// Remove one rule.
+    remove(this: &exclusive Scenario, id: RuleId): boolean {
+        todo("simulation.Scenario.remove")
+    }
+
+    /// Clear all rules and runtime rule state.
+    clear(this: &exclusive Scenario): void {
+        todo("simulation.Scenario.clear");
+    }
+
+    /// Return active rules.
+    rules(this: &readonly Scenario): [Rule] {
+        todo("simulation.Scenario.rules")
+    }
+
+    /// Decide faults for one simulated attempt.
+    faults(this: &exclusive Scenario, attempt: Attempt): FaultSet {
+        todo("simulation.Scenario.faults")
+    }
+}

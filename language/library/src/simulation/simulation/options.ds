@@ -1,6 +1,9 @@
 import { RandomSeed } from "destack:runtime";
 import * as test from "destack:test";
 
+import { HostPatch } from "../host/host.ds";
+import { ScenarioOptions } from "../scenario/scenario.ds";
+
 /// Simulation seed.
 export type Seed = RandomSeed;
 
@@ -8,4 +11,8 @@ export type Seed = RandomSeed;
 export type Options = test.Options & {
     /// Deterministic simulation seed.
     seed?: Seed;
+    /// Initial scenario options.
+    scenario?: ScenarioOptions;
+    /// Explicit host overrides.
+    host?: HostPatch;
 };

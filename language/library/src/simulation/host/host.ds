@@ -1,0 +1,4 @@
+import { ContextPatch } from "destack:context";
+
+/// Simulation host override patch.
+export type HostPatch = ContextPatch;

@@ -1,0 +1,60 @@
+import { Attempt } from "../binding/attempt.ds";
+import { ClockFault } from "./clock.ds";
+import { LifecycleFault } from "./lifecycle.ds";
+import { OperationFault } from "./operation.ds";
+import { RandomFault } from "./random.ds";
+import { ResourceFault } from "./resource.ds";
+import { StorageFault } from "./storage.ds";
+import { TransportFault } from "./transport.ds";
+
+/// User-defined simulation fault.
+export struct CustomFault {
+    /// Fault discriminator.
+    kind: "custom";
+    /// Stable custom fault name.
+    name: string;
+    /// Optional custom fault payload.
+    payload?: unknown;
+}
+
+/// Simulation fault payload.
+@derive(Tagged)
+export newtype Fault =
+    | OperationFault
+    | ResourceFault
+    | TransportFault
+    | StorageFault
+    | ClockFault
+    | RandomFault
+    | LifecycleFault
+    | CustomFault;
+
+/// Fault accepted by a scenario rule.
+export struct TriggeredFault {
+    /// Rule identifier that emitted this fault.
+    ruleId: string;
+    /// Attempt that matched the rule.
+    attempt: Attempt;
+    /// Fault payload.
+    fault: Fault;
+}
+
+/// Triggered fault set for one simulated attempt.
+export class FaultSet {
+    /// Triggered faults.
+    readonly faults: [TriggeredFault];
+
+    /// Create a fault set.
+    constructor(faults: [TriggeredFault]) {
+        this.faults = faults;
+    }
+
+    /// Return whether no fault triggered.
+    isEmpty(this: &readonly FaultSet): boolean {
+        this.faults.length == 0
+    }
+}
+/// Create a user-defined simulation fault.
+export function custom(name: string, payload?: unknown): CustomFault {
+    CustomFault { kind: "custom", name, payload }
+}

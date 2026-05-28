@@ -195,6 +195,21 @@
     "./simulation": {
       "path": "./src/simulation/index.ds"
     },
+    "./simulation/binding": {
+      "path": "./src/simulation/binding/index.ds"
+    },
+    "./simulation/fault": {
+      "path": "./src/simulation/fault/index.ds"
+    },
+    "./simulation/host": {
+      "path": "./src/simulation/host/index.ds"
+    },
+    "./simulation/scenario": {
+      "path": "./src/simulation/scenario/index.ds"
+    },
+    "./simulation/simulation": {
+      "path": "./src/simulation/simulation/index.ds"
+    },
     "./stream": {
       "path": "./src/stream/index.ds"
     },

@@ -1,0 +1,63 @@
+import { Context, ContextPatch } from "destack:context";
+import { Result, todo } from "destack:error";
+import { HostError } from "destack:error/host";
+import * as runtime from "destack:runtime";
+
+import { Rule, RuleId } from "../scenario/rule.ds";
+import { Scenario } from "../scenario/scenario.ds";
+import { Options } from "./options.ds";
+
+/// Managed simulation environment.
+export class Simulation {
+    /// Simulation world.
+    readonly world: runtime.World;
+    /// Simulation scenario.
+    readonly scenario: Scenario;
+
+    /// Create a simulation.
+    constructor(options?: Options) {
+        todo("simulation.Simulation.constructor");
+    }
+
+    /// Return context overrides for this simulation.
+    context(this: &readonly Simulation): ContextPatch {
+        todo("simulation.Simulation.context")
+    }
+
+    /// Run `body` inside this simulation context.
+    run<T>(this: &readonly Simulation, body: () => T): T {
+        Context.with(this.context(), body)
+    }
+
+    /// Describe this simulation world's causal trace.
+    trace(this: &readonly Simulation): Result<runtime.Trace, HostError> {
+        runtime.traceDescribe(this.world.handle)
+    }
+
+    /// Add one scenario rule.
+    rule(this: &exclusive Simulation, rule: Rule): RuleId {
+        this.scenario.add(rule)
+    }
+
+    /// Create one runtime in this simulation.
+    runtime(
+        this: &readonly Simulation,
+        options?: runtime.RuntimeCreateOptions,
+    ): Result<runtime.Runtime, HostError> {
+        todo("simulation.Simulation.runtime")
+    }
+
+    /// Create one worker in `owner`.
+    worker(
+        this: &readonly Simulation,
+        owner: runtime.Runtime,
+        options?: runtime.WorkerCreateOptions,
+    ): Result<runtime.Worker, HostError> {
+        todo("simulation.Simulation.worker")
+    }
+
+    /// Advance this simulation by one deterministic step.
+    step(this: &exclusive Simulation): Result<runtime.TickResult, HostError> {
+        todo("simulation.Simulation.step")
+    }
+}

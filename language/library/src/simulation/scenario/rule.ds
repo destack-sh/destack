@@ -1,0 +1,60 @@
+import { EdgeSelector, EntitySelector, LabelSet } from "destack:topology";
+
+import { Selector as BindingSelector } from "../binding/selector.ds";
+import { Fault } from "../fault/fault.ds";
+import { Trigger } from "./trigger.ds";
+
+/// Stable scenario rule identifier.
+export newtype RuleId = string;
+
+/// Selector accepted by one scenario rule.
+export type Selector =
+    | {
+          /// Match one binding selector.
+          kind: "binding";
+          /// Binding selector.
+          binding: BindingSelector;
+      }
+    | {
+          /// Match one topology entity selector.
+          kind: "entity";
+          /// Entity selector.
+          entity: EntitySelector;
+      }
+    | {
+          /// Match one topology edge selector.
+          kind: "edge";
+          /// Edge selector.
+          edge: EdgeSelector;
+      };
+
+/// Scenario rule definition.
+export struct Rule {
+    /// Stable rule identifier.
+    id: RuleId;
+    /// Whether this rule is enabled.
+    enabled?: boolean;
+    /// Selector for this rule.
+    select: Selector;
+    /// Trigger controls.
+    trigger: Trigger;
+    /// Fault injected by this rule.
+    fault: Fault;
+    /// Rule labels.
+    labels?: LabelSet;
+}
+
+/// Create a binding selector wrapper.
+export function binding(selector: BindingSelector): Selector {
+    { kind: "binding", binding: selector }
+}
+
+/// Create an entity selector wrapper.
+export function entity(selector: EntitySelector): Selector {
+    { kind: "entity", entity: selector }
+}
+
+/// Create an edge selector wrapper.
+export function edge(selector: EdgeSelector): Selector {
+    { kind: "edge", edge: selector }
+}
