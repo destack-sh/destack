@@ -933,7 +933,7 @@ fn test_parse_generic_arguments_with_shift_left_generic_arrow() {
 
     // verify the generic arrow argument shape
     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-        assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+        assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
             assert_eq!(function.generic_parameters.len(), 1);
             assert_node!(parser.tree, function.generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
                 assert_string!(parser, *name, "T");
@@ -971,7 +971,7 @@ fn test_parse_tree_with_shift_left_generic_arguments() {
             assert!(left_generic_arguments.is_empty());
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                         assert_eq!(function.parameters.len(), 1);
                     });
             });

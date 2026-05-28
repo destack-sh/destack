@@ -14,7 +14,7 @@ fn test_parse_function_type_return_conditional() {
     // type Getter<T, P> = (target: T, propertyKey: P) => P extends keyof T ? T[P] : any
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                     assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
@@ -57,7 +57,7 @@ fn test_parse_function_type_return_predicate() {
     // type Is<T> = (value: any) => value is T
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 assert_eq!(function.parameters.len(), 1);
                 assert!(function.this_parameter.is_none());
                 assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
@@ -86,7 +86,7 @@ fn test_parse_function_type_predicate_in_conditional_type() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "Actual");
-                assert_node!(parser.tree, *extends_type, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, *extends_type, TypeExpression::Function(function) => {
                     assert_eq!(function.parameters.len(), 2);
                     assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
                         assert!(!*asserts);

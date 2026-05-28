@@ -369,7 +369,7 @@ fn test_parse_call_with_shift_left_generic_arguments() {
         let generic_arguments = generic_arguments.as_slice();
         assert_eq!(generic_arguments.len(), 1);
         assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {
-                assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                     assert_eq!(function.parameters.len(), 1);
                 });
         });
@@ -659,7 +659,7 @@ fn test_parse_optional_call_after_function_type_instantiation_expression() {
                 assert_expression_path!(parser, parser.tree.get(*left), "f");
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                        assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                             assert_eq!(function.generic_parameters.len(), 1);
                         });
                 });

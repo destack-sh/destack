@@ -9,7 +9,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 
 /// Parsed type keyword header.
 #[derive(Debug, Copy, Clone)]
-struct TypeKeywordHeader {
+pub(in crate::parse) struct TypeKeywordHeader {
     /// The type declaration kind implied by the keyword.
     kind: TypeKind,
     /// The alias mutability implied by the keyword.
@@ -33,23 +33,23 @@ impl Parser {
     pub(crate) fn eat_type(
         &mut self,
         start: &ParserSpanStart,
-        header: DeclarationHeader,
+        _header: DeclarationHeader,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let keyword_start = self.span_start();
         let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
         let keyword_span = self.get_span_from(&keyword_start);
         let type_keyword = self.type_keyword_header(keyword)?;
 
-        // named alias
+        // named aliases are declarations, not type operands
         if self.identifier_starts_type_alias() {
-            return self.eat_type_alias_declaration(start, header, type_keyword);
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         self.eat_type_keyword_body_expression(start, keyword_span, type_keyword)
     }
 
     /// Return true when the current identifier head starts a type alias.
-    fn identifier_starts_type_alias(&mut self) -> bool {
+    pub(in crate::parse) fn identifier_starts_type_alias(&mut self) -> bool {
         // require one identifier head first
         if !self.peek_identifier_is() {
             return false;
@@ -71,7 +71,10 @@ impl Parser {
     }
 
     /// Return type keyword metadata.
-    fn type_keyword_header(&mut self, keyword: Keyword) -> ParserResult<TypeKeywordHeader> {
+    pub(in crate::parse) fn type_keyword_header(
+        &mut self,
+        keyword: Keyword,
+    ) -> ParserResult<TypeKeywordHeader> {
         let kind = match keyword {
             Keyword::Type | Keyword::Readonly => TypeKind::Structural,
             Keyword::Newtype => TypeKind::Nominal,
@@ -95,12 +98,12 @@ impl Parser {
     /// Value<T> = Result<T, Error>
     /// Value = { id: string }
     /// ```
-    fn eat_type_alias_declaration(
+    pub(in crate::parse) fn eat_type_alias_declaration(
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
         type_keyword: TypeKeywordHeader,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+    ) -> ParserResult<LocalNodeId<Declaration>> {
         let (name, name_span) = self.eat_name_with_span()?;
         let generic_parameter_container_start = self.span_start();
         let generic_parameters = match self.eat_generic_parameters_maybe(true)? {
@@ -137,12 +140,7 @@ impl Parser {
             );
         }
 
-        Ok(self.insert_node(
-            TypeExpression::Declaration {
-                declaration: declaration_id,
-            },
-            self.get_span_from(start),
-        ))
+        Ok(declaration_id)
     }
 
     /// Eat a type keyword expression body.

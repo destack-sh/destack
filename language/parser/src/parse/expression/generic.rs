@@ -70,7 +70,7 @@ impl Parser {
             GenericArgument::Type { value }
                 if matches!(
                     self.tree.get(*value),
-                    TypeExpression::FunctionTypeDeclaration(_)
+                    TypeExpression::Function(_)
                 )
         )
     }

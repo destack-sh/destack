@@ -12,7 +12,7 @@ fn test_parse_lambda_function_empty_type() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         assert_eq!(function.parameters.len(), 0);
         assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
             assert_eq!(*value, TypeLiteral::Void);
@@ -29,7 +29,7 @@ fn test_parse_lambda_function_type() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         // a: int32
         assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
             assert_string!(parser, *name, "a");
@@ -65,7 +65,7 @@ fn test_parse_lambda_function_type_container_spans_with_comments() {
 
     test.assert_no_errors(&parser);
 
-    assert_node!(parser.tree, type_expression_id, TypeExpression::FunctionTypeDeclaration(function) => {
+    assert_node!(parser.tree, type_expression_id, TypeExpression::Function(function) => {
         let parameter_type_span = parser
             .tree
             .get_side_span(function.parameters[0], NodeSpanType::Region(NodeSpanRegion::Type))
@@ -184,7 +184,7 @@ add satisfies (a: number, b: number) => number;"#,
     // add satisfies (a: number, b: number) => number
     assert_node!(parser.tree, expressions[1], Expression::Satisfies { expression, target_type } => {
         assert_expression_path!(parser, parser.tree.get(*expression), "add");
-        assert_node!(parser.tree, *target_type, TypeExpression::FunctionTypeDeclaration(function) => {
+        assert_node!(parser.tree, *target_type, TypeExpression::Function(function) => {
             assert_eq!(function.parameters.len(), 2);
             assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
                 assert_eq!(*value, TypeLiteral::Number);
@@ -494,7 +494,7 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
                 });
 
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
-                    assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                    assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                         assert_eq!(function.parameters.len(), 1);
                         assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                             assert_string!(parser, *name, "action");
@@ -539,7 +539,7 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
             });
 
             // (value: T) => T
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Function(function) => {
                 assert_eq!(function.parameters.len(), 1);
                 assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type: Some(declared_type), .. } => {
                     assert_string!(parser, *name, "value");
@@ -582,7 +582,7 @@ fn test_parse_arrow_return_type_predicate_with_nested_optional_parameter_functio
                         assert_eq!(properties.len(), 1);
                         assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
                             assert_string!(parser, *name, "focus");
-                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::FunctionTypeDeclaration(function) => {
+                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
                                 assert_eq!(function.parameters.len(), 1);
                                 assert_node!(parser.tree, function.parameters[0], Parameter::Named { is_optional, name, declared_type: Some(declared_type), .. } => {
                                     assert!(*is_optional);

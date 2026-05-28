@@ -345,9 +345,8 @@ impl Parser {
             self.tree.get(type_expression_id),
             TypeExpression::Reference { .. }
                 | TypeExpression::Member { .. }
-                | TypeExpression::Declaration { .. }
-                | TypeExpression::FunctionTypeDeclaration(_)
-                | TypeExpression::ConstructorTypeDeclaration(_)
+                | TypeExpression::Function(_)
+                | TypeExpression::Constructor(_)
         )
     }
 }

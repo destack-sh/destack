@@ -255,6 +255,41 @@ impl Parser {
             self.eat_token(TokenType::Spread)?;
         }
 
+        // associated type refinement
+        if !is_spread
+            && self.is_keyword(Keyword::Type)
+            && self.token_type_at_offset(1) == TokenType::Identifier
+            && self.token_type_at_offset(2) == TokenType::Assign
+        {
+            self.eat_keyword(Keyword::Type)?;
+            let name = self.eat_identifier()?;
+            self.eat_token(TokenType::Assign)?;
+            let value = self.eat_type_expression_in_flags(context.with_type(true))?;
+            let argument = GenericArgument::AssociatedType { name, value };
+
+            return Ok(self.insert_node(argument, self.get_span_from(start)));
+        }
+
+        // associated const refinement
+        if !is_spread
+            && self.is_keyword(Keyword::Comptime)
+            && self.token_type_at_offset(1) == TokenType::Identifier
+            && self.token_type_at_offset(2) == TokenType::Assign
+        {
+            self.eat_keyword(Keyword::Comptime)?;
+            let name = self.eat_identifier()?;
+            self.eat_token(TokenType::Assign)?;
+            let value_ambient_context = self.flags.with_type(false);
+            let value = self.eat_expression(
+                self.flags
+                    .with_ambient_context(value_ambient_context)
+                    .with_expression_context(context),
+            )?;
+            let argument = GenericArgument::AssociatedConst { name, value };
+
+            return Ok(self.insert_node(argument, self.get_span_from(start)));
+        }
+
         // parse obvious type arguments directly
         if self.generic_argument_starts_unambiguous_type() {
             let value = self.eat_type_expression_in_flags(context)?;
@@ -864,15 +899,18 @@ impl Parser {
             }
         };
 
-        let visibility = modifiers.and_then(|modifier_set| modifier_set.visibility);
-        let is_readonly = modifiers.is_some_and(|modifier_set| modifier_set.is_readonly);
+        if let Some(modifier_set) = modifiers.as_ref()
+            && (modifier_set.visibility.is_some() || modifier_set.is_readonly)
+        {
+            self.error(&ParserError::unexpected(self.get_span_from(&start)));
+        }
+
         let is_optional = modifiers.is_some_and(|modifier_set| modifier_set.is_optional);
         let is_comptime = modifiers.is_some_and(|modifier_set| modifier_set.is_comptime);
 
         // = value
         let parameter = {
-            let has_default_assign = self.peek_is(TokenType::Assign)
-                || self.current_token_is_on_new_line() && self.peek_is(TokenType::Assign);
+            let has_default_assign = self.peek_is(TokenType::Assign);
             if !is_variadic && has_default_assign {
                 self.bump(); // eat assign
 
@@ -892,8 +930,6 @@ impl Parser {
                 if let Some(name) = name {
                     Parameter::Named {
                         name,
-                        visibility,
-                        is_readonly,
                         is_optional,
                         is_comptime,
                         declared_type,
@@ -919,8 +955,6 @@ impl Parser {
                 if let Some(name) = name {
                     Parameter::VariadicNamed {
                         name,
-                        visibility,
-                        is_readonly,
                         is_comptime,
                         declared_type,
                     }
@@ -941,8 +975,6 @@ impl Parser {
                 if let Some(name) = name {
                     Parameter::Named {
                         name,
-                        visibility,
-                        is_readonly,
                         is_optional,
                         is_comptime,
                         declared_type,

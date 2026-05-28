@@ -5,10 +5,10 @@ use crate::parse::{DeclarationHeader, RecoveryPoint};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
-    Asynchrony, BlockContext, ConstructorTypeDeclaration, Declaration, ExportKind, Expression,
+    Asynchrony, BlockContext, ConstructorType, Declaration, ExportKind, Expression,
     FunctionDeclaration, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
-    FunctionTypeDeclaration, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
-    TokenType, TypeExpression, WhereClause,
+    FunctionType, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType,
+    TypeExpression, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -221,14 +221,7 @@ impl Parser {
             return Ok(self.insert_function_type_expression(start, function));
         }
 
-        let function_id = self.insert_function_declaration(start, function);
-
-        Ok(self.insert_node(
-            TypeExpression::Declaration {
-                declaration: function_id,
-            },
-            self.get_span_from(start),
-        ))
+        Err(ParserError::unexpected(self.anchor_span_here()))
     }
 
     /// Eat one function before inserting a grammar-specific node.
@@ -352,16 +345,14 @@ impl Parser {
 
         // node
         let type_expression = match function.signature.role {
-            Some(FunctionRole::New) => {
-                TypeExpression::ConstructorTypeDeclaration(ConstructorTypeDeclaration {
-                    is_abstract: function.signature.is_abstract,
-                    generic_parameters: function.signature.generic_parameters,
-                    where_clauses: function.signature.where_clauses,
-                    parameters: function.signature.parameters,
-                    return_type: function.signature.return_type,
-                })
-            }
-            None => TypeExpression::FunctionTypeDeclaration(FunctionTypeDeclaration {
+            Some(FunctionRole::New) => TypeExpression::Constructor(ConstructorType {
+                is_abstract: function.signature.is_abstract,
+                generic_parameters: function.signature.generic_parameters,
+                where_clauses: function.signature.where_clauses,
+                parameters: function.signature.parameters,
+                return_type: function.signature.return_type,
+            }),
+            None => TypeExpression::Function(FunctionType {
                 generic_parameters: function.signature.generic_parameters,
                 where_clauses: function.signature.where_clauses,
                 this_parameter: function.signature.this_parameter,
@@ -695,8 +686,6 @@ impl Parser {
             let parameter_id = self.insert_node(
                 Parameter::Named {
                     name: parameter_name,
-                    visibility: None,
-                    is_readonly: false,
                     is_optional: false,
                     is_comptime: false,
                     declared_type: parameter_type,
@@ -917,8 +906,6 @@ impl Parser {
         let parameter_id = self.insert_node(
             Parameter::Named {
                 name: parameter_name,
-                visibility: None,
-                is_readonly: false,
                 is_optional: false,
                 is_comptime: false,
                 declared_type: None,
@@ -1124,8 +1111,6 @@ impl Parser {
         let name = self.eat_identifier()?;
         let parameter = Parameter::Named {
             name,
-            visibility: None,
-            is_readonly: false,
             is_optional: false,
             is_comptime: false,
             declared_type: None,

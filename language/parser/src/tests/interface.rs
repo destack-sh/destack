@@ -765,7 +765,7 @@ fn test_parse_newtype_interface_empty() {
 fn test_parse_newtype_interface_with_method() {
     let mut test = TestParser::new(
         r#"
-interface Add<T, R = Self> {
+interface Add<T, R = this> {
     add(other: T): R
 }
 "#,
@@ -780,7 +780,7 @@ interface Add<T, R = Self> {
         assert!(*is_nominal);
         assert_string!(parser, name.unwrap().string(), "Add");
 
-        // <T, R = Self>
+        // <T, R = this>
         let params = generic_parameters;
         assert_eq!(params.len(), 2);
 

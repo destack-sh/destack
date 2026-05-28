@@ -99,7 +99,7 @@ fn test_parse_type_predicate_comment_boundaries() {
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 let predicate_id = function.return_type.expect("expected return type");
                 assert_node!(parser.tree, predicate_id, TypeExpression::Predicate { target, .. } => {
                     let target = target.expect("expected predicate target");
