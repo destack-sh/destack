@@ -1,6 +1,4 @@
-import { Macro } from "destack:macro";
-
-import { TreeTagBuilder } from "./config.ds";
+import { Derive, TreeTagBuilder } from "./config.ds";
 
 /// The target platform (OS) the code is being compiled for.
 export type Platform =
@@ -89,8 +87,8 @@ export interface ImportMeta {
     readonly stage: Stage | undefined;
     /// Tree tag builder declared by the current module.
     readonly tree: TreeTagBuilder | undefined;
-    /// Auto-derive providers declared by the current module.
-    readonly derive: readonly Macro<unknown>[];
+    /// Auto-derives declared by the current module.
+    readonly derive: readonly Derive[];
     /// Active source graph role declared by the current module.
     readonly role: string | undefined;
     /// Module metadata labels.

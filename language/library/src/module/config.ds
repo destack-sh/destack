@@ -1,14 +1,27 @@
-import { Macro } from "destack:macro";
-
 /// Builder for lowercase tree tags in one module.
 export newtype interface TreeTagBuilder {}
+
+/// Well-known derive considered automatically for nominal declarations.
+export type Derive =
+    | "Compare"
+    | "Copy"
+    | "Clone"
+    | "Debug"
+    | "Default"
+    | "Deserialize"
+    | "Equal"
+    | "Hash"
+    | "PartialCompare"
+    | "PartialEqual"
+    | "Serialize"
+    | "Tagged";
 
 /// Static configuration for one source module.
 export interface Module {
     /// The tree tag builder for tree literals in this module.
     readonly tree?: TreeTagBuilder;
-    /// Auto-derive providers for nominal declarations in this module.
-    readonly derive?: readonly Macro<unknown>[];
+    /// Auto-derives considered for nominal declarations in this module.
+    readonly derive?: readonly Derive[];
     /// Active deliverable product name for this module.
     readonly product?: string;
     /// Active source graph role for this module.
