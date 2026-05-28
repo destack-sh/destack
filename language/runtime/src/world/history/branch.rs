@@ -70,12 +70,10 @@ impl World {
     /// Return metadata for one specific branch.
     pub fn branch_info(&self, branch_id: BranchId) -> RuntimeResult<Branch> {
         let history = self.history.read();
-        let branch = history.branches.get(&branch_id).ok_or_else(|| {
-            RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed()
-        })?;
+        let branch = history
+            .branches
+            .get(&branch_id)
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
         Ok(branch.clone())
     }
@@ -93,12 +91,10 @@ impl World {
         value: impl Into<String>,
     ) -> RuntimeResult<()> {
         let mut history = self.history.write();
-        let branch = history.branches.get_mut(&branch_id).ok_or_else(|| {
-            RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed()
-        })?;
+        let branch = history
+            .branches
+            .get_mut(&branch_id)
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
         branch.labels.insert(key.into(), value.into());
 
         Ok(())

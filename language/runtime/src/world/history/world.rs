@@ -40,10 +40,10 @@ impl World {
     /// Restore this branch to one specific moment.
     pub fn restore_moment(&mut self, moment: Moment) -> RuntimeResult<()> {
         if moment.branch_id != self.state.branch_id {
-            return Err(RuntimeError::MomentBranchMismatch {
-                moment_branch_id: moment.branch_id.get(),
-                world_branch_id: self.state.branch_id.get(),
-            }
+            return Err(RuntimeError::moment_branch_mismatch(
+                moment.branch_id.get(),
+                self.state.branch_id.get(),
+            )
             .boxed());
         }
 
@@ -51,10 +51,10 @@ impl World {
             let history = self.history.read();
             let head_revision = history.head_revision(moment.branch_id)?;
             if head_revision.sequence.get() < moment.sequence.get() {
-                return Err(RuntimeError::MomentNotFound {
-                    branch_id: moment.branch_id.get(),
-                    sequence: moment.sequence.get(),
-                }
+                return Err(RuntimeError::moment_not_found(
+                    moment.branch_id.get(),
+                    moment.sequence.get(),
+                )
                 .boxed());
             }
             let anchor_revision_id =
@@ -309,10 +309,10 @@ impl World {
             let history = self.history.read();
             let head_revision = history.head_revision(moment.branch_id)?;
             if head_revision.sequence.get() < moment.sequence.get() {
-                return Err(RuntimeError::MomentNotFound {
-                    branch_id: moment.branch_id.get(),
-                    sequence: moment.sequence.get(),
-                }
+                return Err(RuntimeError::moment_not_found(
+                    moment.branch_id.get(),
+                    moment.sequence.get(),
+                )
                 .boxed());
             }
             let anchor_revision =
@@ -334,12 +334,9 @@ impl World {
         rebinders: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
         while trace.sequence()? != target_sequence {
-            let event = trace.next_event()?.ok_or_else(|| {
-                RuntimeError::TraceExhausted {
-                    sequence: target_sequence.get(),
-                }
-                .boxed()
-            })?;
+            let event = trace
+                .next_event()?
+                .ok_or_else(|| RuntimeError::trace_exhausted(target_sequence.get()).boxed())?;
 
             match event {
                 TraceRecord::Mutation(mutation) => {

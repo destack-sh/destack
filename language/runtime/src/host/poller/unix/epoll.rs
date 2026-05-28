@@ -170,13 +170,10 @@ impl HostPoller for EpollPoller {
         }
 
         // resolve the existing registration
-        let entry = self.registrations.get_mut(&resource_id).ok_or_else(|| {
-            RuntimeError::ResourceNotFound {
-                resource_id: resource_id.local_id,
-                resource_kind: None,
-            }
-            .boxed()
-        })?;
+        let entry = self
+            .registrations
+            .get_mut(&resource_id)
+            .ok_or_else(|| RuntimeError::resource_not_found(resource_id.local_id, None).boxed())?;
 
         // update the registration in epoll
         let mut event = epoll_event {

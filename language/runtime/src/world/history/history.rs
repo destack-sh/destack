@@ -70,8 +70,10 @@ pub struct HistorySnapshot {
     pub next_revision_id: u128,
     /// The next checkpoint identifier to allocate.
     pub next_checkpoint_id: u128,
-    /// The serialized shared-heap allocator pages reachable from this history.
-    pub allocator: heap::AllocatorImage,
+    /// The shared allocator page width.
+    pub allocator_page_bytes: usize,
+    /// The shared allocator chunk width.
+    pub allocator_chunk_bytes: usize,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
     /// The known branch metadata records.
@@ -91,13 +93,12 @@ pub struct HistorySnapshot {
 impl History {
     /// Capture one durable history snapshot for all retained history.
     pub(crate) fn full_snapshot(&self) -> RuntimeResult<HistorySnapshot> {
-        let reachable_pages = self.reachable_image_pages(self.images.values().map(Arc::as_ref));
-
         Ok(HistorySnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
+            allocator_page_bytes: self.allocator.page_bytes(),
+            allocator_chunk_bytes: self.allocator.chunk_bytes(),
             next_image_id: self.next_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
@@ -125,7 +126,6 @@ impl History {
     ) -> RuntimeResult<HistorySnapshot> {
         let revision = self.revision(revision_id)?;
         let branch = self.branch(revision.branch_id)?;
-        let reachable_pages = self.reachable_image_pages([image]);
 
         // exact snapshot history
         let branch = Branch {
@@ -162,7 +162,8 @@ impl History {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
+            allocator_page_bytes: self.allocator.page_bytes(),
+            allocator_chunk_bytes: self.allocator.chunk_bytes(),
             next_image_id: self.next_image_id,
             branches: BTreeMap::from([(branch.id, branch)]),
             revisions: BTreeMap::from([(revision_id, revision)]),
@@ -239,7 +240,10 @@ impl History {
         snapshot: HistorySnapshot,
         collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Self> {
-        let allocator = Arc::new(heap::Allocator::from_image(&snapshot.allocator)?);
+        let allocator = Arc::new(heap::Allocator::try_new(
+            snapshot.allocator_page_bytes,
+            snapshot.allocator_chunk_bytes,
+        )?);
         let images = snapshot
             .images
             .into_iter()
@@ -270,25 +274,6 @@ impl History {
         history.rebuild_image_tables();
 
         Ok(history)
-    }
-
-    /// Collect the allocator pages reachable from one set of retained world images.
-    fn reachable_image_pages<'a>(
-        &self,
-        images: impl IntoIterator<Item = &'a WorldImage>,
-    ) -> Vec<heap::PageId> {
-        let mut reachable_pages = Vec::new();
-
-        for image in images {
-            for runtime in image.runtimes.values() {
-                reachable_pages.extend(runtime.shared_heap.page_ids());
-            }
-        }
-
-        reachable_pages.sort_unstable();
-        reachable_pages.dedup();
-
-        reachable_pages
     }
 
     /// Allocate one new branch identifier.
@@ -338,12 +323,9 @@ impl History {
         name: String,
     ) -> RuntimeResult<Branch> {
         // resolve the parent revision before mutating history state
-        self.revisions.get(&parent_revision_id).ok_or_else(|| {
-            RuntimeError::RevisionNotFound {
-                revision_id: parent_revision_id.get(),
-            }
-            .boxed()
-        })?;
+        self.revisions
+            .get(&parent_revision_id)
+            .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()).boxed())?;
 
         let branch = Branch {
             id: self.allocate_branch_id(),
@@ -367,12 +349,11 @@ impl History {
         mono: Instant,
         checkpoint_name: Option<String>,
     ) -> RuntimeResult<(RevisionId, Revision, Option<Checkpoint>)> {
-        let parent_branch = self.branches.get(&branch_id).cloned().ok_or_else(|| {
-            RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed()
-        })?;
+        let parent_branch = self
+            .branches
+            .get(&branch_id)
+            .cloned()
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
         let revision_id = self.allocate_revision();
         let revision = Revision {
@@ -423,22 +404,20 @@ impl History {
         let mut current_revision = revision_id;
 
         loop {
-            let revision = self.revisions.get(&current_revision).ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: current_revision.get(),
-                }
-                .boxed()
-            })?;
+            let revision = self
+                .revisions
+                .get(&current_revision)
+                .ok_or_else(|| RuntimeError::revision_not_found(current_revision.get()).boxed())?;
 
             if has_image(revision.image_id) {
                 return Ok(current_revision);
             }
 
             let Some(parent_revision_id) = revision.parent_revision_id else {
-                return Err(RuntimeError::RevisionImageMissing {
-                    revision_id: current_revision.get(),
-                    image_id: revision.image_id.get(),
-                }
+                return Err(RuntimeError::revision_image_missing(
+                    current_revision.get(),
+                    revision.image_id.get(),
+                )
                 .boxed());
             };
 
@@ -448,12 +427,10 @@ impl History {
 
     /// Return one committed revision by identifier.
     pub(crate) fn revision(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
-        self.revisions.get(&revision_id).cloned().ok_or_else(|| {
-            RuntimeError::RevisionNotFound {
-                revision_id: revision_id.get(),
-            }
-            .boxed()
-        })
+        self.revisions
+            .get(&revision_id)
+            .cloned()
+            .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())
     }
 
     /// Append committed observations for one branch in stable moment order.
@@ -478,10 +455,10 @@ impl History {
         end: Moment,
     ) -> RuntimeResult<Vec<ObservationEntry>> {
         if start.branch_id != end.branch_id {
-            return Err(RuntimeError::MomentBranchMismatch {
-                moment_branch_id: start.branch_id.get(),
-                world_branch_id: end.branch_id.get(),
-            }
+            return Err(RuntimeError::moment_branch_mismatch(
+                start.branch_id.get(),
+                end.branch_id.get(),
+            )
             .boxed());
         }
 
@@ -495,11 +472,9 @@ impl History {
 
         let head_revision = self.head_revision(end.branch_id)?;
         if end.sequence.get() > head_revision.sequence.get() {
-            return Err(RuntimeError::MomentNotFound {
-                branch_id: end.branch_id.get(),
-                sequence: end.sequence.get(),
-            }
-            .boxed());
+            return Err(
+                RuntimeError::moment_not_found(end.branch_id.get(), end.sequence.get()).boxed(),
+            );
         }
 
         let Some(records) = self.observations.get(&end.branch_id) else {
@@ -520,22 +495,17 @@ impl History {
 
     /// Return the head revision for one branch.
     pub(crate) fn head_revision(&self, branch_id: BranchId) -> RuntimeResult<Revision> {
-        let branch = self.branches.get(&branch_id).ok_or_else(|| {
-            RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed()
-        })?;
+        let branch = self
+            .branches
+            .get(&branch_id)
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
         let revision = self
             .revisions
             .get(&branch.head_revision_id)
             .cloned()
             .ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: branch.head_revision_id.get(),
-                }
-                .boxed()
+                RuntimeError::revision_not_found(branch.head_revision_id.get()).boxed()
             })?;
 
         Ok(revision)
@@ -543,22 +513,18 @@ impl History {
 
     /// Return the branch-origin moment for one branch.
     pub(crate) fn branch_origin_moment(&self, branch_id: BranchId) -> RuntimeResult<Moment> {
-        let branch = self.branches.get(&branch_id).ok_or_else(|| {
-            RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed()
-        })?;
+        let branch = self
+            .branches
+            .get(&branch_id)
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
         let sequence = match branch.origin {
             BranchOrigin::Root => TraceSequence::new(0),
             BranchOrigin::Fork { parent_revision_id } => {
-                let parent_revision_id =
-                    self.revisions.get(&parent_revision_id).ok_or_else(|| {
-                        RuntimeError::RevisionNotFound {
-                            revision_id: parent_revision_id.get(),
-                        }
-                    })?;
+                let parent_revision_id = self
+                    .revisions
+                    .get(&parent_revision_id)
+                    .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()))?;
                 parent_revision_id.sequence
             }
         };
@@ -575,12 +541,10 @@ impl History {
 
     /// Return one branch metadata record.
     pub(crate) fn branch(&self, branch_id: BranchId) -> RuntimeResult<Branch> {
-        self.branches.get(&branch_id).cloned().ok_or_else(|| {
-            RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed()
-        })
+        self.branches
+            .get(&branch_id)
+            .cloned()
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())
     }
 
     /// Return every ancestor branch id from root to the requested branch.
@@ -589,11 +553,10 @@ impl History {
         let mut ancestors = vec![branch.id];
 
         while let BranchOrigin::Fork { parent_revision_id } = branch.origin {
-            let parent_revision_id = self.revisions.get(&parent_revision_id).ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: parent_revision_id.get(),
-                }
-            })?;
+            let parent_revision_id = self
+                .revisions
+                .get(&parent_revision_id)
+                .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()))?;
             branch = self.branch(parent_revision_id.branch_id)?;
             ancestors.push(branch.id);
         }
@@ -638,24 +601,20 @@ impl History {
         let mut left_chain = BTreeMap::new();
         let mut current_left = Some(self.branch(left_branch_id)?.head_revision_id);
         while let Some(revision_id) = current_left {
-            let revision = self.revisions.get(&revision_id).ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: revision_id.get(),
-                }
-                .boxed()
-            })?;
+            let revision = self
+                .revisions
+                .get(&revision_id)
+                .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
             left_chain.insert(revision_id, revision.clone());
             current_left = revision.parent_revision_id;
         }
 
         let mut current_right = Some(self.branch(right_branch_id)?.head_revision_id);
         while let Some(revision_id) = current_right {
-            let revision = self.revisions.get(&revision_id).ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: revision_id.get(),
-                }
-                .boxed()
-            })?;
+            let revision = self
+                .revisions
+                .get(&revision_id)
+                .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
 
             if let Some(common) = left_chain.get(&revision_id) {
                 return Ok(common.clone());
@@ -677,28 +636,20 @@ impl History {
         sequence: TraceSequence,
     ) -> RuntimeResult<RevisionId> {
         let mut revision_id = self.branch(branch_id)?.head_revision_id;
-        let revision = self.revisions.get(&revision_id).ok_or_else(|| {
-            RuntimeError::RevisionNotFound {
-                revision_id: revision_id.get(),
-            }
-            .boxed()
-        })?;
+        let revision = self
+            .revisions
+            .get(&revision_id)
+            .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
 
         if revision.sequence.get() < sequence.get() {
-            return Err(RuntimeError::MomentNotFound {
-                branch_id: branch_id.get(),
-                sequence: sequence.get(),
-            }
-            .boxed());
+            return Err(RuntimeError::moment_not_found(branch_id.get(), sequence.get()).boxed());
         }
 
         loop {
-            let revision = self.revisions.get(&revision_id).ok_or_else(|| {
-                RuntimeError::RevisionNotFound {
-                    revision_id: revision_id.get(),
-                }
-                .boxed()
-            })?;
+            let revision = self
+                .revisions
+                .get(&revision_id)
+                .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
 
             if revision.sequence.get() <= sequence.get() {
                 return Ok(revision_id);
@@ -727,22 +678,18 @@ impl History {
 
     /// Return one retained image payload.
     pub(crate) fn image(&self, image_id: ImageId) -> RuntimeResult<Arc<WorldImage>> {
-        self.images.get(&image_id).cloned().ok_or_else(|| {
-            RuntimeError::ImageNotFound {
-                image_id: image_id.get(),
-            }
-            .boxed()
-        })
+        self.images
+            .get(&image_id)
+            .cloned()
+            .ok_or_else(|| RuntimeError::image_not_found(image_id.get()).boxed())
     }
 
     /// Return one retained trace image payload.
     pub(crate) fn trace_image(&self, revision_id: RevisionId) -> RuntimeResult<Arc<TraceImage>> {
-        self.trace_images.get(&revision_id).cloned().ok_or_else(|| {
-            RuntimeError::RevisionTraceImageMissing {
-                revision_id: revision_id.get(),
-            }
-            .boxed()
-        })
+        self.trace_images
+            .get(&revision_id)
+            .cloned()
+            .ok_or_else(|| RuntimeError::revision_trace_image_missing(revision_id.get()).boxed())
     }
 
     /// Return whether one retained image payload exists.
@@ -803,10 +750,7 @@ impl History {
     /// Return the nearest retained parent image for one branch head.
     fn parent_retained_image(&self, branch_id: BranchId) -> RuntimeResult<Option<Arc<WorldImage>>> {
         let Some(branch) = self.branches.get(&branch_id) else {
-            return Err(RuntimeError::BranchNotFound {
-                branch_id: branch_id.get(),
-            }
-            .boxed());
+            return Err(RuntimeError::branch_not_found(branch_id.get()).boxed());
         };
 
         let retained_revision = self
@@ -815,10 +759,7 @@ impl History {
             })?;
 
         let Some(revision) = self.revisions.get(&retained_revision) else {
-            return Err(RuntimeError::RevisionNotFound {
-                revision_id: retained_revision.get(),
-            }
-            .boxed());
+            return Err(RuntimeError::revision_not_found(retained_revision.get()).boxed());
         };
 
         Ok(self.images.get(&revision.image_id).cloned())

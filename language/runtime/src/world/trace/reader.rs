@@ -93,10 +93,8 @@ impl TraceCursor {
         while cursor.read_chunk < state.chunk_count() {
             let chunk_index = cursor.read_chunk;
             let chunk = Self::chunk(&state, &self.prefix_cache, chunk_index).ok_or_else(|| {
-                RuntimeError::InconsistentImage {
-                    detail: format!("trace chunk {chunk_index} is missing"),
-                }
-                .boxed()
+                RuntimeError::inconsistent_image(format!("trace chunk {chunk_index} is missing"))
+                    .boxed()
             })?;
 
             // validate one chunk the first time this cursor reads it
@@ -109,19 +107,13 @@ impl TraceCursor {
             if cursor.read_index < chunk.header.event_count as usize {
                 let sequence = cursor.next_sequence;
                 if cursor.read_index == 0 && chunk.header.sequence_start != sequence {
-                    return Err(RuntimeError::TraceMismatch {
-                        name: "sequence".to_string(),
-                    }
-                    .boxed());
+                    return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
                 }
 
                 let start = cursor.read_offset;
                 let length_end = start + TRACE_EVENT_LENGTH_BYTES;
                 if length_end > chunk.bytes.len() {
-                    return Err(RuntimeError::TraceMismatch {
-                        name: "chunk_length".to_string(),
-                    }
-                    .boxed());
+                    return Err(RuntimeError::trace_mismatch("chunk_length".to_string()).boxed());
                 }
 
                 let mut event_length = [0u8; 4];
@@ -129,25 +121,15 @@ impl TraceCursor {
                 let event_length = u32::from_le_bytes(event_length) as usize;
                 let end = length_end + event_length;
                 if end > chunk.bytes.len() {
-                    return Err(RuntimeError::TraceMismatch {
-                        name: "chunk_length".to_string(),
-                    }
-                    .boxed());
+                    return Err(RuntimeError::trace_mismatch("chunk_length".to_string()).boxed());
                 }
                 let encoded = &chunk.bytes[length_end..end];
-                let event = postcard::from_bytes(encoded).map_err(|_| {
-                    RuntimeError::TraceDecodeFailed {
-                        name: "event".to_string(),
-                    }
-                    .boxed()
-                })?;
+                let event = postcard::from_bytes(encoded)
+                    .map_err(|_| RuntimeError::trace_decode_failed("event".to_string()).boxed())?;
                 if cursor.read_index + 1 == chunk.header.event_count as usize
                     && chunk.sequence_end() != sequence
                 {
-                    return Err(RuntimeError::TraceMismatch {
-                        name: "sequence".to_string(),
-                    }
-                    .boxed());
+                    return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
                 }
 
                 cursor.read_index += 1;
@@ -181,22 +163,13 @@ impl TraceCursor {
     pub(crate) fn restore_image(&mut self, image: TraceCursorImage) -> RuntimeResult<()> {
         let state = self.state.lock();
         if state.branch_id() != image.branch_id {
-            return Err(RuntimeError::TraceMismatch {
-                name: "branch".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("branch".to_string()).boxed());
         }
         if image.cursor.next_sequence.get() > image.upper_bound.get() {
-            return Err(RuntimeError::TraceMismatch {
-                name: "sequence".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
         }
         if image.upper_bound != state.next_sequence() {
-            return Err(RuntimeError::TraceMismatch {
-                name: "upper_bound".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("upper_bound".to_string()).boxed());
         }
 
         self.cursor = image.cursor;
@@ -215,10 +188,7 @@ impl TraceCursor {
         // reject seeks beyond the visible log tail
         let state = self.state.lock();
         if sequence.get() > state.next_sequence().get() {
-            return Err(RuntimeError::TraceMismatch {
-                name: "sequence".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
         }
 
         // refresh the shared prefix cache before scanning from the start
@@ -394,12 +364,10 @@ fn sequence_offset_in_chunk(
 ) -> RuntimeResult<(usize, usize)> {
     let sequence_start = chunk.header.sequence_start.get();
     let sequence_value = sequence.get();
-    let relative_index = sequence_value.checked_sub(sequence_start).ok_or_else(|| {
-        RuntimeError::TraceMismatch {
-            name: "sequence".to_string(),
-        }
-        .boxed()
-    })? as usize;
+    let relative_index = sequence_value
+        .checked_sub(sequence_start)
+        .ok_or_else(|| RuntimeError::trace_mismatch("sequence".to_string()).boxed())?
+        as usize;
 
     let read_offset = event_offset_in_chunk(chunk, relative_index)?;
 
@@ -409,10 +377,7 @@ fn sequence_offset_in_chunk(
 /// Validate chunk integrity against stored metadata.
 fn validate_chunk(chunk: &TraceChunk) -> RuntimeResult<()> {
     if event_offset_in_chunk(chunk, chunk.header.event_count as usize)? != chunk.bytes.len() {
-        return Err(RuntimeError::TraceMismatch {
-            name: "chunk_offsets".to_string(),
-        }
-        .boxed());
+        return Err(RuntimeError::trace_mismatch("chunk_offsets".to_string()).boxed());
     }
 
     Ok(())
@@ -425,21 +390,15 @@ fn event_offset_in_chunk(chunk: &TraceChunk, event_index: usize) -> RuntimeResul
     for _ in 0..event_index {
         let length_end = offset + TRACE_EVENT_LENGTH_BYTES;
         if length_end > chunk.bytes.len() {
-            return Err(RuntimeError::TraceMismatch {
-                name: "offset".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("offset".to_string()).boxed());
         }
 
         let mut event_length = [0u8; 4];
         event_length.copy_from_slice(&chunk.bytes[offset..length_end]);
         let event_length = u32::from_le_bytes(event_length) as usize;
-        offset = length_end.checked_add(event_length).ok_or_else(|| {
-            RuntimeError::TraceMismatch {
-                name: "offset".to_string(),
-            }
-            .boxed()
-        })?;
+        offset = length_end
+            .checked_add(event_length)
+            .ok_or_else(|| RuntimeError::trace_mismatch("offset".to_string()).boxed())?;
     }
 
     Ok(offset)

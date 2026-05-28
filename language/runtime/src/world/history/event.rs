@@ -377,12 +377,8 @@ impl Trace {
     /// Return one authoritative record at one exact sequence.
     pub(super) fn record_at(&self, sequence: TraceSequence) -> RuntimeResult<TraceRecord> {
         self.seek_sequence(sequence)?;
-        self.next_event()?.ok_or_else(|| {
-            RuntimeError::TraceExhausted {
-                sequence: sequence.get(),
-            }
-            .boxed()
-        })
+        self.next_event()?
+            .ok_or_else(|| RuntimeError::trace_exhausted(sequence.get()).boxed())
     }
 
     /// Project query events for one branch-local trace range.
@@ -396,12 +392,9 @@ impl Trace {
         self.seek_sequence(start)?;
 
         while self.sequence()? != end {
-            let record = self.next_event()?.ok_or_else(|| {
-                RuntimeError::TraceExhausted {
-                    sequence: end.get(),
-                }
-                .boxed()
-            })?;
+            let record = self
+                .next_event()?
+                .ok_or_else(|| RuntimeError::trace_exhausted(end.get()).boxed())?;
             let moment = Moment::new(branch_id, self.sequence()?);
             events.push(Event::from_trace(moment, record));
         }

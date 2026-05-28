@@ -90,12 +90,10 @@ impl World {
     /// Return metadata for one stored checkpoint.
     pub fn checkpoint_info(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
         let history = self.history.read();
-        let checkpoint = history.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-            RuntimeError::CheckpointNotFound {
-                checkpoint_id: checkpoint_id.get(),
-            }
-            .boxed()
-        })?;
+        let checkpoint = history
+            .checkpoints
+            .get(&checkpoint_id)
+            .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
 
         Ok(checkpoint.clone())
     }
@@ -113,12 +111,10 @@ impl World {
         value: impl Into<String>,
     ) -> RuntimeResult<()> {
         let mut history = self.history.write();
-        let checkpoint = history.checkpoints.get_mut(&checkpoint_id).ok_or_else(|| {
-            RuntimeError::CheckpointNotFound {
-                checkpoint_id: checkpoint_id.get(),
-            }
-            .boxed()
-        })?;
+        let checkpoint = history
+            .checkpoints
+            .get_mut(&checkpoint_id)
+            .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
         checkpoint.labels.insert(key.into(), value.into());
 
         Ok(())
@@ -130,12 +126,10 @@ impl World {
         checkpoint_id: CheckpointId,
     ) -> RuntimeResult<RevisionId> {
         let history = self.history.read();
-        let checkpoint = history.checkpoints.get(&checkpoint_id).ok_or_else(|| {
-            RuntimeError::CheckpointNotFound {
-                checkpoint_id: checkpoint_id.get(),
-            }
-            .boxed()
-        })?;
+        let checkpoint = history
+            .checkpoints
+            .get(&checkpoint_id)
+            .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
 
         Ok(checkpoint.revision_id)
     }

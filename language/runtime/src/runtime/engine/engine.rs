@@ -7,7 +7,10 @@ use destack_native as native;
 use destack_vm as vm;
 
 use super::{CallContext, Continuation, ContinuationImage, Entry, Image, MemoryContext, Outcome};
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::{EngineError, RuntimeError, RuntimeResult};
+
+const NATIVE_ENGINE: &str = "native";
+const VM_ENGINE: &str = "vm";
 
 /// Execution backend owned by one worker.
 pub enum Engine {
@@ -88,10 +91,10 @@ impl Engine {
                 Ok(outcome_from_native(outcome))
             }
             (Self::Vm(_), Continuation::Native(_)) => {
-                Err(engine_continuation_mismatch("vm", "native"))
+                Err(engine_continuation_mismatch(VM_ENGINE, NATIVE_ENGINE))
             }
             (Self::Native(_), Continuation::Vm(_)) => {
-                Err(engine_continuation_mismatch("native", "vm"))
+                Err(engine_continuation_mismatch(NATIVE_ENGINE, VM_ENGINE))
             }
         }
     }
@@ -191,8 +194,8 @@ impl Engine {
             (Self::Native(engine), Image::Native(image)) => {
                 engine::Engine::restore(engine, context, image).map_err(native_runtime_error)
             }
-            (Self::Vm(_), Image::Native(_)) => Err(engine_image_mismatch("vm", "native")),
-            (Self::Native(_), Image::Vm(_)) => Err(engine_image_mismatch("native", "vm")),
+            (Self::Vm(_), Image::Native(_)) => Err(engine_image_mismatch(VM_ENGINE, NATIVE_ENGINE)),
+            (Self::Native(_), Image::Vm(_)) => Err(engine_image_mismatch(NATIVE_ENGINE, VM_ENGINE)),
         }
     }
 
@@ -212,10 +215,10 @@ impl Engine {
                 Ok(ContinuationImage::Native(continuation.continuation.clone()))
             }
             (Self::Vm(_), Continuation::Native(_)) => {
-                Err(engine_continuation_mismatch("vm", "native"))
+                Err(engine_continuation_mismatch(VM_ENGINE, NATIVE_ENGINE))
             }
             (Self::Native(_), Continuation::Vm(_)) => {
-                Err(engine_continuation_mismatch("native", "vm"))
+                Err(engine_continuation_mismatch(NATIVE_ENGINE, VM_ENGINE))
             }
         }
     }
@@ -236,10 +239,10 @@ impl Engine {
                 native::Continuation::new(image.clone()),
             )),
             (Self::Vm(_), ContinuationImage::Native(_)) => {
-                Err(engine_continuation_mismatch("vm", "native"))
+                Err(engine_continuation_mismatch(VM_ENGINE, NATIVE_ENGINE))
             }
             (Self::Native(_), ContinuationImage::Vm(_)) => {
-                Err(engine_continuation_mismatch("native", "vm"))
+                Err(engine_continuation_mismatch(NATIVE_ENGINE, VM_ENGINE))
             }
         }
     }
@@ -253,10 +256,12 @@ impl Engine {
 
                 Ok(Self::Vm(engine))
             }
-            Image::Native(_) => Err(RuntimeError::EngineUnsupported {
-                engine: "native from_image".to_string(),
-            }
-            .boxed()),
+            Image::Native(_) => Err(engine_error(
+                NATIVE_ENGINE,
+                EngineError::Unsupported {
+                    feature: "image restore".to_string(),
+                },
+            )),
         }
     }
 }
@@ -314,18 +319,29 @@ fn outcome_from_native(
 
 /// Return one engine continuation mismatch.
 fn engine_continuation_mismatch(engine: &str, continuation: &str) -> Box<RuntimeError> {
-    RuntimeError::EngineContinuationMismatch {
-        engine: engine.to_string(),
-        continuation: continuation.to_string(),
-    }
-    .boxed()
+    engine_error(
+        engine,
+        EngineError::ContinuationMismatch {
+            continuation: continuation.to_string(),
+        },
+    )
 }
 
 /// Return one engine image mismatch.
 fn engine_image_mismatch(engine: &str, image: &str) -> Box<RuntimeError> {
-    RuntimeError::EngineImageMismatch {
+    engine_error(
+        engine,
+        EngineError::ImageMismatch {
+            image: image.to_string(),
+        },
+    )
+}
+
+/// Return one engine error.
+fn engine_error(engine: &str, reason: EngineError) -> Box<RuntimeError> {
+    RuntimeError::Engine {
         engine: engine.to_string(),
-        image: image.to_string(),
+        reason,
     }
     .boxed()
 }
@@ -333,56 +349,55 @@ fn engine_image_mismatch(engine: &str, image: &str) -> Box<RuntimeError> {
 /// Convert one native backend error into one runtime error.
 fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
     match error {
-        native::Error::YieldedWithoutContinuation { .. } => RuntimeError::EngineYieldMissing {
-            engine: "native".to_string(),
+        native::Error::YieldedWithoutContinuation { .. } => {
+            engine_error(NATIVE_ENGINE, EngineError::YieldMissing)
         }
-        .boxed(),
-        native::Error::Trapped { .. } => RuntimeError::EngineTrap {
-            engine: "native".to_string(),
-        }
-        .boxed(),
+        native::Error::Trapped { .. } => engine_error(NATIVE_ENGINE, EngineError::Trap),
         native::Error::DeoptimizedWithoutMaterialization { .. } => {
-            RuntimeError::EngineDeoptMissing {
-                engine: "native".to_string(),
-            }
-            .boxed()
+            engine_error(NATIVE_ENGINE, EngineError::DeoptMissing)
         }
-        native::Error::Panicked { .. } => RuntimeError::EnginePanic {
-            engine: "native".to_string(),
-        }
-        .boxed(),
-        native::Error::InvalidStatus(error) => RuntimeError::EngineUnsupported {
-            engine: format!("native status {error}"),
-        }
-        .boxed(),
-        native::Error::InvalidTrap(error) => RuntimeError::EngineUnsupported {
-            engine: format!("native trap {error}"),
-        }
-        .boxed(),
-        native::Error::Value(error) => RuntimeError::EngineUnsupported {
-            engine: format!("native value {error}"),
-        }
-        .boxed(),
-        native::Error::ContinuationUnavailable => RuntimeError::EngineUnsupported {
-            engine: "native continuation".to_string(),
-        }
-        .boxed(),
+        native::Error::Panicked { .. } => engine_error(NATIVE_ENGINE, EngineError::Panic),
+        native::Error::InvalidStatus(error) => engine_error(
+            NATIVE_ENGINE,
+            EngineError::Unsupported {
+                feature: format!("status {error}"),
+            },
+        ),
+        native::Error::InvalidTrap(error) => engine_error(
+            NATIVE_ENGINE,
+            EngineError::Unsupported {
+                feature: format!("trap {error}"),
+            },
+        ),
+        native::Error::Value(error) => engine_error(
+            NATIVE_ENGINE,
+            EngineError::Unsupported {
+                feature: format!("value {error}"),
+            },
+        ),
+        native::Error::ContinuationUnavailable => engine_error(
+            NATIVE_ENGINE,
+            EngineError::Unsupported {
+                feature: "continuation".to_string(),
+            },
+        ),
         native::Error::ImageEngineMismatch {
             engine_id,
             image_engine_id,
-        } => RuntimeError::EngineImageMismatch {
-            engine: format!("native {}", engine_id.get()),
-            image: format!("native {}", image_engine_id.get()),
+        } => engine_error(
+            &format!("native {}", engine_id.get()),
+            EngineError::ImageMismatch {
+                image: format!("native {}", image_engine_id.get()),
+            },
+        ),
+        native::Error::RootMapUnavailable => engine_error(
+            NATIVE_ENGINE,
+            EngineError::Unsupported {
+                feature: "root map".to_string(),
+            },
+        ),
+        native::Error::EntryNotFound { name } => {
+            engine_error(NATIVE_ENGINE, EngineError::EntryUnavailable { entry: name })
         }
-        .boxed(),
-        native::Error::RootMapUnavailable => RuntimeError::EngineUnsupported {
-            engine: "native root map".to_string(),
-        }
-        .boxed(),
-        native::Error::EntryNotFound { name } => RuntimeError::EngineEntryMismatch {
-            engine: "native".to_string(),
-            entry: name,
-        }
-        .boxed(),
     }
 }

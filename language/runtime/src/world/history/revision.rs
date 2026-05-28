@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::{Entity, EntityError, RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{World, WorldImage};
@@ -71,12 +71,10 @@ impl World {
     /// Return metadata for one specific revision.
     pub fn revision(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
         let history = self.history.read();
-        let revision = history.revisions.get(&revision_id).ok_or_else(|| {
-            RuntimeError::RevisionNotFound {
-                revision_id: revision_id.get(),
-            }
-            .boxed()
-        })?;
+        let revision = history
+            .revisions
+            .get(&revision_id)
+            .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
 
         Ok(revision.clone())
     }
@@ -94,12 +92,13 @@ impl World {
         let history = self.history.read();
         let image = history
             .image(revision.image_id)
-            .map_err(|error| match *error {
-                RuntimeError::ImageNotFound { .. } => RuntimeError::RevisionImageMissing {
-                    revision_id: revision_id.get(),
-                    image_id: revision.image_id.get(),
+            .map_err(|error| match error.as_ref() {
+                RuntimeError::Entity {
+                    reason: EntityError::NotFound(Entity::Image { .. }),
+                } => {
+                    RuntimeError::revision_image_missing(revision_id.get(), revision.image_id.get())
+                        .boxed()
                 }
-                .boxed(),
                 _ => error,
             })?;
         let trace_image = history.trace_image(revision_id)?;

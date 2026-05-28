@@ -184,12 +184,9 @@ impl Trace {
 
         while self.sequence()? != end {
             let before = Moment::new(branch_id, self.sequence()?);
-            let cause = self.next_event()?.ok_or_else(|| {
-                RuntimeError::TraceExhausted {
-                    sequence: end.get(),
-                }
-                .boxed()
-            })?;
+            let cause = self
+                .next_event()?
+                .ok_or_else(|| RuntimeError::trace_exhausted(end.get()).boxed())?;
             let after = Moment::new(branch_id, self.sequence()?);
             let kind = match cause {
                 TraceRecord::Mutation(_) => TransitionKind::Mutation,

@@ -258,11 +258,10 @@ impl World {
     /// Return the topology name for one live runtime.
     pub fn runtime_name(&self, runtime_id: RuntimeId) -> RuntimeResult<&str> {
         let topology = &self.state.topology;
-        let entity = topology.entities().get(&runtime_id.entity_id()).ok_or(
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            },
-        )?;
+        let entity = topology
+            .entities()
+            .get(&runtime_id.entity_id())
+            .ok_or(RuntimeError::runtime_not_found(runtime_id.0))?;
 
         Ok(entity.name.as_str())
     }
@@ -270,11 +269,10 @@ impl World {
     /// Return the topology entity for one live runtime.
     pub(crate) fn runtime_entity(&self, runtime_id: RuntimeId) -> RuntimeResult<Entity> {
         let topology = &self.state.topology;
-        let entity = topology.entities().get(&runtime_id.entity_id()).ok_or(
-            RuntimeError::RuntimeNotFound {
-                runtime_id: runtime_id.0,
-            },
-        )?;
+        let entity = topology
+            .entities()
+            .get(&runtime_id.entity_id())
+            .ok_or(RuntimeError::runtime_not_found(runtime_id.0))?;
 
         Ok(entity.clone())
     }
@@ -289,11 +287,10 @@ impl World {
     /// Return the topology name for one live worker.
     pub fn worker_name(&self, worker_id: WorkerId) -> RuntimeResult<&str> {
         let topology = &self.state.topology;
-        let entity = topology.entities().get(&worker_id.entity_id()).ok_or(
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            },
-        )?;
+        let entity = topology
+            .entities()
+            .get(&worker_id.entity_id())
+            .ok_or(RuntimeError::worker_not_found(worker_id.0))?;
 
         Ok(entity.name.as_str())
     }
@@ -301,11 +298,10 @@ impl World {
     /// Return the topology entity for one live worker.
     pub(crate) fn worker_entity(&self, worker_id: WorkerId) -> RuntimeResult<Entity> {
         let topology = &self.state.topology;
-        let entity = topology.entities().get(&worker_id.entity_id()).ok_or(
-            RuntimeError::WorkerNotFound {
-                worker_id: worker_id.0,
-            },
-        )?;
+        let entity = topology
+            .entities()
+            .get(&worker_id.entity_id())
+            .ok_or(RuntimeError::worker_not_found(worker_id.0))?;
 
         Ok(entity.clone())
     }

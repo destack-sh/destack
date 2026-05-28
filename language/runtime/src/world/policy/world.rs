@@ -33,19 +33,12 @@ impl WorldState {
         mode: ExecutionMode,
         conditions: &'a ConditionSet,
     ) -> RuntimeResult<Subject<'a>> {
-        let (runtime_name, runtime_labels) =
-            topology.runtime_subject(runtime_id).ok_or_else(|| {
-                RuntimeError::TopologyRuntimeMissing {
-                    runtime_id: runtime_id.0,
-                }
-                .boxed()
-            })?;
-        let (worker_name, worker_labels) = topology.worker_subject(worker_id).ok_or_else(|| {
-            RuntimeError::TopologyWorkerMissing {
-                worker_id: worker_id.0,
-            }
-            .boxed()
-        })?;
+        let (runtime_name, runtime_labels) = topology
+            .runtime_subject(runtime_id)
+            .ok_or_else(|| RuntimeError::topology_runtime_missing(runtime_id.0).boxed())?;
+        let (worker_name, worker_labels) = topology
+            .worker_subject(worker_id)
+            .ok_or_else(|| RuntimeError::topology_worker_missing(worker_id.0).boxed())?;
 
         let subject = Subject::new(
             runtime_name,

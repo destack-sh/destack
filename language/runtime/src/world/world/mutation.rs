@@ -227,10 +227,7 @@ impl World {
                 }
                 // detached worker metadata
                 else if self.state.topology.worker_subject(worker_id).is_none() {
-                    return Err(RuntimeError::WorkerNotFound {
-                        worker_id: worker_id.0,
-                    }
-                    .boxed());
+                    return Err(RuntimeError::worker_not_found(worker_id.0).boxed());
                 }
 
                 self.remove_worker_metadata(worker_id);

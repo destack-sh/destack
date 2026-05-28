@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::diagnostic::{HostErrorCode, RuntimeError};
+use crate::diagnostic::{BindingError, HostErrorCode, RuntimeError};
 use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingDeterminism, BindingId, BindingProvider,
     BindingReplayKind, BindingReplayPayload,
@@ -95,10 +95,10 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
             descriptor,
             BindingReplayPayload::Results,
             || {
-                Err(RuntimeError::PolicyViolation {
-                    name: "destack.test.binding.error".to_string(),
-                }
-                .boxed())
+                Err(
+                    RuntimeError::policy_violation("destack.test.binding.error".to_string())
+                        .boxed(),
+                )
             },
             |result| {
                 let payload = match result {
@@ -134,11 +134,13 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
     // verify replay preserved the runtime variant
     match (record_error.as_ref(), replay_error.as_ref()) {
         (
-            RuntimeError::PolicyViolation {
+            RuntimeError::Binding {
                 name: recorded_name,
+                reason: BindingError::PolicyViolation,
             },
-            RuntimeError::PolicyViolation {
+            RuntimeError::Binding {
                 name: replayed_name,
+                reason: BindingError::PolicyViolation,
             },
         ) => assert_eq!(replayed_name, recorded_name),
         _ => panic!("replay did not preserve policy violation variant"),
@@ -269,10 +271,10 @@ fn test_replay_entropy_runtime_error_roundtrip() {
             stream_id,
             || {},
             || {
-                Err(RuntimeError::PolicyViolation {
-                    name: "destack.test.random.u64.error".to_string(),
-                }
-                .boxed())
+                Err(
+                    RuntimeError::policy_violation("destack.test.random.u64.error".to_string())
+                        .boxed(),
+                )
             },
         )
         .expect_err("record random error");
@@ -286,11 +288,13 @@ fn test_replay_entropy_runtime_error_roundtrip() {
     // verify replay preserved the runtime variant
     match (record_error.as_ref(), replay_error.as_ref()) {
         (
-            RuntimeError::PolicyViolation {
+            RuntimeError::Binding {
                 name: recorded_name,
+                reason: BindingError::PolicyViolation,
             },
-            RuntimeError::PolicyViolation {
+            RuntimeError::Binding {
                 name: replayed_name,
+                reason: BindingError::PolicyViolation,
             },
         ) => assert_eq!(replayed_name, recorded_name),
         _ => panic!("replay did not preserve policy violation variant"),
@@ -309,12 +313,7 @@ fn test_replay_entropy_vm_error_roundtrip() {
             subject,
             stream_id,
             || {},
-            || {
-                Err(RuntimeError::Vm(Box::new(vm::Error::Panic {
-                    message: "dst vm panic".to_string(),
-                }))
-                .boxed())
-            },
+            || Err(RuntimeError::Vm(Box::new(vm::Error::panic("dst vm panic"))).boxed()),
         )
         .expect_err("record vm error");
 

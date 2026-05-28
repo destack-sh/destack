@@ -117,10 +117,9 @@ impl Observations {
     pub fn close(&self, subscription_id: ObservationSubscriptionId) -> RuntimeResult<()> {
         let mut subscriptions = self.subscriptions.write();
         if subscriptions.remove(&subscription_id).is_none() {
-            return Err(RuntimeError::ObservationSubscriptionNotFound {
-                subscription_id: subscription_id.get(),
-            }
-            .boxed());
+            return Err(
+                RuntimeError::observation_subscription_not_found(subscription_id.get()).boxed(),
+            );
         }
 
         Ok(())
@@ -138,10 +137,9 @@ impl Observations {
 
         let mut subscriptions = self.subscriptions.write();
         let Some(subscription) = subscriptions.get_mut(&subscription_id) else {
-            return Err(RuntimeError::ObservationSubscriptionNotFound {
-                subscription_id: subscription_id.get(),
-            }
-            .boxed());
+            return Err(
+                RuntimeError::observation_subscription_not_found(subscription_id.get()).boxed(),
+            );
         };
 
         let tail = self.tail.read();

@@ -59,19 +59,14 @@ impl BindingAccess {
     pub fn ensure_allowed(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
         // action requirements
         if let Some(action) = self.missing_required_action(spec) {
-            return Err(RuntimeError::ActionDenied {
-                name: spec.name.to_string(),
-                action: action.to_string(),
-            }
-            .boxed());
+            return Err(
+                RuntimeError::action_denied(spec.name.to_string(), action.to_string()).boxed(),
+            );
         }
 
         // execution mode
         if !self.allows_determinism(spec.determinism) {
-            return Err(RuntimeError::PolicyViolation {
-                name: spec.name.to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::policy_violation(spec.name.to_string()).boxed());
         }
 
         Ok(())

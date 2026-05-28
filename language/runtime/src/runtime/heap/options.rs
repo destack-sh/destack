@@ -80,7 +80,7 @@ fn resolve_local_heap_policy(
     };
 
     heap_options.validate_local().map_err(|error| {
-        RuntimeError::ConfigurationInvalid {
+        RuntimeError::Configuration {
             scope: scope.into(),
             detail: error.to_string(),
         }
@@ -107,7 +107,7 @@ fn resolve_shared_heap_policy(
     };
 
     heap_options.validate().map_err(|error| {
-        RuntimeError::ConfigurationInvalid {
+        RuntimeError::Configuration {
             scope: scope.into(),
             detail: error.to_string(),
         }

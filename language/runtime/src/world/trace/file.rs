@@ -58,26 +58,17 @@ impl TraceFile {
             .windows(2)
             .any(|pair| pair[0].sequence > pair[1].sequence)
         {
-            return Err(RuntimeError::TraceMismatch {
-                name: "checkpoints".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("checkpoints".to_string()).boxed());
         }
 
         // verify chunk index entries
         if self.trailer.chunks != expected.chunks {
-            return Err(RuntimeError::TraceMismatch {
-                name: "chunks".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("chunks".to_string()).boxed());
         }
 
         // verify trailer hash
         if self.trailer.log_hash != expected.log_hash {
-            return Err(RuntimeError::TraceMismatch {
-                name: "log_hash".to_string(),
-            }
-            .boxed());
+            return Err(RuntimeError::trace_mismatch("log_hash".to_string()).boxed());
         }
 
         Ok(())

@@ -895,14 +895,11 @@ impl From<HostError> for vm::Error {
                 | HostErrorCode::InvalidArgumentType
                 | HostErrorCode::InvalidArgumentValue
         ) {
-            return vm::Error::TypeMismatch {
-                expected: "valid argument".to_string(),
-                actual: error.message(),
-            };
+            return vm::Error::type_mismatch("valid argument", error.message());
         }
 
         if error.code == HostErrorCode::NullPointer {
-            return vm::Error::NullPointerDereference;
+            return vm::Error::null_pointer_dereference();
         }
 
         if error.code == HostErrorCode::NotSupported {
@@ -911,12 +908,10 @@ impl From<HostError> for vm::Error {
                 .as_ref()
                 .and_then(|context| context.feature.clone())
                 .unwrap_or_else(|| error.message());
-            return vm::Error::BindingCallForbidden { name };
+            return vm::Error::import_forbidden(name);
         }
 
-        vm::Error::Panic {
-            message: error.message(),
-        }
+        vm::Error::panic(error.message())
     }
 }
 

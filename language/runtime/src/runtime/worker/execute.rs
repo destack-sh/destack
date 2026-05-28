@@ -102,10 +102,7 @@ impl Worker {
                     poller,
                 )?;
                 let Some(output) = output else {
-                    return Err(RuntimeError::EventLoopIdle {
-                        task_id: task_id.get(),
-                    }
-                    .boxed());
+                    return Err(RuntimeError::event_loop_idle(task_id.get()).boxed());
                 };
 
                 output
@@ -180,10 +177,7 @@ impl Worker {
                     return Ok(None);
                 };
 
-                return Err(RuntimeError::EventLoopIdle {
-                    task_id: target_task.get(),
-                }
-                .boxed());
+                return Err(RuntimeError::event_loop_idle(target_task.get()).boxed());
             }
         }
     }

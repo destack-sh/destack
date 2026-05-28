@@ -579,11 +579,11 @@ impl Worker {
     ) -> RuntimeResult<WorkerImage> {
         // host-retained local handles cannot be materialized without the owning host state
         if !self.handles.is_empty() {
-            return Err(RuntimeError::CaptureBarrier {
-                component: "runtime.heap_handles".to_string(),
-                mode: format!("{mode:?}"),
-                detail: "host-retained local heap handles are live".to_string(),
-            }
+            return Err(RuntimeError::capture_barrier(
+                "runtime.heap_handles",
+                format!("{mode:?}"),
+                "host-retained local heap handles are live",
+            )
             .boxed());
         }
 
@@ -607,13 +607,13 @@ impl Worker {
             heap: self
                 .heap
                 .image()
-                .and_then(|image| image.snapshot())
+                .map(|image| image.snapshot())
                 .map_err(|error| {
-                    RuntimeError::CaptureBarrier {
-                        component: "runtime.heap".to_string(),
-                        mode: format!("{mode:?}"),
-                        detail: error.to_string(),
-                    }
+                    RuntimeError::capture_barrier(
+                        "runtime.heap",
+                        format!("{mode:?}"),
+                        error.to_string(),
+                    )
                     .boxed()
                 })?,
             statics: self.statics.clone(),
