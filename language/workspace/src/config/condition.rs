@@ -146,6 +146,7 @@ impl ConditionCatalog {
             tag: predicate.tag.clone(),
             target: predicate.target.clone(),
             product: predicate.product.clone(),
+            stage: predicate.stage.clone(),
             platform: predicate.platform.clone(),
             host: predicate.host.clone(),
             runtime: predicate.runtime.clone(),
@@ -345,6 +346,8 @@ pub struct ConditionPredicate {
     pub target: Option<ConditionSelector>,
     /// Active product selector.
     pub product: Option<ConditionSelector>,
+    /// Active package release stage selector.
+    pub stage: Option<ConditionSelector>,
     /// Active target platform selector.
     pub platform: Option<ConditionSelector>,
     /// Active host environment selector.
