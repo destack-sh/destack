@@ -264,172 +264,169 @@ export newtype CameraWatchEvent =
     | CameraWatchEventChanged
     | CameraWatchEventOverflow;
 
-/// List camera devices.
-@binding("destack.device.camera.list", {
-    effect: "external",
-    requires: ["host.device.camera.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listCameraDevices(): Result<Array<CameraDevice>, HostError>;
+/// Camera binding family.
+export interface DeviceCamera {
+    /// List camera devices.
+    @binding("destack.device.camera.list", {
+        effect: "external",
+        requires: ["host.device.camera.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCameraDevices(): Result<Array<CameraDevice>, HostError>;
 
-/// Open a camera topology watch.
-@binding("destack.device.camera.watch.open", {
-    effect: "external",
-    requires: ["host.device.camera.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openCameraWatch(): Result<CameraWatchHandle, HostError>;
+    /// Open a camera topology watch.
+    @binding("destack.device.camera.watch.open", {
+        effect: "external",
+        requires: ["host.device.camera.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openCameraWatch(): Result<CameraWatchHandle, HostError>;
 
-/// Close a camera topology watch.
-@binding("destack.device.camera.watch.close", {
-    effect: "external",
-    requires: ["host.device.camera.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeCameraWatch(watch: CameraWatchHandle): Result<void, HostError>;
+    /// Close a camera topology watch.
+    @binding("destack.device.camera.watch.close", {
+        effect: "external",
+        requires: ["host.device.camera.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeCameraWatch(watch: CameraWatchHandle): Result<void, HostError>;
 
-/// Read one camera topology event.
-@binding("destack.device.camera.watch.read", {
-    effect: "external",
-    requires: ["host.device.camera.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readCameraWatch(
-    watch: CameraWatchHandle,
-    timeoutNs?: uint64,
-): Result<CameraWatchEvent, HostError>;
+    /// Read one camera topology event.
+    @binding("destack.device.camera.watch.read", {
+        effect: "external",
+        requires: ["host.device.camera.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readCameraWatch(
+        watch: CameraWatchHandle,
+        timeoutNs?: uint64,
+    ): Result<CameraWatchEvent, HostError>;
 
-/// Open a camera device.
-@binding("destack.device.camera.open", {
-    effect: "external",
-    requires: ["host.device.camera.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openCameraDevice(
-    id: &readonly string,
-): Result<CameraDeviceHandle, HostError>;
+    /// Open a camera device.
+    @binding("destack.device.camera.open", {
+        effect: "external",
+        requires: ["host.device.camera.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openCameraDevice(id: &readonly string): Result<CameraDeviceHandle, HostError>;
 
-/// Close a camera device.
-@binding("destack.device.camera.close", {
-    effect: "external",
-    requires: ["host.device.camera.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeCameraDevice(camera: CameraDeviceHandle): Result<void, HostError>;
+    /// Close a camera device.
+    @binding("destack.device.camera.close", {
+        effect: "external",
+        requires: ["host.device.camera.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeCameraDevice(camera: CameraDeviceHandle): Result<void, HostError>;
 
-/// Describe a camera device.
-@binding("destack.device.camera.describe", {
-    effect: "external",
-    requires: ["host.device.camera.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function describeCameraDevice(
-    camera: CameraDeviceHandle,
-): Result<CameraDevice, HostError>;
+    /// Describe a camera device.
+    @binding("destack.device.camera.describe", {
+        effect: "external",
+        requires: ["host.device.camera.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    describeCameraDevice(camera: CameraDeviceHandle): Result<CameraDevice, HostError>;
 
-/// List camera stream formats.
-@binding("destack.device.camera.format.list", {
-    effect: "external",
-    requires: ["host.device.camera.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listCameraFormats(
-    camera: CameraDeviceHandle,
-): Result<Array<CameraFormat>, HostError>;
+    /// List camera stream formats.
+    @binding("destack.device.camera.format.list", {
+        effect: "external",
+        requires: ["host.device.camera.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCameraFormats(camera: CameraDeviceHandle): Result<Array<CameraFormat>, HostError>;
 
-/// Open a camera stream.
-@binding("destack.device.camera.stream.open", {
-    effect: "external",
-    requires: ["host.device.camera.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openCameraStream(
-    camera: CameraDeviceHandle,
-    options: &readonly CameraStreamOptions,
-): Result<CameraStreamHandle, HostError>;
+    /// Open a camera stream.
+    @binding("destack.device.camera.stream.open", {
+        effect: "external",
+        requires: ["host.device.camera.capture"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openCameraStream(
+        camera: CameraDeviceHandle,
+        options: &readonly CameraStreamOptions,
+    ): Result<CameraStreamHandle, HostError>;
 
-/// Close a camera stream.
-@binding("destack.device.camera.stream.close", {
-    effect: "external",
-    requires: ["host.device.camera.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeCameraStream(stream: CameraStreamHandle): Result<void, HostError>;
+    /// Close a camera stream.
+    @binding("destack.device.camera.stream.close", {
+        effect: "external",
+        requires: ["host.device.camera.capture"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeCameraStream(stream: CameraStreamHandle): Result<void, HostError>;
 
-/// Start camera stream capture.
-@binding("destack.device.camera.stream.start", {
-    effect: "external",
-    requires: ["host.device.camera.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function startCameraStream(stream: CameraStreamHandle): Result<void, HostError>;
+    /// Start camera stream capture.
+    @binding("destack.device.camera.stream.start", {
+        effect: "external",
+        requires: ["host.device.camera.capture"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    startCameraStream(stream: CameraStreamHandle): Result<void, HostError>;
 
-/// Stop camera stream capture.
-@binding("destack.device.camera.stream.stop", {
-    effect: "external",
-    requires: ["host.device.camera.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function stopCameraStream(stream: CameraStreamHandle): Result<void, HostError>;
+    /// Stop camera stream capture.
+    @binding("destack.device.camera.stream.stop", {
+        effect: "external",
+        requires: ["host.device.camera.capture"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    stopCameraStream(stream: CameraStreamHandle): Result<void, HostError>;
 
-/// Read one camera frame.
-@binding("destack.device.camera.frame.read", {
-    effect: "external",
-    requires: ["host.device.camera.capture"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readCameraFrame(
-    stream: CameraStreamHandle,
-    buffer: &[uint8],
-    planes: &[CameraPlane],
-    timeoutNs?: uint64,
-): Result<CameraFrame, HostError>;
+    /// Read one camera frame.
+    @binding("destack.device.camera.frame.read", {
+        effect: "external",
+        requires: ["host.device.camera.capture"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readCameraFrame(
+        stream: CameraStreamHandle,
+        buffer: &[uint8],
+        planes: &[CameraPlane],
+        timeoutNs?: uint64,
+    ): Result<CameraFrame, HostError>;
 
-/// List camera control capabilities.
-@binding("destack.device.camera.control.list", {
-    effect: "external",
-    requires: ["host.device.camera.configure"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listCameraControls(
-    stream: CameraStreamHandle,
-): Result<Array<CameraControlCapability>, HostError>;
+    /// List camera control capabilities.
+    @binding("destack.device.camera.control.list", {
+        effect: "external",
+        requires: ["host.device.camera.configure"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCameraControls(
+        stream: CameraStreamHandle,
+    ): Result<Array<CameraControlCapability>, HostError>;
 
-/// Read camera control values.
-@binding("destack.device.camera.control.get", {
-    effect: "external",
-    requires: ["host.device.camera.configure"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getCameraControls(
-    stream: CameraStreamHandle,
-    controls: &readonly [CameraControl],
-    values: &[CameraControlValue],
-): Result<uint32, HostError>;
+    /// Read camera control values.
+    @binding("destack.device.camera.control.get", {
+        effect: "external",
+        requires: ["host.device.camera.configure"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    getCameraControls(
+        stream: CameraStreamHandle,
+        controls: &readonly [CameraControl],
+        values: &[CameraControlValue],
+    ): Result<uint32, HostError>;
 
-/// Update camera control values.
-@binding("destack.device.camera.control.set", {
-    effect: "external",
-    requires: ["host.device.camera.configure"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setCameraControls(
-    stream: CameraStreamHandle,
-    controls: &readonly [CameraControlValue],
-): Result<void, HostError>;
+    /// Update camera control values.
+    @binding("destack.device.camera.control.set", {
+        effect: "external",
+        requires: ["host.device.camera.configure"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setCameraControls(
+        stream: CameraStreamHandle,
+        controls: &readonly [CameraControlValue],
+    ): Result<void, HostError>;
+}
