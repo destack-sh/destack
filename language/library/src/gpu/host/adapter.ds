@@ -405,86 +405,80 @@ export struct GpuAdapterFormatCapabilities {
     flags: GpuTextureFormatFeatureFlags;
 }
 
-/// List available GPU adapters.
-@binding("destack.gpu.adapter.list", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listAdapters(
-    request: &readonly GpuAdapterRequest,
-): Result<Array<GpuAdapter>, HostError>;
+/// Adapter binding family.
+export interface GpuAdapter {
+    /// List available GPU adapters.
+    @binding("destack.gpu.adapter.list", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listAdapters(request: &readonly GpuAdapterRequest): Result<Array<GpuAdapter>, HostError>;
 
-/// Open a GPU adapter.
-@binding("destack.gpu.adapter.open", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openAdapter(id: &readonly string): Result<GpuAdapterHandle, HostError>;
+    /// Open a GPU adapter.
+    @binding("destack.gpu.adapter.open", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openAdapter(id: &readonly string): Result<GpuAdapterHandle, HostError>;
 
-/// Read adapter metadata.
-@binding("destack.gpu.adapter.read", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readAdapter(adapter: GpuAdapterHandle): Result<GpuAdapter, HostError>;
+    /// Read adapter metadata.
+    @binding("destack.gpu.adapter.read", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readAdapter(adapter: GpuAdapterHandle): Result<GpuAdapter, HostError>;
 
-/// Read an adapter feature snapshot.
-@binding("destack.gpu.adapter.features.read", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readAdapterFeatures(
-    adapter: GpuAdapterHandle,
-): Result<Array<GpuFeatureId>, HostError>;
+    /// Read an adapter feature snapshot.
+    @binding("destack.gpu.adapter.features.read", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readAdapterFeatures(adapter: GpuAdapterHandle): Result<Array<GpuFeatureId>, HostError>;
 
-/// Read an adapter limits snapshot.
-@binding("destack.gpu.adapter.limits.read", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readAdapterLimits(
-    adapter: GpuAdapterHandle,
-): Result<GpuAdapterLimits, HostError>;
+    /// Read an adapter limits snapshot.
+    @binding("destack.gpu.adapter.limits.read", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readAdapterLimits(adapter: GpuAdapterHandle): Result<GpuAdapterLimits, HostError>;
 
-/// Check whether an adapter supports a feature.
-@binding("destack.gpu.adapter.feature.has", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function hasAdapterFeature(
-    adapter: GpuAdapterHandle,
-    feature: GpuFeatureId,
-): Result<boolean, HostError>;
+    /// Check whether an adapter supports a feature.
+    @binding("destack.gpu.adapter.feature.has", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    hasAdapterFeature(adapter: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, HostError>;
 
-/// Read texture format capabilities for an adapter.
-@binding("destack.gpu.adapter.format.capabilities", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readAdapterFormatCapabilities(
-    adapter: GpuAdapterHandle,
-    format: GpuTextureFormat,
-): Result<GpuAdapterFormatCapabilities, HostError>;
+    /// Read texture format capabilities for an adapter.
+    @binding("destack.gpu.adapter.format.capabilities", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readAdapterFormatCapabilities(
+        adapter: GpuAdapterHandle,
+        format: GpuTextureFormat,
+    ): Result<GpuAdapterFormatCapabilities, HostError>;
 
-/// Close a GPU adapter.
-@binding("destack.gpu.adapter.close", {
-    effect: "external",
-    requires: ["host.gpu.adapter"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeAdapter(adapter: GpuAdapterHandle): Result<void, HostError>;
+    /// Close a GPU adapter.
+    @binding("destack.gpu.adapter.close", {
+        effect: "external",
+        requires: ["host.gpu.adapter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeAdapter(adapter: GpuAdapterHandle): Result<void, HostError>;
+}
