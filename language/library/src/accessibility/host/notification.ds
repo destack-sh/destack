@@ -58,15 +58,18 @@ export struct AccessibilityNotification {
     textRange?: AccessibilityTextRange;
 }
 
-/// Post one accessibility notification.
-@binding("destack.accessibility.notification.post", {
-    effect: "external",
-    requires: ["host.accessibility.notification"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function postAccessibilityNotification(
-    window: WindowHandle,
-    notification: &readonly AccessibilityNotification,
-): Result<void, HostError>;
+/// Notification binding family.
+export interface AccessibilityNotification {
+    /// Post one accessibility notification.
+    @binding("destack.accessibility.notification.post", {
+        effect: "external",
+        requires: ["host.accessibility.notification"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    postAccessibilityNotification(
+        window: WindowHandle,
+        notification: &readonly AccessibilityNotification,
+    ): Result<void, HostError>;
+}

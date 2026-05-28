@@ -1,3 +1,8 @@
+import { AccessibilityAction } from "./action.ds";
+import { AccessibilityNotification } from "./notification.ds";
+import { AccessibilityText } from "./text.ds";
+import { AccessibilityTree } from "./tree.ds";
+
 export * from "./action.ds";
 export * from "./node.ds";
 export * from "./notification.ds";
@@ -5,3 +10,16 @@ export * from "./role.ds";
 export * from "./state.ds";
 export * from "./text.ds";
 export * from "./tree.ds";
+
+/// Accessibility binding family.
+@languageItem("accessibility.Accessibility")
+export interface Accessibility {
+    /// Action bindings.
+    readonly action: AccessibilityAction;
+    /// Notification bindings.
+    readonly notification: AccessibilityNotification;
+    /// Text bindings.
+    readonly text: AccessibilityText;
+    /// Tree bindings.
+    readonly tree: AccessibilityTree;
+}

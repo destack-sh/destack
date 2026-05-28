@@ -21,39 +21,42 @@ export struct AccessibilityTreeUpdate {
     removedNodeIds: [AccessibilityNodeId];
 }
 
-/// Apply one accessibility tree update.
-@binding("destack.accessibility.tree.apply", {
-    effect: "external",
-    requires: ["host.accessibility.tree"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function applyAccessibilityTree(
-    window: WindowHandle,
-    update: &readonly AccessibilityTreeUpdate,
-): Result<void, HostError>;
+/// Tree binding family.
+export interface AccessibilityTree {
+    /// Apply one accessibility tree update.
+    @binding("destack.accessibility.tree.apply", {
+        effect: "external",
+        requires: ["host.accessibility.tree"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    applyAccessibilityTree(
+        window: WindowHandle,
+        update: &readonly AccessibilityTreeUpdate,
+    ): Result<void, HostError>;
 
-/// Clear the published accessibility tree.
-@binding("destack.accessibility.tree.clear", {
-    effect: "external",
-    requires: ["host.accessibility.tree"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function clearAccessibilityTree(window: WindowHandle): Result<void, HostError>;
+    /// Clear the published accessibility tree.
+    @binding("destack.accessibility.tree.clear", {
+        effect: "external",
+        requires: ["host.accessibility.tree"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    clearAccessibilityTree(window: WindowHandle): Result<void, HostError>;
 
-/// Resolve one accessibility node at one point.
-@binding("destack.accessibility.tree.hitTest", {
-    effect: "external",
-    requires: ["host.accessibility.tree"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function hitTestAccessibilityTree(
-    window: WindowHandle,
-    x: float64,
-    y: float64,
-): Result<AccessibilityNodeId | undefined, HostError>;
+    /// Resolve one accessibility node at one point.
+    @binding("destack.accessibility.tree.hitTest", {
+        effect: "external",
+        requires: ["host.accessibility.tree"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    hitTestAccessibilityTree(
+        window: WindowHandle,
+        x: float64,
+        y: float64,
+    ): Result<AccessibilityNodeId | undefined, HostError>;
+}

@@ -395,80 +395,81 @@ export newtype AccessibilityTextResponse =
     | AccessibilityTextResponseStyles
     | AccessibilityTextResponseObjects;
 
-/// Open one inbound accessibility text query stream.
-@binding("destack.accessibility.text.open", {
-    effect: "external",
-    requires: ["host.accessibility.text"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function openAccessibilityText(
-    window: WindowHandle,
-    options: &readonly AccessibilityTextOptions,
-): Result<AccessibilityTextHandle, HostError>;
+/// Text binding family.
+export interface AccessibilityText {
+    /// Open one inbound accessibility text query stream.
+    @binding("destack.accessibility.text.open", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    openAccessibilityText(
+        window: WindowHandle,
+        options: &readonly AccessibilityTextOptions,
+    ): Result<AccessibilityTextHandle, HostError>;
 
-/// Close one inbound accessibility text query stream.
-@binding("destack.accessibility.text.close", {
-    effect: "external",
-    requires: ["host.accessibility.text"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closeAccessibilityText(
-    text: AccessibilityTextHandle,
-): Result<void, HostError>;
+    /// Close one inbound accessibility text query stream.
+    @binding("destack.accessibility.text.close", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeAccessibilityText(text: AccessibilityTextHandle): Result<void, HostError>;
 
-/// Read one accessibility text query.
-@binding("destack.accessibility.text.read", {
-    effect: "external",
-    requires: ["host.accessibility.text"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readAccessibilityText(
-    text: AccessibilityTextHandle,
-    timeoutNs?: uint64,
-): Result<AccessibilityTextQuery, HostError>;
+    /// Read one accessibility text query.
+    @binding("destack.accessibility.text.read", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readAccessibilityText(
+        text: AccessibilityTextHandle,
+        timeoutNs?: uint64,
+    ): Result<AccessibilityTextQuery, HostError>;
 
-/// Respond to one accessibility text query.
-@binding("destack.accessibility.text.respond", {
-    effect: "external",
-    requires: ["host.accessibility.text"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function respondAccessibilityText(
-    text: AccessibilityTextHandle,
-    response: &readonly AccessibilityTextResponse,
-): Result<void, HostError>;
+    /// Respond to one accessibility text query.
+    @binding("destack.accessibility.text.respond", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    respondAccessibilityText(
+        text: AccessibilityTextHandle,
+        response: &readonly AccessibilityTextResponse,
+    ): Result<void, HostError>;
 
-/// Publish text metadata for one node.
-@binding("destack.accessibility.text.set", {
-    effect: "external",
-    requires: ["host.accessibility.text"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function setAccessibilityText(
-    window: WindowHandle,
-    nodeId: AccessibilityNodeId,
-    text: &readonly AccessibilityText,
-): Result<void, HostError>;
+    /// Publish text metadata for one node.
+    @binding("destack.accessibility.text.set", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    setAccessibilityText(
+        window: WindowHandle,
+        nodeId: AccessibilityNodeId,
+        text: &readonly AccessibilityText,
+    ): Result<void, HostError>;
 
-/// Clear text metadata for one node.
-@binding("destack.accessibility.text.clear", {
-    effect: "external",
-    requires: ["host.accessibility.text"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function clearAccessibilityText(
-    window: WindowHandle,
-    nodeId: AccessibilityNodeId,
-): Result<void, HostError>;
+    /// Clear text metadata for one node.
+    @binding("destack.accessibility.text.clear", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    clearAccessibilityText(
+        window: WindowHandle,
+        nodeId: AccessibilityNodeId,
+    ): Result<void, HostError>;
+}
