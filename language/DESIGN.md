@@ -484,8 +484,8 @@ let x: FixedArray<int32, 3> = [1, 2, 3]; // fixed array of int32
 let x: (int32, int32, int32) = (1, 2, 3); // tuple of int32
 ```
 
-Fixed arrays are homogeneous arrays whose length is statically known and part of the type.
-They are inline value/layout types by default, and definitionally cannot grow.
+By default, array literals are dynamic arrays but can coerce to our "fixed array" as needed.
+Fixed arrays are just a homogeneous sequence of values whose length is statically known (and part of the type): they are inline value/layout types by default, and definitionally cannot grow.
 (If you need an array that can grow, use a dynamic array, i.e. `T[]` / `Array<T>`)
 
 ```ds
