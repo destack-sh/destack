@@ -1,0 +1,64 @@
+import { Duration } from "destack:time";
+
+/// Stable error code used by simulation faults.
+export newtype ErrorCode = string;
+
+/// Error payload for operation and randomness faults.
+export struct Error {
+    /// Stable error code.
+    code: ErrorCode;
+    /// Optional module-specific error class.
+    class?: string;
+    /// Optional diagnostic message.
+    message?: string;
+}
+
+/// Delay jitter distribution.
+export enum JitterDistribution {
+    /// Uniform random jitter.
+    Uniform = 1,
+    /// Normal random jitter.
+    Normal = 2,
+    /// Exponential random jitter.
+    Exponential = 3,
+}
+
+/// Deterministic delay payload.
+export struct Delay {
+    /// Base delay.
+    base: Duration;
+    /// Optional jitter.
+    jitter?: Duration;
+    /// Optional jitter distribution.
+    distribution?: JitterDistribution;
+}
+
+/// Deterministic operation error fault.
+export struct OperationError {
+    /// Fault discriminator.
+    kind: "operation.error";
+    /// Error payload for the injected failure.
+    error: Error;
+}
+
+/// Deterministic operation timeout fault.
+export struct OperationTimeout {
+    /// Fault discriminator.
+    kind: "operation.timeout";
+    /// Optional timeout duration.
+    after?: Duration;
+    /// Optional timeout error override.
+    error?: Error;
+}
+
+/// Deterministic operation delay fault.
+export struct OperationDelay {
+    /// Fault discriminator.
+    kind: "operation.delay";
+    /// Delay payload.
+    delay: Delay;
+}
+
+/// Operation fault.
+@derive(Tagged)
+export newtype OperationFault = OperationError | OperationTimeout | OperationDelay;

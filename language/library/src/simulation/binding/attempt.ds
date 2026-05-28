@@ -1,0 +1,46 @@
+import { LabelSet } from "destack:topology";
+
+/// Binding attempt event.
+export enum EventKind {
+    /// Before invoking one binding implementation.
+    BindingBefore = 1,
+    /// After invoking one binding implementation.
+    BindingAfter = 2,
+    /// One task became ready to run.
+    TaskReady = 3,
+    /// One task started running.
+    TaskStart = 4,
+    /// One timer fired.
+    TimerFire = 5,
+    /// One ingress event entered the worker loop.
+    IngressReady = 6,
+    /// One clock was read.
+    ClockRead = 7,
+    /// Random data was read.
+    RandomRead = 8,
+}
+
+/// Stable identifier for one binding call.
+export newtype CallId = uint64;
+
+/// Attempt observed by a simulated binding implementation.
+export struct Attempt {
+    /// Event kind.
+    event: EventKind;
+    /// Binding call identifier when available.
+    callId?: CallId;
+    /// Binding module name.
+    module: string;
+    /// Binding facet name when available.
+    facet?: string;
+    /// Binding operation name when available.
+    operation?: string;
+    /// Full binding name when available.
+    binding?: string;
+    /// Required action when available.
+    action?: string;
+    /// Monotonic simulation timestamp in nanoseconds.
+    timeNanos: uint64;
+    /// Attempt labels.
+    labels?: LabelSet;
+}

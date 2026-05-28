@@ -1,0 +1,41 @@
+import { Duration } from "destack:time";
+
+/// Lifecycle crash fault.
+export struct LifecycleCrash {
+    /// Fault discriminator.
+    kind: "lifecycle.crash";
+    /// Optional signal number.
+    signal?: int64;
+}
+
+/// Lifecycle pause fault.
+export struct LifecyclePause {
+    /// Fault discriminator.
+    kind: "lifecycle.pause";
+    /// Optional pause duration.
+    duration?: Duration;
+}
+
+/// Lifecycle restart fault.
+export struct LifecycleRestart {
+    /// Fault discriminator.
+    kind: "lifecycle.restart";
+    /// Optional restart delay.
+    delay?: Duration;
+}
+
+/// Lifecycle reboot fault.
+export struct LifecycleReboot {
+    /// Fault discriminator.
+    kind: "lifecycle.reboot";
+    /// Optional reboot delay.
+    delay?: Duration;
+}
+
+/// Lifecycle fault.
+@derive(Tagged)
+export newtype LifecycleFault =
+    | LifecycleCrash
+    | LifecyclePause
+    | LifecycleRestart
+    | LifecycleReboot;

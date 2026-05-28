@@ -1,0 +1,137 @@
+import { Duration } from "destack:time";
+import { Direction } from "destack:topology";
+
+import { Delay } from "./operation.ds";
+import { CorruptionMode } from "./storage.ds";
+
+/// Transport limit mode for delivery-shaped faults.
+@derive(Tagged)
+export newtype Limit =
+    | {
+          /// Limit discriminator.
+          kind: "data";
+          /// Total byte budget.
+          bytes: uint64;
+      }
+    | {
+          /// Limit discriminator.
+          kind: "throughput";
+          /// Maximum throughput in bytes per second.
+          bytesPerSecond: uint64;
+      }
+    | {
+          /// Limit discriminator.
+          kind: "rate";
+          /// Maximum operations per second.
+          opsPerSecond: uint64;
+      };
+
+/// Transport delay fault.
+export struct TransportDelay {
+    /// Fault discriminator.
+    kind: "transport.delay";
+    /// Delay payload.
+    delay: Delay;
+}
+
+/// Transport drop fault.
+export struct TransportDrop {
+    /// Fault discriminator.
+    kind: "transport.drop";
+}
+
+/// Transport duplicate fault.
+export struct TransportDuplicate {
+    /// Fault discriminator.
+    kind: "transport.duplicate";
+    /// Number of duplicates emitted when the fault triggers.
+    copies?: uint32;
+}
+
+/// Transport reorder fault.
+export struct TransportReorder {
+    /// Fault discriminator.
+    kind: "transport.reorder";
+    /// Reordering window size.
+    window?: uint32;
+}
+
+/// Transport corruption fault.
+export struct TransportCorrupt {
+    /// Fault discriminator.
+    kind: "transport.corrupt";
+    /// Corruption mode.
+    mode?: CorruptionMode;
+}
+
+/// Transport partial-delivery fault.
+export struct TransportPartial {
+    /// Fault discriminator.
+    kind: "transport.partial";
+    /// Maximum delivered byte count.
+    maxBytes?: uint64;
+}
+
+/// Transport fragmentation fault.
+export struct TransportFragment {
+    /// Fault discriminator.
+    kind: "transport.fragment";
+    /// Maximum fragment byte count.
+    maxBytes?: uint64;
+}
+
+/// Transport disconnect fault.
+export struct TransportDisconnect {
+    /// Fault discriminator.
+    kind: "transport.disconnect";
+}
+
+/// Transport reset fault.
+export struct TransportReset {
+    /// Fault discriminator.
+    kind: "transport.reset";
+}
+
+/// Transport partition fault.
+export struct TransportPartition {
+    /// Fault discriminator.
+    kind: "transport.partition";
+    /// Optional partition duration.
+    duration?: Duration;
+    /// Optional direction selector.
+    direction?: Direction;
+}
+
+/// Transport blackhole fault.
+export struct TransportBlackhole {
+    /// Fault discriminator.
+    kind: "transport.blackhole";
+    /// Optional blackhole duration.
+    duration?: Duration;
+    /// Optional direction selector.
+    direction?: Direction;
+}
+
+/// Transport limit fault.
+export struct TransportLimit {
+    /// Fault discriminator.
+    kind: "transport.limit";
+    /// Limit payload.
+    limit: Limit;
+}
+
+/// Transport fault.
+@derive(Tagged)
+export newtype TransportFault =
+    | TransportDelay
+    | TransportDrop
+    | TransportDuplicate
+    | TransportReorder
+    | TransportCorrupt
+    | TransportPartial
+    | TransportFragment
+    | TransportDisconnect
+    | TransportReset
+    | TransportPartition
+    | TransportBlackhole
+    | TransportLimit;

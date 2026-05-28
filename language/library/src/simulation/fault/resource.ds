@@ -1,0 +1,81 @@
+/// Resource class for capacity and quota faults.
+export enum Resource {
+    /// Memory budget.
+    Memory = 1,
+    /// File descriptor budget.
+    FileDescriptor = 2,
+    /// File handle budget.
+    FileHandle = 3,
+    /// Socket budget.
+    Socket = 4,
+    /// Thread budget.
+    Thread = 5,
+    /// Process budget.
+    Process = 6,
+    /// Disk space budget.
+    DiskSpace = 7,
+    /// Inode budget.
+    Inode = 8,
+    /// Network bandwidth budget.
+    Bandwidth = 9,
+    /// CPU budget.
+    Cpu = 10,
+    /// GPU budget.
+    Gpu = 11,
+    /// Queue depth budget.
+    Queue = 12,
+    /// Timer budget.
+    Timer = 13,
+}
+
+/// Resource limit value with explicit units.
+@derive(Tagged)
+export newtype Limit =
+    | {
+          /// Limit discriminator.
+          kind: "count";
+          /// Count limit.
+          count: uint64;
+      }
+    | {
+          /// Limit discriminator.
+          kind: "bytes";
+          /// Byte limit.
+          bytes: uint64;
+      }
+    | {
+          /// Limit discriminator.
+          kind: "rate";
+          /// Maximum units per second.
+          perSecond: uint64;
+      }
+    | {
+          /// Limit discriminator.
+          kind: "percent";
+          /// Budget in parts per million.
+          ppm: uint32;
+      };
+
+/// Resource pressure fault.
+export struct ResourcePressure {
+    /// Fault discriminator.
+    kind: "resource.pressure";
+    /// Pressured resource class.
+    resource: Resource;
+    /// Optional pressure level in parts per million.
+    levelPpm?: uint32;
+}
+
+/// Resource limit fault.
+export struct ResourceLimit {
+    /// Fault discriminator.
+    kind: "resource.limit";
+    /// Limited resource class.
+    resource: Resource;
+    /// Resource limit.
+    limit: Limit;
+}
+
+/// Resource fault.
+@derive(Tagged)
+export newtype ResourceFault = ResourcePressure | ResourceLimit;

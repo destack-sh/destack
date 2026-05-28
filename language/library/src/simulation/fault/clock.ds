@@ -1,0 +1,49 @@
+import { Duration } from "destack:time";
+
+import { JitterDistribution } from "./operation.ds";
+
+/// Clock jump fault.
+export struct ClockJump {
+    /// Fault discriminator.
+    kind: "clock.jump";
+    /// Signed jump delta in nanoseconds.
+    deltaNanos: int64;
+}
+
+/// Clock drift fault.
+export struct ClockDrift {
+    /// Fault discriminator.
+    kind: "clock.drift";
+    /// Signed rate offset in parts per million.
+    ratePpm: int64;
+}
+
+/// Clock freeze fault.
+export struct ClockFreeze {
+    /// Fault discriminator.
+    kind: "clock.freeze";
+    /// Optional freeze duration.
+    duration?: Duration;
+}
+
+/// Clock resolution fault.
+export struct ClockResolution {
+    /// Fault discriminator.
+    kind: "clock.resolution";
+    /// Clock resolution.
+    resolution: Duration;
+}
+
+/// Clock jitter fault.
+export struct ClockJitter {
+    /// Fault discriminator.
+    kind: "clock.jitter";
+    /// Jitter duration.
+    jitter: Duration;
+    /// Optional jitter distribution.
+    distribution?: JitterDistribution;
+}
+
+/// Clock fault.
+@derive(Tagged)
+export newtype ClockFault = ClockJump | ClockDrift | ClockFreeze | ClockResolution | ClockJitter;

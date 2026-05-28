@@ -1,0 +1,37 @@
+import { Error } from "./operation.ds";
+
+/// Random-source error fault.
+export struct RandomError {
+    /// Fault discriminator.
+    kind: "random.error";
+    /// Error payload.
+    error: Error;
+}
+
+/// Random repeat fault.
+export struct RandomRepeat {
+    /// Fault discriminator.
+    kind: "random.repeat";
+    /// Optional repeated byte window.
+    windowBytes?: uint64;
+}
+
+/// Random zero-fill fault.
+export struct RandomZero {
+    /// Fault discriminator.
+    kind: "random.zero";
+}
+
+/// Random bias fault.
+export struct RandomBias {
+    /// Fault discriminator.
+    kind: "random.bias";
+    /// Optional bit index to bias.
+    bit?: uint8;
+    /// Bias probability in parts per million.
+    probabilityPpm: uint32;
+}
+
+/// Random fault.
+@derive(Tagged)
+export newtype RandomFault = RandomError | RandomRepeat | RandomZero | RandomBias;

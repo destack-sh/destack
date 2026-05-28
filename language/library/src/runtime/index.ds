@@ -10,7 +10,6 @@ export * from "./observation.ds";
 export * from "./policy.ds";
 export * from "./random.ds";
 export * from "./resource.ds";
-export * from "./scenario.ds";
 export * from "./snapshot.ds";
 export * from "./trace.ds";
 export * from "./world.ds";

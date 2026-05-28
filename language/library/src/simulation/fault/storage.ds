@@ -1,0 +1,107 @@
+/// Data corruption mode for payload faults.
+export enum CorruptionMode {
+    /// Flip one random bit in the payload.
+    BitFlip = 1,
+    /// Replace all bytes with zero.
+    ZeroFill = 2,
+    /// Replace bytes with random data.
+    RandomBytes = 3,
+    /// Return only a prefix of the payload.
+    Truncate = 4,
+}
+
+/// Storage corruption target.
+export enum CorruptionTarget {
+    /// Stored payload bytes.
+    Data = 1,
+    /// Storage metadata.
+    Metadata = 2,
+    /// Write-ahead journal or log.
+    Journal = 3,
+    /// Secondary index or derived lookup state.
+    Index = 4,
+}
+
+/// Storage ordering fault.
+export enum OrderFault {
+    /// Persist writes in an order different from issue order.
+    ReorderPersist = 1,
+    /// Expose writes in an order different from issue order.
+    ReorderVisibility = 2,
+    /// Expose only part of an ordered write sequence.
+    TornSequence = 3,
+}
+
+/// Storage durability fault.
+export enum DurabilityFault {
+    /// Acknowledge writes before durability barriers complete.
+    AckWithoutSync = 1,
+    /// Lose one write that was already acknowledged.
+    LoseAcknowledgedWrite = 2,
+    /// Report sync success without enforcing durability.
+    SyncNoop = 3,
+    /// Persist file payload without required metadata durability.
+    MetadataNotDurable = 4,
+    /// Acknowledge one distributed write before quorum durability.
+    AckBeforeQuorumPersist = 5,
+}
+
+/// Storage consistency fault.
+export enum ConsistencyFault {
+    /// Return an old value from storage.
+    StaleRead = 1,
+    /// Hide one entry that should be visible.
+    MissingEntry = 2,
+    /// Expose one entry that should not be visible.
+    ExtraEntry = 3,
+    /// Return stale metadata for a visible entry.
+    StaleMetadata = 4,
+    /// Expose rename as multiple non-atomic steps.
+    NonAtomicRename = 5,
+    /// Diverge committed state across replicas.
+    ReplicaDivergence = 6,
+}
+
+/// Storage corruption fault.
+export struct StorageCorrupt {
+    /// Fault discriminator.
+    kind: "storage.corrupt";
+    /// Corruption target.
+    target: CorruptionTarget;
+    /// Optional corruption mode.
+    mode?: CorruptionMode;
+}
+
+/// Storage ordering fault payload.
+export struct StorageOrder {
+    /// Fault discriminator.
+    kind: "storage.order";
+    /// Storage ordering fault selector.
+    fault: OrderFault;
+}
+
+/// Storage durability fault payload.
+export struct StorageDurability {
+    /// Fault discriminator.
+    kind: "storage.durability";
+    /// Durability fault selector.
+    fault: DurabilityFault;
+}
+
+/// Storage consistency fault payload.
+export struct StorageConsistency {
+    /// Fault discriminator.
+    kind: "storage.consistency";
+    /// Storage consistency fault selector.
+    fault: ConsistencyFault;
+    /// Optional maximum staleness in nanoseconds.
+    maxAgeNanos?: uint64;
+}
+
+/// Storage fault.
+@derive(Tagged)
+export newtype StorageFault =
+    | StorageCorrupt
+    | StorageOrder
+    | StorageDurability
+    | StorageConsistency;

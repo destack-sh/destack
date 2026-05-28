@@ -1,0 +1,95 @@
+import { Duration } from "destack:time";
+
+import { Attempt, EventKind } from "../binding/attempt.ds";
+
+/// Custom scenario trigger predicate.
+export type Predicate = (attempt: &readonly Attempt) => boolean;
+
+/// Scenario activation window.
+export type Activation =
+    | {
+          /// Activate immediately.
+          kind: "immediate";
+      }
+    | {
+          /// Activate at a monotonic timestamp.
+          kind: "atTime";
+          /// Monotonic timestamp in nanoseconds.
+          timeNanos: uint64;
+      }
+    | {
+          /// Activate after a number of matching calls.
+          kind: "afterCallCount";
+          /// Matching call count.
+          calls: uint64;
+      };
+
+/// Scenario rule lifetime.
+export type Lifetime =
+    | {
+          /// Keep active until explicitly disabled.
+          kind: "untilDisabled";
+      }
+    | {
+          /// Keep active for a duration.
+          kind: "duration";
+          /// Active duration.
+          duration: Duration;
+      }
+    | {
+          /// Keep active for a matching call budget.
+          kind: "callCount";
+          /// Matching call budget.
+          calls: uint64;
+      };
+
+/// Scenario trigger controls.
+export struct Trigger {
+    /// Event kind for this trigger.
+    on?: EventKind;
+    /// Activation window for this trigger.
+    activation?: Activation;
+    /// Lifetime window for this trigger.
+    lifetime?: Lifetime;
+    /// Activation probability in parts per million.
+    activationPpm?: uint32;
+    /// Fire probability in parts per million.
+    probabilityPpm?: uint32;
+    /// Maximum number of action firings.
+    maxOccurrences?: uint64;
+    /// Cooldown duration between firings.
+    cooldown?: Duration;
+    /// Number of firings per trigger hit.
+    burst?: uint32;
+    /// Trigger cadence interval in matching hits.
+    intervalHits?: uint64;
+    /// Number of matching hits to skip before cadence starts.
+    skipHits?: uint64;
+    /// Custom attempt predicate.
+    predicate?: Predicate;
+}
+
+/// Create a trigger that fires on every matching attempt.
+export function always(on?: EventKind): Trigger {
+    Trigger { on }
+}
+
+/// Create a trigger that fires once.
+export function once(on?: EventKind): Trigger {
+    Trigger { on, maxOccurrences: 1 }
+}
+
+/// Create a trigger that fires once per `calls` matching hits.
+export function every(calls: uint64, on?: EventKind): Trigger {
+    Trigger { on, intervalHits: calls }
+}
+
+/// Create a trigger that fires with probability in parts per million.
+export function probability(probabilityPpm: uint32, on?: EventKind): Trigger {
+    Trigger { on, probabilityPpm }
+}
+
+/// Create a trigger that fires when `predicate` accepts the attempt.
+export function when(predicate: Predicate, on?: EventKind): Trigger {
+    Trigger { on, predicate }
+}
