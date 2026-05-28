@@ -1,10 +1,13 @@
 import { HostError } from "destack:error/host";
 
-/// Fill one buffer with host-provided random bytes.
-@binding("destack.random.bytes.fill", {
-    effect: "external",
-    requires: ["host.random.bytes"],
-    families: ["windows", "unix", "wasm"],
-    simulation: true,
-})
-export declare function fillRandomBytes(buffer: &[uint8]): Result<void, HostError>;
+/// Entropy binding family.
+export interface RandomEntropy {
+    /// Fill one buffer with host-provided random bytes.
+    @binding("destack.random.bytes.fill", {
+        effect: "external",
+        requires: ["host.random.bytes"],
+        families: ["windows", "unix", "wasm"],
+        simulation: true,
+    })
+    fillRandomBytes(buffer: &[uint8]): Result<void, HostError>;
+}
