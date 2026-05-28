@@ -1,5 +1,22 @@
+import { Accessibility } from "destack:accessibility/host";
+import { Audio } from "destack:audio/host";
+import { Crypto } from "destack:crypto/host";
+import { Device } from "destack:device/host";
+import { Display } from "destack:display/host";
 import { Fs } from "destack:fs/host";
+import { Gpu } from "destack:gpu/host";
+import { Input } from "destack:input/host";
+import { Io } from "destack:io/host";
+import { Ipc } from "destack:ipc/host";
 import { Dynamic } from "destack:memory";
+import { Memory } from "destack:memory/host";
+import { Net } from "destack:net/host";
+import { Os } from "destack:os/host";
+import { Process } from "destack:process/host";
+import { Random } from "destack:random/host";
+import { Time } from "destack:time/host";
+import { Tls } from "destack:tls/host";
+import { Tty } from "destack:tty/host";
 
 import { ContextKey } from "./key.ds";
 import { ContextPatch } from "./patch.ds";
@@ -26,9 +43,77 @@ export class Context {
         return result;
     }
 
+    /// Current accessibility binding family.
+    @intrinsic("context.accessibility")
+    get accessibility(): Dynamic<Accessibility>;
+
+    /// Current audio binding family.
+    @intrinsic("context.audio")
+    get audio(): Dynamic<Audio>;
+
+    /// Current crypto binding family.
+    @intrinsic("context.crypto")
+    get crypto(): Dynamic<Crypto>;
+
+    /// Current device binding family.
+    @intrinsic("context.device")
+    get device(): Dynamic<Device>;
+
+    /// Current display binding family.
+    @intrinsic("context.display")
+    get display(): Dynamic<Display>;
+
     /// Current filesystem binding family.
     @intrinsic("context.fs")
     get fs(): Dynamic<Fs>;
+
+    /// Current GPU binding family.
+    @intrinsic("context.gpu")
+    get gpu(): Dynamic<Gpu>;
+
+    /// Current input binding family.
+    @intrinsic("context.input")
+    get input(): Dynamic<Input>;
+
+    /// Current IO binding family.
+    @intrinsic("context.io")
+    get io(): Dynamic<Io>;
+
+    /// Current IPC binding family.
+    @intrinsic("context.ipc")
+    get ipc(): Dynamic<Ipc>;
+
+    /// Current memory binding family.
+    @intrinsic("context.memory")
+    get memory(): Dynamic<Memory>;
+
+    /// Current network binding family.
+    @intrinsic("context.net")
+    get net(): Dynamic<Net>;
+
+    /// Current operating system binding family.
+    @intrinsic("context.os")
+    get os(): Dynamic<Os>;
+
+    /// Current process binding family.
+    @intrinsic("context.process")
+    get process(): Dynamic<Process>;
+
+    /// Current random binding family.
+    @intrinsic("context.random")
+    get random(): Dynamic<Random>;
+
+    /// Current time binding family.
+    @intrinsic("context.time")
+    get time(): Dynamic<Time>;
+
+    /// Current TLS binding family.
+    @intrinsic("context.tls")
+    get tls(): Dynamic<Tls>;
+
+    /// Current TTY binding family.
+    @intrinsic("context.tty")
+    get tty(): Dynamic<Tty>;
 
     /// Return one userland context value.
     get<T>(key: ContextKey<T>): T | undefined {

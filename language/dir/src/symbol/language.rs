@@ -153,6 +153,15 @@ macro_rules! define_language_items {
 }
 
 define_language_items! {
+    /// Accessibility types.
+    accessibility {
+        /// `destack:accessibility/host`.
+        host {
+            /// Accessibility binding family.
+            AccessibilityHost => (Interface, "accessibility/host", "Accessibility"),
+        }
+    }
+
     /// Async types.
     async {
         /// `destack:async/generator`.
@@ -204,6 +213,15 @@ define_language_items! {
 
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
+        }
+    }
+
+    /// Audio types.
+    audio {
+        /// `destack:audio/host`.
+        host {
+            /// Audio binding family.
+            AudioHost => (Interface, "audio/host", "Audio"),
         }
     }
 
@@ -365,6 +383,15 @@ define_language_items! {
         }
     }
 
+    /// Crypto types.
+    crypto {
+        /// `destack:crypto/host`.
+        host {
+            /// Crypto binding family.
+            CryptoHost => (Interface, "crypto/host", "Crypto"),
+        }
+    }
+
     /// Decorator types.
     decorator {
         /// `destack:decorator/capture`.
@@ -521,6 +548,24 @@ define_language_items! {
         }
     }
 
+    /// Device types.
+    device {
+        /// `destack:device/host`.
+        host {
+            /// Device binding family.
+            DeviceHost => (Interface, "device/host", "Device"),
+        }
+    }
+
+    /// Display types.
+    display {
+        /// `destack:display/host`.
+        host {
+            /// Display binding family.
+            DisplayHost => (Interface, "display/host", "Display"),
+        }
+    }
+
     /// Error types.
     error {
         /// `destack:error/error`.
@@ -598,7 +643,43 @@ define_language_items! {
         /// `destack:fs/host`.
         host {
             /// Filesystem binding family.
-            Fs => (Interface, "fs/host", "Fs"),
+            FsHost => (Interface, "fs/host", "Fs"),
+        }
+    }
+
+    /// GPU types.
+    gpu {
+        /// `destack:gpu/host`.
+        host {
+            /// GPU binding family.
+            GpuHost => (Interface, "gpu/host", "Gpu"),
+        }
+    }
+
+    /// Input types.
+    input {
+        /// `destack:input/host`.
+        host {
+            /// Input binding family.
+            InputHost => (Interface, "input/host", "Input"),
+        }
+    }
+
+    /// IO types.
+    io {
+        /// `destack:io/host`.
+        host {
+            /// IO binding family.
+            IoHost => (Interface, "io/host", "Io"),
+        }
+    }
+
+    /// IPC types.
+    ipc {
+        /// `destack:ipc/host`.
+        host {
+            /// IPC binding family.
+            IpcHost => (Interface, "ipc/host", "Ipc"),
         }
     }
 
@@ -701,6 +782,12 @@ define_language_items! {
         dynamic {
             /// Erased runtime value.
             Dynamic => (Newtype, "memory/dynamic", "Dynamic"),
+        }
+
+        /// `destack:memory/host`.
+        host {
+            /// Memory binding family.
+            MemoryHost => (Interface, "memory/host", "Memory"),
         }
 
         /// `destack:memory/arc`.
@@ -944,6 +1031,15 @@ define_language_items! {
         }
     }
 
+    /// Network types.
+    net {
+        /// `destack:net/host`.
+        host {
+            /// Network binding family.
+            NetHost => (Interface, "net/host", "Net"),
+        }
+    }
+
     /// Operator interfaces.
     ops {
         /// `destack:ops/bitwise`.
@@ -1082,6 +1178,33 @@ define_language_items! {
 
             /// Try branch shape for `?` and `??`.
             TryBranch => (Type, "ops/try", "TryBranch"),
+        }
+    }
+
+    /// Operating system types.
+    os {
+        /// `destack:os/host`.
+        host {
+            /// Operating system binding family.
+            OsHost => (Interface, "os/host", "Os"),
+        }
+    }
+
+    /// Process types.
+    process {
+        /// `destack:process/host`.
+        host {
+            /// Process binding family.
+            ProcessHost => (Interface, "process/host", "Process"),
+        }
+    }
+
+    /// Random types.
+    random {
+        /// `destack:random/host`.
+        host {
+            /// Random binding family.
+            RandomHost => (Interface, "random/host", "Random"),
         }
     }
 
@@ -1253,6 +1376,33 @@ define_language_items! {
         view {
             /// Tensor view type.
             TensorView => (Newtype, "tensor/view", "TensorView"),
+        }
+    }
+
+    /// Time types.
+    time {
+        /// `destack:time/host`.
+        host {
+            /// Time binding family.
+            TimeHost => (Interface, "time/host", "Time"),
+        }
+    }
+
+    /// TLS types.
+    tls {
+        /// `destack:tls/host`.
+        host {
+            /// TLS binding family.
+            TlsHost => (Interface, "tls/host", "Tls"),
+        }
+    }
+
+    /// TTY types.
+    tty {
+        /// `destack:tty/host`.
+        host {
+            /// TTY binding family.
+            TtyHost => (Interface, "tty/host", "Tty"),
         }
     }
 
