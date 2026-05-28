@@ -1,103 +1,24 @@
 # Object Type
 
-The `object` type, which represents any non-primitive value.
+`object` is not a TS++ type.
+Use `unknown`, structural object shapes, interfaces, `Record<K, V>`, or `Dynamic<T>`.
 
-## object
+## removed type
 
-### object to object
-
-The object type is assignable to itself.
-
-```ds
-const x: object = {} as object;
-```
-
-### object literal to object
-
-Object literals are assignable to object.
+### object annotations are rejected
 
 ```ds
-const x: object = { a: 1, b: "hello" };
+const x: object = {};
 ```
 
-### array to object
+- contains: unsupported type: object
 
-Arrays are assignable to object.
-
-```ds
-const x: object = [1, 2, 3];
-```
-
-### function to object
-
-Functions are assignable to object.
-
-```ds
-const fn = () => {};
-const x: object = fn;
-```
-
-### object parameter is transparent
-
-Bare `object` parameters specialize like implicit non-primitive constraints.
+### object parameters are rejected
 
 ```ds
 function id(value: object) {
-    return value;
+    value
 }
-
-const point = { x: 1 };
-id(point) satisfies { x: int };
 ```
 
-## object rejects primitives
-
-### number not assignable to object
-
-Primitive number is not assignable to object.
-
-```ds
-const x: object = 42;
-```
-
-- contains: not assignable
-
-### string not assignable to object
-
-Primitive string is not assignable to object.
-
-```ds
-const x: object = "hello";
-```
-
-- contains: not assignable
-
-### boolean not assignable to object
-
-Primitive boolean is not assignable to object.
-
-```ds
-const x: object = true;
-```
-
-- contains: not assignable
-
-### null not assignable to object
-
-Null is not assignable to object.
-
-```ds
-const x: object = null;
-```
-
-- contains: not assignable
-
-### undefined not assignable to object
-
-Undefined is not assignable to object.
-
-```ds
-const x: object = undefined;
-```
-
-- contains: not assignable
+- contains: unsupported type: object

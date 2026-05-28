@@ -40,14 +40,18 @@ const ok: NumericFlags = { 1: "one", 2: "two" };
 ok satisfies NumericFlags;
 ```
 
-### record supports string and number keys
+### record with string keys requires writable index access
+
+A broad string `Record` cannot be satisfied by a finite object shape.
 
 ```ds
-type Lookup = Record<string | number, string>;
+type Lookup = Record<string, string>;
 
-const ok: Lookup = { name: "Ada", 1: "one" };
-ok satisfies Lookup;
+const value = { name: "Ada" };
+const lookup: Lookup = value;
 ```
+
+- contains: not assignable
 
 ### record supports symbol keys
 

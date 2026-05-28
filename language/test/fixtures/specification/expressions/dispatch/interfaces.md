@@ -209,13 +209,13 @@ const value = bag[key];
 value satisfies int32 | undefined;
 ```
 
-### records satisfy string index signatures
+### object literals satisfy readonly index signatures
 
-Records can be viewed through structural index signatures.
+Object literals can be viewed through readonly structural index signatures.
 
 ```ds
 interface Bag<T> {
-    [key: string]: T | undefined;
+    readonly [key: string]: T | undefined;
 }
 
 const bag: Bag<int32> = { alpha: 1, beta: 2 };

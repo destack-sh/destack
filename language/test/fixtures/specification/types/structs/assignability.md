@@ -71,7 +71,7 @@ const person: HasName = Person { name: "Ada" };
 person satisfies HasName;
 ```
 
-### structs satisfy object
+### structs satisfy structural fields
 
 ```ds
 struct Point {
@@ -79,8 +79,8 @@ struct Point {
 }
 
 const point = Point { x: 1 };
-const value: object = point;
-value satisfies object;
+const value: { readonly x: int32 } = point;
+value satisfies { readonly x: int32 };
 ```
 
 ### implements checks interface shape
