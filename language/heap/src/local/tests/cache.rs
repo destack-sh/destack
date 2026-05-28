@@ -72,5 +72,5 @@ fn test_release_heap_large_pages_into_page_run_cache() {
     assert_eq!(heap.allocation_count(), 0);
     assert_eq!(heap.allocated_bytes(), 0);
     assert_eq!(heap.retained_bytes(), 0);
-    assert!(image.allocations()[0].pages.is_empty());
+    assert!(image.allocations()[0].bytes.is_empty());
 }

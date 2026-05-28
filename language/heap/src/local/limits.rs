@@ -57,7 +57,8 @@ impl HeapLimits {
         if let Some(max_bytes) = self.max_bytes
             && total_bytes > max_bytes
         {
-            return Err(HeapError::TotalLimitExceeded {
+            return Err(HeapError::LimitExceeded {
+                region: AccountingRegion::Total,
                 used_bytes: total_bytes,
                 max_bytes,
             });

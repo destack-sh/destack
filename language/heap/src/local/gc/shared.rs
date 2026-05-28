@@ -3,9 +3,8 @@ use destack_mir::TraceTable;
 use crate::local::gc::SharedEdgeWork;
 use crate::local::space::{HeapPlace, HeapSpace};
 use crate::{
-    HeapError, HeapReference, HeapResult, ScanSource, SharedHeapReference,
-    scan_shared_references as scan_shared_heap_references,
-    scan_shared_references_in_range as scan_shared_heap_references_in_range,
+    HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, ScanSource,
+    SharedHeapReference, scan_references,
 };
 
 impl HeapSpace {
@@ -155,7 +154,12 @@ impl HeapSpace {
         // scan mapped heap memory directly
         let base_address = self.mapping.base_address() + location.base.offset();
         let mut reference_buffer = Vec::new();
-        let result = scan_shared_heap_references(&trace_map, base_address, &mut reference_buffer);
+        let result = scan_references::<SharedHeapReference>(
+            &trace_map,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::All,
+            &mut reference_buffer,
+        );
 
         if let Err(error) = result {
             return Err(HeapError::HeapScanFailed {
@@ -184,7 +188,7 @@ impl HeapSpace {
             return Ok(0);
         };
         let HeapPlace::Large(_) = location.place else {
-            return Err(HeapError::InvariantViolation {
+            return Err(HeapError::Internal {
                 context: "large shared-edge work resolved to non-large allocation",
             });
         };
@@ -206,11 +210,10 @@ impl HeapSpace {
         let range_len = self.allocator().page_bytes().min(location.byte_len - start);
         let base_address = self.mapping.base_address() + location.base.offset();
         let mut reference_buffer = Vec::new();
-        let result = scan_shared_heap_references_in_range(
+        let result = scan_references::<SharedHeapReference>(
             &trace_map,
-            start,
-            range_len,
-            base_address,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(start, range_len),
             &mut reference_buffer,
         );
 

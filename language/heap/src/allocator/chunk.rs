@@ -1,12 +1,10 @@
-use std::ptr::null_mut;
-use std::sync::atomic::{AtomicPtr, AtomicU32, Ordering};
-
-use parking_lot::Mutex;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::{PageId, PageRun};
 use crate::{HeapError, HeapResult};
 
-/// The number of chunk pointers stored in one index segment.
+/// The number of chunk cells stored in one index segment.
 const CHUNK_INDEX_SEGMENT_LEN: usize = 1024;
 
 /// One fixed chunk in the allocator.
@@ -88,15 +86,12 @@ impl Chunk {
 }
 
 /// Chunk lookup by logical index.
-#[allow(clippy::vec_box)]
 #[derive(Debug)]
 pub(super) struct ChunkIndex {
     /// The maximum addressable chunk count.
     max_chunk_count: usize,
     /// The sparse chunk-index segments keyed by logical segment index.
-    segments: Box<[AtomicPtr<ChunkIndexSegment>]>,
-    /// The owned segments kept alive for lock-free readers.
-    owned_segments: Mutex<Vec<Box<ChunkIndexSegment>>>,
+    segments: Box<[OnceLock<ChunkIndexSegment>]>,
 }
 
 impl ChunkIndex {
@@ -106,8 +101,7 @@ impl ChunkIndex {
 
         Self {
             max_chunk_count: chunk_count,
-            segments: atomic_ptr_slice(segment_count),
-            owned_segments: Mutex::new(Vec::new()),
+            segments: once_lock_slice(segment_count),
         }
     }
 
@@ -119,28 +113,13 @@ impl ChunkIndex {
 
         let segment_index = chunk_index / CHUNK_INDEX_SEGMENT_LEN;
         let chunk_slot_index = chunk_index % CHUNK_INDEX_SEGMENT_LEN;
-        let segment = self.segments.get(segment_index)?.load(Ordering::Acquire);
+        let segment = self.segments.get(segment_index)?.get()?;
 
-        // missing segments are represented by null pointers
-        if segment.is_null() {
-            return None;
-        }
-
-        // SAFETY: segments are owned by `owned_segments` until this index is dropped
-        let segment = unsafe { &*segment };
-        let chunk = segment.chunks[chunk_slot_index].load(Ordering::Acquire);
-
-        // missing chunks are represented by null pointers
-        if chunk.is_null() {
-            return None;
-        }
-
-        // SAFETY: chunks are owned by allocator state until the allocator is dropped
-        Some(unsafe { &*chunk })
+        segment.chunks[chunk_slot_index].get()
     }
 
     /// Insert one chunk by logical chunk index.
-    pub(super) fn insert(&self, chunk_index: usize, chunk: *mut Chunk) -> HeapResult<()> {
+    pub(super) fn insert(&self, chunk_index: usize, chunk: Chunk) -> HeapResult<()> {
         if chunk_index >= self.max_chunk_count {
             return Err(HeapError::AllocatorChunkLimitExceeded {
                 required_chunks: chunk_index + 1,
@@ -154,11 +133,8 @@ impl ChunkIndex {
         let slot = &segment.chunks[chunk_slot_index];
 
         // publish exactly once
-        if slot
-            .compare_exchange(null_mut(), chunk, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            return Err(HeapError::InvariantViolation {
+        if slot.set(chunk).is_err() {
+            return Err(HeapError::Internal {
                 context: "allocator chunk index entry installed twice",
             });
         }
@@ -168,27 +144,7 @@ impl ChunkIndex {
 
     /// Return one segment, allocating it when it does not exist yet.
     fn segment_for_insert(&self, segment_index: usize) -> &ChunkIndexSegment {
-        let segment = self.segments[segment_index].load(Ordering::Acquire);
-        if !segment.is_null() {
-            // SAFETY: segments are owned by `owned_segments` until this index is dropped
-            return unsafe { &*segment };
-        }
-
-        let mut owned_segments = self.owned_segments.lock();
-        let segment = self.segments[segment_index].load(Ordering::Acquire);
-        if !segment.is_null() {
-            // SAFETY: segments are owned by `owned_segments` until this index is dropped
-            return unsafe { &*segment };
-        }
-
-        let mut segment = Box::new(ChunkIndexSegment::new());
-        let segment_ptr = segment.as_mut() as *mut ChunkIndexSegment;
-
-        self.segments[segment_index].store(segment_ptr, Ordering::Release);
-        owned_segments.push(segment);
-
-        // SAFETY: the segment was just moved into `owned_segments`
-        unsafe { &*segment_ptr }
+        self.segments[segment_index].get_or_init(ChunkIndexSegment::new)
     }
 }
 
@@ -196,27 +152,27 @@ impl ChunkIndex {
 #[derive(Debug)]
 struct ChunkIndexSegment {
     /// The chunks keyed by segment-local index.
-    chunks: Box<[AtomicPtr<Chunk>]>,
+    chunks: Box<[OnceLock<Chunk>]>,
 }
 
 impl ChunkIndexSegment {
     /// Create one empty chunk-index segment.
     fn new() -> Self {
         Self {
-            chunks: atomic_ptr_slice(CHUNK_INDEX_SEGMENT_LEN),
+            chunks: once_lock_slice(CHUNK_INDEX_SEGMENT_LEN),
         }
     }
 }
 
-/// Return one boxed slice of null atomic pointers.
-fn atomic_ptr_slice<T>(len: usize) -> Box<[AtomicPtr<T>]> {
-    let mut pointers = Vec::with_capacity(len);
+/// Return one boxed slice of empty once cells.
+fn once_lock_slice<T>(len: usize) -> Box<[OnceLock<T>]> {
+    let mut cells = Vec::with_capacity(len);
 
     for _ in 0..len {
-        pointers.push(AtomicPtr::new(null_mut()));
+        cells.push(OnceLock::new());
     }
 
-    pointers.into_boxed_slice()
+    cells.into_boxed_slice()
 }
 
 /// Return the maximum allocator chunk count addressable by page ids.

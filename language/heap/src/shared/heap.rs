@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -10,9 +9,9 @@ use super::{
     SharedHeapSpace, SharedHeapSpaceImage, SharedHeapUsage, SharedRawSpace, SharedRawSpaceImage,
 };
 use crate::{
-    AllocationPlan, AllocationShape, AllocationSite, Allocator, AllocatorImage, GcPacer,
-    GcPressure, GcProgress, GcState, GcStats, HeapError, HeapResult, PageId, PageRun, Payload,
-    RawAllocationShape, SharedHeapOptions, SharedHeapReference, SharedRawPointer, apply_byte_delta,
+    AccountingRegion, AllocationPlan, AllocationShape, AllocationSite, Allocator, GcPacer,
+    GcPressure, GcProgress, GcState, GcStats, HeapError, HeapResult, Payload, RawAllocationShape,
+    SharedHeapOptions, SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -52,27 +51,17 @@ struct SharedHeapImageState {
     heap: SharedHeapSpaceImage,
     /// The frozen shared raw space.
     raw: SharedRawSpaceImage,
-    /// The shared page runs owned by this image.
-    page_runs: Box<[PageRun]>,
 }
 
 /// One serialized shared heap snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedHeapSnapshot {
-    /// The serialized allocator pages reachable from this shared heap image.
-    allocator: AllocatorImage,
     /// The captured shared heap options.
     options: SharedHeapOptions,
     /// The frozen shared heap space.
     heap: SharedHeapSpaceImage,
     /// The frozen shared raw space.
     raw: SharedRawSpaceImage,
-}
-
-impl Drop for SharedHeapImageState {
-    fn drop(&mut self) {
-        let _ = self.allocator.release_page_runs(&self.page_runs);
-    }
 }
 
 impl SharedHeapImage {
@@ -82,28 +71,24 @@ impl SharedHeapImage {
         options: SharedHeapOptions,
         heap: SharedHeapSpaceImage,
         raw: SharedRawSpaceImage,
-    ) -> HeapResult<Self> {
-        let mut page_runs = heap.page_runs();
-        page_runs.extend(raw.page_runs());
-
+    ) -> Self {
         let state = SharedHeapImageState {
             allocator,
             options,
             heap,
             raw,
-            page_runs: page_runs.into_boxed_slice(),
         };
 
-        Ok(Self {
+        Self {
             state: Arc::new(state),
-        })
+        }
     }
 
     /// Build one shared heap image from one serialized snapshot.
     pub fn from_snapshot(snapshot: &SharedHeapSnapshot) -> HeapResult<Self> {
         let allocator = Arc::new(Allocator::try_new(
-            snapshot.allocator.page_bytes as usize,
-            snapshot.allocator.chunk_bytes as usize,
+            snapshot.options.page_bytes,
+            snapshot.options.allocator_chunk_bytes,
         )?);
 
         Self::from_snapshot_with_allocator(snapshot, allocator)
@@ -114,29 +99,21 @@ impl SharedHeapImage {
         snapshot: &SharedHeapSnapshot,
         allocator: Arc<Allocator>,
     ) -> HeapResult<Self> {
-        allocator.restore_image_pages(&snapshot.allocator)?;
-        let mut page_runs = snapshot.heap.page_runs();
-        page_runs.extend(snapshot.raw.page_runs());
-        allocator.restore_page_run_references(&page_runs)?;
-
-        Self::new(
+        Ok(Self::new(
             allocator,
             snapshot.options.clone(),
             snapshot.heap.clone(),
             snapshot.raw.clone(),
-        )
+        ))
     }
 
     /// Flatten this image into one serialized snapshot.
-    pub fn snapshot(&self) -> HeapResult<SharedHeapSnapshot> {
-        let pages = self.page_ids();
-
-        Ok(SharedHeapSnapshot {
-            allocator: self.allocator().image_pages_from_ids(&pages)?,
+    pub fn snapshot(&self) -> SharedHeapSnapshot {
+        SharedHeapSnapshot {
             options: self.options().clone(),
             heap: self.heap().clone(),
             raw: self.raw().clone(),
-        })
+        }
     }
 
     /// Return the allocator backing every captured page.
@@ -159,23 +136,9 @@ impl SharedHeapImage {
         &self.state.raw
     }
 
-    /// Return every allocator page reachable from this shared-heap image.
-    pub fn page_ids(&self) -> Vec<PageId> {
-        let mut pages = self.heap().page_ids();
-        pages.extend(self.raw().page_ids());
-
-        pages
-            .into_iter()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect()
-    }
-}
-
-impl SharedHeapSnapshot {
-    /// Return every allocator page captured by this shared heap snapshot.
-    pub fn page_ids(&self) -> Vec<PageId> {
-        self.allocator.pages.iter().map(|page| page.id).collect()
+    /// Return the retained frozen page count.
+    pub fn page_count(&self) -> usize {
+        self.heap().page_count() + self.raw().page_count(self.options().page_bytes)
     }
 }
 
@@ -792,7 +755,8 @@ impl SharedHeap {
         if let Some(max_bytes) = self.limits.max_bytes {
             let retained_bytes = self.retained_bytes();
             if retained_bytes > max_bytes {
-                return Err(HeapError::TotalLimitExceeded {
+                return Err(HeapError::LimitExceeded {
+                    region: AccountingRegion::Total,
                     used_bytes: retained_bytes,
                     max_bytes,
                 });
@@ -812,7 +776,8 @@ impl SharedHeap {
         if let Some(max_bytes) = self.limits.max_bytes {
             let retained_bytes = apply_byte_delta(self.retained_bytes(), retained_byte_delta);
             if retained_bytes > max_bytes {
-                return Err(HeapError::TotalLimitExceeded {
+                return Err(HeapError::LimitExceeded {
+                    region: AccountingRegion::Total,
                     used_bytes: retained_bytes,
                     max_bytes,
                 });
@@ -831,7 +796,8 @@ impl SharedHeap {
         if let Some(max_bytes) = self.limits.max_bytes {
             let retained_bytes = apply_byte_delta(self.retained_bytes(), retained_byte_delta);
             if retained_bytes > max_bytes {
-                return Err(HeapError::TotalLimitExceeded {
+                return Err(HeapError::LimitExceeded {
+                    region: AccountingRegion::Total,
                     used_bytes: retained_bytes,
                     max_bytes,
                 });
@@ -849,7 +815,12 @@ impl SharedHeap {
         let heap = self.heap.image()?;
         let raw = self.raw.image()?;
 
-        SharedHeapImage::new(self.heap.allocator.clone(), self.options.clone(), heap, raw)
+        Ok(SharedHeapImage::new(
+            self.heap.allocator.clone(),
+            self.options.clone(),
+            heap,
+            raw,
+        ))
     }
 
     /// Return the number of live shared heap allocations.

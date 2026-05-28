@@ -109,11 +109,9 @@ impl RootSlot<'_> {
                 Ok(())
             }
             Self::HeapBytes(bytes) => reference.write_to_bytes(bytes),
-            Self::SharedHeapReference(_) | Self::SharedHeapBytes(_) => {
-                Err(HeapError::InvariantViolation {
-                    context: "shared root slot cannot store worker heap reference",
-                })
-            }
+            Self::SharedHeapReference(_) | Self::SharedHeapBytes(_) => Err(HeapError::Internal {
+                context: "shared root slot cannot store worker heap reference",
+            }),
         }
     }
 }

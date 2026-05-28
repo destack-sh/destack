@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::allocator::{Allocator, PageRun};
+use crate::allocator::Allocator;
 use crate::local::raw::RawSpaceImage;
 use crate::local::space::{HeapSpaceImage, YoungImage};
 use crate::{
@@ -45,38 +45,21 @@ fn test_heap_with_empty_layouts(
     (heap, layouts)
 }
 
-/// Return the bytes from one physical page run.
-fn read_page_run_bytes(
-    allocator: &Allocator,
-    page_run: &PageRun,
-    start: usize,
-    byte_len: usize,
-) -> Vec<u8> {
-    allocator
-        .read_bytes_from(page_run, start, byte_len)
-        .expect("image bytes should resolve")
-}
-
 /// Return the bytes for one large image allocation.
-fn read_large_allocation_bytes(
-    allocator: &Allocator,
-    page_run: &PageRun,
-    byte_len: usize,
-) -> Vec<u8> {
-    read_page_run_bytes(allocator, page_run, 0, byte_len)
+fn read_large_allocation_bytes(allocation: &crate::local::space::LargeAllocationImage) -> Vec<u8> {
+    allocation.bytes[..allocation.byte_len].to_vec()
 }
 
 /// Return the bytes for one small-span slot.
 fn read_small_slot_bytes(
-    allocator: &Allocator,
-    page_run: &PageRun,
+    span: &crate::local::space::SmallSpanImage,
     size_class: usize,
     slot_index: usize,
     byte_len: usize,
 ) -> Vec<u8> {
     let start = size_class * slot_index;
 
-    read_page_run_bytes(allocator, page_run, start, byte_len)
+    span.bytes[start..start + byte_len].to_vec()
 }
 
 /// Write one managed payload range for image assertions.
@@ -94,23 +77,20 @@ fn write_payload(
 }
 
 /// Return the bytes for one young-space range.
-fn read_young_range_bytes(
-    allocator: &Allocator,
-    young: &YoungImage,
-    range_index: usize,
-) -> Vec<u8> {
+fn read_young_range_bytes(young: &YoungImage, range_index: usize) -> Vec<u8> {
     let allocation = &young.ranges()[range_index];
     let start = allocation.first_offset;
+    let end = start + allocation.byte_len;
 
-    read_page_run_bytes(allocator, young.pages(), start, allocation.byte_len)
+    young.bytes()[start..end].to_vec()
 }
 
 /// Return the first live heap allocation bytes from one captured image.
-fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) -> Vec<u8> {
+fn read_first_heap_image_bytes(image: &HeapSpaceImage) -> Vec<u8> {
     // young allocations first
     for range_index in 0..image.young().ranges().len() {
         if image.young().live().contains(range_index) {
-            return read_young_range_bytes(allocator, image.young(), range_index);
+            return read_young_range_bytes(image.young(), range_index);
         }
     }
 
@@ -122,8 +102,7 @@ fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) ->
             }
 
             return read_small_slot_bytes(
-                allocator,
-                &span.pages,
+                span,
                 span.class.size_class,
                 slot_index,
                 span.class.size_class,
@@ -137,7 +116,7 @@ fn read_first_heap_image_bytes(allocator: &Allocator, image: &HeapSpaceImage) ->
             continue;
         }
 
-        return read_large_allocation_bytes(allocator, &allocation.pages, allocation.byte_len);
+        return read_large_allocation_bytes(allocation);
     }
 
     panic!("heap image should contain one live allocation")
@@ -222,11 +201,7 @@ fn test_roundtrip_heap_space_image() {
 
     // restored bytes should match the captured heap bytes
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &restored_image.allocations()[0].pages,
-            first_bytes.len(),
-        ),
+        read_large_allocation_bytes(&restored_image.allocations()[0]),
         first_bytes
     );
     let first_address = restored.base_address() + first.offset();
@@ -235,11 +210,7 @@ fn test_roundtrip_heap_space_image() {
 
     assert_eq!(bytes, first_bytes);
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &restored_image.allocations()[1].pages,
-            second_bytes.len(),
-        ),
+        read_large_allocation_bytes(&restored_image.allocations()[1]),
         second_bytes
     );
 
@@ -257,30 +228,18 @@ fn test_roundtrip_heap_space_image() {
     expected_first[0] = 0xFE;
 
     assert_eq!(
-        read_large_allocation_bytes(
-            allocator.as_ref(),
-            &image.allocations()[0].pages,
-            first_bytes.len(),
-        ),
+        read_large_allocation_bytes(&image.allocations()[0]),
         first_bytes
     );
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.allocations()[0].pages,
-            expected_first.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.allocations()[0]),
         expected_first
     );
     let bytes = read_mapped_bytes(first_address, expected_first.len());
 
     assert_eq!(bytes, expected_first);
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.allocations()[1].pages,
-            second_bytes.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.allocations()[1]),
         second_bytes
     );
 }
@@ -370,7 +329,7 @@ fn test_roundtrip_heap_image_and_fork() {
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_first_heap_image_bytes(forked.allocator(), forked_image.heap()),
+        read_first_heap_image_bytes(forked_image.heap()),
         heap_bytes.to_vec()
     );
     assert_eq!(
@@ -378,7 +337,7 @@ fn test_roundtrip_heap_image_and_fork() {
         vec![0xCA, 0xFE, 0xBA, 0xBE]
     );
     assert_eq!(
-        read_first_heap_image_bytes(restored.allocator(), restored_image.heap()),
+        read_first_heap_image_bytes(restored_image.heap()),
         heap_bytes.to_vec()
     );
     assert_eq!(
@@ -402,13 +361,13 @@ fn test_roundtrip_heap_snapshot() {
     .expect("heap allocation should succeed");
 
     let image = heap.image().expect("heap image should capture");
-    let snapshot = image.snapshot().expect("heap snapshot should capture");
+    let snapshot = image.snapshot();
     let mut restored =
         crate::Heap::from_snapshot(&snapshot, trace_table()).expect("heap snapshot should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_first_heap_image_bytes(restored.allocator(), restored_image.heap()),
+        read_first_heap_image_bytes(restored_image.heap()),
         heap_bytes.to_vec()
     );
 }
@@ -452,27 +411,15 @@ fn test_heap_heap_write_preserves_captured_allocation_bytes() {
     expected_first[0] = 0xCC;
 
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.heap().allocations()[0].pages,
-            expected_first.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.heap().allocations()[0]),
         expected_first
     );
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.heap().allocations()[1].pages,
-            second_bytes.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.heap().allocations()[1]),
         second_bytes
     );
     assert_eq!(
-        read_large_allocation_bytes(
-            heap.allocator(),
-            &image.heap().allocations()[0].pages,
-            expected_first.len(),
-        ),
+        read_large_allocation_bytes(&image.heap().allocations()[0]),
         vec![0xAA; 5000]
     );
 }
@@ -507,19 +454,11 @@ fn test_heap_heap_write_preserves_captured_page_bytes() {
     expected[4096] = 0xCC;
 
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.heap().allocations()[0].pages,
-            expected.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.heap().allocations()[0]),
         expected
     );
     assert_eq!(
-        read_large_allocation_bytes(
-            heap.allocator(),
-            &image.heap().allocations()[0].pages,
-            bytes.len(),
-        ),
+        read_large_allocation_bytes(&image.heap().allocations()[0]),
         bytes
     );
 }
@@ -554,19 +493,11 @@ fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
     expected[..3 * 4096].fill(0xCC);
 
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.heap().allocations()[0].pages,
-            expected.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.heap().allocations()[0]),
         expected
     );
     assert_eq!(
-        read_large_allocation_bytes(
-            heap.allocator(),
-            &image.heap().allocations()[0].pages,
-            bytes.len(),
-        ),
+        read_large_allocation_bytes(&image.heap().allocations()[0]),
         bytes
     );
 }
@@ -601,19 +532,11 @@ fn test_heap_heap_write_preserves_captured_many_page_bytes() {
     expected[..4 * 4096].fill(0xCC);
 
     assert_eq!(
-        read_large_allocation_bytes(
-            restored.allocator(),
-            &mutated_image.heap().allocations()[0].pages,
-            expected.len(),
-        ),
+        read_large_allocation_bytes(&mutated_image.heap().allocations()[0]),
         expected
     );
     assert_eq!(
-        read_large_allocation_bytes(
-            heap.allocator(),
-            &image.heap().allocations()[0].pages,
-            bytes.len(),
-        ),
+        read_large_allocation_bytes(&image.heap().allocations()[0]),
         bytes
     );
 }
@@ -651,8 +574,7 @@ fn test_roundtrip_heap_small_space_image() {
 
     assert_eq!(
         read_small_slot_bytes(
-            restored.allocator(),
-            &restored_image.spans()[0].pages,
+            &restored_image.spans()[0],
             restored_image.spans()[0].class.size_class,
             0,
             3,
@@ -672,8 +594,7 @@ fn test_roundtrip_heap_small_space_image() {
 
     assert_eq!(
         read_small_slot_bytes(
-            restored.allocator(),
-            &mutated_image.spans()[0].pages,
+            &mutated_image.spans()[0],
             mutated_image.spans()[0].class.size_class,
             0,
             3,
@@ -681,13 +602,7 @@ fn test_roundtrip_heap_small_space_image() {
         vec![1, 0xFE, 3]
     );
     assert_eq!(
-        read_small_slot_bytes(
-            allocator.as_ref(),
-            &image.spans()[0].pages,
-            image.spans()[0].class.size_class,
-            0,
-            3,
-        ),
+        read_small_slot_bytes(&image.spans()[0], image.spans()[0].class.size_class, 0, 3,),
         vec![1, 2, 3]
     );
 }
@@ -723,7 +638,7 @@ fn test_roundtrip_heap_young_space_image() {
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_young_range_bytes(restored.allocator(), restored_image.young(), 0),
+        read_young_range_bytes(restored_image.young(), 0),
         vec![1, 2, 3]
     );
 
@@ -738,13 +653,10 @@ fn test_roundtrip_heap_young_space_image() {
     let mutated_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_young_range_bytes(restored.allocator(), mutated_image.young(), 0),
+        read_young_range_bytes(mutated_image.young(), 0),
         vec![1, 0xFE, 3]
     );
-    assert_eq!(
-        read_young_range_bytes(allocator.as_ref(), image.young(), 0),
-        vec![1, 2, 3]
-    );
+    assert_eq!(read_young_range_bytes(image.young(), 0), vec![1, 2, 3]);
 }
 
 /// Roundtrip raw small-space images as independent byte payloads.
@@ -928,8 +840,7 @@ fn test_restore_heap_image_rejects_invalid_raw_size_class() {
             .raw()
             .clone()
             .with_size_classes(SizeClassTable::new([16]).expect("size classes should validate")),
-    )
-    .expect("heap image should build");
+    );
     drop(original_image);
 
     let error = crate::Heap::from_image(&image, trace_table())

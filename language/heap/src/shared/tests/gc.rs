@@ -609,7 +609,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
         .collect_full(&[reference], trace_table())
         .expect("shared collection should succeed");
     let image = shared.image().expect("shared image should capture");
-    let snapshot = image.snapshot().expect("shared snapshot should capture");
+    let snapshot = image.snapshot();
     let restored = SharedHeap::from_snapshot_with_limits(&snapshot, SharedHeapLimits::default())
         .expect("shared snapshot should restore");
 

@@ -393,8 +393,8 @@ pub(crate) struct YoungImage {
     next_offset: usize,
     /// The required alignment for young allocation bases.
     allocation_alignment_bytes: usize,
-    /// The allocator pages backing this young space.
-    pages: PageRun,
+    /// The captured young-space bytes.
+    bytes: Box<[u8]>,
     /// The captured young-space ranges.
     ranges: Box<[YoungRange]>,
     /// The captured young-space fixed-size runs.
@@ -416,7 +416,7 @@ impl YoungImage {
         page_bytes: usize,
         next_offset: usize,
         allocation_alignment_bytes: usize,
-        pages: PageRun,
+        bytes: Box<[u8]>,
         ranges: Box<[YoungRange]>,
         runs: Box<[YoungRun]>,
         run_bits: Box<[YoungRunBits]>,
@@ -429,7 +429,7 @@ impl YoungImage {
             page_bytes,
             next_offset,
             allocation_alignment_bytes,
-            pages,
+            bytes,
             ranges,
             runs,
             run_bits,
@@ -459,9 +459,9 @@ impl YoungImage {
         self.allocation_alignment_bytes
     }
 
-    /// Return the allocator pages for this young-space image.
-    pub(crate) fn pages(&self) -> &PageRun {
-        &self.pages
+    /// Return the captured young-space bytes.
+    pub(crate) fn bytes(&self) -> &[u8] {
+        &self.bytes
     }
 
     /// Return the young-space ranges.

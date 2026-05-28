@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use parking_lot::Mutex;
@@ -53,8 +52,6 @@ impl Allocator {
                 chunk_count: 0,
                 current_chunk_index: None,
                 free_runs: PageRunSet::new(),
-                chunks: Vec::new(),
-                image_pages: BTreeMap::new(),
             }),
         })
     }
@@ -81,16 +78,6 @@ impl Allocator {
         self.allocate_run(page_count)
     }
 
-    /// Allocate image pages and copy one byte slice into them.
-    pub(crate) fn allocate_image_bytes(&self, bytes: &[u8]) -> HeapResult<PageRun> {
-        let page_run = self.allocate_pages(bytes.len())?;
-
-        // initialize the frozen logical page range
-        self.write_bytes(&page_run, 0, bytes)?;
-
-        Ok(page_run)
-    }
-
     /// Release one page run after its metadata record drops it.
     pub fn release_page_run(&self, page_run: &PageRun) -> HeapResult<()> {
         self.decrement_run_ref_count(*page_run)
@@ -106,17 +93,17 @@ impl Allocator {
         Ok(())
     }
 
-    /// Restore image-owned page-run reference counts.
-    pub(crate) fn restore_page_run_references(&self, page_runs: &[PageRun]) -> HeapResult<()> {
-        for page_run in page_runs {
-            if page_run.is_empty() {
-                continue;
-            }
+    /// Return the exact retained bytes for one set of logical page runs.
+    pub fn retained_bytes_for_page_runs<'a>(
+        &self,
+        page_runs: impl IntoIterator<Item = &'a PageRun>,
+    ) -> u64 {
+        let page_count = page_runs
+            .into_iter()
+            .map(|page_run| page_run.len())
+            .sum::<usize>();
 
-            self.initialize_run_ref_count(*page_run)?;
-        }
-
-        Ok(())
+        page_count as u64 * self.page_bytes() as u64
     }
 
     /// Share one page run with another metadata record.
@@ -182,7 +169,7 @@ impl Allocator {
 
             // reject sharing after recycle
             if current_count == 0 {
-                return Err(HeapError::InvariantViolation {
+                return Err(HeapError::Internal {
                     context: "allocator shared free run",
                 });
             }
@@ -226,7 +213,7 @@ impl Allocator {
 
             // reject double release
             if current_count == 0 {
-                return Err(HeapError::InvariantViolation {
+                return Err(HeapError::Internal {
                     context: "allocator released free run",
                 });
             }
@@ -265,30 +252,6 @@ impl Allocator {
         let ref_count = self.run_ref_count(run)?;
 
         Ok(ref_count.load(Ordering::Acquire) == 1)
-    }
-
-    /// Grow this allocator until it can address the given page count.
-    pub(super) fn grow_to_page_count(&self, page_count: usize) -> HeapResult<()> {
-        let required_chunk_count = page_count.div_ceil(self.pages_per_chunk());
-        let max_chunk_count = self.max_chunk_count();
-
-        // reject requests outside the page-id address space
-        if required_chunk_count > max_chunk_count {
-            return Err(HeapError::AllocatorChunkLimitExceeded {
-                required_chunks: required_chunk_count,
-                max_chunks: max_chunk_count,
-            });
-        }
-
-        let mut state = self.state.lock();
-        let first_new_chunk = state.chunk_count;
-        let end_chunk_index = state.chunk_count.max(required_chunk_count);
-
-        // publish chunks before moving the frontier
-        self.allocate_chunk_range(&mut state, first_new_chunk, end_chunk_index)?;
-        state.chunk_count = end_chunk_index;
-
-        Ok(())
     }
 
     /// Allocate one free run large enough for the requested size.
@@ -367,7 +330,7 @@ impl Allocator {
         }
 
         // publish chunks before moving the frontier
-        self.allocate_chunk_range(&mut state, first_chunk_index, end_chunk_index)?;
+        self.allocate_chunk_range(first_chunk_index, end_chunk_index)?;
         state.chunk_count = end_chunk_index;
 
         Ok(first_chunk_index)
@@ -436,51 +399,6 @@ impl Allocator {
         Ok(())
     }
 
-    /// Return one owned image page.
-    pub(crate) fn page_image_bytes(&self, page_id: PageId) -> HeapResult<Box<[u8]>> {
-        self.check_page_id(page_id)?;
-        let state = self.state.lock();
-
-        Ok(state
-            .image_pages
-            .get(&page_id)
-            .cloned()
-            .unwrap_or_else(|| vec![0; self.page_bytes()].into_boxed_slice()))
-    }
-
-    /// Write one owned image page.
-    pub(crate) fn write_page_image(&self, page_id: PageId, bytes: Box<[u8]>) -> HeapResult<()> {
-        if bytes.len() != self.page_bytes() {
-            return Err(HeapError::ImageInvalidPageBytes {
-                page_id,
-                expected: self.page_bytes(),
-                actual: bytes.len(),
-            });
-        }
-
-        self.check_page_id(page_id)?;
-        let mut state = self.state.lock();
-
-        state.image_pages.insert(page_id, bytes);
-
-        Ok(())
-    }
-
-    /// Check that one page id belongs to a published chunk.
-    fn check_page_id(&self, page_id: PageId) -> HeapResult<()> {
-        let (chunk_index, _) = self.chunk_position(page_id);
-        if self.chunk(chunk_index).is_none() {
-            return Err(HeapError::MissingPage { page_id });
-        }
-
-        Ok(())
-    }
-
-    /// Report whether one chunk index is addressable.
-    pub(super) fn has_chunk(&self, chunk_index: usize) -> bool {
-        chunk_index < self.max_chunk_count()
-    }
-
     /// Return the chunk and page index for one page id.
     pub(super) fn chunk_position(&self, page_id: PageId) -> (usize, usize) {
         let pages_per_chunk = self.pages_per_chunk();
@@ -500,11 +418,6 @@ impl Allocator {
     fn recycle_run(&self, run: PageRun) -> HeapResult<()> {
         let mut state = self.state.lock();
 
-        // discard any frozen image bytes tied to the recycled run
-        for page_id in run.page_ids() {
-            state.image_pages.remove(&page_id);
-        }
-
         state.free_runs.free(run);
 
         Ok(())
@@ -522,38 +435,12 @@ impl Allocator {
 
         // cached runs must be uniquely owned
         if current_count != 1 {
-            return Err(HeapError::InvariantViolation {
+            return Err(HeapError::Internal {
                 context: "allocator cached run reference count",
             });
         }
 
         self.recycle_run(run)?;
-
-        Ok(())
-    }
-
-    /// Raise one chunk allocation watermark to the given page index.
-    pub(super) fn raise_chunk_high_watermark(
-        &self,
-        chunk_index: usize,
-        high_watermark: usize,
-    ) -> HeapResult<()> {
-        let Some(chunk) = self.chunk(chunk_index) else {
-            let required_chunks = chunk_index + 1;
-            return Err(HeapError::AllocatorChunkLimitExceeded {
-                required_chunks,
-                max_chunks: self.max_chunk_count(),
-            });
-        };
-
-        chunk.raise_watermark(high_watermark);
-
-        let mut state = self.state.lock();
-        state.chunk_count = state.chunk_count.max(chunk_index + 1);
-
-        if high_watermark < self.pages_per_chunk() && chunk_index + 1 == state.chunk_count {
-            state.current_chunk_index = Some(chunk_index);
-        }
 
         Ok(())
     }
@@ -566,7 +453,6 @@ impl Allocator {
     /// Allocate and publish one chunk range.
     fn allocate_chunk_range(
         &self,
-        state: &mut AllocatorState,
         first_chunk_index: usize,
         end_chunk_index: usize,
     ) -> HeapResult<()> {
@@ -575,14 +461,14 @@ impl Allocator {
                 continue;
             }
 
-            self.allocate_chunk(state, chunk_index)?;
+            self.allocate_chunk(chunk_index)?;
         }
 
         Ok(())
     }
 
     /// Allocate and publish one chunk.
-    fn allocate_chunk(&self, state: &mut AllocatorState, chunk_index: usize) -> HeapResult<()> {
+    fn allocate_chunk(&self, chunk_index: usize) -> HeapResult<()> {
         if chunk_index >= self.max_chunk_count() {
             return Err(HeapError::AllocatorChunkLimitExceeded {
                 required_chunks: chunk_index + 1,
@@ -590,25 +476,21 @@ impl Allocator {
             });
         }
 
-        // already have chunk
+        // skip existing chunk
         if self.chunk(chunk_index).is_some() {
             return Ok(());
         }
 
         // allocate chunk metadata
-        let mut chunk = Box::new(Chunk::new(self.pages_per_chunk()));
-        let chunk_ptr = chunk.as_mut() as *mut Chunk;
-
-        self.chunk_index.insert(chunk_index, chunk_ptr)?;
-        state.chunks.push(chunk);
+        let chunk = Chunk::new(self.pages_per_chunk());
+        self.chunk_index.insert(chunk_index, chunk)?;
 
         Ok(())
     }
 }
 
-/// The chunk frontier, current chunk, free runs, and chunk lifetime state.
+/// The chunk frontier, current chunk, and free runs.
 #[derive(Debug)]
-#[allow(clippy::vec_box)]
 struct AllocatorState {
     /// The number of chunks available to the page allocator.
     chunk_count: usize,
@@ -616,8 +498,4 @@ struct AllocatorState {
     current_chunk_index: Option<usize>,
     /// The free physical runs.
     free_runs: PageRunSet,
-    /// The chunk records, boxed so chunk index pointers stay stable.
-    chunks: Vec<Box<Chunk>>,
-    /// The image bytes keyed by allocator page id.
-    image_pages: BTreeMap<PageId, Box<[u8]>>,
 }

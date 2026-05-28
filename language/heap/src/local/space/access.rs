@@ -2,8 +2,8 @@ use destack_mir::{TraceMap, TraceTable};
 
 use super::{HeapLocation, HeapPlace, HeapSpace, YoungPlace};
 use crate::{
-    HeapError, HeapReference, HeapResult, SharedHeapReference,
-    scan_shared_references_in_bytes_range, scan_shared_references_in_range,
+    HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
+    scan_references,
 };
 
 impl HeapSpace {
@@ -88,20 +88,18 @@ impl HeapSpace {
 
         // overwritten references
         let base_address = self.mapping.base_address() + location.base.offset();
-        scan_shared_references_in_range(
+        scan_references::<SharedHeapReference>(
             &trace_map,
-            byte_offset,
-            bytes.len(),
-            base_address,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut edges,
         )?;
 
         // inserted references
-        scan_shared_references_in_bytes_range(
+        scan_references::<SharedHeapReference>(
             &trace_map,
-            byte_offset,
-            bytes.len(),
-            bytes,
+            ReferenceInput::bytes(byte_offset, bytes),
+            ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut edges,
         )?;
 

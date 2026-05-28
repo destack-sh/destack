@@ -3,6 +3,8 @@ use std::fmt::{self, Display, Formatter};
 /// One allocation accounting region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountingRegion {
+    /// All heap regions together.
+    Total,
     /// One heap space.
     Heap,
     /// One local raw space.
@@ -17,6 +19,7 @@ impl AccountingRegion {
     /// Return the usage subject for this region.
     pub(crate) fn subject(self) -> &'static str {
         match self {
+            Self::Total => "total heap",
             Self::Heap => "heap",
             Self::Raw => "local raw heap",
             Self::SharedHeap => "shared heap",
@@ -28,6 +31,7 @@ impl AccountingRegion {
 impl Display for AccountingRegion {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let label = match self {
+            Self::Total => "total",
             Self::Heap => "heap",
             Self::Raw => "raw",
             Self::SharedHeap => "shared heap",
