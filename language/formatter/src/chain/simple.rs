@@ -81,8 +81,12 @@ fn generic_argument_is_simple(
     depth: u8,
 ) -> bool {
     match context.tree.get(argument_id) {
-        GenericArgument::Type { .. } | GenericArgument::SpreadType { .. } => false,
-        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+        GenericArgument::Type { .. }
+        | GenericArgument::SpreadType { .. }
+        | GenericArgument::AssociatedType { .. } => false,
+        GenericArgument::Value { value }
+        | GenericArgument::SpreadValue { value }
+        | GenericArgument::AssociatedConst { value, .. } => {
             SimpleArgument::from(*value).is_simple_with_depth(context, depth)
         }
         GenericArgument::Error => false,
@@ -231,10 +235,14 @@ fn type_generic_argument_is_simple(
     depth: u8,
 ) -> bool {
     match context.tree.get(argument_id) {
-        GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+        GenericArgument::Type { value }
+        | GenericArgument::SpreadType { value }
+        | GenericArgument::AssociatedType { value, .. } => {
             type_expression_is_simple(context, *value, depth)
         }
-        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+        GenericArgument::Value { value }
+        | GenericArgument::SpreadValue { value }
+        | GenericArgument::AssociatedConst { value, .. } => {
             SimpleArgument::from(*value).is_simple_with_depth(context, depth)
         }
         GenericArgument::Error => false,

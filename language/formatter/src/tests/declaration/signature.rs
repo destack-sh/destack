@@ -402,7 +402,7 @@ type A2 = {
 
 class A3 {
   constructor(
-    public eventName: string,
+    eventName: string,
     data?: object,
   ) { }
 }
@@ -450,10 +450,7 @@ type A2 = {
 };
 
 class A3 {
-  constructor(
-    public eventName: string,
-    data?: object,
-  ) {}
+  constructor(eventName: string, data?: object) {}
 }
 
 class A4 {
@@ -492,10 +489,7 @@ type A2 = {
 };
 
 class A3 {
-  constructor(
-    public eventName: string,
-    data?: object,
-  ) {}
+  constructor(eventName: string, data?: object) {}
 }
 
 class A4 {

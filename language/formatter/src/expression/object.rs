@@ -511,10 +511,12 @@ fn struct_literal_layout(
 
                 let generic_argument_id = LocalNodeId::<GenericArgument>::new(generic_argument_id);
                 let generic_argument_value = match f.context().tree.get(generic_argument_id) {
-                    GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
-                        *value
-                    }
-                    GenericArgument::Type { .. } | GenericArgument::SpreadType { .. } => {
+                    GenericArgument::Value { value }
+                    | GenericArgument::SpreadValue { value }
+                    | GenericArgument::AssociatedConst { value, .. } => *value,
+                    GenericArgument::Type { .. }
+                    | GenericArgument::SpreadType { .. }
+                    | GenericArgument::AssociatedType { .. } => {
                         return false;
                     }
                     GenericArgument::Error => return false,

@@ -56,14 +56,14 @@ fn test_format_struct_with_decorated_field() {
     );
 }
 
-/// Quoted constructor parameter properties should expand into one parameter per line.
+/// Quoted constructor names should normalize to constructor syntax.
 #[test]
-fn test_format_constructor_parameter_properties_expand_for_quoted_constructor_name() {
+fn test_format_quoted_constructor_name() {
     assert_format_program!(
         r#"
 [
   class {
-    "constructor"(protected x: number, private y: string) {}
+    "constructor"(x: number, y: string) {}
   },
 ]
 "#
@@ -71,10 +71,7 @@ fn test_format_constructor_parameter_properties_expand_for_quoted_constructor_na
         r#"
 [
   class {
-    constructor(
-      protected x: number,
-      private y: string,
-    ) {}
+    constructor(x: number, y: string) {}
   },
 ];
 "#
@@ -84,19 +81,19 @@ fn test_format_constructor_parameter_properties_expand_for_quoted_constructor_na
     );
 }
 
-/// One single constructor parameter property should stay inline.
+/// One single constructor parameter should stay inline.
 #[test]
-fn test_format_single_constructor_parameter_property_stays_inline() {
+fn test_format_single_constructor_parameter_stays_inline() {
     assert_format_program!(
         r#"
 class C {
-  constructor(private x: number) {}
+  constructor(x: number) {}
 }
 "#
         .trim_start(),
         r#"
 class C {
-  constructor(private x: number) {}
+  constructor(x: number) {}
 }
 "#
         .trim_start(),

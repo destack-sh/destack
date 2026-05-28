@@ -275,12 +275,8 @@ fn type_expression_is_assignment_like_generic_condition(
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
 
-        TypeExpression::FunctionTypeDeclaration(function) => {
-            !function.generic_parameters.is_empty()
-        }
-        TypeExpression::ConstructorTypeDeclaration(function) => {
-            !function.generic_parameters.is_empty()
-        }
+        TypeExpression::Function(function) => !function.generic_parameters.is_empty(),
+        TypeExpression::Constructor(function) => !function.generic_parameters.is_empty(),
 
         _ => false,
     }
