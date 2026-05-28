@@ -40,7 +40,7 @@ enum ScalarStore {
 /// Return the scalar load representation for one word layout.
 fn scalar_load(layout: WordLayout) -> Result<ScalarLoad, Error> {
     Ok(match layout {
-        WordLayout::Void => return Err(Error::InvalidInstruction),
+        WordLayout::Void => return Err(Error::invalid_instruction()),
         WordLayout::Bool => ScalarLoad::U8,
         WordLayout::Int { width } if width <= 8 => ScalarLoad::I8,
         WordLayout::Int { width } if width <= 16 => ScalarLoad::I16,
@@ -60,14 +60,16 @@ fn scalar_load(layout: WordLayout) -> Result<ScalarLoad, Error> {
         | WordLayout::FramePointer
         | WordLayout::StaticPointer
         | WordLayout::FunctionPointer => ScalarLoad::Width64,
-        WordLayout::Int { .. } | WordLayout::Uint { .. } => return Err(Error::InvalidInstruction),
+        WordLayout::Int { .. } | WordLayout::Uint { .. } => {
+            return Err(Error::invalid_instruction());
+        }
     })
 }
 
 /// Return the scalar store representation for one word layout.
 fn scalar_store(layout: WordLayout) -> Result<ScalarStore, Error> {
     Ok(match layout {
-        WordLayout::Void => return Err(Error::InvalidInstruction),
+        WordLayout::Void => return Err(Error::invalid_instruction()),
         WordLayout::Bool => ScalarStore::Width8,
         WordLayout::Int { width } | WordLayout::Uint { width } if width <= 8 => ScalarStore::Width8,
         WordLayout::Int { width } | WordLayout::Uint { width } if width <= 16 => {
@@ -89,7 +91,9 @@ fn scalar_store(layout: WordLayout) -> Result<ScalarStore, Error> {
         | WordLayout::FramePointer
         | WordLayout::StaticPointer
         | WordLayout::FunctionPointer => ScalarStore::Width64,
-        WordLayout::Int { .. } | WordLayout::Uint { .. } => return Err(Error::InvalidInstruction),
+        WordLayout::Int { .. } | WordLayout::Uint { .. } => {
+            return Err(Error::invalid_instruction());
+        }
     })
 }
 
@@ -370,7 +374,7 @@ pub(super) fn select_load_op(
         return select_bytes_load_op(pointer_class);
     }
 
-    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
+    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
     let load = scalar_load(layout)?;
 
     select_scalar_load_op(pointer_class, load)
@@ -385,7 +389,7 @@ pub(super) fn select_store_op(
         return select_bytes_store_op(pointer_class);
     }
 
-    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
+    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
     let store = scalar_store(layout)?;
 
     select_scalar_store_op(pointer_class, store)
@@ -457,7 +461,7 @@ fn select_scalar_load_op(pointer_class: PointerClass, load: ScalarLoad) -> Resul
         (PointerClass::Static, ScalarLoad::U32) => Op::LoadStaticU32,
         (PointerClass::Static, ScalarLoad::I32) => Op::LoadStaticI32,
         (PointerClass::Static, ScalarLoad::Width64) => Op::LoadStatic64,
-        (PointerClass::Unknown, _) => return Err(Error::InvalidInstruction),
+        (PointerClass::Unknown, _) => return Err(Error::invalid_instruction()),
     })
 }
 
@@ -500,13 +504,13 @@ fn select_scalar_store_op(pointer_class: PointerClass, store: ScalarStore) -> Re
         (PointerClass::Static, ScalarStore::Width16) => Op::StoreStatic16,
         (PointerClass::Static, ScalarStore::Width32) => Op::StoreStatic32,
         (PointerClass::Static, ScalarStore::Width64) => Op::StoreStatic64,
-        (PointerClass::Unknown, _) => return Err(Error::InvalidInstruction),
+        (PointerClass::Unknown, _) => return Err(Error::invalid_instruction()),
     })
 }
 
 /// Select one frame value scalar load operation.
 pub(super) fn select_frame_value_load_op(projection: Projection) -> Result<Op, Error> {
-    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
+    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
 
     Ok(match scalar_load(layout)? {
         ScalarLoad::U8 => Op::LoadFrameValueU8,
@@ -521,7 +525,7 @@ pub(super) fn select_frame_value_load_op(projection: Projection) -> Result<Op, E
 
 /// Select one frame value scalar store operation.
 pub(super) fn select_frame_value_store_op(projection: Projection) -> Result<Op, Error> {
-    let layout = projection.word_layout.ok_or(Error::InvalidInstruction)?;
+    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
 
     Ok(match scalar_store(layout)? {
         ScalarStore::Width8 => Op::StoreFrameValue8,
@@ -541,7 +545,7 @@ fn select_bytes_load_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::Stack => Ok(Op::LoadStackBytes),
         PointerClass::Frame => Ok(Op::LoadFrameBytes),
         PointerClass::Static => Ok(Op::LoadStaticBytes),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
+        PointerClass::Unknown => Err(Error::invalid_instruction()),
     }
 }
 
@@ -555,7 +559,7 @@ fn select_bytes_store_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::Stack => Ok(Op::StoreStackBytes),
         PointerClass::Frame => Ok(Op::StoreFrameBytes),
         PointerClass::Static => Ok(Op::StoreStaticBytes),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
+        PointerClass::Unknown => Err(Error::invalid_instruction()),
     }
 }
 
@@ -564,11 +568,13 @@ pub(super) fn select_field_addr_op(
     value_layouts: &ValueLayoutMap,
     base: mir::Value,
 ) -> Result<Op, Error> {
-    let layout = value_layouts.get(base).ok_or(Error::InvalidInstruction)?;
+    let layout = value_layouts
+        .get(base)
+        .ok_or(Error::invalid_instruction())?;
     match layout {
         ValueLayout::FrameBytes { .. } => Ok(Op::AddressFrameValueOffset),
         ValueLayout::Pointer { pointer_class, .. } => select_offset_address_op(pointer_class),
-        _ => Err(Error::InvalidInstruction),
+        _ => Err(Error::invalid_instruction()),
     }
 }
 
@@ -577,13 +583,15 @@ pub(super) fn select_element_addr_op(
     value_layouts: &ValueLayoutMap,
     array: mir::Value,
 ) -> Result<Op, Error> {
-    let layout = value_layouts.get(array).ok_or(Error::InvalidInstruction)?;
+    let layout = value_layouts
+        .get(array)
+        .ok_or(Error::invalid_instruction())?;
     match layout {
         ValueLayout::FrameBytes { .. } | ValueLayout::Array { .. } => {
             Ok(Op::AddressFrameValueElement)
         }
         ValueLayout::Pointer { pointer_class, .. } => select_index_address_op(pointer_class),
-        _ => Err(Error::InvalidInstruction),
+        _ => Err(Error::invalid_instruction()),
     }
 }
 
@@ -599,7 +607,7 @@ pub(super) fn select_slice_element_addr_op(pointer_class: PointerClass) -> Resul
         PointerClass::Stack => Ok(Op::AddressStackSliceElement),
         PointerClass::Frame => Ok(Op::AddressFrameSliceElement),
         PointerClass::Static => Ok(Op::AddressStaticSliceElement),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
+        PointerClass::Unknown => Err(Error::invalid_instruction()),
     }
 }
 
@@ -615,7 +623,7 @@ fn select_index_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::SharedRaw => Ok(Op::AddressSharedRawElement),
         PointerClass::Stack => Ok(Op::AddressStackElement),
         PointerClass::Static => Ok(Op::AddressStaticElement),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
+        PointerClass::Unknown => Err(Error::invalid_instruction()),
     }
 }
 
@@ -631,7 +639,7 @@ fn select_offset_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::SharedRaw => Ok(Op::AddressSharedRawOffset),
         PointerClass::Stack => Ok(Op::AddressStackOffset),
         PointerClass::Static => Ok(Op::AddressStaticOffset),
-        PointerClass::Unknown => Err(Error::InvalidInstruction),
+        PointerClass::Unknown => Err(Error::invalid_instruction()),
     }
 }
 

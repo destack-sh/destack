@@ -1,4 +1,5 @@
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use crate::program::{Instruction, Op, Projection};
 use crate::{Error, Result};
@@ -15,7 +16,7 @@ use super::value::{
 
 /// Encode one fixed byte offset into an instruction operand.
 fn instruction_byte_offset(byte_offset: usize) -> Result<u32> {
-    u32::try_from(byte_offset).map_err(|_| Error::InvalidInstruction)
+    u32::try_from(byte_offset).map_err(|_| Error::invalid_instruction())
 }
 
 impl<'a> BlockLowerer<'a> {
@@ -27,12 +28,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "local get destination".to_string(),
-            })?;
-        let local = local.local().ok_or_else(|| Error::MissingRepresentation {
-            context: "local get source".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("local get destination"))?;
+        let local = local
+            .local()
+            .ok_or_else(|| Error::invalid_program("local get source"))?;
         let destination_slot = frame_value_slot(self, destination)?;
         let local_slot = frame_local_slot(self, local)?;
 
@@ -49,7 +48,7 @@ impl<'a> BlockLowerer<'a> {
 
         // move frame-backed locals through one fixed byte range
         if destination_slot.byte_len != local_slot.byte_len {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
         let byte_len = destination_slot.byte_len;
 
@@ -70,12 +69,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "local address destination".to_string(),
-            })?;
-        let local = local.local().ok_or_else(|| Error::MissingRepresentation {
-            context: "local address local".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("local address destination"))?;
+        let local = local
+            .local()
+            .ok_or_else(|| Error::invalid_program("local address local"))?;
         let local = self.local_index(local)?;
 
         Ok(Instruction::new(
@@ -93,12 +90,12 @@ impl<'a> BlockLowerer<'a> {
         local: mir::LocalReference,
         value: mir::ValueReference,
     ) -> Result<Instruction> {
-        let local = local.local().ok_or_else(|| Error::MissingRepresentation {
-            context: "local set destination".to_string(),
-        })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "local set value".to_string(),
-        })?;
+        let local = local
+            .local()
+            .ok_or_else(|| Error::invalid_program("local set destination"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("local set value"))?;
         let local_slot = frame_local_slot(self, local)?;
         let value_slot = frame_value_slot(self, value)?;
 
@@ -115,7 +112,7 @@ impl<'a> BlockLowerer<'a> {
 
         // move frame-backed locals through one fixed byte range
         if local_slot.byte_len != value_slot.byte_len {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
         let byte_len = local_slot.byte_len;
 
@@ -136,14 +133,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "static address destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("static address destination"))?;
         let global = global
             .global()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "static address global".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("static address global"))?;
 
         Ok(Instruction::new(
             Op::AddressStatic,
@@ -162,14 +155,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "function address destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("function address destination"))?;
         let function = function
             .function()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "function address callee".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("function address callee"))?;
 
         Ok(Instruction::new(
             Op::AddressFunction,
@@ -189,14 +178,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "load destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("load destination"))?;
         let pointer = pointer
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "load pointer".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("load pointer"))?;
         let access = self.pointee_projection_for_value(pointer)?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), pointer);
         let op = select_load_op(pointer_class, access)?;
@@ -230,12 +215,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let pointer = pointer
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "store pointer".to_string(),
-            })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "store value".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("store pointer"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("store value"))?;
         let access = self.pointee_projection_for_value(pointer)?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), pointer);
         let op = select_store_op(pointer_class, access)?;
@@ -269,7 +252,7 @@ impl<'a> BlockLowerer<'a> {
             .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), pointer));
         pointee_type
             .and_then(|pointee_type| pointee_projection(self.tree, self.layouts(), pointee_type))
-            .ok_or(Error::InvalidInstruction)
+            .ok_or(Error::invalid_instruction())
     }
 }
 
@@ -281,7 +264,7 @@ fn frame_value_slot<'a>(
     lowerer
         .frame_layout
         .value(value.0)
-        .ok_or(Error::InvalidInstruction)
+        .ok_or(Error::invalid_instruction())
 }
 
 /// Return one local's frame slot.
@@ -294,5 +277,5 @@ fn frame_local_slot<'a>(
     lowerer
         .frame_layout
         .local(local)
-        .ok_or(Error::InvalidInstruction)
+        .ok_or(Error::invalid_instruction())
 }

@@ -1,4 +1,5 @@
-use {destack_heap as heap, destack_mir as mir};
+use destack_heap as heap;
+use destack_mir as mir;
 
 use super::{
     AllocationSite, AtomicCompareExchange, Call, CallBranch, CallClass, CallClassBranch,

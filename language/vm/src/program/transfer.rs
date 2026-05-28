@@ -1,4 +1,5 @@
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use crate::Word;
 use crate::diagnostic::Error;

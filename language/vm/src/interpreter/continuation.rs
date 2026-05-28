@@ -56,7 +56,7 @@ impl Continuation {
         for frame in &self.frames {
             let base = stack
                 .address(frame.stack_offset, frame.byte_len)
-                .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
+                .map_err(|_| RuntimeError::new(Error::invalid_continuation()))?;
             frames.push(frame.fork(base));
         }
 
@@ -134,7 +134,7 @@ impl Continuation {
         options: &IsolateOptions,
     ) -> RuntimeResult<Self> {
         if image.frames.is_empty() {
-            return Err(RuntimeError::new(Error::InvalidContinuation));
+            return Err(RuntimeError::new(Error::invalid_continuation()));
         }
 
         let stack = Stack::from_image(&image.stack, options.limits.stack_bytes)?;
@@ -143,17 +143,17 @@ impl Continuation {
         for frame_image in &image.frames {
             let materialization = program
                 .frame_materialization(frame_image.frame_state)
-                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+                .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
             let layout = program
                 .frame_layout_by_id(materialization.frame_layout)
-                .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+                .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
             if frame_image.byte_len < layout.byte_len as usize
                 || image
                     .stack
                     .frame_bytes(frame_image.stack_offset, frame_image.byte_len)
                     .is_none()
             {
-                return Err(RuntimeError::new(Error::InvalidContinuation));
+                return Err(RuntimeError::new(Error::invalid_continuation()));
             }
 
             let frame_base = stack.address(frame_image.stack_offset, frame_image.byte_len)?;
@@ -165,7 +165,7 @@ impl Continuation {
         let frame_state = image
             .frames
             .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?
+            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?
             .frame_state;
 
         Ok(Self {
@@ -201,11 +201,9 @@ impl Continuation {
 
         let frame_materialization =
             program.frame_materialization(frame_state).ok_or_else(|| {
-                Error::InvariantViolation {
-                    context: format!(
-                        "missing frame materialization for frame state: {frame_state:?}"
-                    ),
-                }
+                Error::internal(format!(
+                    "missing frame materialization for frame state: {frame_state:?}"
+                ))
             })?;
 
         debug_assert_eq!(
@@ -231,16 +229,14 @@ impl Continuation {
         let block = frame.block_id(program)?;
         let point = program.point(frame.function(), block, frame.pc as u32);
 
-        program
-            .frame_state_at(point)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing frame state for frame position: {:?} {:?} {}",
-                    frame.function(),
-                    block,
-                    frame.pc
-                ),
-            })
+        program.frame_state_at(point).ok_or_else(|| {
+            Error::internal(format!(
+                "missing frame state for frame position: {:?} {:?} {}",
+                frame.function(),
+                block,
+                frame.pc
+            ))
+        })
     }
 }
 
@@ -278,27 +274,23 @@ impl ContinuationFrame {
     ) -> RuntimeResult<Frame> {
         let point = program
             .point_for_frame_state(self.frame_state)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
 
         let function_id = point.function;
         let block_id = point.block;
         let function = program
             .functions
             .function_by_id(function_id)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: function_id,
-                })
-            })?;
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
         let layout = program
             .frame_layout_by_id(function.frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
 
         let block_index = function
             .blocks
             .iter()
             .position(|block| block.mir_block == block_id)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_continuation()))?;
         let mut frame = Frame::new(
             function,
             block_index as u32,
@@ -319,12 +311,12 @@ impl ContinuationFrame {
     ) -> Result<(&'a engine::FrameLayout, &'a engine::FrameMaterialization), Error> {
         let materialization = program
             .frame_materialization(self.frame_state)
-            .ok_or(Error::InvalidContinuation)?;
+            .ok_or(Error::invalid_continuation())?;
         let layout = program
             .frame_layout_by_id(materialization.frame_layout)
-            .ok_or(Error::InvalidContinuation)?;
+            .ok_or(Error::invalid_continuation())?;
         if self.byte_len < layout.byte_len as usize {
-            return Err(Error::InvalidContinuation);
+            return Err(Error::invalid_continuation());
         }
 
         Ok((layout, materialization))
@@ -342,10 +334,10 @@ impl ContinuationFrame {
         let end = start + slot.byte_len as usize;
         let frame_bytes = stack
             .frame_bytes_mut(self.stack_offset, self.byte_len)
-            .ok_or(Error::InvalidContinuation)?;
+            .ok_or(Error::invalid_continuation())?;
         let bytes = frame_bytes
             .get_mut(start..end)
-            .ok_or(Error::InvalidContinuation)?;
+            .ok_or(Error::invalid_continuation())?;
 
         visit_frame_slot_root_slots(program, slot, bytes, visit)
     }

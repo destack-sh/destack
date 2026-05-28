@@ -1,4 +1,4 @@
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, ReferenceKind, Trap};
 use crate::tests::{
     assert_runtime_error_matches, create_isolate, create_isolate_with_data_layout, run_mir,
     run_mir_expect, run_mir_ok, run_mir_with_frame_ok, test_shared_heap_options,
@@ -849,7 +849,14 @@ b0:
     return
 }"#;
     let result = run_mir(mir, "doubleFree", &[]);
-    assert_runtime_error_matches!(result, Error::InvalidRawPointer);
+    assert_runtime_error_matches!(
+        result,
+        Error::Trap {
+            reason: Trap::InvalidReference {
+                kind: ReferenceKind::Raw,
+            },
+        },
+    );
 }
 
 /// Frame allocation creates frame-local memory.

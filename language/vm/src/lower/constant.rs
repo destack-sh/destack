@@ -21,9 +21,7 @@ impl<'a> BlockLowerer<'a> {
         // resolve the destination frame layout
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "const destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("const destination"))?;
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
 
@@ -114,10 +112,10 @@ fn constant_bytes(value: &mir::Constant, byte_len: usize) -> Result<Box<[u8]>> {
             bytes[..copied].copy_from_slice(&source[..copied]);
         }
         _ => {
-            return Err(Error::TypeMismatch {
-                expected: "frame-backed constant".to_string(),
-                actual: format!("{value:?}"),
-            });
+            return Err(Error::type_mismatch(
+                "frame-backed constant",
+                format!("{value:?}"),
+            ));
         }
     }
 

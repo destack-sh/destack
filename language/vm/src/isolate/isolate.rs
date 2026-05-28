@@ -2,9 +2,10 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode, SnapshotCodec, StringPool};
+use destack_engine as engine;
+use destack_mir as mir;
 use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
-use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::interpreter::{Continuation, ContinuationImage, Interpreter, InterpreterImage, Outcome};
@@ -122,11 +123,10 @@ impl Isolate {
         &self,
         name: &str,
     ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
-        let func_id = self.program.function_id_by_name(name).ok_or_else(|| {
-            self.runtime_error(Error::BindingFunctionNotFound {
-                name: name.to_string(),
-            })
-        })?;
+        let func_id = self
+            .program
+            .function_id_by_name(name)
+            .ok_or_else(|| self.runtime_error(Error::import_not_found(name)))?;
 
         Ok(func_id)
     }
@@ -307,7 +307,7 @@ impl Isolate {
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
         if image.engine_id != self.id {
-            return Err(self.runtime_error(Error::InvalidContinuation));
+            return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
         Continuation::from_image(image, &self.program, &self.options)
@@ -397,10 +397,10 @@ impl Isolate {
 
         // host execution only supports native-width pointers
         if pointer_bytes != host_pointer_bytes {
-            return Err(RuntimeError::new(Error::IncompatiblePointerWidth {
-                bytes: pointer_bytes,
-                host_bytes: host_pointer_bytes,
-            }));
+            return Err(RuntimeError::new(Error::incompatible_pointer_width(
+                pointer_bytes,
+                host_pointer_bytes,
+            )));
         }
 
         Ok(())

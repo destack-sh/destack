@@ -1,5 +1,6 @@
 use crate::Word;
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,
@@ -27,9 +28,7 @@ impl Interpreter {
         let function_index = match target {
             CallTarget::Local(index) => index,
             CallTarget::Import => {
-                return Err(RuntimeError::new(Error::UndefinedFunction {
-                    function: function_id,
-                }));
+                return Err(RuntimeError::new(Error::undefined_function(function_id)));
             }
         };
 
@@ -37,11 +36,7 @@ impl Interpreter {
         let function = program
             .functions
             .function_by_index(function_index)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: function_id,
-                })
-            })?;
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(function_id)))?;
 
         Ok(LocalFunction { function })
     }
@@ -55,7 +50,7 @@ impl Interpreter {
         let function = program.tree.get(function_id);
         let name = program.strings.get(function.name).to_string();
 
-        self.runtime_error(program, Error::BindingCallForbidden { name })
+        self.runtime_error(program, Error::import_forbidden(name))
     }
 
     /// Push one local call frame on the stack.
@@ -73,7 +68,7 @@ impl Interpreter {
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.frames.len() >= options.limits.max_stack_depth {
-            return Err(self.runtime_error(program, Error::StackOverflow));
+            return Err(self.runtime_error(program, Error::stack_overflow()));
         }
 
         // load callee entry metadata
@@ -81,14 +76,14 @@ impl Interpreter {
         let frame_layout = callee.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let (stack_offset, frame_base) = self.allocate_frame(frame_layout)?;
 
         // record the caller edge before mutating the stacks
         let caller_frame = self
             .frames
             .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         caller_frame.pc = resume_pc;
         caller_frame.return_state = return_state;
 
@@ -107,7 +102,7 @@ impl Interpreter {
         let caller = self
             .frames
             .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if let Some(moves) = moves {
             move_values(
                 caller,
@@ -147,13 +142,13 @@ impl Interpreter {
         let frame_layout = callee.function.frame_layout;
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         // replace the top frame bytes
         let stack_offset = self
             .frames
             .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?
             .stack_offset;
         self.truncate_stack(stack_offset);
         let (stack_offset, frame_base) = self.allocate_frame(frame_layout)?;
@@ -162,7 +157,7 @@ impl Interpreter {
         let frame = self
             .frames
             .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         frame.retarget(
             callee.function,
@@ -249,16 +244,16 @@ impl Interpreter {
         let caller = self
             .frames
             .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         // resume after the terminator once the callee returns
         let function = program
             .functions
             .function_by_id(caller.function())
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let resume_pc = function
             .block_len(caller.block)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         self.push_call_frame(
             program,
             options,
@@ -287,7 +282,7 @@ impl Interpreter {
         let caller = self
             .frames
             .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let argument_values = if let Some(moves) = moves {
             load_moved_arguments(program, caller, current_func.move_pool.as_slice(), moves)?
         } else {

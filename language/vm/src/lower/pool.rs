@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use crate::program::{
     AllocationClassId, AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId,
@@ -84,9 +85,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     pub(super) fn trace_map(&self, trace_map: &mir::TraceMap) -> Result<mir::TraceId> {
         self.trace_table
             .id(trace_map)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: "missing program trace map".to_string(),
-            })
+            .ok_or_else(|| Error::internal("missing program trace map"))
     }
 
     /// Return one pooled projection id.
@@ -115,9 +114,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: context.to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program(context))
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -344,9 +341,7 @@ fn parameter_move_range(
     for (index, param) in parameters.iter().enumerate() {
         let parameter = (param.value)
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "function parameter value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("function parameter value"))?;
         let source = move_source(frame_layout, arguments, index)?;
         let dest = move_slot(frame_layout, parameter)?;
 
@@ -382,9 +377,7 @@ fn switch_case_range(
     for case in cases {
         let target = (case.target.block)
             .block()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "switch case target".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("switch case target"))?;
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
         let arguments = case
@@ -394,18 +387,14 @@ fn switch_case_range(
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "switch case argument".to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program("switch case argument"))
             })
             .collect::<Result<Vec<_>>>()?;
         let moves = move_range(frame_layout, move_pool, target_parameters, &arguments)?;
         lowered_cases.push(SwitchCase {
             value: (case.value)
                 .integer()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "switch case value".to_string(),
-                })?,
+                .ok_or_else(|| Error::invalid_program("switch case value"))?,
             target: target_index as u32,
             moves,
         });
@@ -432,16 +421,12 @@ fn switch_table_range(
     // compute min and max case values
     let mut min_value = (cases[0].value)
         .integer()
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "switch table min value".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("switch table min value"))?;
     let mut max_value = min_value;
     for case in cases {
         let value = (case.value)
             .integer()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "switch table case value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("switch table case value"))?;
         min_value = min_value.min(value);
         max_value = max_value.max(value);
     }
@@ -478,14 +463,10 @@ fn switch_table_range(
     for case in cases {
         let case_value = (case.value)
             .integer()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "switch table case value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("switch table case value"))?;
         let target = (case.target.block)
             .block()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "switch table target".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("switch table target"))?;
         let target_index = block_index_map[&target];
         let target_parameters = block_parameters[target_index].as_slice();
         let arguments = case
@@ -495,9 +476,7 @@ fn switch_table_range(
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "switch table argument".to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program("switch table argument"))
             })
             .collect::<Result<Vec<_>>>()?;
         let moves = move_range(frame_layout, move_pool, target_parameters, &arguments)?;
@@ -529,7 +508,7 @@ fn move_source(
 fn move_slot(frame_layout: &engine::FrameLayout, value: mir::Value) -> Result<MoveSlot> {
     let slot = frame_layout
         .value(value.0)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
 
     Ok(MoveSlot {
         layout: slot.layout,

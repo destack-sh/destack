@@ -1,4 +1,5 @@
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use crate::program::{Instruction, Op, Projection, word_layout_from_type};
 use crate::{Error, Result};
@@ -16,9 +17,7 @@ impl<'a> BlockLowerer<'a> {
         // resolve constructor values
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "frame constructor destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("frame constructor destination"))?;
         let values = self.tree.get_arguments(values);
 
         self.lower_frame_init(destination, values)
@@ -36,18 +35,18 @@ impl<'a> BlockLowerer<'a> {
 
         // require one source per range
         if values.len() != ranges.len() {
-            return Err(Error::InvalidFieldAccess {
-                index: values.len() as u32,
-                field_count: ranges.len(),
-            });
+            return Err(Error::invalid_field_access(
+                values.len() as u32,
+                ranges.len(),
+            ));
         }
 
         // emit one physical store per source
         let mut instructions = Vec::with_capacity(ranges.len());
         for (index, value) in values.iter().enumerate() {
-            let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-                context: "frame constructor value".to_string(),
-            })?;
+            let value = value
+                .value()
+                .ok_or_else(|| Error::invalid_program("frame constructor value"))?;
             let range = ranges[index];
             instructions.push(self.store_frame_range(destination, value, range)?);
         }
@@ -63,28 +62,22 @@ impl<'a> BlockLowerer<'a> {
             index,
         } = inst
         else {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         };
 
         // resolve values and layout
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "field get destination".to_string(),
-            })?;
-        let base = base.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "field get base".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("field get destination"))?;
+        let base = base
+            .value()
+            .ok_or_else(|| Error::invalid_program("field get base"))?;
         let destination_type = self.value_type_for_value(destination)?;
         let base_type = self.value_type_for_value(base)?;
         let layout = self.layout_for_type(base_type)?;
-        let field_count = layout.field_count().ok_or(Error::InvalidInstruction)?;
-        let field = field_projection(self.tree, self.layouts(), base_type, *index).ok_or(
-            Error::InvalidFieldAccess {
-                index: *index,
-                field_count,
-            },
-        )?;
+        let field_count = layout.field_count().ok_or(Error::invalid_instruction())?;
+        let field = field_projection(self.tree, self.layouts(), base_type, *index)
+            .ok_or(Error::invalid_field_access(*index, field_count))?;
         let field_layout = self.layout_for_type(field.value_type)?;
 
         // read word fields directly
@@ -130,39 +123,37 @@ impl<'a> BlockLowerer<'a> {
             index,
         } = inst
         else {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         };
 
         // resolve values and reject dynamic slices
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "element get destination".to_string(),
-            })?;
-        let array = array.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element get array".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("element get destination"))?;
+        let array = array
+            .value()
+            .ok_or_else(|| Error::invalid_program("element get array"))?;
         let destination_type = self.value_type_for_value(destination)?;
         let array_type = self.value_type_for_value(array)?;
         if matches!(self.tree.get(array_type), mir::Type::Slice { .. }) {
-            return Err(Error::TypeMismatch {
-                expected: "fixed frame element get".to_string(),
-                actual: format!("{array_type:?}"),
-            });
+            return Err(Error::type_mismatch(
+                "fixed frame element get",
+                format!("{array_type:?}"),
+            ));
         }
 
         // resolve element layout
         let layout = self.layout_for_type(array_type)?;
-        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+        let element_count = layout.element_count().ok_or(Error::invalid_instruction())?;
         if *index as usize >= element_count {
-            return Err(Error::InvalidArrayAccess {
-                index: u64::from(*index),
-                length: element_count as u64,
-            });
+            return Err(Error::invalid_array_access(
+                u64::from(*index),
+                element_count as u64,
+            ));
         }
 
         let element = element_projection(self.tree, self.layouts(), array_type)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let element_layout = self.layout_for_type(element.value_type)?;
         let element_offset = element.byte_stride * *index as usize;
 
@@ -208,23 +199,21 @@ impl<'a> BlockLowerer<'a> {
         // require SSA values
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "field set destination".to_string(),
-            })?;
-        let base = base.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "field set base".to_string(),
-        })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "field set value".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("field set destination"))?;
+        let base = base
+            .value()
+            .ok_or_else(|| Error::invalid_program("field set base"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("field set value"))?;
 
         // resolve original frame value and replacement field
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
-        let field_count = layout.field_count().ok_or(Error::InvalidInstruction)?;
+        let field_count = layout.field_count().ok_or(Error::invalid_instruction())?;
         let field = layout
             .field(index)
-            .ok_or(Error::InvalidFieldAccess { index, field_count })?;
+            .ok_or(Error::invalid_field_access(index, field_count))?;
         let whole = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -254,33 +243,31 @@ impl<'a> BlockLowerer<'a> {
         // require SSA values
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "element set destination".to_string(),
-            })?;
-        let array = array.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element set array".to_string(),
-        })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element set value".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("element set destination"))?;
+        let array = array
+            .value()
+            .ok_or_else(|| Error::invalid_program("element set array"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("element set value"))?;
 
         // reject dynamic slices
         let destination_type = self.value_type_for_value(destination)?;
         if matches!(self.tree.get(destination_type), mir::Type::Slice { .. }) {
-            return Err(Error::TypeMismatch {
-                expected: "fixed frame element set".to_string(),
-                actual: format!("{destination_type:?}"),
-            });
+            return Err(Error::type_mismatch(
+                "fixed frame element set",
+                format!("{destination_type:?}"),
+            ));
         }
 
         // resolve original frame value and replacement element
         let layout = self.layout_for_type(destination_type)?;
-        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+        let element_count = layout.element_count().ok_or(Error::invalid_instruction())?;
         if index as usize >= element_count {
-            return Err(Error::InvalidArrayAccess {
-                index: u64::from(index),
-                length: element_count as u64,
-            });
+            return Err(Error::invalid_array_access(
+                u64::from(index),
+                element_count as u64,
+            ));
         }
 
         let whole = FrameRange {
@@ -289,7 +276,7 @@ impl<'a> BlockLowerer<'a> {
             byte_len: layout.byte_len,
         };
         let element = element_projection(self.tree, self.layouts(), destination_type)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let element_offset = element.byte_stride * index as usize;
 
         // store word elements directly
@@ -338,7 +325,7 @@ impl<'a> BlockLowerer<'a> {
                 let index = index as u32;
                 let field = layout
                     .field(index)
-                    .ok_or(Error::InvalidFieldAccess { index, field_count })?;
+                    .ok_or(Error::invalid_field_access(index, field_count))?;
                 ranges.push(FrameRange {
                     value_type: field.ty,
                     byte_offset: field.offset,
@@ -350,11 +337,13 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // fall back to fixed indexed elements
-        let element = layout.element().ok_or_else(|| Error::TypeMismatch {
-            expected: "frame-backed layout".to_string(),
-            actual: format!("{value_type:?} for {:?}", self.tree.get(value_type)),
+        let element = layout.element().ok_or_else(|| {
+            Error::type_mismatch(
+                "frame-backed layout",
+                format!("{value_type:?} for {:?}", self.tree.get(value_type)),
+            )
         })?;
-        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+        let element_count = layout.element_count().ok_or(Error::invalid_instruction())?;
         let mut ranges = Vec::with_capacity(element_count);
         for index in 0..element_count {
             let byte_offset = element.stride * index;
@@ -414,7 +403,7 @@ impl<'a> BlockLowerer<'a> {
 
 /// Encode one fixed byte offset into an instruction operand.
 fn instruction_byte_offset(byte_offset: usize) -> Result<u32> {
-    u32::try_from(byte_offset).map_err(|_| Error::InvalidInstruction)
+    u32::try_from(byte_offset).map_err(|_| Error::invalid_instruction())
 }
 
 /// One direct byte range inside a frame value.
@@ -447,10 +436,10 @@ pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Resu
 
     // word instructions require single-word frame slots
     if !region.is_word {
-        return Err(Error::TypeMismatch {
-            expected: "word value".to_string(),
-            actual: format!("frame-backed value: {value:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "word value",
+            format!("frame-backed value: {value:?}"),
+        ));
     }
 
     Ok(region.offset)
@@ -469,7 +458,7 @@ fn frame_slot<'a>(
     lowerer
         .frame_layout
         .value(value.0)
-        .ok_or(Error::InvalidInstruction)
+        .ok_or(Error::invalid_instruction())
 }
 
 /// Return one frame byte move instruction.
@@ -481,7 +470,7 @@ fn move_frame_instruction(
     source_access: Projection,
 ) -> Result<Instruction> {
     if destination_access.byte_len != source_access.byte_len {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let destination_offset =

@@ -411,7 +411,7 @@ b0(v0: int32):
 }"#;
     let result = run_mir(mir, "divZero", &[Value::int32(10)]);
 
-    assert_runtime_error(result, Error::DivisionByZero);
+    assert_runtime_error(result, Error::division_by_zero());
 }
 
 /// Not-equal comparison returns true for different values.

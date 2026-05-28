@@ -438,11 +438,8 @@ impl<'a> BlockLowerer<'a> {
                 let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
                 let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
                 let dimensions = pool.tensor_dot(dimensions.clone());
-                let element = tensor_element_type(self.tree, dest_type).ok_or_else(|| {
-                    Error::MissingRepresentation {
-                        context: "tensor dot element".to_string(),
-                    }
-                })?;
+                let element = tensor_element_type(self.tree, dest_type)
+                    .ok_or_else(|| Error::invalid_program("tensor dot element"))?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
 
                 let dest_layout = pool.tensor_layout(dest_layout);
@@ -484,11 +481,8 @@ impl<'a> BlockLowerer<'a> {
                 let kernel_layout = self.tensor_layout(pool, kernel_type)?;
                 let dimensions = pool.tensor_convolution(dimensions.clone());
                 let window = pool.tensor_window(window.clone());
-                let element = tensor_element_type(self.tree, dest_type).ok_or_else(|| {
-                    Error::MissingRepresentation {
-                        context: "tensor convolution element".to_string(),
-                    }
-                })?;
+                let element = tensor_element_type(self.tree, dest_type)
+                    .ok_or_else(|| Error::invalid_program("tensor convolution element"))?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
 
                 pool.instruction_with_side(
@@ -564,11 +558,8 @@ impl<'a> BlockLowerer<'a> {
                 let updates_layout = self.tensor_layout(pool, updates_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
                 let dimensions = pool.tensor_scatter(dimensions.clone());
-                let element = tensor_element_type(self.tree, dest_type).ok_or_else(|| {
-                    Error::MissingRepresentation {
-                        context: "tensor scatter element".to_string(),
-                    }
-                })?;
+                let element = tensor_element_type(self.tree, dest_type)
+                    .ok_or_else(|| Error::invalid_program("tensor scatter element"))?;
                 let element_layout = tensor_scalar_layout(self.tree, element)?;
 
                 pool.instruction_with_side(
@@ -604,14 +595,11 @@ impl<'a> BlockLowerer<'a> {
                 let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), dest_type)?;
                 let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
                 let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
-                let element = tensor_element_type(self.tree, left_type).ok_or_else(|| {
-                    Error::MissingRepresentation {
-                        context: "tensor compare element".to_string(),
-                    }
-                })?;
+                let element = tensor_element_type(self.tree, left_type)
+                    .ok_or_else(|| Error::invalid_program("tensor compare element"))?;
                 let element_layout = value_layout_from_type(self.tree, element);
                 let kernel = element_binary_kernel(*operator, element_layout)
-                    .ok_or(Error::InvalidInstruction)?;
+                    .ok_or(Error::invalid_instruction())?;
                 if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
                     let dest_layout = pool.tensor_layout(dest_layout);
 
@@ -692,17 +680,10 @@ impl<'a> BlockLowerer<'a> {
                 let source_type = self.value_type_for_value(tensor)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let source_element =
-                    tensor_element_type(self.tree, source_type).ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "tensor convert source element".to_string(),
-                        }
-                    })?;
-                let dest_element = tensor_element_type(self.tree, dest_type).ok_or_else(|| {
-                    Error::MissingRepresentation {
-                        context: "tensor convert destination element".to_string(),
-                    }
-                })?;
+                let source_element = tensor_element_type(self.tree, source_type)
+                    .ok_or_else(|| Error::invalid_program("tensor convert source element"))?;
+                let dest_element = tensor_element_type(self.tree, dest_type)
+                    .ok_or_else(|| Error::invalid_program("tensor convert destination element"))?;
 
                 pool.instruction_with_side(
                     Op::TensorConvert,
@@ -775,7 +756,7 @@ impl<'a> BlockLowerer<'a> {
                     },
                 )
             }
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 
@@ -785,11 +766,11 @@ impl<'a> BlockLowerer<'a> {
         view_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<(PointerClass, Projection)> {
         let element_type =
-            tensor_element_type(self.tree, view_type).ok_or(Error::InvalidInstruction)?;
+            tensor_element_type(self.tree, view_type).ok_or(Error::invalid_instruction())?;
         let pointer_class =
-            tensor_view_pointer_class(self.tree, view_type).ok_or(Error::InvalidInstruction)?;
+            tensor_view_pointer_class(self.tree, view_type).ok_or(Error::invalid_instruction())?;
         let projection = build_tensor_element_projection(self.tree, self.layouts(), element_type)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
 
         Ok((pointer_class, projection))
     }
@@ -843,19 +824,15 @@ pub(super) fn tensor_scalar_layout(
     tree: &mir::Tree,
     element: mir::LocalNodeId<mir::Type>,
 ) -> Result<ScalarLayout> {
-    scalar_layout_from_type(tree, element).ok_or_else(|| Error::TypeMismatch {
-        expected: "tensor scalar element".to_string(),
-        actual: format!("{element:?}"),
-    })
+    scalar_layout_from_type(tree, element)
+        .ok_or_else(|| Error::type_mismatch("tensor scalar element", format!("{element:?}")))
 }
 
 /// Return one required tensor value.
 fn tensor_value(reference: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
     reference
         .value()
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: context.into(),
-        })
+        .ok_or_else(|| Error::invalid_program(context))
 }
 
 /// Return one required tensor value from an argument slice.

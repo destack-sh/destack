@@ -14,7 +14,7 @@ pub(crate) fn load_slice_length_at(
     let value = machine.load_word_at(value_offset);
     let length = value.as_uint();
 
-    usize::try_from(length).map_err(|_| Error::AllocationFailed)
+    usize::try_from(length).map_err(|_| Error::allocation_failed())
 }
 
 /// Store one slice descriptor into a frame value.

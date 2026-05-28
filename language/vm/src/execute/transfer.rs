@@ -5,8 +5,9 @@ use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
 use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
+use destack_engine as engine;
 use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
-use {destack_engine as engine, destack_mir as mir};
+use destack_mir as mir;
 
 use super::frame::move_values_within_frame;
 
@@ -43,7 +44,7 @@ impl Interpreter {
         let frame = self
             .frames
             .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         move_values_within_frame(frame, moves, current_func.move_pool.as_slice())
             .map_err(RuntimeError::new)?;
 
@@ -51,7 +52,7 @@ impl Interpreter {
         let frame = self
             .frames
             .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         frame.block = target;
 
         Ok(())

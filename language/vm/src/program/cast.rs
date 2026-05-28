@@ -24,7 +24,7 @@ pub(crate) struct IntegerCast {
 impl IntegerCast {
     /// Encode one integer cast target.
     pub(crate) fn new(width: u16, is_signed: bool) -> Result<Self> {
-        let width = u8::try_from(width).map_err(|_| Error::InvalidCast)?;
+        let width = u8::try_from(width).map_err(|_| Error::invalid_cast())?;
         let sign = if is_signed { INTEGER_SIGN_BIT } else { 0 };
 
         Ok(Self {
@@ -73,7 +73,7 @@ impl PointerCast {
             WordLayout::FramePointer => WORD_LAYOUT_FRAME_POINTER,
             WordLayout::StaticPointer => WORD_LAYOUT_STATIC_POINTER,
             WordLayout::FunctionPointer => WORD_LAYOUT_FUNCTION_POINTER,
-            _ => return Err(Error::InvalidCast),
+            _ => return Err(Error::invalid_cast()),
         };
 
         Ok(Self { field })
@@ -102,7 +102,7 @@ impl PointerCast {
             WORD_LAYOUT_FRAME_POINTER => Ok(WordLayout::FramePointer),
             WORD_LAYOUT_STATIC_POINTER => Ok(WordLayout::StaticPointer),
             WORD_LAYOUT_FUNCTION_POINTER => Ok(WordLayout::FunctionPointer),
-            _ => Err(Error::InvalidCast),
+            _ => Err(Error::invalid_cast()),
         }
     }
 }

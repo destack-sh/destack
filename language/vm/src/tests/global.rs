@@ -1,5 +1,5 @@
 use crate::Value;
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, Trap};
 use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok};
 
 /// Global constant can be read.
@@ -51,7 +51,12 @@ b0:
 }"#;
     let result = run_mir(mir, "badWrite", &[]);
 
-    assert_runtime_error_matches!(result, Error::ImmutableGlobalWrite { .. });
+    assert_runtime_error_matches!(
+        result,
+        Error::Trap {
+            reason: Trap::ImmutableGlobalWrite { .. },
+        },
+    );
 }
 
 /// Global state persists across function calls.

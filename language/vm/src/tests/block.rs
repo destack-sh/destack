@@ -1,4 +1,4 @@
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, ProgramError};
 use crate::tests::{
     assert_runtime_error, assert_runtime_error_matches, create_isolate, run_mir, run_mir_expect,
     run_mir_ok,
@@ -171,7 +171,7 @@ b0:
 }"#;
     let result = run_mir(mir, "infinite", &[]);
 
-    assert_runtime_error(result, Error::StackOverflow);
+    assert_runtime_error(result, Error::stack_overflow());
 }
 
 /// Infinite loop triggers step limit exceeded error.
@@ -185,7 +185,7 @@ b0:
 }"#;
     let result = run_mir(mir, "infiniteLoop", &[]);
 
-    assert_runtime_error(result, Error::StepLimitExceeded);
+    assert_runtime_error(result, Error::step_limit_exceeded());
 }
 
 /// Void functions return without a value.
@@ -304,7 +304,12 @@ b0(v0: (int32) -> int32, v1: int32):
         ],
     );
 
-    assert_runtime_error_matches!(result, Error::TypeMismatch { .. });
+    assert_runtime_error_matches!(
+        result,
+        Error::Program {
+            reason: ProgramError::TypeMismatch { .. },
+        },
+    );
 }
 
 /// Tail calls reuse the current frame without growing the stack.
@@ -487,5 +492,5 @@ b0:
 }"#;
     let result = run_mir(mir, "unreachableFunction", &[]);
 
-    assert_runtime_error(result, Error::Unreachable);
+    assert_runtime_error(result, Error::unreachable());
 }

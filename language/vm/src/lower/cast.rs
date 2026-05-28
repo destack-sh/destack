@@ -23,17 +23,13 @@ impl<'a> BlockLowerer<'a> {
         // require SSA values and the target type
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "cast destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("cast destination"))?;
         let argument = argument
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "cast argument".to_string(),
-            })?;
-        let to_type = to_type.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "cast destination type".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("cast argument"))?;
+        let to_type = to_type
+            .ty()
+            .ok_or_else(|| Error::invalid_program("cast destination type"))?;
         let destination_type = self.value_type_for_value(destination)?;
         let argument_type = self.value_type_for_value(argument)?;
 
@@ -119,24 +115,16 @@ impl<'a> BlockLowerer<'a> {
         // require SSA values
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "select destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("select destination"))?;
         let condition = condition
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "select condition".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("select condition"))?;
         let then_value = then_value
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "select then value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("select then value"))?;
         let else_value = else_value
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "select else value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("select else value"))?;
 
         // select word values without touching frame bytes
         let destination_type = self.value_type_for_value(destination)?;
@@ -183,12 +171,12 @@ fn word_cast_op(
         mir::CastOperator::SignedIntToFloat => match value_layout_from_type(tree, to_type) {
             ValueLayout::Float { width: 32 } => Ok(Op::CastSignedIntToF32),
             ValueLayout::Float { width: 64 } => Ok(Op::CastSignedIntToF64),
-            _ => Err(Error::InvalidCast),
+            _ => Err(Error::invalid_cast()),
         },
         mir::CastOperator::UnsignedIntToFloat => match value_layout_from_type(tree, to_type) {
             ValueLayout::Float { width: 32 } => Ok(Op::CastUnsignedIntToF32),
             ValueLayout::Float { width: 64 } => Ok(Op::CastUnsignedIntToF64),
-            _ => Err(Error::InvalidCast),
+            _ => Err(Error::invalid_cast()),
         },
         mir::CastOperator::FloatTruncate => Ok(Op::CastFloatTruncate),
         mir::CastOperator::FloatExtend => Ok(Op::CastFloatExtend),
@@ -221,7 +209,7 @@ fn word_cast_field(
         }
         mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => Ok(0),
         mir::CastOperator::IntToPointer => {
-            let layout = word_layout_from_type(tree, to_type).ok_or(Error::InvalidCast)?;
+            let layout = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
 
             Ok(PointerCast::new(layout)?.field())
         }
@@ -232,10 +220,10 @@ fn word_cast_field(
 fn integer_layout(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<(u16, bool)> {
     match value_layout_from_type(tree, ty) {
         ValueLayout::Int { width, signed } => Ok((width, signed)),
-        actual => Err(Error::TypeMismatch {
-            expected: "integer cast value".to_string(),
-            actual: format!("{actual:?}"),
-        }),
+        actual => Err(Error::type_mismatch(
+            "integer cast value",
+            format!("{actual:?}"),
+        )),
     }
 }
 

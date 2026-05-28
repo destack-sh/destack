@@ -1,5 +1,7 @@
+use destack_heap as heap;
+use destack_memory as memory;
+use destack_mir as mir;
 use serde::{Deserialize, Serialize};
-use {destack_heap as heap, destack_memory as memory, destack_mir as mir};
 
 /// Anchor for MIR-level error locations.
 #[derive(Debug, Clone, PartialEq)]
@@ -32,149 +34,502 @@ pub struct StackTraceFrame {
     pub function_name: Option<String>,
 }
 
-/// Errors that can occur during interpreter execution.
-/// TODO #Cleanup: reorganize VM errors / diagnostics (and also establish proper tracing?)
+/// One VM reference space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReferenceKind {
+    /// Local managed heap reference.
+    Heap,
+    /// Local raw pointer.
+    Raw,
+    /// Shared managed heap reference.
+    SharedHeap,
+    /// Shared raw pointer.
+    SharedRaw,
+}
+
+/// Errors that can occur during VM execution.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[repr(u8)]
 pub enum Error {
+    /// The program representation is invalid or unsupported.
+    Program { reason: ProgramError },
+    /// Execution reached a language trap.
+    Trap { reason: Trap },
+    /// An imported host function failed at the VM boundary.
+    Import { name: String, reason: ImportError },
+    /// VM resource budget or capacity was exhausted.
+    Resource { reason: ResourceError },
+    /// One internal VM invariant failed.
+    Internal { context: String },
+}
+
+/// Invalid or unsupported VM program representation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ProgramError {
     /// Attempted to execute an undefined function.
     UndefinedFunction {
         function: mir::LocalNodeId<mir::Function>,
-    } = 0,
-
+    },
     /// Attempted to access an undefined value.
-    UndefinedValue { value: mir::Value } = 1,
-
+    UndefinedValue { value: mir::Value },
     /// Attempted to jump to an undefined block.
-    UndefinedBlock { block: mir::LocalNodeId<mir::Block> } = 2,
-
+    UndefinedBlock { block: mir::LocalNodeId<mir::Block> },
+    /// Attempted to access an undefined local variable.
+    UndefinedLocal { local: mir::LocalNodeId<mir::Local> },
+    /// Attempted to access an undefined global variable.
+    UndefinedGlobal {
+        global: mir::LocalNodeId<mir::Global>,
+    },
     /// Type mismatch during execution.
-    TypeMismatch { expected: String, actual: String } = 3,
-
-    /// Division by zero.
-    DivisionByZero = 4,
-
-    /// Integer overflow.
-    IntegerOverflow = 5,
-
-    /// Null pointer dereference.
-    NullPointerDereference = 6,
-
-    /// Out of bounds access.
-    IndexOutOfBounds { index: u64, length: u64 } = 7,
-
-    /// Stack overflow.
-    StackOverflow = 8,
-
-    /// Reached unreachable code.
-    Unreachable = 9,
-
-    /// Binding function not found.
-    BindingFunctionNotFound { name: String } = 10,
-
-    /// Binding call forbidden by policy.
-    BindingCallForbidden { name: String } = 32,
-
+    TypeMismatch { expected: String, actual: String },
     /// Invalid instruction.
-    InvalidInstruction = 11,
+    InvalidInstruction,
+    /// Invalid field access.
+    InvalidFieldAccess { index: u32, field_count: usize },
+    /// Invalid array element access.
+    InvalidArrayAccess { index: u64, length: u64 },
+    /// Unsupported instruction for comptime evaluation.
+    UnsupportedInstruction { name: String },
+    /// Invalid arguments to intrinsic.
+    InvalidIntrinsicArguments { intrinsic: String },
+    /// Unsupported zero initialization for a MIR type.
+    UnsupportedZeroValue { ty: String },
+    /// The VM program representation is invalid or incomplete.
+    InvalidProgram { context: String },
+    /// Native pointer width is incompatible with the host VM.
+    IncompatiblePointerWidth { bytes: u8, host_bytes: u8 },
+}
 
+/// Language trap reached while executing code.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Trap {
+    /// Division by zero.
+    DivisionByZero,
+    /// Integer overflow.
+    IntegerOverflow,
+    /// Null pointer dereference.
+    NullPointerDereference,
+    /// Out of bounds access.
+    IndexOutOfBounds { index: u64, length: u64 },
+    /// Invalid reference value.
+    InvalidReference { kind: ReferenceKind },
+    /// Attempted to use a non-pointer value as a pointer.
+    InvalidPointerType { actual: String },
+    /// Reference space does not match the pointer value.
+    InvalidSpace { expected: String, actual: String },
+    /// Attempted to write to an immutable global.
+    ImmutableGlobalWrite {
+        global: mir::LocalNodeId<mir::Global>,
+    },
+    /// Attempted to write through a readonly reference.
+    ImmutableReferenceWrite { reference: String },
+    /// Reached unreachable code.
+    Unreachable,
+    /// Invalid cast operation.
+    InvalidCast,
+    /// Yielded during a non-yielding execution.
+    UnexpectedYield,
+    /// Attempted to resume without a pending yield.
+    ResumeWithoutYield,
+    /// Attempted to resume with an invalid continuation.
+    InvalidContinuation,
+    /// Attempted to suspend while frame-local state was still live.
+    SuspendWithFrameLocalState,
+    /// Abort trap triggered.
+    Abort,
+    /// Panic trap triggered.
+    Panic { message: String },
+    /// Float to integer conversion failed.
+    BadConversionToInteger,
+}
+
+/// Import boundary failure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ImportError {
+    /// Imported function not found.
+    NotFound,
+    /// Imported function call forbidden by policy.
+    Forbidden,
+}
+
+/// VM resource failure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResourceError {
     /// Heap allocation failed.
-    AllocationFailed = 12,
-
+    AllocationFailed,
     /// One heap hard limit was exceeded.
     HeapLimitExceeded {
         scope: String,
         used_bytes: u64,
         max_bytes: u64,
-    } = 13,
-
-    /// Invalid cast operation.
-    InvalidCast = 14,
-
-    /// Execution step limit exceeded (infinite loop protection).
-    StepLimitExceeded = 15,
-
-    /// Attempted to access an undefined local variable.
-    UndefinedLocal { local: mir::LocalNodeId<mir::Local> } = 16,
-
-    /// Invalid field access (index out of bounds for struct/tuple).
-    InvalidFieldAccess { index: u32, field_count: usize } = 17,
-
-    /// Invalid array element access.
-    InvalidArrayAccess { index: u64, length: u64 } = 18,
-
-    /// Invalid heap reference.
-    InvalidHeapReference = 19,
-
-    /// Unsupported instruction for comptime evaluation.
-    UnsupportedInstruction { name: String } = 20,
-
-    /// Attempted to use a non-pointer value as a pointer (in Load/Store).
-    InvalidPointerType { actual: String } = 21,
-
-    /// Attempted to access an undefined global variable.
-    UndefinedGlobal {
-        global: mir::LocalNodeId<mir::Global>,
-    } = 22,
-
-    /// Attempted to write to an immutable global.
-    ImmutableGlobalWrite {
-        global: mir::LocalNodeId<mir::Global>,
-    } = 23,
-
-    /// Abort trap triggered.
-    Abort = 24,
-
-    /// Invalid arguments to intrinsic.
-    InvalidIntrinsicArguments { intrinsic: String } = 25,
-
-    /// Attempted to write through a readonly reference.
-    ImmutableReferenceWrite { reference: String } = 26,
-
-    /// Yielded during a non-yielding execution.
-    UnexpectedYield = 28,
-
-    /// Attempted to resume without a pending yield.
-    ResumeWithoutYield = 29,
-
-    /// Attempted to resume with an invalid continuation.
-    InvalidContinuation = 30,
-
-    /// Reference space does not match the pointer value.
-    InvalidSpace { expected: String, actual: String } = 33,
-
-    /// Unsupported zero initialization for a MIR type.
-    UnsupportedZeroValue { ty: String } = 34,
-
-    /// Panic trap triggered.
-    Panic { message: String } = 35,
-
-    /// Float to integer conversion failed.
-    BadConversionToInteger = 36,
-
-    /// Attempted to suspend while frame-local state was still live.
-    SuspendWithFrameLocalState = 37,
-
-    /// One VM stage required concrete MIR at the given use site.
-    MissingRepresentation { context: String } = 38,
-
-    /// One internal VM invariant was violated.
-    InvariantViolation { context: String } = 39,
-
-    /// Native pointer width is incompatible with the host VM.
-    IncompatiblePointerWidth { bytes: u8, host_bytes: u8 } = 40,
-
-    /// Invalid raw pointer.
-    InvalidRawPointer = 41,
-
-    /// Invalid shared raw pointer.
-    InvalidSharedRawPointer = 42,
-
-    /// Invalid shared heap reference.
-    InvalidSharedHeapReference = 43,
+    },
+    /// Stack overflow.
+    StackOverflow,
+    /// Execution step limit exceeded.
+    StepLimitExceeded,
 }
 
 impl Error {
+    /// Return an undefined function error.
+    #[inline]
+    pub fn undefined_function(function: mir::LocalNodeId<mir::Function>) -> Self {
+        Self::Program {
+            reason: ProgramError::UndefinedFunction { function },
+        }
+    }
+
+    /// Return an undefined value error.
+    #[inline]
+    pub fn undefined_value(value: mir::Value) -> Self {
+        Self::Program {
+            reason: ProgramError::UndefinedValue { value },
+        }
+    }
+
+    /// Return an undefined block error.
+    #[inline]
+    pub fn undefined_block(block: mir::LocalNodeId<mir::Block>) -> Self {
+        Self::Program {
+            reason: ProgramError::UndefinedBlock { block },
+        }
+    }
+
+    /// Return an undefined local error.
+    #[inline]
+    pub fn undefined_local(local: mir::LocalNodeId<mir::Local>) -> Self {
+        Self::Program {
+            reason: ProgramError::UndefinedLocal { local },
+        }
+    }
+
+    /// Return an undefined global error.
+    #[inline]
+    pub fn undefined_global(global: mir::LocalNodeId<mir::Global>) -> Self {
+        Self::Program {
+            reason: ProgramError::UndefinedGlobal { global },
+        }
+    }
+
+    /// Return a type mismatch error.
+    #[inline]
+    pub fn type_mismatch(expected: impl Into<String>, actual: impl Into<String>) -> Self {
+        Self::Program {
+            reason: ProgramError::TypeMismatch {
+                expected: expected.into(),
+                actual: actual.into(),
+            },
+        }
+    }
+
+    /// Return an invalid instruction error.
+    #[inline]
+    pub const fn invalid_instruction() -> Self {
+        Self::Program {
+            reason: ProgramError::InvalidInstruction,
+        }
+    }
+
+    /// Return an invalid field access error.
+    #[inline]
+    pub fn invalid_field_access(index: u32, field_count: usize) -> Self {
+        Self::Program {
+            reason: ProgramError::InvalidFieldAccess { index, field_count },
+        }
+    }
+
+    /// Return an invalid array access error.
+    #[inline]
+    pub fn invalid_array_access(index: u64, length: u64) -> Self {
+        Self::Program {
+            reason: ProgramError::InvalidArrayAccess { index, length },
+        }
+    }
+
+    /// Return an unsupported instruction error.
+    #[inline]
+    pub fn unsupported_instruction(name: impl Into<String>) -> Self {
+        Self::Program {
+            reason: ProgramError::UnsupportedInstruction { name: name.into() },
+        }
+    }
+
+    /// Return an invalid intrinsic arguments error.
+    #[inline]
+    pub fn invalid_intrinsic_arguments(intrinsic: impl Into<String>) -> Self {
+        Self::Program {
+            reason: ProgramError::InvalidIntrinsicArguments {
+                intrinsic: intrinsic.into(),
+            },
+        }
+    }
+
+    /// Return an unsupported zero value error.
+    #[inline]
+    pub fn unsupported_zero_value(ty: impl Into<String>) -> Self {
+        Self::Program {
+            reason: ProgramError::UnsupportedZeroValue { ty: ty.into() },
+        }
+    }
+
+    /// Return an invalid program error.
+    #[inline]
+    pub fn invalid_program(context: impl Into<String>) -> Self {
+        Self::Program {
+            reason: ProgramError::InvalidProgram {
+                context: context.into(),
+            },
+        }
+    }
+
+    /// Return an incompatible pointer width error.
+    #[inline]
+    pub fn incompatible_pointer_width(bytes: u8, host_bytes: u8) -> Self {
+        Self::Program {
+            reason: ProgramError::IncompatiblePointerWidth { bytes, host_bytes },
+        }
+    }
+
+    /// Return a division by zero trap.
+    #[inline]
+    pub fn division_by_zero() -> Self {
+        Self::Trap {
+            reason: Trap::DivisionByZero,
+        }
+    }
+
+    /// Return an integer overflow trap.
+    #[inline]
+    pub fn integer_overflow() -> Self {
+        Self::Trap {
+            reason: Trap::IntegerOverflow,
+        }
+    }
+
+    /// Return a null pointer dereference trap.
+    #[inline]
+    pub fn null_pointer_dereference() -> Self {
+        Self::Trap {
+            reason: Trap::NullPointerDereference,
+        }
+    }
+
+    /// Return an index out of bounds trap.
+    #[inline]
+    pub fn index_out_of_bounds(index: u64, length: u64) -> Self {
+        Self::Trap {
+            reason: Trap::IndexOutOfBounds { index, length },
+        }
+    }
+
+    /// Return a stack overflow trap.
+    #[inline]
+    pub fn stack_overflow() -> Self {
+        Self::Resource {
+            reason: ResourceError::StackOverflow,
+        }
+    }
+
+    /// Return an unreachable trap.
+    #[inline]
+    pub fn unreachable() -> Self {
+        Self::Trap {
+            reason: Trap::Unreachable,
+        }
+    }
+
+    /// Return an invalid cast trap.
+    #[inline]
+    pub fn invalid_cast() -> Self {
+        Self::Trap {
+            reason: Trap::InvalidCast,
+        }
+    }
+
+    /// Return an abort trap.
+    #[inline]
+    pub fn abort() -> Self {
+        Self::Trap {
+            reason: Trap::Abort,
+        }
+    }
+
+    /// Return a panic trap.
+    #[inline]
+    pub fn panic(message: impl Into<String>) -> Self {
+        Self::Trap {
+            reason: Trap::Panic {
+                message: message.into(),
+            },
+        }
+    }
+
+    /// Return a bad integer conversion trap.
+    #[inline]
+    pub fn bad_conversion_to_integer() -> Self {
+        Self::Trap {
+            reason: Trap::BadConversionToInteger,
+        }
+    }
+
+    /// Return a missing import error.
+    #[inline]
+    pub fn import_not_found(name: impl Into<String>) -> Self {
+        Self::Import {
+            name: name.into(),
+            reason: ImportError::NotFound,
+        }
+    }
+
+    /// Return a forbidden import call error.
+    #[inline]
+    pub fn import_forbidden(name: impl Into<String>) -> Self {
+        Self::Import {
+            name: name.into(),
+            reason: ImportError::Forbidden,
+        }
+    }
+
+    /// Return an invalid reference error.
+    #[inline]
+    pub fn invalid_reference(kind: ReferenceKind) -> Self {
+        Self::Trap {
+            reason: Trap::InvalidReference { kind },
+        }
+    }
+
+    /// Return an invalid pointer type error.
+    #[inline]
+    pub fn invalid_pointer_type(actual: impl Into<String>) -> Self {
+        Self::Trap {
+            reason: Trap::InvalidPointerType {
+                actual: actual.into(),
+            },
+        }
+    }
+
+    /// Return an invalid pointer space error.
+    #[inline]
+    pub fn invalid_space(expected: impl Into<String>, actual: impl Into<String>) -> Self {
+        Self::Trap {
+            reason: Trap::InvalidSpace {
+                expected: expected.into(),
+                actual: actual.into(),
+            },
+        }
+    }
+
+    /// Return an immutable global write error.
+    #[inline]
+    pub fn immutable_global_write(global: mir::LocalNodeId<mir::Global>) -> Self {
+        Self::Trap {
+            reason: Trap::ImmutableGlobalWrite { global },
+        }
+    }
+
+    /// Return an immutable reference write error.
+    #[inline]
+    pub fn immutable_reference_write(reference: impl Into<String>) -> Self {
+        Self::Trap {
+            reason: Trap::ImmutableReferenceWrite {
+                reference: reference.into(),
+            },
+        }
+    }
+
+    /// Return a step limit error.
+    #[inline]
+    pub fn step_limit_exceeded() -> Self {
+        Self::Resource {
+            reason: ResourceError::StepLimitExceeded,
+        }
+    }
+
+    /// Return an unexpected yield error.
+    #[inline]
+    pub fn unexpected_yield() -> Self {
+        Self::Trap {
+            reason: Trap::UnexpectedYield,
+        }
+    }
+
+    /// Return a resume without yield error.
+    #[inline]
+    pub fn resume_without_yield() -> Self {
+        Self::Trap {
+            reason: Trap::ResumeWithoutYield,
+        }
+    }
+
+    /// Return an invalid continuation error.
+    #[inline]
+    pub fn invalid_continuation() -> Self {
+        Self::Trap {
+            reason: Trap::InvalidContinuation,
+        }
+    }
+
+    /// Return a frame local suspension error.
+    #[inline]
+    pub fn suspend_with_frame_local_state() -> Self {
+        Self::Trap {
+            reason: Trap::SuspendWithFrameLocalState,
+        }
+    }
+
+    /// Return an allocation failed error.
+    #[inline]
+    pub fn allocation_failed() -> Self {
+        Self::Resource {
+            reason: ResourceError::AllocationFailed,
+        }
+    }
+
+    /// Return a heap limit error.
+    #[inline]
+    pub fn heap_limit_exceeded(scope: impl Into<String>, used_bytes: u64, max_bytes: u64) -> Self {
+        Self::Resource {
+            reason: ResourceError::HeapLimitExceeded {
+                scope: scope.into(),
+                used_bytes,
+                max_bytes,
+            },
+        }
+    }
+
+    /// Return an internal VM error.
+    #[inline]
+    pub fn internal(context: impl Into<String>) -> Self {
+        Self::Internal {
+            context: context.into(),
+        }
+    }
+
+    /// Return the numeric error code.
+    #[inline]
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::Program { reason } => reason.sub_code(),
+            Self::Trap { reason } => reason.sub_code(),
+            Self::Import { reason, .. } => reason.sub_code(),
+            Self::Resource { reason } => reason.sub_code(),
+            Self::Internal { .. } => 39,
+        }
+    }
+
+    /// Return the message of the error.
+    pub fn message(&self) -> String {
+        match self {
+            Self::Program { reason } => reason.message(),
+            Self::Trap { reason } => reason.message(),
+            Self::Import { name, reason } => reason.message(name),
+            Self::Resource { reason } => reason.message(),
+            Self::Internal { context } => {
+                format!("internal vm error: {context}")
+            }
+        }
+    }
+}
+
+impl ProgramError {
     /// Return the numeric error code.
     #[inline]
     pub fn sub_code(&self) -> u8 {
@@ -183,44 +538,16 @@ impl Error {
             Self::UndefinedValue { .. } => 1,
             Self::UndefinedBlock { .. } => 2,
             Self::TypeMismatch { .. } => 3,
-            Self::DivisionByZero => 4,
-            Self::IntegerOverflow => 5,
-            Self::NullPointerDereference => 6,
-            Self::IndexOutOfBounds { .. } => 7,
-            Self::StackOverflow => 8,
-            Self::Unreachable => 9,
-            Self::BindingFunctionNotFound { .. } => 10,
             Self::InvalidInstruction => 11,
-            Self::AllocationFailed => 12,
-            Self::HeapLimitExceeded { .. } => 13,
-            Self::InvalidCast => 14,
-            Self::StepLimitExceeded => 15,
             Self::UndefinedLocal { .. } => 16,
             Self::InvalidFieldAccess { .. } => 17,
             Self::InvalidArrayAccess { .. } => 18,
-            Self::InvalidHeapReference => 19,
             Self::UnsupportedInstruction { .. } => 20,
-            Self::InvalidPointerType { .. } => 21,
             Self::UndefinedGlobal { .. } => 22,
-            Self::ImmutableGlobalWrite { .. } => 23,
-            Self::Abort => 24,
             Self::InvalidIntrinsicArguments { .. } => 25,
-            Self::ImmutableReferenceWrite { .. } => 26,
-            Self::UnexpectedYield => 28,
-            Self::ResumeWithoutYield => 29,
-            Self::InvalidContinuation => 30,
-            Self::BindingCallForbidden { .. } => 32,
-            Self::InvalidSpace { .. } => 33,
             Self::UnsupportedZeroValue { .. } => 34,
-            Self::Panic { .. } => 35,
-            Self::BadConversionToInteger => 36,
-            Self::SuspendWithFrameLocalState => 37,
-            Self::MissingRepresentation { .. } => 38,
-            Self::InvariantViolation { .. } => 39,
+            Self::InvalidProgram { .. } => 38,
             Self::IncompatiblePointerWidth { .. } => 40,
-            Self::InvalidRawPointer => 41,
-            Self::InvalidSharedRawPointer => 42,
-            Self::InvalidSharedHeapReference => 43,
         }
     }
 
@@ -236,24 +563,148 @@ impl Error {
             Self::UndefinedBlock { block } => {
                 format!("undefined block: {block:?}")
             }
+            Self::UndefinedLocal { local } => {
+                format!("undefined local variable: {local:?}")
+            }
+            Self::UndefinedGlobal { global } => {
+                format!("undefined global variable: {global:?}")
+            }
             Self::TypeMismatch { expected, actual } => {
                 format!("type mismatch: expected {expected}, got {actual}")
             }
+            Self::InvalidInstruction => "invalid instruction".to_string(),
+            Self::InvalidFieldAccess { index, field_count } => {
+                format!("invalid field access: index {index}, struct has {field_count} fields")
+            }
+            Self::InvalidArrayAccess { index, length } => {
+                format!("invalid array access: index {index}, array has {length} elements")
+            }
+            Self::UnsupportedInstruction { name } => {
+                format!("unsupported instruction for comptime: {name}")
+            }
+            Self::InvalidIntrinsicArguments { intrinsic } => {
+                format!("invalid arguments to intrinsic: {intrinsic}")
+            }
+            Self::UnsupportedZeroValue { ty } => {
+                format!("unsupported zero initialization for type {ty}")
+            }
+            Self::InvalidProgram { context } => {
+                format!("invalid vm program: {context}")
+            }
+            Self::IncompatiblePointerWidth { bytes, host_bytes } => {
+                format!("incompatible pointer width: program {bytes} bytes, host {host_bytes}")
+            }
+        }
+    }
+}
+
+impl Trap {
+    /// Return the numeric error code.
+    #[inline]
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::DivisionByZero => 4,
+            Self::IntegerOverflow => 5,
+            Self::NullPointerDereference => 6,
+            Self::IndexOutOfBounds { .. } => 7,
+            Self::InvalidReference { .. } => 19,
+            Self::InvalidPointerType { .. } => 21,
+            Self::ImmutableGlobalWrite { .. } => 23,
+            Self::ImmutableReferenceWrite { .. } => 26,
+            Self::UnexpectedYield => 28,
+            Self::ResumeWithoutYield => 29,
+            Self::InvalidContinuation => 30,
+            Self::InvalidSpace { .. } => 33,
+            Self::SuspendWithFrameLocalState => 37,
+            Self::Unreachable => 9,
+            Self::InvalidCast => 14,
+            Self::Abort => 24,
+            Self::Panic { .. } => 35,
+            Self::BadConversionToInteger => 36,
+        }
+    }
+
+    /// Return the message of the trap.
+    pub fn message(&self) -> String {
+        match self {
             Self::DivisionByZero => "division by zero".to_string(),
             Self::IntegerOverflow => "integer overflow".to_string(),
             Self::NullPointerDereference => "null pointer dereference".to_string(),
             Self::IndexOutOfBounds { index, length } => {
                 format!("index out of bounds: index {index}, length {length}")
             }
-            Self::StackOverflow => "stack overflow".to_string(),
+            Self::InvalidReference { kind } => {
+                format!("invalid {} reference", kind.name())
+            }
+            Self::InvalidPointerType { actual } => {
+                format!("invalid pointer type: expected pointer, got {actual}")
+            }
+            Self::InvalidSpace { expected, actual } => {
+                format!("invalid space: expected {expected}, got {actual}")
+            }
+            Self::ImmutableGlobalWrite { global } => {
+                format!("cannot write to immutable global: {global:?}")
+            }
+            Self::ImmutableReferenceWrite { reference } => {
+                format!("cannot write through readonly reference: {reference}")
+            }
             Self::Unreachable => "reached unreachable code".to_string(),
-            Self::BindingFunctionNotFound { name } => {
-                format!("binding function not found: {name}")
+            Self::InvalidCast => "invalid cast".to_string(),
+            Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
+            Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
+            Self::InvalidContinuation => {
+                "attempted to resume with an invalid continuation".to_string()
             }
-            Self::BindingCallForbidden { name } => {
-                format!("binding call forbidden: {name}")
+            Self::SuspendWithFrameLocalState => {
+                "cannot suspend while frame-local state is still live".to_string()
             }
-            Self::InvalidInstruction => "invalid instruction".to_string(),
+            Self::Abort => "abort called".to_string(),
+            Self::Panic { message } => {
+                if message.is_empty() {
+                    "panic".to_string()
+                } else {
+                    format!("panic: {message}")
+                }
+            }
+            Self::BadConversionToInteger => "bad conversion to integer".to_string(),
+        }
+    }
+}
+
+impl ImportError {
+    /// Return the numeric error code.
+    #[inline]
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::NotFound => 10,
+            Self::Forbidden => 32,
+        }
+    }
+
+    /// Return the message of the error.
+    pub fn message(&self, name: &str) -> String {
+        match self {
+            Self::NotFound => format!("imported function not found: {name}"),
+            Self::Forbidden => format!("imported function call forbidden: {name}"),
+        }
+    }
+}
+
+impl ResourceError {
+    /// Return the numeric error code.
+    #[inline]
+    pub fn sub_code(&self) -> u8 {
+        match self {
+            Self::AllocationFailed => 12,
+            Self::HeapLimitExceeded { .. } => 13,
+            Self::StackOverflow => 8,
+            Self::StepLimitExceeded => 15,
+        }
+    }
+
+    /// Return the message of the error.
+    pub fn message(&self) -> String {
+        match self {
             Self::AllocationFailed => "allocation failed".to_string(),
             Self::HeapLimitExceeded {
                 scope,
@@ -264,72 +715,20 @@ impl Error {
                     "{scope} heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
                 )
             }
-            Self::InvalidCast => "invalid cast".to_string(),
+            Self::StackOverflow => "stack overflow".to_string(),
             Self::StepLimitExceeded => "execution step limit exceeded".to_string(),
-            Self::UndefinedLocal { local } => {
-                format!("undefined local variable: {local:?}")
-            }
-            Self::InvalidFieldAccess { index, field_count } => {
-                format!("invalid field access: index {index}, struct has {field_count} fields")
-            }
-            Self::InvalidArrayAccess { index, length } => {
-                format!("invalid array access: index {index}, array has {length} elements")
-            }
-            Self::InvalidHeapReference => "invalid heap reference".to_string(),
-            Self::UnsupportedInstruction { name } => {
-                format!("unsupported instruction for comptime: {name}")
-            }
-            Self::InvalidPointerType { actual } => {
-                format!("invalid pointer type: expected pointer, got {actual}")
-            }
-            Self::UndefinedGlobal { global } => {
-                format!("undefined global variable: {global:?}")
-            }
-            Self::ImmutableGlobalWrite { global } => {
-                format!("cannot write to immutable global: {global:?}")
-            }
-            Self::Abort => "abort called".to_string(),
-            Self::InvalidIntrinsicArguments { intrinsic } => {
-                format!("invalid arguments to intrinsic: {intrinsic}")
-            }
-            Self::ImmutableReferenceWrite { reference } => {
-                format!("cannot write through readonly reference: {reference}")
-            }
-            Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
-            Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
-            Self::InvalidContinuation => {
-                "attempted to resume with an invalid continuation".to_string()
-            }
-            Self::InvalidSpace { expected, actual } => {
-                format!("invalid space: expected {expected}, got {actual}")
-            }
-            Self::UnsupportedZeroValue { ty } => {
-                format!("unsupported zero initialization for type {ty}")
-            }
-            Self::Panic { message } => {
-                // normalize empty messages
-                if message.is_empty() {
-                    "panic".to_string()
-                } else {
-                    format!("panic: {message}")
-                }
-            }
-            Self::BadConversionToInteger => "bad conversion to integer".to_string(),
-            Self::SuspendWithFrameLocalState => {
-                "cannot suspend while frame-local state is still live".to_string()
-            }
-            Self::MissingRepresentation { context } => {
-                format!("concrete MIR required: {context}")
-            }
-            Self::InvariantViolation { context } => {
-                format!("vm invariant violated: {context}")
-            }
-            Self::IncompatiblePointerWidth { bytes, host_bytes } => {
-                format!("incompatible pointer width: program {bytes} bytes, host {host_bytes}")
-            }
-            Self::InvalidRawPointer => "invalid raw pointer".to_string(),
-            Self::InvalidSharedRawPointer => "invalid shared raw pointer".to_string(),
-            Self::InvalidSharedHeapReference => "invalid shared heap reference".to_string(),
+        }
+    }
+}
+
+impl ReferenceKind {
+    /// Return the diagnostic reference kind name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Heap => "heap",
+            Self::Raw => "raw",
+            Self::SharedHeap => "shared heap",
+            Self::SharedRaw => "shared raw",
         }
     }
 }
@@ -349,35 +748,27 @@ impl From<heap::HeapError> for Error {
                 region,
                 used_bytes,
                 max_bytes,
-            } => Self::HeapLimitExceeded {
-                scope: region.to_string(),
-                used_bytes,
-                max_bytes,
-            },
-            heap::HeapError::TotalLimitExceeded {
-                used_bytes,
-                max_bytes,
-            } => Self::HeapLimitExceeded {
-                scope: "total".to_string(),
-                used_bytes,
-                max_bytes,
-            },
-            heap::HeapError::InvalidRawPointer { .. } => Self::InvalidRawPointer,
-            heap::HeapError::InvalidSharedRawPointer { .. } => Self::InvalidSharedRawPointer,
-            heap::HeapError::InvalidHeapReference { .. } => Self::InvalidHeapReference,
-            heap::HeapError::InvalidSharedHeapReference { .. } => Self::InvalidSharedHeapReference,
-            error => Self::InvariantViolation {
-                context: error.to_string(),
-            },
+            } => Self::heap_limit_exceeded(region.to_string(), used_bytes, max_bytes),
+            heap::HeapError::InvalidRawPointer { .. } => {
+                Self::invalid_reference(ReferenceKind::Raw)
+            }
+            heap::HeapError::InvalidSharedRawPointer { .. } => {
+                Self::invalid_reference(ReferenceKind::SharedRaw)
+            }
+            heap::HeapError::InvalidHeapReference { .. } => {
+                Self::invalid_reference(ReferenceKind::Heap)
+            }
+            heap::HeapError::InvalidSharedHeapReference { .. } => {
+                Self::invalid_reference(ReferenceKind::SharedHeap)
+            }
+            error => Self::internal(error.to_string()),
         }
     }
 }
 
 impl From<memory::MemoryError> for Error {
     fn from(error: memory::MemoryError) -> Self {
-        Self::InvariantViolation {
-            context: error.to_string(),
-        }
+        Self::internal(error.to_string())
     }
 }
 

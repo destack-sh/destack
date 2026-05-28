@@ -621,7 +621,7 @@ macro_rules! fixed_div_executor {
 
                 // reject undefined integer division
                 if right == 0 {
-                    return Err(Error::DivisionByZero);
+                    return Err(Error::division_by_zero());
                 }
 
                 let value = left.$operation(right);
@@ -953,7 +953,7 @@ pub(crate) fn execute_div_word_int(
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     let left = left as i64;
@@ -971,7 +971,7 @@ pub(crate) fn execute_rem_word_int(
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     let left = left as i64;
@@ -989,7 +989,7 @@ pub(crate) fn execute_div_word_uint(
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     machine.store_word_at(dest, Word::uint(left.wrapping_div(right), width));
@@ -1005,7 +1005,7 @@ pub(crate) fn execute_rem_word_uint(
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(machine, instruction);
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     machine.store_word_at(dest, Word::uint(left.wrapping_rem(right), width));

@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
+use destack_engine as engine;
+use destack_heap as heap;
+use destack_mir as mir;
 
 use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
@@ -40,84 +42,82 @@ impl BlockOrder {
             let terminator = tree.get(mir_block.terminator);
             match terminator {
                 mir::Terminator::Jump { target, .. } => {
-                    queue.push((target.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "jump target".to_string(),
-                        }
-                    })?);
+                    queue.push(
+                        (target.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("jump target"))?,
+                    );
                 }
                 mir::Terminator::Branch {
                     then_target,
                     else_target,
                     ..
                 } => {
-                    queue.push((then_target.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "branch then target".to_string(),
-                        }
-                    })?);
-                    queue.push((else_target.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "branch else target".to_string(),
-                        }
-                    })?);
+                    queue.push(
+                        (then_target.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("branch then target"))?,
+                    );
+                    queue.push(
+                        (else_target.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("branch else target"))?,
+                    );
                 }
                 mir::Terminator::Check {
                     success, failure, ..
                 } => {
-                    queue.push((success.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "check success target".to_string(),
-                        }
-                    })?);
-                    queue.push((failure.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "check failure target".to_string(),
-                        }
-                    })?);
+                    queue.push(
+                        (success.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("check success target"))?,
+                    );
+                    queue.push(
+                        (failure.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("check failure target"))?,
+                    );
                 }
                 mir::Terminator::Switch { cases, default, .. } => {
                     for case in cases {
-                        queue.push((case.target.block).block().ok_or_else(|| {
-                            Error::MissingRepresentation {
-                                context: "switch case target".to_string(),
-                            }
-                        })?);
+                        queue.push(
+                            (case.target.block)
+                                .block()
+                                .ok_or_else(|| Error::invalid_program("switch case target"))?,
+                        );
                     }
-                    queue.push((default.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "switch default target".to_string(),
-                        }
-                    })?);
+                    queue.push(
+                        (default.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("switch default target"))?,
+                    );
                 }
                 mir::Terminator::Yield { resume, .. } => {
-                    queue.push((resume.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "yield resume target".to_string(),
-                        }
-                    })?);
+                    queue.push(
+                        (resume.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("yield resume target"))?,
+                    );
                 }
                 mir::Terminator::Call { target, unwind, .. }
                 | mir::Terminator::CallIndirect { target, unwind, .. }
                 | mir::Terminator::CallClass { target, unwind, .. }
                 | mir::Terminator::CallInterface { target, unwind, .. } => {
-                    queue.push((target.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "call target".to_string(),
-                        }
-                    })?);
+                    queue.push(
+                        (target.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("call target"))?,
+                    );
                     if let Some(unwind) = unwind {
-                        queue.push((unwind.block).block().ok_or_else(|| {
-                            Error::MissingRepresentation {
-                                context: "call unwind target".to_string(),
-                            }
-                        })?);
+                        queue.push(
+                            (unwind.block)
+                                .block()
+                                .ok_or_else(|| Error::invalid_program("call unwind target"))?,
+                        );
                     }
                 }
                 mir::Terminator::Error => {
-                    return Err(Error::MissingRepresentation {
-                        context: "terminator".to_string(),
-                    });
+                    return Err(Error::invalid_program("terminator"));
                 }
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Panic { .. }

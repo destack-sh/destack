@@ -25,9 +25,7 @@ impl<'a> BlockLowerer<'a> {
         value: mir::ValueReference,
         context: &'static str,
     ) -> Result<mir::Value> {
-        value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: context.to_string(),
-        })
+        value.value().ok_or_else(|| Error::invalid_program(context))
     }
 
     /// Lower one word binary instruction.
@@ -65,7 +63,7 @@ impl<'a> BlockLowerer<'a> {
 
         // require identical vector widths
         if element_count != left_count || element_count != right_count {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         // use direct packed operations when one register covers the vector
@@ -85,7 +83,7 @@ impl<'a> BlockLowerer<'a> {
 
         // fall back to a side record for general element counts
         let kernel =
-            element_binary_kernel(operator, element_layout).ok_or(Error::InvalidInstruction)?;
+            element_binary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
 
         Ok(pool.instruction_with_side(
             Op::VectorBinary,
@@ -116,14 +114,11 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         // decode tensor element and layouts
         let right_type = self.value_type_for_value(right)?;
-        let element = tensor_element_type(self.tree, left_type).ok_or_else(|| {
-            Error::MissingRepresentation {
-                context: "tensor binary element".to_string(),
-            }
-        })?;
+        let element = tensor_element_type(self.tree, left_type)
+            .ok_or_else(|| Error::invalid_program("tensor binary element"))?;
         let element_layout = value_layout_from_type(self.tree, element);
         let kernel =
-            element_binary_kernel(operator, element_layout).ok_or(Error::InvalidInstruction)?;
+            element_binary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
         let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
         let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
         let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), destination_type)?;
@@ -208,13 +203,13 @@ impl<'a> BlockLowerer<'a> {
         // select the remaining scalar family
         let op = match select_binary_op(layout, operator) {
             Some(op) => op,
-            None => return Err(Error::InvalidInstruction),
+            None => return Err(Error::invalid_instruction()),
         };
 
         // wide integers use frame byte addresses
         if is_wide_binary_op(op) {
             let Some(ValueLayout::Int { width, signed }) = layout else {
-                return Err(Error::InvalidInstruction);
+                return Err(Error::invalid_instruction());
             };
             let destination = if is_wide_comparison_op(op) {
                 word_offset(self, destination)?
@@ -265,7 +260,7 @@ impl<'a> BlockLowerer<'a> {
 
         // require identical vector widths
         if element_count != argument_count {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         // use direct packed operations when one register covers the vector
@@ -285,7 +280,7 @@ impl<'a> BlockLowerer<'a> {
 
         // fall back to a side record for general element counts
         let kernel =
-            element_unary_kernel(operator, element_layout).ok_or(Error::InvalidInstruction)?;
+            element_unary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
 
         Ok(pool.instruction_with_side(
             Op::VectorUnary,
@@ -312,14 +307,11 @@ impl<'a> BlockLowerer<'a> {
         argument_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<Instruction> {
         // decode tensor element and layouts
-        let element = tensor_element_type(self.tree, argument_type).ok_or_else(|| {
-            Error::MissingRepresentation {
-                context: "tensor unary element".to_string(),
-            }
-        })?;
+        let element = tensor_element_type(self.tree, argument_type)
+            .ok_or_else(|| Error::invalid_program("tensor unary element"))?;
         let element_layout = value_layout_from_type(self.tree, element);
         let kernel =
-            element_unary_kernel(operator, element_layout).ok_or(Error::InvalidInstruction)?;
+            element_unary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
         let argument_layout = TensorLayout::from_type(self.tree, self.layouts(), argument_type)?;
         let dest_layout = TensorLayout::from_type(self.tree, self.layouts(), destination_type)?;
 
@@ -395,7 +387,7 @@ impl<'a> BlockLowerer<'a> {
         // select the remaining scalar family
         let op = match select_unary_op(self.value_layout_map(), argument, operator) {
             Some(op) => op,
-            None => return Err(Error::InvalidInstruction),
+            None => return Err(Error::invalid_instruction()),
         };
 
         // wide integers use frame byte addresses
@@ -403,7 +395,7 @@ impl<'a> BlockLowerer<'a> {
             let ValueLayout::Int { width, signed } =
                 value_layout_from_type(self.tree, argument_type)
             else {
-                return Err(Error::InvalidInstruction);
+                return Err(Error::invalid_instruction());
             };
 
             return Ok(Instruction::new(

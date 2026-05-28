@@ -1,5 +1,6 @@
+use destack_engine as engine;
+use destack_mir as mir;
 use engine::ValueLayoutId;
-use {destack_engine as engine, destack_mir as mir};
 
 /// One lowered frame move slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

@@ -7,10 +7,10 @@ pub(crate) fn word_to_u64(value: Word) -> Result<u64, Error> {
 
     // reject signed negative indices
     if raw < 0 {
-        return Err(Error::TypeMismatch {
-            expected: "non-negative integer".to_string(),
-            actual: format!("{value:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "non-negative integer",
+            format!("{value:?}"),
+        ));
     }
 
     Ok(raw as u64)
@@ -21,8 +21,5 @@ pub(crate) fn word_to_usize(value: Word) -> Result<usize, Error> {
     let index = word_to_u64(value)?;
 
     // narrow to the host index width
-    usize::try_from(index).map_err(|_| Error::TypeMismatch {
-        expected: "usize index".to_string(),
-        actual: format!("{value:?}"),
-    })
+    usize::try_from(index).map_err(|_| Error::type_mismatch("usize index", format!("{value:?}")))
 }

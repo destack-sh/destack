@@ -22,13 +22,11 @@ impl<'a> BlockLowerer<'a> {
         for argument in argument_values {
             let argument = argument
                 .value()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "intrinsic argument".to_string(),
-                })?;
+                .ok_or_else(|| Error::invalid_program("intrinsic argument"))?;
             let layout = self
                 .value_layout_map()
                 .get(argument)
-                .ok_or(Error::InvalidInstruction)?;
+                .ok_or(Error::invalid_instruction())?;
 
             layouts.push(layout);
         }
@@ -39,16 +37,13 @@ impl<'a> BlockLowerer<'a> {
         // resolve the optional destination
         let dest = match destination {
             Some(destination) => {
-                let destination =
-                    destination
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "intrinsic destination".to_string(),
-                        })?;
+                let destination = destination
+                    .value()
+                    .ok_or_else(|| Error::invalid_program("intrinsic destination"))?;
                 let slot = self
                     .frame_layout
                     .value(destination.0)
-                    .ok_or(Error::InvalidInstruction)?;
+                    .ok_or(Error::invalid_instruction())?;
 
                 if slot.is_word {
                     IntrinsicDest::Word(word_offset(self, destination)?)
@@ -62,9 +57,7 @@ impl<'a> BlockLowerer<'a> {
         // reject compile-time intrinsics before building the side record
         validate_runtime_intrinsic(intrinsic)?;
         let intrinsic = Intrinsic::new(intrinsic, dest, arguments, &layouts).ok_or_else(|| {
-            Error::UnsupportedInstruction {
-                name: "intrinsic with more than 16 arguments".to_string(),
-            }
+            Error::unsupported_instruction("intrinsic with more than 16 arguments")
         })?;
 
         Ok(pool.instruction_with_side(Op::Intrinsic, intrinsic))
@@ -75,9 +68,10 @@ impl<'a> BlockLowerer<'a> {
 fn validate_runtime_intrinsic(intrinsic: mir::Intrinsic) -> Result<()> {
     match intrinsic {
         mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
-            Err(Error::UnsupportedInstruction {
-                name: format!("intrinsic.{} (compile-time only)", intrinsic.to_str()),
-            })
+            Err(Error::unsupported_instruction(format!(
+                "intrinsic.{} (compile-time only)",
+                intrinsic.to_str()
+            )))
         }
         _ => Ok(()),
     }

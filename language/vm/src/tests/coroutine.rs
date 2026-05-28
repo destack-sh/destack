@@ -1,4 +1,4 @@
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, Trap};
 use crate::tests::{
     assert_execution_completed, assert_execution_yielded, assert_runtime_error_matches,
     create_isolate, create_isolate_with_id,
@@ -330,7 +330,12 @@ b1(v2: int32, v3: int32):
 }"#;
     let mut isolate = create_isolate(mir);
     let result = isolate.run_function_by_name("yieldOnce", &[Value::int32(7)]);
-    assert_runtime_error_matches!(result, Error::UnexpectedYield);
+    assert_runtime_error_matches!(
+        result,
+        Error::Trap {
+            reason: Trap::UnexpectedYield,
+        },
+    );
 }
 
 /// Resume with a continuation from another isolate reports an error.
@@ -351,7 +356,12 @@ b1(v2: int32, v3: int32):
     );
     let mut other_isolate = create_isolate_with_id(mir, IsolateId::new(2));
     let result = other_isolate.resume(continuation, Value::int32(0));
-    assert_runtime_error_matches!(result, Error::InvalidContinuation);
+    assert_runtime_error_matches!(
+        result,
+        Error::Trap {
+            reason: Trap::InvalidContinuation,
+        },
+    );
 }
 
 /// Continuations can be forked for multi-shot resumption.

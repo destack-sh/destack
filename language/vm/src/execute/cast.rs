@@ -199,9 +199,9 @@ fn cast_sign_extend(argument: Word, field: u32) -> Result<Word, Error> {
 /// Convert one float word to a signed integer word.
 fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
     let (target_width, _) = IntegerCast::from_field(field).decode();
-    let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::InvalidCast)?;
+    let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::invalid_cast())?;
     let converted = float_to_int_checked(argument.as_f64(), min_bound, max_bound)
-        .ok_or(Error::BadConversionToInteger)?;
+        .ok_or(Error::bad_conversion_to_integer())?;
 
     Ok(Word::int(converted as i64, target_width))
 }
@@ -209,9 +209,9 @@ fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
 /// Convert one float word to an unsigned integer word.
 fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error> {
     let (target_width, _) = IntegerCast::from_field(field).decode();
-    let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::InvalidCast)?;
+    let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::invalid_cast())?;
     let converted = float_to_int_checked(argument.as_f64(), min_bound, max_bound)
-        .ok_or(Error::BadConversionToInteger)?;
+        .ok_or(Error::bad_conversion_to_integer())?;
 
     Ok(Word::uint(converted as u64, target_width))
 }
@@ -219,7 +219,7 @@ fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error>
 /// Saturating convert one float word to a signed integer word.
 fn cast_float_to_signed_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
     let (target_width, _) = IntegerCast::from_field(field).decode();
-    let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::InvalidCast)?;
+    let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::invalid_cast())?;
     let converted = float_to_int_saturating(argument.as_f64(), min_bound, max_bound);
 
     Ok(Word::int(converted as i64, target_width))
@@ -228,7 +228,7 @@ fn cast_float_to_signed_int_saturating(argument: Word, field: u32) -> Result<Wor
 /// Saturating convert one float word to an unsigned integer word.
 fn cast_float_to_unsigned_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
     let (target_width, _) = IntegerCast::from_field(field).decode();
-    let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::InvalidCast)?;
+    let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::invalid_cast())?;
     let converted = float_to_int_saturating(argument.as_f64(), min_bound, max_bound);
 
     Ok(Word::uint(converted as u64, target_width))

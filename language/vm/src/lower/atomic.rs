@@ -166,9 +166,7 @@ impl<'a> BlockLowerer<'a> {
 fn atomic_value(reference: mir::ValueReference, context: &str) -> Result<mir::Value> {
     reference
         .value()
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: context.to_string(),
-        })
+        .ok_or_else(|| Error::invalid_program(context))
 }
 
 /// Build the compact shape for one atomic memory operation.
@@ -203,7 +201,7 @@ fn atomic_read_modify_write_operator(
         MirOperator::Fadd if is_float(layout) => AtomicReadModifyWriteOperator::Fadd,
         MirOperator::Fmin if is_float(layout) => AtomicReadModifyWriteOperator::Fmin,
         MirOperator::Fmax if is_float(layout) => AtomicReadModifyWriteOperator::Fmax,
-        _ => return Err(Error::InvalidInstruction),
+        _ => return Err(Error::invalid_instruction()),
     })
 }
 
@@ -244,7 +242,7 @@ fn atomic_width(layout: WordLayout, pointer_bytes: usize) -> Result<AtomicWidth>
         2 => AtomicWidth::Width16,
         4 => AtomicWidth::Width32,
         8 => AtomicWidth::Width64,
-        _ => return Err(Error::InvalidInstruction),
+        _ => return Err(Error::invalid_instruction()),
     })
 }
 
@@ -279,32 +277,30 @@ fn require_atomic_pointer(
         ..
     } = tree.get(pointer_type)
     else {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{pointer:?}"),
-        });
+        return Err(Error::invalid_pointer_type(format!("{pointer:?}")));
     };
 
     let pointer_class = pointer_class_from_reference(space.clone(), *kind);
     let address = atomic_address(pointer_class)?;
 
     // require atomic storage
-    let pointee = pointee.ty().ok_or_else(|| Error::InvalidPointerType {
-        actual: format!("{pointer:?}"),
-    })?;
+    let pointee = pointee
+        .ty()
+        .ok_or_else(|| Error::invalid_pointer_type(format!("{pointer:?}")))?;
     let pointee = repr_type(tree, pointee);
     let mir::Type::Atomic { value } = tree.get(pointee) else {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{:?}", tree.get(pointee)),
-        });
+        return Err(Error::invalid_pointer_type(format!(
+            "{:?}",
+            tree.get(pointee)
+        )));
     };
 
     // require a word-sized atomic payload
-    let value = value.ty().ok_or_else(|| Error::InvalidPointerType {
-        actual: format!("{:?}", tree.get(pointee)),
-    })?;
-    let layout = word_layout_from_type(tree, value).ok_or_else(|| Error::TypeMismatch {
-        expected: "word atomic pointee".to_string(),
-        actual: format!("{:?}", tree.get(value)),
+    let value = value
+        .ty()
+        .ok_or_else(|| Error::invalid_pointer_type(format!("{:?}", tree.get(pointee))))?;
+    let layout = word_layout_from_type(tree, value).ok_or_else(|| {
+        Error::type_mismatch("word atomic pointee", format!("{:?}", tree.get(value)))
     })?;
 
     Ok((layout, address))
@@ -319,9 +315,7 @@ fn value_type_for_atomic_pointer(
     value_types
         .get(pointer.0 as usize)
         .copied()
-        .ok_or_else(|| Error::InvalidPointerType {
-            actual: format!("{pointer:?}"),
-        })
+        .ok_or_else(|| Error::invalid_pointer_type(format!("{pointer:?}")))
         .map(|ty| repr_type(tree, ty))
 }
 
@@ -335,6 +329,6 @@ fn atomic_address(pointer_class: PointerClass) -> Result<AtomicAddress> {
         PointerClass::Stack => Ok(AtomicAddress::Stack),
         PointerClass::Frame => Ok(AtomicAddress::Frame),
         PointerClass::Static => Ok(AtomicAddress::Static),
-        _ => Err(Error::InvalidInstruction),
+        _ => Err(Error::invalid_instruction()),
     }
 }

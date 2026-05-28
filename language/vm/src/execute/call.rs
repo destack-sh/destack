@@ -61,7 +61,7 @@ fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, E
         match pointer_bytes {
             4 => u32::from_le((address as *const u32).read_unaligned()) as u64,
             8 => u64::from_le((address as *const u64).read_unaligned()),
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         }
     };
 
@@ -125,7 +125,7 @@ fn require_call_target(
         .program
         .functions
         .call_target(function)
-        .ok_or(Error::UndefinedFunction { function })
+        .ok_or(Error::undefined_function(function))
 }
 
 /// Load a function pointer.
@@ -220,7 +220,7 @@ pub(crate) fn execute_load_callable_environment(
         .active_frame()
         .load_environment(machine.frame_layout())?;
     let Some(environment) = environment else {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     };
 
     // store result
@@ -256,7 +256,7 @@ fn enter_local_call(
 
     // reject stack overflow before mutating any live machine
     if machine.interpreter.frames.len() >= machine.options().limits.max_stack_depth {
-        return Some(Transfer::Error(Error::StackOverflow));
+        return Some(Transfer::Error(Error::stack_overflow()));
     }
 
     // store the caller pc before allocating the callee
@@ -267,7 +267,7 @@ fn enter_local_call(
 
     let layout = match machine.program.frame_layout_by_id(callee.frame_layout) {
         Some(layout) => layout,
-        None => return Some(Transfer::Error(Error::InvalidInstruction)),
+        None => return Some(Transfer::Error(Error::invalid_instruction())),
     };
     let (stack_offset, frame_base) = match machine.interpreter.allocate_frame(layout) {
         Ok(frame) => frame,
@@ -284,7 +284,7 @@ fn enter_local_call(
         let frame = machine.active_frame();
         match machine.program.functions.function_by_id(frame.function()) {
             Some(function) => function,
-            None => return Some(Transfer::Error(Error::InvalidInstruction)),
+            None => return Some(Transfer::Error(Error::invalid_instruction())),
         }
     };
     let caller = match machine.frame(caller_index) {
@@ -744,7 +744,7 @@ fn enter_tail_call<'ctx, 'iso>(
     let layout = machine
         .program
         .frame_layout_by_id(callee.frame_layout)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
 
     // replace the current frame bytes in place
     let stack_offset = machine.active_frame_mut().stack_offset;
@@ -827,7 +827,7 @@ pub(crate) fn execute_tail_call(
             .function_by_id(machine.active_frame().function())
         {
             Some(function) => function,
-            None => return Transfer::Error(Error::InvalidInstruction),
+            None => return Transfer::Error(Error::invalid_instruction()),
         };
         let caller = match machine.frame(machine.frame_index) {
             Ok(frame) => frame,
@@ -867,9 +867,7 @@ pub(crate) fn execute_tail_call_self(
     // load current function entry block
     let function_id = machine.active_frame().function();
     let Some(function) = machine.program.functions.function_by_id(function_id) else {
-        return Transfer::Error(Error::UndefinedFunction {
-            function: function_id,
-        });
+        return Transfer::Error(Error::undefined_function(function_id));
     };
 
     // collect argument values before clearing the frame
@@ -891,7 +889,7 @@ pub(crate) fn execute_tail_call_self(
         }
     };
     let Some(frame_layout) = machine.program.frame_layout_by_id(function.frame_layout) else {
-        return Transfer::Error(Error::InvalidInstruction);
+        return Transfer::Error(Error::invalid_instruction());
     };
 
     // discard stack allocations from the previous self call
@@ -1117,7 +1115,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     };
     let caller_function = match machine.program.functions.function_by_id(caller.function()) {
         Some(function) => function,
-        None => return Transfer::Error(Error::InvalidInstruction),
+        None => return Transfer::Error(Error::invalid_instruction()),
     };
     let argument_values = match load_arguments(
         machine.program,

@@ -27,15 +27,15 @@ fn bind_frame_parameters(
         .map(|binding| {
             let source_slot = layout
                 .slot(binding.source)
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
             let destination_slot = layout
                 .slot(binding.destination)
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
             if source_slot.byte_len != destination_slot.byte_len
                 || source_slot.is_word != destination_slot.is_word
             {
-                return Err(RuntimeError::new(Error::InvalidInstruction));
+                return Err(RuntimeError::new(Error::invalid_instruction()));
             }
 
             if destination_slot.is_word {
@@ -52,7 +52,7 @@ fn bind_frame_parameters(
     for (binding, value) in bindings.iter().zip(saved_values) {
         let destination_slot = layout
             .slot(binding.destination)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         match value {
             SavedFrameValue::Word(word) => frame.write_word(destination_slot, word),
@@ -79,7 +79,7 @@ impl Interpreter {
         // resolve target position
         let point = program
             .point_for_frame_state(frame_state_id)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let frame_entry = program.frame_entry(frame_state_id).cloned();
         let target_block_id = point.block;
         let pc = point.pc as usize;
@@ -89,34 +89,30 @@ impl Interpreter {
         let frame = self
             .frames
             .get(frame_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         // require the frame to match the target function
         if frame.function() != expected_function {
-            return Err(RuntimeError::new(Error::InvalidInstruction));
+            return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
         let function = program
             .functions
             .function_by_id(frame.function())
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let target_index = function
             .blocks
             .iter()
             .position(|candidate| candidate.mir_block == target_block_id)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedBlock {
-                    block: target_block_id,
-                })
-            })?;
+            .ok_or_else(|| RuntimeError::new(Error::undefined_block(target_block_id)))?;
         // bind frame parameters and the optional received value
         let frame = self
             .frames
             .get_mut(frame_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let frame_layout = program
             .frame_layout_by_id(frame.frame_layout())
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if let Some(frame_entry) = &frame_entry {
             bind_frame_parameters(frame_layout, frame, &frame_entry.bindings)?;
         }
@@ -125,11 +121,11 @@ impl Interpreter {
             frame_entry.and_then(|frame_entry| frame_entry.received_value)
         {
             let Some(frame_value) = received_value else {
-                return Err(RuntimeError::new(Error::InvalidInstruction));
+                return Err(RuntimeError::new(Error::invalid_instruction()));
             };
             let received_value = frame_layout
                 .value_for_slot(received_value_slot)
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+                .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
             store_frame_value(program, frame, mir::Value::new(received_value), frame_value)
                 .map_err(RuntimeError::new)?;
         }
@@ -152,7 +148,7 @@ impl Interpreter {
             .frames
             .len()
             .checked_sub(1)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         self.enter_frame_state(program, frame_index, frame_state_id, Some(value))
     }
