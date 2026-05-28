@@ -163,8 +163,6 @@ export interface AssociatedTypeMember extends Node {
     isAbstract: boolean;
     /// Whether the member overrides another member.
     isOverride: boolean;
-    /// Whether the member belongs to the static side.
-    isStatic: boolean;
     /// The member symbol.
     symbol: Symbol;
 }
@@ -185,8 +183,6 @@ export interface AssociatedConstMember extends Node {
     visibility?: Visibility;
     /// Whether the member is ambient.
     ambient: Ambientness;
-    /// Whether the member belongs to the static side.
-    isStatic: boolean;
     /// The member symbol.
     symbol: Symbol;
 }

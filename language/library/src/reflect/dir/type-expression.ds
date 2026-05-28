@@ -5,7 +5,6 @@ import {
     type Parameter,
     type TupleElement,
 } from "./argument.ds";
-import { type Declaration } from "./declaration.ds";
 import { type SymbolSpaceOrder } from "./dependency.ds";
 import { type Expression, type WhereClause } from "./expression.ds";
 import { type FunctionSignature } from "./function.ds";
@@ -75,7 +74,7 @@ export interface CallSignatureTypeMember extends Node {
     /// The member kind.
     kind: "callSignature";
     /// The call signature.
-    signature: FunctionTypeDeclaration;
+    signature: FunctionType;
     /// The signature symbol.
     symbol: Symbol;
 }
@@ -87,7 +86,7 @@ export interface ConstructSignatureTypeMember extends Node {
     /// The member kind.
     kind: "constructSignature";
     /// The construct signature.
-    signature: ConstructorTypeDeclaration;
+    signature: ConstructorType;
     /// The signature symbol.
     symbol: Symbol;
 }
@@ -211,8 +210,8 @@ export interface ThisTypePredicateSubject {
     kind: "this";
 }
 
-/// One function type declaration in type space.
-export interface FunctionTypeDeclaration {
+/// One function type in type space.
+export interface FunctionType {
     /// The generic parameters.
     genericParameters: readonly GenericParameter[];
     /// The where clauses.
@@ -225,8 +224,8 @@ export interface FunctionTypeDeclaration {
     returnType?: TypeExpression;
 }
 
-/// One constructor type declaration in type space.
-export interface ConstructorTypeDeclaration {
+/// One constructor type in type space.
+export interface ConstructorType {
     /// Whether the constructor type is abstract.
     isAbstract: boolean;
     /// The generic parameters.
@@ -249,9 +248,8 @@ export type TypeExpression =
     | ArrayTupleTypeExpression
     | ArrayTypeExpression
     | ObjectTypeExpression
-    | DeclarationTypeExpression
-    | FunctionTypeDeclarationExpression
-    | ConstructorTypeDeclarationExpression
+    | FunctionExpression
+    | ConstructorExpression
     | ReferenceTypeExpression
     | LocalReferenceTypeExpression
     | ModuleReferenceTypeExpression
@@ -358,34 +356,24 @@ export interface ObjectTypeExpression extends Node {
     members: readonly TypeMember[];
 }
 
-/// Embedded declaration type syntax.
-export interface DeclarationTypeExpression extends Node {
+/// Function type syntax.
+export interface FunctionExpression extends Node {
     /// The node kind.
     nodeKind: "typeExpression";
     /// The type-expression kind.
-    kind: "declaration";
-    /// The embedded declaration.
-    declaration: Declaration;
+    kind: "functionType";
+    /// The function type.
+    declaration: FunctionType;
 }
 
-/// Function type declaration syntax.
-export interface FunctionTypeDeclarationExpression extends Node {
+/// Constructor type syntax.
+export interface ConstructorExpression extends Node {
     /// The node kind.
     nodeKind: "typeExpression";
     /// The type-expression kind.
-    kind: "functionTypeDeclaration";
-    /// The function type declaration.
-    declaration: FunctionTypeDeclaration;
-}
-
-/// Constructor type declaration syntax.
-export interface ConstructorTypeDeclarationExpression extends Node {
-    /// The node kind.
-    nodeKind: "typeExpression";
-    /// The type-expression kind.
-    kind: "constructorTypeDeclaration";
-    /// The constructor type declaration.
-    declaration: ConstructorTypeDeclaration;
+    kind: "constructorType";
+    /// The constructor type.
+    declaration: ConstructorType;
 }
 
 /// Qualified type reference.

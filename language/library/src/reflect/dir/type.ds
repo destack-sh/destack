@@ -328,7 +328,7 @@ export type Type<T = unknown> = TypeBase &
         | ArrayType
         | TupleType
         | ObjectType
-        | FunctionType
+        | FunctionTypeShape
         | UnionType
         | IntersectionType
         | ErrorType
@@ -615,7 +615,7 @@ export interface ObjectType {
 }
 
 /// Function type.
-export interface FunctionType {
+export interface FunctionTypeShape {
     /// The type kind.
     kind: "function";
     /// The function asynchrony.

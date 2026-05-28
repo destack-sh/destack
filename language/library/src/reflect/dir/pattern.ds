@@ -17,10 +17,10 @@ export type Pattern =
     | RangePattern
     | TypeExpressionPattern
     | TuplePattern
-    | TaggedTuplePattern
+    | NewtypePattern
     | ArrayPattern
     | ObjectPattern
-    | TaggedObjectPattern
+    | NominalObjectPattern
     | UnionPattern;
 
 /// Wildcard scalar pattern.
@@ -137,12 +137,12 @@ export interface TuplePattern extends Node {
     fields: readonly PatternField[];
 }
 
-/// Tagged tuple pattern.
-export interface TaggedTuplePattern extends Node {
+/// Newtype wrapper pattern.
+export interface NewtypePattern extends Node {
     /// The node kind.
     nodeKind: "pattern";
     /// The pattern kind.
-    kind: "taggedTuple";
+    kind: "newtype";
     /// The matched type.
     type: TypeExpression;
     /// The tuple fields.
@@ -169,12 +169,12 @@ export interface ObjectPattern extends Node {
     fields: readonly PatternField[];
 }
 
-/// Tagged object pattern.
-export interface TaggedObjectPattern extends Node {
+/// Nominal object pattern.
+export interface NominalObjectPattern extends Node {
     /// The node kind.
     nodeKind: "pattern";
     /// The pattern kind.
-    kind: "taggedObject";
+    kind: "nominalObject";
     /// The matched type.
     type: TypeExpression;
     /// The object fields.
