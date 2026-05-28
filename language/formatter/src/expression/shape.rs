@@ -129,10 +129,14 @@ fn generic_arguments_are_trivial(
     generic_arguments
         .iter()
         .all(|argument_id| match tree.get(*argument_id) {
-            GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+            GenericArgument::Type { value }
+            | GenericArgument::SpreadType { value }
+            | GenericArgument::AssociatedType { value, .. } => {
                 is_trivial_type_expression(tree, *value)
             }
-            GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+            GenericArgument::Value { value }
+            | GenericArgument::SpreadValue { value }
+            | GenericArgument::AssociatedConst { value, .. } => {
                 is_trivial_expression(tree, tree.get(*value))
             }
             GenericArgument::Error => false,
@@ -231,10 +235,10 @@ fn is_type_expression_breakable(tree: &Tree, expression_id: LocalNodeId<TypeExpr
 /// Return whether a pattern can expand to multiple lines.
 pub fn is_pattern_breakable(tree: &Tree, pattern_id: LocalNodeId<Pattern>) -> bool {
     match tree.get(pattern_id) {
-        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => !fields.is_empty(),
+        Pattern::Object { fields } | Pattern::NominalObject { fields, .. } => !fields.is_empty(),
         Pattern::Sequence { fields }
         | Pattern::Tuple { fields }
-        | Pattern::TaggedTuple { fields, .. } => !fields.is_empty(),
+        | Pattern::Newtype { fields, .. } => !fields.is_empty(),
         _ => false,
     }
 }

@@ -127,12 +127,16 @@ fn is_complex_generic_arguments<'ast>(
     };
 
     match f.context().tree.get(argument_id) {
-        GenericArgument::Type { value } | GenericArgument::SpreadType { value } => {
+        GenericArgument::Type { value }
+        | GenericArgument::SpreadType { value }
+        | GenericArgument::AssociatedType { value, .. } => {
             if type_argument_is_complex(f.context(), *value) {
                 return Ok(true);
             }
         }
-        GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
+        GenericArgument::Value { value }
+        | GenericArgument::SpreadValue { value }
+        | GenericArgument::AssociatedConst { value, .. } => {
             let value = transparent_inner_expression(f.context(), *value);
 
             // value arguments use the same threshold as complex type arguments
@@ -657,10 +661,10 @@ fn declarator_pattern_has_default_assignment(
 
         // field collections
         Pattern::Tuple { fields }
-        | Pattern::TaggedTuple { fields, .. }
+        | Pattern::Newtype { fields, .. }
         | Pattern::Sequence { fields }
         | Pattern::Object { fields }
-        | Pattern::TaggedObject { fields, .. } => fields
+        | Pattern::NominalObject { fields, .. } => fields
             .iter()
             .copied()
             .any(|field_id| declarator_pattern_field_has_default_assignment(context, field_id)),
@@ -727,7 +731,7 @@ fn declarator_pattern_is_complex_destructuring(
         } => declarator_pattern_is_complex_destructuring(context, *inner_pattern_id),
 
         // wide object destructuring
-        Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => {
+        Pattern::Object { fields } | Pattern::NominalObject { fields, .. } => {
             if fields.len() <= 2 {
                 return false;
             }

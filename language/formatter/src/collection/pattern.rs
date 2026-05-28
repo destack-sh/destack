@@ -393,9 +393,9 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
     match tree.get(pattern_id) {
         // direct nested destructuring
         Pattern::Object { .. }
-        | Pattern::TaggedObject { .. }
+        | Pattern::NominalObject { .. }
         | Pattern::Sequence { .. }
-        | Pattern::TaggedTuple { .. }
+        | Pattern::Newtype { .. }
         | Pattern::Tuple { .. } => true,
 
         // assignment wrappers stay owned by assignment-like layout
@@ -871,7 +871,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
 
-            Pattern::TaggedTuple { ty, fields } => {
+            Pattern::Newtype { ty, fields } => {
                 if let Some(payload) = newtype_object_payload(f.context().tree, fields) {
                     format_newtype_object_pattern(f, *ty, payload)?;
                 } else {
@@ -888,7 +888,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 format_object_pattern_like(f, node_id, None, fields)?;
             }
 
-            Pattern::TaggedObject { ty, fields } => {
+            Pattern::NominalObject { ty, fields } => {
                 format_object_pattern_like(f, node_id, Some(*ty), fields)?;
             }
 

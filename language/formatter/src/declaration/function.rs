@@ -193,8 +193,6 @@ pub(crate) fn function_can_omit_lambda_parameter_parentheses(
             matches!(
                 parameter,
                 Parameter::Named {
-                    visibility: None,
-                    is_readonly: false,
                     declared_type: None,
                     default: None,
                     is_optional: false,

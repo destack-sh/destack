@@ -23,11 +23,11 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
-    Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionForm, FunctionSignature,
-    FunctionTypeDeclaration, GenericArgument, GenericParameter, InferForm, Key, Keyword,
-    LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
-    RangeEnd, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
-    TypeMappedParameter, TypeMember, TypePredicateSubject, VarianceBound, WhereClause,
+    Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
+    FunctionType, GenericArgument, GenericParameter, InferForm, Key, Keyword, LocalNodeId,
+    MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, RangeEnd,
+    TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMappedParameter,
+    TypeMember, TypePredicateSubject, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -78,8 +78,8 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::PointerOf { .. }
         | TypeExpression::Infer { .. }
         | TypeExpression::Predicate { .. }
-        | TypeExpression::FunctionTypeDeclaration(_)
-        | TypeExpression::ConstructorTypeDeclaration(_) => true,
+        | TypeExpression::Function(_)
+        | TypeExpression::Constructor(_) => true,
         _ => false,
     }
 }
@@ -108,8 +108,8 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::PointerOf { .. }
         | TypeExpression::Infer { .. }
         | TypeExpression::Predicate { .. }
-        | TypeExpression::FunctionTypeDeclaration(_)
-        | TypeExpression::ConstructorTypeDeclaration(_) => true,
+        | TypeExpression::Function(_)
+        | TypeExpression::Constructor(_) => true,
         _ => false,
     }
 }
@@ -705,7 +705,7 @@ fn signature_should_hug_parameter_type(
 /// Return whether one type callable should hug a parameter-owned object type.
 fn function_type_should_hug_parameter_type(
     context: &DestackFormatContext<'_>,
-    function: &FunctionTypeDeclaration,
+    function: &FunctionType,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     let mut parameters = Vec::with_capacity(function.parameters.len() + 1);
@@ -725,7 +725,7 @@ fn function_type_should_hug_parameter_type(
 /// Return whether one constructor type should hug a parameter-owned object type.
 fn constructor_type_should_hug_parameter_type(
     context: &DestackFormatContext<'_>,
-    function: &ConstructorTypeDeclaration,
+    function: &ConstructorType,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     function
@@ -781,10 +781,10 @@ fn type_object_should_hug(
                 .tree
                 .get(LocalNodeId::<TypeExpression>::new(owner_id))
             {
-                TypeExpression::FunctionTypeDeclaration(function) => {
+                TypeExpression::Function(function) => {
                     function_type_should_hug_parameter_type(context, function, parameter_id)
                 }
-                TypeExpression::ConstructorTypeDeclaration(function) => {
+                TypeExpression::Constructor(function) => {
                     constructor_type_should_hug_parameter_type(context, function, parameter_id)
                 }
                 _ => false,
@@ -1551,8 +1551,8 @@ fn type_needs_prefix_operand_parentheses(
         | TypeExpression::Range { .. } => true,
         TypeExpression::Infer { constraint, .. } => constraint.is_some(),
         TypeExpression::Predicate { .. }
-        | TypeExpression::FunctionTypeDeclaration(_)
-        | TypeExpression::ConstructorTypeDeclaration(_) => true,
+        | TypeExpression::Function(_)
+        | TypeExpression::Constructor(_) => true,
         _ => false,
     }
 }
@@ -1633,11 +1633,11 @@ fn type_expression_function_like_info(
     node_id: LocalNodeId<TypeExpression>,
 ) -> Option<FunctionLikeTypeInfo> {
     match context.tree.get(node_id) {
-        TypeExpression::FunctionTypeDeclaration(function) => Some(FunctionLikeTypeInfo {
+        TypeExpression::Function(function) => Some(FunctionLikeTypeInfo {
             is_constructor: false,
             return_type: function.return_type,
         }),
-        TypeExpression::ConstructorTypeDeclaration(function) => Some(FunctionLikeTypeInfo {
+        TypeExpression::Constructor(function) => Some(FunctionLikeTypeInfo {
             is_constructor: true,
             return_type: function.return_type,
         }),
@@ -2003,10 +2003,10 @@ fn write_type_callable_where_clauses<'ast>(
 }
 
 /// Write one function-like type declaration directly in type space.
-fn write_function_type_declaration<'ast>(
+fn write_function_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _node_id: LocalNodeId<TypeExpression>,
-    function: &FunctionTypeDeclaration,
+    function: &FunctionType,
 ) -> FormatResult<()> {
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -2037,10 +2037,10 @@ fn write_function_type_declaration<'ast>(
 }
 
 /// Write one constructor type declaration directly in type space.
-fn write_constructor_type_declaration<'ast>(
+fn write_constructor_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _node_id: LocalNodeId<TypeExpression>,
-    function: &ConstructorTypeDeclaration,
+    function: &ConstructorType,
 ) -> FormatResult<()> {
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // constructor type prefix
@@ -2173,7 +2173,7 @@ fn write_type_signature<'ast>(
 fn write_call_signature<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
-    signature: &FunctionTypeDeclaration,
+    signature: &FunctionType,
 ) -> FormatResult<()> {
     let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -2211,7 +2211,7 @@ fn write_call_signature<'ast>(
 fn write_construct_signature<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
-    signature: &ConstructorTypeDeclaration,
+    signature: &ConstructorType,
 ) -> FormatResult<()> {
     let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // constructor prefix
@@ -2591,14 +2591,11 @@ pub(crate) fn write_type_expression_body<'ast>(
 
             write!(f, [token("}")])?;
         }
-        TypeExpression::Declaration { declaration } => {
-            write!(f, [*declaration])?;
+        TypeExpression::Function(function) => {
+            write_function_type(f, node_id, function)?;
         }
-        TypeExpression::FunctionTypeDeclaration(function) => {
-            write_function_type_declaration(f, node_id, function)?;
-        }
-        TypeExpression::ConstructorTypeDeclaration(function) => {
-            write_constructor_type_declaration(f, node_id, function)?;
+        TypeExpression::Constructor(function) => {
+            write_constructor_type(f, node_id, function)?;
         }
         TypeExpression::Reference {
             path,
@@ -3069,12 +3066,40 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
 
                 write!(f, [value])?;
             }
+            GenericArgument::AssociatedType { name, value } => {
+                write!(
+                    f,
+                    [
+                        Keyword::Type,
+                        space(),
+                        *name,
+                        space(),
+                        token("="),
+                        space(),
+                        value
+                    ]
+                )?;
+            }
             GenericArgument::Value { value } | GenericArgument::SpreadValue { value } => {
                 if matches!(self, GenericArgument::SpreadValue { .. }) {
                     write!(f, [token("...")])?;
                 }
 
                 write!(f, [value])?;
+            }
+            GenericArgument::AssociatedConst { name, value } => {
+                write!(
+                    f,
+                    [
+                        Keyword::Comptime,
+                        space(),
+                        *name,
+                        space(),
+                        token("="),
+                        space(),
+                        value
+                    ]
+                )?;
             }
             GenericArgument::Error => {
                 write!(f, [token("/* ERROR */")])?;

@@ -33,32 +33,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
     }
 }
 
-/// Write one visibility prefix.
-fn write_visibility_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    visibility: Option<Visibility>,
-) -> FormatResult<()> {
-    // visibility
-    if let Some(visibility) = visibility {
-        write!(f, [visibility, space()])?;
-    }
-
-    Ok(())
-}
-
-/// Write one readonly prefix.
-fn write_readonly_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_readonly: bool,
-) -> FormatResult<()> {
-    // readonly
-    if is_readonly {
-        write!(f, [Keyword::Readonly, space()])?;
-    }
-
-    Ok(())
-}
-
 /// Write one comptime prefix.
 fn write_comptime_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -306,10 +280,10 @@ fn pattern_is_destructuring(
 ) -> bool {
     match context.tree.get(pattern_id) {
         Pattern::Object { .. }
-        | Pattern::TaggedObject { .. }
+        | Pattern::NominalObject { .. }
         | Pattern::Sequence { .. }
         | Pattern::Tuple { .. }
-        | Pattern::TaggedTuple { .. } => true,
+        | Pattern::Newtype { .. } => true,
         Pattern::Must(inner)
         | Pattern::BorrowOf { right: inner, .. }
         | Pattern::MoveOf { right: inner, .. }
@@ -355,21 +329,10 @@ fn parameter_has_modifier(
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     match context.tree.get(parameter_id) {
-        Parameter::Named {
-            visibility,
-            is_readonly,
-            is_comptime,
-            ..
-        }
-        | Parameter::VariadicNamed {
-            visibility,
-            is_readonly,
-            is_comptime,
-            ..
-        } => visibility.is_some() || *is_readonly || *is_comptime,
-        Parameter::Pattern { is_comptime, .. } | Parameter::VariadicPattern { is_comptime, .. } => {
-            *is_comptime
-        }
+        Parameter::Named { is_comptime, .. }
+        | Parameter::VariadicNamed { is_comptime, .. }
+        | Parameter::Pattern { is_comptime, .. }
+        | Parameter::VariadicPattern { is_comptime, .. } => *is_comptime,
         Parameter::Error => false,
     }
 }
@@ -568,8 +531,6 @@ fn write_named_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     name: StringId,
-    visibility: Option<Visibility>,
-    is_readonly: bool,
     is_optional: bool,
     is_comptime: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
@@ -579,9 +540,7 @@ fn write_named_parameter<'ast>(
         f,
         format_with(|f: &mut DestackFormatter<'ast, '_>| {
             // prefixes
-            write_visibility_prefix(f, visibility)?;
             write_comptime_prefix(f, is_comptime)?;
-            write_readonly_prefix(f, is_readonly)?;
 
             // name
             write!(f, [name])?;
@@ -656,15 +615,11 @@ fn write_variadic_named_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     name: StringId,
-    visibility: Option<Visibility>,
-    is_readonly: bool,
     is_comptime: bool,
     declared_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     // prefixes
-    write_visibility_prefix(f, visibility)?;
     write_comptime_prefix(f, is_comptime)?;
-    write_readonly_prefix(f, is_readonly)?;
 
     // variadic name
     write!(f, [token("..."), name])?;
@@ -700,8 +655,6 @@ fn format_parameter_node<'ast>(
     match parameter {
         Parameter::Named {
             name,
-            visibility,
-            is_readonly,
             is_optional,
             is_comptime,
             declared_type,
@@ -710,8 +663,6 @@ fn format_parameter_node<'ast>(
             f,
             node_id,
             *name,
-            *visibility,
-            *is_readonly,
             *is_optional,
             *is_comptime,
             *declared_type,
@@ -734,19 +685,9 @@ fn format_parameter_node<'ast>(
         ),
         Parameter::VariadicNamed {
             name,
-            visibility,
-            is_readonly,
             is_comptime,
             declared_type,
-        } => write_variadic_named_parameter(
-            f,
-            node_id,
-            *name,
-            *visibility,
-            *is_readonly,
-            *is_comptime,
-            *declared_type,
-        ),
+        } => write_variadic_named_parameter(f, node_id, *name, *is_comptime, *declared_type),
         Parameter::VariadicPattern {
             pattern,
             is_comptime,
