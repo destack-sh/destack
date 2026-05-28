@@ -43,9 +43,9 @@ impl CheckState<'_> {
     }
 
     /// Return one function type term from a type-space function declaration.
-    pub(in crate::check) fn build_function_type_declaration_term(
+    pub(in crate::check) fn build_function_type_term(
         &mut self,
-        declaration: &dir::FunctionTypeDeclaration,
+        declaration: &dir::FunctionType,
         return_type: Option<VariableId>,
         tree: &dir::Tree,
     ) -> TermId<FunctionTerm> {
@@ -79,9 +79,9 @@ impl CheckState<'_> {
     }
 
     /// Return one function type term from a type-space constructor declaration.
-    pub(in crate::check) fn build_constructor_type_declaration_term(
+    pub(in crate::check) fn build_constructor_type_term(
         &mut self,
-        declaration: &dir::ConstructorTypeDeclaration,
+        declaration: &dir::ConstructorType,
         return_type: Option<VariableId>,
         tree: &dir::Tree,
     ) -> TermId<FunctionTerm> {

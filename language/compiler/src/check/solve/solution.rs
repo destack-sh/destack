@@ -600,7 +600,9 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let argument_node = self.input(module).view().get(*argument).clone();
-        let dir::GenericArgument::Type { value } = argument_node else {
+        let (dir::GenericArgument::Type { value }
+        | dir::GenericArgument::AssociatedType { value, .. }) = argument_node
+        else {
             return Ok(None);
         };
         let target = self.intern_local_type_variable(module, value);

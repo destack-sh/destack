@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, ExportLookup, ReceiverTerm, StaticTerm, TypeOperationTerm,
-    TypeTerm, VariableId, VariableKind,
+    CheckState, ConstraintOrigin, ExportLookup, GenericArgument, Obligation, ReceiverTerm,
+    StaticTerm, TypeOperationTerm, TypeTerm, VariableId, VariableKind,
 };
 
 impl CheckState<'_> {
@@ -183,6 +183,16 @@ impl CheckState<'_> {
 
         let arguments = self.build_generic_arguments_for_owner(symbol, generic_arguments, tree);
         if let Some(item) = self.environment.language.item(symbol) {
+            if item == dir::LanguageItem::Dynamic
+                && let Some(constraint) = arguments.first().and_then(GenericArgument::type_operand)
+            {
+                self.add_obligation(Obligation::DynamicSafe {
+                    source,
+                    constraint,
+                    condition: self.active_static_condition(tree.module_id),
+                });
+            }
+
             if Self::memory_type_intrinsic_item(item) {
                 let operation = self.terms.push(TypeOperationTerm::Intrinsic {
                     item,

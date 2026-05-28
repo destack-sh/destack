@@ -454,7 +454,7 @@ impl CheckState<'_> {
                     })
                     .collect(),
             }),
-            dir::Type::Function(function) => dir::Type::Function(dir::FunctionType {
+            dir::Type::Function(function) => dir::Type::Function(dir::FunctionTypeShape {
                 asynchrony: function.asynchrony,
                 generic_parameters: function
                     .generic_parameters

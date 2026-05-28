@@ -399,13 +399,17 @@ impl CheckState<'_> {
             // <T>
             dir::GenericArgument::Type { value }
             // <...T>
-            | dir::GenericArgument::SpreadType { value } => {
+            | dir::GenericArgument::SpreadType { value }
+            // <type Item = T>
+            | dir::GenericArgument::AssociatedType { value, .. } => {
                 self.is_deferred_static_type_guard(tree, *value)
             }
             // <C>
             dir::GenericArgument::Value { value }
             // <...C>
-            | dir::GenericArgument::SpreadValue { value } => {
+            | dir::GenericArgument::SpreadValue { value }
+            // <comptime Size = N>
+            | dir::GenericArgument::AssociatedConst { value, .. } => {
                 self.is_deferred_static_guard(tree, *value)
             }
             // ignore damaged syntax

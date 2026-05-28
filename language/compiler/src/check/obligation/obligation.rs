@@ -4,7 +4,8 @@ use destack_source::ModuleId;
 use crate::{CompilerError, CompilerResult, DiagnosticAnchor};
 
 use crate::check::{
-    CheckError, CheckState, Decision, PatternTerm, Place, StaticCondition, TermId, VariableId,
+    CheckError, CheckState, Decision, PatternTerm, Place, StaticCondition, TermId, TypeOperand,
+    VariableId,
 };
 
 /// Selector for one active match case.
@@ -83,6 +84,15 @@ pub(in crate::check) enum Obligation {
         /// The static condition under which this obligation exists.
         condition: StaticCondition,
     },
+    /// A `Dynamic<T>` constraint must support runtime dynamic dispatch.
+    DynamicSafe {
+        /// The `Dynamic<T>` source expression.
+        source: dir::GlobalNodeIdAny,
+        /// The constraint that must be dynamically representable.
+        constraint: TypeOperand,
+        /// The static condition under which this obligation exists.
+        condition: StaticCondition,
+    },
 }
 
 impl CheckState<'_> {
@@ -143,6 +153,7 @@ impl CheckState<'_> {
                     self.check_writable_place(place)?;
                 }
             }
+            Obligation::DynamicSafe { .. } => {}
         }
 
         Ok(())

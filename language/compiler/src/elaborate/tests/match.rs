@@ -262,7 +262,7 @@ function sumPair(pair): int32 {
 
 #[test]
 fn test_transform_match_tagged_tuple_pattern_literal_and_binding() {
-    // tagged tuple patterns type check and bind matched fields
+    // newtype patterns type check and bind matched fields
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
@@ -297,7 +297,7 @@ function width(value): int32 {
 
 #[test]
 fn test_transform_match_tagged_object_pattern_alias_bindings() {
-    // tagged object patterns support alias bindings
+    // nominal object patterns support alias bindings
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",
@@ -407,7 +407,7 @@ function classify(point): int32 {
 
 #[test]
 fn test_transform_match_union_tagged_tuple_patterns_emit_full_checks() {
-    // union tagged tuple patterns should include both type and literal slot checks
+    // union newtype patterns should include both type and literal slot checks
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ds",

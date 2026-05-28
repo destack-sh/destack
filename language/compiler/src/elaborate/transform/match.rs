@@ -276,9 +276,9 @@ impl Compiler {
                 match_type_id,
             );
         }
-        // tagged tuple patterns: emit type check and index access
-        else if let Pattern::TaggedTuple { ty, fields } = &pattern {
-            return self.handle_tagged_tuple_pattern(
+        // newtype patterns: emit type check and index access
+        else if let Pattern::Newtype { ty, fields } = &pattern {
+            return self.handle_newtype_pattern(
                 state,
                 match_id,
                 value,
@@ -292,9 +292,9 @@ impl Compiler {
                 match_type_id,
             );
         }
-        // tagged object patterns: emit type check and member access
-        else if let Pattern::TaggedObject { ty, fields } = &pattern {
-            return self.handle_tagged_object_pattern(
+        // nominal object patterns: emit type check and member access
+        else if let Pattern::NominalObject { ty, fields } = &pattern {
+            return self.handle_nominal_object_pattern(
                 state,
                 match_id,
                 value,
@@ -599,8 +599,8 @@ impl Compiler {
         Ok(Some(if_expr))
     }
 
-    /// Handle a tagged tuple pattern by emitting type and field checks.
-    fn handle_tagged_tuple_pattern(
+    /// Handle a newtype pattern by emitting type and field checks.
+    fn handle_newtype_pattern(
         &self,
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
@@ -704,8 +704,8 @@ impl Compiler {
         Ok(Some(if_expr))
     }
 
-    /// Handle a tagged object pattern by emitting type and field checks.
-    fn handle_tagged_object_pattern(
+    /// Handle a nominal object pattern by emitting type and field checks.
+    fn handle_nominal_object_pattern(
         &self,
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
@@ -1081,8 +1081,8 @@ impl Compiler {
                 self.build_type_guard(state, match_id, value, target_type, scope)
             }
 
-            // tagged tuple: type check plus constrained slot checks
-            Pattern::TaggedTuple { ty, fields } => {
+            // newtype: type check plus constrained slot checks
+            Pattern::Newtype { ty, fields } => {
                 let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
                 self.extend_sequence_pattern_check(
                     state,
@@ -1094,8 +1094,8 @@ impl Compiler {
                 )
             }
 
-            // tagged object: type check plus constrained field checks
-            Pattern::TaggedObject { ty, fields } => {
+            // nominal object: type check plus constrained field checks
+            Pattern::NominalObject { ty, fields } => {
                 let type_check = self.build_type_guard(state, match_id, value, ty, scope)?;
                 self.extend_object_pattern_check(
                     state,

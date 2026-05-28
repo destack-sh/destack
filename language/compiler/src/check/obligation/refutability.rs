@@ -115,7 +115,7 @@ impl CheckState<'_> {
             | PatternTerm::Object { fields } => {
                 self.pattern_fields_cover_type(module, &fields, value)?
             }
-            PatternTerm::TaggedTuple { ty, fields } | PatternTerm::TaggedObject { ty, fields } => {
+            PatternTerm::Newtype { ty, fields } | PatternTerm::NominalObject { ty, fields } => {
                 let tag = self.decide_type_term_relation(
                     TypeRelation::Assignable,
                     value,

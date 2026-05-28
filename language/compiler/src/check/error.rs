@@ -45,6 +45,17 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// A parsed type form is not part of the language model.
+    #[diagnostic(code = "EC104", message = "unsupported type: {name}")]
+    UnsupportedType {
+        /// Report the unsupported type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unsupported type spelling.
+        name: String,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: relations
     // -------------------------------------------------------------------------

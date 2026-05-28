@@ -435,7 +435,7 @@ impl DirSnapshotBuilder<'_> {
     fn method_signature_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionTypeShape,
     ) -> String {
         // render method generics and parameters
         let generics = self.function_generic_label(types, function);
@@ -454,7 +454,7 @@ impl DirSnapshotBuilder<'_> {
     fn function_type_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionTypeShape,
     ) -> String {
         // render generics and explicit this parameter
         let generics = self.function_generic_label(types, function);
@@ -536,7 +536,7 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionTypeShape,
     ) -> String {
         if function.generic_parameters.is_empty() {
             return String::new();
@@ -688,7 +688,7 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_parameter_list_label(
         &self,
         types: &dir::TypeTable<'_>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionTypeShape,
     ) -> String {
         function
             .generic_parameters

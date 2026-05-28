@@ -15,13 +15,13 @@ impl Compiler {
         type_expression: &dir::TypeExpression,
     ) {
         match type_expression {
-            dir::TypeExpression::FunctionTypeDeclaration(function) => {
+            dir::TypeExpression::Function(function) => {
                 // bind callable type surface
-                self.bind_function_type_declaration(state, tree, id, function)
+                self.bind_function_type(state, tree, id, function)
             }
-            dir::TypeExpression::ConstructorTypeDeclaration(function) => {
+            dir::TypeExpression::Constructor(function) => {
                 // bind constructor type surface
-                self.bind_constructor_type_declaration(state, tree, id, function)
+                self.bind_constructor_type(state, tree, id, function)
             }
             dir::TypeExpression::Conditional {
                 left,
@@ -91,13 +91,13 @@ impl Compiler {
         }
     }
 
-    /// Bind one function type declaration.
-    fn bind_function_type_declaration(
+    /// Bind one function type.
+    fn bind_function_type(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeExpression>,
-        function: &dir::FunctionTypeDeclaration,
+        function: &dir::FunctionType,
     ) {
         // create callable type scope
         state.bind_node(id.into_any());
@@ -118,13 +118,13 @@ impl Compiler {
         state.pop_scope();
     }
 
-    /// Bind one constructor type declaration.
-    fn bind_constructor_type_declaration(
+    /// Bind one constructor type.
+    fn bind_constructor_type(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeExpression>,
-        function: &dir::ConstructorTypeDeclaration,
+        function: &dir::ConstructorType,
     ) {
         // create constructor type scope
         state.bind_node(id.into_any());

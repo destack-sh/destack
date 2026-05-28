@@ -36,10 +36,18 @@ impl CheckState<'_> {
             }
             // null
             dir::TypeExpression::Literal { value } => {
-                let ty = dir::Type::from(value.clone());
-                if let Some(literal) = TypeLiteralTerm::from_type(&ty) {
-                    self.define_type_expression_type(tree.module_id, id, TypeTerm::Literal(literal));
-                }
+                let term = if *value == dir::TypeLiteral::Void {
+                    TypeTerm::unit()
+                } else if *value == dir::TypeLiteral::Object {
+                    self.report_unsupported_type(tree.module_id, id.into_any(), "object");
+                    TypeTerm::Literal(TypeLiteralTerm::Error)
+                } else {
+                    let ty = dir::Type::from(value.clone());
+                    let literal = TypeLiteralTerm::from_type(&ty).unwrap_or(TypeLiteralTerm::Error);
+                    TypeTerm::Literal(literal)
+                };
+
+                self.define_type_expression_type(tree.module_id, id, term);
             }
             // intrinsic
             dir::TypeExpression::Intrinsic => {
@@ -121,35 +129,25 @@ impl CheckState<'_> {
                     self.walk_type_member(tree, *member, tree.get(*member));
                 }
             }
-            // struct User {}
-            dir::TypeExpression::Declaration { declaration } => {
-                if let Some(symbol) = self.declaration_symbol(tree.module_id, (*declaration).into_any()) {
-                    let term = TypeTerm::Variable(self.intern_symbol_type_variable(tree.module_id, symbol));
-
-                    self.define_type_expression_type(tree.module_id, id, term);
-                }
-
-                self.walk_declaration(tree, *declaration, tree.get(*declaration));
-            }
             // (value: T) => U
-            dir::TypeExpression::FunctionTypeDeclaration(declaration) => {
+            dir::TypeExpression::Function(declaration) => {
                 let return_type = declaration
                     .return_type
                     .map(|return_type| self.intern_local_type_variable(tree.module_id, return_type));
-                let term = self.build_function_type_declaration_term(declaration, return_type, tree);
+                let term = self.build_function_type_term(declaration, return_type, tree);
 
                 self.define_type_expression_type(tree.module_id, id, TypeTerm::Function(term));
-                self.walk_function_type_declaration(tree, declaration);
+                self.walk_function_type(tree, declaration);
             }
             // new (value: T) => U
-            dir::TypeExpression::ConstructorTypeDeclaration(declaration) => {
+            dir::TypeExpression::Constructor(declaration) => {
                 let return_type = declaration
                     .return_type
                     .map(|return_type| self.intern_local_type_variable(tree.module_id, return_type));
-                let term = self.build_constructor_type_declaration_term(declaration, return_type, tree);
+                let term = self.build_constructor_type_term(declaration, return_type, tree);
 
                 self.define_type_expression_type(tree.module_id, id, TypeTerm::Function(term));
-                self.walk_constructor_type_declaration(tree, declaration);
+                self.walk_constructor_type(tree, declaration);
             }
             // T
             dir::TypeExpression::Reference {
@@ -624,25 +622,24 @@ impl CheckState<'_> {
             }
             // (...): T
             dir::TypeMember::CallSignature { signature } => {
-                self.walk_function_type_declaration(tree, signature);
+                self.walk_function_type(tree, signature);
 
                 let return_type = signature.return_type.map(|return_type| {
                     self.intern_local_type_variable(tree.module_id, return_type)
                 });
-                let term = self.build_function_type_declaration_term(signature, return_type, tree);
+                let term = self.build_function_type_term(signature, return_type, tree);
                 let variable = self.intern_local_type_variable(tree.module_id, id);
 
                 self.define_type(tree.module_id, variable, TypeTerm::Function(term));
             }
             // new (...): T
             dir::TypeMember::ConstructSignature { signature } => {
-                self.walk_constructor_type_declaration(tree, signature);
+                self.walk_constructor_type(tree, signature);
 
                 let return_type = signature.return_type.map(|return_type| {
                     self.intern_local_type_variable(tree.module_id, return_type)
                 });
-                let term =
-                    self.build_constructor_type_declaration_term(signature, return_type, tree);
+                let term = self.build_constructor_type_term(signature, return_type, tree);
                 let variable = self.intern_local_type_variable(tree.module_id, id);
 
                 self.define_type(tree.module_id, variable, TypeTerm::Function(term));
@@ -805,11 +802,7 @@ impl CheckState<'_> {
     }
 
     /// Walk one type-space function declaration.
-    fn walk_function_type_declaration(
-        &mut self,
-        tree: &dir::Tree,
-        declaration: &dir::FunctionTypeDeclaration,
-    ) {
+    fn walk_function_type(&mut self, tree: &dir::Tree, declaration: &dir::FunctionType) {
         for parameter in &declaration.generic_parameters {
             self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
@@ -832,11 +825,7 @@ impl CheckState<'_> {
     }
 
     /// Walk one type-space constructor declaration.
-    fn walk_constructor_type_declaration(
-        &mut self,
-        tree: &dir::Tree,
-        declaration: &dir::ConstructorTypeDeclaration,
-    ) {
+    fn walk_constructor_type(&mut self, tree: &dir::Tree, declaration: &dir::ConstructorType) {
         for parameter in &declaration.generic_parameters {
             self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
