@@ -177,225 +177,210 @@ export struct SocketSendBatchEntry {
     message: SocketSendMessage;
 }
 
-/// Create a socket.
-@binding("destack.net.socket.open", {
-    effect: "external",
-    requires: ["host.net.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openSocket(options: SocketOpenOptions): Result<SocketHandle, HostError>;
+/// Socket binding family.
+export interface NetSocket {
+    /// Create a socket.
+    @binding("destack.net.socket.open", {
+        effect: "external",
+        requires: ["host.net.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    open(options: SocketOpenOptions): Result<SocketHandle, HostError>;
 
-/// Create a connected socket pair.
-@binding("destack.net.socket.pair", {
-    effect: "external",
-    requires: ["host.net.open"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function openSocketPair(options: SocketOpenOptions): Result<SocketPair, HostError>;
+    /// Create a connected socket pair.
+    @binding("destack.net.socket.pair", {
+        effect: "external",
+        requires: ["host.net.open"],
+        families: ["unix"],
+        simulation: true,
+    })
+    pair(options: SocketOpenOptions): Result<SocketPair, HostError>;
 
-/// Bind a socket to a local address.
-@binding("destack.net.socket.bind", {
-    effect: "external",
-    requires: ["host.net.listen"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function bindSocket(
-    socket: SocketHandle,
-    address: &readonly SocketAddress,
-): Result<void, HostError>;
+    /// Bind a socket to a local address.
+    @binding("destack.net.socket.bind", {
+        effect: "external",
+        requires: ["host.net.listen"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    bind(socket: SocketHandle, address: &readonly SocketAddress): Result<void, HostError>;
 
-/// Mark a bound stream socket as a listener.
-@binding("destack.net.socket.listen", {
-    effect: "external",
-    requires: ["host.net.listen"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listenSocket(
-    socket: SocketHandle,
-    backlog: uint32,
-): Result<void, HostError>;
+    /// Mark a bound stream socket as a listener.
+    @binding("destack.net.socket.listen", {
+        effect: "external",
+        requires: ["host.net.listen"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listen(socket: SocketHandle, backlog: uint32): Result<void, HostError>;
 
-/// Accept one connection from a listener socket.
-@binding("destack.net.socket.accept", {
-    effect: "external",
-    requires: ["host.net.accept"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function acceptSocket(
-    socket: SocketHandle,
-    flags: SocketAcceptFlags,
-): Result<SocketAcceptResult, HostError>;
+    /// Accept one connection from a listener socket.
+    @binding("destack.net.socket.accept", {
+        effect: "external",
+        requires: ["host.net.accept"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    accept(socket: SocketHandle, flags: SocketAcceptFlags): Result<SocketAcceptResult, HostError>;
 
-/// Connect a socket to a remote address.
-@binding("destack.net.socket.connect", {
-    effect: "external",
-    requires: ["host.net.connect"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function connectSocket(
-    socket: SocketHandle,
-    address: &readonly SocketAddress,
-): Result<void, HostError>;
+    /// Connect a socket to a remote address.
+    @binding("destack.net.socket.connect", {
+        effect: "external",
+        requires: ["host.net.connect"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    connect(socket: SocketHandle, address: &readonly SocketAddress): Result<void, HostError>;
 
-/// Close a socket handle.
-@binding("destack.net.socket.close", {
-    effect: "external",
-    requires: ["host.net.close"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeSocket(socket: SocketHandle): Result<void, HostError>;
+    /// Close a socket handle.
+    @binding("destack.net.socket.close", {
+        effect: "external",
+        requires: ["host.net.close"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    close(socket: SocketHandle): Result<void, HostError>;
 
-/// Shut down a socket for reads, writes, or both.
-@binding("destack.net.socket.shutdown", {
-    effect: "external",
-    requires: ["host.net.close"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function shutdownSocket(
-    socket: SocketHandle,
-    how: SocketShutdown,
-): Result<void, HostError>;
+    /// Shut down a socket for reads, writes, or both.
+    @binding("destack.net.socket.shutdown", {
+        effect: "external",
+        requires: ["host.net.close"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    shutdown(socket: SocketHandle, how: SocketShutdown): Result<void, HostError>;
 
-/// Enable or disable nonblocking mode on a socket.
-@binding("destack.net.socket.nonblocking", {
-    effect: "external",
-    requires: ["host.net.option"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSocketNonblocking(
-    socket: SocketHandle,
-    isEnabled: boolean,
-): Result<void, HostError>;
+    /// Enable or disable nonblocking mode on a socket.
+    @binding("destack.net.socket.nonblocking", {
+        effect: "external",
+        requires: ["host.net.option"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setNonblocking(socket: SocketHandle, isEnabled: boolean): Result<void, HostError>;
 
-/// Read the local socket address.
-@binding("destack.net.socket.localAddress", {
-    effect: "external",
-    requires: ["host.net.status"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function localSocketAddress(socket: SocketHandle): Result<SocketAddress, HostError>;
+    /// Read the local socket address.
+    @binding("destack.net.socket.localAddress", {
+        effect: "external",
+        requires: ["host.net.status"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    localAddress(socket: SocketHandle): Result<SocketAddress, HostError>;
 
-/// Read the remote socket address.
-@binding("destack.net.socket.peerAddress", {
-    effect: "external",
-    requires: ["host.net.status"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function peerSocketAddress(socket: SocketHandle): Result<SocketAddress, HostError>;
+    /// Read the remote socket address.
+    @binding("destack.net.socket.peerAddress", {
+        effect: "external",
+        requires: ["host.net.status"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    peerAddress(socket: SocketHandle): Result<SocketAddress, HostError>;
 
-/// Receive bytes from a socket.
-@binding("destack.net.socket.receive", {
-    effect: "external",
-    requires: ["host.net.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function receiveSocket(
-    socket: SocketHandle,
-    buffer: &[uint8],
-    flags: SocketMessageFlags,
-): Result<uint64, HostError>;
+    /// Receive bytes from a socket.
+    @binding("destack.net.socket.receive", {
+        effect: "external",
+        requires: ["host.net.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    receive(
+        socket: SocketHandle,
+        buffer: &[uint8],
+        flags: SocketMessageFlags,
+    ): Result<uint64, HostError>;
 
-/// Send bytes to a socket.
-@binding("destack.net.socket.send", {
-    effect: "external",
-    requires: ["host.net.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendSocket(
-    socket: SocketHandle,
-    buffer: &readonly [uint8],
-    flags: SocketMessageFlags,
-): Result<uint64, HostError>;
+    /// Send bytes to a socket.
+    @binding("destack.net.socket.send", {
+        effect: "external",
+        requires: ["host.net.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    send(
+        socket: SocketHandle,
+        buffer: &readonly [uint8],
+        flags: SocketMessageFlags,
+    ): Result<uint64, HostError>;
 
-/// Receive bytes and source address from a socket.
-@binding("destack.net.socket.receiveFrom", {
-    effect: "external",
-    requires: ["host.net.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function receiveSocketFrom(
-    socket: SocketHandle,
-    buffer: &[uint8],
-    flags: SocketMessageFlags,
-): Result<SocketReceiveFromResult, HostError>;
+    /// Receive bytes and source address from a socket.
+    @binding("destack.net.socket.receiveFrom", {
+        effect: "external",
+        requires: ["host.net.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    receiveFrom(
+        socket: SocketHandle,
+        buffer: &[uint8],
+        flags: SocketMessageFlags,
+    ): Result<SocketReceiveFromResult, HostError>;
 
-/// Send bytes to a destination address.
-@binding("destack.net.socket.sendTo", {
-    effect: "external",
-    requires: ["host.net.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendSocketTo(
-    socket: SocketHandle,
-    buffer: &readonly [uint8],
-    address: &readonly SocketAddress,
-    flags: SocketMessageFlags,
-): Result<uint64, HostError>;
+    /// Send bytes to a destination address.
+    @binding("destack.net.socket.sendTo", {
+        effect: "external",
+        requires: ["host.net.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    sendTo(
+        socket: SocketHandle,
+        buffer: &readonly [uint8],
+        address: &readonly SocketAddress,
+        flags: SocketMessageFlags,
+    ): Result<uint64, HostError>;
 
-/// Receive one message with ancillary data.
-@binding("destack.net.socket.receiveMessage", {
-    effect: "external",
-    requires: ["host.net.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function receiveSocketMessage(
-    socket: SocketHandle,
-    payload: &[uint8],
-    control: &[uint8],
-    handles: &[TransferredHandle],
-    options: SocketReceiveMessageOptions,
-): Result<SocketReceiveMessageResult, HostError>;
+    /// Receive one message with ancillary data.
+    @binding("destack.net.socket.receiveMessage", {
+        effect: "external",
+        requires: ["host.net.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    receiveMessage(
+        socket: SocketHandle,
+        payload: &[uint8],
+        control: &[uint8],
+        handles: &[TransferredHandle],
+        options: SocketReceiveMessageOptions,
+    ): Result<SocketReceiveMessageResult, HostError>;
 
-/// Send one message with ancillary data.
-@binding("destack.net.socket.sendMessage", {
-    effect: "external",
-    requires: ["host.net.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendSocketMessage(
-    socket: SocketHandle,
-    payload: &readonly [uint8],
-    message: &readonly SocketSendMessage,
-): Result<uint64, HostError>;
+    /// Send one message with ancillary data.
+    @binding("destack.net.socket.sendMessage", {
+        effect: "external",
+        requires: ["host.net.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    sendMessage(
+        socket: SocketHandle,
+        payload: &readonly [uint8],
+        message: &readonly SocketSendMessage,
+    ): Result<uint64, HostError>;
 
-/// Receive multiple messages into caller-owned buffers.
-@binding("destack.net.socket.receiveBatch", {
-    effect: "external",
-    requires: ["host.net.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function receiveSocketBatch(
-    socket: SocketHandle,
-    requests: &[SocketReceiveBatchEntry],
-    results: &[SocketReceiveMessageResult],
-): Result<uint64, HostError>;
+    /// Receive multiple messages into caller-owned buffers.
+    @binding("destack.net.socket.receiveBatch", {
+        effect: "external",
+        requires: ["host.net.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    receiveBatch(
+        socket: SocketHandle,
+        requests: &[SocketReceiveBatchEntry],
+        results: &[SocketReceiveMessageResult],
+    ): Result<uint64, HostError>;
 
-/// Send multiple messages from caller-owned buffers.
-@binding("destack.net.socket.sendBatch", {
-    effect: "external",
-    requires: ["host.net.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendSocketBatch(
-    socket: SocketHandle,
-    messages: &readonly [SocketSendBatchEntry],
-): Result<uint64, HostError>;
+    /// Send multiple messages from caller-owned buffers.
+    @binding("destack.net.socket.sendBatch", {
+        effect: "external",
+        requires: ["host.net.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    sendBatch(
+        socket: SocketHandle,
+        messages: &readonly [SocketSendBatchEntry],
+    ): Result<uint64, HostError>;
+}

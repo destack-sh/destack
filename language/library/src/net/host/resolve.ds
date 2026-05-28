@@ -277,36 +277,37 @@ export struct ReverseAddressLookupResult {
     service: string;
 }
 
-/// Resolve a host and service through host address lookup.
-@binding("destack.net.resolve.lookup", {
-    effect: "external",
-    requires: ["host.net.dns"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function lookupAddress(
-    query: &readonly AddressLookupQuery,
-): Result<Array<AddressLookupResult>, HostError>;
+/// Name resolution binding family.
+export interface NetResolve {
+    /// Resolve a host and service through host address lookup.
+    @binding("destack.net.resolve.lookup", {
+        effect: "external",
+        requires: ["host.net.dns"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    lookupAddress(
+        query: &readonly AddressLookupQuery,
+    ): Result<Array<AddressLookupResult>, HostError>;
 
-/// Resolve DNS records.
-@binding("destack.net.resolve.record", {
-    effect: "external",
-    requires: ["host.net.dns"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function resolveRecord(
-    query: &readonly DnsQuery,
-): Result<Array<DnsRecord>, HostError>;
+    /// Resolve DNS records.
+    @binding("destack.net.resolve.record", {
+        effect: "external",
+        requires: ["host.net.dns"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    record(query: &readonly DnsQuery): Result<Array<DnsRecord>, HostError>;
 
-/// Reverse lookup a socket address into host and service names.
-@binding("destack.net.resolve.reverseLookup", {
-    effect: "external",
-    requires: ["host.net.dns"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function reverseLookup(
-    address: &readonly SocketAddress,
-    flags: ReverseAddressLookupFlags,
-): Result<Array<ReverseAddressLookupResult>, HostError>;
+    /// Reverse lookup a socket address into host and service names.
+    @binding("destack.net.resolve.reverseLookup", {
+        effect: "external",
+        requires: ["host.net.dns"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    reverseLookup(
+        address: &readonly SocketAddress,
+        flags: ReverseAddressLookupFlags,
+    ): Result<Array<ReverseAddressLookupResult>, HostError>;
+}

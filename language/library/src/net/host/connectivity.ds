@@ -70,54 +70,53 @@ export struct NetworkConnectivityEvent {
     connectivity: NetworkConnectivity;
 }
 
-/// Read network connectivity.
-@binding("destack.net.connectivity.read", {
-    effect: "external",
-    requires: ["host.net.connectivity.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readNetworkConnectivity(): Result<NetworkConnectivity, HostError>;
+/// Network connectivity binding family.
+export interface NetConnectivity {
+    /// Read network connectivity.
+    @binding("destack.net.connectivity.read", {
+        effect: "external",
+        requires: ["host.net.connectivity.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    read(): Result<NetworkConnectivity, HostError>;
 
-/// Open network connectivity watch stream.
-@binding("destack.net.connectivity.watch.open", {
-    effect: "external",
-    requires: ["host.net.connectivity.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openNetworkConnectivityWatch(): Result<NetworkWatchHandle, HostError>;
+    /// Open network connectivity watch stream.
+    @binding("destack.net.connectivity.watch.open", {
+        effect: "external",
+        requires: ["host.net.connectivity.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openWatch(): Result<NetworkWatchHandle, HostError>;
 
-/// Close network connectivity watch stream.
-@binding("destack.net.connectivity.watch.close", {
-    effect: "external",
-    requires: ["host.net.connectivity.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeNetworkConnectivityWatch(
-    watch: NetworkWatchHandle,
-): Result<void, HostError>;
+    /// Close network connectivity watch stream.
+    @binding("destack.net.connectivity.watch.close", {
+        effect: "external",
+        requires: ["host.net.connectivity.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeWatch(watch: NetworkWatchHandle): Result<void, HostError>;
 
-/// Wait for one network connectivity event.
-@binding("destack.net.connectivity.watch.read", {
-    effect: "external",
-    requires: ["host.net.connectivity.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readNetworkConnectivityWatch(
-    watch: NetworkWatchHandle,
-    timeoutNs: uint64,
-): Result<NetworkConnectivityEvent, HostError>;
+    /// Wait for one network connectivity event.
+    @binding("destack.net.connectivity.watch.read", {
+        effect: "external",
+        requires: ["host.net.connectivity.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readWatch(
+        watch: NetworkWatchHandle,
+        timeoutNs: uint64,
+    ): Result<NetworkConnectivityEvent, HostError>;
 
-/// Poll one network connectivity event without blocking.
-@binding("destack.net.connectivity.watch.tryRead", {
-    effect: "external",
-    requires: ["host.net.connectivity.watch"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function tryReadNetworkConnectivityWatch(
-    watch: NetworkWatchHandle,
-): Result<NetworkConnectivityEvent, HostError>;
+    /// Poll one network connectivity event without blocking.
+    @binding("destack.net.connectivity.watch.tryRead", {
+        effect: "external",
+        requires: ["host.net.connectivity.watch"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    tryReadWatch(watch: NetworkWatchHandle): Result<NetworkConnectivityEvent, HostError>;
+}
