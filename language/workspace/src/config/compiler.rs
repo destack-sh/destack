@@ -35,8 +35,8 @@ pub struct CompilerOptions {
     pub tree: Option<String>,
     /// Global provider modules added to every target profile.
     pub globals: Vec<PathBuf>,
-    /// Derive providers automatically considered for nominal declarations.
-    pub derive: Vec<String>,
+    /// Well-known derives automatically considered for nominal declarations.
+    pub derive: Vec<Derive>,
 
     /// Static semantic restrictions.
     pub restrictions: CompilerRestrictions,
@@ -54,6 +54,57 @@ pub struct CompilerOptions {
     pub no_emit: bool,
     /// Emit checked type annotation sidecars.
     pub emit_checked_types: bool,
+}
+
+/// Well-known compiler-owned derive provider.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "PascalCase")]
+pub enum Derive {
+    /// Derive `Compare`.
+    Compare,
+    /// Derive `Copy`.
+    Copy,
+    /// Derive `Clone`.
+    Clone,
+    /// Derive `Debug`.
+    Debug,
+    /// Derive `Default`.
+    Default,
+    /// Derive `Deserialize`.
+    Deserialize,
+    /// Derive `Equal`.
+    Equal,
+    /// Derive `Hash`.
+    Hash,
+    /// Derive `PartialCompare`.
+    PartialCompare,
+    /// Derive `PartialEqual`.
+    PartialEqual,
+    /// Derive `Serialize`.
+    Serialize,
+    /// Derive `Tagged`.
+    Tagged,
+}
+
+impl Derive {
+    /// Return the canonical profile key spelling.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Compare => "Compare",
+            Self::Copy => "Copy",
+            Self::Clone => "Clone",
+            Self::Debug => "Debug",
+            Self::Default => "Default",
+            Self::Deserialize => "Deserialize",
+            Self::Equal => "Equal",
+            Self::Hash => "Hash",
+            Self::PartialCompare => "PartialCompare",
+            Self::PartialEqual => "PartialEqual",
+            Self::Serialize => "Serialize",
+            Self::Tagged => "Tagged",
+        }
+    }
 }
 
 impl Default for CompilerOptions {
