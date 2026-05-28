@@ -656,6 +656,18 @@ define_language_items! {
         }
     }
 
+    /// Host types.
+    host {
+        /// `destack:host`.
+        host {
+            /// Runtime host binding families.
+            Host => (Interface, "host/host", "Host"),
+
+            /// Runtime host bindings.
+            HostValue => (Variable, "host/host", "host"),
+        }
+    }
+
     /// Input types.
     input {
         /// `destack:input/host`.

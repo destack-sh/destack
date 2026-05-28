@@ -39,6 +39,7 @@ export * as dns from "./dns";
 export * as fs from "./fs";
 export * as fuzz from "./fuzz";
 export * as gpu from "./gpu";
+export * as host from "./host";
 export * as http from "./http";
 export * as https from "./https";
 export * as input from "./input";
