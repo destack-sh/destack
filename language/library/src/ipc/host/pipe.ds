@@ -21,41 +21,41 @@ export struct PipePair {
     write: PipeHandle;
 }
 
-/// Create one anonymous pipe pair.
-@binding("destack.ipc.pipe.create", {
-    effect: "external",
-    requires: ["host.ipc.pipe"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createPipe(flags: PipeFlags): Result<PipePair, HostError>;
+/// Pipe binding family.
+export interface IpcPipe {
+    /// Create one anonymous pipe pair.
+    @binding("destack.ipc.pipe.create", {
+        effect: "external",
+        requires: ["host.ipc.pipe"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createPipe(flags: PipeFlags): Result<PipePair, HostError>;
 
-/// Close one pipe endpoint.
-@binding("destack.ipc.pipe.close", {
-    effect: "external",
-    requires: ["host.ipc.pipe"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closePipe(pipe: PipeHandle): Result<void, HostError>;
+    /// Close one pipe endpoint.
+    @binding("destack.ipc.pipe.close", {
+        effect: "external",
+        requires: ["host.ipc.pipe"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closePipe(pipe: PipeHandle): Result<void, HostError>;
 
-/// Read bytes from one pipe endpoint.
-@binding("destack.ipc.pipe.read", {
-    effect: "external",
-    requires: ["host.ipc.pipe"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readPipe(pipe: PipeHandle, buffer: &[uint8]): Result<uint64, HostError>;
+    /// Read bytes from one pipe endpoint.
+    @binding("destack.ipc.pipe.read", {
+        effect: "external",
+        requires: ["host.ipc.pipe"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readPipe(pipe: PipeHandle, buffer: &[uint8]): Result<uint64, HostError>;
 
-/// Write bytes to one pipe endpoint.
-@binding("destack.ipc.pipe.write", {
-    effect: "external",
-    requires: ["host.ipc.pipe"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writePipe(
-    pipe: PipeHandle,
-    bytes: &readonly [uint8],
-): Result<uint64, HostError>;
+    /// Write bytes to one pipe endpoint.
+    @binding("destack.ipc.pipe.write", {
+        effect: "external",
+        requires: ["host.ipc.pipe"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writePipe(pipe: PipeHandle, bytes: &readonly [uint8]): Result<uint64, HostError>;
+}

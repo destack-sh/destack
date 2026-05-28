@@ -27,80 +27,83 @@ export struct SharedMemoryMap {
     length: uint64;
 }
 
-/// Create one named shared memory object.
-@binding("destack.ipc.memory.create", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createSharedMemory(
-    name: &readonly string,
-    size: uint64,
-    flags: SharedMemoryFlags,
-): Result<SharedMemoryHandle, HostError>;
+/// Memory binding family.
+export interface IpcMemory {
+    /// Create one named shared memory object.
+    @binding("destack.ipc.memory.create", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createSharedMemory(
+        name: &readonly string,
+        size: uint64,
+        flags: SharedMemoryFlags,
+    ): Result<SharedMemoryHandle, HostError>;
 
-/// Create one anonymous shared memory object.
-@binding("destack.ipc.memory.createAnonymous", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function createAnonymousSharedMemory(
-    size: uint64,
-    flags: SharedMemoryFlags,
-): Result<SharedMemoryHandle, HostError>;
+    /// Create one anonymous shared memory object.
+    @binding("destack.ipc.memory.createAnonymous", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createAnonymousSharedMemory(
+        size: uint64,
+        flags: SharedMemoryFlags,
+    ): Result<SharedMemoryHandle, HostError>;
 
-/// Open one named shared memory object.
-@binding("destack.ipc.memory.open", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openSharedMemory(
-    name: &readonly string,
-    flags: SharedMemoryFlags,
-): Result<SharedMemoryHandle, HostError>;
+    /// Open one named shared memory object.
+    @binding("destack.ipc.memory.open", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openSharedMemory(
+        name: &readonly string,
+        flags: SharedMemoryFlags,
+    ): Result<SharedMemoryHandle, HostError>;
 
-/// Remove one named shared memory object.
-@binding("destack.ipc.memory.remove", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function removeSharedMemory(name: &readonly string): Result<void, HostError>;
+    /// Remove one named shared memory object.
+    @binding("destack.ipc.memory.remove", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["unix"],
+        simulation: true,
+    })
+    removeSharedMemory(name: &readonly string): Result<void, HostError>;
 
-/// Close one shared memory object handle.
-@binding("destack.ipc.memory.close", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeSharedMemory(memory: SharedMemoryHandle): Result<void, HostError>;
+    /// Close one shared memory object handle.
+    @binding("destack.ipc.memory.close", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeSharedMemory(memory: SharedMemoryHandle): Result<void, HostError>;
 
-/// Map one shared memory range.
-@binding("destack.ipc.memory.map", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function mapSharedMemory(
-    memory: SharedMemoryHandle,
-    offset: uint64,
-    length: uint64,
-    flags: SharedMemoryMapFlags,
-): Result<SharedMemoryMap, HostError>;
+    /// Map one shared memory range.
+    @binding("destack.ipc.memory.map", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    mapSharedMemory(
+        memory: SharedMemoryHandle,
+        offset: uint64,
+        length: uint64,
+        flags: SharedMemoryMapFlags,
+    ): Result<SharedMemoryMap, HostError>;
 
-/// Unmap one shared memory range.
-@binding("destack.ipc.memory.unmap", {
-    effect: "external",
-    requires: ["host.ipc.memory"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function unmapSharedMemory(address: uint64, length: uint64): Result<void, HostError>;
+    /// Unmap one shared memory range.
+    @binding("destack.ipc.memory.unmap", {
+        effect: "external",
+        requires: ["host.ipc.memory"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    unmapSharedMemory(address: uint64, length: uint64): Result<void, HostError>;
+}
