@@ -41,52 +41,50 @@ export struct TimerSchedule {
     interval?: Duration;
 }
 
-/// Open one timer resource.
-@binding("destack.time.timer.open", {
-    effect: "external",
-    requires: ["host.time.timer"],
-    families: ["windows", "unix", "wasm"],
-    simulation: true,
-})
-export declare function openTimer(
-    schedule: &readonly TimerSchedule,
-): Result<TimerHandle, HostError>;
+/// Timer binding family.
+export interface TimeTimer {
+    /// Open one timer resource.
+    @binding("destack.time.timer.open", {
+        effect: "external",
+        requires: ["host.time.timer"],
+        families: ["windows", "unix", "wasm"],
+        simulation: true,
+    })
+    openTimer(schedule: &readonly TimerSchedule): Result<TimerHandle, HostError>;
 
-/// Close one timer resource.
-@binding("destack.time.timer.close", {
-    effect: "external",
-    requires: ["host.time.timer"],
-    families: ["windows", "unix", "wasm"],
-    simulation: true,
-})
-export declare function closeTimer(timer: TimerHandle): Result<void, HostError>;
+    /// Close one timer resource.
+    @binding("destack.time.timer.close", {
+        effect: "external",
+        requires: ["host.time.timer"],
+        families: ["windows", "unix", "wasm"],
+        simulation: true,
+    })
+    closeTimer(timer: TimerHandle): Result<void, HostError>;
 
-/// Arm one timer with a new schedule.
-@binding("destack.time.timer.arm", {
-    effect: "external",
-    requires: ["host.time.timer"],
-    families: ["windows", "unix", "wasm"],
-    simulation: true,
-})
-export declare function armTimer(
-    timer: TimerHandle,
-    schedule: &readonly TimerSchedule,
-): Result<void, HostError>;
+    /// Arm one timer with a new schedule.
+    @binding("destack.time.timer.arm", {
+        effect: "external",
+        requires: ["host.time.timer"],
+        families: ["windows", "unix", "wasm"],
+        simulation: true,
+    })
+    armTimer(timer: TimerHandle, schedule: &readonly TimerSchedule): Result<void, HostError>;
 
-/// Disarm one timer.
-@binding("destack.time.timer.disarm", {
-    effect: "external",
-    requires: ["host.time.timer"],
-    families: ["windows", "unix", "wasm"],
-    simulation: true,
-})
-export declare function disarmTimer(timer: TimerHandle): Result<void, HostError>;
+    /// Disarm one timer.
+    @binding("destack.time.timer.disarm", {
+        effect: "external",
+        requires: ["host.time.timer"],
+        families: ["windows", "unix", "wasm"],
+        simulation: true,
+    })
+    disarmTimer(timer: TimerHandle): Result<void, HostError>;
 
-/// Read elapsed timer firings.
-@binding("destack.time.timer.read", {
-    effect: "external",
-    requires: ["host.time.timer"],
-    families: ["windows", "unix", "wasm"],
-    simulation: true,
-})
-export declare function readTimer(timer: TimerHandle): Result<uint64, HostError>;
+    /// Read elapsed timer firings.
+    @binding("destack.time.timer.read", {
+        effect: "external",
+        requires: ["host.time.timer"],
+        families: ["windows", "unix", "wasm"],
+        simulation: true,
+    })
+    readTimer(timer: TimerHandle): Result<uint64, HostError>;
+}

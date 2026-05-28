@@ -1,2 +1,14 @@
+import { TimeClock } from "./clock.ds";
+import { TimeTimer } from "./timer.ds";
+
 export * from "./clock.ds";
 export * from "./timer.ds";
+
+/// Time binding family.
+@languageItem("time.Time")
+export interface Time {
+    /// Clock bindings.
+    readonly clock: TimeClock;
+    /// Timer bindings.
+    readonly timer: TimeTimer;
+}
