@@ -376,10 +376,7 @@
         },
         "style": {
           "arrayType": "array",
-          "typeDefinitionStyle": "type",
-          "catchErrorName": "error",
           "filenameCase": "kebab",
-          "allowSingleExtendsEmptyInterface": false,
           "commentKeywords": [
             "NOTE",
             "TODO",
@@ -411,7 +408,6 @@
           "objectShorthandMethodsIgnorePattern": null,
           "objectShorthandAvoidExplicitReturnArrows": false,
           "noUnneededTernaryDefaultAssignment": true,
-          "preferPromiseRejectErrorsAllowEmptyReject": false,
           "preferConstDestructuring": "any",
           "preferConstIgnoreReadBeforeAssign": false,
           "yodaMode": "never",
@@ -427,8 +423,6 @@
             "multiple",
             "single"
           ],
-          "consistentTypeImportsPreferTypeImports": true,
-          "consistentTypeImportsPreferInlineTypeImports": false,
           "preferNullishCoalescingIgnoreConditionalTests": true,
           "preferNullishCoalescingIgnoreMixedLogicalExpressions": false,
           "preferNullishCoalescingIgnoreTernaryTests": false
@@ -698,12 +692,12 @@
         },
         {
           "description": "Inline condition gate.",
-          "$ref": "#/$defs/ConditionGate"
+          "$ref": "#/$defs/ConditionPredicate"
         }
       ]
     },
-    "ConditionGate": {
-      "description": "Predicate over active source graph and runtime conditions.",
+    "ConditionPredicate": {
+      "description": "Declared condition predicate before named references are resolved.",
       "type": "object",
       "properties": {
         "mode": {
@@ -819,6 +813,40 @@
           "anyOf": [
             {
               "$ref": "#/$defs/ConditionSelector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "all": {
+          "description": "Predicates that must all match.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/ConditionRef"
+          },
+          "default": null
+        },
+        "any": {
+          "description": "Predicates where at least one must match.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/ConditionRef"
+          },
+          "default": null
+        },
+        "not": {
+          "description": "Predicate that must not match.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionRef"
             },
             {
               "type": "null"
@@ -968,7 +996,10 @@
             "stage": null,
             "platform": null,
             "host": null,
-            "runtime": null
+            "runtime": null,
+            "all": null,
+            "any": null,
+            "not": null
           }
         },
         "dependencies": {
@@ -1222,10 +1253,10 @@
           "default": []
         },
         "derive": {
-          "description": "Derive providers automatically considered for nominal declarations.",
+          "description": "Well-known derives automatically considered for nominal declarations.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/Derive"
           },
           "default": []
         },
@@ -1371,6 +1402,71 @@
           "description": "ESNext.",
           "type": "string",
           "const": "esnext"
+        }
+      ]
+    },
+    "Derive": {
+      "description": "Well-known compiler-owned derive provider.",
+      "oneOf": [
+        {
+          "description": "Derive `Compare`.",
+          "type": "string",
+          "const": "Compare"
+        },
+        {
+          "description": "Derive `Copy`.",
+          "type": "string",
+          "const": "Copy"
+        },
+        {
+          "description": "Derive `Clone`.",
+          "type": "string",
+          "const": "Clone"
+        },
+        {
+          "description": "Derive `Debug`.",
+          "type": "string",
+          "const": "Debug"
+        },
+        {
+          "description": "Derive `Default`.",
+          "type": "string",
+          "const": "Default"
+        },
+        {
+          "description": "Derive `Deserialize`.",
+          "type": "string",
+          "const": "Deserialize"
+        },
+        {
+          "description": "Derive `Equal`.",
+          "type": "string",
+          "const": "Equal"
+        },
+        {
+          "description": "Derive `Hash`.",
+          "type": "string",
+          "const": "Hash"
+        },
+        {
+          "description": "Derive `PartialCompare`.",
+          "type": "string",
+          "const": "PartialCompare"
+        },
+        {
+          "description": "Derive `PartialEqual`.",
+          "type": "string",
+          "const": "PartialEqual"
+        },
+        {
+          "description": "Derive `Serialize`.",
+          "type": "string",
+          "const": "Serialize"
+        },
+        {
+          "description": "Derive `Tagged`.",
+          "type": "string",
+          "const": "Tagged"
         }
       ]
     },
@@ -3051,10 +3147,7 @@
           "$ref": "#/$defs/LinterStyleOptions",
           "default": {
             "arrayType": "array",
-            "typeDefinitionStyle": "type",
-            "catchErrorName": "error",
             "filenameCase": "kebab",
-            "allowSingleExtendsEmptyInterface": false,
             "commentKeywords": [
               "NOTE",
               "TODO",
@@ -3086,7 +3179,6 @@
             "objectShorthandMethodsIgnorePattern": null,
             "objectShorthandAvoidExplicitReturnArrows": false,
             "noUnneededTernaryDefaultAssignment": true,
-            "preferPromiseRejectErrorsAllowEmptyReject": false,
             "preferConstDestructuring": "any",
             "preferConstIgnoreReadBeforeAssign": false,
             "yodaMode": "never",
@@ -3102,8 +3194,6 @@
               "multiple",
               "single"
             ],
-            "consistentTypeImportsPreferTypeImports": true,
-            "consistentTypeImportsPreferInlineTypeImports": false,
             "preferNullishCoalescingIgnoreConditionalTests": true,
             "preferNullishCoalescingIgnoreMixedLogicalExpressions": false,
             "preferNullishCoalescingIgnoreTernaryTests": false
@@ -3518,25 +3608,10 @@
           "$ref": "#/$defs/ArrayTypeStyle",
           "default": "array"
         },
-        "typeDefinitionStyle": {
-          "description": "Preferred type definition syntax.",
-          "$ref": "#/$defs/TypeDefinitionStyle",
-          "default": "type"
-        },
-        "catchErrorName": {
-          "description": "Required catch clause error name.",
-          "type": "string",
-          "default": "error"
-        },
         "filenameCase": {
           "description": "Required filename case style.",
           "$ref": "#/$defs/FilenameCase",
           "default": "kebab"
-        },
-        "allowSingleExtendsEmptyInterface": {
-          "description": "Allow empty interfaces that extend exactly one supertype.",
-          "type": "boolean",
-          "default": false
         },
         "commentKeywords": {
           "description": "Allowed uppercase keyword prefixes for inline comments.",
@@ -3655,11 +3730,6 @@
           "type": "boolean",
           "default": true
         },
-        "preferPromiseRejectErrorsAllowEmptyReject": {
-          "description": "Allow empty Promise.reject calls in `prefer-promise-reject-errors`.",
-          "type": "boolean",
-          "default": false
-        },
         "preferConstDestructuring": {
           "description": "Destructuring reporting policy for `prefer-const`.",
           "$ref": "#/$defs/PreferConstDestructuring",
@@ -3718,16 +3788,6 @@
             "single"
           ]
         },
-        "consistentTypeImportsPreferTypeImports": {
-          "description": "Prefer top-level `import type` in `consistent-type-imports`.",
-          "type": "boolean",
-          "default": true
-        },
-        "consistentTypeImportsPreferInlineTypeImports": {
-          "description": "Prefer inline `type` specifiers in `consistent-type-imports`.",
-          "type": "boolean",
-          "default": false
-        },
         "preferNullishCoalescingIgnoreConditionalTests": {
           "description": "Ignore conditional test positions in `prefer-nullish-coalescing`.",
           "type": "boolean",
@@ -3757,21 +3817,6 @@
           "description": "Prefer `Array<T>` syntax.",
           "type": "string",
           "const": "generic"
-        }
-      ]
-    },
-    "TypeDefinitionStyle": {
-      "description": "Preferred type definition syntax for the `consistent-type-definitions` rule.",
-      "oneOf": [
-        {
-          "description": "Prefer `type` aliases.",
-          "type": "string",
-          "const": "type"
-        },
-        {
-          "description": "Prefer `interface` declarations.",
-          "type": "string",
-          "const": "interface"
         }
       ]
     },
@@ -4541,10 +4586,10 @@
           "default": null
         },
         "derive": {
-          "description": "Target derive providers.",
+          "description": "Target well-known derives.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/Derive"
           },
           "default": []
         },
@@ -4732,7 +4777,7 @@
           }
         },
         "emit": {
-          "description": "Emitted artifact family (js, ts, html, wasm, native).",
+          "description": "Emitted artifact family (js, ts, wasm, native).",
           "$ref": "#/$defs/EmitFormat",
           "default": "js"
         },
@@ -5487,11 +5532,6 @@
           "description": "TypeScript (.ts).",
           "type": "string",
           "const": "ts"
-        },
-        {
-          "description": "HTML document output.",
-          "type": "string",
-          "const": "html"
         },
         {
           "description": "WebAssembly (.wasm).",
@@ -6827,10 +6867,10 @@
           "default": []
         },
         "derive": {
-          "description": "Derive providers automatically considered in this profile.",
+          "description": "Well-known derives automatically considered in this profile.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/Derive"
           },
           "default": []
         },
@@ -6890,7 +6930,7 @@
           "description": "Named condition aliases.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/ConditionGate"
+            "$ref": "#/$defs/ConditionRef"
           },
           "default": {}
         }

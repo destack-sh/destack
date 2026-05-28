@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     ArrayTypeStyle, FilenameCase, GroupedAccessorPairsOrder, ObjectShorthandMode,
-    OperatorAssignmentMode, PreferConstDestructuring, SortImportsMemberSyntax, TypeDefinitionStyle,
-    YodaMode,
+    OperatorAssignmentMode, PreferConstDestructuring, SortImportsMemberSyntax, YodaMode,
 };
 
 /// Style-category linter options.
@@ -14,14 +13,8 @@ use super::{
 pub struct LinterStyleOptions {
     /// Preferred array type syntax.
     pub array_type: ArrayTypeStyle,
-    /// Preferred type definition syntax.
-    pub type_definition_style: TypeDefinitionStyle,
-    /// Required catch clause error name.
-    pub catch_error_name: String,
     /// Required filename case style.
     pub filename_case: FilenameCase,
-    /// Allow empty interfaces that extend exactly one supertype.
-    pub allow_single_extends_empty_interface: bool,
     /// Allowed uppercase keyword prefixes for inline comments.
     pub comment_keywords: Vec<String>,
     /// Allowed tags for keyword comments.
@@ -58,8 +51,6 @@ pub struct LinterStyleOptions {
     pub object_shorthand_avoid_explicit_return_arrows: bool,
     /// Keep default-assignment ternaries in `no-unneeded-ternary`.
     pub no_unneeded_ternary_default_assignment: bool,
-    /// Allow empty Promise.reject calls in `prefer-promise-reject-errors`.
-    pub prefer_promise_reject_errors_allow_empty_reject: bool,
     /// Destructuring reporting policy for `prefer-const`.
     pub prefer_const_destructuring: PreferConstDestructuring,
     /// Ignore read-before-assign bindings in `prefer-const`.
@@ -80,10 +71,6 @@ pub struct LinterStyleOptions {
     pub sort_imports_allow_separated_groups: bool,
     /// Member syntax ordering in `sort-imports`.
     pub sort_imports_member_syntax_sort_order: Vec<SortImportsMemberSyntax>,
-    /// Prefer top-level `import type` in `consistent-type-imports`.
-    pub consistent_type_imports_prefer_type_imports: bool,
-    /// Prefer inline `type` specifiers in `consistent-type-imports`.
-    pub consistent_type_imports_prefer_inline_type_imports: bool,
     /// Ignore conditional test positions in `prefer-nullish-coalescing`.
     pub prefer_nullish_coalescing_ignore_conditional_tests: bool,
     /// Ignore mixed logical expressions in `prefer-nullish-coalescing`.
@@ -96,10 +83,7 @@ impl Default for LinterStyleOptions {
     fn default() -> Self {
         Self {
             array_type: ArrayTypeStyle::default(),
-            type_definition_style: TypeDefinitionStyle::default(),
-            catch_error_name: "error".to_string(),
             filename_case: FilenameCase::default(),
-            allow_single_extends_empty_interface: false,
             comment_keywords: vec!["NOTE".to_string(), "TODO".to_string(), "FUGU".to_string()],
             comment_keyword_tags: vec![
                 "#Performance".to_string(),
@@ -127,7 +111,6 @@ impl Default for LinterStyleOptions {
             object_shorthand_methods_ignore_pattern: None,
             object_shorthand_avoid_explicit_return_arrows: false,
             no_unneeded_ternary_default_assignment: true,
-            prefer_promise_reject_errors_allow_empty_reject: false,
             prefer_const_destructuring: PreferConstDestructuring::default(),
             prefer_const_ignore_read_before_assign: false,
             yoda_mode: YodaMode::default(),
@@ -143,8 +126,6 @@ impl Default for LinterStyleOptions {
                 SortImportsMemberSyntax::Multiple,
                 SortImportsMemberSyntax::Single,
             ],
-            consistent_type_imports_prefer_type_imports: true,
-            consistent_type_imports_prefer_inline_type_imports: false,
             prefer_nullish_coalescing_ignore_conditional_tests: true,
             prefer_nullish_coalescing_ignore_mixed_logical_expressions: false,
             prefer_nullish_coalescing_ignore_ternary_tests: false,

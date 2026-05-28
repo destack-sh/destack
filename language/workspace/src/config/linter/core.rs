@@ -175,18 +175,6 @@ pub enum ArrayTypeStyle {
     Generic,
 }
 
-/// Preferred type definition syntax for the `consistent-type-definitions` rule.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum TypeDefinitionStyle {
-    /// Prefer `type` aliases.
-    #[default]
-    Type,
-    /// Prefer `interface` declarations.
-    Interface,
-}
-
 /// Filename case style for the `filename-case` rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

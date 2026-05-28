@@ -1,6 +1,4 @@
 #![feature(default_field_values)]
-#![feature(str_as_str)]
-#![feature(thread_id_value)]
 
 pub mod config;
 pub mod provider;
