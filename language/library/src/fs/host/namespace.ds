@@ -43,98 +43,92 @@ export struct FilesystemNodeOptions {
     device: FilesystemNodeDevice;
 }
 
-/// Rename or exchange one filesystem entry.
-@binding("destack.fs.namespace.rename", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function renameEntry(
-    from: &readonly FilesystemEntry,
-    to: &readonly FilesystemEntry,
-    flags: FilesystemRenameFlags,
-): Result<void, HostError>;
+/// Filesystem namespace binding family.
+export interface FsNamespace {
+    /// Rename or exchange one filesystem entry.
+    @binding("destack.fs.namespace.rename", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    rename(
+        from: &readonly FilesystemEntry,
+        to: &readonly FilesystemEntry,
+        flags: FilesystemRenameFlags,
+    ): Result<void, HostError>;
 
-/// Remove one non-directory filesystem entry.
-@binding("destack.fs.namespace.unlink", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function unlinkEntry(entry: &readonly FilesystemEntry): Result<void, HostError>;
+    /// Remove one non-directory filesystem entry.
+    @binding("destack.fs.namespace.unlink", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    unlink(entry: &readonly FilesystemEntry): Result<void, HostError>;
 
-/// Create one hard link.
-@binding("destack.fs.namespace.link", {
-    effect: "external",
-    requires: ["host.fs.link"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function linkEntry(
-    existing: &readonly FilesystemEntry,
-    created: &readonly FilesystemEntry,
-    flags: FilesystemLinkFlags,
-): Result<void, HostError>;
+    /// Create one hard link.
+    @binding("destack.fs.namespace.link", {
+        effect: "external",
+        requires: ["host.fs.link"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    link(
+        existing: &readonly FilesystemEntry,
+        created: &readonly FilesystemEntry,
+        flags: FilesystemLinkFlags,
+    ): Result<void, HostError>;
 
-/// Create one symbolic link.
-@binding("destack.fs.namespace.symlink", {
-    effect: "external",
-    requires: ["host.fs.link"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function symlinkEntry(
-    target: &readonly Path,
-    created: &readonly FilesystemEntry,
-    kind: FilesystemSymlinkKind,
-): Result<void, HostError>;
+    /// Create one symbolic link.
+    @binding("destack.fs.namespace.symlink", {
+        effect: "external",
+        requires: ["host.fs.link"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    symlink(
+        target: &readonly Path,
+        created: &readonly FilesystemEntry,
+        kind: FilesystemSymlinkKind,
+    ): Result<void, HostError>;
 
-/// Read a symbolic link into an output buffer.
-@binding("destack.fs.namespace.readLink", {
-    effect: "external",
-    requires: ["host.fs.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readSymlink(
-    entry: &readonly FilesystemEntry,
-    buffer: &PathBuffer,
-): Result<uint64, HostError>;
+    /// Read a symbolic link into an output buffer.
+    @binding("destack.fs.namespace.readLink", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readSymlink(entry: &readonly FilesystemEntry, buffer: &PathBuffer): Result<uint64, HostError>;
 
-/// Resolve an entry into an output buffer.
-@binding("destack.fs.namespace.canonicalize", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function canonicalizeEntry(
-    entry: &readonly FilesystemEntry,
-    buffer: &PathBuffer,
-): Result<uint64, HostError>;
+    /// Resolve an entry into an output buffer.
+    @binding("destack.fs.namespace.canonicalize", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    canonicalize(entry: &readonly FilesystemEntry, buffer: &PathBuffer): Result<uint64, HostError>;
 
-/// Create one FIFO node.
-@binding("destack.fs.namespace.fifo", {
-    effect: "external",
-    requires: ["host.fs.node"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function createFifoEntry(
-    entry: &readonly FilesystemEntry,
-    mode: FileMode,
-): Result<void, HostError>;
+    /// Create one FIFO node.
+    @binding("destack.fs.namespace.fifo", {
+        effect: "external",
+        requires: ["host.fs.node"],
+        families: ["unix"],
+        simulation: true,
+    })
+    createFifo(entry: &readonly FilesystemEntry, mode: FileMode): Result<void, HostError>;
 
-/// Create one host filesystem node.
-@binding("destack.fs.namespace.node", {
-    effect: "external",
-    requires: ["host.fs.node"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function createNodeEntry(
-    entry: &readonly FilesystemEntry,
-    options: FilesystemNodeOptions,
-): Result<void, HostError>;
+    /// Create one host filesystem node.
+    @binding("destack.fs.namespace.node", {
+        effect: "external",
+        requires: ["host.fs.node"],
+        families: ["unix"],
+        simulation: true,
+    })
+    createNode(
+        entry: &readonly FilesystemEntry,
+        options: FilesystemNodeOptions,
+    ): Result<void, HostError>;
+}

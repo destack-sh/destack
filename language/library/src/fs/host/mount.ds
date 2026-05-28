@@ -15,11 +15,14 @@ export struct FileMount {
     hostFlags?: uint64;
 }
 
-/// List filesystem mounts.
-@binding("destack.fs.mount.list", {
-    effect: "external",
-    requires: ["host.fs.mount.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listFileMounts(): Result<Array<FileMount>, HostError>;
+/// Filesystem mount binding family.
+export interface FsMount {
+    /// List filesystem mounts.
+    @binding("destack.fs.mount.list", {
+        effect: "external",
+        requires: ["host.fs.mount.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    list(): Result<Array<FileMount>, HostError>;
+}

@@ -56,31 +56,32 @@ export struct FileVolumeStatus {
     nameLength: uint64;
 }
 
-/// Read status for the volume containing an entry.
-@binding("destack.fs.volume.entry", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readEntryVolume(
-    entry: &readonly FilesystemEntry,
-): Result<FileVolumeStatus, HostError>;
+/// Filesystem volume binding family.
+export interface FsVolume {
+    /// Read status for the volume containing an entry.
+    @binding("destack.fs.volume.entry", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readEntry(entry: &readonly FilesystemEntry): Result<FileVolumeStatus, HostError>;
 
-/// Read status for the volume containing an open file.
-@binding("destack.fs.volume.file", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readFileVolume(file: FileHandle): Result<FileVolumeStatus, HostError>;
+    /// Read status for the volume containing an open file.
+    @binding("destack.fs.volume.file", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readFile(file: FileHandle): Result<FileVolumeStatus, HostError>;
 
-/// Synchronize the volume containing an open file.
-@binding("destack.fs.volume.sync", {
-    effect: "external",
-    requires: ["host.fs.sync"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function syncFileVolume(file: FileHandle): Result<void, HostError>;
+    /// Synchronize the volume containing an open file.
+    @binding("destack.fs.volume.sync", {
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    syncFile(file: FileHandle): Result<void, HostError>;
+}

@@ -200,194 +200,175 @@ export struct FileLockOptions {
     isNonblocking: boolean;
 }
 
-/// Open one filesystem entry as a file handle.
-@binding("destack.fs.file.open", {
-    effect: "external",
-    requires: ["host.fs.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openFile(
-    entry: &readonly FilesystemEntry,
-    options: FileOpenOptions,
-): Result<FileHandle, HostError>;
+/// Filesystem file binding family.
+export interface FsFile {
+    /// Open one filesystem entry as a file handle.
+    @binding("destack.fs.file.open", {
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    open(entry: &readonly FilesystemEntry, options: FileOpenOptions): Result<FileHandle, HostError>;
 
-/// Read bytes from an open file into an output buffer.
-@binding("destack.fs.file.read", {
-    effect: "external",
-    requires: ["host.fs.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readFile(
-    file: FileHandle,
-    buffer: &[uint8],
-    options: FileReadOptions,
-): Result<uint64, HostError>;
+    /// Read bytes from an open file into an output buffer.
+    @binding("destack.fs.file.read", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    read(file: FileHandle, buffer: &[uint8], options: FileReadOptions): Result<uint64, HostError>;
 
-/// Write bytes to an open file from an input buffer.
-@binding("destack.fs.file.write", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeFile(
-    file: FileHandle,
-    buffer: &readonly [uint8],
-    options: FileWriteOptions,
-): Result<uint64, HostError>;
+    /// Write bytes to an open file from an input buffer.
+    @binding("destack.fs.file.write", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    write(
+        file: FileHandle,
+        buffer: &readonly [uint8],
+        options: FileWriteOptions,
+    ): Result<uint64, HostError>;
 
-/// Read bytes from an open file into multiple output buffers.
-@binding("destack.fs.file.readMany", {
-    effect: "external",
-    requires: ["host.fs.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readFileMany(
-    file: FileHandle,
-    buffers: &[[uint8]],
-    options: FileReadOptions,
-): Result<uint64, HostError>;
+    /// Read bytes from an open file into multiple output buffers.
+    @binding("destack.fs.file.readMany", {
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readMany(
+        file: FileHandle,
+        buffers: &[[uint8]],
+        options: FileReadOptions,
+    ): Result<uint64, HostError>;
 
-/// Write bytes to an open file from multiple input buffers.
-@binding("destack.fs.file.writeMany", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeFileMany(
-    file: FileHandle,
-    buffers: &readonly [[uint8]],
-    options: FileWriteOptions,
-): Result<uint64, HostError>;
+    /// Write bytes to an open file from multiple input buffers.
+    @binding("destack.fs.file.writeMany", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeMany(
+        file: FileHandle,
+        buffers: &readonly [[uint8]],
+        options: FileWriteOptions,
+    ): Result<uint64, HostError>;
 
-/// Reposition an open file and return the new offset.
-@binding("destack.fs.file.seek", {
-    effect: "external",
-    requires: ["host.fs.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function seekFile(
-    file: FileHandle,
-    offset: FileOffset,
-    origin: FileSeekOrigin,
-): Result<FileOffset, HostError>;
+    /// Reposition an open file and return the new offset.
+    @binding("destack.fs.file.seek", {
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    seek(
+        file: FileHandle,
+        offset: FileOffset,
+        origin: FileSeekOrigin,
+    ): Result<FileOffset, HostError>;
 
-/// Truncate an open file to the requested size.
-@binding("destack.fs.file.truncate", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function truncateFile(file: FileHandle, size: FileSize): Result<void, HostError>;
+    /// Truncate an open file to the requested size.
+    @binding("destack.fs.file.truncate", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    truncate(file: FileHandle, size: FileSize): Result<void, HostError>;
 
-/// Synchronize file contents and metadata with storage.
-@binding("destack.fs.file.sync", {
-    effect: "external",
-    requires: ["host.fs.sync"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function syncFile(file: FileHandle): Result<void, HostError>;
+    /// Synchronize file contents and metadata with storage.
+    @binding("destack.fs.file.sync", {
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    sync(file: FileHandle): Result<void, HostError>;
 
-/// Synchronize file contents with storage.
-@binding("destack.fs.file.syncData", {
-    effect: "external",
-    requires: ["host.fs.sync"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function syncFileData(file: FileHandle): Result<void, HostError>;
+    /// Synchronize file contents with storage.
+    @binding("destack.fs.file.syncData", {
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    syncData(file: FileHandle): Result<void, HostError>;
 
-/// Synchronize one byte range with storage.
-@binding("destack.fs.file.syncRange", {
-    effect: "external",
-    requires: ["host.fs.sync"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function syncFileRange(
-    file: FileHandle,
-    range: FileRange,
-    flags: FileSyncFlags,
-): Result<void, HostError>;
+    /// Synchronize one byte range with storage.
+    @binding("destack.fs.file.syncRange", {
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    syncRange(file: FileHandle, range: FileRange, flags: FileSyncFlags): Result<void, HostError>;
 
-/// Copy bytes between two open files.
-@binding("destack.fs.file.copyRange", {
-    effect: "external",
-    requires: ["host.fs.read", "host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function copyFileRange(
-    source: FileHandle,
-    sourceRange: FileRange,
-    target: FileHandle,
-    targetOffset: FileOffset,
-): Result<uint64, HostError>;
+    /// Copy bytes between two open files.
+    @binding("destack.fs.file.copyRange", {
+        effect: "external",
+        requires: ["host.fs.read", "host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    copyRange(
+        source: FileHandle,
+        sourceRange: FileRange,
+        target: FileHandle,
+        targetOffset: FileOffset,
+    ): Result<uint64, HostError>;
 
-/// Clone bytes between two open files.
-@binding("destack.fs.file.cloneRange", {
-    effect: "external",
-    requires: ["host.fs.read", "host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function cloneFileRange(
-    source: FileHandle,
-    sourceRange: FileRange,
-    target: FileHandle,
-    targetOffset: FileOffset,
-): Result<void, HostError>;
+    /// Clone bytes between two open files.
+    @binding("destack.fs.file.cloneRange", {
+        effect: "external",
+        requires: ["host.fs.read", "host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    cloneRange(
+        source: FileHandle,
+        sourceRange: FileRange,
+        target: FileHandle,
+        targetOffset: FileOffset,
+    ): Result<void, HostError>;
 
-/// Allocate, release, or reshape storage for one byte range.
-@binding("destack.fs.file.allocate", {
-    effect: "external",
-    requires: ["host.fs.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function allocateFile(
-    file: FileHandle,
-    range: FileRange,
-    flags: FileAllocateFlags,
-): Result<void, HostError>;
+    /// Allocate, release, or reshape storage for one byte range.
+    @binding("destack.fs.file.allocate", {
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    allocate(file: FileHandle, range: FileRange, flags: FileAllocateFlags): Result<void, HostError>;
 
-/// Provide access pattern advice for one byte range.
-@binding("destack.fs.file.advise", {
-    effect: "external",
-    requires: ["host.fs.metadata"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function adviseFile(
-    file: FileHandle,
-    range: FileRange,
-    advice: FileAdvice,
-): Result<void, HostError>;
+    /// Provide access pattern advice for one byte range.
+    @binding("destack.fs.file.advise", {
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    advise(file: FileHandle, range: FileRange, advice: FileAdvice): Result<void, HostError>;
 
-/// Apply or release one advisory file lock.
-@binding("destack.fs.file.lock", {
-    effect: "external",
-    requires: ["host.fs.lock"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function lockFile(
-    file: FileHandle,
-    options: FileLockOptions,
-): Result<void, HostError>;
+    /// Apply or release one advisory file lock.
+    @binding("destack.fs.file.lock", {
+        effect: "external",
+        requires: ["host.fs.lock"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    lock(file: FileHandle, options: FileLockOptions): Result<void, HostError>;
 
-/// Duplicate an open file handle into a new owned resource.
-@binding("destack.fs.file.duplicate", {
-    effect: "external",
-    requires: ["host.fs.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function duplicateFile(file: FileHandle): Result<FileHandle, HostError>;
+    /// Duplicate an open file handle into a new owned resource.
+    @binding("destack.fs.file.duplicate", {
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    duplicate(file: FileHandle): Result<FileHandle, HostError>;
+}
