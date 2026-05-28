@@ -44,73 +44,73 @@ export struct IoPollEvent {
     value: int32;
 }
 
-/// Open a readiness poller.
-@binding("destack.io.poll.open", {
-    effect: "external",
-    requires: ["host.io.poll"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openIoPoll(backend: IoPollBackend): Result<IoPollHandle, HostError>;
+/// Poll binding family.
+export interface IoPoll {
+    /// Open a readiness poller.
+    @binding("destack.io.poll.open", {
+        effect: "external",
+        requires: ["host.io.poll"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openIoPoll(backend: IoPollBackend): Result<IoPollHandle, HostError>;
 
-/// Close a readiness poller.
-@binding("destack.io.poll.close", {
-    effect: "external",
-    requires: ["host.io.poll"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeIoPoll(poll: IoPollHandle): Result<void, HostError>;
+    /// Close a readiness poller.
+    @binding("destack.io.poll.close", {
+        effect: "external",
+        requires: ["host.io.poll"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeIoPoll(poll: IoPollHandle): Result<void, HostError>;
 
-/// Add one resource to a readiness poller.
-@binding("destack.io.poll.add", {
-    effect: "external",
-    requires: ["host.io.poll"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function addIoPoll(
-    poll: IoPollHandle,
-    resource: ResourceId,
-    key: uint64,
-    interest: IoPollInterest,
-): Result<void, HostError>;
+    /// Add one resource to a readiness poller.
+    @binding("destack.io.poll.add", {
+        effect: "external",
+        requires: ["host.io.poll"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    addIoPoll(
+        poll: IoPollHandle,
+        resource: ResourceId,
+        key: uint64,
+        interest: IoPollInterest,
+    ): Result<void, HostError>;
 
-/// Update one resource in a readiness poller.
-@binding("destack.io.poll.update", {
-    effect: "external",
-    requires: ["host.io.poll"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function updateIoPoll(
-    poll: IoPollHandle,
-    resource: ResourceId,
-    key: uint64,
-    interest: IoPollInterest,
-): Result<void, HostError>;
+    /// Update one resource in a readiness poller.
+    @binding("destack.io.poll.update", {
+        effect: "external",
+        requires: ["host.io.poll"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    updateIoPoll(
+        poll: IoPollHandle,
+        resource: ResourceId,
+        key: uint64,
+        interest: IoPollInterest,
+    ): Result<void, HostError>;
 
-/// Remove one resource from a readiness poller.
-@binding("destack.io.poll.remove", {
-    effect: "external",
-    requires: ["host.io.poll"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function removeIoPoll(
-    poll: IoPollHandle,
-    resource: ResourceId,
-): Result<void, HostError>;
+    /// Remove one resource from a readiness poller.
+    @binding("destack.io.poll.remove", {
+        effect: "external",
+        requires: ["host.io.poll"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    removeIoPoll(poll: IoPollHandle, resource: ResourceId): Result<void, HostError>;
 
-/// Wait for readiness events.
-@binding("destack.io.poll.wait", {
-    effect: "external",
-    requires: ["host.io.poll"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function waitIoPoll(
-    poll: IoPollHandle,
-    events: &[IoPollEvent],
-    timeoutNs?: uint64,
-): Result<uint32, HostError>;
+    /// Wait for readiness events.
+    @binding("destack.io.poll.wait", {
+        effect: "external",
+        requires: ["host.io.poll"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    waitIoPoll(
+        poll: IoPollHandle,
+        events: &[IoPollEvent],
+        timeoutNs?: uint64,
+    ): Result<uint32, HostError>;
+}

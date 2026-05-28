@@ -36,73 +36,71 @@ export struct UringBuffer {
     byteCount: uint32;
 }
 
-/// Open an io_uring ring.
-@binding("destack.io.uring.open", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function openUring(
-    parameters: &readonly UringParameters,
-): Result<UringHandle, HostError>;
+/// Uring binding family.
+export interface IoUring {
+    /// Open an io_uring ring.
+    @binding("destack.io.uring.open", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    openUring(parameters: &readonly UringParameters): Result<UringHandle, HostError>;
 
-/// Close an io_uring ring.
-@binding("destack.io.uring.close", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function closeUring(ring: UringHandle): Result<void, HostError>;
+    /// Close an io_uring ring.
+    @binding("destack.io.uring.close", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    closeUring(ring: UringHandle): Result<void, HostError>;
 
-/// Read io_uring feature support.
-@binding("destack.io.uring.features", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function getUringFeatures(ring: UringHandle): Result<UringFeatures, HostError>;
+    /// Read io_uring feature support.
+    @binding("destack.io.uring.features", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    getUringFeatures(ring: UringHandle): Result<UringFeatures, HostError>;
 
-/// Register fixed files with an io_uring ring.
-@binding("destack.io.uring.registerFiles", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function registerUringFiles(
-    ring: UringHandle,
-    files: &readonly [ResourceId],
-): Result<void, HostError>;
+    /// Register fixed files with an io_uring ring.
+    @binding("destack.io.uring.registerFiles", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    registerUringFiles(ring: UringHandle, files: &readonly [ResourceId]): Result<void, HostError>;
 
-/// Unregister fixed files from an io_uring ring.
-@binding("destack.io.uring.unregisterFiles", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function unregisterUringFiles(ring: UringHandle): Result<void, HostError>;
+    /// Unregister fixed files from an io_uring ring.
+    @binding("destack.io.uring.unregisterFiles", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    unregisterUringFiles(ring: UringHandle): Result<void, HostError>;
 
-/// Register fixed buffers with an io_uring ring.
-@binding("destack.io.uring.registerBuffers", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function registerUringBuffers(
-    ring: UringHandle,
-    buffers: &readonly [UringBuffer],
-): Result<void, HostError>;
+    /// Register fixed buffers with an io_uring ring.
+    @binding("destack.io.uring.registerBuffers", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    registerUringBuffers(
+        ring: UringHandle,
+        buffers: &readonly [UringBuffer],
+    ): Result<void, HostError>;
 
-/// Unregister fixed buffers from an io_uring ring.
-@binding("destack.io.uring.unregisterBuffers", {
-    effect: "external",
-    requires: ["host.io.uring"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function unregisterUringBuffers(ring: UringHandle): Result<void, HostError>;
+    /// Unregister fixed buffers from an io_uring ring.
+    @binding("destack.io.uring.unregisterBuffers", {
+        effect: "external",
+        requires: ["host.io.uring"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    unregisterUringBuffers(ring: UringHandle): Result<void, HostError>;
+}
