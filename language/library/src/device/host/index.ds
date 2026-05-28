@@ -1,30 +1,7 @@
-import { DeviceBluetooth } from "./bluetooth.ds";
-import { DeviceCamera } from "./camera.ds";
-import { DeviceHid } from "./hid.ds";
-import { DeviceMidi } from "./midi.ds";
-import { DeviceSerial } from "./serial.ds";
-import { DeviceUsb } from "./usb.ds";
-
+export * from "./device.ds";
 export * from "./bluetooth.ds";
 export * from "./camera.ds";
 export * from "./hid.ds";
 export * from "./midi.ds";
 export * from "./serial.ds";
 export * from "./usb.ds";
-
-/// Device binding family.
-@languageItem("device.Device")
-export interface Device {
-    /// Bluetooth bindings.
-    readonly bluetooth: DeviceBluetooth;
-    /// Camera bindings.
-    readonly camera: DeviceCamera;
-    /// Hid bindings.
-    readonly hid: DeviceHid;
-    /// Midi bindings.
-    readonly midi: DeviceMidi;
-    /// Serial bindings.
-    readonly serial: DeviceSerial;
-    /// Usb bindings.
-    readonly usb: DeviceUsb;
-}

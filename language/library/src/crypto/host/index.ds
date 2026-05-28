@@ -1,12 +1,4 @@
-import { CryptoAgreement } from "./agreement.ds";
-import { CryptoCertificate } from "./certificate.ds";
-import { CryptoCipher } from "./cipher.ds";
-import { CryptoDigest } from "./digest.ds";
-import { CryptoKdf } from "./kdf.ds";
-import { CryptoKey } from "./key.ds";
-import { CryptoMac } from "./mac.ds";
-import { CryptoStore } from "./store.ds";
-
+export * from "./crypto.ds";
 export * from "./agreement.ds";
 export * from "./algorithm.ds";
 export * from "./certificate.ds";
@@ -16,24 +8,3 @@ export * from "./kdf.ds";
 export * from "./key.ds";
 export * from "./mac.ds";
 export * from "./store.ds";
-
-/// Crypto binding family.
-@languageItem("crypto.Crypto")
-export interface Crypto {
-    /// Agreement bindings.
-    readonly agreement: CryptoAgreement;
-    /// Certificate bindings.
-    readonly certificate: CryptoCertificate;
-    /// Cipher bindings.
-    readonly cipher: CryptoCipher;
-    /// Digest bindings.
-    readonly digest: CryptoDigest;
-    /// Kdf bindings.
-    readonly kdf: CryptoKdf;
-    /// Key bindings.
-    readonly key: CryptoKey;
-    /// Mac bindings.
-    readonly mac: CryptoMac;
-    /// Store bindings.
-    readonly store: CryptoStore;
-}

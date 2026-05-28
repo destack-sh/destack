@@ -1,13 +1,4 @@
-import { FsAttribute } from "./attribute.ds";
-import { FsDirectory } from "./directory.ds";
-import { FsFile } from "./file.ds";
-import { FsMount } from "./mount.ds";
-import { FsNamespace } from "./namespace.ds";
-import { FsStatus } from "./status.ds";
-import { FsVolume } from "./volume.ds";
-import { FsWatch } from "./watch.ds";
-import { FsXattr } from "./xattr.ds";
-
+export * from "./fs.ds";
 export * from "./attribute.ds";
 export * from "./directory.ds";
 export * from "./entry.ds";
@@ -20,26 +11,3 @@ export * from "./status.ds";
 export * from "./volume.ds";
 export * from "./watch.ds";
 export * from "./xattr.ds";
-
-/// Filesystem binding family.
-@languageItem("fs.Fs")
-export interface Fs {
-    /// File attribute bindings.
-    readonly attribute: FsAttribute;
-    /// Directory bindings.
-    readonly directory: FsDirectory;
-    /// File descriptor bindings.
-    readonly file: FsFile;
-    /// Mount table bindings.
-    readonly mount: FsMount;
-    /// Namespace bindings.
-    readonly namespace: FsNamespace;
-    /// Status bindings.
-    readonly status: FsStatus;
-    /// Volume bindings.
-    readonly volume: FsVolume;
-    /// Watch bindings.
-    readonly watch: FsWatch;
-    /// Extended attribute bindings.
-    readonly xattr: FsXattr;
-}

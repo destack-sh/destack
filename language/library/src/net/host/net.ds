@@ -1,0 +1,29 @@
+import { NetConnectivity } from "./connectivity.ds";
+import { NetInterface } from "./interface.ds";
+import { NetOptions } from "./options.ds";
+import { NetRaw } from "./raw.ds";
+import { NetResolve } from "./resolve.ds";
+import { NetRoute } from "./route.ds";
+import { NetSocket } from "./socket.ds";
+import { NetUdp } from "./udp.ds";
+
+/// Network binding family.
+@languageItem("net.Net")
+export interface Net {
+    /// Connectivity bindings.
+    readonly connectivity: NetConnectivity;
+    /// Network interface bindings.
+    readonly interface: NetInterface;
+    /// Socket option bindings.
+    readonly options: NetOptions;
+    /// Raw socket and packet bindings.
+    readonly raw: NetRaw;
+    /// Name resolution bindings.
+    readonly resolve: NetResolve;
+    /// Route table bindings.
+    readonly route: NetRoute;
+    /// Socket bindings.
+    readonly socket: NetSocket;
+    /// UDP multicast bindings.
+    readonly udp: NetUdp;
+}

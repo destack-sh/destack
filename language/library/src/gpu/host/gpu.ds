@@ -1,0 +1,32 @@
+import { GpuAdapter } from "./adapter.ds";
+import { GpuBind } from "./bind.ds";
+import { GpuCommand } from "./command.ds";
+import { GpuDebug } from "./debug.ds";
+import { GpuDevice } from "./device.ds";
+import { GpuPipeline } from "./pipeline.ds";
+import { GpuPresent } from "./present.ds";
+import { GpuResource } from "./resource.ds";
+import { GpuSync } from "./sync.ds";
+
+/// GPU binding family.
+@languageItem("gpu.Gpu")
+export interface Gpu {
+    /// Adapter bindings.
+    readonly adapter: GpuAdapter;
+    /// Bind group bindings.
+    readonly bind: GpuBind;
+    /// Command bindings.
+    readonly command: GpuCommand;
+    /// Debug bindings.
+    readonly debug: GpuDebug;
+    /// Device bindings.
+    readonly device: GpuDevice;
+    /// Pipeline bindings.
+    readonly pipeline: GpuPipeline;
+    /// Presentation bindings.
+    readonly present: GpuPresent;
+    /// Resource bindings.
+    readonly resource: GpuResource;
+    /// Synchronization bindings.
+    readonly sync: GpuSync;
+}

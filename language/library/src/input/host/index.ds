@@ -1,14 +1,4 @@
-import { InputClipboard } from "./clipboard.ds";
-import { InputDevice } from "./device.ds";
-import { InputEvent } from "./event.ds";
-import { InputGamepad } from "./gamepad.ds";
-import { InputHaptics } from "./haptics.ds";
-import { InputKeyboard } from "./keyboard.ds";
-import { InputPointer } from "./pointer.ds";
-import { InputSensor } from "./sensor.ds";
-import { InputText } from "./text.ds";
-import { InputTouch } from "./touch.ds";
-
+export * from "./input.ds";
 export * from "./clipboard.ds";
 export * from "./device.ds";
 export * from "./event.ds";
@@ -19,28 +9,3 @@ export * from "./pointer.ds";
 export * from "./sensor.ds";
 export * from "./text.ds";
 export * from "./touch.ds";
-
-/// Input binding family.
-@languageItem("input.Input")
-export interface Input {
-    /// Clipboard bindings.
-    readonly clipboard: InputClipboard;
-    /// Device bindings.
-    readonly device: InputDevice;
-    /// Event bindings.
-    readonly event: InputEvent;
-    /// Gamepad bindings.
-    readonly gamepad: InputGamepad;
-    /// Haptics bindings.
-    readonly haptics: InputHaptics;
-    /// Keyboard bindings.
-    readonly keyboard: InputKeyboard;
-    /// Pointer bindings.
-    readonly pointer: InputPointer;
-    /// Sensor bindings.
-    readonly sensor: InputSensor;
-    /// Text bindings.
-    readonly text: InputText;
-    /// Touch bindings.
-    readonly touch: InputTouch;
-}

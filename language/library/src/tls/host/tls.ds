@@ -1,0 +1,11 @@
+import { TlsConnection } from "./connection.ds";
+import { TlsContext } from "./context.ds";
+
+/// TLS binding family.
+@languageItem("tls.Tls")
+export interface Tls {
+    /// Connection bindings.
+    readonly connection: TlsConnection;
+    /// TLS context bindings.
+    readonly context: TlsContext;
+}

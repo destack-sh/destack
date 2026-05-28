@@ -1,22 +1,4 @@
-import { ProcessArgument } from "./argument.ds";
-import { ProcessCgroup } from "./cgroup.ds";
-import { ProcessEnvironment } from "./environment.ds";
-import { ProcessExec } from "./exec.ds";
-import { ProcessExit } from "./exit.ds";
-import { ProcessHandle } from "./handle.ds";
-import { ProcessIdentity } from "./identity.ds";
-import { ProcessIsolation } from "./isolation.ds";
-import { ProcessJob } from "./job.ds";
-import { ProcessLimit } from "./limit.ds";
-import { ProcessSchedule } from "./schedule.ds";
-import { ProcessSession } from "./session.ds";
-import { ProcessSignal } from "./signal.ds";
-import { ProcessSpawn } from "./spawn.ds";
-import { ProcessStdio } from "./stdio.ds";
-import { ProcessUmask } from "./umask.ds";
-import { ProcessWait } from "./wait.ds";
-import { ProcessWorkdir } from "./workdir.ds";
-
+export * from "./process.ds";
 export * from "./argument.ds";
 export * from "./cgroup.ds";
 export * from "./environment.ds";
@@ -35,44 +17,3 @@ export * from "./stdio.ds";
 export * from "./umask.ds";
 export * from "./wait.ds";
 export * from "./workdir.ds";
-
-/// Process binding family.
-@languageItem("process.Process")
-export interface Process {
-    /// Argument bindings.
-    readonly argument: ProcessArgument;
-    /// Cgroup bindings.
-    readonly cgroup: ProcessCgroup;
-    /// Environment bindings.
-    readonly environment: ProcessEnvironment;
-    /// Exec bindings.
-    readonly exec: ProcessExec;
-    /// Exit bindings.
-    readonly exit: ProcessExit;
-    /// Handle bindings.
-    readonly handle: ProcessHandle;
-    /// Identity bindings.
-    readonly identity: ProcessIdentity;
-    /// Isolation bindings.
-    readonly isolation: ProcessIsolation;
-    /// Job bindings.
-    readonly job: ProcessJob;
-    /// Limit bindings.
-    readonly limit: ProcessLimit;
-    /// Schedule bindings.
-    readonly schedule: ProcessSchedule;
-    /// Session bindings.
-    readonly session: ProcessSession;
-    /// Signal bindings.
-    readonly signal: ProcessSignal;
-    /// Spawn bindings.
-    readonly spawn: ProcessSpawn;
-    /// Stdio bindings.
-    readonly stdio: ProcessStdio;
-    /// Umask bindings.
-    readonly umask: ProcessUmask;
-    /// Wait bindings.
-    readonly wait: ProcessWait;
-    /// Workdir bindings.
-    readonly workdir: ProcessWorkdir;
-}
