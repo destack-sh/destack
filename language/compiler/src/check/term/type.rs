@@ -415,6 +415,27 @@ pub(in crate::check) enum TypeTerm {
 }
 
 impl TypeTerm {
+    /// Return the unit type.
+    pub(in crate::check) fn unit() -> Self {
+        TypeTerm::Tuple {
+            form: dir::TupleForm::Tuple,
+            elements: SmallVec::new(),
+            is_readonly: false,
+        }
+    }
+
+    /// Return whether this is the unit type.
+    pub(in crate::check) fn is_unit(&self) -> bool {
+        matches!(
+            self,
+            TypeTerm::Tuple {
+                form: dir::TupleForm::Tuple,
+                elements,
+                is_readonly: false,
+            } if elements.is_empty()
+        )
+    }
+
     /// Return variables referenced by this term.
     pub(in crate::check) fn referenced_variables(
         &self,
@@ -938,6 +959,12 @@ impl CheckState<'_> {
         right: &TypeTerm,
     ) -> CompilerResult<Progress> {
         let progress = match (left, right) {
+            (TypeTerm::Literal(TypeLiteralTerm::Void), right) if right.is_unit() => {
+                Progress::Unchanged
+            }
+            (left, TypeTerm::Literal(TypeLiteralTerm::Void)) if left.is_unit() => {
+                Progress::Unchanged
+            }
             (
                 TypeTerm::Form {
                     form: left_form,
@@ -1038,6 +1065,12 @@ impl CheckState<'_> {
         target: &TypeTerm,
     ) -> CompilerResult<Progress> {
         let progress = match (source, target) {
+            (TypeTerm::Literal(TypeLiteralTerm::Void), target) if target.is_unit() => {
+                Progress::Unchanged
+            }
+            (source, TypeTerm::Literal(TypeLiteralTerm::Void)) if source.is_unit() => {
+                Progress::Unchanged
+            }
             (
                 TypeTerm::Form {
                     form: source_form,
@@ -2024,6 +2057,8 @@ impl CheckState<'_> {
         }
 
         let decision = match (left, right) {
+            (TypeTerm::Literal(TypeLiteralTerm::Void), right) if right.is_unit() => Decision::Yes,
+            (left, TypeTerm::Literal(TypeLiteralTerm::Void)) if left.is_unit() => Decision::Yes,
             (TypeTerm::Variable(left), right) => {
                 let Some(left) = self.solved_type_term(*left)? else {
                     return Ok(Decision::Undecidable);
@@ -2192,6 +2227,8 @@ impl CheckState<'_> {
         }
 
         let decision = match (source, target) {
+            (TypeTerm::Literal(TypeLiteralTerm::Void), target) if target.is_unit() => Decision::Yes,
+            (source, TypeTerm::Literal(TypeLiteralTerm::Void)) if source.is_unit() => Decision::Yes,
             (TypeTerm::Variable(source), target) => {
                 let Some(source) = self.solved_type_term(*source)? else {
                     return Ok(Decision::Undecidable);

@@ -132,6 +132,23 @@ impl CheckState<'_> {
         self.diagnostics_mut(module).push(diagnostic);
     }
 
+    /// Report a parsed type form that is not supported by the language model.
+    pub(in crate::check) fn report_unsupported_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        name: impl Into<String>,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UnsupportedType {
+            anchor,
+            module,
+            name: name.into(),
+        };
+
+        self.diagnostics_mut(module).push(diagnostic);
+    }
+
     /// Report an invalid writable place at one source node.
     pub(in crate::check) fn report_not_writable(
         &mut self,

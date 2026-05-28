@@ -931,7 +931,7 @@ impl CheckState<'_> {
                 let return_type = self.type_argument(module, &arguments, 1)?;
                 let parameters = self.function_parameters_from_tuple(module, parameters)?;
 
-                dir::Type::Function(dir::FunctionType {
+                dir::Type::Function(dir::FunctionTypeShape {
                     asynchrony: dir::Asynchrony::Sync,
                     generic_parameters: Default::default(),
                     this_parameter: None,
@@ -1018,6 +1018,11 @@ impl CheckState<'_> {
                     form: dir::Form::Readonly,
                     value,
                 })
+            }
+            dir::LanguageItem::Dynamic => {
+                let constraint = self.type_argument(module, &arguments, 0)?;
+
+                dir::Type::Dynamic(dir::DynamicType { constraint })
             }
             _ => dir::Type::Named(dir::NamedType { symbol, arguments }),
         };
@@ -1213,6 +1218,23 @@ impl CheckState<'_> {
             GenericArgument::Static(operand) => {
                 self.commit_static_operand(module, environment, operand)?
             }
+            GenericArgument::AssociatedType { name, value } => {
+                let ty = self.commit_type_operand(module, environment, value, source)?;
+                let value = self.commit_type_argument(module, ty).value;
+
+                return Some(dir::StaticArgument {
+                    name: Some(name),
+                    value,
+                });
+            }
+            GenericArgument::AssociatedConst { name, value } => {
+                let value = self.commit_static_operand(module, environment, value)?;
+
+                return Some(dir::StaticArgument {
+                    name: Some(name),
+                    value,
+                });
+            }
             GenericArgument::TypeOrStatic { .. }
             | GenericArgument::SpreadType(_)
             | GenericArgument::SpreadStatic(_)
@@ -1342,10 +1364,10 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         function: TermId<FunctionTerm>,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::FunctionType> {
+    ) -> Option<dir::FunctionTypeShape> {
         let function = self.terms.get(function).clone();
 
-        Some(dir::FunctionType {
+        Some(dir::FunctionTypeShape {
             asynchrony: function.asynchrony,
             generic_parameters: self
                 .commit_type_variables(environment, &function.generic_parameters)?,

@@ -218,8 +218,8 @@ impl CheckState<'_> {
                 self.narrow_flow_path(path, ty);
             }
             // T(a, b), T { name }
-            dir::Pattern::TaggedTuple { ty, fields }
-            | dir::Pattern::TaggedObject { ty, fields } => {
+            dir::Pattern::Newtype { ty, fields }
+            | dir::Pattern::NominalObject { ty, fields } => {
                 let narrowed = self.intern_local_type_variable(tree.module_id, *ty);
 
                 self.narrow_flow_path(path.clone(), narrowed);

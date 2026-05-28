@@ -73,31 +73,31 @@ pub(in crate::check) enum PatternTerm {
     /// Tuple pattern.
     Tuple {
         /// The tuple fields.
-        fields: SmallVec<[PatternField; 8]>,
+        fields: SmallVec<[PatternField; 4]>,
     },
-    /// Tagged tuple pattern.
-    TaggedTuple {
+    /// Newtype wrapper pattern.
+    Newtype {
         /// The tag type.
         ty: VariableId,
         /// The tuple fields.
-        fields: SmallVec<[PatternField; 8]>,
+        fields: SmallVec<[PatternField; 3]>,
     },
     /// Sequence pattern.
     Sequence {
         /// The sequence fields.
-        fields: SmallVec<[PatternField; 8]>,
+        fields: SmallVec<[PatternField; 4]>,
     },
     /// Object pattern.
     Object {
         /// The object fields.
-        fields: SmallVec<[PatternField; 8]>,
+        fields: SmallVec<[PatternField; 4]>,
     },
-    /// Tagged object pattern.
-    TaggedObject {
+    /// Nominal object pattern.
+    NominalObject {
         /// The tag type.
         ty: VariableId,
         /// The object fields.
-        fields: SmallVec<[PatternField; 8]>,
+        fields: SmallVec<[PatternField; 3]>,
     },
     /// Union pattern.
     Union {
@@ -250,7 +250,7 @@ impl PatternTerm {
                     field.collect_referenced_variables(terms, variables);
                 }
             }
-            Self::TaggedTuple { ty, fields } | Self::TaggedObject { ty, fields } => {
+            Self::Newtype { ty, fields } | Self::NominalObject { ty, fields } => {
                 variables.push(*ty);
                 for field in fields {
                     field.collect_referenced_variables(terms, variables);
@@ -443,7 +443,7 @@ impl CheckState<'_> {
             | PatternTerm::Object { fields } => {
                 self.decide_pattern_fields(module, value, &fields)?
             }
-            PatternTerm::TaggedTuple { ty, fields } | PatternTerm::TaggedObject { ty, fields } => {
+            PatternTerm::Newtype { ty, fields } | PatternTerm::NominalObject { ty, fields } => {
                 let tag = self.decide_type_term_relation(
                     TypeRelation::Satisfies,
                     value,
@@ -678,7 +678,7 @@ impl CheckState<'_> {
                 self.expect_pattern_field_terms(value, &fields)?
             }
             PatternTerm::Object { fields } => self.expect_pattern_field_terms(value, &fields)?,
-            PatternTerm::TaggedTuple { ty, fields } | PatternTerm::TaggedObject { ty, fields } => {
+            PatternTerm::Newtype { ty, fields } | PatternTerm::NominalObject { ty, fields } => {
                 let tag = self.solve_type_relation(TypeRelation::Satisfies, value, ty)?;
                 let fields = self.expect_pattern_field_terms(value, &fields)?;
 

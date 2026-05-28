@@ -1,3 +1,4 @@
+use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
@@ -14,6 +15,20 @@ pub(in crate::check) enum GenericArgument {
     Type(TypeOperand),
     /// Static argument.
     Static(StaticOperand),
+    /// Associated type refinement.
+    AssociatedType {
+        /// The refined associated type name.
+        name: dir::StringId,
+        /// The refined type value.
+        value: TypeOperand,
+    },
+    /// Associated compile-time constant refinement.
+    AssociatedConst {
+        /// The refined associated constant name.
+        name: dir::StringId,
+        /// The refined static value.
+        value: StaticOperand,
+    },
     /// Argument that can be interpreted as either a type or static value.
     TypeOrStatic {
         /// The type interpretation.
@@ -46,7 +61,12 @@ impl GenericArgument {
             Self::Type(operand) | Self::SpreadType(operand) => {
                 variables.extend(operand.referenced_variables(state));
             }
-            Self::Static(operand) | Self::SpreadStatic(operand) => {
+            Self::Static(operand)
+            | Self::SpreadStatic(operand)
+            | Self::AssociatedConst { value: operand, .. } => {
+                variables.extend(operand.referenced_variables(state));
+            }
+            Self::AssociatedType { value: operand, .. } => {
                 variables.extend(operand.referenced_variables(state));
             }
             Self::TypeOrStatic { ty, value } | Self::SpreadTypeOrStatic { ty, value } => {
@@ -62,8 +82,9 @@ impl GenericArgument {
     pub(in crate::check) fn type_operand(&self) -> Option<TypeOperand> {
         match self {
             Self::Type(operand) | Self::SpreadType(operand) => Some(*operand),
+            Self::AssociatedType { value, .. } => Some(*value),
             Self::TypeOrStatic { ty, .. } | Self::SpreadTypeOrStatic { ty, .. } => Some(*ty),
-            Self::Static(_) | Self::SpreadStatic(_) => None,
+            Self::Static(_) | Self::SpreadStatic(_) | Self::AssociatedConst { .. } => None,
         }
     }
 
@@ -71,10 +92,11 @@ impl GenericArgument {
     pub(in crate::check) fn static_operand(&self) -> Option<StaticOperand> {
         match self {
             Self::Static(operand) | Self::SpreadStatic(operand) => Some(*operand),
+            Self::AssociatedConst { value, .. } => Some(*value),
             Self::TypeOrStatic { value, .. } | Self::SpreadTypeOrStatic { value, .. } => {
                 Some(*value)
             }
-            Self::Type(_) | Self::SpreadType(_) => None,
+            Self::Type(_) | Self::SpreadType(_) | Self::AssociatedType { .. } => None,
         }
     }
 
@@ -103,6 +125,14 @@ impl GenericArgument {
             Self::Static(operand) => {
                 Self::Static(state.substitute_static_operand(module, substitution, *operand)?)
             }
+            Self::AssociatedType { name, value } => Self::AssociatedType {
+                name: *name,
+                value: state.substitute_type_operand(module, substitution, *value)?,
+            },
+            Self::AssociatedConst { name, value } => Self::AssociatedConst {
+                name: *name,
+                value: state.substitute_static_operand(module, substitution, *value)?,
+            },
             Self::TypeOrStatic { ty, value } => Self::TypeOrStatic {
                 ty: state.substitute_type_operand(module, substitution, *ty)?,
                 value: state.substitute_static_operand(module, substitution, *value)?,
@@ -220,6 +250,30 @@ impl CheckState<'_> {
             | (GenericArgument::SpreadStatic(left), GenericArgument::SpreadStatic(right)) => {
                 self.decide_static_relation(StaticRelation::Equal, *left, *right)?
             }
+            (
+                GenericArgument::AssociatedType {
+                    name: left_name,
+                    value: left,
+                },
+                GenericArgument::AssociatedType {
+                    name: right_name,
+                    value: right,
+                },
+            ) if left_name == right_name => {
+                self.decide_type_relation(TypeRelation::Equal, *left, *right)?
+            }
+            (
+                GenericArgument::AssociatedConst {
+                    name: left_name,
+                    value: left,
+                },
+                GenericArgument::AssociatedConst {
+                    name: right_name,
+                    value: right,
+                },
+            ) if left_name == right_name => {
+                self.decide_static_relation(StaticRelation::Equal, *left, *right)?
+            }
             (left, right)
                 if let (Some(left), Some(right)) = (left.type_operand(), right.type_operand()) =>
             {
@@ -271,6 +325,26 @@ impl CheckState<'_> {
             | (GenericArgument::SpreadStatic(left), GenericArgument::SpreadStatic(right)) => {
                 self.solve_static_equality(*left, *right)?
             }
+            (
+                GenericArgument::AssociatedType {
+                    name: left_name,
+                    value: left,
+                },
+                GenericArgument::AssociatedType {
+                    name: right_name,
+                    value: right,
+                },
+            ) if left_name == right_name => self.solve_type_equality(*left, *right)?,
+            (
+                GenericArgument::AssociatedConst {
+                    name: left_name,
+                    value: left,
+                },
+                GenericArgument::AssociatedConst {
+                    name: right_name,
+                    value: right,
+                },
+            ) if left_name == right_name => self.solve_static_equality(*left, *right)?,
             (left, right)
                 if let (Some(left), Some(right)) = (left.type_operand(), right.type_operand()) =>
             {

@@ -113,9 +113,9 @@ impl CheckState<'_> {
             // { name }
             | dir::Pattern::Object { fields }
             // T(a, b)
-            | dir::Pattern::TaggedTuple { fields, .. }
+            | dir::Pattern::Newtype { fields, .. }
             // T { name }
-            | dir::Pattern::TaggedObject { fields, .. } => {
+            | dir::Pattern::NominalObject { fields, .. } => {
                 for field in fields {
                     self.mark_pattern_field_bindings_assigned(tree, *field);
                 }

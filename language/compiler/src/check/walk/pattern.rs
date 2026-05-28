@@ -89,9 +89,9 @@ impl CheckState<'_> {
                 }
             }
             // T(a, b)
-            dir::Pattern::TaggedTuple { ty, fields }
+            dir::Pattern::Newtype { ty, fields }
             // T { name }
-            | dir::Pattern::TaggedObject { ty, fields } => {
+            | dir::Pattern::NominalObject { ty, fields } => {
                 self.walk_type_expression(tree, *ty, tree.get(*ty));
 
                 for field in fields {
@@ -300,7 +300,7 @@ impl CheckState<'_> {
                     .collect(),
             },
             // T(a, b)
-            dir::Pattern::TaggedTuple { ty, fields } => PatternTerm::TaggedTuple {
+            dir::Pattern::Newtype { ty, fields } => PatternTerm::Newtype {
                 ty: self.intern_local_type_variable(module, *ty),
                 fields: fields
                     .iter()
@@ -322,7 +322,7 @@ impl CheckState<'_> {
                     .collect(),
             },
             // T { name }
-            dir::Pattern::TaggedObject { ty, fields } => PatternTerm::TaggedObject {
+            dir::Pattern::NominalObject { ty, fields } => PatternTerm::NominalObject {
                 ty: self.intern_local_type_variable(module, *ty),
                 fields: fields
                     .iter()

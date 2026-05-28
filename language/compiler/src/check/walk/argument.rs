@@ -24,8 +24,20 @@ impl CheckState<'_> {
             dir::GenericArgument::SpreadType { value } => {
                 self.walk_type_expression(tree, *value, tree.get(*value));
             }
+            // <type Item = T>
+            dir::GenericArgument::AssociatedType { value, .. } => {
+                self.walk_type_expression(tree, *value, tree.get(*value));
+            }
             // <C>
             dir::GenericArgument::Value { value } => {
+                // check static argument value in static context
+                let before_value = self.checkpoint_flow(tree.module_id);
+
+                self.walk_expression(tree, *value, tree.get(*value));
+                self.restore_flow(tree.module_id, before_value);
+            }
+            // <comptime Size = N>
+            dir::GenericArgument::AssociatedConst { value, .. } => {
                 // check static argument value in static context
                 let before_value = self.checkpoint_flow(tree.module_id);
 
@@ -151,11 +163,27 @@ impl CheckState<'_> {
             dir::GenericArgument::SpreadType { value } => {
                 GenericArgument::SpreadType(self.intern_local_type_variable(module, *value).into())
             }
+            // <type Item = T>
+            dir::GenericArgument::AssociatedType { name, value } => {
+                GenericArgument::AssociatedType {
+                    name: *name,
+                    value: self.intern_local_type_variable(module, *value).into(),
+                }
+            }
             // <C>
             dir::GenericArgument::Value { value } => GenericArgument::Static(
                 self.define_static_expression_variable(module, *value)
                     .into(),
             ),
+            // <comptime Size = N>
+            dir::GenericArgument::AssociatedConst { name, value } => {
+                GenericArgument::AssociatedConst {
+                    name: *name,
+                    value: self
+                        .define_static_expression_variable(module, *value)
+                        .into(),
+                }
+            }
             // <...C>
             dir::GenericArgument::SpreadValue { value } => GenericArgument::SpreadStatic(
                 self.define_static_expression_variable(module, *value)

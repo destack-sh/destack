@@ -216,12 +216,24 @@ impl CheckState<'_> {
                 dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadType(
                     self.intern_local_type_variable(module, value).into(),
                 ),
+                dir::GenericArgument::AssociatedType { name, value } => {
+                    GenericArgument::AssociatedType {
+                        name,
+                        value: self.intern_local_type_variable(module, value).into(),
+                    }
+                }
                 dir::GenericArgument::Value { value } => GenericArgument::Static(
                     self.define_static_expression_variable(module, value).into(),
                 ),
                 dir::GenericArgument::SpreadValue { value } => GenericArgument::SpreadStatic(
                     self.define_static_expression_variable(module, value).into(),
                 ),
+                dir::GenericArgument::AssociatedConst { name, value } => {
+                    GenericArgument::AssociatedConst {
+                        name,
+                        value: self.define_static_expression_variable(module, value).into(),
+                    }
+                }
                 dir::GenericArgument::Error => continue,
             };
 

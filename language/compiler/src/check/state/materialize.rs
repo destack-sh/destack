@@ -138,7 +138,7 @@ impl CheckState<'_> {
             dir::Type::Never => TypeTerm::Literal(TypeLiteralTerm::Never),
             dir::Type::Any => TypeTerm::Literal(TypeLiteralTerm::Any),
             dir::Type::Unknown => TypeTerm::Literal(TypeLiteralTerm::Unknown),
-            dir::Type::Void => TypeTerm::Literal(TypeLiteralTerm::Void),
+            dir::Type::Void => TypeTerm::unit(),
             dir::Type::Null => TypeTerm::Literal(TypeLiteralTerm::Null),
             dir::Type::Undefined => TypeTerm::Literal(TypeLiteralTerm::Undefined),
             dir::Type::Object => TypeTerm::Literal(TypeLiteralTerm::Object),
@@ -304,7 +304,7 @@ impl CheckState<'_> {
     fn materialize_function(
         &mut self,
         module: destack_source::ModuleId,
-        function: dir::FunctionType,
+        function: dir::FunctionTypeShape,
     ) -> TermId<FunctionTerm> {
         let parameters = function
             .parameters
