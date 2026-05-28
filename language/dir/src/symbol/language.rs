@@ -1134,6 +1134,24 @@ define_language_items! {
         }
     }
 
+    /// Serde types.
+    serde {
+        /// `destack:serde/serde`.
+        serde {
+            /// Value deserialization protocol.
+            Deserialize => (NewtypeInterface, "serde/serde", "Deserialize"),
+
+            /// Structured value deserializer.
+            Deserializer => (NewtypeInterface, "serde/serde", "Deserializer"),
+
+            /// Value serialization protocol.
+            Serialize => (NewtypeInterface, "serde/serde", "Serialize"),
+
+            /// Structured value serializer.
+            Serializer => (NewtypeInterface, "serde/serde", "Serializer"),
+        }
+    }
+
     /// String types.
     string {
         /// `destack:string/slice`.
