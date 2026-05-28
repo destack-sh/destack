@@ -118,35 +118,38 @@ export newtype AudioEvent =
     | AudioEventBackend
     | AudioEventOverflow;
 
-/// Open one audio event subscription.
-@binding("destack.audio.event.open", {
-    effect: "external",
-    requires: ["host.audio.event"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openAudioEvents(
-    subscription: &readonly AudioEventSubscription,
-): Result<AudioEventHandle, HostError>;
+/// Event binding family.
+export interface AudioEvent {
+    /// Open one audio event subscription.
+    @binding("destack.audio.event.open", {
+        effect: "external",
+        requires: ["host.audio.event"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openAudioEvents(
+        subscription: &readonly AudioEventSubscription,
+    ): Result<AudioEventHandle, HostError>;
 
-/// Close one audio event subscription.
-@binding("destack.audio.event.close", {
-    effect: "external",
-    requires: ["host.audio.event"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeAudioEvents(events: AudioEventHandle): Result<void, HostError>;
+    /// Close one audio event subscription.
+    @binding("destack.audio.event.close", {
+        effect: "external",
+        requires: ["host.audio.event"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeAudioEvents(events: AudioEventHandle): Result<void, HostError>;
 
-/// Read audio events.
-@binding("destack.audio.event.read", {
-    effect: "external",
-    requires: ["host.audio.event"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readAudioEvents(
-    events: AudioEventHandle,
-    maxEvents: uint32,
-    timeoutNs?: uint64,
-): Result<Array<AudioEvent>, HostError>;
+    /// Read audio events.
+    @binding("destack.audio.event.read", {
+        effect: "external",
+        requires: ["host.audio.event"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readAudioEvents(
+        events: AudioEventHandle,
+        maxEvents: uint32,
+        timeoutNs?: uint64,
+    ): Result<Array<AudioEvent>, HostError>;
+}

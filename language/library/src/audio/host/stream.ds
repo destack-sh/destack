@@ -133,153 +133,141 @@ export struct AudioStreamSupport {
     stream: AudioStream;
 }
 
-/// Check whether one audio stream can be opened.
-@binding("destack.audio.stream.support", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function supportAudioStream(
-    request: &readonly AudioStreamRequest,
-): Result<AudioStreamSupport, HostError>;
+/// Stream binding family.
+export interface AudioStream {
+    /// Check whether one audio stream can be opened.
+    @binding("destack.audio.stream.support", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    supportAudioStream(
+        request: &readonly AudioStreamRequest,
+    ): Result<AudioStreamSupport, HostError>;
 
-/// Open one audio stream.
-@binding("destack.audio.stream.open", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openAudioStream(
-    request: &readonly AudioStreamRequest,
-): Result<AudioStreamHandle, HostError>;
+    /// Open one audio stream.
+    @binding("destack.audio.stream.open", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openAudioStream(request: &readonly AudioStreamRequest): Result<AudioStreamHandle, HostError>;
 
-/// Close one audio stream.
-@binding("destack.audio.stream.close", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
+    /// Close one audio stream.
+    @binding("destack.audio.stream.close", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
 
-/// Start one audio stream.
-@binding("destack.audio.stream.start", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function startAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
+    /// Start one audio stream.
+    @binding("destack.audio.stream.start", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    startAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
 
-/// Pause one audio stream.
-@binding("destack.audio.stream.pause", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function pauseAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
+    /// Pause one audio stream.
+    @binding("destack.audio.stream.pause", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    pauseAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
 
-/// Resume one audio stream.
-@binding("destack.audio.stream.resume", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function resumeAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
+    /// Resume one audio stream.
+    @binding("destack.audio.stream.resume", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    resumeAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
 
-/// Stop one audio stream.
-@binding("destack.audio.stream.stop", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function stopAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
+    /// Stop one audio stream.
+    @binding("destack.audio.stream.stop", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    stopAudioStream(stream: AudioStreamHandle): Result<void, HostError>;
 
-/// Drain queued playback data.
-@binding("destack.audio.stream.drain", {
-    effect: "external",
-    requires: ["host.audio.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function drainAudioStream(
-    stream: AudioStreamHandle,
-    timeoutNs?: uint64,
-): Result<void, HostError>;
+    /// Drain queued playback data.
+    @binding("destack.audio.stream.drain", {
+        effect: "external",
+        requires: ["host.audio.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    drainAudioStream(stream: AudioStreamHandle, timeoutNs?: uint64): Result<void, HostError>;
 
-/// Read one opened audio stream state.
-@binding("destack.audio.stream.describe", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function describeAudioStream(
-    stream: AudioStreamHandle,
-): Result<AudioStream, HostError>;
+    /// Read one opened audio stream state.
+    @binding("destack.audio.stream.describe", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    describeAudioStream(stream: AudioStreamHandle): Result<AudioStream, HostError>;
 
-/// Read one stream status sample.
-@binding("destack.audio.stream.status", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function audioStreamStatus(
-    stream: AudioStreamHandle,
-): Result<AudioStreamStatus, HostError>;
+    /// Read one stream status sample.
+    @binding("destack.audio.stream.status", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    audioStreamStatus(stream: AudioStreamHandle): Result<AudioStreamStatus, HostError>;
 
-/// Read buffered capture frames into one buffer.
-@binding("destack.audio.stream.read", {
-    effect: "external",
-    requires: ["host.audio.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readAudioStream(
-    stream: AudioStreamHandle,
-    buffer: &[uint8],
-    timeoutNs?: uint64,
-): Result<uint64, HostError>;
+    /// Read buffered capture frames into one buffer.
+    @binding("destack.audio.stream.read", {
+        effect: "external",
+        requires: ["host.audio.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readAudioStream(
+        stream: AudioStreamHandle,
+        buffer: &[uint8],
+        timeoutNs?: uint64,
+    ): Result<uint64, HostError>;
 
-/// Write buffered playback frames from one buffer.
-@binding("destack.audio.stream.write", {
-    effect: "external",
-    requires: ["host.audio.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeAudioStream(
-    stream: AudioStreamHandle,
-    bytes: &readonly [uint8],
-    timeoutNs?: uint64,
-): Result<uint64, HostError>;
+    /// Write buffered playback frames from one buffer.
+    @binding("destack.audio.stream.write", {
+        effect: "external",
+        requires: ["host.audio.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeAudioStream(
+        stream: AudioStreamHandle,
+        bytes: &readonly [uint8],
+        timeoutNs?: uint64,
+    ): Result<uint64, HostError>;
 
-/// Set one stream gain multiplier.
-@binding("destack.audio.stream.gain", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setAudioStreamGain(
-    stream: AudioStreamHandle,
-    gain: float64,
-): Result<void, HostError>;
+    /// Set one stream gain multiplier.
+    @binding("destack.audio.stream.gain", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setAudioStreamGain(stream: AudioStreamHandle, gain: float64): Result<void, HostError>;
 
-/// Set one stream mute state.
-@binding("destack.audio.stream.mute", {
-    effect: "external",
-    requires: ["host.audio.stream"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setAudioStreamMute(
-    stream: AudioStreamHandle,
-    isMuted: boolean,
-): Result<void, HostError>;
+    /// Set one stream mute state.
+    @binding("destack.audio.stream.mute", {
+        effect: "external",
+        requires: ["host.audio.stream"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setAudioStreamMute(stream: AudioStreamHandle, isMuted: boolean): Result<void, HostError>;
+}
