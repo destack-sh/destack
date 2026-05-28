@@ -1,5 +1,6 @@
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, NodeType, StaticKey, StringId};
 
@@ -40,6 +41,38 @@ impl Symbol {
     pub fn is_generic_parameter(&self) -> bool {
         self.declaration
             .is_some_and(|declaration| declaration.local_id.ty == NodeType::GenericParameter)
+    }
+}
+
+/// Result of looking up one binding symbol.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SymbolLookup {
+    /// No visible symbol matched.
+    Missing,
+    /// Exactly one visible symbol matched.
+    Found(LocalSymbolId),
+    /// More than one visible symbol matched.
+    Ambiguous(SmallVec<[LocalSymbolId; 4]>),
+}
+
+impl SymbolLookup {
+    /// Add one matching symbol.
+    pub fn push(&mut self, symbol: LocalSymbolId) {
+        match self {
+            Self::Missing => {
+                *self = Self::Found(symbol);
+            }
+            Self::Found(first) => {
+                let mut symbols = SmallVec::new();
+                symbols.push(*first);
+                symbols.push(symbol);
+
+                *self = Self::Ambiguous(symbols);
+            }
+            Self::Ambiguous(symbols) => {
+                symbols.push(symbol);
+            }
+        }
     }
 }
 
