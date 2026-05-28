@@ -68,7 +68,11 @@ pub(crate) fn profile_key_for_target(
         .map(|path| path.display().to_string())
         .collect();
     let tree = compiler_options.tree.clone();
-    let derive = compiler_options.derive.clone();
+    let derive = compiler_options
+        .derive
+        .iter()
+        .map(|derive| derive.key().to_string())
+        .collect();
 
     ProfileKey::new(
         emit,

@@ -5,7 +5,7 @@ use destack_artifact::{EmitFormat, Host, Platform, Runtime, TargetAbi, TargetArc
 use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
 
-use crate::{CompilerOptions, CompilerRestrictions, Policy, Stage};
+use crate::{CompilerOptions, CompilerRestrictions, Derive, Policy, Stage};
 
 use super::super::runtime::RuntimeOptions;
 use super::codegen::*;
@@ -36,8 +36,8 @@ pub struct Target {
     pub globals: Vec<PathBuf>,
     /// Target tree tag builder override.
     pub tree: Option<String>,
-    /// Target derive providers.
-    pub derive: Vec<String>,
+    /// Target well-known derives.
+    pub derive: Vec<Derive>,
     /// Static semantic restrictions for this target.
     pub restrictions: CompilerRestrictions,
     /// Glob patterns for files to include (for include-based discovery).
