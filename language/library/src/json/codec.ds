@@ -1,27 +1,27 @@
 import { Result, todo } from "destack:error";
-import { Decoder, Deserialize, Encoder, Serialize } from "destack:serde";
+import { Deserialize, Deserializer, Serialize, Serializer } from "destack:serde";
 
 import { JsonError } from "./error.ds";
 import { JSON } from "./json.ds";
 import { Json } from "./value.ds";
 
 /// JSON encoder.
-export class JsonEncoder implements Encoder {
+export class JsonSerializer implements Serializer {
     /// The encoding error type.
     type Error = JsonError;
 }
 
 /// JSON decoder.
-export class JsonDecoder implements Decoder {
+export class JsonDeserializer implements Deserializer {
     /// The decoding error type.
     type Error = JsonError;
 }
 
 /// Value that can encode itself as JSON.
-export type JsonSerialize = Serialize<JsonEncoder>;
+export type JsonSerialize = Serialize<JsonSerializer>;
 
 /// Value that can be decoded from JSON.
-export type JsonDeserialize = Deserialize<JsonDecoder>;
+export type JsonDeserialize = Deserialize<JsonDeserializer>;
 
 /// Decode typed JSON text.
 export function decode<T: JsonDeserialize>(text: string): Result<T, JsonError> {

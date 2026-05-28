@@ -1,25 +1,78 @@
 import { type Result } from "destack:error";
 
-/// Structured value encoder.
-export newtype interface Encoder {
-    /// The encoding error type.
+/// Structured value serializer.
+@languageItem("serde.Serializer")
+export newtype interface Serializer {
+    /// Serialization error type.
     type Error;
+
+    /// Serialize a null value.
+    serializeNull(this: &exclusive this): Result<void, this.Error>;
+
+    /// Serialize an undefined value.
+    serializeUndefined(this: &exclusive this): Result<void, this.Error>;
+
+    /// Serialize a boolean value.
+    serializeBoolean(this: &exclusive this, value: boolean): Result<void, this.Error>;
+
+    /// Serialize a number value.
+    serializeNumber(this: &exclusive this, value: number): Result<void, this.Error>;
+
+    /// Serialize a string value.
+    serializeString(this: &exclusive this, value: string): Result<void, this.Error>;
+
+    /// Serialize an array value.
+    serializeArray<T: Serialize<this>>(
+        this: &exclusive this,
+        value: readonly T[],
+    ): Result<void, this.Error>;
+
+    /// Serialize an object field.
+    serializeField<T: Serialize<this>>(
+        this: &exclusive this,
+        key: string,
+        value: &readonly T,
+    ): Result<void, this.Error>;
 }
 
-/// Structured value decoder.
-export newtype interface Decoder {
-    /// The decoding error type.
+/// Structured value deserializer.
+@languageItem("serde.Deserializer")
+export newtype interface Deserializer {
+    /// Deserialization error type.
     type Error;
+
+    /// Deserialize a null value.
+    deserializeNull(this: &exclusive this): Result<void, this.Error>;
+
+    /// Deserialize a boolean value.
+    deserializeBoolean(this: &exclusive this): Result<boolean, this.Error>;
+
+    /// Deserialize a number value.
+    deserializeNumber(this: &exclusive this): Result<number, this.Error>;
+
+    /// Deserialize a string value.
+    deserializeString(this: &exclusive this): Result<^string, this.Error>;
+
+    /// Deserialize an array value.
+    deserializeArray<T: Deserialize<this>>(this: &exclusive this): Result<^T[], this.Error>;
+
+    /// Deserialize an object field.
+    deserializeField<T: Deserialize<this>>(
+        this: &exclusive this,
+        key: string,
+    ): Result<T | undefined, this.Error>;
 }
 
-/// Value that can encode itself through `E`.
-export newtype interface Serialize<E: Encoder> {
-    /// Encode this value.
-    serialize(encoder: &exclusive E): Result<void, E.Error>;
+/// Value that can serialize itself through `S`.
+@languageItem("serde.Serialize")
+export newtype interface Serialize<S: Serializer> {
+    /// Serialize this value.
+    serialize(this: &readonly this, serializer: &exclusive S): Result<void, S.Error>;
 }
 
-/// Value that can be decoded through `D`.
-export newtype interface Deserialize<D: Decoder> {
-    /// Decode one value.
-    static deserialize(decoder: &exclusive D): Result<this, D.Error>;
+/// Value that can be deserialized through `D`.
+@languageItem("serde.Deserialize")
+export newtype interface Deserialize<D: Deserializer> {
+    /// Deserialize one value.
+    static deserialize(deserializer: &exclusive D): Result<this, D.Error>;
 }

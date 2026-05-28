@@ -205,7 +205,7 @@ global {
     export { As, Borrow, From, Into, ToOwned, TryFrom, TryInto } from "destack:convert";
 
     // destack:serde
-    export { Decoder, Deserialize, Encoder, Serialize } from "destack:serde";
+    export { Deserialize, Deserializer, Serialize, Serializer } from "destack:serde";
 
     // destack:json
     export {
@@ -492,7 +492,7 @@ global {
     } from "destack:decorator";
 
     // destack:module
-    export { Module } from "destack:module";
+    export { Derive, Module } from "destack:module";
 
     // destack:macro
     export { ExpansionContext, Macro, MacroContext, MaterializationContext } from "destack:macro";

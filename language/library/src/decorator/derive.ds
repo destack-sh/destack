@@ -44,39 +44,3 @@ export extension<Target> of Tagged implements Macro<Target> {
         state: void,
     ): void;
 }
-
-/// Derive `Clone` implementations.
-@languageItem("decorator.Clone")
-export newtype Clone = ();
-
-/// Implement `Clone` as a macro provider.
-export extension<Target> of Clone implements Macro<Target> {
-    @intrinsic
-    static expand(target: Target, context: ExpansionContext, config: this): void;
-
-    @intrinsic
-    static materialize(
-        target: Target,
-        context: MaterializationContext,
-        config: this,
-        state: void,
-    ): void;
-}
-
-/// Derive `Debug` implementations.
-@languageItem("decorator.Debug")
-export newtype Debug = ();
-
-/// Implement `Debug` as a macro provider.
-export extension<Target> of Debug implements Macro<Target> {
-    @intrinsic
-    static expand(target: Target, context: ExpansionContext, config: this): void;
-
-    @intrinsic
-    static materialize(
-        target: Target,
-        context: MaterializationContext,
-        config: this,
-        state: void,
-    ): void;
-}
