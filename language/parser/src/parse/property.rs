@@ -661,7 +661,7 @@ impl Parser {
 
         // reject impossible associated modifiers
         if modifiers.is_some_and(|modifiers| modifiers.is_static) {
-            return Err(ParseError::unexpected(self.peek()?.span));
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         // keyword and name
@@ -2188,7 +2188,7 @@ impl Parser {
         if associated_comptime_name.is_some()
             && modifiers.is_some_and(|modifiers| modifiers.is_static)
         {
-            return Err(ParseError::unexpected(self.get_span_from(&start)));
+            return Err(ParserError::unexpected(self.get_span_from(&start)));
         }
 
         // getters and setters require method form
