@@ -59,11 +59,6 @@ impl LintRule for NoUselessConstructor {
                 continue;
             }
 
-            // keep parameter property style constructors out of this rule
-            if constructor_parameters_have_modifiers(ctx, signature.parameters.as_slice()) {
-                continue;
-            }
-
             // report only empty constructors without parameters or direct super passthroughs
             let is_useless_constructor = (constructor_body_is_empty(ctx, *body_expression_id)
                 && signature.parameters.is_empty())
@@ -161,32 +156,6 @@ fn constructor_body_is_empty(
     let block = ctx.dir.get(*block);
 
     block.is_empty()
-}
-
-/// Return true when one constructor uses parameter modifiers.
-fn constructor_parameters_have_modifiers(
-    ctx: &LintModuleContext<'_>,
-    parameter_ids: &[dir::LocalNodeId<dir::Parameter>],
-) -> bool {
-    parameter_ids.iter().copied().any(|parameter_id| {
-        let parameter = ctx.dir.get(parameter_id);
-        matches!(
-            parameter,
-            dir::Parameter::Named {
-                visibility: Some(_),
-                ..
-            } | dir::Parameter::Named {
-                is_readonly: true,
-                ..
-            } | dir::Parameter::VariadicNamed {
-                visibility: Some(_),
-                ..
-            } | dir::Parameter::VariadicNamed {
-                is_readonly: true,
-                ..
-            }
-        )
-    })
 }
 
 /// Return true when a constructor only forwards parameters to one `super(...)` call.
@@ -471,44 +440,6 @@ class Foo extends Base {
 "#,
         );
         test.result(result).assert_lint("no-useless-constructor");
-    }
-
-    /// Allow parameter property style constructors.
-    #[test]
-    fn test_allows_constructor_with_parameter_modifiers() {
-        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_dir(
-            "no_useless_constructor/test_allows_constructor_with_parameter_modifiers.ds",
-            r#"
-class Base {}
-
-class Foo extends Base {
-    constructor(public value: int32) {
-        super(value);
-    }
-}
-"#,
-        );
-        test.result(result).assert_no_lint("no-useless-constructor");
-    }
-
-    /// Allow readonly parameter property style constructors.
-    #[test]
-    fn test_allows_constructor_with_readonly_parameter_property() {
-        let test = TestProgram::for_rule_without_prelude(NoUselessConstructor);
-        let result = test.lint_dir(
-            "no_useless_constructor/test_allows_constructor_with_readonly_parameter_property.ds",
-            r#"
-class Base {}
-
-class Foo extends Base {
-    constructor(readonly public value: int32) {
-        super(value);
-    }
-}
-"#,
-        );
-        test.result(result).assert_no_lint("no-useless-constructor");
     }
 
     /// Suggest removal instead of claiming a safe fix.

@@ -271,12 +271,12 @@ function run(value: int32): int32 {
             .assert_no_lint("no-parameter-reassignment");
     }
 
-    /// Allow writing through parameter properties by default.
+    /// Allow writes through objects passed as parameters.
     #[test]
-    fn test_allows_parameter_property_write() {
+    fn test_allows_parameter_object_write() {
         let test = TestProgram::for_rule_without_prelude(NoParameterReassignment);
         let result = test.lint_dir(
-            "no_parameter_reassignment/test_allows_parameter_property_write.ds",
+            "no_parameter_reassignment/test_allows_parameter_object_write.ds",
             r#"
 function run(values: int32[]): int32 {
     values[0] = 1;

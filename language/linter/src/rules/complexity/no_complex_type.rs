@@ -405,9 +405,8 @@ fn type_expression_complexity_inner(
         TypeExpression::ScalarLiteral { value: _ }
         | TypeExpression::Literal { .. }
         | TypeExpression::Intrinsic
-        | TypeExpression::Declaration { .. }
-        | TypeExpression::FunctionTypeDeclaration(_)
-        | TypeExpression::ConstructorTypeDeclaration(_)
+        | TypeExpression::Function(_)
+        | TypeExpression::Constructor(_)
         | TypeExpression::Reference { .. }
         | TypeExpression::Const
         | TypeExpression::This

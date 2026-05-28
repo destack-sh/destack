@@ -231,8 +231,6 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         let parameter_id = declaration.signature.parameters[0];
         let parameter = self.ctx.dir.get(parameter_id);
         let dir::Parameter::Named {
-            visibility: None,
-            is_readonly: false,
             is_optional: false,
             name,
             default: None,

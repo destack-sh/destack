@@ -2214,9 +2214,8 @@ pub fn type_expression_has_side_effects(
         | dir::TypeExpression::Slice { .. }
         | dir::TypeExpression::FixedArray { .. }
         | dir::TypeExpression::Object { .. }
-        | dir::TypeExpression::Declaration { .. }
-        | dir::TypeExpression::FunctionTypeDeclaration(_)
-        | dir::TypeExpression::ConstructorTypeDeclaration(_)
+        | dir::TypeExpression::Function(_)
+        | dir::TypeExpression::Constructor(_)
         | dir::TypeExpression::Reference { .. }
         | dir::TypeExpression::Infer { .. }
         | dir::TypeExpression::Predicate { .. } => false,
@@ -2235,11 +2234,13 @@ pub fn type_expression_has_side_effects(
                     let argument = ctx.dir.get(*argument_id);
                     match argument {
                         dir::GenericArgument::Type { value }
-                        | dir::GenericArgument::SpreadType { value } => {
+                        | dir::GenericArgument::SpreadType { value }
+                        | dir::GenericArgument::AssociatedType { value, .. } => {
                             type_expression_has_side_effects(ctx, *value)
                         }
                         dir::GenericArgument::Value { value }
-                        | dir::GenericArgument::SpreadValue { value } => {
+                        | dir::GenericArgument::SpreadValue { value }
+                        | dir::GenericArgument::AssociatedConst { value, .. } => {
                             expression_has_side_effects(ctx, *value)
                         }
                         dir::GenericArgument::Error => true,

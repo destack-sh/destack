@@ -7,8 +7,8 @@ use std::sync::{Arc, LazyLock, Once};
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPathState,
     ArtifactPayload, ArtifactProvider, ArtifactSidecar, ArtifactVersion, DiagnosticAnchor,
-    DiagnosticContext, DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile, EmitFormat,
-    Host, MemoryCacheStore, Platform, ProfileFlags, ProfileKey, Runtime, ToDiagnostic,
+    DiagnosticContext, DiagnosticDisplay, DiagnosticError, DirParsed, DirParsedFile,
+    MemoryCacheStore, ToDiagnostic,
 };
 use destack_compiler::Compiler;
 use destack_core::StringPool;
@@ -21,8 +21,8 @@ use destack_session::open_repository_from_fs;
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, Edit as SourceEdit,
     File, FileContentId, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
-    OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, Uri, print_diagnostics,
-    print_diff,
+    OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
+    print_diagnostics, print_diff,
 };
 use destack_workspace::{
     DestackLayoutOverride, Edit as RepositoryEdit, Environment, LintCategory, LintSeverity,
@@ -240,7 +240,7 @@ fn parse_code_dir(
         file.clone(),
         language_type,
         ParserOptions::default(),
-        Arc::new(StringPool::new()),
+        Arc::clone(compiler.repository.string_pool()),
     );
     let expressions = parser.parse();
     context.emit_diagnostics(parser.diagnostics());
@@ -752,31 +752,26 @@ impl TestProgram {
             .with_cache(TEST_CACHE_STORE.clone()),
         );
 
-        // libs
-        let libs = explicit_libs.unwrap_or_else(|| collect_required_libs_from_rules(&rules));
-
         // profile
-        let profile_key = ProfileKey::new(
-            EmitFormat::Js,
-            Runtime::Js,
-            Platform::Unknown,
-            Host::Browser,
-            None,
-            None,
-            None,
-            libs,
-            None,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            None,
-            None,
-            environment.key_all(),
-            ProfileFlags::default(),
-        );
-        let profile = Profile::from_key(profile_key);
+        let _libs = explicit_libs.unwrap_or_else(|| collect_required_libs_from_rules(&rules));
+        let reference = Ref::for_workspace_root(repository.workspace_root());
+        let revision = repository
+            .current(&reference)
+            .expect("linter test repository should publish a workspace revision");
+        let mut package_ids = repository
+            .package_ids(revision)
+            .expect("linter test repository packages should load");
+        package_ids.sort_unstable();
+        let package_id = *package_ids
+            .first()
+            .expect("linter tests should have one active package");
+        let target_id = TargetId::new(package_id, "js");
+        let profile = repository
+            .target_profile(revision, target_id)
+            .expect("linter test target profile should load")
+            .expect("linter test target profile should exist")
+            .as_ref()
+            .clone();
 
         // compiler and runner
         let compiler = Arc::new(Compiler::new(repository.clone()));
@@ -1536,7 +1531,7 @@ impl<'a> LintResult<'a> {
 
         // if parsing fails, return original source
         if parser
-            .diagnostics
+            .diagnostics()
             .has_diagnostics_of_severity(DiagnosticSeverity::Error)
         {
             return source.to_string();

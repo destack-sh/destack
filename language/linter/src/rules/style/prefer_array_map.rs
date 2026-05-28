@@ -167,8 +167,6 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         // keep one plain named callback parameter
         let parameter = self.ctx.dir.get(declaration.signature.parameters[0]);
         let dir::Parameter::Named {
-            visibility: None,
-            is_readonly: false,
             is_optional: false,
             name,
             default: None,

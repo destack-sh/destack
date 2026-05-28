@@ -23,12 +23,10 @@ mod no_overlapping_match_arms;
 mod no_promise_executor_return;
 mod no_self_compare;
 mod no_struct_identity_compare;
-mod no_throw_in_result_function;
 mod no_unknown_rule_decorator;
 mod no_unnecessary_condition;
 mod no_unnecessary_type_arguments;
 mod no_unnecessary_type_assertion;
-mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod no_unused_imports;
 mod no_unused_parameters;
@@ -67,12 +65,10 @@ pub use no_overlapping_match_arms::*;
 pub use no_promise_executor_return::*;
 pub use no_self_compare::*;
 pub use no_struct_identity_compare::*;
-pub use no_throw_in_result_function::*;
 pub use no_unknown_rule_decorator::*;
 pub use no_unnecessary_condition::*;
 pub use no_unnecessary_type_arguments::*;
 pub use no_unnecessary_type_assertion::*;
-pub use no_unsafe_finally::*;
 pub use no_unsafe_negation::*;
 pub use no_unused_imports::*;
 pub use no_unused_parameters::*;
@@ -112,9 +108,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoPromiseExecutorReturn),
         boxed(NoSelfCompare),
         boxed(NoStructIdentityCompare),
-        boxed(NoThrowInResultFunction),
         boxed(NoUnknownRuleDecorator),
-        boxed(NoUnsafeFinally),
         boxed(NoUnsafeNegation),
         boxed(NoUnusedImports),
         boxed(NoUnusedParameters),

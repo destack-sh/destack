@@ -140,10 +140,10 @@ pub fn collect_pattern_value_binding_symbols(
             collect_pattern_value_binding_symbols(tree, symbols, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
-        | dir::Pattern::TaggedTuple { fields, .. }
+        | dir::Pattern::Newtype { fields, .. }
         | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
-        | dir::Pattern::TaggedObject { fields, .. } => {
+        | dir::Pattern::NominalObject { fields, .. } => {
             for field_id in fields {
                 collect_pattern_field_value_binding_symbols(tree, symbols, *field_id, bindings);
             }
