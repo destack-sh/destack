@@ -1,6 +1,6 @@
 import { type Expression, type StaticExpression } from "./expression.ds";
 import { type Name } from "./key.ds";
-import { type Mutability, type Node, type Visibility } from "./node.ds";
+import { type Node } from "./node.ds";
 import { type Pattern } from "./pattern.ds";
 import { type Symbol } from "./symbol.ds";
 import { type TypeExpression } from "./type-expression.ds";
@@ -125,10 +125,6 @@ export interface NamedParameter extends Node {
     kind: "named";
     /// The parameter name.
     name: string;
-    /// The parameter visibility when present.
-    visibility?: Visibility;
-    /// Whether the parameter is readonly.
-    isReadonly: boolean;
     /// Whether the parameter is optional.
     isOptional: boolean;
     /// Whether the parameter must be a static call-site argument.
@@ -169,10 +165,6 @@ export interface VariadicNamedParameter extends Node {
     kind: "variadicNamed";
     /// The parameter name.
     name: string;
-    /// The parameter visibility when present.
-    visibility?: Visibility;
-    /// Whether the parameter is readonly.
-    isReadonly: boolean;
     /// Whether the parameter must be a static call-site argument.
     isComptime: boolean;
     /// The declared type when present.
@@ -213,6 +205,8 @@ export type GenericArgument =
     | SpreadTypeGenericArgument
     | ValueGenericArgument
     | SpreadValueGenericArgument
+    | AssociatedTypeGenericArgument
+    | AssociatedConstGenericArgument
     | ErrorGenericArgument;
 
 /// Type generic argument.
@@ -252,6 +246,30 @@ export interface SpreadValueGenericArgument extends Node {
     /// The argument kind.
     kind: "spreadValue";
     /// The spread value argument.
+    value: Expression;
+}
+
+/// Associated type refinement generic argument.
+export interface AssociatedTypeGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "associatedType";
+    /// The associated type name.
+    name: string;
+    /// The associated type value.
+    value: TypeExpression;
+}
+
+/// Associated constant refinement generic argument.
+export interface AssociatedConstGenericArgument extends Node {
+    /// The node kind.
+    nodeKind: "genericArgument";
+    /// The argument kind.
+    kind: "associatedConst";
+    /// The associated constant name.
+    name: string;
+    /// The associated constant value.
     value: Expression;
 }
 
