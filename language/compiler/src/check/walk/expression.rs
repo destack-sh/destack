@@ -969,29 +969,21 @@ impl CheckState<'_> {
                 }
             }
             // new Type<T>(argument)
-            dir::Expression::New {
-                left,
-                generic_arguments,
-                arguments,
-            } => {
-                let callee = self.intern_local_type_variable(tree.module_id, *left);
-                let generic_argument_terms = self.build_generic_arguments(generic_arguments, tree);
+            dir::Expression::New { ty, arguments } => {
+                let callee = self.intern_local_type_variable(tree.module_id, *ty);
                 let argument_types = self.argument_value_type_variables(arguments, tree);
                 let construct = self.terms.push(ConstructTerm {
                     source: id.into_global_any(tree.module_id),
                     callee,
-                    generic_arguments: generic_argument_terms,
+                    generic_arguments: Default::default(),
                     arguments: argument_types.into_iter().map(TypeOperand::from).collect(),
                 });
                 let term = TypeTerm::Construct(construct);
 
                 self.define_expression_type(tree.module_id, id, term);
-                self.walk_expression(tree, *left, tree.get(*left));
+                self.walk_type_expression(tree, *ty, tree.get(*ty));
 
                 // arguments
-                for argument in generic_arguments {
-                    self.walk_generic_argument(tree, *argument, tree.get(*argument));
-                }
                 for argument in arguments {
                     self.walk_argument(tree, *argument, tree.get(*argument));
                 }
