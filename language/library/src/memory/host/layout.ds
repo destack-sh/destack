@@ -10,11 +10,14 @@ export struct VirtualMemoryLayout {
     largePageSizeBytes?: uint64;
 }
 
-/// Read virtual memory layout constraints.
-@binding("destack.memory.layout.read", {
-    effect: "external",
-    requires: ["host.memory.layout.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readVirtualMemoryLayout(): Result<VirtualMemoryLayout, HostError>;
+/// Layout binding family.
+export interface MemoryLayout {
+    /// Read virtual memory layout constraints.
+    @binding("destack.memory.layout.read", {
+        effect: "external",
+        requires: ["host.memory.layout.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readVirtualMemoryLayout(): Result<VirtualMemoryLayout, HostError>;
+}

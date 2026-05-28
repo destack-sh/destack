@@ -1,5 +1,26 @@
+import { MemoryAdvise } from "./advise.ds";
+import { MemoryLayout } from "./layout.ds";
+import { MemoryLock } from "./lock.ds";
+import { MemoryMap } from "./map.ds";
+import { MemoryVirtual } from "./virtual.ds";
+
+export * from "./advise.ds";
+export * from "./layout.ds";
+export * from "./lock.ds";
 export * from "./map.ds";
 export * from "./virtual.ds";
-export * from "./advise.ds";
-export * from "./lock.ds";
-export * from "./layout.ds";
+
+/// Memory binding family.
+@languageItem("memory.Memory")
+export interface Memory {
+    /// Advise bindings.
+    readonly advise: MemoryAdvise;
+    /// Layout bindings.
+    readonly layout: MemoryLayout;
+    /// Lock bindings.
+    readonly lock: MemoryLock;
+    /// Map bindings.
+    readonly map: MemoryMap;
+    /// Virtual bindings.
+    readonly virtual: MemoryVirtual;
+}

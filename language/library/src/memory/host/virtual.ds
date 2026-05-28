@@ -38,66 +38,69 @@ export const VIRTUAL_MEMORY_RESERVE_TOP_DOWN: VirtualMemoryReserveFlags =
 export const VIRTUAL_MEMORY_RESERVE_NO_RESERVE: VirtualMemoryReserveFlags =
     VirtualMemoryReserveFlags(0x2);
 
-/// Reserve one virtual memory range.
-@binding("destack.memory.virtual.reserve", {
-    effect: "external",
-    requires: ["host.memory.virtual"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function reserveVirtualMemory(
-    length: uint64,
-    flags: VirtualMemoryReserveFlags,
-    addressHint?: uint64,
-): Result<VirtualMemoryRange, HostError>;
+/// Virtual binding family.
+export interface MemoryVirtual {
+    /// Reserve one virtual memory range.
+    @binding("destack.memory.virtual.reserve", {
+        effect: "external",
+        requires: ["host.memory.virtual"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    reserveVirtualMemory(
+        length: uint64,
+        flags: VirtualMemoryReserveFlags,
+        addressHint?: uint64,
+    ): Result<VirtualMemoryRange, HostError>;
 
-/// Commit physical backing for one reserved virtual memory range.
-@binding("destack.memory.virtual.commit", {
-    effect: "external",
-    requires: ["host.memory.virtual"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function commitVirtualMemory(
-    range: VirtualMemoryRange,
-    protection: MemoryProtection,
-): Result<void, HostError>;
+    /// Commit physical backing for one reserved virtual memory range.
+    @binding("destack.memory.virtual.commit", {
+        effect: "external",
+        requires: ["host.memory.virtual"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    commitVirtualMemory(
+        range: VirtualMemoryRange,
+        protection: MemoryProtection,
+    ): Result<void, HostError>;
 
-/// Decommit physical backing from one virtual memory range.
-@binding("destack.memory.virtual.decommit", {
-    effect: "external",
-    requires: ["host.memory.virtual"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function decommitVirtualMemory(range: VirtualMemoryRange): Result<void, HostError>;
+    /// Decommit physical backing from one virtual memory range.
+    @binding("destack.memory.virtual.decommit", {
+        effect: "external",
+        requires: ["host.memory.virtual"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    decommitVirtualMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
-/// Release one reserved virtual memory range.
-@binding("destack.memory.virtual.release", {
-    effect: "external",
-    requires: ["host.memory.virtual"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function releaseVirtualMemory(range: VirtualMemoryRange): Result<void, HostError>;
+    /// Release one reserved virtual memory range.
+    @binding("destack.memory.virtual.release", {
+        effect: "external",
+        requires: ["host.memory.virtual"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    releaseVirtualMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
-/// Change virtual memory protection for one range.
-@binding("destack.memory.virtual.protect", {
-    effect: "external",
-    requires: ["host.memory.virtual"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function protectVirtualMemory(
-    range: VirtualMemoryRange,
-    protection: MemoryProtection,
-): Result<void, HostError>;
+    /// Change virtual memory protection for one range.
+    @binding("destack.memory.virtual.protect", {
+        effect: "external",
+        requires: ["host.memory.virtual"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    protectVirtualMemory(
+        range: VirtualMemoryRange,
+        protection: MemoryProtection,
+    ): Result<void, HostError>;
 
-/// Flush instruction cache for one executable memory range.
-@binding("destack.memory.virtual.instructionCache.flush", {
-    effect: "external",
-    requires: ["host.memory.execute"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function flushInstructionCache(range: VirtualMemoryRange): Result<void, HostError>;
+    /// Flush instruction cache for one executable memory range.
+    @binding("destack.memory.virtual.instructionCache.flush", {
+        effect: "external",
+        requires: ["host.memory.execute"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    flushInstructionCache(range: VirtualMemoryRange): Result<void, HostError>;
+}
