@@ -1,4 +1,3 @@
-#![allow(incomplete_features)]
 #![allow(
     clippy::approx_constant,
     clippy::arc_with_non_send_sync,
