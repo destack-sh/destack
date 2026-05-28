@@ -63,8 +63,8 @@ pub enum Pattern {
     Tuple {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Tagged tuple pattern (like `Result.Success(_)` or `Point(x, y)`).
-    TaggedTuple {
+    /// Newtype wrapper pattern (like `T(1)`).
+    Newtype {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
@@ -76,8 +76,8 @@ pub enum Pattern {
     Object {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Tagged object pattern (like `Vector2 { x: 0, y, z: zed }`).
-    TaggedObject {
+    /// Nominal object pattern (like `T { x, y }`).
+    NominalObject {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },

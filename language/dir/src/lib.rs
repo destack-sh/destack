@@ -1,5 +1,4 @@
 #![feature(default_field_values)]
-#![feature(str_as_str)]
 
 mod source;
 mod symbol;
