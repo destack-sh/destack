@@ -1,10 +1,13 @@
 import { HostError } from "destack:error/host";
 
-/// Set process file-creation umask and return the previous value.
-@binding("destack.process.umask", {
-    effect: "external",
-    requires: ["host.process.umask"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function umask(mask: uint32): Result<uint32, HostError>;
+/// Umask binding family.
+export interface ProcessUmask {
+    /// Set process file-creation umask and return the previous value.
+    @binding("destack.process.umask", {
+        effect: "external",
+        requires: ["host.process.umask"],
+        families: ["unix"],
+        simulation: true,
+    })
+    umask(mask: uint32): Result<uint32, HostError>;
+}

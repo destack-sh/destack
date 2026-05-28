@@ -1,11 +1,14 @@
 import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
-/// Return the process argument vector.
-@binding("destack.process.argument.list", {
-    effect: "external",
-    requires: ["host.process.arguments"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listArguments(): Result<Array<^string>, HostError>;
+/// Argument binding family.
+export interface ProcessArgument {
+    /// Return the process argument vector.
+    @binding("destack.process.argument.list", {
+        effect: "external",
+        requires: ["host.process.arguments"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listArguments(): Result<Array<^string>, HostError>;
+}

@@ -30,148 +30,149 @@ export struct ProcessGroupIds {
     saved: GroupId;
 }
 
-/// Return the current process id.
-@binding("destack.process.identity.pid", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getProcessId(): Result<ProcessId, HostError>;
+/// Identity binding family.
+export interface ProcessIdentity {
+    /// Return the current process id.
+    @binding("destack.process.identity.pid", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    getProcessId(): Result<ProcessId, HostError>;
 
-/// Return the parent process id.
-@binding("destack.process.identity.parentPid", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getParentProcessId(): Result<ProcessId, HostError>;
+    /// Return the parent process id.
+    @binding("destack.process.identity.parentPid", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    getParentProcessId(): Result<ProcessId, HostError>;
 
-/// Return the current user identifier.
-@binding("destack.process.identity.uid", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getUid(): Result<UserId, HostError>;
+    /// Return the current user identifier.
+    @binding("destack.process.identity.uid", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getUid(): Result<UserId, HostError>;
 
-/// Return the current group identifier.
-@binding("destack.process.identity.gid", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getGid(): Result<GroupId, HostError>;
+    /// Return the current group identifier.
+    @binding("destack.process.identity.gid", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getGid(): Result<GroupId, HostError>;
 
-/// Return the effective user identifier.
-@binding("destack.process.identity.euid", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getEffectiveUid(): Result<UserId, HostError>;
+    /// Return the effective user identifier.
+    @binding("destack.process.identity.euid", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getEffectiveUid(): Result<UserId, HostError>;
 
-/// Return the effective group identifier.
-@binding("destack.process.identity.egid", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getEffectiveGid(): Result<GroupId, HostError>;
+    /// Return the effective group identifier.
+    @binding("destack.process.identity.egid", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getEffectiveGid(): Result<GroupId, HostError>;
 
-/// Return real, effective, and saved-set user identifiers.
-@binding("destack.process.identity.userIds", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getUserIds(): Result<ProcessUserIds, HostError>;
+    /// Return real, effective, and saved-set user identifiers.
+    @binding("destack.process.identity.userIds", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getUserIds(): Result<ProcessUserIds, HostError>;
 
-/// Return real, effective, and saved-set group identifiers.
-@binding("destack.process.identity.groupIds", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getGroupIds(): Result<ProcessGroupIds, HostError>;
+    /// Return real, effective, and saved-set group identifiers.
+    @binding("destack.process.identity.groupIds", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getGroupIds(): Result<ProcessGroupIds, HostError>;
 
-/// Set the user identifier through host `setuid` behavior.
-@binding("destack.process.identity.setUid", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setUid(userId: UserId): Result<void, HostError>;
+    /// Set the user identifier through host `setuid` behavior.
+    @binding("destack.process.identity.setUid", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setUid(userId: UserId): Result<void, HostError>;
 
-/// Set the effective user identifier only.
-@binding("destack.process.identity.setEuid", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setEffectiveUid(userId: UserId): Result<void, HostError>;
+    /// Set the effective user identifier only.
+    @binding("destack.process.identity.setEuid", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setEffectiveUid(userId: UserId): Result<void, HostError>;
 
-/// Set the group identifier through host `setgid` behavior.
-@binding("destack.process.identity.setGid", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setGid(groupId: GroupId): Result<void, HostError>;
+    /// Set the group identifier through host `setgid` behavior.
+    @binding("destack.process.identity.setGid", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setGid(groupId: GroupId): Result<void, HostError>;
 
-/// Set the effective group identifier only.
-@binding("destack.process.identity.setEgid", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setEffectiveGid(groupId: GroupId): Result<void, HostError>;
+    /// Set the effective group identifier only.
+    @binding("destack.process.identity.setEgid", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setEffectiveGid(groupId: GroupId): Result<void, HostError>;
 
-/// Set real, effective, and saved-set user identifiers together.
-@binding("destack.process.identity.setUserIds", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setUserIds(ids: ProcessUserIds): Result<void, HostError>;
+    /// Set real, effective, and saved-set user identifiers together.
+    @binding("destack.process.identity.setUserIds", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setUserIds(ids: ProcessUserIds): Result<void, HostError>;
 
-/// Set real, effective, and saved-set group identifiers together.
-@binding("destack.process.identity.setGroupIds", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setGroupIds(ids: ProcessGroupIds): Result<void, HostError>;
+    /// Set real, effective, and saved-set group identifiers together.
+    @binding("destack.process.identity.setGroupIds", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setGroupIds(ids: ProcessGroupIds): Result<void, HostError>;
 
-/// Return supplementary group identifiers.
-@binding("destack.process.identity.groups", {
-    effect: "external",
-    requires: ["host.process.identity.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function listSupplementaryGroups(): Result<Array<GroupId>, HostError>;
+    /// Return supplementary group identifiers.
+    @binding("destack.process.identity.groups", {
+        effect: "external",
+        requires: ["host.process.identity.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    listSupplementaryGroups(): Result<Array<GroupId>, HostError>;
 
-/// Set supplementary group identifiers.
-@binding("destack.process.identity.setGroups", {
-    effect: "external",
-    requires: ["host.process.identity.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setSupplementaryGroups(
-    groups: &readonly [GroupId],
-): Result<void, HostError>;
+    /// Set supplementary group identifiers.
+    @binding("destack.process.identity.setGroups", {
+        effect: "external",
+        requires: ["host.process.identity.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setSupplementaryGroups(groups: &readonly [GroupId]): Result<void, HostError>;
+}

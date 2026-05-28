@@ -2,29 +2,32 @@ import { HostError } from "destack:error/host";
 
 import { ProcessId } from "./identity.ds";
 
-/// Create a new Unix session and return the session leader id.
-@binding("destack.process.session.create", {
-    effect: "external",
-    requires: ["host.process.session"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function createSession(): Result<ProcessId, HostError>;
+/// Session binding family.
+export interface ProcessSession {
+    /// Create a new Unix session and return the session leader id.
+    @binding("destack.process.session.create", {
+        effect: "external",
+        requires: ["host.process.session"],
+        families: ["unix"],
+        simulation: true,
+    })
+    createSession(): Result<ProcessId, HostError>;
 
-/// Set the process group id for one Unix process.
-@binding("destack.process.session.setGroup", {
-    effect: "external",
-    requires: ["host.process.session"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setProcessGroup(pid: ProcessId, group: ProcessId): Result<void, HostError>;
+    /// Set the process group id for one Unix process.
+    @binding("destack.process.session.setGroup", {
+        effect: "external",
+        requires: ["host.process.session"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setProcessGroup(pid: ProcessId, group: ProcessId): Result<void, HostError>;
 
-/// Read the process group id for one Unix process.
-@binding("destack.process.session.group", {
-    effect: "external",
-    requires: ["host.process.session"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getProcessGroup(pid: ProcessId): Result<ProcessId, HostError>;
+    /// Read the process group id for one Unix process.
+    @binding("destack.process.session.group", {
+        effect: "external",
+        requires: ["host.process.session"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getProcessGroup(pid: ProcessId): Result<ProcessId, HostError>;
+}

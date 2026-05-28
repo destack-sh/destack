@@ -122,13 +122,14 @@ export struct ProcessSpawnOptions {
     flags: ProcessSpawnFlags;
 }
 
-/// Spawn a child process.
-@binding("destack.process.spawn", {
-    effect: "external",
-    requires: ["host.process.spawn"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function spawn(
-    options: &readonly ProcessSpawnOptions,
-): Result<ProcessHandle, HostError>;
+/// Spawn binding family.
+export interface ProcessSpawn {
+    /// Spawn a child process.
+    @binding("destack.process.spawn", {
+        effect: "external",
+        requires: ["host.process.spawn"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    spawn(options: &readonly ProcessSpawnOptions): Result<ProcessHandle, HostError>;
+}

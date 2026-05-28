@@ -17,41 +17,44 @@ export enum CgroupController {
     Cpuset = 4,
 }
 
-/// Join one Linux control group.
-@binding("destack.process.cgroup.join", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.cgroup.write"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function joinCgroup(path: &readonly CgroupPath): Result<void, HostError>;
+/// Cgroup binding family.
+export interface ProcessCgroup {
+    /// Join one Linux control group.
+    @binding("destack.process.cgroup.join", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.cgroup.write"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    joinCgroup(path: &readonly CgroupPath): Result<void, HostError>;
 
-/// Read one Linux cgroup v2 control file.
-@binding("destack.process.cgroup.read", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.cgroup.read"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function readCgroup(
-    path: &readonly CgroupPath,
-    controller: CgroupController,
-    file: &readonly string,
-): Result<^string, HostError>;
+    /// Read one Linux cgroup v2 control file.
+    @binding("destack.process.cgroup.read", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.cgroup.read"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    readCgroup(
+        path: &readonly CgroupPath,
+        controller: CgroupController,
+        file: &readonly string,
+    ): Result<^string, HostError>;
 
-/// Write one Linux cgroup v2 control file.
-@binding("destack.process.cgroup.write", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.cgroup.write"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function writeCgroup(
-    path: &readonly CgroupPath,
-    controller: CgroupController,
-    file: &readonly string,
-    value: &readonly string,
-): Result<void, HostError>;
+    /// Write one Linux cgroup v2 control file.
+    @binding("destack.process.cgroup.write", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.cgroup.write"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    writeCgroup(
+        path: &readonly CgroupPath,
+        controller: CgroupController,
+        file: &readonly string,
+        value: &readonly string,
+    ): Result<void, HostError>;
+}
