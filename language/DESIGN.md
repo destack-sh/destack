@@ -114,17 +114,14 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 
 ### Primitives
 
-TypeScript inherits its primitive types from JavaScript: `object`, `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
-Destack provides a more complete primitive type system:
-
+Destack is based on TypeScript, and TypeScript inherits its main primitive types from JavaScript: `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
+It should be noted that `string` and `bigint` are not really special in Destack, they are just aliases to the standard library `String` and `BigInt` classes, respectively.
+We forbid imprecise top types like `object` and `any`, and provide additional precise primitive types:
 - precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`)
 - pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
 - `int` and `uint` as aliases to `int64` and `uint64`
 - `number` as an alias for `float`, and `float` as an alias to `float64`
 - `char` as a single Unicode scalar value, distinct from `string`
-- `unknown` as the explicit top type
-- `never` as the explicit bottom type
-- no `any`
 
 Following the spirit of TypeScript's widening rules, numeric literals start as exact values and can flow into any numeric type that can represent them.
 When no specific numeric context fits, the literals widen as usual to plain `number` (i.e. `float64`).
@@ -149,7 +146,7 @@ const input: unknown = readInput();
 
 ### Intervals
 
-Ranges in type position define an interval type over bounded sets like `int`, `bigint`, or `char`; basically, an interval type is a static subset of its scalar type.
+Ranges in type position become an interval type over _bounded_ sets like `int`, `bigint`, or `char`; basically, an interval type is a static subset of its scalar type (e.g., `1..4` in type position is equivalent to `1 | 2 | 3 | 4`).
 Assignments to interval-typed places must already have an interval-compatible type - the compiler does _not_ prove arithmetic expressions stay inside intervals and we do not insert implicit runtime checks for interval assignments.
 
 ```ds
@@ -181,6 +178,9 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
     storage: [T; N];
 }
 ```
+
+Because interval types require are basically just aliases to union types, they are _bounded_ sets, and floating point numbers cannot participate. 
+(It would not make sense to have `0.0..1.0` since that would be inviting a whole new class of refinement types that we wanted to avoid in favor of more explicit and flexible nominality.)
 
 ### Newtypes
 
@@ -404,7 +404,7 @@ let x: Point = _ { x, y };  // OK
 ### Classes
 
 Classes follow the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
-Also, class fields require every instance field to be initialized by its declaration, a parameter property, or every constructor path.
+Also, class fields require every instance field to be initialized by its declaration or every constructor path.
 (Optional fields do not need eager initialization, they default to `undefined`.)
 
 ```ds
@@ -731,13 +731,20 @@ interface RegisterBlock {
 }
 ```
 
-Associated members participate in the same static evaluation world, and so associated members can express dependent types and values.
+Associated members participate in the same static evaluation / inference world, and so associated members can express dependent types and values that are dependent on others (including inferred!).
 
 ```ds
 interface Matrix<Row> {
     comptime const Width: uint = Row extends string ? 8 : 4;
     type Bytes = [uint8; this.Width];
 }
+```
+
+Associated members (both types and constants) can be refined explicitly at application sites whenever an erased or constrained value needs a concrete associated surface with `type Name = T` for types and `comptime Name = value` for constants.
+
+```ds
+declare function read<I: Iterator<type Item = uint8>>(iter: I): Option<uint8>;
+declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16];
 ```
 
 ### Constraints
@@ -874,8 +881,10 @@ struct LoggerFor {
 }
 ```
 
-In general, transparent constraints give the checker room to specialize ordinary TypeScript-looking code, while value declarations, runtime joins, and `Dynamic<T>` are the points where the program asks for a stable representation.
-Associated members of an erased value must be fixed by the erased constraint itself; otherwise the value must remain generic.
+For a type `T` to become concrete (as required by `Dynamic<T>`), it must have a form we can actually build a concrete type for - basically, the `T` in our `Dynamic<T>` must be "dynamic compatible", which is very similar to Rust's "object-safe" requirements for `dyn T`:
+ - no generic members that introduce new generic parameters
+ - no index signatures
+ - no unqualified reference to `this`
 
 ### Representation
 
@@ -1119,7 +1128,8 @@ let value! = maybe else {
 };
 ```
 
-It should be noted that unlike with construction (`{ ... }` for objects, `T { ...}` for structs, `new T(...)` for classes), the pattern _desconstruction_ unifies structs and classes into a single nominal object pattern (`T { ... }`).
+It should be noted that unlike with construction (`{ ... }` for objects, `T { ... }` for structs, `new T(...)` for classes), the pattern destructuring unifies structs and classes into a single nominal object pattern (`T { ... }`).
+Admittedly, this is a little suboptimal since it's not perfectly symmetrical, but we couldn't think of a more reasonably syntax that's not also more ambiguous or "magic".
 
 ```ds
 class User {
@@ -1417,7 +1427,8 @@ Readonly fields only need, well, reads, so they can widen through ordinary impli
 However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike` would be rejected because writing through `PointLike` would no longer be correct (it would have to implicitly widen, but it doesn't and cannot know that!).
 
 Index signatures also work, and dispatch through the `Index` / `IndexSet` operator interfaces.
-`Record<string, T>` can satisfy this with map lookup, and custom types can satisfy it by implementing the corresponding index protocols (trivially satisfiable by including a builtin map-able type).
+Readonly index signatures require `Index<K>`, mutable index signatures require both `Index<K>` and `IndexSet<K, V>`.
+Object literals can satisfy finite readonly index signatures from their known fields, while dynamic records and custom types satisfy them by implementing the operator interfaces.
 
 ```ds
 interface Bag<T> {
@@ -1455,9 +1466,9 @@ function writeAll(sink: TcpStream | MemoryBuffer, chunk: [byte]) {
 
 ### Errors
 
-Banishing exceptions is Destack's biggest divergence from TypeScript: Destack uses **Result-first error handling** exclusively, and throwing exceptions is not allowed in any native Destack code.
-Recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be opened with `?`, `??`, and postfix `!`.
-(JavaScript exceptions remain valid _syntax_ because we need to integrate with JS targets directly, but in regular userland, exceptions are basically forbidden.)
+Banishing exceptions is Destack's most noticable divergence from TypeScript: Destack uses **Result-first error handling** exclusively, and throwing exceptions is not allowed in any native Destack code.
+Recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be propagated with `?`, `??`, and force-unwrapped postfix `!`.
+(JavaScript exceptions remain valid _syntax_ because we need to integrate with JS targets directly, but in regular userland, exceptions are forbidden.)
 
 #### Error
 
@@ -1539,7 +1550,7 @@ declare const x: Result<T | null | undefined, E | null | undefined> | null | und
 
 // x?
 // -> success: T
-// -> failure: E | null | undefined
+// -> failure (propagated): E | null | undefined
 ```
 
 Nullish values on the failure side remain in the failure side.
@@ -1562,8 +1573,8 @@ function readConfig(path: string): Result<Config, IOError | ParseError> {
 }
 ```
 
-The try-coalesce operator `??` accepts the same shape locally "within" the expression giiven a direct fallback instead of letting it bubble up.
-The result of `Result<T, E> ?? F` is the non-nullish opened success type joined with the fallback type `T | F`.
+The try-coalesce operator `??` accepts the same shape locally "within" the expression with a direct fallback instead of letting it bubble up to the container as with `?`.
+The result of `Result<T, E> ?? F` is the non-nullish opened success type joined with the fallback type `T | F`:
 
 ```ds
 declare const defaultConfig: Config;
@@ -1577,7 +1588,7 @@ const b = loadMaybeConfig() ?? defaultConfig;
 b satisfies Config;
 ```
 
-All unwrap operators only unwrap _one_ layer of `Try`, so nested `Try` values inside the success type also stay wrapped at the inner layer:
+All unwrap operators unwrap exactly _one_ layer of `Try`, so nested `Try` values inside the success type also stay wrapped at the inner layer:
 
 ```ds
 declare function loadNested(): Result<Result<Config, ParseError>, IOError>;
