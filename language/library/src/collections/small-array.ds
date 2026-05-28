@@ -24,8 +24,8 @@ export struct SmallArray<T, comptime N: number> {
 }
 
 extension<T, comptime N: number> of SmallArray<T, N> implements
-    Index<number>,
-    IndexSet<number, T>,
+    Index<usize>,
+    IndexSet<usize, T>,
     Iterable<T>,
     Iterable<&T>,
     Iterable<&readonly T>,
@@ -105,20 +105,20 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Return the element at `index` by value.
-    index(index: number): T {
+    index(index: usize): T {
         todo("SmallArray.index")
     }
 
     /// Borrow the element at `index`.
     index<A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
-        index: number,
+        index: usize,
     ): WithAccess<&T, A> {
         todo("SmallArray.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive SmallArray<T, N>, index: number, value: T): void {
+    indexSet(this: &exclusive SmallArray<T, N>, index: usize, value: T): void {
         todo("SmallArray.indexSet");
     }
 

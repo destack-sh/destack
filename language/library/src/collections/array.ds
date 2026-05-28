@@ -28,8 +28,8 @@ export class Array<T> {
 }
 
 extension<T> of Array<T> implements
-    Index<number>,
-    IndexSet<number, T>,
+    Index<usize>,
+    IndexSet<usize, T>,
     Iterable<T>,
     Iterable<&T>,
     Iterable<&readonly T>,
@@ -89,7 +89,7 @@ extension<T> of Array<T> implements
     }
 
     /// Return the element at `index` by value.
-    index(index: number): T {
+    index(index: usize): T {
         todo("Array.index")
     }
 
@@ -99,15 +99,12 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(
-        this: WithAccess<&Array<T>, A>,
-        index: number,
-    ): WithAccess<&T, A> {
+    index<A: Access = "readonly">(this: WithAccess<&Array<T>, A>, index: usize): WithAccess<&T, A> {
         todo("Array.index")
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive Array<T>, index: number, value: T): void {
+    indexSet(this: &exclusive Array<T>, index: usize, value: T): void {
         todo("Array.indexSet");
     }
 
@@ -344,8 +341,8 @@ extension<T> of Array<T> implements
         todo("Array.flatMap")
     }
 
-    /// Return an iterator over numeric indices.
-    keys(): Iterator<number> {
+    /// Return an iterator over indices.
+    keys(): Iterator<usize> {
         todo("Array.keys")
     }
 
