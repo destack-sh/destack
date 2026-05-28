@@ -1,1 +1,2 @@
+export { Display } from "./host/display.ds";
 export * as host from "./host";

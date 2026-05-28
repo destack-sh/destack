@@ -1,1 +1,2 @@
+export { Input } from "./host/input.ds";
 export * as host from "./host";

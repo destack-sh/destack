@@ -1,3 +1,4 @@
+export { Memory } from "./host/memory.ds";
 export { Lifetime, StaticLifetime } from "./lifetime.ds";
 export { Access, Readonly } from "./access.ds";
 export { Place, Placed, Space } from "./place.ds";
