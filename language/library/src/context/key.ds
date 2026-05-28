@@ -1,0 +1,20 @@
+/// Typed key for userland context values.
+@languageItem("context.ContextKey")
+export class ContextKey<T> {
+    /// Human-readable key name.
+    readonly name: string;
+
+    /// Create a typed context key.
+    constructor(name: string) {
+        this.name = name;
+    }
+}
+
+/// One typed context value.
+@languageItem("context.ContextValue")
+export struct ContextValue<T> {
+    /// Context value key.
+    key: ContextKey<T>;
+    /// Context value payload.
+    value: T;
+}

@@ -285,6 +285,50 @@ define_language_items! {
         }
     }
 
+    /// Context types.
+    context {
+        /// `destack:context/context`.
+        context {
+            /// Current execution context.
+            Context => (Class, "context/context", "Context"),
+
+            /// Current execution context value.
+            CurrentContextValue => (Variable, "context/context", "context", "context.context"),
+
+            /// Typed context key.
+            ContextKey => (Class, "context/key", "ContextKey"),
+
+            /// Scoped context override payload.
+            ContextPatch => (Struct, "context/patch", "ContextPatch"),
+
+            /// Opaque context push token.
+            ContextToken => (Newtype, "context/context", "ContextToken"),
+
+            /// Typed context value.
+            ContextValue => (Struct, "context/key", "ContextValue"),
+
+            /// Current-context intrinsic.
+            CurrentContext => (Function, "context/context", "currentContext", "context.current"),
+
+            /// Context-value lookup intrinsic.
+            GetContextValue => (Function, "context/context", "getContextValue", "context.get"),
+
+            /// Context-pop intrinsic.
+            PopContext => (Function, "context/context", "popContext", "context.pop"),
+
+            /// Context-push intrinsic.
+            PushContext => (Function, "context/context", "pushContext", "context.push"),
+
+            /// Required context-value lookup intrinsic.
+            RequireContextValue => (
+                Function,
+                "context/context",
+                "requireContextValue",
+                "context.require"
+            ),
+        }
+    }
+
     /// Conversion protocols.
     convert {
         /// `destack:convert/reference`.
@@ -546,6 +590,15 @@ define_language_items! {
 
             /// Resume an unwinding panic.
             ResumePanic => (Function, "error/unwind", "resumePanic"),
+        }
+    }
+
+    /// Filesystem types.
+    fs {
+        /// `destack:fs/host`.
+        host {
+            /// Filesystem binding family.
+            Fs => (Interface, "fs/host", "Fs"),
         }
     }
 

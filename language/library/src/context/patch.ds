@@ -1,0 +1,13 @@
+import { Fs } from "destack:fs/host";
+import { Dynamic } from "destack:memory";
+
+import { ContextValue } from "./key.ds";
+
+/// Scoped context override payload.
+@languageItem("context.ContextPatch")
+export struct ContextPatch {
+    /// Filesystem binding family override.
+    fs?: Dynamic<Fs>;
+    /// Userland context values.
+    values?: [ContextValue<unknown>];
+}
