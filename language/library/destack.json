@@ -93,6 +93,9 @@
     "./gpu/host": {
       "path": "./src/gpu/host/index.ds"
     },
+    "./host": {
+      "path": "./src/host/index.ds"
+    },
     "./http": {
       "path": "./src/http/index.ds"
     },
