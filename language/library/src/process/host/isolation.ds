@@ -29,68 +29,68 @@ export enum ProcessNamespaceKind {
     Time = 8,
 }
 
-/// Enter one namespace owned by another process.
-@binding("destack.process.isolation.enterNamespace", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.namespace"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function enterNamespace(
-    pid: ProcessId,
-    namespace: ProcessNamespaceKind,
-): Result<void, HostError>;
+/// Isolation binding family.
+export interface ProcessIsolation {
+    /// Enter one namespace owned by another process.
+    @binding("destack.process.isolation.enterNamespace", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.namespace"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    enterNamespace(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, HostError>;
 
-/// Unshare one or more namespaces.
-@binding("destack.process.isolation.unshare", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.namespace"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function unshare(flags: ProcessUnshareFlags): Result<void, HostError>;
+    /// Unshare one or more namespaces.
+    @binding("destack.process.isolation.unshare", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.namespace"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    unshare(flags: ProcessUnshareFlags): Result<void, HostError>;
 
-/// Change the root directory for path resolution.
-@binding("destack.process.isolation.chroot", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["runtime.policy.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function chroot(path: &readonly Path): Result<void, HostError>;
+    /// Change the root directory for path resolution.
+    @binding("destack.process.isolation.chroot", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["runtime.policy.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    chroot(path: &readonly Path): Result<void, HostError>;
 
-/// Install one syscall filter program.
-@binding("destack.process.isolation.syscallFilter", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["runtime.policy.write"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function setSyscallFilter(
-    program: &readonly [uint8],
-    flags: SyscallFilterFlags,
-): Result<void, HostError>;
+    /// Install one syscall filter program.
+    @binding("destack.process.isolation.syscallFilter", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["runtime.policy.write"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    setSyscallFilter(
+        program: &readonly [uint8],
+        flags: SyscallFilterFlags,
+    ): Result<void, HostError>;
 
-/// Set process host name inside the active UTS namespace.
-@binding("destack.process.isolation.hostname", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.namespace"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function setHostname(name: &readonly string): Result<void, HostError>;
+    /// Set process host name inside the active UTS namespace.
+    @binding("destack.process.isolation.hostname", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.namespace"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    setHostname(name: &readonly string): Result<void, HostError>;
 
-/// Set network namespace context for subsequent network operations.
-@binding("destack.process.isolation.networkNamespace", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.namespace"],
-    platforms: ["linux"],
-    simulation: true,
-})
-export declare function setNetworkNamespace(path: &readonly Path): Result<void, HostError>;
+    /// Set network namespace context for subsequent network operations.
+    @binding("destack.process.isolation.networkNamespace", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.namespace"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    setNetworkNamespace(path: &readonly Path): Result<void, HostError>;
+}

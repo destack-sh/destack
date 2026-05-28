@@ -39,32 +39,35 @@ export struct JobLimit {
     jobMemoryBytes?: uint64;
 }
 
-/// Create one Windows job object.
-@binding("destack.process.job.create", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.job"],
-    platforms: ["windows"],
-    simulation: true,
-})
-export declare function createJob(name?: &readonly string): Result<JobHandle, HostError>;
+/// Job binding family.
+export interface ProcessJob {
+    /// Create one Windows job object.
+    @binding("destack.process.job.create", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.job"],
+        platforms: ["windows"],
+        simulation: true,
+    })
+    createJob(name?: &readonly string): Result<JobHandle, HostError>;
 
-/// Assign one process to a Windows job object.
-@binding("destack.process.job.assign", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.job"],
-    platforms: ["windows"],
-    simulation: true,
-})
-export declare function assignJob(job: JobHandle, process: ProcessHandle): Result<void, HostError>;
+    /// Assign one process to a Windows job object.
+    @binding("destack.process.job.assign", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.job"],
+        platforms: ["windows"],
+        simulation: true,
+    })
+    assignJob(job: JobHandle, process: ProcessHandle): Result<void, HostError>;
 
-/// Set Windows job object limits.
-@binding("destack.process.job.limit", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.process.job"],
-    platforms: ["windows"],
-    simulation: true,
-})
-export declare function setJobLimit(job: JobHandle, limit: JobLimit): Result<void, HostError>;
+    /// Set Windows job object limits.
+    @binding("destack.process.job.limit", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.process.job"],
+        platforms: ["windows"],
+        simulation: true,
+    })
+    setJobLimit(job: JobHandle, limit: JobLimit): Result<void, HostError>;
+}

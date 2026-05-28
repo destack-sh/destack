@@ -18,77 +18,77 @@ export struct SignalEvent {
     pid?: ProcessId;
 }
 
-/// Send a signal to a target process.
-@binding("destack.process.signal.send", {
-    effect: "external",
-    requires: ["host.process.signal.send"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendSignal(pid: ProcessId, signal: Signal): Result<void, HostError>;
+/// Signal binding family.
+export interface ProcessSignal {
+    /// Send a signal to a target process.
+    @binding("destack.process.signal.send", {
+        effect: "external",
+        requires: ["host.process.signal.send"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    sendSignal(pid: ProcessId, signal: Signal): Result<void, HostError>;
 
-/// Send a signal to a target process handle.
-@binding("destack.process.signal.handle", {
-    effect: "external",
-    requires: ["host.process.signal.send"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function signalProcess(
-    process: ProcessHandle,
-    signal: Signal,
-): Result<void, HostError>;
+    /// Send a signal to a target process handle.
+    @binding("destack.process.signal.handle", {
+        effect: "external",
+        requires: ["host.process.signal.send"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    signalProcess(process: ProcessHandle, signal: Signal): Result<void, HostError>;
 
-/// Subscribe to one signal value.
-@binding("destack.process.signal.subscribe", {
-    effect: "external",
-    requires: ["host.process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function subscribeSignal(signal: Signal): Result<SignalHandle, HostError>;
+    /// Subscribe to one signal value.
+    @binding("destack.process.signal.subscribe", {
+        effect: "external",
+        requires: ["host.process.signal.receive"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    subscribeSignal(signal: Signal): Result<SignalHandle, HostError>;
 
-/// Remove a signal subscription handle.
-@binding("destack.process.signal.unsubscribe", {
-    effect: "external",
-    requires: ["host.process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function unsubscribeSignal(handle: SignalHandle): Result<void, HostError>;
+    /// Remove a signal subscription handle.
+    @binding("destack.process.signal.unsubscribe", {
+        effect: "external",
+        requires: ["host.process.signal.receive"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    unsubscribeSignal(handle: SignalHandle): Result<void, HostError>;
 
-/// Receive the next signal event from a subscription.
-@binding("destack.process.signal.receive", {
-    effect: "external",
-    requires: ["host.process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function receiveSignal(handle: SignalHandle): Result<SignalEvent, HostError>;
+    /// Receive the next signal event from a subscription.
+    @binding("destack.process.signal.receive", {
+        effect: "external",
+        requires: ["host.process.signal.receive"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    receiveSignal(handle: SignalHandle): Result<SignalEvent, HostError>;
 
-/// Poll one signal event without blocking.
-@binding("destack.process.signal.tryReceive", {
-    effect: "external",
-    requires: ["host.process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function tryReceiveSignal(handle: SignalHandle): Result<SignalEvent, HostError>;
+    /// Poll one signal event without blocking.
+    @binding("destack.process.signal.tryReceive", {
+        effect: "external",
+        requires: ["host.process.signal.receive"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    tryReceiveSignal(handle: SignalHandle): Result<SignalEvent, HostError>;
 
-/// Wait for one signal from a requested set.
-@binding("destack.process.signal.wait", {
-    effect: "external",
-    requires: ["host.process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function waitSignal(signals: &readonly [Signal]): Result<SignalEvent, HostError>;
+    /// Wait for one signal from a requested set.
+    @binding("destack.process.signal.wait", {
+        effect: "external",
+        requires: ["host.process.signal.receive"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    waitSignal(signals: &readonly [Signal]): Result<SignalEvent, HostError>;
 
-/// Poll one signal from a requested set without blocking.
-@binding("destack.process.signal.tryWait", {
-    effect: "external",
-    requires: ["host.process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function tryWaitSignal(signals: &readonly [Signal]): Result<SignalEvent, HostError>;
+    /// Poll one signal from a requested set without blocking.
+    @binding("destack.process.signal.tryWait", {
+        effect: "external",
+        requires: ["host.process.signal.receive"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    tryWaitSignal(signals: &readonly [Signal]): Result<SignalEvent, HostError>;
+}

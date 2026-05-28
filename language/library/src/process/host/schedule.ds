@@ -19,44 +19,44 @@ export struct ProcessAffinity {
     processors: [Processor];
 }
 
-/// Read one process priority.
-@binding("destack.process.schedule.priority.read", {
-    effect: "external",
-    requires: ["host.process.priority"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readProcessPriority(process: ProcessId): Result<ProcessPriority, HostError>;
+/// Schedule binding family.
+export interface ProcessSchedule {
+    /// Read one process priority.
+    @binding("destack.process.schedule.priority.read", {
+        effect: "external",
+        requires: ["host.process.priority"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readProcessPriority(process: ProcessId): Result<ProcessPriority, HostError>;
 
-/// Set one process priority.
-@binding("destack.process.schedule.priority.set", {
-    effect: "external",
-    requires: ["host.process.priority"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setProcessPriority(
-    process: ProcessId,
-    priority: ProcessPriority,
-): Result<void, HostError>;
+    /// Set one process priority.
+    @binding("destack.process.schedule.priority.set", {
+        effect: "external",
+        requires: ["host.process.priority"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setProcessPriority(process: ProcessId, priority: ProcessPriority): Result<void, HostError>;
 
-/// Read one process CPU affinity.
-@binding("destack.process.schedule.affinity.read", {
-    effect: "external",
-    requires: ["host.process.affinity"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readProcessAffinity(process: ProcessId): Result<ProcessAffinity, HostError>;
+    /// Read one process CPU affinity.
+    @binding("destack.process.schedule.affinity.read", {
+        effect: "external",
+        requires: ["host.process.affinity"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readProcessAffinity(process: ProcessId): Result<ProcessAffinity, HostError>;
 
-/// Set one process CPU affinity.
-@binding("destack.process.schedule.affinity.set", {
-    effect: "external",
-    requires: ["host.process.affinity"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setProcessAffinity(
-    process: ProcessId,
-    affinity: &readonly ProcessAffinity,
-): Result<void, HostError>;
+    /// Set one process CPU affinity.
+    @binding("destack.process.schedule.affinity.set", {
+        effect: "external",
+        requires: ["host.process.affinity"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setProcessAffinity(
+        process: ProcessId,
+        affinity: &readonly ProcessAffinity,
+    ): Result<void, HostError>;
+}

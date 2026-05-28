@@ -32,23 +32,23 @@ export struct ProcessLimit {
     hard: uint64;
 }
 
-/// Read a process resource limit.
-@binding("destack.process.limit.get", {
-    effect: "external",
-    requires: ["host.process.limit.read"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getProcessLimit(kind: ProcessLimitKind): Result<ProcessLimit, HostError>;
+/// Limit binding family.
+export interface ProcessLimit {
+    /// Read a process resource limit.
+    @binding("destack.process.limit.get", {
+        effect: "external",
+        requires: ["host.process.limit.read"],
+        families: ["unix"],
+        simulation: true,
+    })
+    getProcessLimit(kind: ProcessLimitKind): Result<ProcessLimit, HostError>;
 
-/// Set a process resource limit.
-@binding("destack.process.limit.set", {
-    effect: "external",
-    requires: ["host.process.limit.write"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setProcessLimit(
-    kind: ProcessLimitKind,
-    limit: ProcessLimit,
-): Result<void, HostError>;
+    /// Set a process resource limit.
+    @binding("destack.process.limit.set", {
+        effect: "external",
+        requires: ["host.process.limit.write"],
+        families: ["unix"],
+        simulation: true,
+    })
+    setProcessLimit(kind: ProcessLimitKind, limit: ProcessLimit): Result<void, HostError>;
+}

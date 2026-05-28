@@ -72,35 +72,35 @@ export newtype ProcessWaitStatus =
     | ProcessWaitStoppedStatus
     | ProcessWaitContinuedStatus;
 
-/// Wait for a child process handle.
-@binding("destack.process.wait.handle", {
-    effect: "external",
-    requires: ["host.process.wait"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function waitProcess(
-    handle: ProcessHandle,
-    flags: ProcessWaitFlags,
-): Result<ProcessWaitStatus, HostError>;
+/// Wait binding family.
+export interface ProcessWait {
+    /// Wait for a child process handle.
+    @binding("destack.process.wait.handle", {
+        effect: "external",
+        requires: ["host.process.wait"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    waitProcess(
+        handle: ProcessHandle,
+        flags: ProcessWaitFlags,
+    ): Result<ProcessWaitStatus, HostError>;
 
-/// Poll a child process handle without blocking.
-@binding("destack.process.wait.poll", {
-    effect: "external",
-    requires: ["host.process.wait"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function pollProcess(handle: ProcessHandle): Result<ProcessWaitStatus, HostError>;
+    /// Poll a child process handle without blocking.
+    @binding("destack.process.wait.poll", {
+        effect: "external",
+        requires: ["host.process.wait"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    pollProcess(handle: ProcessHandle): Result<ProcessWaitStatus, HostError>;
 
-/// Wait for a process identifier.
-@binding("destack.process.wait.pid", {
-    effect: "external",
-    requires: ["host.process.wait"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function waitProcessId(
-    pid: ProcessId,
-    flags: ProcessWaitFlags,
-): Result<ProcessWaitStatus, HostError>;
+    /// Wait for a process identifier.
+    @binding("destack.process.wait.pid", {
+        effect: "external",
+        requires: ["host.process.wait"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    waitProcessId(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, HostError>;
+}
