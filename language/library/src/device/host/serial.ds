@@ -288,174 +288,169 @@ export newtype SerialEvent =
     | SerialEventDisconnected
     | SerialEventOverflow;
 
-/// List serial ports.
-@binding("destack.device.serial.list", {
-    effect: "external",
-    requires: ["host.device.serial.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listSerialPorts(): Result<Array<SerialPort>, HostError>;
+/// Serial binding family.
+export interface DeviceSerial {
+    /// List serial ports.
+    @binding("destack.device.serial.list", {
+        effect: "external",
+        requires: ["host.device.serial.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listSerialPorts(): Result<Array<SerialPort>, HostError>;
 
-/// Open a serial topology watch.
-@binding("destack.device.serial.watch.open", {
-    effect: "external",
-    requires: ["host.device.serial.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openSerialWatch(): Result<SerialWatchHandle, HostError>;
+    /// Open a serial topology watch.
+    @binding("destack.device.serial.watch.open", {
+        effect: "external",
+        requires: ["host.device.serial.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openSerialWatch(): Result<SerialWatchHandle, HostError>;
 
-/// Close a serial topology watch.
-@binding("destack.device.serial.watch.close", {
-    effect: "external",
-    requires: ["host.device.serial.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeSerialWatch(watch: SerialWatchHandle): Result<void, HostError>;
+    /// Close a serial topology watch.
+    @binding("destack.device.serial.watch.close", {
+        effect: "external",
+        requires: ["host.device.serial.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeSerialWatch(watch: SerialWatchHandle): Result<void, HostError>;
 
-/// Read one serial topology event.
-@binding("destack.device.serial.watch.read", {
-    effect: "external",
-    requires: ["host.device.serial.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readSerialWatch(
-    watch: SerialWatchHandle,
-    timeoutNs?: uint64,
-): Result<SerialWatchEvent, HostError>;
+    /// Read one serial topology event.
+    @binding("destack.device.serial.watch.read", {
+        effect: "external",
+        requires: ["host.device.serial.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readSerialWatch(
+        watch: SerialWatchHandle,
+        timeoutNs?: uint64,
+    ): Result<SerialWatchEvent, HostError>;
 
-/// Open a serial port.
-@binding("destack.device.serial.open", {
-    effect: "external",
-    requires: ["host.device.serial.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openSerialPort(
-    id: &readonly string,
-    options: &readonly SerialOpenOptions,
-): Result<SerialPortHandle, HostError>;
+    /// Open a serial port.
+    @binding("destack.device.serial.open", {
+        effect: "external",
+        requires: ["host.device.serial.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openSerialPort(
+        id: &readonly string,
+        options: &readonly SerialOpenOptions,
+    ): Result<SerialPortHandle, HostError>;
 
-/// Close a serial port.
-@binding("destack.device.serial.close", {
-    effect: "external",
-    requires: ["host.device.serial.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeSerialPort(port: SerialPortHandle): Result<void, HostError>;
+    /// Close a serial port.
+    @binding("destack.device.serial.close", {
+        effect: "external",
+        requires: ["host.device.serial.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeSerialPort(port: SerialPortHandle): Result<void, HostError>;
 
-/// Describe a serial port.
-@binding("destack.device.serial.describe", {
-    effect: "external",
-    requires: ["host.device.serial.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function describeSerialPort(port: SerialPortHandle): Result<SerialPort, HostError>;
+    /// Describe a serial port.
+    @binding("destack.device.serial.describe", {
+        effect: "external",
+        requires: ["host.device.serial.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    describeSerialPort(port: SerialPortHandle): Result<SerialPort, HostError>;
 
-/// Read serial port configuration.
-@binding("destack.device.serial.config.get", {
-    effect: "external",
-    requires: ["host.device.serial.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getSerialConfig(port: SerialPortHandle): Result<SerialConfig, HostError>;
+    /// Read serial port configuration.
+    @binding("destack.device.serial.config.get", {
+        effect: "external",
+        requires: ["host.device.serial.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    getSerialConfig(port: SerialPortHandle): Result<SerialConfig, HostError>;
 
-/// Update serial port configuration.
-@binding("destack.device.serial.config.set", {
-    effect: "external",
-    requires: ["host.device.serial.configure"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSerialConfig(
-    port: SerialPortHandle,
-    config: &readonly SerialConfig,
-): Result<void, HostError>;
+    /// Update serial port configuration.
+    @binding("destack.device.serial.config.set", {
+        effect: "external",
+        requires: ["host.device.serial.configure"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setSerialConfig(
+        port: SerialPortHandle,
+        config: &readonly SerialConfig,
+    ): Result<void, HostError>;
 
-/// Read bytes from a serial port.
-@binding("destack.device.serial.read", {
-    effect: "external",
-    requires: ["host.device.serial.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readSerial(
-    port: SerialPortHandle,
-    buffer: &[uint8],
-    timeoutNs?: uint64,
-): Result<uint64, HostError>;
+    /// Read bytes from a serial port.
+    @binding("destack.device.serial.read", {
+        effect: "external",
+        requires: ["host.device.serial.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readSerial(
+        port: SerialPortHandle,
+        buffer: &[uint8],
+        timeoutNs?: uint64,
+    ): Result<uint64, HostError>;
 
-/// Write bytes to a serial port.
-@binding("destack.device.serial.write", {
-    effect: "external",
-    requires: ["host.device.serial.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeSerial(
-    port: SerialPortHandle,
-    bytes: &readonly [uint8],
-    timeoutNs?: uint64,
-): Result<uint64, HostError>;
+    /// Write bytes to a serial port.
+    @binding("destack.device.serial.write", {
+        effect: "external",
+        requires: ["host.device.serial.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeSerial(
+        port: SerialPortHandle,
+        bytes: &readonly [uint8],
+        timeoutNs?: uint64,
+    ): Result<uint64, HostError>;
 
-/// Wait for queued serial output to drain.
-@binding("destack.device.serial.drain", {
-    effect: "external",
-    requires: ["host.device.serial.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function drainSerial(port: SerialPortHandle): Result<void, HostError>;
+    /// Wait for queued serial output to drain.
+    @binding("destack.device.serial.drain", {
+        effect: "external",
+        requires: ["host.device.serial.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    drainSerial(port: SerialPortHandle): Result<void, HostError>;
 
-/// Flush queued serial bytes.
-@binding("destack.device.serial.flush", {
-    effect: "external",
-    requires: ["host.device.serial.configure"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function flushSerial(
-    port: SerialPortHandle,
-    buffers: SerialFlushFlags,
-): Result<void, HostError>;
+    /// Flush queued serial bytes.
+    @binding("destack.device.serial.flush", {
+        effect: "external",
+        requires: ["host.device.serial.configure"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    flushSerial(port: SerialPortHandle, buffers: SerialFlushFlags): Result<void, HostError>;
 
-/// Read serial input signals.
-@binding("destack.device.serial.signals.get", {
-    effect: "external",
-    requires: ["host.device.serial.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getSerialSignals(
-    port: SerialPortHandle,
-): Result<SerialInputSignals, HostError>;
+    /// Read serial input signals.
+    @binding("destack.device.serial.signals.get", {
+        effect: "external",
+        requires: ["host.device.serial.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    getSerialSignals(port: SerialPortHandle): Result<SerialInputSignals, HostError>;
 
-/// Update serial output signals.
-@binding("destack.device.serial.signals.set", {
-    effect: "external",
-    requires: ["host.device.serial.configure"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSerialSignals(
-    port: SerialPortHandle,
-    signals: &readonly SerialOutputSignals,
-): Result<void, HostError>;
+    /// Update serial output signals.
+    @binding("destack.device.serial.signals.set", {
+        effect: "external",
+        requires: ["host.device.serial.configure"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setSerialSignals(
+        port: SerialPortHandle,
+        signals: &readonly SerialOutputSignals,
+    ): Result<void, HostError>;
 
-/// Read one serial port event.
-@binding("destack.device.serial.event.read", {
-    effect: "external",
-    requires: ["host.device.serial.observe"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readSerialEvent(
-    port: SerialPortHandle,
-    timeoutNs?: uint64,
-): Result<SerialEvent, HostError>;
+    /// Read one serial port event.
+    @binding("destack.device.serial.event.read", {
+        effect: "external",
+        requires: ["host.device.serial.observe"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readSerialEvent(port: SerialPortHandle, timeoutNs?: uint64): Result<SerialEvent, HostError>;
+}

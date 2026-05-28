@@ -95,92 +95,93 @@ export struct HidReport {
     bytes: Array<uint8>;
 }
 
-/// List HID devices.
-@binding("destack.device.hid.list", {
-    effect: "external",
-    requires: ["host.device.hid.list"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listHidDevices(
-    query: &readonly HidDeviceQuery,
-): Result<Array<HidDevice>, HostError>;
+/// Hid binding family.
+export interface DeviceHid {
+    /// List HID devices.
+    @binding("destack.device.hid.list", {
+        effect: "external",
+        requires: ["host.device.hid.list"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listHidDevices(query: &readonly HidDeviceQuery): Result<Array<HidDevice>, HostError>;
 
-/// Open one HID device.
-@binding("destack.device.hid.open", {
-    effect: "external",
-    requires: ["host.device.hid.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function openHidDevice(id: &readonly string): Result<HidDeviceHandle, HostError>;
+    /// Open one HID device.
+    @binding("destack.device.hid.open", {
+        effect: "external",
+        requires: ["host.device.hid.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openHidDevice(id: &readonly string): Result<HidDeviceHandle, HostError>;
 
-/// Close one HID device.
-@binding("destack.device.hid.close", {
-    effect: "external",
-    requires: ["host.device.hid.open"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function closeHidDevice(device: HidDeviceHandle): Result<void, HostError>;
+    /// Close one HID device.
+    @binding("destack.device.hid.close", {
+        effect: "external",
+        requires: ["host.device.hid.open"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeHidDevice(device: HidDeviceHandle): Result<void, HostError>;
 
-/// Read the HID report descriptor.
-@binding("destack.device.hid.descriptor.read", {
-    effect: "external",
-    requires: ["host.device.hid.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readHidDescriptor(device: HidDeviceHandle): Result<Array<uint8>, HostError>;
+    /// Read the HID report descriptor.
+    @binding("destack.device.hid.descriptor.read", {
+        effect: "external",
+        requires: ["host.device.hid.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readHidDescriptor(device: HidDeviceHandle): Result<Array<uint8>, HostError>;
 
-/// Read one HID input report.
-@binding("destack.device.hid.report.read", {
-    effect: "external",
-    requires: ["host.device.hid.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readHidReport(
-    device: HidDeviceHandle,
-    maxBytes: uint32,
-    timeoutNs?: uint64,
-): Result<HidReport, HostError>;
+    /// Read one HID input report.
+    @binding("destack.device.hid.report.read", {
+        effect: "external",
+        requires: ["host.device.hid.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readHidReport(
+        device: HidDeviceHandle,
+        maxBytes: uint32,
+        timeoutNs?: uint64,
+    ): Result<HidReport, HostError>;
 
-/// Write one HID output report.
-@binding("destack.device.hid.report.write", {
-    effect: "external",
-    requires: ["host.device.hid.write"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeHidReport(
-    device: HidDeviceHandle,
-    reportId: uint8,
-    bytes: &readonly [uint8],
-): Result<uint32, HostError>;
+    /// Write one HID output report.
+    @binding("destack.device.hid.report.write", {
+        effect: "external",
+        requires: ["host.device.hid.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeHidReport(
+        device: HidDeviceHandle,
+        reportId: uint8,
+        bytes: &readonly [uint8],
+    ): Result<uint32, HostError>;
 
-/// Read one HID feature report.
-@binding("destack.device.hid.feature.read", {
-    effect: "external",
-    requires: ["host.device.hid.feature"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readHidFeature(
-    device: HidDeviceHandle,
-    reportId: uint8,
-    maxBytes: uint32,
-): Result<Array<uint8>, HostError>;
+    /// Read one HID feature report.
+    @binding("destack.device.hid.feature.read", {
+        effect: "external",
+        requires: ["host.device.hid.feature"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readHidFeature(
+        device: HidDeviceHandle,
+        reportId: uint8,
+        maxBytes: uint32,
+    ): Result<Array<uint8>, HostError>;
 
-/// Write one HID feature report.
-@binding("destack.device.hid.feature.write", {
-    effect: "external",
-    requires: ["host.device.hid.feature"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writeHidFeature(
-    device: HidDeviceHandle,
-    reportId: uint8,
-    bytes: &readonly [uint8],
-): Result<void, HostError>;
+    /// Write one HID feature report.
+    @binding("destack.device.hid.feature.write", {
+        effect: "external",
+        requires: ["host.device.hid.feature"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeHidFeature(
+        device: HidDeviceHandle,
+        reportId: uint8,
+        bytes: &readonly [uint8],
+    ): Result<void, HostError>;
+}
