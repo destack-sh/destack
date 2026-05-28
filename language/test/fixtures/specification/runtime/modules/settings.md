@@ -50,12 +50,11 @@ module {}
 Module metadata declarations are static terms.
 
 ```ds
-import { Clone, Debug } from "destack:decorator";
 import { HtmlTree } from "destack:ui/html";
 
 module {
     const tree = HtmlTree;
-    const derive = [Debug, Clone];
+    const derive = ["Debug", "Clone"];
 }
 
 struct User {

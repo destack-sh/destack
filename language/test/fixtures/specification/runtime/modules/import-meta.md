@@ -118,12 +118,11 @@ const value: string | undefined = import.meta.env.CUSTOM_KEY;
 ### module declarations extend import.meta
 
 ```ds
-import { Clone, Debug } from "destack:decorator";
 import { HtmlTree } from "destack:ui/html";
 
 module {
     const tree = HtmlTree;
-    const derive = [Clone, Debug];
+    const derive = ["Clone", "Debug"];
     const role = "server";
     const labels = {
         feature: ["search", "billing"],
@@ -131,7 +130,7 @@ module {
 }
 
 import.meta.tree satisfies TreeTagBuilder;
-import.meta.derive satisfies readonly Macro<unknown>[];
+import.meta.derive satisfies readonly Derive[];
 
 const role = import.meta.role;
 role satisfies "server";
