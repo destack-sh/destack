@@ -113,7 +113,7 @@ impl PageFrameAllocator {
     fn section(&self, frame: PageFrame) -> MemoryResult<HANDLE> {
         let state = self.state.lock();
         let Some(section) = state.sections.get(frame.section_index) else {
-            return Err(MemoryError::InvariantViolation {
+            return Err(MemoryError::Internal {
                 context: "page frame section",
             });
         };
@@ -288,7 +288,7 @@ pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
     let system = unsafe { system.assume_init() };
     let frame_bytes = system.dwPageSize as usize;
     if frame_bytes == 0 {
-        return Err(MemoryError::InvariantViolation {
+        return Err(MemoryError::Internal {
             context: "system frame size",
         });
     }
@@ -728,7 +728,7 @@ fn allocate_new_frame_range(
         frame_ref_counts: Vec::new(),
     };
     let Some(offset) = section.reserve(byte_len) else {
-        return Err(MemoryError::InvariantViolation {
+        return Err(MemoryError::Internal {
             context: "page frame section reserve",
         });
     };
