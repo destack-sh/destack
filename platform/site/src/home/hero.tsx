@@ -5,7 +5,7 @@ export function Hero() {
         <div class="flex gap-y-1 md:gap-y-3 flex-col">
             {/* title */}
             <h1 class="max-w-4xl w-full text-3xl px-2 md:px-4 leading-none font-extrabold md:text-3xl">
-                build magnificient software that lasts
+                engineer quality software with confidence
             </h1>
 
             {/* main */}
@@ -14,8 +14,7 @@ export function Hero() {
                     {/* tagline */}
                     <p class="max-w-3xl text-sm leading-6 font-bold text-neutral-700">
                         <Underline>destack</Underline> is a fully integrated stack for building
-                        correct, optimal, integrated software based on a{" "}
-                        <Underline>unified, native TypeScript++ toolchain</Underline>, VM, compiler, linter, and runtime
+                        correct, optimal, integrated software on our <Underline>unified, native TypeScript++ toolchain</Underline>, VM, compiler, linter, debugger, and runtime
                     </p>
 
                 </section>
@@ -26,11 +25,11 @@ export function Hero() {
 
             {/* "features" */}
             <ul class="px-2 md:px-4 flex min-w-0 flex-wrap gap-x-5 gap-y-2 text-sm font-extrabold lowercase">
-                <Claim>engineer precise systems</Claim>
-                <Claim>craft software with care</Claim>
-                <Claim>ship software confidently</Claim>
-                <Claim>sleep well every night</Claim>
-                <Claim>leverage proven tech</Claim>
+                <Claim>build correct systems</Claim>
+                <Claim>craft code with precision</Claim>
+                <Claim>leverage familiar tech</Claim>
+                <Claim>unify your entire stack</Claim>
+                <Claim>ship products proudly</Claim>
             </ul>
         </div>
     );
