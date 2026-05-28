@@ -34,35 +34,36 @@ export struct HapticParameters {
     rightTrigger: float64;
 }
 
-/// List supported haptic effects.
-@binding("destack.input.haptics.effects.list", {
-    effect: "external",
-    requires: ["host.input.haptics"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listHapticEffects(
-    device: InputDeviceHandle,
-): Result<Array<HapticEffect>, HostError>;
+/// Haptics binding family.
+export interface InputHaptics {
+    /// List supported haptic effects.
+    @binding("destack.input.haptics.effects.list", {
+        effect: "external",
+        requires: ["host.input.haptics"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listHapticEffects(device: InputDeviceHandle): Result<Array<HapticEffect>, HostError>;
 
-/// Play one haptic effect.
-@binding("destack.input.haptics.play", {
-    effect: "external",
-    requires: ["host.input.haptics"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function playHaptics(
-    device: InputDeviceHandle,
-    effect: HapticEffect,
-    parameters: &readonly HapticParameters,
-): Result<HapticResult, HostError>;
+    /// Play one haptic effect.
+    @binding("destack.input.haptics.play", {
+        effect: "external",
+        requires: ["host.input.haptics"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    playHaptics(
+        device: InputDeviceHandle,
+        effect: HapticEffect,
+        parameters: &readonly HapticParameters,
+    ): Result<HapticResult, HostError>;
 
-/// Stop active haptic effects.
-@binding("destack.input.haptics.stop", {
-    effect: "external",
-    requires: ["host.input.haptics"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function stopHaptics(device: InputDeviceHandle): Result<void, HostError>;
+    /// Stop active haptic effects.
+    @binding("destack.input.haptics.stop", {
+        effect: "external",
+        requires: ["host.input.haptics"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    stopHaptics(device: InputDeviceHandle): Result<void, HostError>;
+}

@@ -88,37 +88,40 @@ export struct SensorStreamState {
     flags: SensorFlags;
 }
 
-/// List supported sensors for one input device.
-@binding("destack.input.sensor.list", {
-    effect: "external",
-    requires: ["host.input.sensor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function listSensors(device: InputDeviceHandle): Result<Array<Sensor>, HostError>;
+/// Sensor binding family.
+export interface InputSensor {
+    /// List supported sensors for one input device.
+    @binding("destack.input.sensor.list", {
+        effect: "external",
+        requires: ["host.input.sensor"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listSensors(device: InputDeviceHandle): Result<Array<Sensor>, HostError>;
 
-/// Set one sensor stream state.
-@binding("destack.input.sensor.stream.set", {
-    effect: "external",
-    requires: ["host.input.sensor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSensorStream(
-    device: InputDeviceHandle,
-    kind: SensorKind,
-    stream: &readonly SensorStream,
-): Result<SensorStreamState, HostError>;
+    /// Set one sensor stream state.
+    @binding("destack.input.sensor.stream.set", {
+        effect: "external",
+        requires: ["host.input.sensor"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    setSensorStream(
+        device: InputDeviceHandle,
+        kind: SensorKind,
+        stream: &readonly SensorStream,
+    ): Result<SensorStreamState, HostError>;
 
-/// Read one sensor sample.
-@binding("destack.input.sensor.read", {
-    effect: "external",
-    requires: ["host.input.sensor"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readSensor(
-    device: InputDeviceHandle,
-    kind: SensorKind,
-    timeoutNs?: uint64,
-): Result<SensorSample, HostError>;
+    /// Read one sensor sample.
+    @binding("destack.input.sensor.read", {
+        effect: "external",
+        requires: ["host.input.sensor"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readSensor(
+        device: InputDeviceHandle,
+        kind: SensorKind,
+        timeoutNs?: uint64,
+    ): Result<SensorSample, HostError>;
+}
