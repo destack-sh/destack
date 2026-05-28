@@ -38,55 +38,58 @@ export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags = MappedMemory
 /// Wait for dirty mapping pages to be written back.
 export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFlags(0x4);
 
-/// Map a file backed memory range.
-@binding("destack.memory.map.file", {
-    effect: "external",
-    requires: ["host.memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function mapFileMemory(
-    file: FileHandle,
-    offset: uint64,
-    length: uint64,
-    protection: MemoryProtection,
-    visibility: MappedMemoryVisibility,
-    flags: MappedMemoryFlags,
-    addressHint?: uint64,
-): Result<VirtualMemoryRange, HostError>;
+/// Map binding family.
+export interface MemoryMap {
+    /// Map a file backed memory range.
+    @binding("destack.memory.map.file", {
+        effect: "external",
+        requires: ["host.memory.map"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    mapFileMemory(
+        file: FileHandle,
+        offset: uint64,
+        length: uint64,
+        protection: MemoryProtection,
+        visibility: MappedMemoryVisibility,
+        flags: MappedMemoryFlags,
+        addressHint?: uint64,
+    ): Result<VirtualMemoryRange, HostError>;
 
-/// Map an anonymous memory range.
-@binding("destack.memory.map.anonymous", {
-    effect: "external",
-    requires: ["host.memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function mapAnonymousMemory(
-    length: uint64,
-    protection: MemoryProtection,
-    visibility: MappedMemoryVisibility,
-    flags: MappedMemoryFlags,
-    addressHint?: uint64,
-): Result<VirtualMemoryRange, HostError>;
+    /// Map an anonymous memory range.
+    @binding("destack.memory.map.anonymous", {
+        effect: "external",
+        requires: ["host.memory.map"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    mapAnonymousMemory(
+        length: uint64,
+        protection: MemoryProtection,
+        visibility: MappedMemoryVisibility,
+        flags: MappedMemoryFlags,
+        addressHint?: uint64,
+    ): Result<VirtualMemoryRange, HostError>;
 
-/// Unmap a mapped memory range.
-@binding("destack.memory.map.unmap", {
-    effect: "external",
-    requires: ["host.memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function unmapMemory(range: VirtualMemoryRange): Result<void, HostError>;
+    /// Unmap a mapped memory range.
+    @binding("destack.memory.map.unmap", {
+        effect: "external",
+        requires: ["host.memory.map"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    unmapMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
-/// Flush mapped memory to backing storage.
-@binding("destack.memory.map.sync", {
-    effect: "external",
-    requires: ["host.memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function syncMappedMemory(
-    range: VirtualMemoryRange,
-    flags: MappedMemorySyncFlags,
-): Result<void, HostError>;
+    /// Flush mapped memory to backing storage.
+    @binding("destack.memory.map.sync", {
+        effect: "external",
+        requires: ["host.memory.map"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    syncMappedMemory(
+        range: VirtualMemoryRange,
+        flags: MappedMemorySyncFlags,
+    ): Result<void, HostError>;
+}

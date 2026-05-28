@@ -16,23 +16,23 @@ export enum MemoryAdvice {
     DontNeed = 4,
 }
 
-/// Apply memory access advice.
-@binding("destack.memory.advise", {
-    effect: "external",
-    requires: ["host.memory.advise"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function adviseMemory(
-    range: VirtualMemoryRange,
-    advice: MemoryAdvice,
-): Result<void, HostError>;
+/// Advise binding family.
+export interface MemoryAdvise {
+    /// Apply memory access advice.
+    @binding("destack.memory.advise", {
+        effect: "external",
+        requires: ["host.memory.advise"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    adviseMemory(range: VirtualMemoryRange, advice: MemoryAdvice): Result<void, HostError>;
 
-/// Discard memory contents.
-@binding("destack.memory.discard", {
-    effect: "external",
-    requires: ["host.memory.discard"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function discardMemory(range: VirtualMemoryRange): Result<void, HostError>;
+    /// Discard memory contents.
+    @binding("destack.memory.discard", {
+        effect: "external",
+        requires: ["host.memory.discard"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    discardMemory(range: VirtualMemoryRange): Result<void, HostError>;
+}
