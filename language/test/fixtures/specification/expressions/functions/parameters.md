@@ -58,17 +58,17 @@ const result = pair(1, "hi");
 result satisfies (int, string);
 ```
 
-## parameter property rejections
+## parameter modifier rejections
 
-### function parameters cannot be parameter properties
+### function parameters reject visibility modifiers
 
-Parameter property modifiers are only allowed in constructors.
+Visibility belongs to declarations and fields, not parameters.
 
 ```ds
 function build(public value: number) {}
 ```
 
-- contains: parameter property
+- contains: unexpected
 
 ## optional parameter rejections
 

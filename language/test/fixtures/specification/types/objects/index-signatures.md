@@ -1,170 +1,127 @@
 # Index Signatures
 
-## string index signatures
+Index signatures describe bracket access on object-shaped types.
+They are structural constraints.
 
-### string index signature accepts matching fields
+## readonly views
 
-String index signatures allow string and numeric keys with compatible values.
+### readonly string index signature accepts matching fields
+
+Readonly index signatures can view finite object fields.
 
 ```ds
-interface Bag {
-    [key: string]: number;
-}
+type Bag = { readonly [key: string]: int32 };
 
-const bag = { a: 1, 2: 3 };
-bag satisfies Bag;
+const point = { x: 1, y: 2 };
+const bag: Bag = point;
+
+bag["x"] satisfies int32 | undefined;
 ```
 
-### string index signature rejects incompatible fields
+### readonly string index signature rejects incompatible fields
 
-Fields with incompatible value types are rejected.
-
-```ds
-interface Bag {
-    [key: string]: number;
-}
-
-const bag = { a: 1, b: "two" };
-bag satisfies Bag;
-```
-
-- contains: not assignable
-
-### satisfies preserves literal type for index access
-
-`satisfies` does not widen object literals for index access.
+Every visible string field must fit the indexed value type.
 
 ```ds
-interface Bag {
-    [key: string]: number;
-}
+type Bag = { readonly [key: string]: int32 };
 
-const bag = { a: 1 } satisfies Bag;
-let value: number = bag["a"];
-```
-
-### satisfies does not add index signature
-
-Missing properties still reject index access after `satisfies`.
-
-```ds
-interface Bag {
-    [key: string]: number;
-}
-
-const bag = { a: 1 } satisfies Bag;
-let value = bag["missing"];
-```
-
-- contains: indexing non-indexable
-
-## number index signatures
-
-### number index signature allows string fields
-
-Number index signatures allow string fields.
-
-```ds
-interface NumberBag {
-    [key: number]: number;
-}
-
-const bag = { a: 1 };
-bag satisfies NumberBag;
-```
-
-### number index signature accepts numeric fields
-
-Number index signatures accept numeric field keys.
-
-```ds
-interface NumberBag {
-    [key: number]: string;
-}
-
-const bag = { 1: "one", 2: "two" };
-bag satisfies NumberBag;
-```
-
-### number index signature accepts numeric string index access
-
-Numeric string literals index number index signatures.
-
-```ds
-interface NumberBag {
-    [key: number]: string;
-}
-
-const bag: NumberBag = { 1: "one", 2: "two" };
-let value: string | undefined = bag["1"];
-```
-
-### number index signature rejects non numeric string index access
-
-Non numeric string literals do not index number index signatures.
-
-```ds
-interface NumberBag {
-    [key: number]: string;
-}
-
-const bag: NumberBag = { 1: "one" };
-let value = bag["missing"];
-```
-
-- contains: indexing non-indexable
-
-## record-like assignability
-
-### record-like assignment accepts object literals
-
-Object literals assignable to index signatures are allowed.
-
-```ds
-type Bag = { [key: string]: int32 };
-
-let bag: Bag = { alpha: 1, beta: 2 };
-```
-
-### record-like assignment accepts structural objects
-
-Structural object types without index signatures are assignable when fields match.
-
-```ds
-type Bag = { [key: string]: int32 };
-type Point = { x: int32; y: int32 };
-
-let point: Point = { x: 1, y: 2 };
-let bag: Bag = point;
-```
-
-### record-like assignment rejects incompatible field values
-
-Fields with incompatible value types are rejected.
-
-```ds
-type Bag = { [key: string]: int32 };
-type Mixed = { x: int32; y: string };
-
-let mixed: Mixed = { x: 1, y: "two" };
-let bag: Bag = mixed;
+const mixed = { x: 1, y: "two" };
+const bag: Bag = mixed;
 ```
 
 - contains: not assignable
 
-## indexed access
+### satisfies does not add an index signature
 
-### index signature reads include undefined
+`satisfies` checks compatibility without widening the source type.
 
-Index signature access includes undefined because the key may be absent.
+```ds
+type Bag = { readonly [key: string]: int32 };
 
-```ds:main.ds
-interface Bag {
-    [key: string]: int32;
+const point = { x: 1 } satisfies Bag;
+const missing = point["missing"];
+```
+
+- contains: indexing non-indexable
+
+## writable access
+
+### writable index signature rejects finite objects
+
+Finite object shapes do not provide open writable index access.
+
+```ds
+type Bag = { [key: string]: int32 };
+
+const point = { x: 1, y: 2 };
+const bag: Bag = point;
+```
+
+- contains: not assignable
+
+### writable index signature accepts maps
+
+Maps provide indexed reads and writes.
+
+```ds
+type Bag = { [key: string]: int32 };
+
+declare const map: Map<string, int32>;
+const bag: Bag = map;
+
+bag["x"] = 1;
+bag["x"] satisfies int32 | undefined;
+```
+
+### writable index signature accepts operator implementations
+
+Concrete types can satisfy mutable index signatures through `Index` and `IndexSet`.
+
+```ds
+struct Bag {
+    storage: Map<string, int32>;
 }
 
-const bag: Bag = { a: 1 };
-let value: int32 = bag["a"];
+extension of Bag implements Index<string>, IndexSet<string, int32> {
+    type Output = int32 | undefined;
+
+    index(key: string): this.Output {
+        this.storage[key]
+    }
+
+    indexSet(this: &exclusive Bag, key: string, value: int32): void {
+        this.storage[key] = value;
+    }
+}
+
+declare let bag: Bag;
+
+bag["x"] = 1;
+bag satisfies { [key: string]: int32 };
+```
+
+## `Record`
+
+### record builds finite required fields
+
+Finite `Record` keys remain a mapped object shape.
+
+```ds
+type Flags = Record<"a" | "b", boolean>;
+
+const flags: Flags = { a: true, b: false };
+flags["a"] satisfies boolean;
+```
+
+### record with string keys requires writable index access
+
+A broad string `Record` cannot be satisfied by a finite object shape.
+
+```ds
+type Bag = Record<string, int32>;
+
+const point = { x: 1 };
+const bag: Bag = point;
 ```
 
 - contains: not assignable
@@ -173,13 +130,13 @@ let value: int32 = bag["a"];
 
 ### index signatures reject dot access
 
-```ds
-interface Bag {
-    [key: string]: number;
-}
+Unknown keys must use bracket access.
 
-const bag: Bag = { a: 1 };
-let value = bag.missing;
+```ds
+type Bag = { readonly [key: string]: int32 };
+
+declare const bag: Bag;
+const value = bag.missing;
 ```
 
 - contains: only available via index signature

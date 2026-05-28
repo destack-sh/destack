@@ -40,6 +40,34 @@ const value = 2 >= 1;
 value satisfies boolean;
 ```
 
+## membership
+
+### in folds known property presence
+
+Known property membership is a static boolean.
+
+```ds
+const point = { x: 1, y: 2 };
+
+const hasX = "x" in point;
+hasX satisfies true;
+```
+
+### in narrows object unions by property
+
+Property membership narrows object unions.
+
+```ds
+type Named = { name: string };
+type Numbered = { id: int32 };
+
+declare const value: Named | Numbered;
+
+if ("name" in value) {
+    value.name satisfies string;
+}
+```
+
 ## overloads
 
 ### comparison dispatches to Compare

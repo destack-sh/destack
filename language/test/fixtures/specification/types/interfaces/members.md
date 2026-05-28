@@ -72,12 +72,12 @@ Interfaces can declare constructor signatures.
 
 ```ds
 interface Factory {
-    new (value: string): object;
+    new (value: string): { value: string };
 }
 
 declare const Factory: Factory;
 const obj = new Factory("ok");
-obj satisfies object;
+obj satisfies { value: string };
 ```
 
 ### interface accessors are allowed
