@@ -1,0 +1,60 @@
+import { todo } from "destack:error";
+
+import { Edge, EdgeId, EdgeRecord, EdgeSelector, edgeOf } from "./edge.ds";
+import { Entity, EntityId, EntityRecord, EntitySelector, entityOf } from "./entity.ds";
+
+/// Registered topology entity reference.
+export newtype EntityRef = EntityId;
+
+/// Registered topology edge reference.
+export newtype EdgeRef = EdgeId;
+
+/// Entity or edge topology record.
+@derive(Tagged)
+export newtype Record = EntityRecord | EdgeRecord;
+
+/// General software topology graph.
+export class Topology {
+    /// Create an empty topology.
+    constructor() {}
+
+    /// Add one entity record.
+    addEntity(this: &exclusive Topology, entity: EntityRecord): EntityRef {
+        todo("topology.Topology.addEntity")
+    }
+
+    /// Add one edge record.
+    addEdge(this: &exclusive Topology, edge: EdgeRecord): EdgeRef {
+        todo("topology.Topology.addEdge")
+    }
+
+    /// Observe one entity-like value.
+    observe<T: Entity>(this: &exclusive Topology, value: &readonly T): EntityRef {
+        this.addEntity(entityOf(value))
+    }
+
+    /// Observe one edge-like value.
+    connect<T: Edge>(this: &exclusive Topology, value: &readonly T): EdgeRef {
+        this.addEdge(edgeOf(value))
+    }
+
+    /// Remove one entity.
+    removeEntity(this: &exclusive Topology, id: EntityId): boolean {
+        todo("topology.Topology.removeEntity")
+    }
+
+    /// Remove one edge.
+    removeEdge(this: &exclusive Topology, id: EdgeId): boolean {
+        todo("topology.Topology.removeEdge")
+    }
+
+    /// Return entities matching `selector`.
+    entities(this: &readonly Topology, selector?: EntitySelector): [EntityRecord] {
+        todo("topology.Topology.entities")
+    }
+
+    /// Return edges matching `selector`.
+    edges(this: &readonly Topology, selector?: EdgeSelector): [EdgeRecord] {
+        todo("topology.Topology.edges")
+    }
+}

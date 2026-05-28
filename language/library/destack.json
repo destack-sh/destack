@@ -222,6 +222,9 @@
     "./time/host": {
       "path": "./src/time/host/index.ds"
     },
+    "./topology": {
+      "path": "./src/topology/index.ds"
+    },
     "./tls": {
       "path": "./src/tls/index.ds"
     },
