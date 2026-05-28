@@ -58,7 +58,7 @@ impl WriteWatchTable {
             }
         }
 
-        Err(MemoryError::TooManyWriteWatchRanges {
+        Err(MemoryError::WatchLimitExceeded {
             capacity: MAX_WRITE_WATCH_ENTRIES,
         })
     }

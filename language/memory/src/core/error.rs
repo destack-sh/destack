@@ -8,7 +8,7 @@ pub type MemoryResult<T> = Result<T, MemoryError>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemoryError {
     /// One platform memory operation failed.
-    SystemError {
+    System {
         /// The failed platform operation.
         operation: MemoryOperation,
         /// The platform error code when available.
@@ -17,7 +17,7 @@ pub enum MemoryError {
         byte_len: Option<usize>,
     },
     /// Too many write watched memory ranges are active.
-    TooManyWriteWatchRanges {
+    WatchLimitExceeded {
         /// The maximum number of entries.
         capacity: usize,
     },
@@ -30,9 +30,9 @@ pub enum MemoryError {
         /// The reserved capacity in bytes.
         capacity: usize,
     },
-    /// One internal memory invariant was violated.
-    InvariantViolation {
-        /// The violated invariant context.
+    /// One internal memory error occurred.
+    Internal {
+        /// The internal error context.
         context: &'static str,
     },
 }
@@ -44,7 +44,7 @@ impl MemoryError {
         code: Option<i32>,
         byte_len: Option<usize>,
     ) -> Self {
-        Self::SystemError {
+        Self::System {
             operation,
             code,
             byte_len,
@@ -83,7 +83,7 @@ pub enum MemoryOperation {
 impl Display for MemoryError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::SystemError {
+            Self::System {
                 operation,
                 code,
                 byte_len,
@@ -108,7 +108,7 @@ impl Display for MemoryError {
                 }
                 (None, None) => write!(formatter, "memory system operation failed: {operation}"),
             },
-            Self::TooManyWriteWatchRanges { capacity } => {
+            Self::WatchLimitExceeded { capacity } => {
                 write!(
                     formatter,
                     "too many write watched memory ranges: capacity {capacity}"
@@ -124,8 +124,8 @@ impl Display for MemoryError {
                     "invalid memory byte range: start {start}, length {len}, capacity {capacity}"
                 )
             }
-            Self::InvariantViolation { context } => {
-                write!(formatter, "memory invariant violation: {context}")
+            Self::Internal { context } => {
+                write!(formatter, "internal memory error: {context}")
             }
         }
     }

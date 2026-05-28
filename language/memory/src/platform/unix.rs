@@ -220,7 +220,7 @@ pub(crate) fn copy_frame_range(
 pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
     let page_bytes = system_page_bytes();
     if page_bytes <= 0 {
-        return Err(MemoryError::InvariantViolation {
+        return Err(MemoryError::Internal {
             context: "system frame size",
         });
     }

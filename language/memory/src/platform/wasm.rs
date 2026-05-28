@@ -313,7 +313,7 @@ fn map_page(
     let source = {
         let state = allocator.state.lock();
         let Some(frame) = state.frames.get(frame.index) else {
-            return Err(MemoryError::InvariantViolation {
+            return Err(MemoryError::Internal {
                 context: "linear memory frame",
             });
         };
