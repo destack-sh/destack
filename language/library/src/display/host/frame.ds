@@ -47,38 +47,41 @@ export struct DisplayFrameSubscription {
     overflow: DisplayEventOverflowPolicy;
 }
 
-/// Open one display frame timing stream.
-@binding("destack.display.frame.open", {
-    effect: "external",
-    requires: ["host.display.frame"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function openDisplayFrames(
-    subscription: &readonly DisplayFrameSubscription,
-): Result<DisplayFrameHandle, HostError>;
+/// Frame binding family.
+export interface DisplayFrame {
+    /// Open one display frame timing stream.
+    @binding("destack.display.frame.open", {
+        effect: "external",
+        requires: ["host.display.frame"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    openDisplayFrames(
+        subscription: &readonly DisplayFrameSubscription,
+    ): Result<DisplayFrameHandle, HostError>;
 
-/// Close one display frame timing stream.
-@binding("destack.display.frame.close", {
-    effect: "external",
-    requires: ["host.display.frame"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closeDisplayFrames(frames: DisplayFrameHandle): Result<void, HostError>;
+    /// Close one display frame timing stream.
+    @binding("destack.display.frame.close", {
+        effect: "external",
+        requires: ["host.display.frame"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeDisplayFrames(frames: DisplayFrameHandle): Result<void, HostError>;
 
-/// Read display frame timing events.
-@binding("destack.display.frame.read", {
-    effect: "external",
-    requires: ["host.display.frame"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readDisplayFrames(
-    frames: DisplayFrameHandle,
-    maxEvents: uint32,
-    timeoutNs?: uint64,
-): Result<Array<DisplayFrameEvent>, HostError>;
+    /// Read display frame timing events.
+    @binding("destack.display.frame.read", {
+        effect: "external",
+        requires: ["host.display.frame"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readDisplayFrames(
+        frames: DisplayFrameHandle,
+        maxEvents: uint32,
+        timeoutNs?: uint64,
+    ): Result<Array<DisplayFrameEvent>, HostError>;
+}

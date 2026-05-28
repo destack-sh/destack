@@ -144,78 +144,73 @@ export struct DisplayDragRequest {
     preview?: DisplayDragPreview;
 }
 
-/// Read one drag text item.
-@binding("destack.display.drag.text.read", {
-    effect: "external",
-    requires: ["host.display.drag"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readDragText(
-    session: DisplayDragSessionHandle,
-    itemIndex: uint32,
-): Result<^string, HostError>;
+/// Drag binding family.
+export interface DisplayDrag {
+    /// Read one drag text item.
+    @binding("destack.display.drag.text.read", {
+        effect: "external",
+        requires: ["host.display.drag"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readDragText(session: DisplayDragSessionHandle, itemIndex: uint32): Result<^string, HostError>;
 
-/// Read one drag binary item.
-@binding("destack.display.drag.bytes.read", {
-    effect: "external",
-    requires: ["host.display.drag"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readDragBytes(
-    session: DisplayDragSessionHandle,
-    itemIndex: uint32,
-): Result<Array<uint8>, HostError>;
+    /// Read one drag binary item.
+    @binding("destack.display.drag.bytes.read", {
+        effect: "external",
+        requires: ["host.display.drag"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readDragBytes(
+        session: DisplayDragSessionHandle,
+        itemIndex: uint32,
+    ): Result<Array<uint8>, HostError>;
 
-/// Read one drag filesystem item.
-@binding("destack.display.drag.path.read", {
-    effect: "external",
-    requires: ["host.display.drag"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readDragPath(
-    session: DisplayDragSessionHandle,
-    itemIndex: uint32,
-): Result<Path, HostError>;
+    /// Read one drag filesystem item.
+    @binding("destack.display.drag.path.read", {
+        effect: "external",
+        requires: ["host.display.drag"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readDragPath(session: DisplayDragSessionHandle, itemIndex: uint32): Result<Path, HostError>;
 
-/// Accept one drag operation.
-@binding("destack.display.drag.accept", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.display.drag"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function acceptDrag(
-    session: DisplayDragSessionHandle,
-    operation: DisplayDragOperation,
-): Result<void, HostError>;
+    /// Accept one drag operation.
+    @binding("destack.display.drag.accept", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.display.drag"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    acceptDrag(
+        session: DisplayDragSessionHandle,
+        operation: DisplayDragOperation,
+    ): Result<void, HostError>;
 
-/// Close one drag session.
-@binding("destack.display.drag.close", {
-    effect: "external",
-    requires: ["host.display.drag"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closeDrag(session: DisplayDragSessionHandle): Result<void, HostError>;
+    /// Close one drag session.
+    @binding("destack.display.drag.close", {
+        effect: "external",
+        requires: ["host.display.drag"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeDrag(session: DisplayDragSessionHandle): Result<void, HostError>;
 
-/// Begin one source side drag session.
-@binding("destack.display.drag.begin", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["host.display.drag"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function beginDrag(
-    request: &readonly DisplayDragRequest,
-): Result<DisplayDragOperation, HostError>;
+    /// Begin one source side drag session.
+    @binding("destack.display.drag.begin", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.display.drag"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    beginDrag(request: &readonly DisplayDragRequest): Result<DisplayDragOperation, HostError>;
+}

@@ -150,147 +150,134 @@ export struct MonitorQuery {
     backend: DisplayBackendSelection;
 }
 
-/// List monitors.
-@binding("destack.display.monitor.list", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function listMonitors(
-    query: &readonly MonitorQuery,
-): Result<Array<Monitor>, HostError>;
+/// Monitor binding family.
+export interface DisplayMonitor {
+    /// List monitors.
+    @binding("destack.display.monitor.list", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    listMonitors(query: &readonly MonitorQuery): Result<Array<Monitor>, HostError>;
 
-/// Return the primary monitor handle.
-@binding("destack.display.monitor.primary", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function primaryMonitor(
-    query: &readonly MonitorQuery,
-): Result<MonitorHandle, HostError>;
+    /// Return the primary monitor handle.
+    @binding("destack.display.monitor.primary", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    primaryMonitor(query: &readonly MonitorQuery): Result<MonitorHandle, HostError>;
 
-/// Open one monitor endpoint.
-@binding("destack.display.monitor.open", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function openMonitor(
-    id: &readonly string,
-    query: &readonly MonitorQuery,
-): Result<MonitorHandle, HostError>;
+    /// Open one monitor endpoint.
+    @binding("destack.display.monitor.open", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    openMonitor(
+        id: &readonly string,
+        query: &readonly MonitorQuery,
+    ): Result<MonitorHandle, HostError>;
 
-/// Close one monitor endpoint.
-@binding("destack.display.monitor.close", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closeMonitor(monitor: MonitorHandle): Result<void, HostError>;
+    /// Close one monitor endpoint.
+    @binding("destack.display.monitor.close", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeMonitor(monitor: MonitorHandle): Result<void, HostError>;
 
-/// Describe one monitor.
-@binding("destack.display.monitor.describe", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function describeMonitor(monitor: MonitorHandle): Result<Monitor, HostError>;
+    /// Describe one monitor.
+    @binding("destack.display.monitor.describe", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    describeMonitor(monitor: MonitorHandle): Result<Monitor, HostError>;
 
-/// List supported monitor modes.
-@binding("destack.display.monitor.mode.list", {
-    effect: "external",
-    requires: ["host.display.monitor.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function listMonitorModes(
-    monitor: MonitorHandle,
-): Result<Array<MonitorMode>, HostError>;
+    /// List supported monitor modes.
+    @binding("destack.display.monitor.mode.list", {
+        effect: "external",
+        requires: ["host.display.monitor.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    listMonitorModes(monitor: MonitorHandle): Result<Array<MonitorMode>, HostError>;
 
-/// Select the closest supported monitor mode.
-@binding("destack.display.monitor.mode.closest", {
-    effect: "external",
-    requires: ["host.display.monitor.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function closestMonitorMode(
-    monitor: MonitorHandle,
-    mode: &readonly MonitorMode,
-): Result<MonitorMode, HostError>;
+    /// Select the closest supported monitor mode.
+    @binding("destack.display.monitor.mode.closest", {
+        effect: "external",
+        requires: ["host.display.monitor.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closestMonitorMode(
+        monitor: MonitorHandle,
+        mode: &readonly MonitorMode,
+    ): Result<MonitorMode, HostError>;
 
-/// Set one monitor mode.
-@binding("destack.display.monitor.mode.set", {
-    effect: "external",
-    requires: ["host.display.monitor.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function setMonitorMode(
-    monitor: MonitorHandle,
-    mode: &readonly MonitorMode,
-): Result<void, HostError>;
+    /// Set one monitor mode.
+    @binding("destack.display.monitor.mode.set", {
+        effect: "external",
+        requires: ["host.display.monitor.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    setMonitorMode(monitor: MonitorHandle, mode: &readonly MonitorMode): Result<void, HostError>;
 
-/// Read one monitor color state.
-@binding("destack.display.monitor.color", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function monitorColorState(
-    monitor: MonitorHandle,
-): Result<MonitorColorState, HostError>;
+    /// Read one monitor color state.
+    @binding("destack.display.monitor.color", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    monitorColorState(monitor: MonitorHandle): Result<MonitorColorState, HostError>;
 
-/// Set one monitor HDR policy.
-@binding("destack.display.monitor.hdr", {
-    effect: "external",
-    requires: ["host.display.monitor.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function setMonitorHdrMode(
-    monitor: MonitorHandle,
-    mode: DisplayHdrMode,
-): Result<void, HostError>;
+    /// Set one monitor HDR policy.
+    @binding("destack.display.monitor.hdr", {
+        effect: "external",
+        requires: ["host.display.monitor.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    setMonitorHdrMode(monitor: MonitorHandle, mode: DisplayHdrMode): Result<void, HostError>;
 
-/// Read one monitor gamma ramp.
-@binding("destack.display.monitor.gamma.read", {
-    effect: "external",
-    requires: ["host.display.monitor"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function readMonitorGamma(
-    monitor: MonitorHandle,
-): Result<MonitorGammaRamp, HostError>;
+    /// Read one monitor gamma ramp.
+    @binding("destack.display.monitor.gamma.read", {
+        effect: "external",
+        requires: ["host.display.monitor"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readMonitorGamma(monitor: MonitorHandle): Result<MonitorGammaRamp, HostError>;
 
-/// Set one monitor gamma ramp.
-@binding("destack.display.monitor.gamma.write", {
-    effect: "external",
-    requires: ["host.display.monitor.mode"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function writeMonitorGamma(
-    monitor: MonitorHandle,
-    gamma: &readonly MonitorGammaRamp,
-): Result<void, HostError>;
+    /// Set one monitor gamma ramp.
+    @binding("destack.display.monitor.gamma.write", {
+        effect: "external",
+        requires: ["host.display.monitor.mode"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    writeMonitorGamma(
+        monitor: MonitorHandle,
+        gamma: &readonly MonitorGammaRamp,
+    ): Result<void, HostError>;
+}
