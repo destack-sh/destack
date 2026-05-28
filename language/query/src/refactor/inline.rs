@@ -369,10 +369,10 @@ fn collect_pattern_bindings(
             collect_pattern_bindings(ctx, dir_tree, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
-        | dir::Pattern::TaggedTuple { fields, .. }
+        | dir::Pattern::Newtype { fields, .. }
         | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
-        | dir::Pattern::TaggedObject { fields, .. } => {
+        | dir::Pattern::NominalObject { fields, .. } => {
             for field_id in fields {
                 collect_pattern_bindings_field(ctx, dir_tree, *field_id, bindings);
             }
@@ -450,11 +450,11 @@ fn pattern_access_path(
         | dir::Pattern::DereferenceOf { right: inner } => {
             pattern_access_path(ctx, strings, dir_tree, *inner, target_symbol)
         }
-        dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {
+        dir::Pattern::Object { fields } | dir::Pattern::NominalObject { fields, .. } => {
             pattern_access_path_object_fields(ctx, strings, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Tuple { fields }
-        | dir::Pattern::TaggedTuple { fields, .. }
+        | dir::Pattern::Newtype { fields, .. }
         | dir::Pattern::Sequence { fields } => {
             pattern_access_path_indexed(ctx, strings, dir_tree, fields, target_symbol)
         }
