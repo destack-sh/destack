@@ -12,11 +12,14 @@ export struct OsIdentity {
     architecture: string;
 }
 
-/// Read operating-system identity.
-@binding("destack.os.identity.read", {
-    effect: "external",
-    requires: ["host.os.identity.read"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readOsIdentity(): Result<OsIdentity, HostError>;
+/// Identity binding family.
+export interface OsIdentity {
+    /// Read operating-system identity.
+    @binding("destack.os.identity.read", {
+        effect: "external",
+        requires: ["host.os.identity.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readOsIdentity(): Result<OsIdentity, HostError>;
+}
