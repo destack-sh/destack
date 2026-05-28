@@ -83,12 +83,15 @@ export struct DisplayBackend {
     flags: DisplayBackendFlags;
 }
 
-/// List host display backends.
-@binding("destack.display.backend.list", {
-    effect: "external",
-    requires: ["host.display.backend"],
-    families: ["windows", "unix"],
-    simulation: true,
-    affinity: "worker",
-})
-export declare function listDisplayBackends(): Result<Array<DisplayBackend>, HostError>;
+/// Backend binding family.
+export interface DisplayBackend {
+    /// List host display backends.
+    @binding("destack.display.backend.list", {
+        effect: "external",
+        requires: ["host.display.backend"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    listDisplayBackends(): Result<Array<DisplayBackend>, HostError>;
+}
