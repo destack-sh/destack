@@ -16,15 +16,14 @@ type Combined = A & (B | C);
 
 ## Intersection Types
 
-### intersection inside union uses parentheses
+### intersection inside union omits redundant parentheses
 
-Intersections inside unions are parenthesized.
+Intersections inside unions can omit redundant parentheses.
 
 ```ds
 type Combined = A | (B & C)
 ```
 
 ```ds expected
-type Combined = A | (B & C);
+type Combined = A | B & C;
 ```
-
