@@ -127,7 +127,7 @@ pub enum HeapError {
         max_chunks: usize,
     },
     /// One lower memory operation failed.
-    MemoryFailed {
+    Memory {
         /// The lower memory failure.
         error: MemoryError,
     },
@@ -138,13 +138,6 @@ pub enum HeapError {
         /// The exact bytes in use.
         used_bytes: u64,
         /// The configured limit.
-        max_bytes: u64,
-    },
-    /// One combined heap hard limit was exceeded.
-    TotalLimitExceeded {
-        /// The exact total bytes in use.
-        used_bytes: u64,
-        /// The configured total limit.
         max_bytes: u64,
     },
     /// One heap capture request found active collector work.
@@ -212,29 +205,15 @@ pub enum HeapError {
         /// The representation that was exceeded.
         context: &'static str,
     },
-    /// One internal heap invariant was violated.
-    InvariantViolation {
-        /// The violated invariant context.
+    /// One internal heap error occurred.
+    Internal {
+        /// The internal error context.
         context: &'static str,
     },
     /// One heap trace id did not resolve to program trace metadata.
     MissingTraceMap {
         /// The missing trace id.
         trace_id: u32,
-    },
-    /// One serialized image page could not be resolved.
-    ImageMissingPage {
-        /// The missing page identifier.
-        page_id: PageId,
-    },
-    /// One serialized image page had the wrong byte length.
-    ImageInvalidPageBytes {
-        /// The invalid page identifier.
-        page_id: PageId,
-        /// The expected byte length.
-        expected: usize,
-        /// The actual byte length.
-        actual: usize,
     },
     /// One validated logical page map lost one visible page slot.
     MissingLogicalPage {
@@ -479,7 +458,7 @@ impl Display for HeapError {
                     "allocator chunk limit exceeded: required {required_chunks} chunks with maximum {max_chunks}"
                 )
             }
-            Self::MemoryFailed { error } => {
+            Self::Memory { error } => {
                 write!(formatter, "memory operation failed: {error}")
             }
             Self::LimitExceeded {
@@ -492,15 +471,6 @@ impl Display for HeapError {
                 write!(
                     formatter,
                     "{subject} limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
-                )
-            }
-            Self::TotalLimitExceeded {
-                used_bytes,
-                max_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "total heap limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
                 )
             }
             Self::CaptureGcActive => {
@@ -578,24 +548,11 @@ impl Display for HeapError {
             Self::RepresentationLimitExceeded { context } => {
                 write!(formatter, "heap representation limit exceeded: {context}")
             }
-            Self::InvariantViolation { context } => {
-                write!(formatter, "heap invariant violation: {context}")
+            Self::Internal { context } => {
+                write!(formatter, "internal heap error: {context}")
             }
             Self::MissingTraceMap { trace_id } => {
                 write!(formatter, "heap trace table is missing trace id {trace_id}")
-            }
-            Self::ImageMissingPage { page_id } => {
-                write!(formatter, "heap image is missing page {page_id:?}")
-            }
-            Self::ImageInvalidPageBytes {
-                page_id,
-                expected,
-                actual,
-            } => {
-                write!(
-                    formatter,
-                    "heap image page {page_id:?} has invalid byte length: expected {expected}, got {actual}"
-                )
             }
             Self::MissingLogicalPage { page_index } => {
                 write!(formatter, "heap lost logical page at index {page_index}")
@@ -699,8 +656,8 @@ impl From<MemoryError> for HeapError {
                 len,
                 capacity,
             },
-            MemoryError::InvariantViolation { context } => Self::InvariantViolation { context },
-            error => Self::MemoryFailed { error },
+            MemoryError::Internal { context } => Self::Internal { context },
+            error => Self::Memory { error },
         }
     }
 }

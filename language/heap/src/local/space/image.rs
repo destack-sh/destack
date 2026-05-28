@@ -153,14 +153,27 @@ impl HeapSpaceImage {
         self.allocated_bytes
     }
 
+    /// Return the number of pages needed to restore this image.
+    pub(crate) fn page_count(&self) -> usize {
+        let young_pages = self.young().bytes().len().div_ceil(self.page_bytes);
+        let span_pages = self
+            .spans()
+            .iter()
+            .map(|span| span.bytes.len().div_ceil(self.page_bytes))
+            .sum::<usize>();
+        let allocation_pages = self
+            .allocations()
+            .iter()
+            .filter(|allocation| allocation.is_live)
+            .map(|allocation| allocation.bytes.len().div_ceil(self.page_bytes))
+            .sum::<usize>();
+
+        young_pages + span_pages + allocation_pages
+    }
+
     /// Return the captured collector state.
     pub(crate) fn gc_state(&self) -> &GcState {
         &self.gc_state
-    }
-
-    /// Return every live allocator page run captured by this image.
-    pub(crate) fn page_runs(&self) -> Vec<PageRun> {
-        image_page_runs(self).collect()
     }
 }
 
@@ -266,7 +279,7 @@ impl HeapSpace {
         allocator: &Allocator,
         image: &HeapSpaceImage,
     ) -> HeapResult<YoungSpace> {
-        let pages = allocator.allocate_pages(image.young().capacity_bytes())?;
+        let pages = allocator.allocate_pages(image.young().bytes().len())?;
         let ranges = image.young().ranges().to_vec();
         let live = image.young().live().clone();
         let runs = image.young().runs().to_vec();
@@ -375,7 +388,7 @@ impl HeapSpace {
         let small = Self::restore_small_space(allocator.as_ref(), image)?;
         let large = Self::restore_large_space(allocator.as_ref(), image)?;
         let mut mapping = AddressSpace::reserve(image.space_bytes(), image.page_bytes())?;
-        restore_image_mapping(&allocator, image, &mut mapping)?;
+        restore_image_mapping(image, &mut mapping)?;
         let max_young_allocation_bytes = if image.young().capacity_bytes() == 0 {
             0
         } else {
@@ -485,8 +498,7 @@ impl HeapSpace {
     fn restore_span(allocator: &Allocator, span: &SmallSpanImage) -> HeapResult<SmallSpan> {
         // rebuild the live span around fresh pages
         let dirty_card_bytes = span.slot_count * span.class.size_class;
-        let byte_len = span.pages.len() * allocator.page_bytes();
-        let pages = allocator.allocate_pages(byte_len)?;
+        let pages = allocator.allocate_pages(span.bytes.len())?;
 
         Ok(SmallSpan {
             first_offset: span.first_offset,
@@ -571,7 +583,7 @@ impl HeapSpace {
         allocation: &LargeAllocationImage,
     ) -> HeapResult<LargeAllocation> {
         let pages = if allocation.is_live {
-            allocator.allocate_pages(allocation.byte_len)?
+            allocator.allocate_pages(allocation.bytes.len())?
         } else {
             PageRun::empty()
         };
@@ -625,16 +637,15 @@ impl HeapSpace {
     fn capture_young_image(&self) -> HeapResult<YoungImage> {
         let (ranges, live) = self.young.image_ranges();
 
-        // capture the current retained bytes into page runs
+        // capture the current retained bytes directly
         let bytes = self.mapping.read_bytes(0, self.young.capacity_bytes)?;
-        let pages = self.allocator.allocate_image_bytes(&bytes)?;
 
         Ok(YoungImage::new(
             self.young.capacity_bytes,
             self.young.page_bytes,
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
-            pages,
+            bytes.into_boxed_slice(),
             ranges,
             self.young.cloned_runs().into_boxed_slice(),
             self.young.run_bits.clone().into_boxed_slice(),
@@ -658,9 +669,8 @@ impl HeapSpace {
     fn capture_span_image(&self, span: &SmallSpan) -> HeapResult<SmallSpanImage> {
         let byte_len = span.pages.len() * self.allocator.page_bytes();
 
-        // capture the current retained bytes into page runs
+        // capture the current retained bytes directly
         let bytes = self.mapping.read_bytes(span.first_offset, byte_len)?;
-        let pages = self.allocator.allocate_image_bytes(&bytes)?;
 
         Ok(SmallSpanImage {
             first_offset: span.first_offset,
@@ -669,7 +679,7 @@ impl HeapSpace {
             occupied: span.occupied.clone(),
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
-            pages,
+            bytes: bytes.into_boxed_slice(),
         })
     }
 
@@ -688,47 +698,46 @@ impl HeapSpace {
         &self,
         allocation: &LargeAllocation,
     ) -> HeapResult<LargeAllocationImage> {
-        // capture the current retained bytes into page runs
-        let pages = if allocation.is_live {
-            let bytes = self
-                .mapping
-                .read_bytes(allocation.first_offset, allocation.byte_len)?;
-
-            self.allocator.allocate_image_bytes(&bytes)?
+        // capture the current retained bytes directly
+        let bytes = if allocation.is_live {
+            self.mapping
+                .read_bytes(allocation.first_offset, allocation.byte_len)?
+                .into_boxed_slice()
         } else {
-            PageRun::empty()
+            Box::new([])
         };
 
         Ok(LargeAllocationImage {
             is_live: allocation.is_live,
             first_offset: allocation.first_offset,
             byte_len: allocation.byte_len,
-            pages,
+            bytes,
             trace_map: allocation.trace_map.clone(),
         })
     }
 }
 
-/// Return the page runs reachable from one frozen heap-space image.
-fn image_page_runs(image: &HeapSpaceImage) -> impl DoubleEndedIterator<Item = PageRun> + '_ {
-    image
-        .spans()
-        .iter()
-        .map(|span| span.pages)
-        .chain(
-            image
-                .allocations()
-                .iter()
-                .map(|allocation| allocation.pages),
-        )
-        .chain(std::iter::once(*image.young().pages()))
-}
-
 /// Return the retained live page bytes in one heap-space image.
 fn image_retained_page_bytes(image: &HeapSpaceImage, page_bytes: usize) -> u64 {
-    image_page_runs(image)
-        .map(|page_run| page_run.len() as u64 * page_bytes as u64)
-        .sum()
+    let young_bytes = retained_page_bytes(image.young().bytes().len(), page_bytes);
+    let span_bytes = image
+        .spans()
+        .iter()
+        .map(|span| retained_page_bytes(span.bytes.len(), page_bytes))
+        .sum::<u64>();
+    let allocation_bytes = image
+        .allocations()
+        .iter()
+        .filter(|allocation| allocation.is_live)
+        .map(|allocation| retained_page_bytes(allocation.bytes.len(), page_bytes))
+        .sum::<u64>();
+
+    young_bytes + span_bytes + allocation_bytes
+}
+
+/// Return the allocator-retained bytes for one restored byte range.
+fn retained_page_bytes(byte_len: usize, page_bytes: usize) -> u64 {
+    byte_len.div_ceil(page_bytes) as u64 * page_bytes as u64
 }
 
 /// Return the young live usage in one heap-space image.
@@ -757,30 +766,19 @@ fn restored_young_usage(image: &HeapSpaceImage) -> AllocationUsage {
 }
 
 /// Restore one heap mapping from one image.
-fn restore_image_mapping(
-    allocator: &Allocator,
-    image: &HeapSpaceImage,
-    mapping: &mut AddressSpace,
-) -> HeapResult<()> {
-    let young_bytes = image.young().capacity_bytes();
-
+fn restore_image_mapping(image: &HeapSpaceImage, mapping: &mut AddressSpace) -> HeapResult<()> {
     // restore the young mapped range first
-    if young_bytes != 0 {
-        let bytes = allocator.read_bytes_from(image.young().pages(), 0, young_bytes)?;
-
-        mapping.write_bytes(0, &bytes)?;
+    if !image.young().bytes().is_empty() {
+        mapping.write_bytes(0, image.young().bytes())?;
     }
 
     // restore each captured small span range
     for span in image.spans() {
-        let byte_len = span.pages.len() * allocator.page_bytes();
-        if byte_len == 0 {
+        if span.bytes.is_empty() {
             continue;
         }
 
-        let bytes = allocator.read_bytes_from(&span.pages, 0, byte_len)?;
-
-        mapping.write_bytes(span.first_offset, &bytes)?;
+        mapping.write_bytes(span.first_offset, &span.bytes)?;
     }
 
     // restore each captured large allocation range
@@ -789,9 +787,7 @@ fn restore_image_mapping(
             continue;
         }
 
-        let bytes = allocator.read_bytes_from(&allocation.pages, 0, allocation.byte_len)?;
-
-        mapping.write_bytes(allocation.first_offset, &bytes)?;
+        mapping.write_bytes(allocation.first_offset, &allocation.bytes)?;
     }
 
     Ok(())

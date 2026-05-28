@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Allocator, PageRun, Payload, RawAllocationShape, SharedHeapOptions, SharedHeapSpace,
-    SharedRawSpace, SizeClassTable, test_layouts, test_shared_allocator,
+    Payload, RawAllocationShape, SharedHeapOptions, SharedHeapSpace, SharedRawSpace,
+    SizeClassTable, test_layouts, test_shared_allocator,
 };
 use destack_mir::TraceMap;
 
@@ -11,11 +11,9 @@ use super::{read_mapped_bytes, trace_table, write_mapped_bytes};
 /// The allocator chunk size for small-page shared image fixtures.
 const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
 
-/// Return the bytes from one shared image page run.
-fn read_page_run_bytes(allocator: &Allocator, page_run: &PageRun, byte_len: usize) -> Vec<u8> {
-    allocator
-        .read_bytes_from(page_run, 0, byte_len)
-        .expect("shared image bytes should resolve")
+/// Return the logical bytes for one shared raw allocation image.
+fn raw_allocation_bytes(allocation: &crate::shared::raw::SharedRawAllocationImage) -> Vec<u8> {
+    allocation.bytes[..allocation.byte_len].to_vec()
 }
 
 /// Preserve shared allocation bytes across image and fork boundaries.
@@ -53,46 +51,34 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 
     // forked and restored bytes should match the captured image
     assert_eq!(
-        read_page_run_bytes(
-            &shared.allocator,
-            &forked_image
+        raw_allocation_bytes(
+            forked_image
                 .allocation(0)
-                .expect("first forked allocation image should exist")
-                .pages,
-            6
+                .expect("first forked allocation image should exist"),
         ),
         vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
-        read_page_run_bytes(
-            &shared.allocator,
-            &forked_image
+        raw_allocation_bytes(
+            forked_image
                 .allocation(1)
-                .expect("second forked allocation image should exist")
-                .pages,
-            6
+                .expect("second forked allocation image should exist"),
         ),
         vec![7, 8, 9, 10, 11, 12]
     );
     assert_eq!(
-        read_page_run_bytes(
-            &shared.allocator,
-            &restored_image
+        raw_allocation_bytes(
+            restored_image
                 .allocation(0)
-                .expect("first restored allocation image should exist")
-                .pages,
-            6,
+                .expect("first restored allocation image should exist"),
         ),
         vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
-        read_page_run_bytes(
-            &shared.allocator,
-            &restored_image
+        raw_allocation_bytes(
+            restored_image
                 .allocation(1)
-                .expect("second restored allocation image should exist")
-                .pages,
-            6,
+                .expect("second restored allocation image should exist"),
         ),
         vec![7, 8, 9, 10, 11, 12]
     );
@@ -104,24 +90,18 @@ fn test_roundtrip_shared_memory_image_and_fork() {
     let mutated_image = restored.image().expect("shared raw image should capture");
 
     assert_eq!(
-        read_page_run_bytes(
-            &shared.allocator,
-            &image
+        raw_allocation_bytes(
+            image
                 .allocation(0)
-                .expect("captured allocation image should exist")
-                .pages,
-            6,
+                .expect("captured allocation image should exist"),
         ),
         vec![1, 2, 3, 4, 5, 6]
     );
     assert_eq!(
-        read_page_run_bytes(
-            &shared.allocator,
-            &mutated_image
+        raw_allocation_bytes(
+            mutated_image
                 .allocation(0)
-                .expect("mutated allocation image should exist")
-                .pages,
-            6,
+                .expect("mutated allocation image should exist"),
         ),
         vec![9, 2, 3, 4, 5, 6]
     );
@@ -182,11 +162,7 @@ fn test_roundtrip_shared_heap_space_image() {
 
     assert_eq!(bytes, first_bytes);
     assert_eq!(
-        read_page_run_bytes(
-            allocator.as_ref(),
-            &restored_image.spans()[0].pages,
-            restored_image.spans()[0].class.size_class,
-        )[..first_bytes.len()],
+        restored_image.spans()[0].bytes[..first_bytes.len()],
         first_bytes
     );
 
@@ -205,19 +181,8 @@ fn test_roundtrip_shared_heap_space_image() {
 
     assert_eq!(bytes, expected_first);
     assert_eq!(
-        read_page_run_bytes(
-            allocator.as_ref(),
-            &mutated_image.spans()[0].pages,
-            mutated_image.spans()[0].class.size_class,
-        )[..expected_first.len()],
+        mutated_image.spans()[0].bytes[..expected_first.len()],
         expected_first
     );
-    assert_eq!(
-        read_page_run_bytes(
-            allocator.as_ref(),
-            &image.spans()[0].pages,
-            image.spans()[0].class.size_class,
-        )[..first_bytes.len()],
-        first_bytes
-    );
+    assert_eq!(image.spans()[0].bytes[..first_bytes.len()], first_bytes);
 }

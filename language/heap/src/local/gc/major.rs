@@ -5,8 +5,8 @@ use crate::local::space::{
     MajorSweepCursor, YoungPlace,
 };
 use crate::{
-    GcProgress, HeapError, HeapReference, HeapResult, RootSlot, ScanSource, scan_heap_references,
-    scan_heap_references_in_range,
+    GcProgress, HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, RootSlot,
+    ScanSource, scan_references,
 };
 
 /// The budget charged for one metadata-only sweep step.
@@ -86,11 +86,10 @@ impl HeapSpace {
 
         // scan local reference slots in mapped heap memory
         let base_address = self.mapping.base_address() + location.base.offset();
-        let result = scan_heap_references_in_range(
-            &trace_map,
-            byte_offset,
-            scan_len,
-            base_address,
+        let result = scan_references::<HeapReference>(
+            trace_map,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(byte_offset, scan_len),
             &mut references,
         );
 
@@ -129,7 +128,7 @@ impl HeapSpace {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
-                    return Err(HeapError::InvariantViolation {
+                    return Err(HeapError::Internal {
                         context: "local full collection made no progress",
                     }
                     .into());
@@ -329,7 +328,7 @@ impl HeapSpace {
             self.collector.major_sweep.young_range_cursor = allocation_index + 1;
 
             let Some(allocation) = self.young_range(allocation_index) else {
-                return Err(HeapError::InvariantViolation {
+                return Err(HeapError::Internal {
                     context: "live young range missing during major sweep",
                 });
             };
@@ -572,8 +571,12 @@ impl HeapSpace {
 
                     // scan every local reference discovered in this payload
                     let base_address = self.mapping.base_address() + location.base.offset();
-                    let trace_result =
-                        scan_heap_references(&trace_map, base_address, &mut references);
+                    let trace_result = scan_references::<HeapReference>(
+                        &trace_map,
+                        ReferenceInput::mapped(base_address),
+                        ReferenceRange::All,
+                        &mut references,
+                    );
 
                     if let Err(error) = trace_result {
                         return Err(HeapError::HeapScanFailed {
@@ -627,11 +630,10 @@ impl HeapSpace {
         let range_len = self.allocator().page_bytes().min(location.byte_len - start);
         let mut references = Vec::new();
         let base_address = self.mapping.base_address() + location.base.offset();
-        let trace_result = scan_heap_references_in_range(
+        let trace_result = scan_references::<HeapReference>(
             &trace_map,
-            start,
-            range_len,
-            base_address,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(start, range_len),
             &mut references,
         );
 

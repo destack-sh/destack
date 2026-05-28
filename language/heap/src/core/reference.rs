@@ -9,7 +9,7 @@ const REFERENCE_BYTES: usize = std::mem::size_of::<usize>();
 /// Return conservative local reference offsets from one map.
 pub(crate) fn local_reference_offsets(trace_map: &TraceMap) -> Box<[u32]> {
     let mut offsets = Vec::new();
-    append_reference_offsets::<LocalReference>(trace_map, 0, &mut offsets);
+    append_reference_offsets::<HeapReference>(trace_map, 0, &mut offsets);
 
     offsets.into_boxed_slice()
 }
@@ -17,7 +17,7 @@ pub(crate) fn local_reference_offsets(trace_map: &TraceMap) -> Box<[u32]> {
 /// Return conservative shared reference offsets from one map.
 pub(crate) fn shared_reference_offsets(trace_map: &TraceMap) -> Box<[u32]> {
     let mut offsets = Vec::new();
-    append_reference_offsets::<SharedReference>(trace_map, 0, &mut offsets);
+    append_reference_offsets::<SharedHeapReference>(trace_map, 0, &mut offsets);
 
     offsets.into_boxed_slice()
 }
@@ -30,9 +30,12 @@ fn append_reference_offsets<R: ReferenceScan>(
 ) {
     match trace_map {
         TraceMap::Empty => {}
-        TraceMap::Fixed { .. } => {
+        TraceMap::Fixed {
+            local_offsets,
+            shared_offsets,
+        } => {
             offsets.extend(
-                R::offsets(trace_map)
+                R::offsets(local_offsets, shared_offsets)
                     .iter()
                     .map(|offset| base_offset + *offset),
             );
@@ -72,81 +75,106 @@ fn reference_offsets_overlap<R: ReferenceScan>(
     start: usize,
     len: usize,
 ) -> bool {
-    if len == 0 {
-        return false;
-    }
+    let range = ReferenceRange::bytes(start, len);
 
-    // tagged maps are conservatively flattened for write barriers
-    let end = start + len;
-    let mut offsets = Vec::new();
-    append_reference_offsets::<R>(trace_map, 0, &mut offsets);
-
-    offsets
-        .iter()
-        .any(|offset| ranges_overlap(start, end, *offset as usize, R::BYTE_LEN))
+    trace_map_overlaps::<R>(trace_map, 0, range)
 }
 
 /// One byte range used to filter reference offsets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceRange {
+    /// Every reference offset is in range.
+    All,
+    /// One byte range is in scope.
+    Bytes {
+        /// The start byte offset.
+        start: usize,
+        /// The exclusive end byte offset.
+        end: usize,
+    },
+}
+
+impl ReferenceRange {
+    /// Return one byte range.
+    pub fn bytes(start: usize, len: usize) -> Self {
+        Self::Bytes {
+            start,
+            end: start + len,
+        }
+    }
+
+    /// Return whether this range overlaps one reference field.
+    fn overlaps(self, offset: usize, width: usize) -> bool {
+        match self {
+            Self::All => true,
+            Self::Bytes { start, end } => ranges_overlap(start, end, offset, width),
+        }
+    }
+}
+
+/// Reference bytes consumed by one scan.
 #[derive(Debug, Clone, Copy)]
-struct ReferenceRange {
-    /// The start byte offset.
-    start: usize,
-    /// The exclusive end byte offset.
-    end: usize,
-    /// The reference byte width.
-    width: usize,
+pub(crate) enum ReferenceInput<'a> {
+    /// Mapped heap memory at a native address.
+    Mapped {
+        /// The mapped allocation base address.
+        base_address: usize,
+    },
+    /// Caller-provided object bytes.
+    Bytes {
+        /// The absolute byte offset represented by `bytes`.
+        start: usize,
+        /// The byte window to scan.
+        bytes: &'a [u8],
+    },
+}
+
+impl<'a> ReferenceInput<'a> {
+    /// Return a mapped-memory scan input.
+    pub(crate) fn mapped(base_address: usize) -> Self {
+        Self::Mapped { base_address }
+    }
+
+    /// Return a byte-window scan input.
+    pub(crate) fn bytes(start: usize, bytes: &'a [u8]) -> Self {
+        Self::Bytes { start, bytes }
+    }
 }
 
 /// Reference class selected from one trace map.
-trait ReferenceScan {
-    /// Concrete reference type produced by the scan.
-    type Reference;
+pub(crate) trait ReferenceScan: Sized {
     /// The encoded byte width.
     const BYTE_LEN: usize;
 
     /// Return the offsets for this reference class.
-    fn offsets(trace_map: &TraceMap) -> &[u32];
+    fn offsets<'a>(local_offsets: &'a [u32], shared_offsets: &'a [u32]) -> &'a [u32];
 
     /// Decode one reference from native bits.
-    fn from_bits(bits: usize) -> Self::Reference;
+    fn from_bits(bits: usize) -> Self;
 }
 
 /// Worker-local reference fields.
-struct LocalReference;
-
-impl ReferenceScan for LocalReference {
-    type Reference = HeapReference;
+impl ReferenceScan for HeapReference {
     const BYTE_LEN: usize = HeapReference::BYTE_LEN;
 
-    fn offsets(trace_map: &TraceMap) -> &[u32] {
-        let TraceMap::Fixed { local_offsets, .. } = trace_map else {
-            return &[];
-        };
-
+    fn offsets<'a>(local_offsets: &'a [u32], _shared_offsets: &'a [u32]) -> &'a [u32] {
         local_offsets
     }
 
-    fn from_bits(bits: usize) -> Self::Reference {
+    fn from_bits(bits: usize) -> Self {
         HeapReference::from_bits(bits)
     }
 }
 
 /// Runtime-shared reference fields.
-struct SharedReference;
-
-impl ReferenceScan for SharedReference {
-    type Reference = SharedHeapReference;
+impl ReferenceScan for SharedHeapReference {
     const BYTE_LEN: usize = SharedHeapReference::BYTE_LEN;
 
-    fn offsets(trace_map: &TraceMap) -> &[u32] {
-        let TraceMap::Fixed { shared_offsets, .. } = trace_map else {
-            return &[];
-        };
-
+    fn offsets<'a>(_local_offsets: &'a [u32], shared_offsets: &'a [u32]) -> &'a [u32] {
         shared_offsets
     }
 
-    fn from_bits(bits: usize) -> Self::Reference {
+    fn from_bits(bits: usize) -> Self {
         SharedHeapReference::from_bits(bits)
     }
 }
@@ -223,12 +251,12 @@ fn direct_trace_map(
 
 /// Return whether one write range may overlap any local reference bytes.
 pub(crate) fn overlaps_heap_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
-    reference_offsets_overlap::<LocalReference>(trace_map, start, len)
+    reference_offsets_overlap::<HeapReference>(trace_map, start, len)
 }
 
 /// Return whether one write range may overlap any shared reference bytes.
 pub(crate) fn overlaps_shared_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
-    reference_offsets_overlap::<SharedReference>(trace_map, start, len)
+    reference_offsets_overlap::<SharedHeapReference>(trace_map, start, len)
 }
 
 /// Return the exact trace map encoded for one allocation byte range.
@@ -368,631 +396,399 @@ pub(crate) fn write_allocation_reference_bits(
     );
 }
 
-/// Visit heap edges encoded in the given payload bytes.
-pub fn visit_heap_edges_in_bytes(
+/// Visit heap edges encoded in the given byte window.
+pub fn visit_heap_edges(
     trace_map: &TraceMap,
+    start: usize,
     bytes: &[u8],
+    range: ReferenceRange,
     visit: &mut dyn FnMut(HeapEdge) -> HeapResult<()>,
 ) -> HeapResult<()> {
-    visit_heap_edges_from_bytes(trace_map, 0, bytes, 0, None, visit)
-}
-
-/// Visit mutable local heap reference slots encoded in the given payload bytes.
-pub fn visit_heap_root_slots_in_bytes(
-    trace_map: &TraceMap,
-    bytes: &mut [u8],
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> HeapResult<()> {
-    visit_heap_root_slots_from_bytes(trace_map, 0, bytes, 0, None, visit)
-}
-
-/// Visit mutable heap root slots encoded in one byte range.
-pub(crate) fn visit_heap_root_slots_in_bytes_range(
-    trace_map: &TraceMap,
-    bytes_start: usize,
-    start: usize,
-    len: usize,
-    bytes: &mut [u8],
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> HeapResult<()> {
-    let range = ReferenceRange {
-        start,
-        end: start + len,
-        width: HeapReference::BYTE_LEN,
-    };
-
-    visit_heap_root_slots_from_bytes(trace_map, bytes_start, bytes, 0, Some(range), visit)
-}
-
-/// Scan heap references from one mapped allocation base address.
-pub(crate) fn scan_heap_references(
-    trace_map: &TraceMap,
-    base_address: usize,
-    references: &mut Vec<HeapReference>,
-) -> HeapResult<()> {
-    push_references_from_memory::<LocalReference>(trace_map, base_address, 0, None, references)
-}
-
-/// Scan shared heap references from one mapped allocation base address.
-pub(crate) fn scan_shared_references(
-    trace_map: &TraceMap,
-    base_address: usize,
-    references: &mut Vec<SharedHeapReference>,
-) -> HeapResult<()> {
-    push_references_from_memory::<SharedReference>(trace_map, base_address, 0, None, references)
-}
-
-/// Scan overlapping heap references from one mapped allocation base address.
-pub(crate) fn scan_heap_references_in_range(
-    trace_map: &TraceMap,
-    start: usize,
-    len: usize,
-    base_address: usize,
-    references: &mut Vec<HeapReference>,
-) -> HeapResult<()> {
-    let range = ReferenceRange {
-        start,
-        end: start + len,
-        width: HeapReference::BYTE_LEN,
-    };
-
-    push_references_from_memory::<LocalReference>(
-        trace_map,
-        base_address,
-        0,
-        Some(range),
-        references,
-    )
-}
-
-/// Scan overlapping shared heap references from one mapped allocation base address.
-pub(crate) fn scan_shared_references_in_range(
-    trace_map: &TraceMap,
-    start: usize,
-    len: usize,
-    base_address: usize,
-    references: &mut Vec<SharedHeapReference>,
-) -> HeapResult<()> {
-    let range = ReferenceRange {
-        start,
-        end: start + len,
-        width: SharedHeapReference::BYTE_LEN,
-    };
-
-    push_references_from_memory::<SharedReference>(
-        trace_map,
-        base_address,
-        0,
-        Some(range),
-        references,
-    )
-}
-
-/// Scan overlapping shared heap references from one byte window.
-pub(crate) fn scan_shared_references_in_bytes_range(
-    trace_map: &TraceMap,
-    start: usize,
-    len: usize,
-    bytes: &[u8],
-    references: &mut Vec<SharedHeapReference>,
-) -> HeapResult<()> {
-    let range = ReferenceRange {
-        start,
-        end: start + len,
-        width: SharedHeapReference::BYTE_LEN,
-    };
-
-    visit_references_from_bytes::<SharedReference>(
-        trace_map,
+    let mut walker = ByteEdgeWalker {
         start,
         bytes,
-        0,
-        Some(range),
-        &mut |reference| {
-            references.push(reference);
-
-            Ok(())
-        },
-    )
-}
-
-/// Push references from mapped payload memory.
-fn push_references_from_memory<R: ReferenceScan>(
-    trace_map: &TraceMap,
-    base_address: usize,
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    references: &mut Vec<R::Reference>,
-) -> HeapResult<()> {
-    match trace_map {
-        TraceMap::Empty => {}
-        TraceMap::Fixed { .. } => {
-            push_direct_references::<R>(
-                R::offsets(trace_map),
-                base_address,
-                base_offset,
-                range,
-                references,
-            );
-        }
-        TraceMap::Nested { byte_offset, map } => {
-            let byte_offset = base_offset + *byte_offset as usize;
-
-            push_references_from_memory::<R>(map, base_address, byte_offset, range, references)?;
-        }
-        TraceMap::Composite { maps } => {
-            for map in maps {
-                push_references_from_memory::<R>(
-                    map,
-                    base_address,
-                    base_offset,
-                    range,
-                    references,
-                )?;
-            }
-        }
-        TraceMap::Repeated {
-            count,
-            stride,
-            element,
-        } => {
-            for index in 0..*count {
-                let element_offset = base_offset + index as usize * *stride as usize;
-
-                push_references_from_memory::<R>(
-                    element,
-                    base_address,
-                    element_offset,
-                    range,
-                    references,
-                )?;
-            }
-        }
-        TraceMap::Tagged {
-            tag_offset,
-            tag_bytes,
-            variants,
-        } => {
-            // SAFETY: mapped allocation tags are inside live payload memory
-            let tag = unsafe {
-                read_reference_tag(
-                    base_address + base_offset + *tag_offset as usize,
-                    *tag_bytes,
-                )
-            };
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
-                return Ok(());
-            };
-            let variant_offset = base_offset + variant.storage_offset as usize;
-
-            push_references_from_memory::<R>(
-                &variant.map,
-                base_address,
-                variant_offset,
-                range,
-                references,
-            )?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Visit references from caller-provided bytes.
-fn visit_references_from_bytes<R: ReferenceScan>(
-    trace_map: &TraceMap,
-    start: usize,
-    bytes: &[u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(R::Reference) -> HeapResult<()>,
-) -> HeapResult<()> {
-    match trace_map {
-        TraceMap::Empty => {}
-        TraceMap::Fixed { .. } => {
-            visit_direct_references_from_bytes::<R>(
-                R::offsets(trace_map),
-                start,
-                bytes,
-                base_offset,
-                range,
-                visit,
-            )?;
-        }
-        TraceMap::Nested { byte_offset, map } => {
-            let byte_offset = base_offset + *byte_offset as usize;
-
-            visit_references_from_bytes::<R>(map, start, bytes, byte_offset, range, visit)?;
-        }
-        TraceMap::Composite { maps } => {
-            for map in maps {
-                visit_references_from_bytes::<R>(map, start, bytes, base_offset, range, visit)?;
-            }
-        }
-        TraceMap::Repeated {
-            count,
-            stride,
-            element,
-        } => {
-            for index in 0..*count {
-                let element_offset = base_offset + index as usize * *stride as usize;
-
-                visit_references_from_bytes::<R>(
-                    element,
-                    start,
-                    bytes,
-                    element_offset,
-                    range,
-                    visit,
-                )?;
-            }
-        }
-        TraceMap::Tagged {
-            tag_offset,
-            tag_bytes,
-            variants,
-        } => {
-            let tag_offset = base_offset + *tag_offset as usize;
-            let Some(tag) = reference_tag_from_bytes(bytes, start, tag_offset, *tag_bytes) else {
-                visit_reference_variants_from_bytes::<R>(
-                    variants,
-                    start,
-                    bytes,
-                    base_offset,
-                    range,
-                    visit,
-                )?;
-
-                return Ok(());
-            };
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
-                return Ok(());
-            };
-            let variant_offset = base_offset + variant.storage_offset as usize;
-
-            visit_references_from_bytes::<R>(
-                &variant.map,
-                start,
-                bytes,
-                variant_offset,
-                range,
-                visit,
-            )?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Visit heap edges from caller-provided bytes.
-fn visit_heap_edges_from_bytes(
-    trace_map: &TraceMap,
-    start: usize,
-    bytes: &[u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(HeapEdge) -> HeapResult<()>,
-) -> HeapResult<()> {
-    match trace_map {
-        TraceMap::Empty => {}
-        TraceMap::Fixed {
-            local_offsets,
-            shared_offsets,
-        } => {
-            visit_direct_references_from_bytes::<LocalReference>(
-                local_offsets,
-                start,
-                bytes,
-                base_offset,
-                range,
-                &mut |reference| visit(HeapEdge::Local(reference)),
-            )?;
-            visit_direct_references_from_bytes::<SharedReference>(
-                shared_offsets,
-                start,
-                bytes,
-                base_offset,
-                range,
-                &mut |reference| visit(HeapEdge::Shared(reference)),
-            )?;
-        }
-        TraceMap::Nested { byte_offset, map } => {
-            let byte_offset = base_offset + *byte_offset as usize;
-
-            visit_heap_edges_from_bytes(map, start, bytes, byte_offset, range, visit)?;
-        }
-        TraceMap::Composite { maps } => {
-            for map in maps {
-                visit_heap_edges_from_bytes(map, start, bytes, base_offset, range, visit)?;
-            }
-        }
-        TraceMap::Repeated {
-            count,
-            stride,
-            element,
-        } => {
-            for index in 0..*count {
-                let element_offset = base_offset + index as usize * *stride as usize;
-
-                visit_heap_edges_from_bytes(element, start, bytes, element_offset, range, visit)?;
-            }
-        }
-        TraceMap::Tagged {
-            tag_offset,
-            tag_bytes,
-            variants,
-        } => {
-            let tag_offset = base_offset + *tag_offset as usize;
-            let Some(tag) = reference_tag_from_bytes(bytes, start, tag_offset, *tag_bytes) else {
-                visit_heap_edge_variants_from_bytes(
-                    variants,
-                    start,
-                    bytes,
-                    base_offset,
-                    range,
-                    visit,
-                )?;
-
-                return Ok(());
-            };
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
-                return Ok(());
-            };
-            let variant_offset = base_offset + variant.storage_offset as usize;
-
-            visit_heap_edges_from_bytes(&variant.map, start, bytes, variant_offset, range, visit)?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Push direct references from mapped payload memory.
-fn push_direct_references<R: ReferenceScan>(
-    offsets: &[u32],
-    base_address: usize,
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    references: &mut Vec<R::Reference>,
-) {
-    for offset in offsets {
-        let offset = base_offset + *offset as usize;
-        if !reference_offset_overlaps_range(offset, range) {
-            continue;
-        }
-
-        // SAFETY: mapped allocation references are aligned native words at trace-map offsets
-        let bits = unsafe { read_reference_bits(base_address + offset) };
-        references.push(R::from_bits(bits));
-    }
-}
-
-/// Visit direct references from caller-provided bytes.
-fn visit_direct_references_from_bytes<R: ReferenceScan>(
-    offsets: &[u32],
-    start: usize,
-    bytes: &[u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(R::Reference) -> HeapResult<()>,
-) -> HeapResult<()> {
-    for offset in offsets {
-        let offset = base_offset + *offset as usize;
-        if !reference_offset_overlaps_range(offset, range) {
-            continue;
-        }
-
-        let bits = reference_bits_from_bytes(bytes, start, offset)?;
-        visit(R::from_bits(bits))?;
-    }
-
-    Ok(())
-}
-
-/// Visit references from all tagged variants in one byte window.
-fn visit_reference_variants_from_bytes<R: ReferenceScan>(
-    variants: &[TraceVariant],
-    start: usize,
-    bytes: &[u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(R::Reference) -> HeapResult<()>,
-) -> HeapResult<()> {
-    for variant in variants {
-        let variant_offset = base_offset + variant.storage_offset as usize;
-
-        visit_references_from_bytes::<R>(&variant.map, start, bytes, variant_offset, range, visit)?;
-    }
-
-    Ok(())
-}
-
-/// Visit heap edges from all tagged variants in one byte window.
-fn visit_heap_edge_variants_from_bytes(
-    variants: &[TraceVariant],
-    start: usize,
-    bytes: &[u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(HeapEdge) -> HeapResult<()>,
-) -> HeapResult<()> {
-    for variant in variants {
-        let variant_offset = base_offset + variant.storage_offset as usize;
-
-        visit_heap_edges_from_bytes(&variant.map, start, bytes, variant_offset, range, visit)?;
-    }
-
-    Ok(())
-}
-
-/// Visit mutable heap root slots selected by caller-provided bytes.
-fn visit_heap_root_slots_from_bytes(
-    trace_map: &TraceMap,
-    start: usize,
-    bytes: &mut [u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> HeapResult<()> {
-    match trace_map {
-        TraceMap::Empty => {}
-        TraceMap::Fixed {
-            local_offsets,
-            shared_offsets,
-        } => {
-            visit_direct_heap_root_slots_from_bytes(
-                local_offsets,
-                start,
-                bytes,
-                base_offset,
-                range,
-                visit,
-            )?;
-            visit_direct_shared_root_slots_from_bytes(
-                shared_offsets,
-                start,
-                bytes,
-                base_offset,
-                range,
-                visit,
-            )?;
-        }
-        TraceMap::Nested { byte_offset, map } => {
-            let byte_offset = base_offset + *byte_offset as usize;
-
-            visit_heap_root_slots_from_bytes(map, start, bytes, byte_offset, range, visit)?;
-        }
-        TraceMap::Composite { maps } => {
-            for map in maps {
-                visit_heap_root_slots_from_bytes(map, start, bytes, base_offset, range, visit)?;
-            }
-        }
-        TraceMap::Repeated {
-            count,
-            stride,
-            element,
-        } => {
-            for index in 0..*count {
-                let element_offset = base_offset + index as usize * *stride as usize;
-
-                visit_heap_root_slots_from_bytes(
-                    element,
-                    start,
-                    bytes,
-                    element_offset,
-                    range,
-                    visit,
-                )?;
-            }
-        }
-        TraceMap::Tagged {
-            tag_offset,
-            tag_bytes,
-            variants,
-        } => {
-            let tag_offset = base_offset + *tag_offset as usize;
-            let Some(tag) = reference_tag_from_bytes(bytes, start, tag_offset, *tag_bytes) else {
-                visit_heap_root_slot_variants_from_bytes(
-                    variants,
-                    start,
-                    bytes,
-                    base_offset,
-                    range,
-                    visit,
-                )?;
-
-                return Ok(());
-            };
-            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
-                return Ok(());
-            };
-            let variant_offset = base_offset + variant.storage_offset as usize;
-
-            visit_heap_root_slots_from_bytes(
-                &variant.map,
-                start,
-                bytes,
-                variant_offset,
-                range,
-                visit,
-            )?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Visit direct mutable worker heap root slots from caller-provided bytes.
-fn visit_direct_heap_root_slots_from_bytes(
-    offsets: &[u32],
-    start: usize,
-    bytes: &mut [u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> HeapResult<()> {
-    for offset in offsets {
-        let offset = base_offset + *offset as usize;
-        if !reference_offset_overlaps_range(offset, range) {
-            continue;
-        }
-
-        let slot = reference_bytes_mut(bytes, start, offset, HeapReference::BYTE_LEN)?;
-
-        visit(RootSlot::HeapBytes(slot))?;
-    }
-
-    Ok(())
-}
-
-/// Visit direct mutable runtime heap root slots from caller-provided bytes.
-fn visit_direct_shared_root_slots_from_bytes(
-    offsets: &[u32],
-    start: usize,
-    bytes: &mut [u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> HeapResult<()> {
-    for offset in offsets {
-        let offset = base_offset + *offset as usize;
-        if !reference_offset_overlaps_range(offset, range) {
-            continue;
-        }
-
-        let slot = reference_bytes_mut(bytes, start, offset, SharedHeapReference::BYTE_LEN)?;
-
-        visit(RootSlot::SharedHeapBytes(slot))?;
-    }
-
-    Ok(())
-}
-
-/// Visit mutable heap root slots from all tagged variants in one byte window.
-fn visit_heap_root_slot_variants_from_bytes(
-    variants: &[TraceVariant],
-    start: usize,
-    bytes: &mut [u8],
-    base_offset: usize,
-    range: Option<ReferenceRange>,
-    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-) -> HeapResult<()> {
-    for variant in variants {
-        let variant_offset = base_offset + variant.storage_offset as usize;
-
-        visit_heap_root_slots_from_bytes(&variant.map, start, bytes, variant_offset, range, visit)?;
-    }
-
-    Ok(())
-}
-
-/// Return whether one reference offset overlaps an optional byte range.
-fn reference_offset_overlaps_range(offset: usize, range: Option<ReferenceRange>) -> bool {
-    let Some(range) = range else {
-        return true;
+        visit,
     };
 
-    ranges_overlap(range.start, range.end, offset, range.width)
+    walk_trace_map(trace_map, 0, range, &mut walker)
+}
+
+/// Visit mutable heap root slots encoded in the given byte window.
+pub fn visit_heap_root_slots(
+    trace_map: &TraceMap,
+    start: usize,
+    bytes: &mut [u8],
+    range: ReferenceRange,
+    visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+) -> HeapResult<()> {
+    let mut walker = ByteSlotWalker {
+        start,
+        bytes,
+        visit,
+    };
+
+    walk_trace_map(trace_map, 0, range, &mut walker)
+}
+
+/// Scan read-only references from one input.
+pub(crate) fn scan_references<R: ReferenceScan>(
+    trace_map: &TraceMap,
+    input: ReferenceInput<'_>,
+    range: ReferenceRange,
+    references: &mut Vec<R>,
+) -> HeapResult<()> {
+    match input {
+        ReferenceInput::Mapped { base_address } => {
+            let mut walker = MemoryReferenceWalker::<R> {
+                base_address,
+                references,
+            };
+
+            walk_trace_map(trace_map, 0, range, &mut walker)
+        }
+        ReferenceInput::Bytes { start, bytes } => {
+            let mut walker = ByteReferenceWalker::<R> {
+                start,
+                bytes,
+                references,
+            };
+
+            walk_trace_map(trace_map, 0, range, &mut walker)
+        }
+    }
+}
+
+/// Walk references selected by one trace map.
+fn walk_trace_map<W: TraceWalker>(
+    trace_map: &TraceMap,
+    base_offset: usize,
+    range: ReferenceRange,
+    walker: &mut W,
+) -> HeapResult<()> {
+    match trace_map {
+        TraceMap::Empty => {}
+        TraceMap::Fixed {
+            local_offsets,
+            shared_offsets,
+        } => {
+            walker.fixed(local_offsets, shared_offsets, base_offset, range)?;
+        }
+        TraceMap::Nested { byte_offset, map } => {
+            let byte_offset = base_offset + *byte_offset as usize;
+
+            walk_trace_map(map, byte_offset, range, walker)?;
+        }
+        TraceMap::Composite { maps } => {
+            for map in maps {
+                walk_trace_map(map, base_offset, range, walker)?;
+            }
+        }
+        TraceMap::Repeated {
+            count,
+            stride,
+            element,
+        } => {
+            for index in 0..*count {
+                let element_offset = base_offset + index as usize * *stride as usize;
+
+                walk_trace_map(element, element_offset, range, walker)?;
+            }
+        }
+        TraceMap::Tagged {
+            tag_offset,
+            tag_bytes,
+            variants,
+        } => {
+            let tag_offset = base_offset + *tag_offset as usize;
+            let Some(tag) = walker.tag(tag_offset, *tag_bytes)? else {
+                walk_trace_variants(variants, base_offset, range, walker)?;
+
+                return Ok(());
+            };
+            let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
+                return Ok(());
+            };
+            let variant_offset = base_offset + variant.storage_offset as usize;
+
+            walk_trace_map(&variant.map, variant_offset, range, walker)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Walk all tagged variants when the active tag is not available.
+fn walk_trace_variants<W: TraceWalker>(
+    variants: &[TraceVariant],
+    base_offset: usize,
+    range: ReferenceRange,
+    walker: &mut W,
+) -> HeapResult<()> {
+    for variant in variants {
+        let variant_offset = base_offset + variant.storage_offset as usize;
+
+        walk_trace_map(&variant.map, variant_offset, range, walker)?;
+    }
+
+    Ok(())
+}
+
+/// Walk direct reference offsets selected by the optional byte range.
+fn walk_direct_offsets(
+    offsets: &[u32],
+    base_offset: usize,
+    range: ReferenceRange,
+    width: usize,
+    mut visit: impl FnMut(usize) -> HeapResult<()>,
+) -> HeapResult<()> {
+    for offset in offsets {
+        let offset = base_offset + *offset as usize;
+        if !range.overlaps(offset, width) {
+            continue;
+        }
+
+        visit(offset)?;
+    }
+
+    Ok(())
+}
+
+/// Reference walker selected by scan source and output shape.
+trait TraceWalker {
+    /// Walk one fixed trace map at the given byte offset.
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()>;
+
+    /// Return the active variant tag at the given offset.
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>>;
+}
+
+/// Read-only reference scanner over mapped allocation memory.
+struct MemoryReferenceWalker<'a, R: ReferenceScan> {
+    /// The mapped allocation base address.
+    base_address: usize,
+    /// The references collected during the walk.
+    references: &'a mut Vec<R>,
+}
+
+impl<R: ReferenceScan> TraceWalker for MemoryReferenceWalker<'_, R> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            R::offsets(local_offsets, shared_offsets),
+            base_offset,
+            range,
+            R::BYTE_LEN,
+            |offset| {
+                // SAFETY: mapped allocation references are aligned native words at trace-map offsets
+                let bits = unsafe { read_reference_bits(self.base_address + offset) };
+
+                self.references.push(R::from_bits(bits));
+
+                Ok(())
+            },
+        )
+    }
+
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
+        // SAFETY: mapped allocation tags are inside live payload memory
+        let tag = unsafe { read_reference_tag(self.base_address + offset, width) };
+
+        Ok(Some(tag))
+    }
+}
+
+/// Read-only reference scanner over caller-provided bytes.
+struct ByteReferenceWalker<'a, R: ReferenceScan> {
+    /// The absolute byte offset represented by `bytes`.
+    start: usize,
+    /// The byte window to read.
+    bytes: &'a [u8],
+    /// The references collected during the walk.
+    references: &'a mut Vec<R>,
+}
+
+impl<R: ReferenceScan> TraceWalker for ByteReferenceWalker<'_, R> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            R::offsets(local_offsets, shared_offsets),
+            base_offset,
+            range,
+            R::BYTE_LEN,
+            |offset| {
+                let bits = reference_bits_from_bytes(self.bytes, self.start, offset)?;
+
+                self.references.push(R::from_bits(bits));
+
+                Ok(())
+            },
+        )
+    }
+
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
+        Ok(reference_tag_from_bytes(
+            self.bytes, self.start, offset, width,
+        ))
+    }
+}
+
+/// Read-only walker over caller-provided bytes.
+struct ByteEdgeWalker<'a> {
+    /// The absolute byte offset represented by `bytes`.
+    start: usize,
+    /// The byte window to read.
+    bytes: &'a [u8],
+    /// The edge visitor.
+    visit: &'a mut dyn FnMut(HeapEdge) -> HeapResult<()>,
+}
+
+impl TraceWalker for ByteEdgeWalker<'_> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            local_offsets,
+            base_offset,
+            range,
+            HeapReference::BYTE_LEN,
+            |offset| {
+                let bits = reference_bits_from_bytes(self.bytes, self.start, offset)?;
+
+                (self.visit)(HeapEdge::Local(HeapReference::from_bits(bits)))
+            },
+        )?;
+
+        walk_direct_offsets(
+            shared_offsets,
+            base_offset,
+            range,
+            SharedHeapReference::BYTE_LEN,
+            |offset| {
+                let bits = reference_bits_from_bytes(self.bytes, self.start, offset)?;
+
+                (self.visit)(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))
+            },
+        )
+    }
+
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
+        Ok(reference_tag_from_bytes(
+            self.bytes, self.start, offset, width,
+        ))
+    }
+}
+
+/// Mutable walker over caller-provided bytes.
+struct ByteSlotWalker<'a> {
+    /// The absolute byte offset represented by `bytes`.
+    start: usize,
+    /// The byte window to mutate.
+    bytes: &'a mut [u8],
+    /// The slot visitor.
+    visit: &'a mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+}
+
+impl TraceWalker for ByteSlotWalker<'_> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            local_offsets,
+            base_offset,
+            range,
+            HeapReference::BYTE_LEN,
+            |offset| {
+                let slot =
+                    reference_bytes_mut(self.bytes, self.start, offset, HeapReference::BYTE_LEN)?;
+
+                (self.visit)(RootSlot::HeapBytes(slot))
+            },
+        )?;
+
+        walk_direct_offsets(
+            shared_offsets,
+            base_offset,
+            range,
+            SharedHeapReference::BYTE_LEN,
+            |offset| {
+                let slot = reference_bytes_mut(
+                    self.bytes,
+                    self.start,
+                    offset,
+                    SharedHeapReference::BYTE_LEN,
+                )?;
+
+                (self.visit)(RootSlot::SharedHeapBytes(slot))
+            },
+        )
+    }
+
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
+        Ok(reference_tag_from_bytes(
+            self.bytes, self.start, offset, width,
+        ))
+    }
+}
+
+/// Return whether one trace map overlaps any reference field of one class.
+fn trace_map_overlaps<R: ReferenceScan>(
+    trace_map: &TraceMap,
+    base_offset: usize,
+    range: ReferenceRange,
+) -> bool {
+    match trace_map {
+        TraceMap::Empty => false,
+        TraceMap::Fixed {
+            local_offsets,
+            shared_offsets,
+        } => R::offsets(local_offsets, shared_offsets)
+            .iter()
+            .any(|offset| range.overlaps(base_offset + *offset as usize, R::BYTE_LEN)),
+        TraceMap::Nested { byte_offset, map } => {
+            trace_map_overlaps::<R>(map, base_offset + *byte_offset as usize, range)
+        }
+        TraceMap::Composite { maps } => maps
+            .iter()
+            .any(|map| trace_map_overlaps::<R>(map, base_offset, range)),
+        TraceMap::Repeated {
+            count,
+            stride,
+            element,
+        } => (0..*count).any(|index| {
+            let element_offset = base_offset + index as usize * *stride as usize;
+
+            trace_map_overlaps::<R>(element, element_offset, range)
+        }),
+        TraceMap::Tagged { variants, .. } => variants.iter().any(|variant| {
+            let variant_offset = base_offset + variant.storage_offset as usize;
+
+            trace_map_overlaps::<R>(&variant.map, variant_offset, range)
+        }),
+    }
 }
 
 /// Return one native-width reference payload from mapped memory.
@@ -1139,8 +935,13 @@ mod tests {
         };
         let mut references = Vec::new();
 
-        let error = scan_shared_references_in_bytes_range(&trace_map, 4, 1, &[0], &mut references)
-            .expect_err("partial reference windows should fail loudly");
+        let error = scan_references::<SharedHeapReference>(
+            &trace_map,
+            ReferenceInput::bytes(4, &[0]),
+            ReferenceRange::bytes(4, 1),
+            &mut references,
+        )
+        .expect_err("partial reference windows should fail loudly");
 
         assert_eq!(
             error,

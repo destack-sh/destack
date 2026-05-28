@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{SharedRawAllocation, SharedRawSpace};
 use crate::allocator::PageRunCache;
-use crate::{AllocationUsage, Allocator, HeapResult, PageId, PageRun};
+use crate::{AllocationUsage, Allocator, HeapResult, PageRun};
 
 /// One frozen shared raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,24 +72,16 @@ impl SharedRawSpaceImage {
         self.next_offset
     }
 
-    /// Return every allocator page reachable from this shared raw-space image.
-    pub fn page_ids(&self) -> Vec<PageId> {
-        let mut pages = Vec::new();
+    /// Return the retained frozen page count.
+    pub fn page_count(&self, page_bytes: usize) -> usize {
+        let mut page_count = 0;
 
-        // collect every frozen allocation page
-        for allocation in &*self.allocations {
-            pages.extend(allocation.pages.page_ids());
+        // count retained allocation bytes
+        for allocation in self.allocations() {
+            page_count += allocation.bytes.len().div_ceil(page_bytes);
         }
 
-        pages
-    }
-
-    /// Return every live allocator page run captured by this image.
-    pub fn page_runs(&self) -> Vec<PageRun> {
-        self.allocations
-            .iter()
-            .filter_map(|allocation| allocation.is_live.then_some(allocation.pages))
-            .collect()
+        page_count
     }
 }
 
@@ -102,8 +94,8 @@ pub struct SharedRawAllocationImage {
     pub first_offset: usize,
     /// The logical byte length of this allocation.
     pub byte_len: usize,
-    /// The page run for this allocation.
-    pub pages: PageRun,
+    /// The captured allocation bytes.
+    pub bytes: Box<[u8]>,
 }
 
 impl SharedRawSpace {
@@ -169,11 +161,9 @@ impl SharedRawSpace {
             .iter()
             .map(|allocation| -> HeapResult<_> {
                 let allocation = if allocation.is_live {
-                    let byte_len = allocation.pages.len() * allocator.page_bytes();
-                    let bytes = allocator.read_bytes_from(&allocation.pages, 0, byte_len)?;
-                    let pages = allocator.allocate_pages(byte_len)?;
+                    let pages = allocator.allocate_pages(allocation.bytes.len())?;
 
-                    mapping.write_bytes(allocation.first_offset, &bytes[..allocation.byte_len])?;
+                    mapping.write_bytes(allocation.first_offset, &allocation.bytes)?;
 
                     Arc::new(RwLock::new(SharedRawAllocation::new(
                         allocation.first_offset,
@@ -218,24 +208,21 @@ impl SharedRawSpace {
                 .map(
                     |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
                         let allocation = allocation.read();
-                        let pages = if allocation.is_vacant() {
-                            PageRun::empty()
+                        let bytes = if allocation.is_vacant() {
+                            Box::new([])
                         } else {
                             let byte_len = allocation.pages.len() * self.allocator.page_bytes();
-                            let bytes = self
-                                .mapping
+                            self.mapping
                                 .read()
-                                .read_bytes(allocation.first_offset, byte_len)?;
-
-                            // images own the captured bytes
-                            self.allocator.allocate_image_bytes(&bytes)?
+                                .read_bytes(allocation.first_offset, byte_len)?
+                                .into_boxed_slice()
                         };
 
                         Ok(SharedRawAllocationImage {
                             is_live: !allocation.is_vacant(),
                             first_offset: allocation.first_offset,
                             byte_len: allocation.byte_len,
-                            pages,
+                            bytes,
                         })
                     },
                 )
@@ -246,20 +233,6 @@ impl SharedRawSpace {
             self.mapping.read().byte_len(),
             state.next_offset,
         ))
-    }
-
-    /// Return every allocator page reachable from this live shared raw space.
-    pub fn page_ids(&self) -> Vec<PageId> {
-        let allocations = self.allocations.read();
-        let mut pages = Vec::new();
-
-        // collect every live allocation page
-        for allocation in &*allocations {
-            let allocation = allocation.read();
-            pages.extend(allocation.pages.page_ids());
-        }
-
-        pages
     }
 }
 

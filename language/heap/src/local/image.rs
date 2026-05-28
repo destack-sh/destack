@@ -1,14 +1,13 @@
-use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use destack_mir::TraceTable;
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
-use crate::allocator::{Allocator, AllocatorImage, PageId, PageRun};
+use crate::allocator::Allocator;
 use crate::local::raw::{RawSpace, RawSpaceImage};
 use crate::local::space::{GcState, HeapSpace, HeapSpaceImage};
-use crate::{HeapError, HeapLimits, HeapOptions, HeapResult};
+use crate::{HeapError, HeapLimits, HeapOptions};
 
 /// One frozen heap image over one shared allocator.
 #[derive(Debug, Clone)]
@@ -30,16 +29,11 @@ struct HeapImageState {
     heap: HeapSpaceImage,
     /// The captured raw-space image.
     raw: RawSpaceImage,
-    /// The page runs owned by this image.
-    page_runs: Box<[PageRun]>,
 }
 
 /// One serialized heap snapshot payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeapSnapshot {
-    /// The serialized allocator pages reachable from this heap image.
-    allocator: AllocatorImage,
-
     /// The heap options used by this image.
     options: HeapOptions,
 
@@ -49,12 +43,6 @@ pub struct HeapSnapshot {
     raw: RawSpaceImage,
 }
 
-impl Drop for HeapImageState {
-    fn drop(&mut self) {
-        let _ = self.allocator.release_page_runs(&self.page_runs);
-    }
-}
-
 impl HeapImage {
     /// Create one frozen heap image.
     pub(crate) fn new(
@@ -62,26 +50,24 @@ impl HeapImage {
         options: HeapOptions,
         heap: HeapSpaceImage,
         raw: RawSpaceImage,
-    ) -> HeapResult<Self> {
-        let page_runs = heap.page_runs().into_boxed_slice();
+    ) -> Self {
         let state = HeapImageState {
             allocator,
             options,
             heap,
             raw,
-            page_runs,
         };
 
-        Ok(Self {
+        Self {
             state: Arc::new(state),
-        })
+        }
     }
 
     /// Build one heap image from one serialized payload.
     pub fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
         let allocator = Arc::new(Allocator::try_new(
-            snapshot.allocator.page_bytes as usize,
-            snapshot.allocator.chunk_bytes as usize,
+            snapshot.options.page_bytes,
+            snapshot.options.allocator_chunk_bytes,
         )?);
 
         Self::from_snapshot_with_allocator(snapshot, allocator)
@@ -92,19 +78,14 @@ impl HeapImage {
         snapshot: &HeapSnapshot,
         allocator: Arc<Allocator>,
     ) -> Result<Self, HeapError> {
-        allocator.restore_image_pages(&snapshot.allocator)?;
         let heap = snapshot.heap.clone();
         let raw = snapshot.raw.clone();
-        let page_runs = heap.page_runs().into_boxed_slice();
-
-        allocator.restore_page_run_references(&page_runs)?;
 
         let state = HeapImageState {
             allocator,
             options: snapshot.options.clone(),
             heap,
             raw,
-            page_runs,
         };
 
         Ok(Self {
@@ -113,16 +94,12 @@ impl HeapImage {
     }
 
     /// Flatten one heap image into one serialized snapshot.
-    pub fn snapshot(&self) -> Result<HeapSnapshot, HeapError> {
-        // collect the reachable allocator pages once
-        let page_ids = self.image_page_ids();
-
-        Ok(HeapSnapshot {
-            allocator: self.allocator().image_pages_from_ids(&page_ids)?,
+    pub fn snapshot(&self) -> HeapSnapshot {
+        HeapSnapshot {
             options: self.options().clone(),
             heap: self.heap().clone(),
             raw: self.raw().clone(),
-        })
+        }
     }
 
     /// Return the shared allocator for this image.
@@ -150,42 +127,9 @@ impl HeapImage {
         self.heap().gc_state()
     }
 
-    /// Return the total page count reachable from this heap image.
-    pub fn page_count(&self) -> usize {
-        self.image_page_ids().len()
-    }
-
     /// Return the total local allocated bytes captured by this image.
     pub fn local_allocated_bytes(&self) -> u64 {
         self.heap().allocated_bytes() + self.raw().allocated_bytes()
-    }
-
-    /// Return every allocator page reachable from this heap image.
-    pub fn page_ids(&self) -> Vec<PageId> {
-        let mut pages = Vec::new();
-
-        // collect the young-space pages first
-        pages.extend(self.heap().young().pages().page_ids());
-
-        // collect every heap span and allocation page
-        for span in self.heap().spans() {
-            pages.extend(span.pages.page_ids());
-        }
-
-        for allocation in self.heap().allocations() {
-            pages.extend(allocation.pages.page_ids());
-        }
-
-        pages
-    }
-
-    /// Return the deduplicated page ids for one serialized image.
-    fn image_page_ids(&self) -> Vec<PageId> {
-        self.page_ids()
-            .into_iter()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect()
     }
 }
 
@@ -197,7 +141,7 @@ impl HeapSnapshot {
 
     /// Return the total page count reachable from this heap snapshot.
     pub fn page_count(&self) -> usize {
-        self.allocator.pages.len()
+        self.heap.page_count() + self.raw.page_count()
     }
 
     /// Return the total allocated bytes captured by this snapshot.
@@ -292,7 +236,12 @@ impl Heap {
         let heap = self.heap.image()?;
         let raw = self.raw.image()?;
 
-        HeapImage::new(self.allocator().clone(), self.options().clone(), heap, raw)
+        Ok(HeapImage::new(
+            self.allocator().clone(),
+            self.options().clone(),
+            heap,
+            raw,
+        ))
     }
 
     /// Restore this heap from one frozen heap image.

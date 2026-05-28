@@ -304,9 +304,7 @@ impl HeapSpace {
         self.young
             .activate_run_cursor(minimum_byte_len, class, run_index)?;
         let reference = self.young.run_cursor.reserve_reference()?;
-        let Some(run) = self.young.run(run_index) else {
-            return None;
-        };
+        let run = self.young.run(run_index)?;
         let slot_index = (reference.offset() - run.first_offset) / class.size_class;
 
         Some(YoungRunSlot {

@@ -114,7 +114,7 @@ fn test_collect_minor_promotes_reachable_entries() {
     let young = image.young();
 
     assert_eq!(
-        young.pages().len(),
+        young.bytes().len().div_ceil(young.page_bytes()),
         young.capacity_bytes().div_ceil(young.page_bytes())
     );
 }

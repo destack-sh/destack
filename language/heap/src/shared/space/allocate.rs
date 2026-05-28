@@ -448,10 +448,8 @@ impl SharedHeapSpace {
         should_keep_worker_bucket: bool,
     ) -> HeapResult<SpanSlot> {
         // reuse the worker-owned span when it still has a slot
-        if cache.small[bucket_index].is_active() {
-            if cache.small[bucket_index].class != *class {
-                self.release_cache_bucket(cache, bucket_index);
-            }
+        if cache.small[bucket_index].is_active() && cache.small[bucket_index].class != *class {
+            self.release_cache_bucket(cache, bucket_index);
         }
 
         // reuse the worker-owned span when it still has a matching slot

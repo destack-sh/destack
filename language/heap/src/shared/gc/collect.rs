@@ -5,8 +5,8 @@ use destack_mir::TraceTable;
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{SharedHeapPlace, SharedHeapSpace, small_slot_offset};
 use crate::{
-    GcStats, HeapError, HeapResult, SharedHeapReference, scan_shared_references,
-    scan_shared_references_in_range,
+    GcStats, HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
+    scan_references,
 };
 
 impl SharedHeapSpace {
@@ -238,11 +238,10 @@ impl SharedHeapSpace {
 
         // payload scan
         let base_address = self.mapping.base_address() + location.base.offset();
-        scan_shared_references_in_range(
+        scan_references::<SharedHeapReference>(
             &trace_map,
-            start,
-            range_len,
-            base_address,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(start, range_len),
             &mut reference_buffer,
         )?;
         reference_buffer.retain(|reference| !reference.is_null());
@@ -328,7 +327,12 @@ impl SharedHeapSpace {
 
                 // payload scan
                 let base_address = self.mapping.base_address() + span_offset + slot_offset;
-                scan_shared_references(&trace_map, base_address, &mut reference_buffer)?;
+                scan_references::<SharedHeapReference>(
+                    &trace_map,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::All,
+                    &mut reference_buffer,
+                )?;
             }
 
             // discovered references

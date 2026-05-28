@@ -74,8 +74,8 @@ pub(crate) struct LargeAllocationImage {
     pub first_offset: usize,
     /// The logical byte length of this allocation.
     pub byte_len: usize,
-    /// The allocator pages for this allocation.
-    pub pages: PageRun,
+    /// The captured allocation bytes.
+    pub bytes: Box<[u8]>,
     /// The trace map for this allocation.
     pub trace_map: TraceMap,
 }

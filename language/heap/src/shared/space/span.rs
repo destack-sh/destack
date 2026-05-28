@@ -513,8 +513,8 @@ pub struct SharedHeapSmallSpanImage {
     pub local_reference_bits: Bitmap,
     /// The exact shared-reference bits for each occupied slot.
     pub shared_reference_bits: Bitmap,
-    /// The allocator pages for this span.
-    pub pages: PageRun,
+    /// The captured span bytes.
+    pub bytes: Box<[u8]>,
 }
 
 /// One shared small-span allocation list.

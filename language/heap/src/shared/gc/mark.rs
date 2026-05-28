@@ -3,8 +3,7 @@ use destack_mir::TraceTable;
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{SharedHeapPlace, SharedHeapSpace};
 use crate::{
-    HeapError, HeapResult, SharedHeapReference, scan_shared_references_in_bytes_range,
-    scan_shared_references_in_range,
+    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, scan_references,
 };
 
 impl SharedHeapSpace {
@@ -33,20 +32,18 @@ impl SharedHeapSpace {
         };
         let trace_map = self.trace_map_for_place(location.place, trace_table)?;
         let base_address = self.mapping.base_address() + location.base.offset();
-        scan_shared_references_in_range(
+        scan_references::<SharedHeapReference>(
             &trace_map,
-            byte_offset,
-            bytes.len(),
-            base_address,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut reference_buffer,
         )?;
 
         // inserted bytes
-        scan_shared_references_in_bytes_range(
+        scan_references::<SharedHeapReference>(
             &trace_map,
-            byte_offset,
-            bytes.len(),
-            bytes,
+            ReferenceInput::bytes(byte_offset, bytes),
+            ReferenceRange::bytes(byte_offset, bytes.len()),
             &mut reference_buffer,
         )?;
         reference_buffer.retain(|reference| !reference.is_null());

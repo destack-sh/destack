@@ -2,7 +2,9 @@ use destack_mir::{TraceMap, TraceTable};
 
 use super::space::{allocation_byte_offset, small_slot_offset};
 use super::{SharedHeapLocation, SharedHeapPlace, SharedHeapSpace};
-use crate::{HeapError, HeapResult, SharedHeapReference, scan_shared_references_in_range};
+use crate::{
+    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, scan_references,
+};
 
 impl SharedHeapSpace {
     /// Fill one caller-provided buffer from one shared heap allocation at one offset.
@@ -77,11 +79,10 @@ impl SharedHeapSpace {
         let mut edges = Vec::new();
 
         let base_address = self.mapping.base_address() + location.base.offset();
-        scan_shared_references_in_range(
+        scan_references::<SharedHeapReference>(
             &trace_map,
-            byte_offset,
-            byte_len,
-            base_address,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::bytes(byte_offset, byte_len),
             &mut edges,
         )?;
 

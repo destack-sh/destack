@@ -117,6 +117,23 @@ impl RawSpaceImage {
         self.allocated_bytes
     }
 
+    /// Return the number of pages needed to restore this image.
+    pub(crate) fn page_count(&self) -> usize {
+        let span_pages = self
+            .spans()
+            .iter()
+            .map(|span| span.bytes.len().div_ceil(self.page_bytes))
+            .sum::<usize>();
+        let allocation_pages = self
+            .allocations()
+            .iter()
+            .filter(|allocation| allocation.is_live)
+            .map(|allocation| allocation.bytes.len().div_ceil(self.page_bytes))
+            .sum::<usize>();
+
+        span_pages + allocation_pages
+    }
+
     /// Return this image with one explicit size-class table.
     #[cfg(test)]
     pub(crate) fn with_size_classes(mut self, size_classes: SizeClassTable) -> Self {

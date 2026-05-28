@@ -6,8 +6,7 @@ use crate::local::space::{
     YoungPlace,
 };
 use crate::{
-    HeapError, HeapReference, HeapResult, RootSlot, visit_heap_root_slots_in_bytes,
-    visit_heap_root_slots_in_bytes_range,
+    HeapError, HeapReference, HeapResult, ReferenceRange, RootSlot, visit_heap_root_slots,
 };
 
 /// Young-to-mature forwarding built for one promotion pass.
@@ -112,7 +111,7 @@ impl HeapSpace {
             }
 
             let Some(range) = self.young.range(range_index) else {
-                return Err(HeapError::InvariantViolation {
+                return Err(HeapError::Internal {
                     context: "marked young range missing during promotion",
                 });
             };
@@ -324,7 +323,7 @@ impl HeapSpace {
             start = range_index + 1;
 
             let Some(range) = self.young.range(range_index) else {
-                return Err(HeapError::InvariantViolation {
+                return Err(HeapError::Internal {
                     context: "live young range missing during rewrite",
                 });
             };
@@ -593,18 +592,24 @@ impl HeapSpace {
 
         let mut did_rewrite = false;
         let mut bytes = self.mapping.read_bytes(offset, byte_len)?;
-        visit_heap_root_slots_in_bytes(trace_map, &mut bytes, &mut |mut slot| {
-            let Some(reference) = slot.load_heap_reference()? else {
-                return Ok(());
-            };
+        visit_heap_root_slots(
+            trace_map,
+            0,
+            &mut bytes,
+            ReferenceRange::All,
+            &mut |mut slot| {
+                let Some(reference) = slot.load_heap_reference()? else {
+                    return Ok(());
+                };
 
-            if let Some(next_reference) = self.forwarded_reference(reference, forwarding)? {
-                slot.store_heap_reference(next_reference)?;
-                did_rewrite = true;
-            }
+                if let Some(next_reference) = self.forwarded_reference(reference, forwarding)? {
+                    slot.store_heap_reference(next_reference)?;
+                    did_rewrite = true;
+                }
 
-            Ok(())
-        })?;
+                Ok(())
+            },
+        )?;
         if did_rewrite {
             self.mapping.write_bytes(offset, &bytes)?;
         }
@@ -648,12 +653,11 @@ impl HeapSpace {
         let mut did_rewrite = false;
         let mut bytes = self.mapping.read_bytes(window_offset, window_len)?;
 
-        visit_heap_root_slots_in_bytes_range(
+        visit_heap_root_slots(
             trace_map,
             window_start,
-            range_start,
-            range_len,
             &mut bytes,
+            ReferenceRange::bytes(range_start, range_len),
             &mut |mut slot| {
                 let Some(reference) = slot.load_heap_reference()? else {
                     return Ok(());
