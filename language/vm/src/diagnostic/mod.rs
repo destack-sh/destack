@@ -1,3 +1,6 @@
 mod error;
 
-pub use error::{DiagnosticAnchor, Error, Result, RuntimeError, RuntimeResult, StackTraceFrame};
+pub use error::{
+    DiagnosticAnchor, Error, ImportError, ProgramError, ReferenceKind, ResourceError, Result,
+    RuntimeError, RuntimeResult, StackTraceFrame, Trap,
+};

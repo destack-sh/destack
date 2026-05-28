@@ -673,10 +673,10 @@ pub(crate) fn execute_vector_extract(
     let index_value = word_to_usize(machine.load_word_at(*index_offset))?;
     let element_count = *element_count as usize;
     if index_value >= element_count {
-        return Err(Error::IndexOutOfBounds {
-            index: index_value as u64,
-            length: element_count as u64,
-        });
+        return Err(Error::index_out_of_bounds(
+            index_value as u64,
+            element_count as u64,
+        ));
     }
 
     // load the selected element into the destination word
@@ -709,10 +709,10 @@ pub(crate) fn execute_vector_insert(
 
     // reject out of bounds element indices
     if index_value >= element_count_usize {
-        return Err(Error::IndexOutOfBounds {
-            index: index_value as u64,
-            length: element_count as u64,
-        });
+        return Err(Error::index_out_of_bounds(
+            index_value as u64,
+            element_count as u64,
+        ));
     }
 
     // read the inserted scalar once
@@ -766,10 +766,10 @@ pub(crate) fn execute_vector_shuffle(
         *dest_element,
         mask.len() as u32,
         |machine, element_index| {
-            let index = *mask.get(element_index).ok_or(Error::IndexOutOfBounds {
-                index: element_index as u64,
-                length: mask.len() as u64,
-            })? as usize;
+            let index = *mask.get(element_index).ok_or(Error::index_out_of_bounds(
+                element_index as u64,
+                mask.len() as u64,
+            ))? as usize;
 
             if index < left_count {
                 return load_vector_element(machine, *left_offset, *left_element, index);
@@ -777,10 +777,10 @@ pub(crate) fn execute_vector_shuffle(
 
             let right_index = index - left_count;
             if right_index >= right_count {
-                return Err(Error::IndexOutOfBounds {
-                    index: index as u64,
-                    length: (left_count + right_count) as u64,
-                });
+                return Err(Error::index_out_of_bounds(
+                    index as u64,
+                    (left_count + right_count) as u64,
+                ));
             }
 
             load_vector_element(machine, *right_offset, *right_element, right_index)
@@ -848,7 +848,7 @@ fn execute_vector_reduce_elements(
     // reject empty reductions
     let element_count = *element_count as usize;
     if element_count == 0 {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     // fold elements from left to right

@@ -71,7 +71,7 @@ impl Stack {
     /// Restore one stack from an immutable image.
     pub(crate) fn from_image(image: &StackImage, limit_bytes: usize) -> RuntimeResult<Self> {
         if image.len() > limit_bytes {
-            return Err(RuntimeError::new(Error::StackOverflow));
+            return Err(RuntimeError::new(Error::stack_overflow()));
         }
 
         let mut stack = Self::new(limit_bytes)?;
@@ -103,7 +103,7 @@ impl Stack {
         let base = Self::align_len(self.len, alignment);
         let end = base + byte_len;
         if end > self.limit_bytes {
-            return Err(RuntimeError::new(Error::StackOverflow));
+            return Err(RuntimeError::new(Error::stack_overflow()));
         }
 
         // zero newly exposed stack bytes

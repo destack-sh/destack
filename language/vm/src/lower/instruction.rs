@@ -54,9 +54,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         Ok(match inst {
             mir::Instruction::Error => {
-                return Err(Error::MissingRepresentation {
-                    context: "instruction".to_string(),
-                });
+                return Err(Error::invalid_program("instruction"));
             }
             mir::Instruction::Const { destination, value } => {
                 self.lower_const(pool, *destination, value)?
@@ -163,13 +161,13 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::Unpin { value } => self.lower_unpin(*value)?,
 
-            mir::Instruction::Drop { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::Drop { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::Free { value } => self.lower_free(*value)?,
 
             mir::Instruction::Assume { condition: _ } => Instruction::new(Op::Assume, 0, 0, 0, 0),
 
-            mir::Instruction::FieldGet { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::FieldGet { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::FieldAddr {
                 destination,
@@ -178,9 +176,9 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_field_addr(*destination, *base, *index)?,
 
-            mir::Instruction::FieldSet { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::FieldSet { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::ElementGet { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::ElementGet { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::ElementAddr {
                 destination,
@@ -189,13 +187,13 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_element_addr(pool, *destination, *array, *index)?,
 
-            mir::Instruction::ElementSet { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::ElementSet { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Struct { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::Struct { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Tuple { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::Tuple { .. } => return Err(Error::invalid_instruction()),
 
-            mir::Instruction::Array { .. } => return Err(Error::InvalidInstruction),
+            mir::Instruction::Array { .. } => return Err(Error::invalid_instruction()),
 
             mir::Instruction::VectorSplat { destination, value } => {
                 self.lower_vector_splat(pool, *destination, *value)?
@@ -327,7 +325,7 @@ impl<'a> BlockLowerer<'a> {
                 offset,
                 byte_len,
             } => self.lower_barrier_write(*object, *offset, *byte_len)?,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 }

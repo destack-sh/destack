@@ -22,15 +22,13 @@ impl Interpreter {
         let callee = self
             .frames
             .last()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let return_type = program
             .tree
             .get(callee.function())
             .return_type
             .ty()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "return call type".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("return call type"))?;
         let returned = frame_value_from_word(program, self.frames.as_slice(), return_type, value)
             .map_err(RuntimeError::new)?;
 
@@ -38,7 +36,7 @@ impl Interpreter {
         let frame = self
             .frames
             .pop()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         self.truncate_stack(frame.stack_offset);
 
         // complete top level execution when there is no caller
@@ -53,7 +51,7 @@ impl Interpreter {
         let return_state = self
             .frames
             .get_mut(caller_index)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?
             .return_state
             .take();
 
@@ -67,7 +65,7 @@ impl Interpreter {
         let caller = self
             .frames
             .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let block = caller.block_id(program).map_err(RuntimeError::new)?;
         let point = program.point(caller.function(), block, caller.pc as u32);
         if let Some(destination) = program.return_destination_at(point)? {

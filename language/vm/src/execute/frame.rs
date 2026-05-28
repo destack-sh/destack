@@ -1,9 +1,10 @@
 use std::ptr;
 
+use destack_engine as engine;
+use destack_mir as mir;
 use smallvec::SmallVec;
-use {destack_engine as engine, destack_mir as mir};
 
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, ReferenceKind};
 use crate::interpreter::{Frame, Machine};
 use crate::program::{
     ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, PointerClass, Program,
@@ -204,14 +205,13 @@ where
 {
     let ty = machine.value_type(destination)?;
     let layout = machine.layout(ty)?.clone();
-    let field_count = layout.field_count().ok_or(Error::TypeMismatch {
-        expected: "field frame value".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
+    let field_count = layout
+        .field_count()
+        .ok_or(Error::type_mismatch("field frame value", format!("{ty:?}")))?;
 
     // validate the destination once before incremental writes
     if machine.value_bytes(destination)?.len() != layout.byte_len {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     // encode each field into its physical byte range
@@ -219,21 +219,18 @@ where
         let index = index as u32;
         let field = layout
             .field(index)
-            .ok_or(Error::InvalidFieldAccess { index, field_count })?;
+            .ok_or(Error::invalid_field_access(index, field_count))?;
         let value = field_value(machine, index, field.ty)?;
         let value_end = field.offset + field.byte_len;
         let value_bytes = encode_word_bytes(machine.tree(), field.ty, value)?;
         if value_bytes.len() != field.byte_len {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         let destination_bytes = machine.value_bytes_mut(destination)?;
-        let value_window = destination_bytes.get_mut(field.offset..value_end).ok_or(
-            Error::InvalidFieldAccess {
-                index,
-                field_count: layout.byte_len,
-            },
-        )?;
+        let value_window = destination_bytes
+            .get_mut(field.offset..value_end)
+            .ok_or(Error::invalid_field_access(index, layout.byte_len))?;
 
         value_window.copy_from_slice(value_bytes.as_slice());
     }
@@ -251,7 +248,7 @@ fn store_argument_bytes(
     if machine.layout(ty)?.is_word() {
         let bytes = encode_word_bytes(machine.tree(), ty, value)?;
         if bytes.len() != destination.len() {
-            return Err(Error::InvalidHeapReference);
+            return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
 
         destination.copy_from_slice(bytes.as_slice());
@@ -280,10 +277,10 @@ fn store_argument_bytes(
         return Ok(());
     }
 
-    Err(Error::TypeMismatch {
-        expected: "scalar or heap-backed argument".to_string(),
-        actual: format!("{value:?}"),
-    })
+    Err(Error::type_mismatch(
+        "scalar or heap-backed argument",
+        format!("{value:?}"),
+    ))
 }
 
 /// Return the MIR type stored in one frame value.
@@ -294,10 +291,10 @@ pub(crate) fn frame_value_type(
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout())
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let slot = frame_layout
         .value(value.0)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
 
     Ok(program.type_for_value_layout(slot.layout))
 }
@@ -306,16 +303,16 @@ pub(crate) fn frame_value_type(
 fn frame_value_word(program: &Program, frame: &Frame, value: mir::Value) -> Result<Word, Error> {
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout())
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let slot = frame_layout
         .value(value.0)
-        .ok_or(Error::InvalidInstruction)?;
-    let layout =
-        program
-            .layout_for_value_id(slot.layout)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing frame value layout: layout={:?}", slot.layout),
-            })?;
+        .ok_or(Error::invalid_instruction())?;
+    let layout = program.layout_for_value_id(slot.layout).ok_or_else(|| {
+        Error::internal(format!(
+            "missing frame value layout: layout={:?}",
+            slot.layout
+        ))
+    })?;
 
     if layout.is_word() {
         return Ok(frame.read_word(slot));
@@ -335,9 +332,7 @@ pub(crate) fn frame_value_from_word(
 ) -> Result<FrameValue, Error> {
     let layout = program
         .layout(ty)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing frame value layout: type={ty:?}"),
-        })?;
+        .ok_or_else(|| Error::internal(format!("missing frame value layout: type={ty:?}")))?;
     if layout.is_word() {
         return Ok(FrameValue::word(ty, value));
     }
@@ -346,25 +341,16 @@ pub(crate) fn frame_value_from_word(
     let frame = frames
         .iter()
         .find(|frame| frame.owns_stack_range(pointer.address(), layout.byte_len))
-        .ok_or(Error::InvalidSpace {
-            expected: "frame".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        .ok_or(Error::invalid_space("frame", format!("{value:?}")))?;
     let start = pointer
         .address()
         .checked_sub(frame.base_address())
-        .ok_or(Error::InvalidSpace {
-            expected: "frame".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        .ok_or(Error::invalid_space("frame", format!("{value:?}")))?;
     let end = start + layout.byte_len;
     let bytes = frame
         .bytes()
         .get(start..end)
-        .ok_or(Error::InvalidSpace {
-            expected: "frame".to_string(),
-            actual: format!("{value:?}"),
-        })?
+        .ok_or(Error::invalid_space("frame", format!("{value:?}")))?
         .to_vec()
         .into_boxed_slice();
 
@@ -405,16 +391,16 @@ pub(crate) fn store_frame_value(
 ) -> Result<(), Error> {
     let frame_layout = program
         .frame_layout_by_id(dest_frame.frame_layout())
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let slot = frame_layout
         .value(destination.0)
-        .ok_or(Error::InvalidInstruction)?;
-    let layout =
-        program
-            .layout_for_value_id(slot.layout)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing destination value layout: layout={:?}", slot.layout),
-            })?;
+        .ok_or(Error::invalid_instruction())?;
+    let layout = program.layout_for_value_id(slot.layout).ok_or_else(|| {
+        Error::internal(format!(
+            "missing destination value layout: layout={:?}",
+            slot.layout
+        ))
+    })?;
 
     match (layout.is_word(), value.body) {
         (true, FrameValueBody::Word(value)) => dest_frame.write_word(slot, value),
@@ -422,22 +408,22 @@ pub(crate) fn store_frame_value(
             dest_frame.slot_bytes_mut(slot).copy_from_slice(&bytes);
         }
         (false, FrameValueBody::Word(value)) => {
-            return Err(Error::TypeMismatch {
-                expected: "byte frame value".to_string(),
-                actual: format!("{value:?}"),
-            });
+            return Err(Error::type_mismatch(
+                "byte frame value",
+                format!("{value:?}"),
+            ));
         }
         (true, FrameValueBody::Bytes(bytes)) => {
-            return Err(Error::TypeMismatch {
-                expected: "word frame value".to_string(),
-                actual: format!("{} bytes", bytes.len()),
-            });
+            return Err(Error::type_mismatch(
+                "word frame value",
+                format!("{} bytes", bytes.len()),
+            ));
         }
         (false, FrameValueBody::Bytes(bytes)) => {
-            return Err(Error::TypeMismatch {
-                expected: format!("{} bytes", slot.byte_len),
-                actual: format!("{} bytes", bytes.len()),
-            });
+            return Err(Error::type_mismatch(
+                format!("{} bytes", slot.byte_len),
+                format!("{} bytes", bytes.len()),
+            ));
         }
     }
 
@@ -470,7 +456,7 @@ pub(crate) fn materialize_value(
 
             let layout_id = program
                 .layout_id_for_type(value.ty)
-                .ok_or(Error::InvalidInstruction)?;
+                .ok_or(Error::invalid_instruction())?;
             let shape = program.allocation_shape(layout_id)?;
 
             match boundary_pointer_class(program, value.ty) {
@@ -494,9 +480,7 @@ pub(crate) fn materialize_value(
 
                     Ok(engine::Value::SharedHeapReference(reference))
                 }
-                pointer_class => Err(Error::InvalidPointerType {
-                    actual: format!("{pointer_class:?}"),
-                }),
+                pointer_class => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
             }
         }
     }
@@ -514,10 +498,10 @@ fn materialize_scalar_bytes(
     };
 
     if *width > 128 {
-        return Err(Error::TypeMismatch {
-            expected: "engine boundary integer up to 128 bits".to_string(),
-            actual: format!("{width}-bit integer"),
-        });
+        return Err(Error::type_mismatch(
+            "engine boundary integer up to 128 bits",
+            format!("{width}-bit integer"),
+        ));
     }
 
     let mut raw = [0u8; 16];
@@ -568,7 +552,7 @@ pub(crate) fn dematerialize_value(
     ty: mir::LocalNodeId<mir::Type>,
     value: &engine::Value,
 ) -> Result<FrameValue, Error> {
-    let layout = program.layout(ty).ok_or(Error::InvalidInstruction)?;
+    let layout = program.layout(ty).ok_or(Error::invalid_instruction())?;
     if !layout.is_word() {
         return dematerialize_bytes(program, heap, shared, ty, value);
     }
@@ -602,7 +586,7 @@ fn dematerialize_bytes(
         return Ok(FrameValue::bytes(ty, bytes));
     }
 
-    let layout = program.layout(ty).ok_or(Error::InvalidInstruction)?;
+    let layout = program.layout(ty).ok_or(Error::invalid_instruction())?;
     let mut bytes = vec![0u8; layout.byte_len];
 
     match (boundary_pointer_class(program, ty), value) {
@@ -617,10 +601,10 @@ fn dematerialize_bytes(
             copy_address_to_slice(address, &mut bytes);
         }
         (pointer_class, value) => {
-            return Err(Error::TypeMismatch {
-                expected: format!("{pointer_class:?} frame-backed value"),
-                actual: format!("{value:?}"),
-            });
+            return Err(Error::type_mismatch(
+                format!("{pointer_class:?} frame-backed value"),
+                format!("{value:?}"),
+            ));
         }
     }
 
@@ -655,10 +639,10 @@ fn dematerialize_scalar_bytes(
             },
         ) if value_width == width => *value,
         _ => {
-            return Err(Error::TypeMismatch {
-                expected: format!("{width}-bit integer"),
-                actual: format!("{value:?}"),
-            });
+            return Err(Error::type_mismatch(
+                format!("{width}-bit integer"),
+                format!("{value:?}"),
+            ));
         }
     };
 
@@ -709,7 +693,7 @@ pub(crate) fn materialize_word(
             bits: value.as_float64().to_bits(),
         }),
         ValueLayout::Char => {
-            let value = value.as_char().ok_or(Error::InvalidInstruction)?;
+            let value = value.as_char().ok_or(Error::invalid_instruction())?;
 
             Ok(engine::Value::Char(value))
         }
@@ -733,10 +717,10 @@ pub(crate) fn materialize_word(
         } => Ok(engine::Value::SharedRawPointer(
             value.as_shared_raw_pointer(),
         )),
-        _ => Err(Error::TypeMismatch {
-            expected: "word value".to_string(),
-            actual: format!("{:?}", value_layout_from_type(&program.tree, ty)),
-        }),
+        _ => Err(Error::type_mismatch(
+            "word value",
+            format!("{:?}", value_layout_from_type(&program.tree, ty)),
+        )),
     }
 }
 
@@ -750,26 +734,26 @@ pub(crate) fn move_frame_value(
 ) -> Result<(), Error> {
     let source_layout = program
         .frame_layout_by_id(source_frame.frame_layout())
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let dest_layout = program
         .frame_layout_by_id(dest_frame.frame_layout())
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
 
     let source_slot = source_layout
         .value(source.0)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let dest_slot = dest_layout
         .value(destination.0)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
 
     if source_slot.byte_len != dest_slot.byte_len || source_slot.is_word != dest_slot.is_word {
-        return Err(Error::TypeMismatch {
-            expected: format!("{} bytes, word={}", dest_slot.byte_len, dest_slot.is_word),
-            actual: format!(
+        return Err(Error::type_mismatch(
+            format!("{} bytes, word={}", dest_slot.byte_len, dest_slot.is_word),
+            format!(
                 "{} bytes, word={}",
                 source_slot.byte_len, source_slot.is_word
             ),
-        });
+        ));
     }
 
     if dest_slot.is_word {
@@ -793,13 +777,13 @@ fn move_frame_slot(
     destination: MoveSlot,
 ) -> Result<(), Error> {
     if source.byte_len != destination.byte_len || source.is_word != destination.is_word {
-        return Err(Error::TypeMismatch {
-            expected: format!(
+        return Err(Error::type_mismatch(
+            format!(
                 "{} bytes, word={}",
                 destination.byte_len, destination.is_word
             ),
-            actual: format!("{} bytes, word={}", source.byte_len, source.is_word),
-        });
+            format!("{} bytes, word={}", source.byte_len, source.is_word),
+        ));
     }
 
     if destination.is_word {
@@ -823,10 +807,10 @@ fn store_void_value(
 ) -> Result<(), Error> {
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout())
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let slot = frame_layout
         .value(destination.0)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
 
     if slot.is_word {
         frame.write_word(slot, Word::VOID);
@@ -969,13 +953,10 @@ pub(crate) fn move_values_within_frame(
         let value = match pair.source {
             MoveSource::Slot(source) => {
                 if source.byte_len != pair.dest.byte_len || source.is_word != pair.dest.is_word {
-                    return Err(Error::TypeMismatch {
-                        expected: format!(
-                            "{} bytes, word={}",
-                            pair.dest.byte_len, pair.dest.is_word
-                        ),
-                        actual: format!("{} bytes, word={}", source.byte_len, source.is_word),
-                    });
+                    return Err(Error::type_mismatch(
+                        format!("{} bytes, word={}", pair.dest.byte_len, pair.dest.is_word),
+                        format!("{} bytes, word={}", source.byte_len, source.is_word),
+                    ));
                 }
 
                 if source.is_word {

@@ -64,7 +64,7 @@ pub(crate) fn visit_materialized_slots(
     mut visit: impl FnMut(&engine::FrameSlot) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for slot in materialization.copied_slots() {
-        let slot = layout.slot(slot).ok_or(Error::InvalidContinuation)?;
+        let slot = layout.slot(slot).ok_or(Error::invalid_continuation())?;
         visit(slot)?;
     }
 
@@ -102,11 +102,11 @@ pub(crate) fn visit_frame_slot_root_slots(
 fn frame_layout<'a>(program: &'a Program, frame: &Frame) -> Result<&'a engine::FrameLayout, Error> {
     let function = frame.function();
 
-    program
-        .frame_layout(function)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing frame layout for root scan: function={function:?}"),
-        })
+    program.frame_layout(function).ok_or_else(|| {
+        Error::internal(format!(
+            "missing frame layout for root scan: function={function:?}"
+        ))
+    })
 }
 
 /// Return the physical frame layout for one materialization.
@@ -116,11 +116,11 @@ fn materialized_layout<'a>(
 ) -> Result<&'a engine::FrameLayout, Error> {
     program
         .frame_layout_by_id(materialization.frame_layout)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!(
+        .ok_or_else(|| {
+            Error::internal(format!(
                 "missing materialized frame layout for root scan: {:?}",
                 materialization.frame_layout
-            ),
+            ))
         })
 }
 
@@ -129,12 +129,10 @@ fn frame_slot_layout<'a>(
     program: &'a Program,
     slot: &engine::FrameSlot,
 ) -> Result<&'a Layout, Error> {
-    program
-        .layout_for_value_id(slot.layout)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "missing frame slot layout for root scan: layout={:?}",
-                slot.layout
-            ),
-        })
+    program.layout_for_value_id(slot.layout).ok_or_else(|| {
+        Error::internal(format!(
+            "missing frame slot layout for root scan: layout={:?}",
+            slot.layout
+        ))
+    })
 }

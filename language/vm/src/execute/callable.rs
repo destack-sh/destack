@@ -29,7 +29,7 @@ fn decode_callable_object(
         .program
         .functions
         .environment_layout(machine.tree(), function_id)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let environment_value =
         access::load_scalar_by_layout_at_address(environment_address, environment_layout);
 
@@ -140,8 +140,8 @@ pub(crate) fn decode_callable(
         return decode_callable_object(machine, reference);
     }
 
-    Err(Error::TypeMismatch {
-        expected: "callable object".to_string(),
-        actual: format!("{value:?}"),
-    })
+    Err(Error::type_mismatch(
+        "callable object",
+        format!("{value:?}"),
+    ))
 }

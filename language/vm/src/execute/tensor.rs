@@ -51,15 +51,15 @@ fn frame_offsets<'iso>(machine: &Machine<'_, 'iso>, range: U32RangeId) -> &'iso 
 
 /// Return the byte offset for one tensor view stride slot.
 fn tensor_view_stride_offset(view_offset: u32, axis: usize) -> Result<u32, Error> {
-    let slot = axis.checked_add(1).ok_or(Error::InvalidInstruction)?;
+    let slot = axis.checked_add(1).ok_or(Error::invalid_instruction())?;
     let byte_offset = slot
         .checked_mul(Word::BYTE_LEN)
-        .ok_or(Error::InvalidInstruction)?;
-    let byte_offset = u32::try_from(byte_offset).map_err(|_| Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
+    let byte_offset = u32::try_from(byte_offset).map_err(|_| Error::invalid_instruction())?;
 
     view_offset
         .checked_add(byte_offset)
-        .ok_or(Error::InvalidInstruction)
+        .ok_or(Error::invalid_instruction())
 }
 
 /// Load one tensor view base pointer.
@@ -415,10 +415,7 @@ fn frame_tensor_element_pointer(
 fn element_byte_offset(element: Projection, offset: usize, length: usize) -> Result<usize, Error> {
     // validate bounds
     if offset >= length {
-        return Err(Error::IndexOutOfBounds {
-            index: offset as u64,
-            length: length as u64,
-        });
+        return Err(Error::index_out_of_bounds(offset as u64, length as u64));
     }
 
     Ok(offset * element.byte_stride)
@@ -506,15 +503,15 @@ pub(crate) fn tensor_linear_index(
 ) -> Result<usize, Error> {
     // validate index length
     if indices.len() != shape.len() || shape.len() != strides.len() {
-        return Err(Error::TypeMismatch {
-            expected: "tensor index rank".to_string(),
-            actual: format!(
+        return Err(Error::type_mismatch(
+            "tensor index rank",
+            format!(
                 "indices={}, shape={}, strides={}",
                 indices.len(),
                 shape.len(),
                 strides.len()
             ),
-        });
+        ));
     }
 
     // compute linear index
@@ -522,10 +519,7 @@ pub(crate) fn tensor_linear_index(
     for ((index, dim), stride) in indices.iter().zip(shape.iter()).zip(strides.iter()) {
         // reject out of bounds indices before accumulating the stride
         if *index >= *dim {
-            return Err(Error::IndexOutOfBounds {
-                index: *index,
-                length: *dim,
-            });
+            return Err(Error::index_out_of_bounds(*index, *dim));
         }
 
         // accumulate the linear offset in element units
@@ -783,7 +777,7 @@ fn tensor_word_layout(layout: ScalarLayout) -> Result<WordLayout, Error> {
         ScalarLayout::Float { width: 32 } => WordLayout::Float32,
         ScalarLayout::Float { width: 64 } => WordLayout::Float64,
         ScalarLayout::Bool => WordLayout::Bool,
-        _ => return Err(Error::InvalidInstruction),
+        _ => return Err(Error::invalid_instruction()),
     };
 
     Ok(layout)
@@ -1011,7 +1005,7 @@ fn execute_contiguous_add_u32_unchecked(
 #[inline(always)]
 fn divide_i32(left: i32, right: i32) -> Result<i32, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_div(right))
@@ -1021,7 +1015,7 @@ fn divide_i32(left: i32, right: i32) -> Result<i32, Error> {
 #[inline(always)]
 fn divide_i64(left: i64, right: i64) -> Result<i64, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_div(right))
@@ -1031,7 +1025,7 @@ fn divide_i64(left: i64, right: i64) -> Result<i64, Error> {
 #[inline(always)]
 fn divide_u32(left: u32, right: u32) -> Result<u32, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_div(right))
@@ -1041,7 +1035,7 @@ fn divide_u32(left: u32, right: u32) -> Result<u32, Error> {
 #[inline(always)]
 fn divide_u64(left: u64, right: u64) -> Result<u64, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_div(right))
@@ -1051,7 +1045,7 @@ fn divide_u64(left: u64, right: u64) -> Result<u64, Error> {
 #[inline(always)]
 fn remainder_i32(left: i32, right: i32) -> Result<i32, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_rem(right))
@@ -1061,7 +1055,7 @@ fn remainder_i32(left: i32, right: i32) -> Result<i32, Error> {
 #[inline(always)]
 fn remainder_i64(left: i64, right: i64) -> Result<i64, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_rem(right))
@@ -1071,7 +1065,7 @@ fn remainder_i64(left: i64, right: i64) -> Result<i64, Error> {
 #[inline(always)]
 fn remainder_u32(left: u32, right: u32) -> Result<u32, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_rem(right))
@@ -1081,7 +1075,7 @@ fn remainder_u32(left: u32, right: u32) -> Result<u32, Error> {
 #[inline(always)]
 fn remainder_u64(left: u64, right: u64) -> Result<u64, Error> {
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left.wrapping_rem(right))
@@ -1474,7 +1468,7 @@ fn execute_contiguous_tensor_binary_elements(
     let dest_layout = layout
         .element
         .word_layout
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let element_word_layout = tensor_word_layout(element_layout)?;
     let addresses = contiguous_binary_addresses(machine, offsets);
 
@@ -1577,7 +1571,7 @@ fn execute_contiguous_tensor_unary_elements(
     let dest_layout = layout
         .element
         .word_layout
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let element_word_layout = tensor_word_layout(element_layout)?;
     let addresses = contiguous_unary_addresses(machine, offsets);
 
@@ -2184,10 +2178,10 @@ pub(crate) fn execute_tensor_copy(
 
     // require identical logical shapes
     if target_layout.shape != source_layout.shape {
-        return Err(Error::TypeMismatch {
-            expected: "matching tensor shapes".to_string(),
-            actual: format!("{:?} vs {:?}", target_layout.shape, source_layout.shape),
-        });
+        return Err(Error::type_mismatch(
+            "matching tensor shapes",
+            format!("{:?} vs {:?}", target_layout.shape, source_layout.shape),
+        ));
     }
 
     // resolve both view pointers and element descriptors once
@@ -2259,10 +2253,10 @@ pub(crate) fn execute_tensor_reshape(
 
     // validate element counts
     if dest_layout.element_span_len as u64 != shape_len {
-        return Err(Error::TypeMismatch {
-            expected: "reshape element count".to_string(),
-            actual: format!("{} vs {}", dest_layout.element_span_len, shape_len),
-        });
+        return Err(Error::type_mismatch(
+            "reshape element count",
+            format!("{} vs {}", dest_layout.element_span_len, shape_len),
+        ));
     }
 
     // copy the source elements into the reshaped result
@@ -2299,10 +2293,10 @@ pub(crate) fn execute_tensor_broadcast(
 
     // validate dimension mapping
     if dimensions.len() != source_layout.shape.len() {
-        return Err(Error::TypeMismatch {
-            expected: "broadcast dimension mapping".to_string(),
-            actual: format!("{} vs {}", dimensions.len(), source_layout.shape.len()),
-        });
+        return Err(Error::type_mismatch(
+            "broadcast dimension mapping",
+            format!("{} vs {}", dimensions.len(), source_layout.shape.len()),
+        ));
     }
 
     // resolve source elements
@@ -2352,10 +2346,10 @@ pub(crate) fn execute_tensor_transpose(
 
     // validate permutation
     if permutation.len() != source_layout.shape.len() {
-        return Err(Error::TypeMismatch {
-            expected: "transpose permutation".to_string(),
-            actual: format!("{} vs {}", permutation.len(), source_layout.shape.len()),
-        });
+        return Err(Error::type_mismatch(
+            "transpose permutation",
+            format!("{} vs {}", permutation.len(), source_layout.shape.len()),
+        ));
     }
 
     // resolve source tensor
@@ -2408,7 +2402,7 @@ pub(crate) fn execute_tensor_slice(
     let (offset_values, rest) = args.split_at((*offsets_count).into());
     let (size_values, stride_values) = rest.split_at((*sizes_count).into());
     if stride_values.len() != usize::from(*strides_count) {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let mut offsets = Vec::with_capacity(offset_values.len());
@@ -2439,19 +2433,19 @@ pub(crate) fn execute_tensor_slice(
     // require full-rank slice arguments
     let rank = source_layout.shape.len();
     if offsets.len() != rank || sizes.len() != rank || strides.len() != rank {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     // require runtime sizes to match the destination tensor
     if sizes.len() != dest_layout.shape.len() {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
     for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
         if expected != actual {
-            return Err(Error::TypeMismatch {
-                expected: "tensor slice size".to_string(),
-                actual: format!("{actual} vs {expected}"),
-            });
+            return Err(Error::type_mismatch(
+                "tensor slice size",
+                format!("{actual} vs {expected}"),
+            ));
         }
     }
 
@@ -2508,7 +2502,7 @@ pub(crate) fn execute_tensor_pad(
     let (low_values, rest) = args.split_at((*low_count).into());
     let (high_values, interior_values) = rest.split_at((*high_count).into());
     if interior_values.len() != usize::from(*interior_count) {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let mut low = Vec::with_capacity(low_values.len());
@@ -2539,7 +2533,7 @@ pub(crate) fn execute_tensor_pad(
     // require full-rank padding arguments
     let rank = source_layout.shape.len();
     if low.len() != rank || high.len() != rank || interior.len() != rank {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     // resolve source tensor
@@ -2606,7 +2600,7 @@ pub(crate) fn execute_tensor_concat(
     let tensor_offsets = frame_offsets(machine, *tensors).to_vec();
     // validate input metadata
     if tensor_offsets.len() != tensor_layouts.len() {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
     let mut inputs = Vec::with_capacity(tensor_offsets.len());
     let mut axis_sizes = Vec::with_capacity(tensor_offsets.len());
@@ -2615,7 +2609,7 @@ pub(crate) fn execute_tensor_concat(
         let layout = tensor_layout(machine, TensorLayoutId(*layout));
         let axis_index = *axis as usize;
         if axis_index >= layout.shape.len() {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
         axis_sizes.push(layout.shape[axis_index]);
         inputs.push((value, layout));
@@ -2648,7 +2642,7 @@ pub(crate) fn execute_tensor_concat(
                 }
             }
             let Some((input_idx, local_axis)) = selected else {
-                return Err(Error::InvalidInstruction);
+                return Err(Error::invalid_instruction());
             };
 
             input_index.clone_from_slice(output_index);
@@ -2702,7 +2696,7 @@ fn execute_tensor_reduce_elements(
     let init_value = machine.load_word_at(*initial_offset);
     let reduction = tensor_reduction(&source_layout.shape, axes)?;
     if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
     let mut source_index = vec![0u64; source_layout.shape.len()];
 
@@ -2722,7 +2716,7 @@ fn execute_tensor_reduce_elements(
                 *element = output_index
                     .get(output_cursor)
                     .copied()
-                    .ok_or(Error::InvalidInstruction)?;
+                    .ok_or(Error::invalid_instruction())?;
                 output_cursor += 1;
             }
 
@@ -2819,7 +2813,7 @@ fn tensor_reduction(source_shape: &[u64], axes: &[u32]) -> Result<TensorReductio
     for axis in axes {
         let axis = *axis as usize;
         if axis >= source_shape.len() || axis_mask[axis] {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         let dim = source_shape[axis];
@@ -2827,7 +2821,7 @@ fn tensor_reduction(source_shape: &[u64], axes: &[u32]) -> Result<TensorReductio
         reduced_shape.push(dim);
         element_count = element_count
             .checked_mul(dim)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
     }
 
     let output_shape = source_shape
@@ -2870,13 +2864,13 @@ pub(crate) fn execute_tensor_index_reduce(
     let tensor_value = frame_value(machine, *tensor_offset);
     let reduction = tensor_reduction(&source_layout.shape, &axes)?;
     if reduction.element_count == 0 {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
     if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
     if !tensor_index_layout_can_store(dest_layout.element_layout, reduction.element_count) {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
     let mut source_index = vec![0u64; source_layout.shape.len()];
 
@@ -2894,7 +2888,7 @@ pub(crate) fn execute_tensor_index_reduce(
                     *element = output_index
                         .get(output_cursor)
                         .copied()
-                        .ok_or(Error::InvalidInstruction)?;
+                        .ok_or(Error::invalid_instruction())?;
                     output_cursor += 1;
                 }
             }
@@ -3019,12 +3013,12 @@ fn compare_tensor_words(layout: ScalarLayout, left: Word, right: Word) -> Result
         ScalarLayout::Float { width: 32 } => left
             .as_f32()
             .partial_cmp(&right.as_f32())
-            .ok_or(Error::InvalidInstruction)?,
+            .ok_or(Error::invalid_instruction())?,
         ScalarLayout::Float { width: 64 } => left
             .as_f64()
             .partial_cmp(&right.as_f64())
-            .ok_or(Error::InvalidInstruction)?,
-        _ => return Err(Error::InvalidInstruction),
+            .ok_or(Error::invalid_instruction())?,
+        _ => return Err(Error::invalid_instruction()),
     };
 
     Ok(ordering)
@@ -3061,15 +3055,15 @@ pub(crate) fn execute_tensor_dot(
     if left_layout.element_span_len != right_layout.element_span_len
         || left_layout.element_span_len != dest_layout.element_span_len
     {
-        return Err(Error::TypeMismatch {
-            expected: "matching tensor element spans".to_string(),
-            actual: format!(
+        return Err(Error::type_mismatch(
+            "matching tensor element spans",
+            format!(
                 "{} vs {} vs {}",
                 left_layout.element_span_len,
                 right_layout.element_span_len,
                 dest_layout.element_span_len
             ),
-        });
+        ));
     }
 
     // compute axis sets
@@ -3078,7 +3072,7 @@ pub(crate) fn execute_tensor_dot(
     let lhs_contract = &dimensions.lhs_contracting;
     let rhs_contract = &dimensions.rhs_contracting;
     if lhs_batch.len() != rhs_batch.len() || lhs_contract.len() != rhs_contract.len() {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let lhs_rank = left_layout.shape.len();
@@ -3194,7 +3188,7 @@ pub(crate) fn execute_tensor_dot(
             return Err(error);
         }
 
-        accum.ok_or(Error::InvalidInstruction)
+        accum.ok_or(Error::invalid_instruction())
     })?;
 
     Ok(())
@@ -3236,7 +3230,7 @@ pub(crate) fn execute_tensor_convolution(
     let output_spatial = &dimensions.output_spatial;
     let kernel_spatial = &dimensions.kernel_spatial;
     if output_spatial.len() != spatial_rank || kernel_spatial.len() != spatial_rank {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     // validate window shapes
@@ -3247,7 +3241,7 @@ pub(crate) fn execute_tensor_convolution(
         || window.rhs_dilation.len() != spatial_rank
         || window.window_reversal.len() != spatial_rank
     {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let output_batch_dim = dimensions.output_batch as usize;
@@ -3265,17 +3259,17 @@ pub(crate) fn execute_tensor_convolution(
         || kernel_input_feature_dim >= kernel_layout.shape.len()
         || kernel_output_feature_dim >= kernel_layout.shape.len()
     {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     for dim in dimensions.input_spatial.iter() {
         if *dim as usize >= input_layout.shape.len() {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
     }
     for dim in output_spatial.iter() {
         if *dim as usize >= dest_layout.shape.len() {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
     }
 
@@ -3287,14 +3281,14 @@ pub(crate) fn execute_tensor_convolution(
     let mut kernel_spatial_shape = Vec::with_capacity(kernel_spatial.len());
     for dim in kernel_spatial {
         let Some(size) = kernel_layout.shape.get(*dim as usize) else {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         };
         kernel_spatial_shape.push(*size);
     }
 
     // validate group counts
     if *feature_group_count == 0 || *batch_group_count == 0 {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let out_features_per_group = output_feature_size / (*feature_group_count as u64);
@@ -3446,7 +3440,7 @@ pub(crate) fn execute_tensor_convolution(
             return Err(error);
         }
 
-        accum.ok_or(Error::InvalidInstruction)
+        accum.ok_or(Error::invalid_instruction())
     })?;
 
     Ok(())
@@ -3499,7 +3493,7 @@ pub(crate) fn execute_tensor_gather(
             }
 
             let Some(coord) = coord_iter.next() else {
-                return Err(Error::InvalidInstruction);
+                return Err(Error::invalid_instruction());
             };
             *element = *coord;
         }
@@ -3535,18 +3529,18 @@ pub(crate) fn execute_tensor_gather(
 
             let offset = if offset_dims.contains(&(dim as u32)) {
                 let Some(offset) = offset_iter.next() else {
-                    return Err(Error::InvalidInstruction);
+                    return Err(Error::invalid_instruction());
                 };
                 *offset
             } else {
                 0
             };
             let Some(size) = slice_sizes.get(dim) else {
-                return Err(Error::InvalidInstruction);
+                return Err(Error::invalid_instruction());
             };
             let size = *size as u64;
             if size == 0 {
-                return Err(Error::InvalidInstruction);
+                return Err(Error::invalid_instruction());
             }
 
             let start = *element;
@@ -3641,7 +3635,7 @@ fn execute_tensor_scatter_elements(
             }
 
             let Some(coord) = coord_iter.next() else {
-                scatter_error = Some(Error::InvalidInstruction);
+                scatter_error = Some(Error::invalid_instruction());
                 return;
             };
             *element = *coord;
@@ -3653,7 +3647,7 @@ fn execute_tensor_scatter_elements(
             &indices_layout.strides,
         );
         let Ok(index_offset) = index_offset else {
-            scatter_error = Some(Error::InvalidInstruction);
+            scatter_error = Some(Error::invalid_instruction());
             return;
         };
 
@@ -3663,13 +3657,13 @@ fn execute_tensor_scatter_elements(
             let Ok(value) =
                 load_frame_tensor_element_at(machine, indices_value, indices_layout, element_index)
             else {
-                scatter_error = Some(Error::InvalidInstruction);
+                scatter_error = Some(Error::invalid_instruction());
                 return;
             };
             if let Ok(coord) = word_to_u64(value) {
                 scatter_indices.push(coord);
             } else {
-                scatter_error = Some(Error::InvalidInstruction);
+                scatter_error = Some(Error::invalid_instruction());
                 return;
             }
         }
@@ -3686,7 +3680,7 @@ fn execute_tensor_scatter_elements(
             }
             if update_window_dims.contains(&(dim as u32)) {
                 let Some(update) = update_iter.next() else {
-                    scatter_error = Some(Error::InvalidInstruction);
+                    scatter_error = Some(Error::invalid_instruction());
                     return;
                 };
                 *element = *update;
@@ -3696,19 +3690,19 @@ fn execute_tensor_scatter_elements(
         let destination_offset =
             tensor_linear_index(&source_index, &dest_layout.shape, &dest_layout.strides);
         let Ok(destination_offset) = destination_offset else {
-            scatter_error = Some(Error::InvalidInstruction);
+            scatter_error = Some(Error::invalid_instruction());
             return;
         };
         let update_offset =
             tensor_linear_index(update_index, &updates_layout.shape, &updates_layout.strides);
         let Ok(update_offset) = update_offset else {
-            scatter_error = Some(Error::InvalidInstruction);
+            scatter_error = Some(Error::invalid_instruction());
             return;
         };
         let Ok(update_value) =
             load_frame_tensor_element_at(machine, updates_value, updates_layout, update_offset)
         else {
-            scatter_error = Some(Error::InvalidInstruction);
+            scatter_error = Some(Error::invalid_instruction());
             return;
         };
         let current_value =
@@ -3800,13 +3794,13 @@ fn execute_tensor_convert_elements(
 
     let tensor_value = frame_value(machine, *tensor_offset);
     if source_layout.element_span_len != dest_layout.element_span_len {
-        return Err(Error::TypeMismatch {
-            expected: "matching tensor element spans".to_string(),
-            actual: format!(
+        return Err(Error::type_mismatch(
+            "matching tensor element spans",
+            format!(
                 "{} vs {}",
                 source_layout.element_span_len, dest_layout.element_span_len
             ),
-        });
+        ));
     }
 
     // store result
@@ -3923,7 +3917,7 @@ pub(crate) fn execute_tensor_view(
     let (offset_values, rest) = args.split_at((*offsets_count).into());
     let (size_values, stride_values) = rest.split_at((*sizes_count).into());
     if stride_values.len() != usize::from(*strides_count) {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     }
 
     let mut offsets = Vec::with_capacity(offset_values.len());
@@ -3953,10 +3947,10 @@ pub(crate) fn execute_tensor_view(
 
     for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
         if *expected != *actual {
-            return Err(Error::TypeMismatch {
-                expected: "tensor.view size".to_string(),
-                actual: format!("{actual} vs {expected}"),
-            });
+            return Err(Error::type_mismatch(
+                "tensor.view size",
+                format!("{actual} vs {expected}"),
+            ));
         }
     }
 
@@ -3965,9 +3959,9 @@ pub(crate) fn execute_tensor_view(
         || strides.len() != source_layout.shape.len()
         || dest_layout.shape.len() != source_layout.shape.len()
     {
-        return Err(Error::TypeMismatch {
-            expected: "tensor.view rank".to_string(),
-            actual: format!(
+        return Err(Error::type_mismatch(
+            "tensor.view rank",
+            format!(
                 "offsets={}, sizes={}, strides={}, source_rank={}, dest_rank={}",
                 offsets.len(),
                 sizes.len(),
@@ -3975,7 +3969,7 @@ pub(crate) fn execute_tensor_view(
                 source_layout.shape.len(),
                 dest_layout.shape.len(),
             ),
-        });
+        ));
     }
 
     let source_strides = load_tensor_view_strides(machine, *view_offset, source_layout)?;
@@ -3983,15 +3977,15 @@ pub(crate) fn execute_tensor_view(
     for (source_stride, stride) in source_strides.iter().copied().zip(strides.iter().copied()) {
         let dest_stride = source_stride
             .checked_mul(stride)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         dest_strides.push(dest_stride);
     }
 
     if dest_strides.len() != dest_layout.shape.len() {
-        return Err(Error::TypeMismatch {
-            expected: "tensor.view stride rank".to_string(),
-            actual: format!("{} vs {}", dest_strides.len(), dest_layout.shape.len()),
-        });
+        return Err(Error::type_mismatch(
+            "tensor.view stride rank",
+            format!("{} vs {}", dest_strides.len(), dest_layout.shape.len()),
+        ));
     }
 
     for axis in 0..source_layout.shape.len() {
@@ -4004,18 +3998,15 @@ pub(crate) fn execute_tensor_view(
             continue;
         }
 
-        let last_step = size.checked_sub(1).ok_or(Error::InvalidInstruction)?;
+        let last_step = size.checked_sub(1).ok_or(Error::invalid_instruction())?;
         let last_distance = last_step
             .checked_mul(stride)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let last_index = offset
             .checked_add(last_distance)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         if last_index >= source_size {
-            return Err(Error::IndexOutOfBounds {
-                index: last_index,
-                length: source_size,
-            });
+            return Err(Error::index_out_of_bounds(last_index, source_size));
         }
     }
 

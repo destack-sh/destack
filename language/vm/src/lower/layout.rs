@@ -18,11 +18,9 @@ impl<'a> BlockLowerer<'a> {
         &self,
         value_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<&Layout> {
-        self.layouts()
-            .get(&value_type)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing lowered layout for type: {value_type:?}"),
-            })
+        self.layouts().get(&value_type).ok_or_else(|| {
+            Error::internal(format!("missing lowered layout for type: {value_type:?}"))
+        })
     }
 
     /// Return one lowered field count for one value.
@@ -37,7 +35,7 @@ impl<'a> BlockLowerer<'a> {
 
         let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         };
 
         self.field_count_for_type(value_type)
@@ -55,7 +53,7 @@ impl<'a> BlockLowerer<'a> {
 
         let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         };
 
         self.array_length_for_type(value_type)
@@ -87,31 +85,32 @@ impl<'a> BlockLowerer<'a> {
         let field_count = self.field_count_for_value(value)? as usize;
         let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
-            return Err(Error::InvalidFieldAccess { index, field_count });
+            return Err(Error::invalid_field_access(index, field_count));
         };
         field_projection(self.tree, self.layouts(), value_type, index)
-            .ok_or(Error::InvalidFieldAccess { index, field_count })
+            .ok_or(Error::invalid_field_access(index, field_count))
     }
 
     /// Return one lowered element projection for a value.
     pub(super) fn element_projection_for_value(&self, value: mir::Value) -> Result<Projection> {
         let value_type = self.projection_type_for_value(value)?;
         let Some(value_type) = value_type else {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         };
-        element_projection(self.tree, self.layouts(), value_type).ok_or(Error::InvalidInstruction)
+        element_projection(self.tree, self.layouts(), value_type)
+            .ok_or(Error::invalid_instruction())
     }
 
     /// Return one field count from a concrete type.
     fn field_count_for_type(&self, value_type: mir::LocalNodeId<mir::Type>) -> Result<u32> {
         match self.tree.get(value_type) {
             mir::Type::Struct { fields, copy: _ } => {
-                u32::try_from(fields.len()).map_err(|_| Error::InvalidInstruction)
+                u32::try_from(fields.len()).map_err(|_| Error::invalid_instruction())
             }
             mir::Type::Tuple { elements, copy: _ } => {
-                u32::try_from(elements.len()).map_err(|_| Error::InvalidInstruction)
+                u32::try_from(elements.len()).map_err(|_| Error::invalid_instruction())
             }
-            _ => Err(Error::InvalidInstruction),
+            _ => Err(Error::invalid_instruction()),
         }
     }
 
@@ -119,7 +118,7 @@ impl<'a> BlockLowerer<'a> {
     fn array_length_for_type(&self, value_type: mir::LocalNodeId<mir::Type>) -> Result<u64> {
         match self.tree.get(value_type) {
             mir::Type::Array { length, .. } => Ok(*length),
-            _ => Err(Error::InvalidInstruction),
+            _ => Err(Error::invalid_instruction()),
         }
     }
 
@@ -128,10 +127,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         value: mir::Value,
     ) -> Result<mir::LocalNodeId<mir::Type>> {
-        lookup_value_type_for_value(value, self.value_type()).ok_or_else(|| {
-            Error::InvariantViolation {
-                context: format!("missing value type for {value:?}"),
-            }
-        })
+        lookup_value_type_for_value(value, self.value_type())
+            .ok_or_else(|| Error::internal(format!("missing value type for {value:?}")))
     }
 }

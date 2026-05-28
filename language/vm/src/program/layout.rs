@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use destack_engine as engine;
+use destack_mir as mir;
 use destack_mir::{LayoutId, TraceMap};
-use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{WordLayout, pointer_class_from_reference, word_layout_from_pointer_class};
 use crate::{Error, Result, Word};
@@ -287,9 +288,9 @@ fn concrete_repr_type(
             return Ok(ty);
         };
 
-        ty = (*inner).ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "repr newtype inner".to_string(),
-        })?;
+        ty = (*inner)
+            .ty()
+            .ok_or_else(|| Error::invalid_program("repr newtype inner"))?;
     }
 }
 
@@ -320,13 +321,10 @@ fn build_layout(
         return Ok(layout.clone());
     }
 
-    let layout_id =
-        layout_id_by_type
-            .get(&ty)
-            .copied()
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing heap layout id for type {ty:?}"),
-            })?;
+    let layout_id = layout_id_by_type
+        .get(&ty)
+        .copied()
+        .ok_or_else(|| Error::internal(format!("missing heap layout id for type {ty:?}")))?;
 
     // peel transparent wrappers before choosing the physical representation
     let repr_ty = concrete_repr_type(tree, ty)?;
@@ -353,9 +351,9 @@ fn build_layout(
         mir::Type::TensorView { shape, .. } => build_tensor_view_layout(shape, layout_id)?,
         mir::Type::FunctionSignature { .. } => scalar_layout(0, 1, layout_id),
         mir::Type::Atomic { value } => {
-            let value = value.ty().ok_or_else(|| Error::MissingRepresentation {
-                context: "atomic value type".to_string(),
-            })?;
+            let value = value
+                .ty()
+                .ok_or_else(|| Error::invalid_program("atomic value type"))?;
 
             let mut layout = build_layout(tree, layout_id_by_type, layouts, value)?;
             layout.layout_id = layout_id;
@@ -365,9 +363,7 @@ fn build_layout(
         mir::Type::Any { .. } => {
             let layout = tree
                 .type_layout(ty)
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "any layout".to_string(),
-                })?;
+                .ok_or_else(|| Error::invalid_program("any layout"))?;
             build_mir_layout(tree, layout_id_by_type, layouts, layout_id, layout)?
         }
         mir::Type::Newtype { .. } => unreachable!("repr_type must peel newtypes"),
@@ -376,9 +372,9 @@ fn build_layout(
                 .iter()
                 .map(|field_id| {
                     let field = tree.get(*field_id);
-                    (field.ty).ty().ok_or_else(|| Error::MissingRepresentation {
-                        context: "struct field type".to_string(),
-                    })
+                    (field.ty)
+                        .ty()
+                        .ok_or_else(|| Error::invalid_program("struct field type"))
                 })
                 .collect::<Result<Vec<_>>>()?;
             build_record_layout(tree, layout_id_by_type, layouts, layout_id, ty, field_types)?
@@ -386,18 +382,16 @@ fn build_layout(
         mir::Type::Variant { .. } => {
             let layout = tree
                 .type_layout(ty)
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "variant layout".to_string(),
-                })?;
+                .ok_or_else(|| Error::invalid_program("variant layout"))?;
             build_mir_layout(tree, layout_id_by_type, layouts, layout_id, layout)?
         }
         mir::Type::Tuple { elements, .. } => {
             let element_types = elements
                 .iter()
                 .map(|element| {
-                    (*element).ty().ok_or_else(|| Error::MissingRepresentation {
-                        context: "tuple element type".to_string(),
-                    })
+                    (*element)
+                        .ty()
+                        .ok_or_else(|| Error::invalid_program("tuple element type"))
                 })
                 .collect::<Result<Vec<_>>>()?;
             build_record_layout(
@@ -419,9 +413,7 @@ fn build_layout(
             ty,
             (*element)
                 .ty()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "array element type".to_string(),
-                })?,
+                .ok_or_else(|| Error::invalid_program("array element type"))?,
             *length as usize,
         )?,
         mir::Type::Slice {
@@ -451,9 +443,7 @@ fn build_layout(
                 ty,
                 (*element)
                     .ty()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "vector element type".to_string(),
-                    })?,
+                    .ok_or_else(|| Error::invalid_program("vector element type"))?,
                 element_count,
             )?
         }
@@ -470,9 +460,7 @@ fn build_layout(
             ty,
             (*element)
                 .ty()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "tensor element type".to_string(),
-                })?,
+                .ok_or_else(|| Error::invalid_program("tensor element type"))?,
             shape,
             layout,
         )?,
@@ -702,10 +690,8 @@ fn build_slice_layout(
     layout_id: LayoutId,
 ) -> Result<Layout> {
     let pointer_class = pointer_class_from_reference(space, kind);
-    let data_layout =
-        word_layout_from_pointer_class(pointer_class).ok_or_else(|| Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        })?;
+    let data_layout = word_layout_from_pointer_class(pointer_class)
+        .ok_or_else(|| Error::invalid_pointer_type(format!("{pointer_class:?}")))?;
     let pointer_bytes = tree.pointer_bytes() as usize;
     let data_byte_len = data_layout.byte_len(pointer_bytes);
     let length_offset = align_offset(data_byte_len, pointer_bytes);
@@ -837,14 +823,10 @@ fn build_tensor_view_layout(shape: &[mir::TensorDimension], layout_id: LayoutId)
     let rank = shape.len();
     let slots = rank
         .checked_add(1)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("tensor view rank overflow: rank={rank}"),
-        })?;
-    let byte_len = slots
-        .checked_mul(Word::BYTE_LEN)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("tensor view byte length overflow: slots={slots}"),
-        })?;
+        .ok_or_else(|| Error::internal(format!("tensor view rank overflow: rank={rank}")))?;
+    let byte_len = slots.checked_mul(Word::BYTE_LEN).ok_or_else(|| {
+        Error::internal(format!("tensor view byte length overflow: slots={slots}"))
+    })?;
 
     Ok(Layout {
         layout_id,
@@ -885,13 +867,11 @@ fn repeated_layout(
 
 /// Return one repeated payload byte length.
 fn stride_byte_len(element_count: usize, stride: usize) -> Result<usize> {
-    stride
-        .checked_mul(element_count)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!(
-                "repeated layout byte length overflow: stride={stride}, element_count={element_count}",
-            ),
-        })
+    stride.checked_mul(element_count).ok_or_else(|| {
+        Error::internal(format!(
+            "repeated layout byte length overflow: stride={stride}, element_count={element_count}",
+        ))
+    })
 }
 
 /// Report whether the repr type contains one callable value.
@@ -905,9 +885,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
                 let field_type = tree.get(*field_id).ty;
                 let field_type = (field_type)
                     .ty()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "struct field type".to_string(),
-                    })?;
+                    .ok_or_else(|| Error::invalid_program("struct field type"))?;
                 if contains_callable(tree, field_type)? {
                     return Ok(true);
                 }
@@ -917,12 +895,9 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
         }
         mir::Type::Tuple { elements, .. } => {
             for element_type in elements {
-                let element_type =
-                    (*element_type)
-                        .ty()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "tuple element type".to_string(),
-                        })?;
+                let element_type = (*element_type)
+                    .ty()
+                    .ok_or_else(|| Error::invalid_program("tuple element type"))?;
                 if contains_callable(tree, element_type)? {
                     return Ok(true);
                 }
@@ -936,9 +911,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
             tree,
             (*element)
                 .ty()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "element type".to_string(),
-                })?,
+                .ok_or_else(|| Error::invalid_program("element type"))?,
         ),
         _ => Ok(false),
     }
@@ -993,9 +966,7 @@ fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
 /// Return the raw MIR array stride.
 fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
     let mir::LayoutShape::Array { element_stride, .. } = &layout.shape else {
-        return Err(Error::InvariantViolation {
-            context: "missing MIR array layout stride".to_string(),
-        });
+        return Err(Error::internal("missing MIR array layout stride"));
     };
 
     Ok(*element_stride as usize)
@@ -1105,9 +1076,9 @@ fn build_variant_trace_map(
         storage_offset,
     } = &layout.shape
     else {
-        return Err(Error::InvariantViolation {
-            context: "trace map requested for non-variant layout".to_string(),
-        });
+        return Err(Error::internal(
+            "trace map requested for non-variant layout",
+        ));
     };
     let mir::Type::Variant {
         tag,
@@ -1116,24 +1087,23 @@ fn build_variant_trace_map(
         ..
     } = tree.get(ty)
     else {
-        return Err(Error::InvariantViolation {
-            context: "trace map requested for non-variant type".to_string(),
-        });
+        return Err(Error::internal("trace map requested for non-variant type"));
     };
-    let tag_type = tag.ty().ok_or_else(|| Error::InvariantViolation {
-        context: "variant tag type is not concrete".to_string(),
-    })?;
-    let storage_type = storage.ty().ok_or_else(|| Error::InvariantViolation {
-        context: "variant storage type is not concrete".to_string(),
-    })?;
+    let tag_type = tag
+        .ty()
+        .ok_or_else(|| Error::internal("variant tag type is not concrete"))?;
+    let storage_type = storage
+        .ty()
+        .ok_or_else(|| Error::internal("variant storage type is not concrete"))?;
 
     let tag_bytes = variant_tag_bytes(tree, tag_type)?;
     let mut trace_variants = Vec::with_capacity(cases.len());
 
     for case in cases.iter() {
-        let element_type = case.ty.ty().ok_or_else(|| Error::InvariantViolation {
-            context: "variant value type is not concrete".to_string(),
-        })?;
+        let element_type = case
+            .ty
+            .ty()
+            .ok_or_else(|| Error::internal("variant value type is not concrete"))?;
         let map = variant_trace_map(layouts, storage_type, element_type)?;
         trace_variants.push(mir::TraceVariant {
             tag: variant_tag_bits(tree, tag_type, &case.tag)?,
@@ -1169,28 +1139,22 @@ fn variant_tag_bits(
                 is_signed: false,
             },
             mir::Constant::UInt { value, .. },
-        ) if *width <= u64::BITS as u16 => {
-            u64::try_from(*value).map_err(|_| Error::InvariantViolation {
-                context: "variant tag does not fit in one word".to_string(),
-            })
-        }
-        _ => Err(Error::InvariantViolation {
-            context: "variant tag does not match tag type".to_string(),
-        }),
+        ) if *width <= u64::BITS as u16 => u64::try_from(*value)
+            .map_err(|_| Error::internal("variant tag does not fit in one word")),
+        _ => Err(Error::internal("variant tag does not match tag type")),
     }
 }
 
 /// Return the tag byte width for one variant tag type.
 fn variant_tag_bytes(tree: &mir::Tree, tag_type: mir::LocalNodeId<mir::Type>) -> Result<u8> {
     let mir::Type::Int { width, .. } = tree.get(tag_type) else {
-        return Err(Error::InvariantViolation {
-            context: format!("variant tag type is not integer: {tag_type:?}"),
-        });
+        return Err(Error::internal(format!(
+            "variant tag type is not integer: {tag_type:?}"
+        )));
     };
 
-    u8::try_from(scalar_byte_len(*width as usize)).map_err(|_| Error::InvariantViolation {
-        context: format!("variant tag width is too large: {width}"),
-    })
+    u8::try_from(scalar_byte_len(*width as usize))
+        .map_err(|_| Error::internal(format!("variant tag width is too large: {width}")))
 }
 
 /// Return the storage trace map for one variant.
@@ -1199,11 +1163,11 @@ fn variant_trace_map(
     storage_type: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<TraceMap> {
-    let storage_layout = layouts
-        .get(&storage_type)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing variant storage layout for {storage_type:?}"),
-        })?;
+    let storage_layout = layouts.get(&storage_type).ok_or_else(|| {
+        Error::internal(format!(
+            "missing variant storage layout for {storage_type:?}"
+        ))
+    })?;
 
     if storage_layout.is_word() {
         return Ok(storage_layout.trace_map.clone());
@@ -1212,9 +1176,7 @@ fn variant_trace_map(
     layouts
         .get(&element_type)
         .map(|layout| layout.trace_map.clone())
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing variant layout for {element_type:?}"),
-        })
+        .ok_or_else(|| Error::internal(format!("missing variant layout for {element_type:?}")))
 }
 
 /// Append heap reference offsets for one compiled layout subtree.
@@ -1241,18 +1203,17 @@ fn append_reference_offsets(
         // field layouts recurse using each field base offset
         LayoutShape::Fields(fields) => {
             for field in fields {
-                let field_offset =
-                    u32::try_from(field.offset).map_err(|_| Error::InvariantViolation {
-                        context: format!("trace map field offset too large: {}", field.offset),
-                    })?;
-                let field_base =
-                    base_offset
-                        .checked_add(field_offset)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: format!(
-                                "trace map field base overflow: base={base_offset}, offset={field_offset}",
-                            ),
-                        })?;
+                let field_offset = u32::try_from(field.offset).map_err(|_| {
+                    Error::internal(format!(
+                        "trace map field offset too large: {}",
+                        field.offset
+                    ))
+                })?;
+                let field_base = base_offset.checked_add(field_offset).ok_or_else(|| {
+                    Error::internal(format!(
+                        "trace map field base overflow: base={base_offset}, offset={field_offset}",
+                    ))
+                })?;
                 append_reference_offsets(
                     tree,
                     layouts,
@@ -1267,9 +1228,7 @@ fn append_reference_offsets(
         // slice descriptors trace the backing storage pointer
         LayoutShape::Slice => {
             let mir::Type::Slice { kind, space, .. } = tree.get(repr_type(tree, ty)) else {
-                return Err(Error::InvariantViolation {
-                    context: "slice layout requested for non-slice type".to_string(),
-                });
+                return Err(Error::internal("slice layout requested for non-slice type"));
             };
 
             if is_heap_reference_kind(*kind) {
@@ -1284,9 +1243,9 @@ fn append_reference_offsets(
         // tensor view descriptors trace the backing storage pointer
         LayoutShape::TensorView { .. } => {
             let mir::Type::TensorView { kind, space, .. } = tree.get(repr_type(tree, ty)) else {
-                return Err(Error::InvariantViolation {
-                    context: "tensor view layout requested for non-tensor-view type".to_string(),
-                });
+                return Err(Error::internal(
+                    "tensor view layout requested for non-tensor-view type",
+                ));
             };
 
             if is_heap_reference_kind(*kind) {
@@ -1309,27 +1268,23 @@ fn append_reference_offsets(
             element_count: length,
         } => {
             for index in 0..*length {
-                let element_offset =
-                    index
-                        .checked_mul(element.stride)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: format!(
-                                "trace map element offset overflow: index={index}, stride={}",
-                                element.stride,
-                            ),
-                        })?;
-                let element_offset =
-                    u32::try_from(element_offset).map_err(|_| Error::InvariantViolation {
-                        context: format!("trace map element offset too large: {element_offset}",),
-                    })?;
+                let element_offset = index.checked_mul(element.stride).ok_or_else(|| {
+                    Error::internal(format!(
+                        "trace map element offset overflow: index={index}, stride={}",
+                        element.stride,
+                    ))
+                })?;
+                let element_offset = u32::try_from(element_offset).map_err(|_| {
+                    Error::internal(format!(
+                        "trace map element offset too large: {element_offset}",
+                    ))
+                })?;
                 let element_base =
                     base_offset
                         .checked_add(element_offset)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: format!(
+                        .ok_or_else(|| Error::internal(format!(
                                 "trace map element base overflow: base={base_offset}, offset={element_offset}",
-                            ),
-                        })?;
+                            )))?;
                 append_reference_offsets(
                     tree,
                     layouts,
@@ -1355,14 +1310,12 @@ fn compute_tensor_element_count(
         match dimension {
             mir::TensorDimension::Static(value) => static_shape.push(*value),
             mir::TensorDimension::Dynamic => {
-                return Err(Error::UnsupportedInstruction {
-                    name: "tensor dynamic shape".to_string(),
-                });
+                return Err(Error::unsupported_instruction("tensor dynamic shape"));
             }
             mir::TensorDimension::Symbol(name) => {
-                return Err(Error::UnsupportedInstruction {
-                    name: format!("tensor symbolic shape {name}"),
-                });
+                return Err(Error::unsupported_instruction(format!(
+                    "tensor symbolic shape {name}"
+                )));
             }
         }
     }
@@ -1375,15 +1328,13 @@ fn compute_tensor_element_count(
                 element_count =
                     element_count
                         .checked_mul(dimension)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: format!(
+                        .ok_or_else(|| Error::internal(format!(
                                 "tensor element count overflow: count={element_count}, dimension={dimension}",
-                            ),
-                        })?;
+                            )))?;
             }
 
-            usize::try_from(element_count).map_err(|_| Error::InvariantViolation {
-                context: format!("tensor element count too large: {element_count}"),
+            usize::try_from(element_count).map_err(|_| {
+                Error::internal(format!("tensor element count too large: {element_count}"))
             })?
         }
     };

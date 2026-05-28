@@ -82,7 +82,7 @@ b0:
     v2: int32 = cast.floatToInt.s v1 -> int32
     return v2
 }"#;
-    run_mir_expect_error(mir, "f2iNan", &[], Error::BadConversionToInteger);
+    run_mir_expect_error(mir, "f2iNan", &[], Error::bad_conversion_to_integer());
 }
 
 /// Float64 to signed integer traps on out of range values.
@@ -98,7 +98,7 @@ b0(v0: float64):
         mir,
         "f2iOverflow",
         &[Value::float64(1e40)],
-        Error::BadConversionToInteger,
+        Error::bad_conversion_to_integer(),
     );
 }
 
@@ -127,7 +127,7 @@ b0(v0: float64):
         mir,
         "f2uNegative",
         &[Value::float64(-1.0)],
-        Error::BadConversionToInteger,
+        Error::bad_conversion_to_integer(),
     );
 }
 
@@ -144,7 +144,7 @@ b0(v0: float64):
         mir,
         "f2uOverflow",
         &[Value::float64(1e40)],
-        Error::BadConversionToInteger,
+        Error::bad_conversion_to_integer(),
     );
 }
 
@@ -159,7 +159,7 @@ b0:
     v2: uint32 = cast.floatToInt.u v1 -> uint32
     return v2
 }"#;
-    run_mir_expect_error(mir, "f2uNan", &[], Error::BadConversionToInteger);
+    run_mir_expect_error(mir, "f2uNan", &[], Error::bad_conversion_to_integer());
 }
 
 /// Float64 to signed integer saturating conversion.

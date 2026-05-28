@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
+use destack_engine as engine;
+use destack_heap as heap;
+use destack_mir as mir;
 
 use crate::program::{Block, BlockCode, CallTarget, Function, Layout, SideTableBuilder};
 use crate::{Error, Result};
@@ -96,9 +98,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             .map(|parameter| {
                 (parameter.value)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "function parameter value".to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program("function parameter value"))
             })
             .collect::<Result<Vec<_>>>()?;
         let parameter = self.pool.argument_range(&parameter_value);
@@ -186,9 +186,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
                 .map(|parameter| {
                     (parameter.value)
                         .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "block parameter value".to_string(),
-                        })
+                        .ok_or_else(|| Error::invalid_program("block parameter value"))
                 })
                 .collect::<Result<Vec<_>>>()?;
             block_parameter.push(parameter);
@@ -313,8 +311,8 @@ impl<'a> BlockLowerer<'a> {
         &self,
         function: mir::LocalNodeId<mir::Function>,
     ) -> Result<CallTarget> {
-        lookup_call_target(self.call_targets, function).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing call target for function: {function:?}"),
+        lookup_call_target(self.call_targets, function).ok_or_else(|| {
+            Error::internal(format!("missing call target for function: {function:?}"))
         })
     }
 
@@ -323,9 +321,7 @@ impl<'a> BlockLowerer<'a> {
         self.local_index_by_id
             .get(&local)
             .copied()
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing local index for {local:?}"),
-            })
+            .ok_or_else(|| Error::internal(format!("missing local index for {local:?}")))
     }
 
     /// Return the lowered value layout map.
@@ -352,9 +348,7 @@ impl<'a> BlockLowerer<'a> {
             .layout_id_by_type
             .get(&ty)
             .copied()
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing layout id for type: {ty:?}"),
-            })
+            .ok_or_else(|| Error::internal(format!("missing layout id for type: {ty:?}")))
     }
 }
 
@@ -384,16 +378,16 @@ fn compute_value_use_counts(
                 record_use(
                     (value)
                         .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "instruction use".to_string(),
-                        })?,
+                        .ok_or_else(|| Error::invalid_program("instruction use"))?,
                 );
             }
             if let Some(args) = inst.argument_slice() {
                 for arg in tree.get_arguments(args) {
-                    record_use((*arg).value().ok_or_else(|| Error::MissingRepresentation {
-                        context: "instruction argument".to_string(),
-                    })?);
+                    record_use(
+                        (*arg)
+                            .value()
+                            .ok_or_else(|| Error::invalid_program("instruction argument"))?,
+                    );
                 }
             }
         }
@@ -401,9 +395,7 @@ fn compute_value_use_counts(
             record_use(
                 (value)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "terminator use".to_string(),
-                    })?,
+                    .ok_or_else(|| Error::invalid_program("terminator use"))?,
             );
         }
     }

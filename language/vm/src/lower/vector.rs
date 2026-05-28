@@ -37,11 +37,10 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<(Projection, u32, mir::LocalNodeId<mir::Type>)> {
         // resolve the VM layout for this vector value
         let layout = self.layout_for_type(ty)?;
-        let element = layout.element().ok_or(Error::TypeMismatch {
-            expected: "vector type".to_string(),
-            actual: format!("{ty:?}"),
-        })?;
-        let element_count = layout.element_count().ok_or(Error::InvalidInstruction)? as u32;
+        let element = layout
+            .element()
+            .ok_or(Error::type_mismatch("vector type", format!("{ty:?}")))?;
+        let element_count = layout.element_count().ok_or(Error::invalid_instruction())? as u32;
 
         // describe one frame element for execute
         let access = Projection::indexed(
@@ -65,12 +64,10 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector splat destination".to_string(),
-            })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector splat value".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector splat destination"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector splat value"))?;
         let destination_type = self.value_type_for_value(destination)?;
         let (dest_element, element_count, element_type) =
             self.vector_element_projection(destination_type)?;
@@ -118,15 +115,13 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector extract destination".to_string(),
-            })?;
-        let vector = vector.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector extract input".to_string(),
-        })?;
-        let index = index.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector extract index".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector extract destination"))?;
+        let vector = vector
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector extract input"))?;
+        let index = index
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector extract index"))?;
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, _) = self.vector_element_projection(vector_type)?;
 
@@ -155,18 +150,16 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector insert destination".to_string(),
-            })?;
-        let vector = vector.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector insert input".to_string(),
-        })?;
-        let index = index.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector insert index".to_string(),
-        })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector insert value".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector insert destination"))?;
+        let vector = vector
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector insert input"))?;
+        let index = index
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector insert index"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector insert value"))?;
 
         let destination_type = self.value_type_for_value(destination)?;
         let vector_type = self.value_type_for_value(vector)?;
@@ -200,15 +193,13 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector shuffle destination".to_string(),
-            })?;
-        let left = left.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector shuffle left".to_string(),
-        })?;
-        let right = right.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector shuffle right".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector shuffle destination"))?;
+        let left = left
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector shuffle left"))?;
+        let right = right
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector shuffle right"))?;
 
         let destination_type = self.value_type_for_value(destination)?;
         let left_type = self.value_type_for_value(left)?;
@@ -247,22 +238,16 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector select destination".to_string(),
-            })?;
-        let mask = mask.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector select mask".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector select destination"))?;
+        let mask = mask
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector select mask"))?;
         let then_value = then_value
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector select then value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("vector select then value"))?;
         let else_value = else_value
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector select else value".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("vector select else value"))?;
 
         let mask_type = self.value_type_for_value(mask)?;
         let then_type = self.value_type_for_value(then_value)?;
@@ -275,7 +260,7 @@ impl<'a> BlockLowerer<'a> {
 
         // require identical vector widths
         if mask_count != then_count || mask_count != else_count {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         // byte boolean masks are not packed machine masks
@@ -306,12 +291,10 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector reduce destination".to_string(),
-            })?;
-        let vector = vector.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector reduce input".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector reduce destination"))?;
+        let vector = vector
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector reduce input"))?;
 
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, element) =
@@ -343,15 +326,13 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector compare destination".to_string(),
-            })?;
-        let left = left.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector compare left".to_string(),
-        })?;
-        let right = right.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector compare right".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector compare destination"))?;
+        let left = left
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector compare left"))?;
+        let right = right
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector compare right"))?;
 
         let left_type = self.value_type_for_value(left)?;
         let right_type = self.value_type_for_value(right)?;
@@ -362,14 +343,14 @@ impl<'a> BlockLowerer<'a> {
 
         // require identical vector widths
         if element_count != left_count || element_count != right_count {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         // comparisons write boolean elements
         let element_layout = value_layout_from_type(self.tree, element);
         let kernel = element_binary_kernel(operator, element_layout)
             .filter(is_element_compare_kernel)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
 
         // compare writes byte booleans, not packed machine masks
         Ok(pool.instruction_with_side(
@@ -399,12 +380,10 @@ impl<'a> BlockLowerer<'a> {
         // resolve SSA operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "vector convert destination".to_string(),
-            })?;
-        let vector = vector.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "vector convert input".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("vector convert destination"))?;
+        let vector = vector
+            .value()
+            .ok_or_else(|| Error::invalid_program("vector convert input"))?;
         let dest_type = self.value_type_for_value(destination)?;
         let source_type = self.value_type_for_value(vector)?;
         let (dest_element, dest_count, dest_element_type) =
@@ -414,7 +393,7 @@ impl<'a> BlockLowerer<'a> {
 
         // require identical vector widths
         if source_count != dest_count {
-            return Err(Error::InvalidInstruction);
+            return Err(Error::invalid_instruction());
         }
 
         // conversions keep the mode in the side record
@@ -521,8 +500,6 @@ pub(super) fn vector_scalar_layout(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ScalarLayout> {
-    scalar_layout_from_type(tree, ty).ok_or_else(|| Error::TypeMismatch {
-        expected: "scalar vector element".to_string(),
-        actual: format!("{ty:?}"),
-    })
+    scalar_layout_from_type(tree, ty)
+        .ok_or_else(|| Error::type_mismatch("scalar vector element", format!("{ty:?}")))
 }

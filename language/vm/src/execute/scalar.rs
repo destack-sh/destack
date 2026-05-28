@@ -9,10 +9,7 @@ use crate::program::ScalarLayout;
 #[inline(always)]
 fn int_layout(ty: ScalarLayout) -> Result<(u16, bool), Error> {
     let ScalarLayout::Int { width, is_signed } = ty else {
-        return Err(Error::TypeMismatch {
-            expected: "integer scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch("integer scalar", format!("{ty:?}")));
     };
 
     Ok((width, is_signed))
@@ -26,10 +23,10 @@ fn signed_int_layout(ty: ScalarLayout) -> Result<u16, Error> {
         is_signed: true,
     } = ty
     else {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer scalar",
+            format!("{ty:?}"),
+        ));
     };
 
     Ok(width)
@@ -44,10 +41,10 @@ fn expect_float_width(ty: ScalarLayout, expected_width: u16) -> Result<(), Error
         return Ok(());
     }
 
-    Err(Error::TypeMismatch {
-        expected: format!("float{expected_width} scalar"),
-        actual: format!("{ty:?}"),
-    })
+    Err(Error::type_mismatch(
+        format!("float{expected_width} scalar"),
+        format!("{ty:?}"),
+    ))
 }
 
 /// Return one boolean scalar layout.
@@ -57,10 +54,7 @@ fn expect_bool(ty: ScalarLayout) -> Result<(), Error> {
         return Ok(());
     }
 
-    Err(Error::TypeMismatch {
-        expected: "boolean scalar".to_string(),
-        actual: format!("{ty:?}"),
-    })
+    Err(Error::type_mismatch("boolean scalar", format!("{ty:?}")))
 }
 
 /// Build one integer word.
@@ -128,7 +122,7 @@ pub(crate) fn mul_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 pub(crate) fn div_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
     let width = signed_int_layout(ty)?;
     if right.as_i64() == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(Word::int(
@@ -142,7 +136,7 @@ pub(crate) fn div_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 pub(crate) fn div_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
     let (width, _) = int_layout(ty)?;
     if right.as_u64() == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(Word::uint(
@@ -156,7 +150,7 @@ pub(crate) fn div_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word
 pub(crate) fn rem_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
     let width = signed_int_layout(ty)?;
     if right.as_i64() == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(Word::int(
@@ -170,7 +164,7 @@ pub(crate) fn rem_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 pub(crate) fn rem_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
     let (width, _) = int_layout(ty)?;
     if right.as_u64() == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(Word::uint(
@@ -525,10 +519,7 @@ pub(crate) fn neg_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
         is_signed: true,
     } = ty
     else {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch("signed integer", format!("{ty:?}")));
     };
     let width = width_u8(width)?;
 
@@ -539,10 +530,7 @@ pub(crate) fn neg_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
 #[inline(always)]
 pub(crate) fn not_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
     let ScalarLayout::Int { width, is_signed } = ty else {
-        return Err(Error::TypeMismatch {
-            expected: "integer".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch("integer", format!("{ty:?}")));
     };
     let width = width_u8(width)?;
 
@@ -574,18 +562,18 @@ trait ScalarConversion {
 
     /// Convert one out-of-range signed integer conversion.
     fn clamp_signed(value: i128, min: i64, max: i64) -> Result<i64, Error> {
-        Err(Error::TypeMismatch {
-            expected: format!("signed range {min}..={max}"),
-            actual: value.to_string(),
-        })
+        Err(Error::type_mismatch(
+            format!("signed range {min}..={max}"),
+            value.to_string(),
+        ))
     }
 
     /// Convert one out-of-range unsigned integer conversion.
     fn clamp_unsigned(value: i128, max: u64) -> Result<u64, Error> {
-        Err(Error::TypeMismatch {
-            expected: format!("unsigned range 0..={max}"),
-            actual: value.to_string(),
-        })
+        Err(Error::type_mismatch(
+            format!("unsigned range 0..={max}"),
+            value.to_string(),
+        ))
     }
 }
 
@@ -598,10 +586,7 @@ impl ScalarConversion for ExactConversion {
 
     fn round_float_to_int(value: f64) -> Result<f64, Error> {
         if value.fract() != 0.0 {
-            return Err(Error::TypeMismatch {
-                expected: "integral float".to_string(),
-                actual: value.to_string(),
-            });
+            return Err(Error::type_mismatch("integral float", value.to_string()));
         }
 
         Ok(value)
@@ -701,10 +686,10 @@ pub(crate) enum ScalarResult {
 /// Return one integer byte scalar layout.
 fn byte_integer_layout(ty: ScalarLayout, expected: &'static str) -> Result<(u16, bool), Error> {
     let ScalarLayout::Int { width, is_signed } = ty else {
-        return Err(Error::TypeMismatch {
-            expected: expected.to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            expected.to_string(),
+            format!("{ty:?}"),
+        ));
     };
 
     Ok((width, is_signed))
@@ -765,10 +750,10 @@ pub(crate) fn divide_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -798,10 +783,10 @@ pub(crate) fn remainder_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -857,10 +842,10 @@ pub(crate) fn less_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -890,10 +875,10 @@ pub(crate) fn less_equal_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -923,10 +908,10 @@ pub(crate) fn greater_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -956,10 +941,10 @@ pub(crate) fn greater_equal_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -1041,10 +1026,10 @@ pub(crate) fn shift_right_signed_bytes_value(
 ) -> Result<ScalarResult, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let (left, right) = normalized_byte_inputs(left, right, width);
@@ -1071,10 +1056,10 @@ pub(crate) fn shift_right_unsigned_bytes_value(
 pub(crate) fn negate_bytes_value(ty: ScalarLayout, value: &[u8]) -> Result<Vec<u8>, Error> {
     let (width, is_signed) = byte_integer_layout(ty, "signed integer byte scalar")?;
     if !is_signed {
-        return Err(Error::TypeMismatch {
-            expected: "signed integer byte scalar".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "signed integer byte scalar",
+            format!("{ty:?}"),
+        ));
     }
 
     let value = normalized_integer_bytes(value, width);
@@ -1361,7 +1346,7 @@ fn divide_unsigned_bytes(
     width: u16,
 ) -> Result<(Vec<u8>, Vec<u8>), Error> {
     if right.iter().all(|byte| *byte == 0) {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     let mut quotient = vec![0; left.len()];
@@ -1504,10 +1489,10 @@ where
 
     // reject boolean numeric conversions
     if matches!(source, ScalarLayout::Bool) || matches!(dest, ScalarLayout::Bool) {
-        return Err(Error::TypeMismatch {
-            expected: "numeric conversion".to_string(),
-            actual: format!("{value:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "numeric conversion",
+            format!("{value:?}"),
+        ));
     }
 
     // convert between numeric kinds
@@ -1532,10 +1517,10 @@ where
         (ScalarLayout::Float { width }, ScalarLayout::Float { width: dest_width }) => {
             convert_float_to_float::<C>(value, width, dest_width)
         }
-        _ => Err(Error::TypeMismatch {
-            expected: "numeric conversion".to_string(),
-            actual: format!("{value:?}"),
-        }),
+        _ => Err(Error::type_mismatch(
+            "numeric conversion",
+            format!("{value:?}"),
+        )),
     }
 }
 
@@ -1642,10 +1627,10 @@ where
             float_value
         };
         if round_trip != float_value {
-            return Err(Error::TypeMismatch {
-                expected: "exact integer to float conversion".to_string(),
-                actual: float_value.to_string(),
-            });
+            return Err(Error::type_mismatch(
+                "exact integer to float conversion",
+                float_value.to_string(),
+            ));
         }
     }
 
@@ -1675,19 +1660,19 @@ where
         32 => value.as_float32() as f64,
         64 => value.as_float64(),
         _ => {
-            return Err(Error::TypeMismatch {
-                expected: "float width 32 or 64".to_string(),
-                actual: source_width.to_string(),
-            });
+            return Err(Error::type_mismatch(
+                "float width 32 or 64",
+                source_width.to_string(),
+            ));
         }
     };
 
     // require finite values for exact conversions
     if !float_value.is_finite() && !C::accepts_non_finite() {
-        return Err(Error::TypeMismatch {
-            expected: "finite float".to_string(),
-            actual: float_value.to_string(),
-        });
+        return Err(Error::type_mismatch(
+            "finite float",
+            float_value.to_string(),
+        ));
     }
 
     // round according to the requested mode
@@ -1729,10 +1714,10 @@ where
         32 => value.as_float32() as f64,
         64 => value.as_float64(),
         _ => {
-            return Err(Error::TypeMismatch {
-                expected: "float width 32 or 64".to_string(),
-                actual: source_width.to_string(),
-            });
+            return Err(Error::type_mismatch(
+                "float width 32 or 64",
+                source_width.to_string(),
+            ));
         }
     };
 
@@ -1743,10 +1728,10 @@ where
     if C::CHECK_FLOAT_NARROWING && dest_width == 32 {
         let round_trip = (rounded as f32) as f64;
         if round_trip != rounded {
-            return Err(Error::TypeMismatch {
-                expected: "exact float conversion".to_string(),
-                actual: rounded.to_string(),
-            });
+            return Err(Error::type_mismatch(
+                "exact float conversion",
+                rounded.to_string(),
+            ));
         }
     }
 
@@ -1787,10 +1772,7 @@ pub(crate) fn signed_bounds(width: u16) -> (i64, i64) {
 /// Convert a bit width to a u8, erroring on overflow.
 pub(crate) fn width_u8(width: u16) -> Result<u8, Error> {
     // convert width and reject oversized values
-    u8::try_from(width).map_err(|_| Error::TypeMismatch {
-        expected: "width <= 255".to_string(),
-        actual: width.to_string(),
-    })
+    u8::try_from(width).map_err(|_| Error::type_mismatch("width <= 255", width.to_string()))
 }
 
 /// Compute the unsigned max for a width.
@@ -1990,8 +1972,5 @@ pub(crate) fn reduce_xor(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Err
 
 /// Build one scalar reduction type error.
 fn reduce_type_error(op: &str, a: Word, b: Word) -> Error {
-    Error::TypeMismatch {
-        expected: format!("scalar {op} inputs"),
-        actual: format!("{a:?}, {b:?}"),
-    }
+    Error::type_mismatch(format!("scalar {op} inputs"), format!("{a:?}, {b:?}"))
 }

@@ -140,7 +140,7 @@ fn atomic_address(
 ) -> Result<usize, Error> {
     // offset zero is the reserved null reference
     if pointer.bits() == 0 {
-        return Err(Error::NullPointerDereference);
+        return Err(Error::null_pointer_dereference());
     }
 
     // references carry heap offsets, raw pointers carry raw offsets
@@ -170,7 +170,7 @@ fn store_compare_exchange_result(
     super::frame::store_frame_fields(machine, destination, |_machine, index, _ty| match index {
         0 => Ok(value),
         1 => Ok(Word::bool(success)),
-        _ => Err(Error::InvalidInstruction),
+        _ => Err(Error::invalid_instruction()),
     })?;
 
     Ok(())
@@ -576,7 +576,7 @@ where
 
             operation(old, value).to_bits()
         }),
-        _ => Err(Error::InvalidInstruction),
+        _ => Err(Error::invalid_instruction()),
     }
 }
 

@@ -3,8 +3,10 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_core::StringPool;
+use destack_engine as engine;
+use destack_heap as heap;
+use destack_mir as mir;
 use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
-use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, TypeTable, build_layouts, callable_object_layout};
 use super::{
@@ -200,15 +202,13 @@ impl Program {
         layout_id: LayoutId,
     ) -> Result<heap::AllocationShape<'_>> {
         let Some(layout) = self.mir_layouts.layouts.get(layout_id.index()) else {
-            return Err(Error::InvariantViolation {
-                context: format!("missing MIR layout {layout_id:?}"),
-            });
+            return Err(Error::internal(format!("missing MIR layout {layout_id:?}")));
         };
         if layout.trace_map.has_reference() {
             let Some(trace_id) = self.trace_table.id(&layout.trace_map) else {
-                return Err(Error::InvariantViolation {
-                    context: format!("missing MIR trace map for layout {layout_id:?}"),
-                });
+                return Err(Error::internal(format!(
+                    "missing MIR trace map for layout {layout_id:?}"
+                )));
             };
 
             return Ok(heap::AllocationShape::new(
@@ -232,9 +232,7 @@ impl Program {
     pub(crate) fn trace_map(&self, id: mir::TraceId) -> Result<&mir::TraceMap> {
         self.trace_table
             .trace(id)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing program trace map {:?}", id),
-            })
+            .ok_or_else(|| Error::internal(format!("missing program trace map {:?}", id)))
     }
 
     /// Return the canonical program trace table.
@@ -338,10 +336,9 @@ fn initializer_bytes(
     initializer: &mir::GlobalInitializer,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<u8>> {
-    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
-        expected: "compiled initializer layout".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
+    let layout = types
+        .layout_for(ty)
+        .ok_or_else(|| Error::type_mismatch("compiled initializer layout", format!("{ty:?}")))?;
 
     if layout.is_scalar() {
         return scalar_initializer_bytes(tree, initializer, ty, layout.byte_len);
@@ -355,10 +352,10 @@ fn initializer_bytes(
         }
         mir::GlobalInitializer::Bytes(bytes) => {
             if bytes.len() != layout.byte_len {
-                return Err(Error::TypeMismatch {
-                    expected: format!("{} initializer bytes", layout.byte_len),
-                    actual: format!("{} initializer bytes", bytes.len()),
-                });
+                return Err(Error::type_mismatch(
+                    format!("{} initializer bytes", layout.byte_len),
+                    format!("{} initializer bytes", bytes.len()),
+                ));
             }
 
             Ok(bytes.clone())
@@ -366,12 +363,9 @@ fn initializer_bytes(
         mir::GlobalInitializer::Aggregate(elements) => {
             payload_initializer_bytes(tree, types, elements, ty)
         }
-        mir::GlobalInitializer::Scalar(_) | mir::GlobalInitializer::FunctionAddress(_) => {
-            Err(Error::TypeMismatch {
-                expected: "payload initializer".to_string(),
-                actual: "scalar initializer".to_string(),
-            })
-        }
+        mir::GlobalInitializer::Scalar(_) | mir::GlobalInitializer::FunctionAddress(_) => Err(
+            Error::type_mismatch("payload initializer", "scalar initializer"),
+        ),
     }
 }
 
@@ -390,10 +384,10 @@ fn scalar_initializer_bytes(
         }
         mir::GlobalInitializer::Bytes(bytes) => {
             if bytes.len() != byte_len {
-                return Err(Error::TypeMismatch {
-                    expected: format!("{byte_len} initializer bytes"),
-                    actual: format!("{} initializer bytes", bytes.len()),
-                });
+                return Err(Error::type_mismatch(
+                    format!("{byte_len} initializer bytes"),
+                    format!("{} initializer bytes", bytes.len()),
+                ));
             }
 
             Ok(bytes.clone())
@@ -408,10 +402,10 @@ fn scalar_initializer_bytes(
 
             Ok(bytes)
         }
-        mir::GlobalInitializer::Aggregate(_) => Err(Error::TypeMismatch {
-            expected: "scalar initializer".to_string(),
-            actual: format!("{ty:?}"),
-        }),
+        mir::GlobalInitializer::Aggregate(_) => Err(Error::type_mismatch(
+            "scalar initializer",
+            format!("{ty:?}"),
+        )),
     }
 }
 
@@ -421,16 +415,14 @@ fn function_address_initializer_bytes(
     byte_len: usize,
 ) -> Result<Vec<u8>> {
     if byte_len > Word::BYTE_LEN {
-        return Err(Error::TypeMismatch {
-            expected: "address-sized initializer".to_string(),
-            actual: format!("{byte_len} byte initializer"),
-        });
+        return Err(Error::type_mismatch(
+            "address-sized initializer",
+            format!("{byte_len} byte initializer"),
+        ));
     }
 
     let Some(function) = function.function() else {
-        return Err(Error::MissingRepresentation {
-            context: "function address initializer".to_string(),
-        });
+        return Err(Error::invalid_program("function address initializer"));
     };
     let function = FunctionPointer::from_bits(function.id as usize);
     let raw = function.bits() as u64;
@@ -492,10 +484,9 @@ fn validate_zero_initializer(
     types: &impl TypeLayoutLookup,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<()> {
-    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
-        expected: "compiled initializer layout".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
+    let layout = types
+        .layout_for(ty)
+        .ok_or_else(|| Error::type_mismatch("compiled initializer layout", format!("{ty:?}")))?;
 
     if layout.is_scalar() {
         validate_zero_scalar_type(tree, ty)?;
@@ -529,16 +520,12 @@ fn validate_zero_scalar_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
             ..
         } => {
             if !nullability.allows_null() {
-                return Err(Error::UnsupportedZeroValue {
-                    ty: format!("{ty_node:?}"),
-                });
+                return Err(Error::unsupported_zero_value(format!("{ty_node:?}")));
             }
 
             Ok(())
         }
-        _ => Err(Error::UnsupportedZeroValue {
-            ty: format!("{ty_node:?}"),
-        }),
+        _ => Err(Error::unsupported_zero_value(format!("{ty_node:?}"))),
     }
 }
 
@@ -549,35 +536,34 @@ fn payload_initializer_bytes(
     elements: &[mir::GlobalInitializer],
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<u8>> {
-    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
-        expected: "compiled payload layout".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
+    let layout = types
+        .layout_for(ty)
+        .ok_or_else(|| Error::type_mismatch("compiled payload layout", format!("{ty:?}")))?;
     let ranges = initializer_ranges(types, ty)?;
     if elements.len() != ranges.len() {
-        return Err(Error::TypeMismatch {
-            expected: format!("{} initializer elements", ranges.len()),
-            actual: format!("{} initializer elements", elements.len()),
-        });
+        return Err(Error::type_mismatch(
+            format!("{} initializer elements", ranges.len()),
+            format!("{} initializer elements", elements.len()),
+        ));
     }
 
     let mut bytes = vec![0u8; layout.byte_len];
     for (element, range) in elements.iter().zip(ranges.into_iter()) {
         let value_bytes = initializer_bytes(tree, types, element, range.ty)?;
         if value_bytes.len() != range.byte_len {
-            return Err(Error::TypeMismatch {
-                expected: format!("{} initializer bytes", range.byte_len),
-                actual: format!("{} initializer bytes", value_bytes.len()),
-            });
+            return Err(Error::type_mismatch(
+                format!("{} initializer bytes", range.byte_len),
+                format!("{} initializer bytes", value_bytes.len()),
+            ));
         }
 
         let end = range
             .offset
             .checked_add(range.byte_len)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let target = bytes
             .get_mut(range.offset..end)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         target.copy_from_slice(&value_bytes);
     }
 
@@ -589,17 +575,16 @@ fn initializer_ranges(
     types: &impl TypeLayoutLookup,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Vec<InitializerRange>> {
-    let layout = types.layout_for(ty).ok_or_else(|| Error::TypeMismatch {
-        expected: "compiled payload layout".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
+    let layout = types
+        .layout_for(ty)
+        .ok_or_else(|| Error::type_mismatch("compiled payload layout", format!("{ty:?}")))?;
 
     if let Some(field_count) = layout.field_count() {
         let mut ranges = Vec::with_capacity(field_count);
         for index in 0..field_count {
             let field = layout
                 .field(index as u32)
-                .ok_or(Error::InvalidInstruction)?;
+                .ok_or(Error::invalid_instruction())?;
             ranges.push(InitializerRange {
                 ty: field.ty,
                 offset: field.offset,
@@ -610,17 +595,16 @@ fn initializer_ranges(
         return Ok(ranges);
     }
 
-    let element = layout.element().ok_or_else(|| Error::TypeMismatch {
-        expected: "indexed initializer layout".to_string(),
-        actual: format!("{ty:?}"),
-    })?;
-    let element_count = layout.element_count().ok_or(Error::InvalidInstruction)?;
+    let element = layout
+        .element()
+        .ok_or_else(|| Error::type_mismatch("indexed initializer layout", format!("{ty:?}")))?;
+    let element_count = layout.element_count().ok_or(Error::invalid_instruction())?;
     let mut ranges = Vec::with_capacity(element_count);
     for index in 0..element_count {
         let offset = element
             .stride
             .checked_mul(index)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         ranges.push(InitializerRange {
             ty: element.ty,
             offset,
@@ -736,14 +720,11 @@ impl ProgramBuilder {
             }
 
             let Some(ty) = global.ty.ty() else {
-                return Err(Error::MissingRepresentation {
-                    context: "global type".to_string(),
-                });
+                return Err(Error::invalid_program("global type"));
             };
-            let layout = layouts.get(&ty).ok_or_else(|| Error::TypeMismatch {
-                expected: "compiled global layout".to_string(),
-                actual: format!("{ty:?}"),
-            })?;
+            let layout = layouts
+                .get(&ty)
+                .ok_or_else(|| Error::type_mismatch("compiled global layout", format!("{ty:?}")))?;
             if layout.trace_map.has_reference() {
                 continue;
             }
@@ -776,9 +757,9 @@ impl ProgramBuilder {
             bytes,
         );
         if !was_defined {
-            return Err(Error::InvariantViolation {
-                context: format!("duplicate program static global {global:?}"),
-            });
+            return Err(Error::internal(format!(
+                "duplicate program static global {global:?}"
+            )));
         }
 
         Ok(())
@@ -801,12 +782,9 @@ impl ProgramBuilder {
                 layout_id
             } else {
                 let layout_id = LayoutId::new(next_layout_id);
-                next_layout_id =
-                    next_layout_id
-                        .checked_add(1)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: "program layout id space exhausted".to_string(),
-                        })?;
+                next_layout_id = next_layout_id
+                    .checked_add(1)
+                    .ok_or_else(|| Error::internal("program layout id space exhausted"))?;
 
                 layout_id
             };
@@ -839,15 +817,16 @@ impl ProgramBuilder {
         for (type_id, layout) in layouts {
             let module_layout = match self.tree.get(*type_id) {
                 mir::Type::Closure { environment, .. } => {
-                    let environment =
-                        environment.ty().ok_or_else(|| Error::InvariantViolation {
-                            context: format!(
-                                "closure environment type is not concrete: {type_id:?}"
-                            ),
-                        })?;
+                    let environment = environment.ty().ok_or_else(|| {
+                        Error::internal(format!(
+                            "closure environment type is not concrete: {type_id:?}"
+                        ))
+                    })?;
                     let environment_layout = word_layout_from_type(&self.tree, environment)
-                        .ok_or_else(|| Error::InvariantViolation {
-                            context: format!("closure environment type is not a word: {type_id:?}"),
+                        .ok_or_else(|| {
+                            Error::internal(format!(
+                                "closure environment type is not a word: {type_id:?}"
+                            ))
                         })?;
                     callable_object_layout(self.tree.pointer_bytes() as usize)
                         .table_layout(environment_layout)
@@ -862,9 +841,10 @@ impl ProgramBuilder {
             let index = layout.layout_id.index();
 
             if index >= table.layouts.len() {
-                return Err(Error::InvariantViolation {
-                    context: format!("layout id out of range: {:?}", layout.layout_id),
-                });
+                return Err(Error::internal(format!(
+                    "layout id out of range: {:?}",
+                    layout.layout_id
+                )));
             }
 
             table.layouts[index] = module_layout;
@@ -972,9 +952,7 @@ impl ProgramBuilder {
             &value_types,
             side_table,
         )?
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: format!("program function {function_id:?}"),
-        })?;
+        .ok_or_else(|| Error::invalid_program(format!("program function {function_id:?}")))?;
 
         // append the frame layout before assigning resume states
         self.layout.frame_layouts.push(frame_layout.clone());
@@ -1027,9 +1005,9 @@ impl ProgramBuilder {
             | mir::Instruction::CallInterface { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. } => (*destination)
                 .map(|value| {
-                    value.value().ok_or_else(|| Error::MissingRepresentation {
-                        context: "call destination".to_string(),
-                    })
+                    value
+                        .value()
+                        .ok_or_else(|| Error::invalid_program("call destination"))
                 })
                 .transpose(),
             _ => Ok(None),
@@ -1066,9 +1044,7 @@ impl ProgramBuilder {
             let local = self.tree.get(*local_id);
             let local_type = (local.ty)
                 .ty()
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "frame local type".to_string(),
-                })?;
+                .ok_or_else(|| Error::invalid_program("frame local type"))?;
             let slot = self.frame_slot(
                 engine::FrameSlotId(slot_id),
                 layouts,
@@ -1082,11 +1058,7 @@ impl ProgramBuilder {
         let local_count = slot_id - value_count;
         let environment_slot = function
             .environment
-            .map(|ty| {
-                ty.ty().ok_or_else(|| Error::MissingRepresentation {
-                    context: "environment".to_string(),
-                })
-            })
+            .map(|ty| ty.ty().ok_or_else(|| Error::invalid_program("environment")))
             .transpose()?
             .map(|environment| {
                 self.frame_slot(
@@ -1110,7 +1082,7 @@ impl ProgramBuilder {
             value_count,
             local_count,
             environment_slot,
-            byte_len: u32::try_from(byte_len).map_err(|_| Error::InvalidInstruction)?,
+            byte_len: u32::try_from(byte_len).map_err(|_| Error::invalid_instruction())?,
         })
     }
 
@@ -1124,9 +1096,7 @@ impl ProgramBuilder {
     ) -> Result<engine::FrameSlot> {
         let layout = layouts
             .get(&ty)
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "frame slot layout".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("frame slot layout"))?;
         let is_word = layout.is_word();
         let slot_alignment = if is_word {
             layout.alignment().max(Word::BYTE_LEN)
@@ -1145,9 +1115,9 @@ impl ProgramBuilder {
 
         Ok(engine::FrameSlot {
             id,
-            offset: u32::try_from(offset).map_err(|_| Error::InvalidInstruction)?,
-            byte_len: u32::try_from(slot_len).map_err(|_| Error::InvalidInstruction)?,
-            alignment: u16::try_from(slot_alignment).map_err(|_| Error::InvalidInstruction)?,
+            offset: u32::try_from(offset).map_err(|_| Error::invalid_instruction())?,
+            byte_len: u32::try_from(slot_len).map_err(|_| Error::invalid_instruction())?,
+            alignment: u16::try_from(slot_alignment).map_err(|_| Error::invalid_instruction())?,
             is_word,
             layout: engine::ValueLayoutId(ty.id),
         })
@@ -1177,18 +1147,14 @@ impl ProgramBuilder {
                     mir::Terminator::Yield { resume, .. } => Some((
                         (resume.block)
                             .block()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "yield resume target".to_string(),
-                            })?,
+                            .ok_or_else(|| Error::invalid_program("yield resume target"))?,
                         resume
                             .arguments
                             .iter()
                             .map(|argument| {
                                 (*argument)
                                     .value()
-                                    .ok_or_else(|| Error::MissingRepresentation {
-                                        context: "yield resume argument".to_string(),
-                                    })
+                                    .ok_or_else(|| Error::invalid_program("yield resume argument"))
                             })
                             .collect::<Result<Vec<_>>>()?,
                     )),
@@ -1223,18 +1189,14 @@ impl ProgramBuilder {
                     | mir::Terminator::CallInterface { target, .. } => Some((
                         (target.block)
                             .block()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "call target".to_string(),
-                            })?,
+                            .ok_or_else(|| Error::invalid_program("call target"))?,
                         target
                             .arguments
                             .iter()
                             .map(|argument| {
                                 (*argument)
                                     .value()
-                                    .ok_or_else(|| Error::MissingRepresentation {
-                                        context: "call argument".to_string(),
-                                    })
+                                    .ok_or_else(|| Error::invalid_program("call argument"))
                             })
                             .collect::<Result<Vec<_>>>()?,
                     )),
@@ -1277,9 +1239,7 @@ impl ProgramBuilder {
                 .map(|parameter| {
                     (parameter.value)
                         .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "resume parameter".to_string(),
-                        })
+                        .ok_or_else(|| Error::invalid_program("resume parameter"))
                 })
                 .transpose();
         }
@@ -1307,19 +1267,16 @@ impl ProgramBuilder {
             .iter()
             .zip(arguments.iter())
             .map(|(parameter, argument)| {
-                let destination =
-                    (parameter.value)
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "resume parameter".to_string(),
-                        })?;
+                let destination = (parameter.value)
+                    .value()
+                    .ok_or_else(|| Error::invalid_program("resume parameter"))?;
 
                 let source = frame_layout
                     .value_slot_id(argument.0)
-                    .ok_or(Error::InvalidInstruction)?;
+                    .ok_or(Error::invalid_instruction())?;
                 let destination = frame_layout
                     .value_slot_id(destination.0)
-                    .ok_or(Error::InvalidInstruction)?;
+                    .ok_or(Error::invalid_instruction())?;
 
                 Ok(FrameBinding {
                     source,
@@ -1334,7 +1291,7 @@ impl ProgramBuilder {
                 .map(|value| {
                     frame_layout
                         .value_slot_id(value.0)
-                        .ok_or(Error::InvalidInstruction)
+                        .ok_or(Error::invalid_instruction())
                 })
                 .transpose()?,
         };
@@ -1433,7 +1390,7 @@ impl ProgramBuilder {
         mir_point: Option<u32>,
     ) -> Result<HashSet<mir::Value>> {
         let Some(frame_entry) = frame_entry else {
-            let mir_point = mir_point.ok_or(Error::InvalidInstruction)?;
+            let mir_point = mir_point.ok_or(Error::invalid_instruction())?;
 
             return Ok(liveness.value_live_before_instruction(
                 &self.tree,
@@ -1451,9 +1408,7 @@ impl ProgramBuilder {
             .map(|parameter| {
                 (parameter.value)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "entry block parameter".to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program("entry block parameter"))
             })
             .collect::<Result<HashSet<_>>>()?;
         let mut values: HashSet<mir::Value> =
@@ -1463,7 +1418,7 @@ impl ProgramBuilder {
         for binding in &frame_entry.bindings {
             let source = frame_layout
                 .value_for_slot(binding.source)
-                .ok_or(Error::InvalidInstruction)?;
+                .ok_or(Error::invalid_instruction())?;
             let source = mir::Value::new(source);
 
             values.insert(source);

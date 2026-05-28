@@ -225,10 +225,10 @@ pub(crate) fn encode_word_bits(
 ) -> Result<(u64, usize), Error> {
     // resolve the scalar layout once
     let Some(layout) = word_layout_from_type(tree, ty) else {
-        return Err(Error::TypeMismatch {
-            expected: "scalar or reference raw store".to_string(),
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "scalar or reference raw store",
+            format!("{ty:?}"),
+        ));
     };
 
     // encode into memory bits

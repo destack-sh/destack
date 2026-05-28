@@ -10,7 +10,7 @@ fn block_bounds(function: &Function, block: u32) -> Result<(usize, usize), Error
     let block = function
         .blocks
         .get(block as usize)
-        .ok_or(Error::InvalidInstruction)?;
+        .ok_or(Error::invalid_instruction())?;
     let start = block.start as usize;
     let end = start + block.len as usize;
 
@@ -1103,7 +1103,7 @@ fn dispatch_block_inner(
     loop {
         // guard against malformed block metadata
         if pc >= block_end {
-            return Transfer::Error(Error::InvalidInstruction);
+            return Transfer::Error(Error::invalid_instruction());
         }
 
         macro_rules! step {
@@ -1139,9 +1139,7 @@ fn dispatch_block_inner(
                         let block = frame.block;
                         let Some(next_function) = program.functions.function_by_id(function_id)
                         else {
-                            return Transfer::Error(Error::UndefinedFunction {
-                                function: function_id,
-                            });
+                            return Transfer::Error(Error::undefined_function(function_id));
                         };
                         function = next_function;
                         (block_start, pc, block_end) = match block_bounds(function, block) {
@@ -1192,7 +1190,7 @@ fn dispatch_block_counted_inner(
     loop {
         if pc >= block_end {
             return BlockDispatch {
-                transfer: Transfer::Error(Error::InvalidInstruction),
+                transfer: Transfer::Error(Error::invalid_instruction()),
                 executed,
             };
         }

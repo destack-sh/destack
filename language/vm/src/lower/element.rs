@@ -21,15 +21,13 @@ impl<'a> BlockLowerer<'a> {
         // require SSA values
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "element address destination".to_string(),
-            })?;
-        let array = array.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element address array".to_string(),
-        })?;
-        let index = index.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "element address index".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("element address destination"))?;
+        let array = array
+            .value()
+            .ok_or_else(|| Error::invalid_program("element address array"))?;
+        let index = index
+            .value()
+            .ok_or_else(|| Error::invalid_program("element address index"))?;
 
         // slice descriptors have a distinct address path
         let pointee_type = self.projection_type_for_value(array)?;
@@ -38,7 +36,7 @@ impl<'a> BlockLowerer<'a> {
         {
             let pointer_class = pointee_type
                 .and_then(|pointee_type| slice_element_pointer_class(self.tree, pointee_type))
-                .ok_or(Error::InvalidInstruction)?;
+                .ok_or(Error::invalid_instruction())?;
             let op = select_slice_element_addr_op(pointer_class)?;
             let access = pool.slice_projection(access);
 
@@ -55,7 +53,7 @@ impl<'a> BlockLowerer<'a> {
         let layout = self
             .value_layout_map()
             .get(array)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let op = select_element_addr_op(self.value_layout_map(), array)?;
         let element = self.element_projection_for_value(array)?;
         let array_length = self.array_length_for_value(array)?;

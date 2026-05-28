@@ -15,36 +15,34 @@ impl<'a> BlockLowerer<'a> {
         byte_len: mir::ValueReference,
     ) -> Result<Instruction> {
         // require SSA values
-        let object = object.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "barrier.write object".to_string(),
-        })?;
-        let offset = offset.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "barrier.write offset".to_string(),
-        })?;
+        let object = object
+            .value()
+            .ok_or_else(|| Error::invalid_program("barrier.write object"))?;
+        let offset = offset
+            .value()
+            .ok_or_else(|| Error::invalid_program("barrier.write offset"))?;
         let byte_len = byte_len
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "barrier.write byte length".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("barrier.write byte length"))?;
 
         // encode the collector that owns this reference
         let object_type = self.value_type_for_value(object)?;
         let object_layout = value_layout_from_type(self.tree, object_type);
         let ValueLayout::Pointer { pointer_class, .. } = object_layout else {
-            return Err(Error::TypeMismatch {
-                expected: "managed barrier reference".to_string(),
-                actual: format!("{object_layout:?}"),
-            });
+            return Err(Error::type_mismatch(
+                "managed barrier reference",
+                format!("{object_layout:?}"),
+            ));
         };
 
         let op = match pointer_class {
             PointerClass::Heap => Op::BarrierWriteHeap,
             PointerClass::SharedHeap => Op::BarrierWriteSharedHeap,
             _ => {
-                return Err(Error::TypeMismatch {
-                    expected: "managed barrier reference".to_string(),
-                    actual: format!("{pointer_class:?}"),
-                });
+                return Err(Error::type_mismatch(
+                    "managed barrier reference",
+                    format!("{pointer_class:?}"),
+                ));
             }
         };
 

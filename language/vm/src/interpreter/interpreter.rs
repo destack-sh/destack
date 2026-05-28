@@ -1,6 +1,7 @@
+use destack_engine as engine;
+use destack_mir as mir;
 use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
-use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
 use crate::interpreter::{Continuation, FrameImage, StackImage};
@@ -91,7 +92,7 @@ impl Interpreter {
         for frame in &self.frames {
             let base = stack
                 .address(frame.stack_offset, frame.byte_len)
-                .map_err(|_| RuntimeError::new(Error::InvalidContinuation))?;
+                .map_err(|_| RuntimeError::new(Error::invalid_continuation()))?;
             frames.push(frame.fork(base));
         }
 
@@ -128,9 +129,9 @@ impl Interpreter {
     pub(crate) fn runtime_error(&self, program: &Program, error: Error) -> RuntimeError {
         match self.call_stack(program) {
             Ok(stack) => RuntimeError::new(error).with_call_stack(stack),
-            Err(stack_error) => RuntimeError::new(Error::InvariantViolation {
-                context: format!("failed to build call stack for {error:?}: {stack_error:?}"),
-            }),
+            Err(stack_error) => RuntimeError::new(Error::internal(format!(
+                "failed to build call stack for {error:?}: {stack_error:?}"
+            ))),
         }
     }
 
@@ -150,9 +151,7 @@ impl Interpreter {
             .map(|(id, global)| {
                 let ty = (global.ty)
                     .ty()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "global type".to_string(),
-                    })?;
+                    .ok_or_else(|| Error::invalid_program("global type"))?;
 
                 Ok((id, ty, global.is_import(), global.initializer.clone()))
             })
@@ -168,10 +167,7 @@ impl Interpreter {
             let layout = program.layout(ty).ok_or_else(|| {
                 self.runtime_error(
                     program,
-                    Error::TypeMismatch {
-                        expected: "compiled global layout".to_string(),
-                        actual: format!("{ty:?}"),
-                    },
+                    Error::type_mismatch("compiled global layout", format!("{ty:?}")),
                 )
             })?;
             let bytes = match initializer.as_ref() {
@@ -188,7 +184,7 @@ impl Interpreter {
                 &bytes,
             );
             if !was_defined {
-                return Err(self.runtime_error(program, Error::InvalidInstruction));
+                return Err(self.runtime_error(program, Error::invalid_instruction()));
             }
         }
 
@@ -246,10 +242,10 @@ impl Interpreter {
             let region = statics
                 .region(id)
                 .cloned()
-                .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
+                .ok_or_else(|| self.runtime_error(program, Error::invalid_instruction()))?;
             let bytes = statics
                 .bytes_mut(id)
-                .ok_or_else(|| self.runtime_error(program, Error::InvalidInstruction))?;
+                .ok_or_else(|| self.runtime_error(program, Error::invalid_instruction()))?;
 
             program
                 .visit_byte_root_slots(program.type_for_value_layout(region.layout), bytes, visit)

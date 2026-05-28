@@ -1,5 +1,5 @@
 use super::slice::{load_slice_length_at, store_slice_at};
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, ReferenceKind};
 use crate::interpreter::Machine;
 use crate::program::{AllocationSiteId, Instruction, SliceProjectionId};
 use crate::{StackPointer, Word};
@@ -157,7 +157,7 @@ pub(crate) fn execute_free_raw(
     match machine.free_raw(pointer) {
         Ok(()) => {}
         Err(HeapError::InvalidRawPointer { .. }) => {
-            return Err(Error::InvalidRawPointer);
+            return Err(Error::invalid_reference(ReferenceKind::Raw));
         }
         Err(error) => return Err(Error::from(error)),
     }
@@ -177,7 +177,7 @@ pub(crate) fn execute_free_heap(
     match machine.free_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidHeapReference { .. }) => {
-            return Err(Error::InvalidHeapReference);
+            return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
         Err(error) => return Err(Error::from(error)),
     }
@@ -197,7 +197,7 @@ pub(crate) fn execute_free_shared_heap(
     match machine.free_shared_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidSharedHeapReference { .. }) => {
-            return Err(Error::InvalidSharedHeapReference);
+            return Err(Error::invalid_reference(ReferenceKind::SharedHeap));
         }
         Err(error) => return Err(Error::from(error)),
     }
@@ -218,7 +218,7 @@ pub(crate) fn execute_pin_heap(
     match machine.pin_heap(reference) {
         Ok(reference) => machine.store_word_at(dest, Word::heap_reference(reference)),
         Err(HeapError::InvalidHeapReference { .. }) => {
-            return Err(Error::InvalidHeapReference);
+            return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
         Err(error) => return Err(Error::from(error)),
     }
@@ -253,7 +253,7 @@ pub(crate) fn execute_unpin_heap(
     match machine.unpin_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidHeapReference { .. }) => {
-            return Err(Error::InvalidHeapReference);
+            return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
         Err(error) => return Err(Error::from(error)),
     }
@@ -282,7 +282,7 @@ pub(crate) fn execute_free_shared_raw(
     match machine.free_shared_raw(pointer) {
         Ok(()) => {}
         Err(HeapError::InvalidSharedRawPointer { .. }) => {
-            return Err(Error::InvalidSharedRawPointer);
+            return Err(Error::invalid_reference(ReferenceKind::SharedRaw));
         }
         Err(error) => return Err(Error::from(error)),
     }

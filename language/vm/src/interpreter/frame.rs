@@ -1,7 +1,8 @@
 use std::mem;
 
+use destack_engine as engine;
+use destack_mir as mir;
 use serde::{Deserialize, Serialize};
-use {destack_engine as engine, destack_mir as mir};
 
 use crate::Word;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
@@ -84,17 +85,14 @@ impl Frame {
         &self,
         program: &Program,
     ) -> Result<mir::LocalNodeId<mir::Block>, Error> {
-        let function =
-            program
-                .functions
-                .function_by_id(self.function)
-                .ok_or(Error::UndefinedFunction {
-                    function: self.function,
-                })?;
+        let function = program
+            .functions
+            .function_by_id(self.function)
+            .ok_or(Error::undefined_function(self.function))?;
         let block = function
             .blocks
             .get(self.block as usize)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
 
         Ok(block.mir_block)
     }
@@ -218,7 +216,7 @@ impl Frame {
     ) -> Result<usize, Error> {
         let slot = layout
             .local(local.id)
-            .ok_or(Error::UndefinedLocal { local })?;
+            .ok_or(Error::undefined_local(local))?;
 
         Ok(self.slot_address(slot))
     }
@@ -244,7 +242,7 @@ impl Frame {
         let Some(slot) = layout.environment() else {
             return Ok(());
         };
-        let value = value.ok_or(Error::InvalidInstruction)?;
+        let value = value.ok_or(Error::invalid_instruction())?;
 
         self.write_word(slot, value);
 
@@ -286,16 +284,16 @@ impl Frame {
         let block = self.block_id(program).map_err(RuntimeError::new)?;
         let point = ProgramPoint::new(self.function(), block, self.pc as u32);
         let frame_state = program.frame_state_at(point).ok_or_else(|| {
-            RuntimeError::new(Error::InvariantViolation {
-                context: format!("missing frame state for image point: {point:?}"),
-            })
+            RuntimeError::new(Error::internal(format!(
+                "missing frame state for image point: {point:?}"
+            )))
         })?;
         program
             .mir_point_for_frame_state(frame_state)
             .ok_or_else(|| {
-                RuntimeError::new(Error::InvariantViolation {
-                    context: format!("missing MIR point for frame state: {frame_state:?}"),
-                })
+                RuntimeError::new(Error::internal(format!(
+                    "missing MIR point for frame state: {frame_state:?}"
+                )))
             })?;
 
         Ok(FrameImage {
@@ -315,30 +313,26 @@ impl Frame {
     ) -> RuntimeResult<Self> {
         let point = program
             .point_for_frame_state(image.frame_state)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         // resolve the lowered function for this frame
         let function_ref = program
             .functions
             .function_by_id(point.function)
-            .ok_or_else(|| {
-                RuntimeError::new(Error::UndefinedFunction {
-                    function: point.function,
-                })
-            })?;
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(point.function)))?;
 
         // resolve the captured block index from the lowered function
         let block = function_ref
             .blocks
             .iter()
             .position(|block| block.mir_block == point.block)
-            .ok_or_else(|| RuntimeError::new(Error::UndefinedBlock { block: point.block }))?;
+            .ok_or_else(|| RuntimeError::new(Error::undefined_block(point.block)))?;
         let layout_id = function_ref.frame_layout;
         let layout = program
             .frame_layout_by_id(layout_id)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if image.byte_len < layout.byte_len as usize {
-            return Err(RuntimeError::new(Error::InvalidInstruction));
+            return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
         Ok(Self {

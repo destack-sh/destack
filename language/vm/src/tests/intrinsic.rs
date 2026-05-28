@@ -736,7 +736,7 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
 
     assert_runtime_error_matches!(
         result,
-        Error::InvariantViolation { ref context }
+        Error::Internal { ref context }
             if context == "invalid heap byte range: start 4, len 1, capacity 4"
     );
 }

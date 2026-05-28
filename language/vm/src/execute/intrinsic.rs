@@ -58,10 +58,10 @@ fn finish_intrinsic_result(
                 IntrinsicDest::Word(offset) => machine.store_word_at(offset, result),
                 IntrinsicDest::Frame(value) => {
                     if result != Word::VOID {
-                        return Err(Error::TypeMismatch {
-                            expected: "frame intrinsic result".to_string(),
-                            actual: format!("word result for {value:?}"),
-                        });
+                        return Err(Error::type_mismatch(
+                            "frame intrinsic result",
+                            format!("word result for {value:?}"),
+                        ));
                     }
                 }
             }
@@ -76,13 +76,13 @@ fn finish_intrinsic_result(
 fn require_frame_dest(machine: &Machine<'_, '_>, dest: IntrinsicDest) -> RuntimeResult<mir::Value> {
     match dest {
         IntrinsicDest::Frame(value) => Ok(value),
-        IntrinsicDest::None => Err(machine.runtime_error(Error::MissingRepresentation {
-            context: "intrinsic destination".to_string(),
-        })),
-        IntrinsicDest::Word(offset) => Err(machine.runtime_error(Error::TypeMismatch {
-            expected: "frame intrinsic destination".to_string(),
-            actual: format!("word offset: {offset}"),
-        })),
+        IntrinsicDest::None => {
+            Err(machine.runtime_error(Error::invalid_program("intrinsic destination")))
+        }
+        IntrinsicDest::Word(offset) => Err(machine.runtime_error(Error::type_mismatch(
+            "frame intrinsic destination",
+            format!("word offset: {offset}"),
+        ))),
     }
 }
 
@@ -93,10 +93,10 @@ fn require_word_dest(
 ) -> RuntimeResult<IntrinsicDest> {
     match dest {
         IntrinsicDest::None | IntrinsicDest::Word(_) => Ok(dest),
-        IntrinsicDest::Frame(value) => Err(machine.runtime_error(Error::TypeMismatch {
-            expected: "word intrinsic destination".to_string(),
-            actual: format!("frame-backed value: {value:?}"),
-        })),
+        IntrinsicDest::Frame(value) => Err(machine.runtime_error(Error::type_mismatch(
+            "word intrinsic destination",
+            format!("frame-backed value: {value:?}"),
+        ))),
     }
 }
 
@@ -529,7 +529,7 @@ pub(crate) fn execute_intrinsic(
         mir::Intrinsic::Expect => execute_intrinsic_expect(machine, instruction),
         mir::Intrinsic::BlackBox => execute_intrinsic_black_box(machine, instruction),
         mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
-            Err(Error::InvalidInstruction)
+            Err(Error::invalid_instruction())
         }
     }
 }
@@ -545,7 +545,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         super::frame::store_frame_fields(self, destination, |_machine, index, _ty| match index {
             0 => Ok(first),
             1 => Ok(second),
-            _ => Err(Error::InvalidInstruction),
+            _ => Err(Error::invalid_instruction()),
         })?;
 
         Ok(Word::VOID)
@@ -559,9 +559,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         index: usize,
     ) -> RuntimeResult<&'a Word> {
         args.get(index).ok_or_else(|| {
-            self.runtime_error(Error::InvalidIntrinsicArguments {
-                intrinsic: intrinsic.to_str().to_string(),
-            })
+            self.runtime_error(Error::invalid_intrinsic_arguments(
+                intrinsic.to_str().to_string(),
+            ))
         })
     }
 
@@ -573,9 +573,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         index: usize,
     ) -> RuntimeResult<ValueLayout> {
         layouts.get(index).copied().ok_or_else(|| {
-            self.runtime_error(Error::InvalidIntrinsicArguments {
-                intrinsic: intrinsic.to_str().to_string(),
-            })
+            self.runtime_error(Error::invalid_intrinsic_arguments(
+                intrinsic.to_str().to_string(),
+            ))
         })
     }
 
@@ -594,10 +594,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ValueLayout::Int { width, signed } if width <= Word::BIT_LEN as u16 => {
                 Ok((value, width as u8, signed))
             }
-            _ => Err(self.runtime_error(Error::TypeMismatch {
-                expected: "word-sized integer".to_string(),
-                actual: format!("{layout:?}"),
-            })),
+            _ => Err(self.runtime_error(Error::type_mismatch(
+                "word-sized integer",
+                format!("{layout:?}"),
+            ))),
         }
     }
 
@@ -613,10 +613,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             self.integer_argument(intrinsic, arguments, args, 1)?;
 
         if width != right_width || signed != right_signed {
-            return Err(self.runtime_error(Error::TypeMismatch {
-                expected: "matching integer types".to_string(),
-                actual: format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
-            }));
+            return Err(self.runtime_error(Error::type_mismatch(
+                "matching integer types",
+                format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
+            )));
         }
 
         Ok((left, right, width, signed))
@@ -637,10 +637,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ValueLayout::Float { width } if width <= Word::BIT_LEN as u16 => {
                 Ok((value, width as u8))
             }
-            _ => Err(self.runtime_error(Error::TypeMismatch {
-                expected: "word-sized float".to_string(),
-                actual: format!("{layout:?}"),
-            })),
+            _ => Err(self.runtime_error(Error::type_mismatch(
+                "word-sized float",
+                format!("{layout:?}"),
+            ))),
         }
     }
 
@@ -655,10 +655,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let (right, right_width) = self.float_argument(intrinsic, arguments, args, 1)?;
 
         if width != right_width {
-            return Err(self.runtime_error(Error::TypeMismatch {
-                expected: "matching float types".to_string(),
-                actual: format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
-            }));
+            return Err(self.runtime_error(Error::type_mismatch(
+                "matching float types",
+                format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
+            )));
         }
 
         Ok((left, right, width))
@@ -680,9 +680,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
                 pointer_class: PointerClass::Raw,
                 ..
             } => Ok(value.as_raw_pointer()),
-            _ => Err(self.runtime_error(Error::InvalidPointerType {
-                actual: format!("{layout:?}"),
-            })),
+            _ => Err(self.runtime_error(Error::invalid_pointer_type(format!("{layout:?}")))),
         }
     }
 
@@ -696,18 +694,18 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let value = self.intrinsic_value(intrinsic, args, index)?.as_uint();
 
         usize::try_from(value).map_err(|_| {
-            self.runtime_error(Error::InvalidIntrinsicArguments {
-                intrinsic: intrinsic.to_str().to_string(),
-            })
+            self.runtime_error(Error::invalid_intrinsic_arguments(
+                intrinsic.to_str().to_string(),
+            ))
         })
     }
 
     /// Return the first passthrough argument.
     fn first_argument(&self, intrinsic: mir::Intrinsic, args: &[Word]) -> RuntimeResult<Word> {
         args.first().copied().ok_or_else(|| {
-            self.runtime_error(Error::InvalidIntrinsicArguments {
-                intrinsic: intrinsic.to_str().to_string(),
-            })
+            self.runtime_error(Error::invalid_intrinsic_arguments(
+                intrinsic.to_str().to_string(),
+            ))
         })
     }
 
@@ -1105,14 +1103,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
         if signed {
             if right.as_int() == 0 {
-                return Err(self.runtime_error(Error::DivisionByZero));
+                return Err(self.runtime_error(Error::division_by_zero()));
             }
 
             return Ok(Word::int(left.as_int().wrapping_div(right.as_int()), width));
         }
 
         if right.as_uint() == 0 {
-            return Err(self.runtime_error(Error::DivisionByZero));
+            return Err(self.runtime_error(Error::division_by_zero()));
         }
 
         Ok(Word::uint(
@@ -1128,14 +1126,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
         if signed {
             if right.as_int() == 0 {
-                return Err(self.runtime_error(Error::DivisionByZero));
+                return Err(self.runtime_error(Error::division_by_zero()));
             }
 
             return Ok(Word::int(left.as_int().wrapping_rem(right.as_int()), width));
         }
 
         if right.as_uint() == 0 {
-            return Err(self.runtime_error(Error::DivisionByZero));
+            return Err(self.runtime_error(Error::division_by_zero()));
         }
 
         Ok(Word::uint(
@@ -1434,10 +1432,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let (right, right_width) = self.float_argument(mir::Intrinsic::Fma, arguments, args, 2)?;
 
         if width != middle_width || width != right_width {
-            return Err(self.runtime_error(Error::TypeMismatch {
-                expected: "matching float types".to_string(),
-                actual: format!("{arguments:?}"),
-            }));
+            return Err(self.runtime_error(Error::type_mismatch(
+                "matching float types",
+                format!("{arguments:?}"),
+            )));
         }
 
         match width {
@@ -1457,9 +1455,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     /// Bitwise equality comparison.
     fn raw_eq(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
         if args.len() < 2 {
-            return Err(self.runtime_error(Error::InvalidIntrinsicArguments {
-                intrinsic: "raw_eq".to_string(),
-            }));
+            return Err(self.runtime_error(Error::invalid_intrinsic_arguments("raw_eq")));
         }
 
         Ok(Word::bool(args[0].bits() == args[1].bits()))

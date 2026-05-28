@@ -23,12 +23,10 @@ impl<'a> BlockLowerer<'a> {
         // resolve allocation target and layout
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "new destination".to_string(),
-            })?;
-        let allocation_type = layout.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "new layout".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("new destination"))?;
+        let allocation_type = layout
+            .ty()
+            .ok_or_else(|| Error::invalid_program("new layout"))?;
         let layout = self.layout_for_type(allocation_type)?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
 
@@ -64,20 +62,16 @@ impl<'a> BlockLowerer<'a> {
         // resolve descriptor, backing element, and dynamic length
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "new.slice destination".to_string(),
-            })?;
-        let element_type = element.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "new.slice element type".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("new.slice destination"))?;
+        let element_type = element
+            .ty()
+            .ok_or_else(|| Error::invalid_program("new.slice element type"))?;
         let result_type = result_type
             .ty()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "new.slice result type".to_string(),
-            })?;
-        let length = length.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "new.slice length".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("new.slice result type"))?;
+        let length = length
+            .value()
+            .ok_or_else(|| Error::invalid_program("new.slice length"))?;
 
         // compile the backing element shape
         let element_layout = self.layout_for_type(element_type)?;
@@ -90,7 +84,7 @@ impl<'a> BlockLowerer<'a> {
             self.shared_heap_options,
         )?;
         let access = slice_projection(self.tree, self.layouts(), result_type)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let element = pool.allocation_site(element);
         let access = pool.slice_projection(access);
 
@@ -98,9 +92,7 @@ impl<'a> BlockLowerer<'a> {
             PointerClass::Heap => Op::AllocateSlice,
             PointerClass::SharedHeap => Op::AllocateSharedSlice,
             _ => {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{pointer_class:?}"),
-                });
+                return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
             }
         };
         Ok(Instruction::new(
@@ -121,20 +113,16 @@ impl<'a> BlockLowerer<'a> {
         // resolve raw destination and byte width
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "raw alloc destination".to_string(),
-            })?;
-        let layout = layout.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "raw alloc layout".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("raw alloc destination"))?;
+        let layout = layout
+            .ty()
+            .ok_or_else(|| Error::invalid_program("raw alloc layout"))?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
         let op = match pointer_class {
             PointerClass::Raw => Op::AllocateRaw,
             PointerClass::SharedRaw => Op::AllocateSharedRaw,
             _ => {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{pointer_class:?}"),
-                });
+                return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
             }
         };
 
@@ -155,16 +143,12 @@ impl<'a> BlockLowerer<'a> {
     pub(super) fn lower_raw_free(&self, pointer: mir::ValueReference) -> Result<Instruction> {
         let pointer = pointer
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "raw free pointer".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("raw free pointer"))?;
         let op = match pointer_class_for_value(self.value_layout_map(), pointer) {
             PointerClass::Raw => Op::FreeRaw,
             PointerClass::SharedRaw => Op::FreeSharedRaw,
             _ => {
-                return Err(Error::InvalidPointerType {
-                    actual: "non raw pointer".to_string(),
-                });
+                return Err(Error::invalid_pointer_type("non raw pointer"));
             }
         };
 
@@ -180,19 +164,15 @@ impl<'a> BlockLowerer<'a> {
         // resolve stack destination and compiled type
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "frame alloc destination".to_string(),
-            })?;
-        let allocation_type = layout.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "frame alloc layout".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("frame alloc destination"))?;
+        let allocation_type = layout
+            .ty()
+            .ok_or_else(|| Error::invalid_program("frame alloc layout"))?;
 
         // frame allocation must produce a frame allocation pointer
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
         if !matches!(pointer_class, PointerClass::Stack) {
-            return Err(Error::InvalidPointerType {
-                actual: format!("{pointer_class:?}"),
-            });
+            return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
         }
 
         // encode the exact layout into the instruction
@@ -218,21 +198,17 @@ impl<'a> BlockLowerer<'a> {
         // resolve value ids
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "pin destination".to_string(),
-            })?;
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "pin value".to_string(),
-        })?;
+            .ok_or_else(|| Error::invalid_program("pin destination"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("pin value"))?;
 
         // select the heap family from value layout
         let op = match pointer_class_for_value(self.value_layout_map(), value) {
             PointerClass::Heap => Op::PinHeap,
             PointerClass::SharedHeap => Op::PinSharedHeap,
             pointer_class => {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{pointer_class:?}"),
-                });
+                return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
             }
         };
 
@@ -248,18 +224,16 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one heap unpin.
     pub(super) fn lower_unpin(&self, value: mir::ValueReference) -> Result<Instruction> {
         // resolve value id
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "unpin value".to_string(),
-        })?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("unpin value"))?;
 
         // select the heap family from value layout
         let op = match pointer_class_for_value(self.value_layout_map(), value) {
             PointerClass::Heap => Op::UnpinHeap,
             PointerClass::SharedHeap => Op::UnpinSharedHeap,
             pointer_class => {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{pointer_class:?}"),
-                });
+                return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
             }
         };
 
@@ -268,9 +242,9 @@ impl<'a> BlockLowerer<'a> {
 
     /// Lower one unique heap free.
     pub(super) fn lower_free(&self, value: mir::ValueReference) -> Result<Instruction> {
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "free value".to_string(),
-        })?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("free value"))?;
         let value_type = self.value_type_for_value(value)?;
         let op = unique_free_op(self.tree, value_type)?;
 
@@ -289,18 +263,16 @@ fn slice_backing_pointer_class(
     result_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<PointerClass> {
     let mir::Type::Slice { kind, space, .. } = tree.get(result_type) else {
-        return Err(Error::TypeMismatch {
-            expected: "slice result type".to_string(),
-            actual: format!("{result_type:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "slice result type",
+            format!("{result_type:?}"),
+        ));
     };
 
     let pointer_class = pointer_class_from_reference(space.clone(), *kind);
     match pointer_class {
         PointerClass::Heap | PointerClass::SharedHeap => Ok(pointer_class),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -328,9 +300,7 @@ fn allocation_site(
             is_noscan,
         ),
         _ => {
-            return Err(Error::InvalidPointerType {
-                actual: format!("{pointer_class:?}"),
-            });
+            return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
         }
     };
 
@@ -354,9 +324,7 @@ fn allocation_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::AllocateHeapSite),
         PointerClass::SharedHeap => Ok(Op::AllocateSharedHeapSite),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -369,17 +337,13 @@ fn unique_free_op(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<O
         ..
     } = tree.get(ty)
     else {
-        return Err(Error::InvalidPointerType {
-            actual: format!("{ty:?}"),
-        });
+        return Err(Error::invalid_pointer_type(format!("{ty:?}")));
     };
 
     let pointer_class = pointer_class_from_reference(space.clone(), mir::ReferenceKind::Unique);
     match pointer_class {
         PointerClass::Heap => Ok(Op::FreeHeap),
         PointerClass::SharedHeap => Ok(Op::FreeSharedHeap),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }

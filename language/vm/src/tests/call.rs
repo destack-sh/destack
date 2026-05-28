@@ -1,5 +1,5 @@
 use crate::Value;
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, ImportError};
 use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect};
 
 /// function.address produces a callable pointer for call.indirect.
@@ -59,6 +59,9 @@ b1:
 
     assert_runtime_error_matches!(
         result,
-        Error::BindingCallForbidden { ref name } if name == "touch",
+        Error::Import {
+            ref name,
+            reason: ImportError::Forbidden,
+        } if name == "touch",
     );
 }

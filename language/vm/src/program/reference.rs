@@ -1,6 +1,6 @@
 use destack_heap::{
-    HeapEdge, HeapReference, HeapResult, RootSlot, SharedHeapReference,
-    visit_heap_root_slots_in_bytes,
+    HeapEdge, HeapReference, HeapResult, ReferenceRange, RootSlot, SharedHeapReference,
+    visit_heap_root_slots,
 };
 use destack_mir as mir;
 
@@ -37,21 +37,20 @@ impl Program {
         bytes: &mut [u8],
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<(), Error> {
-        let layout = self.layout(ty).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing layout for byte heap roots: type={ty:?}"),
+        let layout = self.layout(ty).ok_or_else(|| {
+            Error::internal(format!("missing layout for byte heap roots: type={ty:?}"))
         })?;
 
         if bytes.len() != layout.byte_len {
-            return Err(Error::InvariantViolation {
-                context: format!(
-                    "byte heap root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
-                    bytes.len(),
-                    layout.byte_len,
-                ),
-            });
+            return Err(Error::internal(format!(
+                "byte heap root length mismatch: type={ty:?}, bytes={}, layout_bytes={}",
+                bytes.len(),
+                layout.byte_len,
+            )));
         }
 
-        visit_heap_root_slots_in_bytes(&layout.trace_map, bytes, visit).map_err(Error::from)
+        visit_heap_root_slots(&layout.trace_map, 0, bytes, ReferenceRange::All, visit)
+            .map_err(Error::from)
     }
 
     /// Return the heap edge carried by one scalar value.
@@ -60,8 +59,8 @@ impl Program {
         ty: mir::LocalNodeId<mir::Type>,
         value: Word,
     ) -> Result<Option<HeapEdge>, Error> {
-        let layout = self.layout(ty).ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing scalar layout for root scan: type={ty:?}"),
+        let layout = self.layout(ty).ok_or_else(|| {
+            Error::internal(format!("missing scalar layout for root scan: type={ty:?}"))
         })?;
 
         if !layout.is_word() {

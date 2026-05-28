@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use super::{ArgumentRange, Instruction, MovePair, MoveRange, WordLayout, word_layout_from_type};
 use crate::Error;
@@ -109,19 +110,17 @@ impl FunctionTable {
         signature: mir::LocalNodeId<mir::Type>,
     ) -> Result<(), Error> {
         if !self.target_by_id.contains_key(&function_id) {
-            return Err(Error::UndefinedFunction {
-                function: function_id,
-            });
+            return Err(Error::undefined_function(function_id));
         }
 
         if function_signature_matches(tree, function_id, signature)? {
             return Ok(());
         }
 
-        Err(Error::TypeMismatch {
-            expected: format!("function signature {signature:?}"),
-            actual: format!("function {function_id:?}"),
-        })
+        Err(Error::type_mismatch(
+            format!("function signature {signature:?}"),
+            format!("function {function_id:?}"),
+        ))
     }
 }
 
@@ -147,7 +146,7 @@ fn function_signature_matches(
         parameters, result, ..
     } = tree.get(signature)
     else {
-        return Err(Error::InvalidInstruction);
+        return Err(Error::invalid_instruction());
     };
     let function = tree.get(function_id);
 

@@ -51,7 +51,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let value = check_value(*value, "shift range value")?;
                 if *bit_width == 0 {
-                    return Err(Error::InvalidInstruction);
+                    return Err(Error::invalid_instruction());
                 }
                 let check = ShiftRangeCheck {
                     value: word_offset(self, value)?,
@@ -67,7 +67,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let value = check_value(*value, "narrow value")?;
                 if *to_width == 0 {
-                    return Err(Error::InvalidInstruction);
+                    return Err(Error::invalid_instruction());
                 }
                 let check = NarrowCheck {
                     value: word_offset(self, value)?,
@@ -87,7 +87,7 @@ impl<'a> BlockLowerer<'a> {
                 let (width, _) = checked_integer(self, left)?;
                 let (right_width, _) = checked_integer(self, right)?;
                 if width != right_width {
-                    return Err(Error::InvalidInstruction);
+                    return Err(Error::invalid_instruction());
                 }
 
                 let check = OverflowCheck {
@@ -100,9 +100,9 @@ impl<'a> BlockLowerer<'a> {
             }
             mir::CheckConstraint::Type { value, expected } => {
                 let value = check_value(*value, "type check value")?;
-                let expected = expected.ty().ok_or_else(|| Error::MissingRepresentation {
-                    context: "type check expected".to_string(),
-                })?;
+                let expected = expected
+                    .ty()
+                    .ok_or_else(|| Error::invalid_program("type check expected"))?;
 
                 Ok(Check::Type {
                     value: word_offset(self, value)?,
@@ -118,12 +118,12 @@ impl<'a> BlockLowerer<'a> {
 
                 Ok(Check::Variant(check))
             }
-            mir::CheckConstraint::ReceiverType { .. } => Err(Error::UnsupportedInstruction {
-                name: "receiverType check".to_string(),
-            }),
-            mir::CheckConstraint::Implements { .. } => Err(Error::UnsupportedInstruction {
-                name: "interfaceConformance check".to_string(),
-            }),
+            mir::CheckConstraint::ReceiverType { .. } => {
+                Err(Error::unsupported_instruction("receiverType check"))
+            }
+            mir::CheckConstraint::Implements { .. } => {
+                Err(Error::unsupported_instruction("interfaceConformance check"))
+            }
         }
     }
 
@@ -135,17 +135,15 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         Ok(match term {
             mir::Terminator::Error => {
-                return Err(Error::MissingRepresentation {
-                    context: "terminator".to_string(),
-                });
+                return Err(Error::invalid_program("terminator"));
             }
             mir::Terminator::Return { value } => {
                 let Some(value) = value else {
                     return Ok(Instruction::new(Op::ReturnVoid, 0, 0, 0, 0));
                 };
-                let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-                    context: "return value".to_string(),
-                })?;
+                let value = value
+                    .value()
+                    .ok_or_else(|| Error::invalid_program("return value"))?;
 
                 let value_type = self.value_type_for_value(value)?;
                 let is_word = self.layout_for_type(value_type)?.is_word();
@@ -160,21 +158,16 @@ impl<'a> BlockLowerer<'a> {
             }
 
             mir::Terminator::Jump { target } => {
-                let target_block =
-                    (target.block)
-                        .block()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "jump target".to_string(),
-                        })?;
+                let target_block = (target.block)
+                    .block()
+                    .ok_or_else(|| Error::invalid_program("jump target"))?;
                 let arguments = target
                     .arguments
                     .iter()
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "jump argument".to_string(),
-                            })
+                            .ok_or_else(|| Error::invalid_program("jump argument"))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let target_index = self.block_index_by_id[&target_block];
@@ -189,33 +182,22 @@ impl<'a> BlockLowerer<'a> {
                 then_target,
                 else_target,
             } => {
-                let condition =
-                    (*condition)
-                        .value()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "branch condition".to_string(),
-                        })?;
-                let then_target_block =
-                    (then_target.block)
-                        .block()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "branch then target".to_string(),
-                        })?;
-                let else_target_block =
-                    (else_target.block)
-                        .block()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "branch else target".to_string(),
-                        })?;
+                let condition = (*condition)
+                    .value()
+                    .ok_or_else(|| Error::invalid_program("branch condition"))?;
+                let then_target_block = (then_target.block)
+                    .block()
+                    .ok_or_else(|| Error::invalid_program("branch then target"))?;
+                let else_target_block = (else_target.block)
+                    .block()
+                    .ok_or_else(|| Error::invalid_program("branch else target"))?;
                 let then_arguments = then_target
                     .arguments
                     .iter()
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "branch then argument".to_string(),
-                            })
+                            .ok_or_else(|| Error::invalid_program("branch then argument"))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let else_arguments = else_target
@@ -224,9 +206,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "branch else argument".to_string(),
-                            })
+                            .ok_or_else(|| Error::invalid_program("branch else argument"))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let then_index = self.block_index_by_id[&then_target_block];
@@ -252,27 +232,19 @@ impl<'a> BlockLowerer<'a> {
                 success,
                 failure,
             } => {
-                let success_block =
-                    (success.block)
-                        .block()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "check success target".to_string(),
-                        })?;
-                let failure_block =
-                    (failure.block)
-                        .block()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "check failure target".to_string(),
-                        })?;
+                let success_block = (success.block)
+                    .block()
+                    .ok_or_else(|| Error::invalid_program("check success target"))?;
+                let failure_block = (failure.block)
+                    .block()
+                    .ok_or_else(|| Error::invalid_program("check failure target"))?;
                 let success_arguments = success
                     .arguments
                     .iter()
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "check success argument".to_string(),
-                            })
+                            .ok_or_else(|| Error::invalid_program("check success argument"))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let failure_arguments = failure
@@ -281,9 +253,7 @@ impl<'a> BlockLowerer<'a> {
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "check failure argument".to_string(),
-                            })
+                            .ok_or_else(|| Error::invalid_program("check failure argument"))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let success_index = self.block_index_by_id[&success_block];
@@ -306,24 +276,17 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let value = (*value)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "switch value".to_string(),
-                    })?;
-                let default_block =
-                    (default.block)
-                        .block()
-                        .ok_or_else(|| Error::MissingRepresentation {
-                            context: "switch default target".to_string(),
-                        })?;
+                    .ok_or_else(|| Error::invalid_program("switch value"))?;
+                let default_block = (default.block)
+                    .block()
+                    .ok_or_else(|| Error::invalid_program("switch default target"))?;
                 let default_arguments = default
                     .arguments
                     .iter()
                     .map(|argument| {
                         (*argument)
                             .value()
-                            .ok_or_else(|| Error::MissingRepresentation {
-                                context: "switch default argument".to_string(),
-                            })
+                            .ok_or_else(|| Error::invalid_program("switch default argument"))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 let default_index = self.block_index_by_id[&default_block];
@@ -388,18 +351,16 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::Yield { value, .. } => {
                 let value = (*value)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "yield value".to_string(),
-                    })?;
+                    .ok_or_else(|| Error::invalid_program("yield value"))?;
                 let frame_state = self
                     .yield_frame_states
                     .get(&self.block_id())
                     .copied()
-                    .ok_or_else(|| Error::InvariantViolation {
-                        context: format!(
+                    .ok_or_else(|| {
+                        Error::internal(format!(
                             "missing yield frame state for block: {:?}",
                             self.block_id()
-                        ),
+                        ))
                     })?;
 
                 let value_type = self.value_type_for_value(value)?;
@@ -462,18 +423,16 @@ fn checked_integer(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<(u8,
             Ok((*width as u8, *is_signed))
         }
         mir::Type::Usize => Ok((lowerer.tree.pointer_bytes() * 8, false)),
-        _ => Err(Error::TypeMismatch {
-            expected: "word integer".to_string(),
-            actual: format!("{value_type:?}"),
-        }),
+        _ => Err(Error::type_mismatch(
+            "word integer",
+            format!("{value_type:?}"),
+        )),
     }
 }
 
 /// Resolve one value reference used by a runtime check.
 fn check_value(value: mir::ValueReference, context: &'static str) -> Result<mir::Value> {
-    value.value().ok_or_else(|| Error::MissingRepresentation {
-        context: context.to_string(),
-    })
+    value.value().ok_or_else(|| Error::invalid_program(context))
 }
 
 /// Return one constant as VM word bits.
@@ -485,11 +444,11 @@ fn constant_word_bits(value: &mir::Constant) -> Result<u64> {
             Ok((*value as i64) as u64)
         }
         mir::Constant::UInt { value, width } if *width <= u64::BITS as u16 => {
-            u64::try_from(*value).map_err(|_| Error::InvalidInstruction)
+            u64::try_from(*value).map_err(|_| Error::invalid_instruction())
         }
         mir::Constant::Float { bits, .. } => Ok(*bits),
         mir::Constant::Char { value } => Ok(u64::from(*value as u32)),
-        mir::Constant::Int { .. } | mir::Constant::UInt { .. } => Err(Error::InvalidInstruction),
+        mir::Constant::Int { .. } | mir::Constant::UInt { .. } => Err(Error::invalid_instruction()),
     }
 }
 
@@ -512,7 +471,7 @@ fn overflow_check(
         (mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder, false) => {
             Ok(Check::OverflowDivUint(check))
         }
-        _ => Err(Error::InvalidInstruction),
+        _ => Err(Error::invalid_instruction()),
     }
 }
 

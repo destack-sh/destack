@@ -312,7 +312,7 @@ pub(crate) fn execute_address_static(
     let global: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(instruction.b);
     let pointer = match machine.static_pointer(global) {
         Some(pointer) => pointer,
-        None => return Err(Error::UndefinedGlobal { global }),
+        None => return Err(Error::undefined_global(global)),
     };
     let pointer = Word::static_pointer(pointer);
 
@@ -523,7 +523,7 @@ pub(crate) fn execute_store_static_scalar<const BYTE_LEN: usize>(
     let pointer = pointer.as_static_pointer();
 
     if let Some(global) = immutable_static_region_for_pointer(machine, pointer) {
-        return Err(Error::ImmutableGlobalWrite { global });
+        return Err(Error::immutable_global_write(global));
     }
 
     access::store_static_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);

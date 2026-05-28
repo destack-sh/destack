@@ -38,7 +38,7 @@ impl TensorAddress {
             PointerClass::Stack => Self::Stack,
             PointerClass::Frame => Self::Frame,
             PointerClass::Static => Self::Static,
-            PointerClass::Unknown => return Err(Error::InvalidInstruction),
+            PointerClass::Unknown => return Err(Error::invalid_instruction()),
         })
     }
 }
@@ -76,30 +76,27 @@ impl TensorLayout {
             mir::Type::Tensor { shape, element, .. } => (shape, element),
             mir::Type::TensorView { shape, element, .. } => (shape, element),
             _ => {
-                return Err(Error::TypeMismatch {
-                    expected: "tensor type".to_string(),
-                    actual: format!("{ty:?}"),
-                });
+                return Err(Error::type_mismatch("tensor type", format!("{ty:?}")));
             }
         };
-        let element = element.ty().ok_or_else(|| Error::MissingRepresentation {
-            context: "tensor element type".to_string(),
-        })?;
+        let element = element
+            .ty()
+            .ok_or_else(|| Error::invalid_program("tensor element type"))?;
 
         // compile shape
         let shape = static_shape(shape)?;
         let strides = match tree.get(ty) {
             mir::Type::Tensor { layout, .. } => static_tensor_strides(&shape, layout)?,
             mir::Type::TensorView { layout, .. } => static_tensor_view_strides(&shape, layout)?,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         };
         let element_count = tensor_element_count(&shape);
         let element_span_len = tensor_element_span_len(&shape, &strides)?;
         let is_contiguous = element_count == element_span_len;
 
         // compile frame element projection
-        let value_layout = layouts.get(&ty).ok_or(Error::InvalidInstruction)?;
-        let element_layout = layouts.get(&element).ok_or(Error::InvalidInstruction)?;
+        let value_layout = layouts.get(&ty).ok_or(Error::invalid_instruction())?;
+        let element_layout = layouts.get(&element).ok_or(Error::invalid_instruction())?;
         let element_projection = Projection::indexed(
             element,
             element_span_len as u64,
@@ -107,11 +104,8 @@ impl TensorLayout {
             element_layout.byte_len,
             word_layout_from_type(tree, element),
         );
-        let element_layout =
-            scalar_layout_from_type(tree, element).ok_or_else(|| Error::TypeMismatch {
-                expected: "tensor scalar element".to_string(),
-                actual: format!("{element:?}"),
-            })?;
+        let element_layout = scalar_layout_from_type(tree, element)
+            .ok_or_else(|| Error::type_mismatch("tensor scalar element", format!("{element:?}")))?;
 
         Ok(Self {
             byte_len: value_layout.byte_len,
@@ -158,14 +152,12 @@ pub(crate) fn static_shape(shape: &[mir::TensorDimension]) -> Result<Vec<u64>> {
         match dim {
             mir::TensorDimension::Static(value) => dims.push(*value),
             mir::TensorDimension::Dynamic => {
-                return Err(Error::UnsupportedInstruction {
-                    name: "tensor dynamic shape".to_string(),
-                });
+                return Err(Error::unsupported_instruction("tensor dynamic shape"));
             }
             mir::TensorDimension::Symbol(name) => {
-                return Err(Error::UnsupportedInstruction {
-                    name: format!("tensor symbolic shape {name}"),
-                });
+                return Err(Error::unsupported_instruction(format!(
+                    "tensor symbolic shape {name}"
+                )));
             }
         }
     }

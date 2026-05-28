@@ -48,7 +48,7 @@ impl AtomicAddress {
             4 => Self::Stack,
             5 => Self::Frame,
             6 => Self::Static,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 }
@@ -97,7 +97,7 @@ impl AtomicOrder {
     #[inline(always)]
     pub(crate) const fn to_std_load(self) -> Result<Ordering, Error> {
         match self {
-            Self::Release | Self::AcquireRelease => Err(Error::InvalidInstruction),
+            Self::Release | Self::AcquireRelease => Err(Error::invalid_instruction()),
             other => Ok(other.to_std()),
         }
     }
@@ -106,7 +106,7 @@ impl AtomicOrder {
     #[inline(always)]
     pub(crate) const fn to_std_store(self) -> Result<Ordering, Error> {
         match self {
-            Self::Acquire | Self::AcquireRelease => Err(Error::InvalidInstruction),
+            Self::Acquire | Self::AcquireRelease => Err(Error::invalid_instruction()),
             other => Ok(other.to_std()),
         }
     }
@@ -115,7 +115,7 @@ impl AtomicOrder {
     #[inline(always)]
     pub(crate) const fn to_std_fence(self) -> Result<Ordering, Error> {
         match self {
-            Self::Relaxed => Err(Error::InvalidInstruction),
+            Self::Relaxed => Err(Error::invalid_instruction()),
             other => Ok(other.to_std()),
         }
     }
@@ -124,7 +124,7 @@ impl AtomicOrder {
     #[inline(always)]
     pub(crate) const fn to_std_compare_exchange_failure(self) -> Result<Ordering, Error> {
         match self {
-            Self::Release | Self::AcquireRelease => Err(Error::InvalidInstruction),
+            Self::Release | Self::AcquireRelease => Err(Error::invalid_instruction()),
             other => Ok(other.to_std()),
         }
     }
@@ -160,7 +160,7 @@ impl AtomicOrder {
             2 => Self::Release,
             3 => Self::AcquireRelease,
             4 => Self::SequentiallyConsistent,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 }
@@ -205,7 +205,7 @@ impl AtomicWidth {
             1 => Self::Width16,
             2 => Self::Width32,
             3 => Self::Width64,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 }
@@ -319,7 +319,7 @@ impl AtomicReadModifyWriteOperator {
             9 => Self::Fadd,
             10 => Self::Fmin,
             11 => Self::Fmax,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 }

@@ -1,4 +1,5 @@
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 use crate::program::{
     Call, CallBranch, CallClass, CallClassBranch, CallIndirect, CallIndirectBranch, CallInterface,
@@ -60,7 +61,7 @@ impl<'a> BlockLowerer<'a> {
                 call,
                 ..
             } => self.lower_interface_tail_call(*receiver, *slot, call, pool)?,
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 
@@ -75,9 +76,7 @@ impl<'a> BlockLowerer<'a> {
         // resolve callee and arguments
         let function = function
             .function()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "call callee".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("call callee"))?;
         let arguments = self.tree.get_arguments(call.arguments);
         let argument_range = pool.argument_reference_range(arguments, "call argument")?;
 
@@ -87,9 +86,7 @@ impl<'a> BlockLowerer<'a> {
             .map(|argument| {
                 argument
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "call argument".to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program("call argument"))
             })
             .collect::<Result<Vec<_>>>()?;
         let callee = self.tree.get(function);
@@ -124,9 +121,7 @@ impl<'a> BlockLowerer<'a> {
         )?;
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "class call receiver".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("class call receiver"))?;
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
@@ -135,9 +130,7 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "class call table field".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("class call table field"))?;
         let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
@@ -168,9 +161,7 @@ impl<'a> BlockLowerer<'a> {
         )?;
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "interface call receiver".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("interface call receiver"))?;
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
@@ -179,9 +170,7 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "interface call table field".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("interface call table field"))?;
         let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
@@ -211,9 +200,9 @@ impl<'a> BlockLowerer<'a> {
         )?;
 
         // resolve callable shape
-        let callee = callee.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "indirect call callee".to_string(),
-        })?;
+        let callee = callee
+            .value()
+            .ok_or_else(|| Error::invalid_program("indirect call callee"))?;
         let callee = self.indirect_callee(callee)?;
 
         // emit the function-pointer or callable opcode
@@ -238,19 +227,13 @@ impl<'a> BlockLowerer<'a> {
         // resolve callable operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "callable bind destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("callable bind destination"))?;
         let function = function
             .function()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "callable bind callee".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("callable bind callee"))?;
         let environment = environment
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "callable bind environment".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("callable bind environment"))?;
 
         // select the environment representation
         let destination_type = self.value_type_for_value(destination)?;
@@ -259,7 +242,7 @@ impl<'a> BlockLowerer<'a> {
 
         let (op, environment_repr) = if environment_layout.is_word() {
             let layout = word_layout_from_type(self.tree, environment_type)
-                .ok_or(Error::InvalidInstruction)?;
+                .ok_or(Error::invalid_instruction())?;
 
             (Op::BindCallableWord, CallableEnvironment::Word { layout })
         } else {
@@ -297,9 +280,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "callable environment destination".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("callable environment destination"))?;
 
         Ok(Instruction::new(
             Op::LoadCallableEnvironment,
@@ -315,8 +296,11 @@ impl<'a> BlockLowerer<'a> {
         self.call_frame_states
             .get(&self.block_id())
             .copied()
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing call frame state for block: {:?}", self.block_id()),
+            .ok_or_else(|| {
+                Error::internal(format!(
+                    "missing call frame state for block: {:?}",
+                    self.block_id()
+                ))
             })
     }
 
@@ -328,16 +312,16 @@ impl<'a> BlockLowerer<'a> {
         // function pointers carry only the target function id
         let (signature, has_environment) = match self.tree.get(callee_type) {
             mir::Type::FunctionPointer { signature } => {
-                let signature = signature.ty().ok_or(Error::InvalidInstruction)?;
+                let signature = signature.ty().ok_or(Error::invalid_instruction())?;
 
                 (signature, false)
             }
             mir::Type::Closure { signature, .. } => {
-                let signature = signature.ty().ok_or(Error::InvalidInstruction)?;
+                let signature = signature.ty().ok_or(Error::invalid_instruction())?;
 
                 (signature, true)
             }
-            _ => return Err(Error::InvalidInstruction),
+            _ => return Err(Error::invalid_instruction()),
         };
 
         let offset = word_offset(self, callee)?;
@@ -358,9 +342,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let function = function
             .function()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "call callee".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("call callee"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "call argument")?;
         let target_state = self.call_target_state()?;
@@ -383,9 +365,9 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let callee = callee.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "call indirect callee".to_string(),
-        })?;
+        let callee = callee
+            .value()
+            .ok_or_else(|| Error::invalid_program("call indirect callee"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "call indirect argument")?;
         let target_state = self.call_target_state()?;
@@ -412,9 +394,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "call class receiver".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("call class receiver"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "call class argument")?;
         let target_state = self.call_target_state()?;
@@ -424,9 +404,7 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "call class table field".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("call class table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
@@ -451,9 +429,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "call interface receiver".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("call interface receiver"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "call interface argument")?;
         let target_state = self.call_target_state()?;
@@ -463,9 +439,7 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "call interface table field".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("call interface table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
@@ -489,9 +463,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let function = function
             .function()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "tail call callee".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("tail call callee"))?;
         if function == self.function_id {
             let arguments =
                 pool.argument_reference_range(call.arguments.as_slice(), "tail call argument")?;
@@ -512,9 +484,7 @@ impl<'a> BlockLowerer<'a> {
             .map(|argument| {
                 (*argument)
                     .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "tail call argument".to_string(),
-                    })
+                    .ok_or_else(|| Error::invalid_program("tail call argument"))
             })
             .collect::<Result<Vec<_>>>()?;
         let moves = pool.parameter_move_range(&callee.parameters, &arguments)?;
@@ -537,9 +507,9 @@ impl<'a> BlockLowerer<'a> {
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
-        let callee = callee.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "tail indirect callee".to_string(),
-        })?;
+        let callee = callee
+            .value()
+            .ok_or_else(|| Error::invalid_program("tail indirect callee"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail indirect argument")?;
         let callee = self.indirect_callee(callee)?;
@@ -564,9 +534,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "tail class receiver".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("tail class receiver"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail class argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
@@ -575,9 +543,7 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
         )
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "tail class table field".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("tail class table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
@@ -601,9 +567,7 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::MissingRepresentation {
-                context: "tail interface receiver".to_string(),
-            })?;
+            .ok_or_else(|| Error::invalid_program("tail interface receiver"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail interface argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
@@ -612,9 +576,7 @@ impl<'a> BlockLowerer<'a> {
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
         )
-        .ok_or_else(|| Error::MissingRepresentation {
-            context: "tail interface table field".to_string(),
-        })?;
+        .ok_or_else(|| Error::invalid_program("tail interface table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
@@ -644,9 +606,7 @@ fn class_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::CallClassHeap),
         PointerClass::SharedHeap => Ok(Op::CallClassSharedHeap),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -655,9 +615,7 @@ fn class_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::CallClassHeapBranch),
         PointerClass::SharedHeap => Ok(Op::CallClassSharedHeapBranch),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -666,9 +624,7 @@ fn class_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::TailCallClassHeap),
         PointerClass::SharedHeap => Ok(Op::TailCallClassSharedHeap),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -677,9 +633,7 @@ fn interface_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::CallInterfaceHeap),
         PointerClass::SharedHeap => Ok(Op::CallInterfaceSharedHeap),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -688,9 +642,7 @@ fn interface_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::CallInterfaceHeapBranch),
         PointerClass::SharedHeap => Ok(Op::CallInterfaceSharedHeapBranch),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
@@ -699,9 +651,7 @@ fn interface_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
         PointerClass::Heap => Ok(Op::TailCallInterfaceHeap),
         PointerClass::SharedHeap => Ok(Op::TailCallInterfaceSharedHeap),
-        _ => Err(Error::InvalidPointerType {
-            actual: format!("{pointer_class:?}"),
-        }),
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 

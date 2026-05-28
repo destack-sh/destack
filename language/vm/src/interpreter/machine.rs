@@ -1,11 +1,12 @@
 use std::{fmt, mem, ptr};
 
+use destack_engine as engine;
 use destack_heap::{
     AllocationShape, Heap, HeapReference, HeapResult, Payload, RawAllocationShape,
     SharedAllocationCache, SharedGcWorker, SharedHeapReference, repeated_layout,
 };
+use destack_mir as mir;
 use engine::StaticSpace;
-use {destack_engine as engine, destack_mir as mir};
 
 use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError};
@@ -77,12 +78,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let frame = interpreter
             .frames
             .get_mut(frame_index)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         let frame_base = frame.base_address();
         let frame_layout = frame.frame_layout();
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
 
         Ok(Self {
             program,
@@ -122,10 +123,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     /// Return the compiled layout for one MIR type.
     #[inline]
     pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&Layout, Error> {
-        self.program.layout(ty).ok_or_else(|| Error::TypeMismatch {
-            expected: "compiled layout".to_string(),
-            actual: format!("{ty:?}"),
-        })
+        self.program
+            .layout(ty)
+            .ok_or_else(|| Error::type_mismatch("compiled layout", format!("{ty:?}")))
     }
 
     /// Return the MIR type stored in one SSA value.
@@ -137,7 +137,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let slot = self
             .frame_layout()
             .value(value.0)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
 
         Ok(self.program.type_for_value_layout(slot.layout))
     }
@@ -147,7 +147,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     pub(crate) fn value_slot(&self, value: mir::Value) -> Result<&engine::FrameSlot, Error> {
         self.frame_layout()
             .value(value.0)
-            .ok_or(Error::InvalidInstruction)
+            .ok_or(Error::invalid_instruction())
     }
 
     /// Return whether one SSA value is stored as one word.
@@ -198,14 +198,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let frame_layout = self
             .program
             .frame_layout_by_id(frame_layout)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         self.frame_layout = frame_layout;
 
         let function = self
             .program
             .functions
             .function_by_id(function)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
 
         // load argument pool
         self.argument_pool = function.argument_pool.as_slice();
@@ -581,7 +581,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .interpreter
             .frames
             .get(frame_index)
-            .ok_or(Error::InvalidInstruction)?;
+            .ok_or(Error::invalid_instruction())?;
         self.frame_index = frame_index;
 
         self.load_active_frame()
@@ -617,7 +617,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.interpreter
             .frames
             .get(frame_index)
-            .ok_or(Error::InvalidInstruction)
+            .ok_or(Error::invalid_instruction())
     }
 
     /// Allocate bytes owned by the current frame.
@@ -630,14 +630,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .interpreter
             .stack
             .allocate(byte_len, alignment)
-            .map_err(|_| Error::StackOverflow)?;
+            .map_err(|_| Error::stack_overflow())?;
         let end = self.interpreter.stack.len();
         self.active_frame_mut().extend_bytes_to(end);
         let address = self
             .interpreter
             .stack
             .address(base, byte_len)
-            .map_err(|_| Error::StackOverflow)?;
+            .map_err(|_| Error::stack_overflow())?;
 
         Ok(address)
     }

@@ -5,7 +5,8 @@ use crate::program::{
     BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, VariantCheck,
 };
-use {destack_engine as engine, destack_mir as mir};
+use destack_engine as engine;
+use destack_mir as mir;
 
 const SWITCH_SIGN_BIT: u32 = 1 << 16;
 const SWITCH_WIDTH_MASK: u32 = SWITCH_SIGN_BIT - 1;
@@ -175,10 +176,10 @@ fn load_unsigned_length_word(machine: &Machine<'_, '_>, offset: u32) -> u64 {
 fn load_signed_length_word(machine: &Machine<'_, '_>, offset: u32) -> Result<u64, Error> {
     let value = load_signed_word(machine, offset);
     if value < 0 {
-        return Err(Error::TypeMismatch {
-            expected: "non negative integer".to_string(),
-            actual: format!("{value:?}"),
-        });
+        return Err(Error::type_mismatch(
+            "non negative integer",
+            format!("{value:?}"),
+        ));
     }
 
     Ok(value as u64)
@@ -350,7 +351,7 @@ fn overflow_div_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<b
     let (left, right) = signed_overflow_inputs(machine, check);
     let (min_value, _) = signed_bounds(check.width);
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(left == min_value && right == -1)
@@ -360,7 +361,7 @@ fn overflow_div_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<b
 fn overflow_div_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<bool, Error> {
     let (_, right) = unsigned_overflow_inputs(machine, check);
     if right == 0 {
-        return Err(Error::DivisionByZero);
+        return Err(Error::division_by_zero());
     }
 
     Ok(false)
@@ -956,27 +957,23 @@ pub(crate) fn execute_abort(
     _machine: &mut Machine<'_, '_>,
     _instruction: &Instruction,
 ) -> Transfer {
-    Transfer::Error(Error::Abort)
+    Transfer::Error(Error::abort())
 }
 
 /// Execute panic.
 pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
     if instruction.op == Op::Panic {
-        return Transfer::Error(Error::Panic {
-            message: "panic".to_string(),
-        });
+        return Transfer::Error(Error::panic("panic"));
     }
 
     if instruction.op == Op::ResumePanic {
-        return Transfer::Error(Error::Panic {
-            message: "panic resumed".to_string(),
-        });
+        return Transfer::Error(Error::panic("panic resumed"));
     }
 
     let payload = machine.load_word_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 
-    Transfer::Error(Error::Panic { message })
+    Transfer::Error(Error::panic(message))
 }
 
 /// Execute unreachable (errors).
@@ -985,5 +982,5 @@ pub(crate) fn execute_unreachable(
     _instruction: &Instruction,
 ) -> Transfer {
     // return unreachable error
-    Transfer::Error(Error::Unreachable)
+    Transfer::Error(Error::unreachable())
 }

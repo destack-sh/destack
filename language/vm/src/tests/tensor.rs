@@ -1,4 +1,4 @@
-use crate::diagnostic::Error;
+use crate::diagnostic::{Error, ProgramError};
 use crate::tests::{
     TestIsolate, assert_runtime_error_matches, run_mir_expect, run_mir_with_frame,
     run_mir_with_frame_ok,
@@ -307,7 +307,12 @@ b0(v0: tensor<int32, (2, 2)>):
         vec![tensor_from_values(interp, "tensorReduce", 0, &[1, 2, 3, 4])]
     });
 
-    assert_runtime_error_matches!(result, Error::InvalidInstruction);
+    assert_runtime_error_matches!(
+        result,
+        Error::Program {
+            reason: ProgramError::InvalidInstruction,
+        },
+    );
 }
 
 /// Tensor index reduce returns the selected source index within the reduced axis.
@@ -356,7 +361,12 @@ b0(v0: tensor<int32, (2, 3)>):
         )]
     });
 
-    assert_runtime_error_matches!(result, Error::InvalidInstruction);
+    assert_runtime_error_matches!(
+        result,
+        Error::Program {
+            reason: ProgramError::InvalidInstruction,
+        },
+    );
 }
 
 /// Tensor index reduce can pick the last matching source index.
