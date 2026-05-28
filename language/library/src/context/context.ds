@@ -1,0 +1,72 @@
+import { Fs } from "destack:fs/host";
+import { Dynamic } from "destack:memory";
+
+import { ContextKey } from "./key.ds";
+import { ContextPatch } from "./patch.ds";
+
+/// Opaque token for one scoped context push.
+@languageItem("context.ContextToken")
+export newtype ContextToken = uint64;
+
+/// Current worker-local execution context.
+@languageItem("context.Context")
+export class Context {
+    /// Return the current execution context.
+    static current(): Context {
+        return currentContext();
+    }
+
+    /// Run `body` with scoped context overrides.
+    static with<T>(patch: ContextPatch, body: () => T): T {
+        const token = pushContext(patch);
+        const result = body();
+
+        popContext(token);
+
+        return result;
+    }
+
+    /// Current filesystem binding family.
+    @intrinsic("context.fs")
+    get fs(): Dynamic<Fs>;
+
+    /// Return one userland context value.
+    get<T>(key: ContextKey<T>): T | undefined {
+        return getContextValue(this, key);
+    }
+
+    /// Return one required userland context value.
+    require<T>(key: ContextKey<T>): T {
+        return requireContextValue(this, key);
+    }
+}
+
+/// Current worker-local execution context.
+@languageItem("context.context")
+@intrinsic("context.context")
+export declare const context: Context;
+
+/// Return the current worker-local context.
+@languageItem("context.current")
+@intrinsic("context.current")
+export declare function currentContext(): Context;
+
+/// Push one scoped context override.
+@languageItem("context.push")
+@intrinsic("context.push")
+export declare function pushContext(patch: &readonly ContextPatch): ContextToken;
+
+/// Pop one scoped context override.
+@languageItem("context.pop")
+@intrinsic("context.pop")
+export declare function popContext(token: ContextToken): void;
+
+/// Return one userland context value.
+@languageItem("context.get")
+@intrinsic("context.get")
+export declare function getContextValue<T>(context: Context, key: ContextKey<T>): T | undefined;
+
+/// Return one required userland context value.
+@languageItem("context.require")
+@intrinsic("context.require")
+export declare function requireContextValue<T>(context: Context, key: ContextKey<T>): T;

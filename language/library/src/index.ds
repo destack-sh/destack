@@ -2,6 +2,7 @@ export * from "./async";
 export * from "./bytes";
 export * from "./channel";
 export * from "./compute";
+export * from "./context";
 export * from "./convert";
 export * from "./decorator";
 export * from "./error";
@@ -20,6 +21,7 @@ export * from "./math";
 export * from "./string";
 export * from "./tensor";
 export * from "./types";
+
 export * as assert from "./assert";
 export * as accessibility from "./accessibility";
 export * as audio from "./audio";
