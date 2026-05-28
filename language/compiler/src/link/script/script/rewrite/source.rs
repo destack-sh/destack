@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use destack_codegen_js as js;
 use destack_core::StringPool;
+use destack_dir as dir;
 use destack_source::ModuleId;
-use {destack_codegen_js as js, destack_dir as dir};
 
 use super::super::linker::OutputModule;
 use crate::{LinkError, LinkResult, ScriptLinker};
