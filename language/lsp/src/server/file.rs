@@ -9,14 +9,15 @@ use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
 };
+use destack_lsp_types as lsp;
 use destack_parser::Parser;
+use destack_query as query;
 use destack_service::{FileImage, LanguageService, LanguageServiceError};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, OverlayFileSystem, Span,
     WATCHABLE_FILE_TYPES,
 };
 use destack_workspace::{FormatterOptions, Repository, Revision};
-use {destack_lsp_types as lsp, destack_query as query};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 1] = ["**/destack.json"];
