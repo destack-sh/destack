@@ -201,7 +201,8 @@
           "noDynamicDispatch": "allow",
           "noReflection": "allow",
           "noUnwind": "allow",
-          "exclusiveMutableBorrows": "allow"
+          "noAliasingMutableBorrows": "allow",
+          "noImplicitReceivers": "allow"
         },
         "rootDir": null,
         "outDir": null,
@@ -265,7 +266,7 @@
           "memoryLimitBytes": null,
           "growthPercent": 100,
           "local": {
-            "youngBytes": 1048576,
+            "youngSizeBytes": 1048576,
             "minBytes": null,
             "maxBytes": null
           },
@@ -1271,7 +1272,8 @@
             "noDynamicDispatch": "allow",
             "noReflection": "allow",
             "noUnwind": "allow",
-            "exclusiveMutableBorrows": "allow"
+            "noAliasingMutableBorrows": "allow",
+            "noImplicitReceivers": "allow"
           }
         },
         "rootDir": {
@@ -1509,8 +1511,13 @@
           "$ref": "#/$defs/DiagnosticPolicy",
           "default": "allow"
         },
-        "exclusiveMutableBorrows": {
-          "description": "Policy requiring mutable borrows to be exclusive.",
+        "noAliasingMutableBorrows": {
+          "description": "Policy banning aliasing mutable borrows.",
+          "$ref": "#/$defs/DiagnosticPolicy",
+          "default": "allow"
+        },
+        "noImplicitReceivers": {
+          "description": "Policy banning implicit method receivers.",
           "$ref": "#/$defs/DiagnosticPolicy",
           "default": "allow"
         }
@@ -1988,7 +1995,7 @@
             "memoryLimitBytes": null,
             "growthPercent": 100,
             "local": {
-              "youngBytes": 1048576,
+              "youngSizeBytes": 1048576,
               "minBytes": null,
               "maxBytes": null
             },
@@ -2511,7 +2518,7 @@
           "description": "Worker-local heap policy.",
           "$ref": "#/$defs/LocalHeapOptions",
           "default": {
-            "youngBytes": 1048576,
+            "youngSizeBytes": 1048576,
             "minBytes": null,
             "maxBytes": null
           }
@@ -2530,7 +2537,7 @@
       "description": "Runtime local-heap policy.",
       "type": "object",
       "properties": {
-        "youngBytes": {
+        "youngSizeBytes": {
           "description": "The byte width for worker-local young space.",
           "type": "integer",
           "format": "uint",
@@ -4604,7 +4611,8 @@
             "noDynamicDispatch": "allow",
             "noReflection": "allow",
             "noUnwind": "allow",
-            "exclusiveMutableBorrows": "allow"
+            "noAliasingMutableBorrows": "allow",
+            "noImplicitReceivers": "allow"
           }
         },
         "include": {
@@ -5076,7 +5084,7 @@
               "memoryLimitBytes": null,
               "growthPercent": 100,
               "local": {
-                "youngBytes": 1048576,
+                "youngSizeBytes": 1048576,
                 "minBytes": null,
                 "maxBytes": null
               },
@@ -6885,7 +6893,8 @@
             "noDynamicDispatch": "allow",
             "noReflection": "allow",
             "noUnwind": "allow",
-            "exclusiveMutableBorrows": "allow"
+            "noAliasingMutableBorrows": "allow",
+            "noImplicitReceivers": "allow"
           }
         }
       }

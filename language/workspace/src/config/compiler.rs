@@ -181,8 +181,10 @@ pub struct CompilerRestrictions {
     pub no_reflection: DiagnosticPolicy,
     /// Policy for unwinding.
     pub no_unwind: DiagnosticPolicy,
-    /// Policy requiring mutable borrows to be exclusive.
-    pub exclusive_mutable_borrows: DiagnosticPolicy,
+    /// Policy banning aliasing mutable borrows.
+    pub no_aliasing_mutable_borrows: DiagnosticPolicy,
+    /// Policy banning implicit method receivers.
+    pub no_implicit_receivers: DiagnosticPolicy,
 }
 
 impl Default for CompilerRestrictions {
@@ -195,7 +197,8 @@ impl Default for CompilerRestrictions {
             no_dynamic_dispatch: DiagnosticPolicy::Allow,
             no_reflection: DiagnosticPolicy::Allow,
             no_unwind: DiagnosticPolicy::Allow,
-            exclusive_mutable_borrows: DiagnosticPolicy::Allow,
+            no_aliasing_mutable_borrows: DiagnosticPolicy::Allow,
+            no_implicit_receivers: DiagnosticPolicy::Allow,
         }
     }
 }
@@ -211,10 +214,12 @@ impl CompilerRestrictions {
             stricter_policy(self.no_dynamic_dispatch, other.no_dynamic_dispatch);
         self.no_reflection = stricter_policy(self.no_reflection, other.no_reflection);
         self.no_unwind = stricter_policy(self.no_unwind, other.no_unwind);
-        self.exclusive_mutable_borrows = stricter_policy(
-            self.exclusive_mutable_borrows,
-            other.exclusive_mutable_borrows,
+        self.no_aliasing_mutable_borrows = stricter_policy(
+            self.no_aliasing_mutable_borrows,
+            other.no_aliasing_mutable_borrows,
         );
+        self.no_implicit_receivers =
+            stricter_policy(self.no_implicit_receivers, other.no_implicit_receivers);
     }
 }
 

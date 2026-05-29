@@ -22,7 +22,8 @@ pub fn profile_flags_for_compiler_options(options: &CompilerOptions) -> ProfileF
         no_unsafe: !restrictions.no_unsafe.is_allow(),
         no_reflection: !restrictions.no_reflection.is_allow(),
         no_unwind: !restrictions.no_unwind.is_allow(),
-        exclusive_mutable_borrows: !restrictions.exclusive_mutable_borrows.is_allow(),
+        no_aliasing_mutable_borrows: !restrictions.no_aliasing_mutable_borrows.is_allow(),
+        no_implicit_receivers: !restrictions.no_implicit_receivers.is_allow(),
         emit_checked_types: options.emit_checked_types,
     }
 }

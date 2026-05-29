@@ -145,7 +145,10 @@ impl BuiltinPackage {
         base_uri: &str,
         specifier: &str,
     ) -> Option<Uri> {
-        let base = base_uri.strip_prefix(BUILTIN_PACKAGE_URI)?;
+        let base = match self.file_by_path.get(base_uri) {
+            Some(file) => file.path.strip_suffix(".ds").unwrap_or(file.path),
+            None => base_uri.strip_prefix(BUILTIN_PACKAGE_URI)?,
+        };
         let mut parts = base.split('/').collect::<Vec<_>>();
         parts.pop();
 
@@ -323,4 +326,29 @@ fn canonical_builtin_path(path: &str) -> &str {
     let path = path.strip_suffix(".ds").unwrap_or(path);
 
     path.strip_suffix("/index").unwrap_or(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BuiltinPackage, Uri};
+
+    #[test]
+    fn test_resolve_relative_from_builtin_index_uri() {
+        let package = BuiltinPackage::new();
+        let uri = package
+            .module_uri_for_relative_specifier("destack://error", "./panic.ds")
+            .expect("builtin relative import should resolve");
+
+        assert_eq!(uri, Uri::from_string("destack://error/panic"));
+    }
+
+    #[test]
+    fn test_resolve_relative_from_builtin_file_uri() {
+        let package = BuiltinPackage::new();
+        let uri = package
+            .module_uri_for_relative_specifier("destack://error/host", "./panic.ds")
+            .expect("builtin relative import should resolve");
+
+        assert_eq!(uri, Uri::from_string("destack://error/panic"));
+    }
 }

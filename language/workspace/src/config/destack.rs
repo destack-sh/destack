@@ -387,9 +387,15 @@ impl DestackFile {
         )?;
         Self::apply_parent_restriction(
             source,
-            "exclusiveMutableBorrows",
-            compiler.restrictions.exclusive_mutable_borrows,
-            parent.restrictions.exclusive_mutable_borrows,
+            "noAliasingMutableBorrows",
+            compiler.restrictions.no_aliasing_mutable_borrows,
+            parent.restrictions.no_aliasing_mutable_borrows,
+        )?;
+        Self::apply_parent_restriction(
+            source,
+            "noImplicitReceivers",
+            compiler.restrictions.no_implicit_receivers,
+            parent.restrictions.no_implicit_receivers,
         )?;
 
         Ok(())
