@@ -1,4 +1,3 @@
-use destack_heap as heap;
 use destack_mir as mir;
 
 use super::{
@@ -158,10 +157,6 @@ pub(crate) struct AllocationSiteId(pub(crate) u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ConstValueId(pub(crate) u32);
 
-/// Identifier for one pooled allocation class.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct AllocationClassId(pub(crate) u32);
-
 /// Identifier for one pooled address projection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ProjectionId(pub(crate) u32);
@@ -317,8 +312,6 @@ pub(crate) struct SideTable {
     allocation_site: Box<[AllocationSite]>,
     /// Pooled constants.
     constant: Box<[ConstValue]>,
-    /// Pooled allocation classes.
-    allocation_class: Box<[heap::AllocationClass]>,
     /// Pooled address projections.
     projection: Box<[Projection]>,
     /// Pooled slice projectiones.
@@ -364,8 +357,6 @@ pub(crate) struct SideTableBuilder {
     allocation_site: Vec<AllocationSite>,
     /// Pooled constants.
     constant: Vec<ConstValue>,
-    /// Pooled allocation classes.
-    allocation_class: Vec<heap::AllocationClass>,
     /// Pooled address projections.
     projection: Vec<Projection>,
     /// Pooled slice projectiones.
@@ -397,7 +388,6 @@ impl SideTableBuilder {
             edge,
             allocation_site,
             constant,
-            allocation_class,
             projection,
             slice_projection,
             u32_ranges,
@@ -413,7 +403,6 @@ impl SideTableBuilder {
             record: Box::new(record.finish()),
             allocation_site: allocation_site.into_boxed_slice(),
             constant: constant.into_boxed_slice(),
-            allocation_class: allocation_class.into_boxed_slice(),
             projection: projection.into_boxed_slice(),
             slice_projection: slice_projection.into_boxed_slice(),
             check: check.into_boxed_slice(),
@@ -476,25 +465,6 @@ impl SideTableBuilder {
         self.constant.push(constant);
 
         ConstValueId(id)
-    }
-
-    /// Add one allocation class to the side table.
-    pub(crate) fn push_allocation_class(
-        &mut self,
-        allocation_class: heap::AllocationClass,
-    ) -> AllocationClassId {
-        if let Some(id) = self
-            .allocation_class
-            .iter()
-            .position(|class| *class == allocation_class)
-        {
-            return AllocationClassId(id as u32);
-        }
-
-        let id = self.allocation_class.len() as u32;
-        self.allocation_class.push(allocation_class);
-
-        AllocationClassId(id)
     }
 
     /// Add one address projection to the side table.
@@ -652,12 +622,6 @@ impl SideTable {
     #[inline(always)]
     pub(crate) fn constant(&self, id: ConstValueId) -> &ConstValue {
         &self.constant[id.0 as usize]
-    }
-
-    /// Return one pooled allocation class.
-    #[inline(always)]
-    pub(crate) fn allocation_class(&self, id: AllocationClassId) -> heap::AllocationClass {
-        self.allocation_class[id.0 as usize]
     }
 
     /// Borrow one pooled address projection.

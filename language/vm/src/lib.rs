@@ -1,6 +1,3 @@
-#![feature(default_field_values)]
-#![feature(explicit_tail_calls)]
-#![feature(str_as_str)]
 #![allow(incomplete_features)]
 #![allow(
     clippy::approx_constant,

@@ -2,10 +2,11 @@ use std::{fmt, mem, ptr};
 
 use destack_engine as engine;
 use destack_heap::{
-    AllocationShape, Heap, HeapReference, HeapResult, Payload, RawAllocationShape,
-    SharedAllocationCache, SharedGcWorker, SharedHeapReference, repeated_layout,
+    AllocationShape, AllocationSite as HeapAllocationSite, Heap, HeapReference, HeapResult,
+    Payload, RawAllocationShape, SharedAllocationCache, SharedGcWorker, SharedHeapReference,
+    repeated_layout,
 };
-use destack_mir as mir;
+use destack_mir::{self as mir, TraceId};
 use engine::StaticSpace;
 
 use super::{Frame, Interpreter};
@@ -306,24 +307,146 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.side_table().tensor_scatter(id)
     }
 
-    /// Allocate one zeroed local heap payload from one compiled allocation site.
+    /// Return one trace map id and heap allocation site.
     #[inline(always)]
-    pub(crate) fn allocate_zeroed_heap_site(
+    fn heap_allocation_site(&self, id: AllocationSiteId) -> (TraceId, HeapAllocationSite) {
+        let side_table = self.side_table();
+        let vm_site = *side_table.allocation_site(id);
+
+        (vm_site.trace_map, vm_site.heap)
+    }
+
+    /// Allocate one zeroed local heap payload from one allocation site.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_heap(
         &mut self,
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let side_table = self.side_table();
-        let allocation = side_table.allocation_site(id);
-        let class = side_table.allocation_class(allocation.class);
-        let site = allocation.heap_site(class);
-        if let Some(reference) = self.heap.try_allocate_site_zeroed(site) {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        self.allocate_zeroed_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one zeroed local noscan small heap payload.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_heap_small_noscan(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(reference) = self.heap.try_allocate_small_noscan_zeroed(heap_site) {
             return Ok(reference);
         }
 
-        let trace_map = self.program.trace_map(allocation.trace_map)?;
+        self.allocate_zeroed_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one zeroed local scanned small heap payload.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_heap_small_scan(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(reference) = self.heap.try_allocate_small_scan_zeroed(heap_site) {
+            return Ok(reference);
+        }
+
+        self.allocate_zeroed_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one zeroed local small heap payload that may point into shared heap.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_heap_small_shared_edge(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(reference) = self.heap.try_allocate_small_shared_edge_zeroed(heap_site) {
+            return Ok(reference);
+        }
+
+        self.allocate_zeroed_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one zeroed local heap payload from one compiled site.
+    #[cold]
+    #[inline(never)]
+    fn allocate_zeroed_heap_site(
+        &mut self,
+        trace_map: TraceId,
+        heap_site: HeapAllocationSite,
+    ) -> Result<HeapReference, Error> {
+        let trace_map = self.program.trace_map(trace_map)?;
 
         self.heap
-            .allocate_site_zeroed(site, trace_map)
+            .allocate_zeroed(heap_site, trace_map)
+            .map_err(Error::from)
+    }
+
+    /// Allocate one uninitialized local heap payload from one allocation site.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_heap(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        self.allocate_uninit_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one uninitialized local noscan small heap payload.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_heap_small_noscan(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(reference) = self.heap.try_allocate_small_noscan_uninit(heap_site) {
+            return Ok(reference);
+        }
+
+        self.allocate_uninit_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one uninitialized local scanned small heap payload.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_heap_small_scan(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(reference) = self.heap.try_allocate_small_scan_uninit(heap_site) {
+            return Ok(reference);
+        }
+
+        self.allocate_uninit_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one uninitialized local small heap payload that may point into shared heap.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_heap_small_shared_edge(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<HeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(reference) = self.heap.try_allocate_small_shared_edge_uninit(heap_site) {
+            return Ok(reference);
+        }
+
+        self.allocate_uninit_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one uninitialized local heap payload from one compiled site.
+    #[cold]
+    #[inline(never)]
+    fn allocate_uninit_heap_site(
+        &mut self,
+        trace_map: TraceId,
+        heap_site: HeapAllocationSite,
+    ) -> Result<HeapReference, Error> {
+        let trace_map = self.program.trace_map(trace_map)?;
+
+        self.heap
+            .allocate_uninit(heap_site, trace_map)
             .map_err(Error::from)
     }
 
@@ -340,15 +463,37 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let element_shape = element.shape(trace_map);
         let (byte_len, trace_map) = repeated_layout(
             element_shape.byte_len,
-            element.alignment,
+            element.heap.alignment,
             element_shape.trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment, None, &trace_map);
+        let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
         let heap = &mut *self.heap;
-        let layout = heap.allocation_plan(shape);
 
-        heap.allocate_zeroed(&layout).map_err(Error::from)
+        heap.allocate_dynamic_zeroed(shape).map_err(Error::from)
+    }
+
+    /// Allocate one uninitialized local slice backing array.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_heap_slice(
+        &mut self,
+        element: AllocationSiteId,
+        length: usize,
+    ) -> Result<HeapReference, Error> {
+        let side_table = self.side_table();
+        let element = side_table.allocation_site(element);
+        let trace_map = self.program.trace_map(element.trace_map)?;
+        let element_shape = element.shape(trace_map);
+        let (byte_len, trace_map) = repeated_layout(
+            element_shape.byte_len,
+            element.heap.alignment,
+            element_shape.trace_map,
+            length,
+        )?;
+        let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
+        let heap = &mut *self.heap;
+
+        heap.allocate_dynamic_uninit(shape).map_err(Error::from)
     }
 
     /// Allocate one byte-initialized local heap payload from one program layout id.
@@ -360,35 +505,103 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> Result<HeapReference, Error> {
         let shape = self.program.allocation_shape(layout_id)?;
         let heap = &mut *self.heap;
-        let layout = heap.allocation_plan(shape);
 
-        heap.allocate_bytes(&layout, bytes).map_err(Error::from)
+        heap.allocate_dynamic_bytes(shape, bytes)
+            .map_err(Error::from)
     }
 
-    /// Allocate one zeroed shared heap payload from one compiled allocation site.
+    /// Allocate one zeroed shared heap payload from one allocation site.
     #[inline(always)]
-    pub(crate) fn allocate_zeroed_shared_heap_site(
+    pub(crate) fn allocate_zeroed_shared_heap(
         &mut self,
         id: AllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
-        let side_table = self.side_table();
-        let allocation = side_table.allocation_site(id);
-        let class = side_table.allocation_class(allocation.class);
-        let site = allocation.heap_site(class);
-        if let Some(reference) = self
-            .shared
-            .try_allocate_site_zeroed(self.shared_cache, site)
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        self.allocate_zeroed_shared_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one zeroed shared small heap payload.
+    #[inline(always)]
+    pub(crate) fn allocate_zeroed_shared_heap_small(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<SharedHeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(small) = heap_site.class.small()
+            && let Some(reference) = self
+                .shared
+                .try_allocate_small_zeroed(self.shared_cache, small)
         {
             return Ok(reference);
         }
 
-        let trace_map = self.program.trace_map(allocation.trace_map)?;
+        self.allocate_zeroed_shared_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one zeroed shared heap payload from one compiled site.
+    #[cold]
+    #[inline(never)]
+    fn allocate_zeroed_shared_heap_site(
+        &mut self,
+        trace_map: TraceId,
+        heap_site: HeapAllocationSite,
+    ) -> Result<SharedHeapReference, Error> {
+        let trace_map = self.program.trace_map(trace_map)?;
 
         self.shared
-            .allocate_site_zeroed(
+            .allocate_zeroed(
                 self.shared_gc,
                 self.shared_cache,
-                site,
+                heap_site,
+                trace_map,
+                self.program.trace_table(),
+            )
+            .map_err(Error::from)
+    }
+
+    /// Allocate one uninitialized shared heap payload from one allocation site.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_shared_heap(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<SharedHeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        self.allocate_uninit_shared_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one uninitialized shared small heap payload.
+    #[inline(always)]
+    pub(crate) fn allocate_uninit_shared_heap_small(
+        &mut self,
+        id: AllocationSiteId,
+    ) -> Result<SharedHeapReference, Error> {
+        let (trace_map, heap_site) = self.heap_allocation_site(id);
+        if let Some(small) = heap_site.class.small()
+            && let Some(reference) = self
+                .shared
+                .try_allocate_small_uninit(self.shared_cache, small)
+        {
+            return Ok(reference);
+        }
+
+        self.allocate_uninit_shared_heap_site(trace_map, heap_site)
+    }
+
+    /// Allocate one uninitialized shared heap payload from one compiled site.
+    #[cold]
+    #[inline(never)]
+    fn allocate_uninit_shared_heap_site(
+        &mut self,
+        trace_map: TraceId,
+        heap_site: HeapAllocationSite,
+    ) -> Result<SharedHeapReference, Error> {
+        let trace_map = self.program.trace_map(trace_map)?;
+
+        self.shared
+            .allocate_uninit(
+                self.shared_gc,
+                self.shared_cache,
+                heap_site,
                 trace_map,
                 self.program.trace_table(),
             )
@@ -408,27 +621,49 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let element_shape = element.shape(trace_map);
         let (byte_len, trace_map) = repeated_layout(
             element_shape.byte_len,
-            element.alignment,
+            element.heap.alignment,
             element_shape.trace_map,
             length,
         )?;
-        let shape = AllocationShape::new(byte_len, element.alignment, None, &trace_map);
-        let layout = self.shared.allocation_plan(shape);
+        let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
 
         self.shared
-            .allocate_zeroed(
+            .allocate_dynamic_zeroed(
                 self.shared_gc,
                 self.shared_cache,
-                &layout,
+                shape,
                 self.program.trace_table(),
             )
             .map_err(Error::from)
     }
 
-    /// Publish worker-local shared heap runs.
+    /// Allocate one uninitialized shared slice backing array.
     #[inline(always)]
-    pub(crate) fn flush_shared_cache(&mut self) {
-        self.shared.flush_allocation_cache(self.shared_cache);
+    pub(crate) fn allocate_uninit_shared_heap_slice(
+        &mut self,
+        element: AllocationSiteId,
+        length: usize,
+    ) -> Result<SharedHeapReference, Error> {
+        let side_table = self.side_table();
+        let element = side_table.allocation_site(element);
+        let trace_map = self.program.trace_map(element.trace_map)?;
+        let element_shape = element.shape(trace_map);
+        let (byte_len, trace_map) = repeated_layout(
+            element_shape.byte_len,
+            element.heap.alignment,
+            element_shape.trace_map,
+            length,
+        )?;
+        let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
+
+        self.shared
+            .allocate_dynamic_uninit(
+                self.shared_gc,
+                self.shared_cache,
+                shape,
+                self.program.trace_table(),
+            )
+            .map_err(Error::from)
     }
 
     /// Return one local heap native address.
@@ -472,7 +707,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     /// Return whether one shared heap reference is live.
     #[inline(always)]
     pub(crate) fn is_shared_heap_live(&self, reference: SharedHeapReference) -> bool {
-        self.shared.is_heap_live(reference)
+        self.shared_cache.contains_heap_reference(reference) || self.shared.is_heap_live(reference)
     }
 
     /// Allocate one zeroed local raw allocation.
@@ -484,6 +719,15 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.heap.allocate_raw(shape, Payload::Zeroed)
     }
 
+    /// Allocate one uninitialized local raw allocation.
+    #[inline(always)]
+    pub(crate) fn allocate_raw_uninit(
+        &mut self,
+        shape: RawAllocationShape,
+    ) -> HeapResult<RawPointer> {
+        self.heap.allocate_raw(shape, Payload::Uninit)
+    }
+
     /// Allocate one zeroed shared raw allocation.
     #[inline(always)]
     pub(crate) fn allocate_shared_raw_zeroed(
@@ -491,6 +735,15 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         shape: RawAllocationShape,
     ) -> HeapResult<SharedRawPointer> {
         self.shared.allocate_raw(shape, Payload::Zeroed)
+    }
+
+    /// Allocate one uninitialized shared raw allocation.
+    #[inline(always)]
+    pub(crate) fn allocate_shared_raw_uninit(
+        &self,
+        shape: RawAllocationShape,
+    ) -> HeapResult<SharedRawPointer> {
+        self.shared.allocate_raw(shape, Payload::Uninit)
     }
 
     /// Free one local raw allocation.
@@ -513,8 +766,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Free one shared managed allocation.
     #[inline(always)]
-    pub(crate) fn free_shared_heap(&self, reference: SharedHeapReference) -> HeapResult<()> {
-        self.shared.free(reference)
+    pub(crate) fn free_shared_heap(&mut self, reference: SharedHeapReference) -> HeapResult<()> {
+        self.shared.free(self.shared_cache, reference)
     }
 
     /// Pin one local managed allocation.
@@ -620,8 +873,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .ok_or(Error::invalid_instruction())
     }
 
-    /// Allocate bytes owned by the current frame.
-    pub(crate) fn allocate_stack(
+    /// Allocate zeroed bytes owned by the current frame.
+    pub(crate) fn allocate_stack_zeroed(
         &mut self,
         byte_len: usize,
         alignment: usize,
@@ -629,8 +882,27 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let base = self
             .interpreter
             .stack
-            .allocate(byte_len, alignment)
+            .allocate_zeroed(byte_len, alignment)
             .map_err(|_| Error::stack_overflow())?;
+        self.stack_address(base, byte_len)
+    }
+
+    /// Allocate uninitialized bytes owned by the current frame.
+    pub(crate) fn allocate_stack_uninit(
+        &mut self,
+        byte_len: usize,
+        alignment: usize,
+    ) -> Result<usize, Error> {
+        let base = self
+            .interpreter
+            .stack
+            .allocate_uninit(byte_len, alignment)
+            .map_err(|_| Error::stack_overflow())?;
+        self.stack_address(base, byte_len)
+    }
+
+    /// Return the checked address for one newly allocated stack range.
+    fn stack_address(&mut self, base: usize, byte_len: usize) -> Result<usize, Error> {
         let end = self.interpreter.stack.len();
         self.active_frame_mut().extend_bytes_to(end);
         let address = self

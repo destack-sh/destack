@@ -3,7 +3,7 @@ use crate::diagnostic::{Error, ReferenceKind};
 use crate::interpreter::Machine;
 use crate::program::{AllocationSiteId, Instruction, SliceProjectionId};
 use crate::{StackPointer, Word};
-use destack_heap::{HeapError, RawAllocationShape};
+use destack_heap::{HeapError, HeapReferenceKind, RawAllocationShape};
 
 /// Decode one power-of-two alignment from an instruction field.
 fn decode_alignment(alignment_log2: u32) -> usize {
@@ -12,15 +12,15 @@ fn decode_alignment(alignment_log2: u32) -> usize {
 
 /// Execute local heap allocation.
 #[inline(always)]
-pub(crate) fn execute_allocate_heap_site(
+pub(crate) fn execute_allocate_heap_zeroed(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationSiteId(instruction.b);
 
-    // allocate through the compiled heap layout
-    let reference = machine.allocate_zeroed_heap_site(allocation)?;
+    // allocate from the compiled site
+    let reference = machine.allocate_zeroed_heap(allocation)?;
 
     // store result
     machine.store_word_at(dest, Word::heap_reference(reference));
@@ -28,16 +28,130 @@ pub(crate) fn execute_allocate_heap_site(
     Ok(())
 }
 
-/// Execute shared heap allocation.
-pub(crate) fn execute_allocate_shared_heap_site(
+/// Execute local uninitialized heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_uninit(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let allocation = AllocationSiteId(instruction.b);
 
-    // allocate through the compiled shared heap layout
-    let reference = machine.allocate_zeroed_shared_heap_site(allocation)?;
+    let reference = machine.allocate_uninit_heap(allocation)?;
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute local noscan small heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_small_noscan_zeroed(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    // allocate from the specialized site
+    let reference = machine.allocate_zeroed_heap_small_noscan(allocation)?;
+
+    // store result
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute local uninitialized noscan small heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_small_noscan_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    let reference = machine.allocate_uninit_heap_small_noscan(allocation)?;
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute local scanned small heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_small_scan_zeroed(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    // allocate from the specialized site
+    let reference = machine.allocate_zeroed_heap_small_scan(allocation)?;
+
+    // store result
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute local uninitialized scanned small heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_small_scan_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    let reference = machine.allocate_uninit_heap_small_scan(allocation)?;
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute local shared-edge small heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_small_shared_edge_zeroed(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    // allocate from the specialized site
+    let reference = machine.allocate_zeroed_heap_small_shared_edge(allocation)?;
+
+    // store result
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute local uninitialized shared-edge small heap allocation.
+#[inline(always)]
+pub(crate) fn execute_allocate_heap_small_shared_edge_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    let reference = machine.allocate_uninit_heap_small_shared_edge(allocation)?;
+    machine.store_word_at(dest, Word::heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute shared heap allocation.
+pub(crate) fn execute_allocate_shared_heap_zeroed(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    // allocate from the compiled site
+    let reference = machine.allocate_zeroed_shared_heap(allocation)?;
 
     // store result
     machine.store_word_at(dest, Word::shared_heap_reference(reference));
@@ -45,8 +159,53 @@ pub(crate) fn execute_allocate_shared_heap_site(
     Ok(())
 }
 
+/// Execute shared uninitialized heap allocation.
+pub(crate) fn execute_allocate_shared_heap_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    let reference = machine.allocate_uninit_shared_heap(allocation)?;
+    machine.store_word_at(dest, Word::shared_heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute shared small heap allocation.
+pub(crate) fn execute_allocate_shared_heap_small_zeroed(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    // allocate from the specialized site
+    let reference = machine.allocate_zeroed_shared_heap_small(allocation)?;
+
+    // store result
+    machine.store_word_at(dest, Word::shared_heap_reference(reference));
+
+    Ok(())
+}
+
+/// Execute shared uninitialized small heap allocation.
+pub(crate) fn execute_allocate_shared_heap_small_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let allocation = AllocationSiteId(instruction.b);
+
+    let reference = machine.allocate_uninit_shared_heap_small(allocation)?;
+    machine.store_word_at(dest, Word::shared_heap_reference(reference));
+
+    Ok(())
+}
+
 /// Execute local slice allocation.
-pub(crate) fn execute_allocate_slice(
+pub(crate) fn execute_allocate_slice_zeroed(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -71,8 +230,29 @@ pub(crate) fn execute_allocate_slice(
     Ok(())
 }
 
+/// Execute local uninitialized slice allocation.
+pub(crate) fn execute_allocate_slice_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let length = instruction.b;
+    let element = AllocationSiteId(instruction.c);
+    let access = SliceProjectionId(instruction.d);
+    let access = machine.slice_projection(access);
+
+    let length = load_slice_length_at(machine, length)?;
+    let backing_reference = machine
+        .allocate_uninit_heap_slice(element, length)
+        .map(Word::heap_reference)?;
+
+    store_slice_at(machine, dest, access, backing_reference, length)?;
+
+    Ok(())
+}
+
 /// Execute shared slice allocation.
-pub(crate) fn execute_allocate_shared_slice(
+pub(crate) fn execute_allocate_shared_slice_zeroed(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -97,8 +277,29 @@ pub(crate) fn execute_allocate_shared_slice(
     Ok(())
 }
 
+/// Execute shared uninitialized slice allocation.
+pub(crate) fn execute_allocate_shared_slice_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let length = instruction.b;
+    let element = AllocationSiteId(instruction.c);
+    let access = SliceProjectionId(instruction.d);
+    let access = machine.slice_projection(access);
+
+    let length = load_slice_length_at(machine, length)?;
+    let backing_reference = machine
+        .allocate_uninit_shared_heap_slice(element, length)
+        .map(Word::shared_heap_reference)?;
+
+    store_slice_at(machine, dest, access, backing_reference, length)?;
+
+    Ok(())
+}
+
 /// Execute raw allocation.
-pub(crate) fn execute_allocate_raw(
+pub(crate) fn execute_allocate_raw_zeroed(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -121,8 +322,25 @@ pub(crate) fn execute_allocate_raw(
     Ok(())
 }
 
+/// Execute local uninitialized raw allocation.
+pub(crate) fn execute_allocate_raw_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
+    let byte_len = byte_len as usize;
+    let alignment = decode_alignment(instruction.d);
+    let shape = RawAllocationShape::new(byte_len, alignment);
+
+    let pointer = machine.allocate_raw_uninit(shape).map_err(Error::from)?;
+    machine.store_word_at(dest, Word::raw_pointer(pointer));
+
+    Ok(())
+}
+
 /// Execute shared raw allocation.
-pub(crate) fn execute_allocate_shared_raw(
+pub(crate) fn execute_allocate_shared_raw_zeroed(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -145,6 +363,25 @@ pub(crate) fn execute_allocate_shared_raw(
     Ok(())
 }
 
+/// Execute shared uninitialized raw allocation.
+pub(crate) fn execute_allocate_shared_raw_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
+    let byte_len = byte_len as usize;
+    let alignment = decode_alignment(instruction.d);
+    let shape = RawAllocationShape::new(byte_len, alignment);
+
+    let pointer = machine
+        .allocate_shared_raw_uninit(shape)
+        .map_err(Error::from)?;
+    machine.store_word_at(dest, Word::shared_raw_pointer(pointer));
+
+    Ok(())
+}
+
 /// Execute raw free.
 pub(crate) fn execute_free_raw(
     machine: &mut Machine<'_, '_>,
@@ -156,7 +393,10 @@ pub(crate) fn execute_free_raw(
     let pointer = machine.load_word_at(pointer).as_raw_pointer();
     match machine.free_raw(pointer) {
         Ok(()) => {}
-        Err(HeapError::InvalidRawPointer { .. }) => {
+        Err(HeapError::InvalidReference {
+            kind: HeapReferenceKind::Raw,
+            ..
+        }) => {
             return Err(Error::invalid_reference(ReferenceKind::Raw));
         }
         Err(error) => return Err(Error::from(error)),
@@ -176,7 +416,10 @@ pub(crate) fn execute_free_heap(
     let reference = machine.load_word_at(reference).as_heap_reference();
     match machine.free_heap(reference) {
         Ok(()) => {}
-        Err(HeapError::InvalidHeapReference { .. }) => {
+        Err(HeapError::InvalidReference {
+            kind: HeapReferenceKind::Heap,
+            ..
+        }) => {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
         Err(error) => return Err(Error::from(error)),
@@ -196,7 +439,10 @@ pub(crate) fn execute_free_shared_heap(
     let reference = machine.load_word_at(reference).as_shared_heap_reference();
     match machine.free_shared_heap(reference) {
         Ok(()) => {}
-        Err(HeapError::InvalidSharedHeapReference { .. }) => {
+        Err(HeapError::InvalidReference {
+            kind: HeapReferenceKind::SharedHeap,
+            ..
+        }) => {
             return Err(Error::invalid_reference(ReferenceKind::SharedHeap));
         }
         Err(error) => return Err(Error::from(error)),
@@ -217,7 +463,10 @@ pub(crate) fn execute_pin_heap(
     let reference = machine.load_word_at(value).as_heap_reference();
     match machine.pin_heap(reference) {
         Ok(reference) => machine.store_word_at(dest, Word::heap_reference(reference)),
-        Err(HeapError::InvalidHeapReference { .. }) => {
+        Err(HeapError::InvalidReference {
+            kind: HeapReferenceKind::Heap,
+            ..
+        }) => {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
         Err(error) => return Err(Error::from(error)),
@@ -252,7 +501,10 @@ pub(crate) fn execute_unpin_heap(
     let reference = machine.load_word_at(value).as_heap_reference();
     match machine.unpin_heap(reference) {
         Ok(()) => {}
-        Err(HeapError::InvalidHeapReference { .. }) => {
+        Err(HeapError::InvalidReference {
+            kind: HeapReferenceKind::Heap,
+            ..
+        }) => {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
         Err(error) => return Err(Error::from(error)),
@@ -281,7 +533,10 @@ pub(crate) fn execute_free_shared_raw(
     let pointer = machine.load_word_at(pointer).as_shared_raw_pointer();
     match machine.free_shared_raw(pointer) {
         Ok(()) => {}
-        Err(HeapError::InvalidSharedRawPointer { .. }) => {
+        Err(HeapError::InvalidReference {
+            kind: HeapReferenceKind::SharedRaw,
+            ..
+        }) => {
             return Err(Error::invalid_reference(ReferenceKind::SharedRaw));
         }
         Err(error) => return Err(Error::from(error)),
@@ -291,7 +546,7 @@ pub(crate) fn execute_free_shared_raw(
 }
 
 /// Execute stack allocation.
-pub(crate) fn execute_allocate_stack(
+pub(crate) fn execute_allocate_stack_zeroed(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -301,7 +556,26 @@ pub(crate) fn execute_allocate_stack(
     let alignment = decode_alignment(instruction.d);
 
     // allocate stack bytes from the lowered layout
-    let address = machine.allocate_stack(byte_len, alignment)?;
+    let address = machine.allocate_stack_zeroed(byte_len, alignment)?;
+    let sp = StackPointer::from_address(address);
+    let value = Word::stack_pointer(sp);
+
+    machine.store_word_at(dest, value);
+
+    Ok(())
+}
+
+/// Execute uninitialized stack allocation.
+pub(crate) fn execute_allocate_stack_uninit(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let dest = instruction.a;
+    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
+    let byte_len = byte_len as usize;
+    let alignment = decode_alignment(instruction.d);
+
+    let address = machine.allocate_stack_uninit(byte_len, alignment)?;
     let sp = StackPointer::from_address(address);
     let value = Word::stack_pointer(sp);
 

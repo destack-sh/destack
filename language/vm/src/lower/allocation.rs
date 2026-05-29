@@ -1,4 +1,4 @@
-use destack_heap::{HeapOptions, SharedHeapOptions};
+use destack_heap::{AllocationClass, HeapOptions, SharedHeapOptions};
 use destack_mir as mir;
 
 use crate::program::{
@@ -8,9 +8,18 @@ use crate::{Error, Result};
 
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
+use super::memory::frame_value_slot;
 use super::pool::Pool;
 use super::projection::slice_projection;
 use super::value::pointer_class_for_value;
+
+#[derive(Clone, Copy)]
+pub(super) enum AllocationInitialization {
+    /// Initialize the allocation to zero bytes.
+    Zeroed,
+    /// Leave allocation bytes uninitialized.
+    Uninit,
+}
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one heap allocation.
@@ -19,6 +28,7 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         layout: mir::TypeReference,
+        initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve allocation target and layout
         let destination = destination
@@ -31,21 +41,65 @@ impl<'a> BlockLowerer<'a> {
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
 
         // precompute the heap allocation shape
-        let allocation = allocation_site(
+        let (allocation, class) = allocation_site(
             pool,
             pointer_class,
             layout,
             self.heap_options,
             self.shared_heap_options,
         )?;
+        let op = allocation_op(
+            pointer_class,
+            class,
+            allocation.heap.is_noscan,
+            allocation.heap.has_shared_reference,
+            initialization,
+        )?;
         let allocation = pool.allocation_site(allocation);
-        let op = allocation_op(pointer_class)?;
 
         Ok(Instruction::new(
             op,
             word_offset(self, destination)?,
             allocation.0,
             0,
+            0,
+        ))
+    }
+
+    /// Lower one heap allocation completion.
+    pub(super) fn lower_new_complete(
+        &self,
+        destination: mir::ValueReference,
+        value: mir::ValueReference,
+    ) -> Result<Instruction> {
+        let destination = destination
+            .value()
+            .ok_or_else(|| Error::invalid_program("new.complete destination"))?;
+        let value = value
+            .value()
+            .ok_or_else(|| Error::invalid_program("new.complete value"))?;
+        let destination_slot = frame_value_slot(self, destination)?;
+        let value_slot = frame_value_slot(self, value)?;
+
+        if destination_slot.is_word && value_slot.is_word {
+            return Ok(Instruction::new(
+                Op::MoveWord,
+                destination_slot.offset,
+                value_slot.offset,
+                0,
+                0,
+            ));
+        }
+
+        if destination_slot.byte_len != value_slot.byte_len {
+            return Err(Error::invalid_instruction());
+        }
+
+        Ok(Instruction::new(
+            Op::MoveFrame,
+            destination_slot.offset,
+            destination_slot.byte_len,
+            value_slot.offset,
             0,
         ))
     }
@@ -58,6 +112,7 @@ impl<'a> BlockLowerer<'a> {
         element: mir::TypeReference,
         length: mir::ValueReference,
         result_type: mir::TypeReference,
+        initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve descriptor, backing element, and dynamic length
         let destination = destination
@@ -76,7 +131,7 @@ impl<'a> BlockLowerer<'a> {
         // compile the backing element shape
         let element_layout = self.layout_for_type(element_type)?;
         let pointer_class = slice_backing_pointer_class(self.tree, result_type)?;
-        let element = allocation_site(
+        let (element, _) = allocation_site(
             pool,
             pointer_class,
             element_layout,
@@ -89,8 +144,14 @@ impl<'a> BlockLowerer<'a> {
         let access = pool.slice_projection(access);
 
         let op = match pointer_class {
-            PointerClass::Heap => Op::AllocateSlice,
-            PointerClass::SharedHeap => Op::AllocateSharedSlice,
+            PointerClass::Heap => match initialization {
+                AllocationInitialization::Zeroed => Op::AllocateSliceZeroed,
+                AllocationInitialization::Uninit => Op::AllocateSliceUninit,
+            },
+            PointerClass::SharedHeap => match initialization {
+                AllocationInitialization::Zeroed => Op::AllocateSharedSliceZeroed,
+                AllocationInitialization::Uninit => Op::AllocateSharedSliceUninit,
+            },
             _ => {
                 return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
             }
@@ -109,6 +170,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         destination: mir::ValueReference,
         layout: mir::TypeReference,
+        initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve raw destination and byte width
         let destination = destination
@@ -119,8 +181,14 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::invalid_program("raw alloc layout"))?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
         let op = match pointer_class {
-            PointerClass::Raw => Op::AllocateRaw,
-            PointerClass::SharedRaw => Op::AllocateSharedRaw,
+            PointerClass::Raw => match initialization {
+                AllocationInitialization::Zeroed => Op::AllocateRawZeroed,
+                AllocationInitialization::Uninit => Op::AllocateRawUninit,
+            },
+            PointerClass::SharedRaw => match initialization {
+                AllocationInitialization::Zeroed => Op::AllocateSharedRawZeroed,
+                AllocationInitialization::Uninit => Op::AllocateSharedRawUninit,
+            },
             _ => {
                 return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
             }
@@ -160,6 +228,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         destination: mir::ValueReference,
         layout: mir::TypeReference,
+        initialization: AllocationInitialization,
     ) -> Result<Instruction> {
         // resolve stack destination and compiled type
         let destination = destination
@@ -181,7 +250,10 @@ impl<'a> BlockLowerer<'a> {
         let alignment = encode_alignment_log2(layout.alignment());
 
         Ok(Instruction::new(
-            Op::AllocateStack,
+            match initialization {
+                AllocationInitialization::Zeroed => Op::AllocateStackZeroed,
+                AllocationInitialization::Uninit => Op::AllocateStackUninit,
+            },
             word_offset(self, destination)?,
             byte_len as u32,
             (byte_len >> 32) as u32,
@@ -283,7 +355,7 @@ fn allocation_site(
     layout: &Layout,
     heap_options: &HeapOptions,
     shared_heap_options: &SharedHeapOptions,
-) -> Result<AllocationSite> {
+) -> Result<(AllocationSite, AllocationClass)> {
     // resolve the allocation class from the destination space
     let is_noscan = !layout.trace_map.has_reference();
     let has_shared_reference = layout.trace_map.has_shared_reference();
@@ -304,26 +376,70 @@ fn allocation_site(
         }
     };
 
-    // intern allocation metadata once during lowering
-    let class = pool.allocation_class(class);
-
     let allocation = AllocationSite {
-        byte_len: layout.byte_len,
-        alignment: layout.alignment(),
+        heap: destack_heap::AllocationSite {
+            byte_len: layout.byte_len,
+            alignment: layout.alignment(),
+            trace_id,
+            is_noscan,
+            has_shared_reference,
+            class,
+        },
         trace_map,
-        is_noscan,
-        has_shared_reference,
-        class,
     };
 
-    Ok(allocation)
+    Ok((allocation, class))
 }
 
 /// Select one heap allocation operation from destination and size class.
-fn allocation_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::AllocateHeapSite),
-        PointerClass::SharedHeap => Ok(Op::AllocateSharedHeapSite),
+fn allocation_op(
+    pointer_class: PointerClass,
+    class: AllocationClass,
+    is_noscan: bool,
+    has_shared_reference: bool,
+    initialization: AllocationInitialization,
+) -> Result<Op> {
+    match (pointer_class, class.small(), is_noscan, initialization) {
+        (PointerClass::Heap, Some(_), _, AllocationInitialization::Zeroed)
+            if has_shared_reference =>
+        {
+            Ok(Op::AllocateHeapSmallSharedEdgeZeroed)
+        }
+        (PointerClass::Heap, Some(_), _, AllocationInitialization::Uninit)
+            if has_shared_reference =>
+        {
+            Ok(Op::AllocateHeapSmallSharedEdgeUninit)
+        }
+        (PointerClass::Heap, Some(_), true, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateHeapSmallNoscanZeroed)
+        }
+        (PointerClass::Heap, Some(_), true, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateHeapSmallNoscanUninit)
+        }
+        (PointerClass::Heap, Some(_), false, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateHeapSmallScanZeroed)
+        }
+        (PointerClass::Heap, Some(_), false, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateHeapSmallScanUninit)
+        }
+        (PointerClass::Heap, None, _, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateHeapZeroed)
+        }
+        (PointerClass::Heap, None, _, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateHeapUninit)
+        }
+        (PointerClass::SharedHeap, Some(_), _, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateSharedHeapSmallZeroed)
+        }
+        (PointerClass::SharedHeap, Some(_), _, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateSharedHeapSmallUninit)
+        }
+        (PointerClass::SharedHeap, None, _, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateSharedHeapZeroed)
+        }
+        (PointerClass::SharedHeap, None, _, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateSharedHeapUninit)
+        }
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }

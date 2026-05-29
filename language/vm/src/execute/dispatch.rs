@@ -586,28 +586,118 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::AllocateHeapSite => {
-                $step!(super::execute_allocate_heap_site($machine, instruction))
+            Op::AllocateHeapZeroed => {
+                $step!(super::execute_allocate_heap_zeroed($machine, instruction))
             }
-            Op::AllocateSharedHeapSite => {
-                $step!(super::execute_allocate_shared_heap_site(
+            Op::AllocateHeapUninit => {
+                $step!(super::execute_allocate_heap_uninit($machine, instruction))
+            }
+            Op::AllocateHeapSmallNoscanZeroed => {
+                $step!(super::execute_allocate_heap_small_noscan_zeroed(
                     $machine,
                     instruction
                 ))
             }
-            Op::AllocateSlice => $step!(super::execute_allocate_slice($machine, instruction)),
-            Op::AllocateSharedSlice => {
-                $step!(super::execute_allocate_shared_slice($machine, instruction))
+            Op::AllocateHeapSmallNoscanUninit => {
+                $step!(super::execute_allocate_heap_small_noscan_uninit(
+                    $machine,
+                    instruction
+                ))
             }
-            Op::AllocateRaw => $step!(super::execute_allocate_raw($machine, instruction)),
-            Op::AllocateSharedRaw => {
-                $step!(super::execute_allocate_shared_raw($machine, instruction))
+            Op::AllocateHeapSmallScanZeroed => {
+                $step!(super::execute_allocate_heap_small_scan_zeroed(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateHeapSmallScanUninit => {
+                $step!(super::execute_allocate_heap_small_scan_uninit(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateHeapSmallSharedEdgeZeroed => {
+                $step!(super::execute_allocate_heap_small_shared_edge_zeroed(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateHeapSmallSharedEdgeUninit => {
+                $step!(super::execute_allocate_heap_small_shared_edge_uninit(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedHeapZeroed => {
+                $step!(super::execute_allocate_shared_heap_zeroed(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedHeapUninit => {
+                $step!(super::execute_allocate_shared_heap_uninit(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedHeapSmallZeroed => {
+                $step!(super::execute_allocate_shared_heap_small_zeroed(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedHeapSmallUninit => {
+                $step!(super::execute_allocate_shared_heap_small_uninit(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSliceZeroed => {
+                $step!(super::execute_allocate_slice_zeroed($machine, instruction))
+            }
+            Op::AllocateSliceUninit => {
+                $step!(super::execute_allocate_slice_uninit($machine, instruction))
+            }
+            Op::AllocateSharedSliceZeroed => {
+                $step!(super::execute_allocate_shared_slice_zeroed(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedSliceUninit => {
+                $step!(super::execute_allocate_shared_slice_uninit(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateRawZeroed => {
+                $step!(super::execute_allocate_raw_zeroed($machine, instruction))
+            }
+            Op::AllocateRawUninit => {
+                $step!(super::execute_allocate_raw_uninit($machine, instruction))
+            }
+            Op::AllocateSharedRawZeroed => {
+                $step!(super::execute_allocate_shared_raw_zeroed(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedRawUninit => {
+                $step!(super::execute_allocate_shared_raw_uninit(
+                    $machine,
+                    instruction
+                ))
             }
             Op::FreeRaw => $step!(super::execute_free_raw($machine, instruction)),
             Op::FreeSharedRaw => $step!(super::execute_free_shared_raw($machine, instruction)),
             Op::FreeHeap => $step!(super::execute_free_heap($machine, instruction)),
             Op::FreeSharedHeap => $step!(super::execute_free_shared_heap($machine, instruction)),
-            Op::AllocateStack => $step!(super::execute_allocate_stack($machine, instruction)),
+            Op::AllocateStackZeroed => {
+                $step!(super::execute_allocate_stack_zeroed($machine, instruction))
+            }
+            Op::AllocateStackUninit => {
+                $step!(super::execute_allocate_stack_uninit($machine, instruction))
+            }
             Op::PinHeap => $step!(super::execute_pin_heap($machine, instruction)),
             Op::PinSharedHeap => $step!(super::execute_pin_shared_heap($machine, instruction)),
             Op::UnpinHeap => $step!(super::execute_unpin_heap($machine, instruction)),

@@ -257,7 +257,7 @@ impl<'a> BlockLowerer<'a> {
 }
 
 /// Return one value's frame slot.
-fn frame_value_slot<'a>(
+pub(super) fn frame_value_slot<'a>(
     lowerer: &'a BlockLowerer<'_>,
     value: mir::Value,
 ) -> Result<&'a engine::FrameSlot> {

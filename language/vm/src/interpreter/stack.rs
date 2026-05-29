@@ -76,7 +76,7 @@ impl Stack {
 
         let mut stack = Self::new(limit_bytes)?;
         if !image.is_empty() {
-            let base = stack.allocate(image.len(), Word::BYTE_LEN)?;
+            let base = stack.allocate_uninit(image.len(), Word::BYTE_LEN)?;
             stack.copy_bytes(base, &image.bytes)?;
         }
 
@@ -96,20 +96,40 @@ impl Stack {
         self.len = len;
     }
 
-    /// Allocate one aligned byte range.
-    pub(crate) fn allocate(&mut self, byte_len: usize, alignment: usize) -> RuntimeResult<usize> {
-        // grow to the next aligned byte range
+    /// Allocate one zeroed aligned byte range.
+    pub(crate) fn allocate_zeroed(
+        &mut self,
+        byte_len: usize,
+        alignment: usize,
+    ) -> RuntimeResult<usize> {
         let old_len = self.len;
+        let base = self.reserve(byte_len, alignment)?;
+
+        self.space
+            .zero(old_len, self.len - old_len)
+            .map_err(Error::from)?;
+
+        Ok(base)
+    }
+
+    /// Allocate one uninitialized aligned byte range.
+    pub(crate) fn allocate_uninit(
+        &mut self,
+        byte_len: usize,
+        alignment: usize,
+    ) -> RuntimeResult<usize> {
+        self.reserve(byte_len, alignment)
+    }
+
+    /// Reserve one aligned live byte range.
+    fn reserve(&mut self, byte_len: usize, alignment: usize) -> RuntimeResult<usize> {
+        // grow to the next aligned byte range
         let base = Self::align_len(self.len, alignment);
         let end = base + byte_len;
         if end > self.limit_bytes {
             return Err(RuntimeError::new(Error::stack_overflow()));
         }
 
-        // zero newly exposed stack bytes
-        self.space
-            .zero(old_len, end - old_len)
-            .map_err(Error::from)?;
         self.len = end;
 
         Ok(base)

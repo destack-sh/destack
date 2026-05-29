@@ -4,9 +4,9 @@ use destack_engine as engine;
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationClassId, AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId,
-    ConstValue, ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource,
-    Op, Projection, ProjectionId, SideRecord, SideTableBuilder, SliceProjection, SliceProjectionId,
+    AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId, ConstValue,
+    ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Op,
+    Projection, ProjectionId, SideRecord, SideTableBuilder, SliceProjection, SliceProjectionId,
     SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
     TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
 };
@@ -71,14 +71,6 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return one pooled constant id.
     pub(super) fn constant(&mut self, constant: ConstValue) -> ConstValueId {
         self.side_table.push_constant(constant)
-    }
-
-    /// Return one pooled allocation class id.
-    pub(super) fn allocation_class(
-        &mut self,
-        allocation_class: destack_heap::AllocationClass,
-    ) -> AllocationClassId {
-        self.side_table.push_allocation_class(allocation_class)
     }
 
     /// Return one pooled trace map id.
