@@ -7,8 +7,7 @@ const WIDE_DEST_SIGN_BIT: u32 = 1 << 9;
 
 const WORD_LAYOUT_LOCAL_REFERENCE: u32 = 1;
 const WORD_LAYOUT_SHARED_REFERENCE: u32 = 2;
-const WORD_LAYOUT_RAW_POINTER: u32 = 3;
-const WORD_LAYOUT_SHARED_RAW_POINTER: u32 = 4;
+const WORD_LAYOUT_ADDRESS: u32 = 3;
 const WORD_LAYOUT_STACK_POINTER: u32 = 5;
 const WORD_LAYOUT_FRAME_POINTER: u32 = 6;
 const WORD_LAYOUT_STATIC_POINTER: u32 = 7;
@@ -67,8 +66,7 @@ impl PointerCast {
         let field = match layout {
             WordLayout::HeapReference => WORD_LAYOUT_LOCAL_REFERENCE,
             WordLayout::SharedHeapReference => WORD_LAYOUT_SHARED_REFERENCE,
-            WordLayout::RawPointer => WORD_LAYOUT_RAW_POINTER,
-            WordLayout::SharedRawPointer => WORD_LAYOUT_SHARED_RAW_POINTER,
+            WordLayout::Address => WORD_LAYOUT_ADDRESS,
             WordLayout::StackPointer => WORD_LAYOUT_STACK_POINTER,
             WordLayout::FramePointer => WORD_LAYOUT_FRAME_POINTER,
             WordLayout::StaticPointer => WORD_LAYOUT_STATIC_POINTER,
@@ -96,8 +94,7 @@ impl PointerCast {
         match self.field {
             WORD_LAYOUT_LOCAL_REFERENCE => Ok(WordLayout::HeapReference),
             WORD_LAYOUT_SHARED_REFERENCE => Ok(WordLayout::SharedHeapReference),
-            WORD_LAYOUT_RAW_POINTER => Ok(WordLayout::RawPointer),
-            WORD_LAYOUT_SHARED_RAW_POINTER => Ok(WordLayout::SharedRawPointer),
+            WORD_LAYOUT_ADDRESS => Ok(WordLayout::Address),
             WORD_LAYOUT_STACK_POINTER => Ok(WordLayout::StackPointer),
             WORD_LAYOUT_FRAME_POINTER => Ok(WordLayout::FramePointer),
             WORD_LAYOUT_STATIC_POINTER => Ok(WordLayout::StaticPointer),

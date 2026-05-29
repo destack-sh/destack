@@ -12,7 +12,7 @@ use crate::program::{
     repr_type, value_layout_from_type,
 };
 use crate::{FramePointer, SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
+use destack_heap::{AllocationCache, GcWorker, Heap};
 
 use super::access;
 
@@ -439,8 +439,8 @@ pub(crate) fn materialize_value(
     program: &Program,
     heap: &mut Heap,
     shared: &SharedHeap,
-    shared_cache: &mut SharedAllocationCache,
-    shared_gc: &SharedGcWorker,
+    shared_cache: &mut AllocationCache,
+    shared_gc: &GcWorker,
     value: FrameValue,
 ) -> Result<engine::Value, Error> {
     match value.body {
@@ -563,8 +563,7 @@ pub(crate) fn dematerialize_value(
         engine::Value::Char(value) => Word::char(*value),
         engine::Value::HeapReference(reference) => Word::heap_reference(*reference),
         engine::Value::SharedHeapReference(reference) => Word::shared_heap_reference(*reference),
-        engine::Value::RawPointer(pointer) => Word::raw_pointer(*pointer),
-        engine::Value::SharedRawPointer(pointer) => Word::shared_raw_pointer(*pointer),
+        engine::Value::Address(address) => Word::address(*address),
     };
 
     Ok(FrameValue::word(ty, word))
@@ -704,15 +703,9 @@ pub(crate) fn materialize_word(
             value.as_shared_heap_reference(),
         )),
         ValueLayout::Pointer {
-            pointer_class: PointerClass::Raw,
+            pointer_class: PointerClass::Address,
             ..
-        } => Ok(engine::Value::RawPointer(value.as_raw_pointer())),
-        ValueLayout::Pointer {
-            pointer_class: PointerClass::SharedRaw,
-            ..
-        } => Ok(engine::Value::SharedRawPointer(
-            value.as_shared_raw_pointer(),
-        )),
+        } => Ok(engine::Value::Address(value.as_address())),
         _ => Err(Error::type_mismatch(
             "word value",
             format!("{:?}", value_layout_from_type(&program.tree, ty)),

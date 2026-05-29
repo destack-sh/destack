@@ -1,6 +1,6 @@
 use crate::{
-    Error, FramePointer, FunctionPointer, HeapReference, RawPointer, ReferenceMeta,
-    SharedHeapReference, SharedRawPointer, StackPointer, StaticPointer, Word,
+    Error, FramePointer, FunctionPointer, HeapReference, ReferenceMeta, SharedHeapReference,
+    StackPointer, StaticPointer, Word,
 };
 use destack_mir as mir;
 
@@ -36,10 +36,8 @@ pub(crate) enum PointerClass {
     HeapAddress,
     /// Interior shared heap address.
     SharedHeapAddress,
-    /// Raw heap pointer.
-    Raw,
-    /// Shared raw-space pointer.
-    SharedRaw,
+    /// Native address.
+    Address,
     /// Stack pointer.
     Stack,
     /// Frame pointer.
@@ -111,10 +109,8 @@ pub(crate) enum WordLayout {
     HeapReference,
     /// Shared heap reference.
     SharedHeapReference,
-    /// Raw heap pointer.
-    RawPointer,
-    /// Shared raw-space pointer.
-    SharedRawPointer,
+    /// Native address.
+    Address,
     /// Stack pointer.
     StackPointer,
     /// Frame pointer.
@@ -137,8 +133,7 @@ impl WordLayout {
             Self::Float64 => 8,
             Self::HeapReference
             | Self::SharedHeapReference
-            | Self::RawPointer
-            | Self::SharedRawPointer
+            | Self::Address
             | Self::StackPointer
             | Self::FramePointer
             | Self::StaticPointer
@@ -160,10 +155,7 @@ impl WordLayout {
             Self::SharedHeapReference => {
                 Word::shared_heap_reference(SharedHeapReference::from_bits(raw as usize))
             }
-            Self::RawPointer => Word::raw_pointer(RawPointer::from_bits(raw as usize)),
-            Self::SharedRawPointer => {
-                Word::shared_raw_pointer(SharedRawPointer::from_bits(raw as usize))
-            }
+            Self::Address => Word::address(raw as usize),
             Self::StackPointer => Word::stack_pointer(StackPointer::from_address(raw as usize)),
             Self::FramePointer => Word::frame_pointer(FramePointer::from_address(raw as usize)),
             Self::StaticPointer => Word::static_pointer(StaticPointer::from_address(raw as usize)),
@@ -185,8 +177,7 @@ impl WordLayout {
             Self::Float64 => value.as_float64().to_bits(),
             Self::HeapReference => value.as_heap_reference().bits() as u64,
             Self::SharedHeapReference => value.as_shared_heap_reference().bits() as u64,
-            Self::RawPointer => value.as_raw_pointer().bits() as u64,
-            Self::SharedRawPointer => value.as_shared_raw_pointer().bits() as u64,
+            Self::Address => value.as_address() as u64,
             Self::StackPointer => value.as_stack_pointer().bits() as u64,
             Self::FramePointer => value.as_frame_pointer().bits() as u64,
             Self::StaticPointer => value.as_static_pointer().bits() as u64,
@@ -288,11 +279,15 @@ pub(crate) fn value_layout_from_type(
             nullability,
             ..
         } => match pointee.ty() {
-            Some(pointee) => ValueLayout::Pointer {
-                pointee,
-                pointer_class: pointer_class_from_reference(space.clone(), *kind),
-                reference: ReferenceMeta::new(*kind, space.clone(), *access, *nullability),
-            },
+            Some(pointee) => {
+                let pointer_class = pointer_class_from_reference(space.clone(), *kind);
+
+                ValueLayout::Pointer {
+                    pointee,
+                    pointer_class,
+                    reference: ReferenceMeta::new(*kind, space.clone(), *access, *nullability),
+                }
+            }
             None => ValueLayout::Unknown,
         },
         mir::Type::FunctionSignature { result, .. } => match result.ty() {
@@ -374,7 +369,9 @@ pub(crate) fn word_layout_from_type(
         mir::Type::Float(mir::FloatType::Float32) => Some(WordLayout::Float32),
         mir::Type::Float(mir::FloatType::Float64) => Some(WordLayout::Float64),
         mir::Type::Reference { kind, space, .. } => {
-            word_layout_from_pointer_class(pointer_class_from_reference(space.clone(), *kind))
+            let pointer_class = pointer_class_from_reference(space.clone(), *kind);
+
+            word_layout_from_pointer_class(pointer_class)
         }
         mir::Type::Uninit { value } => word_layout_from_type(tree, value.ty()?),
         mir::Type::Closure { .. } => Some(WordLayout::HeapReference),
@@ -419,16 +416,20 @@ pub(crate) fn pointer_class_from_reference(
     space: mir::Space,
     kind: mir::ReferenceKind,
 ) -> PointerClass {
+    if kind == mir::ReferenceKind::Raw {
+        return PointerClass::Address;
+    }
+
     match space {
         mir::Space::Local => match kind {
             mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::Heap,
             mir::ReferenceKind::Borrowed => PointerClass::HeapAddress,
-            mir::ReferenceKind::Raw => PointerClass::Raw,
+            mir::ReferenceKind::Raw => PointerClass::Address,
         },
         mir::Space::Shared => match kind {
             mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::SharedHeap,
             mir::ReferenceKind::Borrowed => PointerClass::SharedHeapAddress,
-            mir::ReferenceKind::Raw => PointerClass::SharedRaw,
+            mir::ReferenceKind::Raw => PointerClass::Address,
         },
         mir::Space::Frame => PointerClass::Frame,
         mir::Space::Static => PointerClass::Static,
@@ -442,8 +443,7 @@ pub(crate) fn word_layout_from_pointer_class(pointer_class: PointerClass) -> Opt
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
             WordLayout::SharedHeapReference
         }
-        PointerClass::Raw => WordLayout::RawPointer,
-        PointerClass::SharedRaw => WordLayout::SharedRawPointer,
+        PointerClass::Address => WordLayout::Address,
         PointerClass::Stack => WordLayout::StackPointer,
         PointerClass::Frame => WordLayout::FramePointer,
         PointerClass::Static => WordLayout::StaticPointer,

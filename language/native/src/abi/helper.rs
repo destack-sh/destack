@@ -13,26 +13,6 @@ pub type NativeAllocSlice =
 pub type NativeAllocShared =
     unsafe extern "C" fn(context: *mut NativeContext, layout: u32) -> usize;
 
-/// Allocate one local raw byte range.
-pub type NativeRawAlloc = unsafe extern "C" fn(
-    context: *mut NativeContext,
-    byte_length: usize,
-    alignment: usize,
-) -> usize;
-
-/// Free one local raw pointer.
-pub type NativeRawFree = unsafe extern "C" fn(context: *mut NativeContext, pointer: usize);
-
-/// Allocate one shared raw byte range.
-pub type NativeSharedRawAlloc = unsafe extern "C" fn(
-    context: *mut NativeContext,
-    byte_length: usize,
-    alignment: usize,
-) -> usize;
-
-/// Free one shared raw pointer.
-pub type NativeSharedRawFree = unsafe extern "C" fn(context: *mut NativeContext, pointer: usize);
-
 /// Record one local heap edge store.
 pub type NativeWriteBarrier =
     unsafe extern "C" fn(context: *mut NativeContext, destination: *mut u8, value: usize);
@@ -65,14 +45,6 @@ pub enum NativeHelper {
     AllocSlice,
     /// Shared managed allocation.
     AllocShared,
-    /// Local raw allocation.
-    RawAlloc,
-    /// Local raw free.
-    RawFree,
-    /// Shared raw allocation.
-    SharedRawAlloc,
-    /// Shared raw free.
-    SharedRawFree,
     /// Local heap edge write barrier.
     WriteBarrier,
     /// Runtime safepoint cooperation.
@@ -99,10 +71,6 @@ impl NativeHelper {
             Self::Alloc => "__destack_alloc",
             Self::AllocSlice => "__destack_alloc_slice",
             Self::AllocShared => "__destack_alloc_shared",
-            Self::RawAlloc => "__destack_raw_alloc",
-            Self::RawFree => "__destack_raw_free",
-            Self::SharedRawAlloc => "__destack_shared_raw_alloc",
-            Self::SharedRawFree => "__destack_shared_raw_free",
             Self::WriteBarrier => "__destack_write_barrier",
             Self::Safepoint => "__destack_safepoint",
             Self::Deopt => "__destack_deopt",

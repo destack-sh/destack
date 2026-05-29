@@ -176,7 +176,7 @@ fn load_shared_heap_tensor_element(
     ))
 }
 
-/// Load one tensor-view element through local raw memory.
+/// Load one tensor-view element through raw memory.
 #[inline(always)]
 fn load_raw_tensor_element(
     machine: &mut Machine<'_, '_>,
@@ -186,20 +186,6 @@ fn load_raw_tensor_element(
     let access = element;
 
     Ok(access::load_raw_scalar_by_layout(machine, pointer, access))
-}
-
-/// Load one tensor-view element through shared raw memory.
-#[inline(always)]
-fn load_shared_raw_tensor_element(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    element: Projection,
-) -> Result<Word, Error> {
-    let access = element;
-
-    Ok(access::load_shared_raw_scalar_by_layout(
-        machine, pointer, access,
-    ))
 }
 
 /// Load one tensor-view element through stack memory.
@@ -280,7 +266,7 @@ fn store_shared_heap_tensor_element(
     Ok(())
 }
 
-/// Store one tensor-view element through local raw memory.
+/// Store one tensor-view element through raw memory.
 #[inline(always)]
 fn store_raw_tensor_element(
     machine: &mut Machine<'_, '_>,
@@ -291,21 +277,6 @@ fn store_raw_tensor_element(
     let access = element;
 
     access::store_raw_scalar_by_layout(machine, pointer, access, value);
-
-    Ok(())
-}
-
-/// Store one tensor-view element through shared raw memory.
-#[inline(always)]
-fn store_shared_raw_tensor_element(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    element: Projection,
-    value: Word,
-) -> Result<(), Error> {
-    let access = element;
-
-    access::store_shared_raw_scalar_by_layout(machine, pointer, access, value);
 
     Ok(())
 }
@@ -366,8 +337,7 @@ fn load_tensor_element(
     match address {
         TensorAddress::Heap => load_heap_tensor_element(machine, pointer, element),
         TensorAddress::SharedHeap => load_shared_heap_tensor_element(machine, pointer, element),
-        TensorAddress::Raw => load_raw_tensor_element(machine, pointer, element),
-        TensorAddress::SharedRaw => load_shared_raw_tensor_element(machine, pointer, element),
+        TensorAddress::Address => load_raw_tensor_element(machine, pointer, element),
         TensorAddress::Stack => load_stack_tensor_element(machine, pointer, element),
         TensorAddress::Frame => load_frame_tensor_element(machine, pointer, element),
         TensorAddress::Static => load_static_tensor_element(machine, pointer, element),
@@ -388,10 +358,7 @@ fn store_tensor_element(
         TensorAddress::SharedHeap => {
             store_shared_heap_tensor_element(machine, pointer, element, value)
         }
-        TensorAddress::Raw => store_raw_tensor_element(machine, pointer, element, value),
-        TensorAddress::SharedRaw => {
-            store_shared_raw_tensor_element(machine, pointer, element, value)
-        }
+        TensorAddress::Address => store_raw_tensor_element(machine, pointer, element, value),
         TensorAddress::Stack => store_stack_tensor_element(machine, pointer, element, value),
         TensorAddress::Frame => store_frame_tensor_element(machine, pointer, element, value),
         TensorAddress::Static => store_static_tensor_element(machine, pointer, element, value),
@@ -1742,7 +1709,7 @@ pub(crate) fn offset_shared_heap_view_pointer(
     Ok(Word::shared_heap_reference(reference))
 }
 
-/// Offset a local raw tensor view pointer by one element index.
+/// Offset a raw tensor view pointer by one element index.
 pub(crate) fn offset_raw_view_pointer(
     value: Word,
     element: Projection,
@@ -1750,24 +1717,9 @@ pub(crate) fn offset_raw_view_pointer(
     length: usize,
 ) -> Result<Word, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
-    let pointer = value.as_raw_pointer();
-    let pointer = pointer.add_bytes(byte_offset);
+    let address = value.as_address() + byte_offset;
 
-    Ok(Word::raw_pointer(pointer))
-}
-
-/// Offset a shared raw tensor view pointer by one element index.
-pub(crate) fn offset_shared_raw_view_pointer(
-    value: Word,
-    element: Projection,
-    offset: usize,
-    length: usize,
-) -> Result<Word, Error> {
-    let byte_offset = element_byte_offset(element, offset, length)?;
-    let pointer = value.as_shared_raw_pointer();
-    let pointer = pointer.add_bytes(byte_offset);
-
-    Ok(Word::shared_raw_pointer(pointer))
+    Ok(Word::address(address))
 }
 
 /// Offset a stack tensor view pointer by one element index.
@@ -1826,8 +1778,7 @@ fn offset_tensor_view_pointer(
         TensorAddress::SharedHeap => {
             offset_shared_heap_view_pointer(value, element, offset, length)
         }
-        TensorAddress::Raw => offset_raw_view_pointer(value, element, offset, length),
-        TensorAddress::SharedRaw => offset_shared_raw_view_pointer(value, element, offset, length),
+        TensorAddress::Address => offset_raw_view_pointer(value, element, offset, length),
         TensorAddress::Stack => offset_stack_view_pointer(value, element, offset, length),
         TensorAddress::Frame => offset_frame_view_pointer(value, element, offset, length),
         TensorAddress::Static => offset_static_view_pointer(value, element, offset, length),
@@ -2100,7 +2051,7 @@ pub(crate) fn execute_tensor_fill(
             offset_shared_heap_view_pointer,
             store_shared_heap_tensor_element,
         )?,
-        TensorAddress::Raw => fill_tensor_view(
+        TensorAddress::Address => fill_tensor_view(
             machine,
             base_pointer,
             layout,
@@ -2109,16 +2060,6 @@ pub(crate) fn execute_tensor_fill(
             fill_value,
             offset_raw_view_pointer,
             store_raw_tensor_element,
-        )?,
-        TensorAddress::SharedRaw => fill_tensor_view(
-            machine,
-            base_pointer,
-            layout,
-            &strides,
-            element,
-            fill_value,
-            offset_shared_raw_view_pointer,
-            store_shared_raw_tensor_element,
         )?,
         TensorAddress::Stack => fill_tensor_view(
             machine,

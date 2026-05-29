@@ -1,9 +1,6 @@
 use crate::interpreter::Machine;
 use crate::program::Projection;
-use crate::{
-    FramePointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer,
-    StaticPointer, Word,
-};
+use crate::{FramePointer, HeapReference, SharedHeapReference, StackPointer, StaticPointer, Word};
 
 /// Return one element byte offset.
 #[inline(always)]
@@ -39,24 +36,12 @@ pub(crate) fn offset_shared_heap(
 #[inline(always)]
 pub(crate) fn offset_raw(
     _machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
+    address: usize,
     byte_offset: usize,
 ) -> Word {
-    let pointer = pointer.add_bytes(byte_offset);
+    let address = address + byte_offset;
 
-    Word::raw_pointer(pointer)
-}
-
-/// Compute a fixed-offset address from a shared raw pointer.
-#[inline(always)]
-pub(crate) fn offset_shared_raw(
-    _machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    byte_offset: usize,
-) -> Word {
-    let pointer = pointer.add_bytes(byte_offset);
-
-    Word::shared_raw_pointer(pointer)
+    Word::address(address)
 }
 
 /// Compute a fixed-offset address from a stack pointer.
@@ -115,28 +100,14 @@ pub(crate) fn element_shared_heap(
 #[inline(always)]
 pub(crate) fn element_raw(
     _machine: &mut Machine<'_, '_>,
-    pointer: RawPointer,
+    address: usize,
     element: Projection,
     index: u64,
 ) -> Word {
     let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
+    let address = address + element_offset;
 
-    Word::raw_pointer(pointer)
-}
-
-/// Compute an element address from a shared raw pointer.
-#[inline(always)]
-pub(crate) fn element_shared_raw(
-    _machine: &mut Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    element: Projection,
-    index: u64,
-) -> Word {
-    let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
-
-    Word::shared_raw_pointer(pointer)
+    Word::address(address)
 }
 
 /// Compute an element address from a stack pointer.

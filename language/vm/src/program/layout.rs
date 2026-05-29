@@ -252,8 +252,7 @@ fn callable_trace_map(environment_offset: usize, environment_layout: WordLayout)
         | WordLayout::Uint { .. }
         | WordLayout::Float32
         | WordLayout::Float64
-        | WordLayout::RawPointer
-        | WordLayout::SharedRawPointer
+        | WordLayout::Address
         | WordLayout::StackPointer
         | WordLayout::FramePointer
         | WordLayout::StaticPointer

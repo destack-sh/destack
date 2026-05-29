@@ -2,8 +2,8 @@ use std::sync::{Arc, OnceLock};
 
 use destack_engine::{StaticSpace, Value};
 use destack_heap::{
-    Allocator, GcStats, Heap, HeapLimits, HeapOptions, HeapReference, SharedAllocationCache,
-    SharedGcWorker, SharedHeapLimits, SharedHeapOptions,
+    AllocationCache, Allocator, GcStats, GcWorker, Heap, HeapLimits, HeapOptions, HeapReference,
+    SharedHeapLimits, SharedHeapOptions,
 };
 
 use crate::SharedHeap;
@@ -35,9 +35,9 @@ pub(crate) struct TestIsolate {
     /// The runtime-shared heap for the isolate.
     pub shared_heap: SharedHeap,
     /// The shared collector worker used by this isolate.
-    pub shared_gc: SharedGcWorker,
+    pub shared_gc: GcWorker,
     /// The worker-local shared allocation cache.
-    pub shared_cache: SharedAllocationCache,
+    pub shared_cache: AllocationCache,
 }
 
 /// Create one local test heap.
@@ -67,8 +67,7 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 /// Create heap options for ordinary local VM tests.
 fn test_local_heap_options() -> HeapOptions {
     HeapOptions {
-        heap_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
-        raw_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
+        address_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
         ..HeapOptions::local()
     }
 }
@@ -76,8 +75,7 @@ fn test_local_heap_options() -> HeapOptions {
 /// Create heap options for ordinary shared VM tests.
 pub(crate) fn test_shared_heap_options() -> SharedHeapOptions {
     SharedHeapOptions {
-        heap_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
-        raw_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
+        address_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
         ..SharedHeapOptions::default()
     }
 }
@@ -625,7 +623,7 @@ b0:
 }
 
 /// The interface dispatch forwards the concrete object receiver to the selected method.
-#[ignore = "raw MIR fixtures cannot declare interface table metadata"]
+#[ignore = "text MIR fixtures cannot declare interface table metadata"]
 #[test]
 fn test_interface_call_forwards_concrete_receiver() {
     let mir_text = r#"

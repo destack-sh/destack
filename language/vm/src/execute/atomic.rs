@@ -149,8 +149,7 @@ fn atomic_address(
         AtomicAddress::SharedHeap => {
             machine.shared_heap_address(pointer.as_shared_heap_reference(), 0)
         }
-        AtomicAddress::Raw => machine.raw_address(pointer.as_raw_pointer(), 0),
-        AtomicAddress::SharedRaw => machine.shared_raw_address(pointer.as_shared_raw_pointer(), 0),
+        AtomicAddress::Address => pointer.as_address(),
         AtomicAddress::Stack => pointer.as_stack_pointer().address(),
         AtomicAddress::Frame => pointer.as_frame_pointer().address(),
         AtomicAddress::Static => pointer.as_static_pointer().address(),

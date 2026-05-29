@@ -65,9 +65,6 @@ macro_rules! dispatch_instruction {
             Op::LoadRawBytes => {
                 $step!(super::execute_load_raw_bytes($machine, instruction))
             }
-            Op::LoadSharedRawBytes => {
-                $step!(super::execute_load_shared_raw_bytes($machine, instruction))
-            }
             Op::LoadStackBytes => {
                 $step!(super::execute_load_stack_bytes($machine, instruction))
             }
@@ -88,9 +85,6 @@ macro_rules! dispatch_instruction {
             }
             Op::StoreRawBytes => {
                 $step!(super::execute_store_raw_bytes($machine, instruction))
-            }
-            Op::StoreSharedRawBytes => {
-                $step!(super::execute_store_shared_raw_bytes($machine, instruction))
             }
             Op::StoreStackBytes => {
                 $step!(super::execute_store_stack_bytes($machine, instruction))
@@ -213,27 +207,6 @@ macro_rules! dispatch_instruction {
                 $machine,
                 instruction
             )),
-            Op::LoadSharedRawU8 => {
-                $step!({ super::execute_load_shared_raw_scalar::<1, false>($machine, instruction) })
-            }
-            Op::LoadSharedRawI8 => {
-                $step!({ super::execute_load_shared_raw_scalar::<1, true>($machine, instruction,) })
-            }
-            Op::LoadSharedRawU16 => {
-                $step!({ super::execute_load_shared_raw_scalar::<2, false>($machine, instruction) })
-            }
-            Op::LoadSharedRawI16 => {
-                $step!({ super::execute_load_shared_raw_scalar::<2, true>($machine, instruction,) })
-            }
-            Op::LoadSharedRawU32 => {
-                $step!({ super::execute_load_shared_raw_scalar::<4, false>($machine, instruction) })
-            }
-            Op::LoadSharedRawI32 => {
-                $step!({ super::execute_load_shared_raw_scalar::<4, true>($machine, instruction,) })
-            }
-            Op::LoadSharedRaw64 => {
-                $step!({ super::execute_load_shared_raw_scalar::<8, false>($machine, instruction) })
-            }
             Op::LoadStackU8 => $step!(super::execute_load_stack_scalar::<1, false>(
                 $machine,
                 instruction
@@ -385,22 +358,6 @@ macro_rules! dispatch_instruction {
             Op::StoreRaw64 => {
                 $step!(super::execute_store_raw_scalar::<8>($machine, instruction))
             }
-            Op::StoreSharedRaw8 => $step!(super::execute_store_shared_raw_scalar::<1>(
-                $machine,
-                instruction
-            )),
-            Op::StoreSharedRaw16 => $step!(super::execute_store_shared_raw_scalar::<2>(
-                $machine,
-                instruction
-            )),
-            Op::StoreSharedRaw32 => $step!(super::execute_store_shared_raw_scalar::<4>(
-                $machine,
-                instruction
-            )),
-            Op::StoreSharedRaw64 => $step!(super::execute_store_shared_raw_scalar::<8>(
-                $machine,
-                instruction
-            )),
             Op::StoreStack8 => $step!(super::execute_store_stack_scalar::<1>(
                 $machine,
                 instruction
@@ -502,12 +459,6 @@ macro_rules! dispatch_instruction {
             Op::AddressRawOffset => {
                 $step!(super::execute_address_raw_offset($machine, instruction))
             }
-            Op::AddressSharedRawOffset => {
-                $step!(super::execute_address_shared_raw_offset(
-                    $machine,
-                    instruction
-                ))
-            }
             Op::AddressStackOffset => {
                 $step!(super::execute_address_stack_offset($machine, instruction))
             }
@@ -528,12 +479,6 @@ macro_rules! dispatch_instruction {
             }
             Op::AddressRawElement => {
                 $step!(super::execute_address_raw_element($machine, instruction))
-            }
-            Op::AddressSharedRawElement => {
-                $step!(super::execute_address_shared_raw_element(
-                    $machine,
-                    instruction
-                ))
             }
             Op::AddressStackElement => {
                 $step!(super::execute_address_stack_element($machine, instruction))
@@ -558,12 +503,6 @@ macro_rules! dispatch_instruction {
             }
             Op::AddressRawSliceElement => {
                 $step!(super::execute_address_raw_slice_element(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::AddressSharedRawSliceElement => {
-                $step!(super::execute_address_shared_raw_slice_element(
                     $machine,
                     instruction
                 ))
@@ -670,26 +609,6 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
-            Op::AllocateRawZeroed => {
-                $step!(super::execute_allocate_raw_zeroed($machine, instruction))
-            }
-            Op::AllocateRawUninit => {
-                $step!(super::execute_allocate_raw_uninit($machine, instruction))
-            }
-            Op::AllocateSharedRawZeroed => {
-                $step!(super::execute_allocate_shared_raw_zeroed(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::AllocateSharedRawUninit => {
-                $step!(super::execute_allocate_shared_raw_uninit(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::FreeRaw => $step!(super::execute_free_raw($machine, instruction)),
-            Op::FreeSharedRaw => $step!(super::execute_free_shared_raw($machine, instruction)),
             Op::FreeHeap => $step!(super::execute_free_heap($machine, instruction)),
             Op::FreeSharedHeap => $step!(super::execute_free_shared_heap($machine, instruction)),
             Op::AllocateStackZeroed => {

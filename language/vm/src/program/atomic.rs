@@ -18,10 +18,8 @@ pub(crate) enum AtomicAddress {
     Heap = 0,
     /// Shared heap reference.
     SharedHeap = 1,
-    /// Local raw-space pointer.
-    Raw = 2,
-    /// Shared raw-space pointer.
-    SharedRaw = 3,
+    /// Native address.
+    Address = 2,
     /// Stack pointer.
     Stack = 4,
     /// Frame pointer.
@@ -43,8 +41,6 @@ impl AtomicAddress {
         Ok(match raw {
             0 => Self::Heap,
             1 => Self::SharedHeap,
-            2 => Self::Raw,
-            3 => Self::SharedRaw,
             4 => Self::Stack,
             5 => Self::Frame,
             6 => Self::Static,

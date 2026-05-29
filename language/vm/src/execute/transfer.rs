@@ -6,7 +6,7 @@ use crate::options::IsolateOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
 use crate::{SharedHeap, Word};
 use destack_engine as engine;
-use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
+use destack_heap::{AllocationCache, GcWorker, Heap};
 use destack_mir as mir;
 
 use super::frame::move_values_within_frame;
@@ -65,8 +65,8 @@ impl Interpreter {
         options: &IsolateOptions,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         isolate_id: engine::EngineId,
         value: Word,
         source_type: mir::LocalNodeId<mir::Type>,
@@ -105,8 +105,8 @@ impl Interpreter {
         options: &IsolateOptions,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         current_func: &Function,
         transfer: Transfer,
     ) -> RuntimeResult<Option<Outcome>> {

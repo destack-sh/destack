@@ -15,9 +15,9 @@ pub struct MemoryContext<'a> {
     /// Runtime heap.
     pub shared_heap: &'a heap::SharedHeap,
     /// Worker-local shared allocation cache.
-    pub shared_cache: &'a mut heap::SharedAllocationCache,
+    pub shared_cache: &'a mut heap::AllocationCache,
     /// Runtime heap collector worker.
-    pub shared_gc_worker: &'a heap::SharedGcWorker,
+    pub shared_gc_worker: &'a heap::GcWorker,
     /// Worker static memory.
     pub worker_static: &'a mut StaticSpace,
     /// Runtime static memory.

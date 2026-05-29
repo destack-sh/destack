@@ -1,13 +1,9 @@
-use crate::diagnostic::{Error, ReferenceKind, Trap};
 use crate::tests::{
-    assert_runtime_error_matches, create_isolate, create_isolate_with_data_layout, run_mir,
-    run_mir_expect, run_mir_ok, run_mir_with_frame_ok, test_shared_heap_options,
+    create_isolate, create_isolate_with_data_layout, run_mir_expect, run_mir_ok,
+    run_mir_with_frame_ok,
 };
 use crate::{SharedHeap, Value, Word};
-use destack_heap::{
-    AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawAllocationShape, RawPointer,
-    SharedHeapReference, SharedRawBudget, SharedRawLimits,
-};
+use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir::{DataLayout, TraceMap};
 
 /// Decode one native-width heap reference from materialized bytes.
@@ -169,22 +165,6 @@ b0:
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
 }
 
-/// Uninitialized raw allocation can be initialized by direct stores.
-#[test]
-fn test_raw_alloc_uninit_load_store() {
-    let mir = r#"
-function rawUninit(): int32 {
-b0:
-    v0: ref<int32, raw, readonly> = raw.alloc.uninit int32
-    v1: int32 = 42int32
-    store v0, v1
-    v2: int32 = load v0
-    raw.free v0
-    return v2
-}"#;
-    run_mir_expect(mir, "rawUninit", &[], Value::int32(42));
-}
-
 /// Uninitialized frame allocation can be initialized by direct stores.
 #[test]
 fn test_frame_alloc_uninit_load_store() {
@@ -210,100 +190,6 @@ fn test_shared_heap_reference_value_roundtrip() {
         reference
     );
 }
-
-/// Preserve shared raw bytes across image roundtrips and later writes.
-#[test]
-fn test_roundtrip_shared_memory_image() {
-    let options = test_shared_heap_options();
-    let allocator = std::sync::Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("valid explicit allocator options should build"),
-    );
-    let shared = SharedHeap::with_allocator_limits_and_options(
-        allocator.clone(),
-        destack_heap::SharedHeapLimits::default(),
-        options.clone(),
-    )
-    .expect("shared heap should build");
-    let first = shared
-        .allocate_raw(
-            RawAllocationShape::bytes(6),
-            Payload::Bytes(&[1, 2, 3, 4, 5, 6]),
-        )
-        .expect("shared allocation should succeed");
-    let second = shared
-        .allocate_raw(
-            RawAllocationShape::bytes(6),
-            Payload::Bytes(&[7, 8, 9, 10, 11, 12]),
-        )
-        .expect("shared allocation should succeed");
-    let image = shared.image().expect("shared image should succeed");
-    let restored =
-        SharedHeap::from_image_with_limits(&image, destack_heap::SharedHeapLimits::default())
-            .expect("shared image restore should succeed");
-    assert_eq!(restored.read_raw_bytes(first), Ok(vec![1, 2, 3, 4, 5, 6]));
-    assert_eq!(
-        restored.read_raw_bytes(second),
-        Ok(vec![7, 8, 9, 10, 11, 12])
-    );
-    let replaced_first = restored
-        .replace_raw_bytes(first, &[9, 2, 3, 4, 5, 6])
-        .expect("shared replace should succeed");
-    assert_eq!(
-        restored.read_raw_bytes(replaced_first),
-        Ok(vec![9, 2, 3, 4, 5, 6])
-    );
-    assert_eq!(
-        restored.read_raw_bytes(second),
-        Ok(vec![7, 8, 9, 10, 11, 12])
-    );
-
-    let restored_again =
-        SharedHeap::from_image_with_limits(&image, destack_heap::SharedHeapLimits::default())
-            .expect("shared image restore should succeed");
-    assert_eq!(
-        restored_again.read_raw_bytes(first),
-        Ok(vec![1, 2, 3, 4, 5, 6])
-    );
-}
-
-/// Shared raw-space budgeting counts committed page bytes.
-#[test]
-fn test_shared_raw_budget_tracks_committed_usage() {
-    let options = test_shared_heap_options();
-    let allocator = std::sync::Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("valid explicit allocator options should build"),
-    );
-    let shared = SharedHeap::with_allocator_limits_and_options(
-        allocator,
-        destack_heap::SharedHeapLimits::default(),
-        options,
-    )
-    .expect("shared heap should build");
-    let limits = SharedRawLimits { max_bytes: Some(8) };
-    shared
-        .allocate_raw(RawAllocationShape::bytes(4), Payload::Bytes(&[1, 2, 3, 4]))
-        .expect("nested shared allocation should succeed");
-    let retained_delta = shared.raw_alloc_retained_byte_delta(RawAllocationShape::bytes(5));
-    let retained_bytes =
-        u64::try_from(retained_delta).expect("allocation should retain more bytes");
-    let used_bytes = shared.raw_retained_bytes() + retained_bytes;
-    let budget = SharedRawBudget::new(limits, shared.raw_retained_bytes());
-    let error = budget
-        .check_retained_byte_delta(retained_delta)
-        .expect_err("outer shared allocation should honor nested usage");
-
-    assert_eq!(
-        error,
-        HeapError::LimitExceeded {
-            region: AccountingRegion::SharedRaw,
-            used_bytes,
-            max_bytes: 8,
-        }
-    );
-}
-
 /// Array allocation creates one slice value over one heap allocation.
 #[test]
 fn test_new_slice_allocates_slice_value() {
@@ -833,80 +719,6 @@ b0:
     assert_eq!(output, Value::int32(41));
 }
 
-/// Raw allocation creates one raw allocation and returns a raw pointer.
-#[test]
-fn test_raw_allocate() {
-    let mir = r#"
-function rawAlloc(): ref<int32, raw, readonly> {
-b0:
-    v0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
-    return v0
-}"#;
-    let output = run_mir_ok(mir, "rawAlloc", &[]);
-    let Value::RawPointer(pointer) = output else {
-        panic!("expected raw pointer value");
-    };
-
-    assert!(!pointer.is_null());
-}
-
-/// Shared raw allocation creates one shared raw allocation.
-#[test]
-fn test_raw_allocate_shared() {
-    let mir = r#"
-function rawAllocShared(): int32 {
-b0:
-    v0: ref<int32, raw, readonly, space(shared)> = raw.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    v2: int32 = load v0
-    raw.free v0
-    return v2
-}"#;
-    let output = run_mir_ok(mir, "rawAllocShared", &[]);
-
-    assert_eq!(output, Value::int32(42));
-}
-
-/// Raw free deallocates a raw pointer.
-#[test]
-fn test_raw_free() {
-    let mir = r#"
-function rawAllocFree(): int32 {
-b0:
-    v0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
-    v1: int32 = 42int32
-    store v0, v1
-    v2: int32 = load v0
-    raw.free v0
-    return v2
-}"#;
-    let output = run_mir_ok(mir, "rawAllocFree", &[]);
-    assert_eq!(output, Value::int32(42));
-}
-
-/// Raw free on invalid pointer produces an error.
-#[test]
-fn test_raw_free_invalid() {
-    let mir = r#"
-function doubleFree(): void {
-b0:
-    v0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
-    raw.free v0
-    raw.free v0
-    return
-}"#;
-    let result = run_mir(mir, "doubleFree", &[]);
-    assert_runtime_error_matches!(
-        result,
-        Error::Trap {
-            reason: Trap::InvalidReference {
-                kind: ReferenceKind::Raw,
-            },
-        },
-    );
-}
-
 /// Frame allocation creates frame-local memory.
 #[test]
 fn test_frame_allocate() {
@@ -993,17 +805,7 @@ b2:
     v2: int32 = 0int32
     return v2
 }"#;
-    run_mir_expect(
-        mir,
-        "nullCheck",
-        &[Value::raw_pointer(RawPointer::NULL)],
-        Value::int32(0),
-    );
+    run_mir_expect(mir, "nullCheck", &[Value::address(0)], Value::int32(0));
 
-    run_mir_expect(
-        mir,
-        "nullCheck",
-        &[Value::raw_pointer(RawPointer::from_bits(8))],
-        Value::int32(1),
-    );
+    run_mir_expect(mir, "nullCheck", &[Value::address(8)], Value::int32(1));
 }

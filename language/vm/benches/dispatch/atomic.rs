@@ -26,8 +26,8 @@ pub(crate) fn bench_atomic(criterion: &mut Criterion) {
     benchmark::program(
         &mut group,
         Program {
-            name: "atomic_raw_add_loop",
-            entry: "atomicRawAddLoop",
+            name: "atomic_frame_add_loop",
+            entry: "atomicFrameAddLoop",
         },
     );
 
@@ -44,14 +44,6 @@ pub(crate) fn bench_atomic(criterion: &mut Criterion) {
         Program {
             name: "atomic_shared_owned_heap_add_loop",
             entry: "atomicSharedOwnedHeapAddLoop",
-        },
-    );
-
-    benchmark::program(
-        &mut group,
-        Program {
-            name: "atomic_shared_raw_add_loop",
-            entry: "atomicSharedRawAddLoop",
         },
     );
 

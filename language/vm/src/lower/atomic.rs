@@ -324,8 +324,7 @@ fn atomic_address(pointer_class: PointerClass) -> Result<AtomicAddress> {
     match pointer_class {
         PointerClass::Heap | PointerClass::HeapAddress => Ok(AtomicAddress::Heap),
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(AtomicAddress::SharedHeap),
-        PointerClass::Raw => Ok(AtomicAddress::Raw),
-        PointerClass::SharedRaw => Ok(AtomicAddress::SharedRaw),
+        PointerClass::Address => Ok(AtomicAddress::Address),
         PointerClass::Stack => Ok(AtomicAddress::Stack),
         PointerClass::Frame => Ok(AtomicAddress::Frame),
         PointerClass::Static => Ok(AtomicAddress::Static),

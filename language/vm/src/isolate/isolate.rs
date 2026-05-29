@@ -13,8 +13,7 @@ use crate::options::IsolateOptions;
 use crate::program::Program;
 use crate::{Result as VmResult, SharedHeap, Word};
 use destack_heap::{
-    AllocationShape, Heap, HeapReference, HeapResult, RootSlot, SharedAllocationCache,
-    SharedGcWorker,
+    AllocationCache, AllocationShape, GcWorker, Heap, HeapReference, HeapResult, RootSlot,
 };
 
 /// VM isolate with static data and execution state.
@@ -152,8 +151,8 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
@@ -176,8 +175,8 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
@@ -209,8 +208,8 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
@@ -233,8 +232,8 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -266,8 +265,8 @@ impl Isolate {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         continuation: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome> {

@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 use destack_engine::{Value, ValueType};
-use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
+use destack_heap::{HeapReference, SharedHeapReference};
 
 /// Native ABI value tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,10 +26,8 @@ pub enum NativeValueTag {
     HeapReference = 7,
     /// The shared heap reference value tag.
     SharedHeapReference = 8,
-    /// The local raw pointer value tag.
-    RawPointer = 9,
-    /// The shared raw pointer value tag.
-    SharedRawPointer = 10,
+    /// The native address value tag.
+    Address = 9,
 }
 
 /// Native ABI value passed through entrypoint calls.
@@ -88,16 +86,10 @@ impl NativeValue {
                 reference.bits() as u64,
                 0,
             ),
-            Value::RawPointer(pointer) => Self::new(
-                NativeValueTag::RawPointer,
+            Value::Address(address) => Self::new(
+                NativeValueTag::Address,
                 usize::BITS as u16,
-                pointer.bits() as u64,
-                0,
-            ),
-            Value::SharedRawPointer(pointer) => Self::new(
-                NativeValueTag::SharedRawPointer,
-                usize::BITS as u16,
-                pointer.bits() as u64,
+                *address as u64,
                 0,
             ),
         }
@@ -152,19 +144,13 @@ impl NativeValue {
                     SharedHeapReference::from_bits(bits),
                 ))
             }
-            NativeValueTag::RawPointer => {
-                let bits = usize::try_from(self.low).map_err(|_| NativeValueError::OutOfRange {
-                    value_type: ValueType::RawPointer,
-                })?;
+            NativeValueTag::Address => {
+                let address =
+                    usize::try_from(self.low).map_err(|_| NativeValueError::OutOfRange {
+                        value_type: ValueType::Address,
+                    })?;
 
-                Ok(Value::raw_pointer(RawPointer::from_bits(bits)))
-            }
-            NativeValueTag::SharedRawPointer => {
-                let bits = usize::try_from(self.low).map_err(|_| NativeValueError::OutOfRange {
-                    value_type: ValueType::SharedRawPointer,
-                })?;
-
-                Ok(Value::shared_raw_pointer(SharedRawPointer::from_bits(bits)))
+                Ok(Value::address(address))
             }
         }
     }
@@ -276,8 +262,7 @@ impl TryFrom<u32> for NativeValueTag {
             6 => Ok(Self::Char),
             7 => Ok(Self::HeapReference),
             8 => Ok(Self::SharedHeapReference),
-            9 => Ok(Self::RawPointer),
-            10 => Ok(Self::SharedRawPointer),
+            9 => Ok(Self::Address),
             tag => Err(NativeValueError::InvalidTag { tag }),
         }
     }

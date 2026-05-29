@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_engine::{StaticPointer, Value};
 
-use crate::{
-    FramePointer, FunctionPointer, HeapReference, RawPointer, SharedHeapReference,
-    SharedRawPointer, StackPointer,
-};
+use crate::{FramePointer, FunctionPointer, HeapReference, SharedHeapReference, StackPointer};
 
 /// Truncate one unsigned integer to a bit width.
 const fn truncate_unsigned_bits(value: u64, width: u8) -> u64 {
@@ -138,16 +135,10 @@ impl Word {
         SharedHeapReference::from_bits(self.0 as usize)
     }
 
-    /// View this value as a raw pointer.
+    /// View this value as a native address.
     #[inline(always)]
-    pub const fn as_raw_pointer(self) -> RawPointer {
-        RawPointer::from_bits(self.0 as usize)
-    }
-
-    /// View this value as a shared raw pointer.
-    #[inline(always)]
-    pub const fn as_shared_raw_pointer(self) -> SharedRawPointer {
-        SharedRawPointer::from_bits(self.0 as usize)
+    pub const fn as_address(self) -> usize {
+        self.0 as usize
     }
 
     /// View this value as a stack pointer.
@@ -270,16 +261,10 @@ impl Word {
         Self(reference.bits() as u64)
     }
 
-    /// Create a raw pointer value.
+    /// Create a native address value.
     #[inline(always)]
-    pub const fn raw_pointer(ptr: RawPointer) -> Self {
-        Self(ptr.bits() as u64)
-    }
-
-    /// Create a shared raw pointer value.
-    #[inline(always)]
-    pub const fn shared_raw_pointer(ptr: SharedRawPointer) -> Self {
-        Self(ptr.bits() as u64)
+    pub const fn address(address: usize) -> Self {
+        Self(address as u64)
     }
 
     /// Create a stack pointer value.
@@ -324,7 +309,7 @@ impl Word {
 impl From<&mir::Constant> for Word {
     fn from(constant: &mir::Constant) -> Self {
         match constant {
-            mir::Constant::Null => Word::raw_pointer(RawPointer::NULL),
+            mir::Constant::Null => Word::VOID,
             mir::Constant::Boolean { value } => Word::bool(*value),
             mir::Constant::Int {
                 value,
@@ -356,8 +341,7 @@ impl From<&Value> for Word {
             Value::Char(value) => Word::char(*value),
             Value::HeapReference(reference) => Word::heap_reference(*reference),
             Value::SharedHeapReference(reference) => Word::shared_heap_reference(*reference),
-            Value::RawPointer(pointer) => Word::raw_pointer(*pointer),
-            Value::SharedRawPointer(pointer) => Word::shared_raw_pointer(*pointer),
+            Value::Address(address) => Word::address(*address),
         }
     }
 }

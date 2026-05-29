@@ -18,8 +18,6 @@ pub(crate) enum Op {
     LoadSharedHeapBytes,
     /// Load bytes from local raw memory into a frame value.
     LoadRawBytes,
-    /// Load bytes from shared raw memory into a frame value.
-    LoadSharedRawBytes,
     /// Load bytes from stack memory into a frame value.
     LoadStackBytes,
     /// Load bytes from frame memory into a frame value.
@@ -32,8 +30,6 @@ pub(crate) enum Op {
     StoreSharedHeapBytes,
     /// Store bytes from a frame value into local raw memory.
     StoreRawBytes,
-    /// Store bytes from a frame value into shared raw memory.
-    StoreSharedRawBytes,
     /// Store bytes from a frame value into stack memory.
     StoreStackBytes,
     /// Store bytes from a frame value into frame memory.
@@ -106,20 +102,6 @@ pub(crate) enum Op {
     LoadRawI32,
     /// Load a 64-bit scalar from local raw memory.
     LoadRaw64,
-    /// Load an unsigned 8-bit scalar from shared raw memory.
-    LoadSharedRawU8,
-    /// Load a signed 8-bit scalar from shared raw memory.
-    LoadSharedRawI8,
-    /// Load an unsigned 16-bit scalar from shared raw memory.
-    LoadSharedRawU16,
-    /// Load a signed 16-bit scalar from shared raw memory.
-    LoadSharedRawI16,
-    /// Load an unsigned 32-bit scalar from shared raw memory.
-    LoadSharedRawU32,
-    /// Load a signed 32-bit scalar from shared raw memory.
-    LoadSharedRawI32,
-    /// Load a 64-bit scalar from shared raw memory.
-    LoadSharedRaw64,
     /// Load an unsigned 8-bit scalar from stack memory.
     LoadStackU8,
     /// Load a signed 8-bit scalar from stack memory.
@@ -204,14 +186,6 @@ pub(crate) enum Op {
     StoreRaw32,
     /// Store a 64-bit scalar to local raw memory.
     StoreRaw64,
-    /// Store an 8-bit scalar to shared raw memory.
-    StoreSharedRaw8,
-    /// Store a 16-bit scalar to shared raw memory.
-    StoreSharedRaw16,
-    /// Store a 32-bit scalar to shared raw memory.
-    StoreSharedRaw32,
-    /// Store a 64-bit scalar to shared raw memory.
-    StoreSharedRaw64,
     /// Store an 8-bit scalar to stack memory.
     StoreStack8,
     /// Store a 16-bit scalar to stack memory.
@@ -260,8 +234,6 @@ pub(crate) enum Op {
     AddressSharedHeapOffset,
     /// Compute a fixed-offset address in local raw memory.
     AddressRawOffset,
-    /// Compute a fixed-offset address in shared raw memory.
-    AddressSharedRawOffset,
     /// Compute a fixed-offset address in stack memory.
     AddressStackOffset,
     /// Compute a fixed-offset address in static memory.
@@ -276,8 +248,6 @@ pub(crate) enum Op {
     AddressSharedHeapElement,
     /// Compute an element address in local raw memory.
     AddressRawElement,
-    /// Compute an element address in shared raw memory.
-    AddressSharedRawElement,
     /// Compute an element address in stack memory.
     AddressStackElement,
     /// Compute an element address from a frame pointer.
@@ -290,8 +260,6 @@ pub(crate) enum Op {
     AddressSharedHeapSliceElement,
     /// Compute a slice element address in local raw memory.
     AddressRawSliceElement,
-    /// Compute a slice element address in shared raw memory.
-    AddressSharedRawSliceElement,
     /// Compute a slice element address in stack memory.
     AddressStackSliceElement,
     /// Compute a slice element address in frame memory.
@@ -334,18 +302,6 @@ pub(crate) enum Op {
     AllocateSharedSliceZeroed,
     /// Allocate an uninitialized shared slice backing and descriptor.
     AllocateSharedSliceUninit,
-    /// Allocate zeroed local raw memory.
-    AllocateRawZeroed,
-    /// Allocate uninitialized local raw memory.
-    AllocateRawUninit,
-    /// Allocate zeroed shared raw memory.
-    AllocateSharedRawZeroed,
-    /// Allocate uninitialized shared raw memory.
-    AllocateSharedRawUninit,
-    /// Free local raw memory.
-    FreeRaw,
-    /// Free shared raw memory.
-    FreeSharedRaw,
     /// Free local unique heap storage.
     FreeHeap,
     /// Free shared unique heap storage.

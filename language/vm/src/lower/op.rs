@@ -54,8 +54,7 @@ fn scalar_load(layout: WordLayout) -> Result<ScalarLoad, Error> {
         WordLayout::Float64
         | WordLayout::HeapReference
         | WordLayout::SharedHeapReference
-        | WordLayout::RawPointer
-        | WordLayout::SharedRawPointer
+        | WordLayout::Address
         | WordLayout::StackPointer
         | WordLayout::FramePointer
         | WordLayout::StaticPointer
@@ -85,8 +84,7 @@ fn scalar_store(layout: WordLayout) -> Result<ScalarStore, Error> {
         WordLayout::Float64
         | WordLayout::HeapReference
         | WordLayout::SharedHeapReference
-        | WordLayout::RawPointer
-        | WordLayout::SharedRawPointer
+        | WordLayout::Address
         | WordLayout::StackPointer
         | WordLayout::FramePointer
         | WordLayout::StaticPointer
@@ -426,20 +424,13 @@ fn select_scalar_load_op(pointer_class: PointerClass, load: ScalarLoad) -> Resul
         (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::Width64) => {
             Op::LoadSharedHeap64
         }
-        (PointerClass::Raw, ScalarLoad::U8) => Op::LoadRawU8,
-        (PointerClass::Raw, ScalarLoad::I8) => Op::LoadRawI8,
-        (PointerClass::Raw, ScalarLoad::U16) => Op::LoadRawU16,
-        (PointerClass::Raw, ScalarLoad::I16) => Op::LoadRawI16,
-        (PointerClass::Raw, ScalarLoad::U32) => Op::LoadRawU32,
-        (PointerClass::Raw, ScalarLoad::I32) => Op::LoadRawI32,
-        (PointerClass::Raw, ScalarLoad::Width64) => Op::LoadRaw64,
-        (PointerClass::SharedRaw, ScalarLoad::U8) => Op::LoadSharedRawU8,
-        (PointerClass::SharedRaw, ScalarLoad::I8) => Op::LoadSharedRawI8,
-        (PointerClass::SharedRaw, ScalarLoad::U16) => Op::LoadSharedRawU16,
-        (PointerClass::SharedRaw, ScalarLoad::I16) => Op::LoadSharedRawI16,
-        (PointerClass::SharedRaw, ScalarLoad::U32) => Op::LoadSharedRawU32,
-        (PointerClass::SharedRaw, ScalarLoad::I32) => Op::LoadSharedRawI32,
-        (PointerClass::SharedRaw, ScalarLoad::Width64) => Op::LoadSharedRaw64,
+        (PointerClass::Address, ScalarLoad::U8) => Op::LoadRawU8,
+        (PointerClass::Address, ScalarLoad::I8) => Op::LoadRawI8,
+        (PointerClass::Address, ScalarLoad::U16) => Op::LoadRawU16,
+        (PointerClass::Address, ScalarLoad::I16) => Op::LoadRawI16,
+        (PointerClass::Address, ScalarLoad::U32) => Op::LoadRawU32,
+        (PointerClass::Address, ScalarLoad::I32) => Op::LoadRawI32,
+        (PointerClass::Address, ScalarLoad::Width64) => Op::LoadRaw64,
         (PointerClass::Stack, ScalarLoad::U8) => Op::LoadStackU8,
         (PointerClass::Stack, ScalarLoad::I8) => Op::LoadStackI8,
         (PointerClass::Stack, ScalarLoad::U16) => Op::LoadStackU16,
@@ -484,14 +475,10 @@ fn select_scalar_store_op(pointer_class: PointerClass, store: ScalarStore) -> Re
         (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarStore::Width64) => {
             Op::StoreSharedHeap64
         }
-        (PointerClass::Raw, ScalarStore::Width8) => Op::StoreRaw8,
-        (PointerClass::Raw, ScalarStore::Width16) => Op::StoreRaw16,
-        (PointerClass::Raw, ScalarStore::Width32) => Op::StoreRaw32,
-        (PointerClass::Raw, ScalarStore::Width64) => Op::StoreRaw64,
-        (PointerClass::SharedRaw, ScalarStore::Width8) => Op::StoreSharedRaw8,
-        (PointerClass::SharedRaw, ScalarStore::Width16) => Op::StoreSharedRaw16,
-        (PointerClass::SharedRaw, ScalarStore::Width32) => Op::StoreSharedRaw32,
-        (PointerClass::SharedRaw, ScalarStore::Width64) => Op::StoreSharedRaw64,
+        (PointerClass::Address, ScalarStore::Width8) => Op::StoreRaw8,
+        (PointerClass::Address, ScalarStore::Width16) => Op::StoreRaw16,
+        (PointerClass::Address, ScalarStore::Width32) => Op::StoreRaw32,
+        (PointerClass::Address, ScalarStore::Width64) => Op::StoreRaw64,
         (PointerClass::Stack, ScalarStore::Width8) => Op::StoreStack8,
         (PointerClass::Stack, ScalarStore::Width16) => Op::StoreStack16,
         (PointerClass::Stack, ScalarStore::Width32) => Op::StoreStack32,
@@ -540,8 +527,7 @@ fn select_bytes_load_op(pointer_class: PointerClass) -> Result<Op, Error> {
     match pointer_class {
         PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::LoadHeapBytes),
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::LoadSharedHeapBytes),
-        PointerClass::Raw => Ok(Op::LoadRawBytes),
-        PointerClass::SharedRaw => Ok(Op::LoadSharedRawBytes),
+        PointerClass::Address => Ok(Op::LoadRawBytes),
         PointerClass::Stack => Ok(Op::LoadStackBytes),
         PointerClass::Frame => Ok(Op::LoadFrameBytes),
         PointerClass::Static => Ok(Op::LoadStaticBytes),
@@ -554,8 +540,7 @@ fn select_bytes_store_op(pointer_class: PointerClass) -> Result<Op, Error> {
     match pointer_class {
         PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::StoreHeapBytes),
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::StoreSharedHeapBytes),
-        PointerClass::Raw => Ok(Op::StoreRawBytes),
-        PointerClass::SharedRaw => Ok(Op::StoreSharedRawBytes),
+        PointerClass::Address => Ok(Op::StoreRawBytes),
         PointerClass::Stack => Ok(Op::StoreStackBytes),
         PointerClass::Frame => Ok(Op::StoreFrameBytes),
         PointerClass::Static => Ok(Op::StoreStaticBytes),
@@ -602,8 +587,7 @@ pub(super) fn select_slice_element_addr_op(pointer_class: PointerClass) -> Resul
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
             Ok(Op::AddressSharedHeapSliceElement)
         }
-        PointerClass::Raw => Ok(Op::AddressRawSliceElement),
-        PointerClass::SharedRaw => Ok(Op::AddressSharedRawSliceElement),
+        PointerClass::Address => Ok(Op::AddressRawSliceElement),
         PointerClass::Stack => Ok(Op::AddressStackSliceElement),
         PointerClass::Frame => Ok(Op::AddressFrameSliceElement),
         PointerClass::Static => Ok(Op::AddressStaticSliceElement),
@@ -619,8 +603,7 @@ fn select_index_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
             Ok(Op::AddressSharedHeapElement)
         }
-        PointerClass::Raw => Ok(Op::AddressRawElement),
-        PointerClass::SharedRaw => Ok(Op::AddressSharedRawElement),
+        PointerClass::Address => Ok(Op::AddressRawElement),
         PointerClass::Stack => Ok(Op::AddressStackElement),
         PointerClass::Static => Ok(Op::AddressStaticElement),
         PointerClass::Unknown => Err(Error::invalid_instruction()),
@@ -635,8 +618,7 @@ fn select_offset_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
         PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
             Ok(Op::AddressSharedHeapOffset)
         }
-        PointerClass::Raw => Ok(Op::AddressRawOffset),
-        PointerClass::SharedRaw => Ok(Op::AddressSharedRawOffset),
+        PointerClass::Address => Ok(Op::AddressRawOffset),
         PointerClass::Stack => Ok(Op::AddressStackOffset),
         PointerClass::Static => Ok(Op::AddressStaticOffset),
         PointerClass::Unknown => Err(Error::invalid_instruction()),

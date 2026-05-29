@@ -3,7 +3,7 @@ use crate::diagnostic::{Error, ReferenceKind};
 use crate::interpreter::Machine;
 use crate::program::{AllocationSiteId, Instruction, SliceProjectionId, SmallAllocationSiteId};
 use crate::{StackPointer, Word};
-use destack_heap::{HeapError, HeapReferenceKind, RawAllocationShape};
+use destack_heap::{HeapError, HeapReferenceKind};
 
 /// Decode one power-of-two alignment from an instruction field.
 fn decode_alignment(alignment_log2: u32) -> usize {
@@ -298,113 +298,6 @@ pub(crate) fn execute_allocate_shared_slice_uninit(
     Ok(())
 }
 
-/// Execute raw allocation.
-pub(crate) fn execute_allocate_raw_zeroed(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
-    let byte_len = byte_len as usize;
-    let alignment = decode_alignment(instruction.d);
-    let shape = RawAllocationShape::new(byte_len, alignment);
-
-    // allocate raw heap bytes
-    let pointer = machine.allocate_raw_zeroed(shape);
-    let pointer = match pointer {
-        Ok(pointer) => pointer,
-        Err(error) => return Err(Error::from(error)),
-    };
-    let value = Word::raw_pointer(pointer);
-
-    machine.store_word_at(dest, value);
-
-    Ok(())
-}
-
-/// Execute local uninitialized raw allocation.
-pub(crate) fn execute_allocate_raw_uninit(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
-    let byte_len = byte_len as usize;
-    let alignment = decode_alignment(instruction.d);
-    let shape = RawAllocationShape::new(byte_len, alignment);
-
-    let pointer = machine.allocate_raw_uninit(shape).map_err(Error::from)?;
-    machine.store_word_at(dest, Word::raw_pointer(pointer));
-
-    Ok(())
-}
-
-/// Execute shared raw allocation.
-pub(crate) fn execute_allocate_shared_raw_zeroed(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
-    let byte_len = byte_len as usize;
-    let alignment = decode_alignment(instruction.d);
-    let shape = RawAllocationShape::new(byte_len, alignment);
-
-    // allocate shared raw heap bytes
-    let pointer = machine.allocate_shared_raw_zeroed(shape);
-    let pointer = match pointer {
-        Ok(pointer) => pointer,
-        Err(error) => return Err(Error::from(error)),
-    };
-    let value = Word::shared_raw_pointer(pointer);
-
-    machine.store_word_at(dest, value);
-
-    Ok(())
-}
-
-/// Execute shared uninitialized raw allocation.
-pub(crate) fn execute_allocate_shared_raw_uninit(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let byte_len = instruction.b as u64 | ((instruction.c as u64) << 32);
-    let byte_len = byte_len as usize;
-    let alignment = decode_alignment(instruction.d);
-    let shape = RawAllocationShape::new(byte_len, alignment);
-
-    let pointer = machine
-        .allocate_shared_raw_uninit(shape)
-        .map_err(Error::from)?;
-    machine.store_word_at(dest, Word::shared_raw_pointer(pointer));
-
-    Ok(())
-}
-
-/// Execute raw free.
-pub(crate) fn execute_free_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let pointer = instruction.a;
-
-    // free the pointed raw allocation
-    let pointer = machine.load_word_at(pointer).as_raw_pointer();
-    match machine.free_raw(pointer) {
-        Ok(()) => {}
-        Err(HeapError::InvalidReference {
-            kind: HeapReferenceKind::Raw,
-            ..
-        }) => {
-            return Err(Error::invalid_reference(ReferenceKind::Raw));
-        }
-        Err(error) => return Err(Error::from(error)),
-    }
-
-    Ok(())
-}
-
 /// Execute unique heap free.
 pub(crate) fn execute_free_heap(
     machine: &mut Machine<'_, '_>,
@@ -519,29 +412,6 @@ pub(crate) fn execute_unpin_shared_heap(
     _instruction: &Instruction,
 ) -> Result<(), Error> {
     // shared heap pins do not need worker-local release
-    Ok(())
-}
-
-/// Execute shared raw free.
-pub(crate) fn execute_free_shared_raw(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let pointer = instruction.a;
-
-    // free the pointed shared raw allocation
-    let pointer = machine.load_word_at(pointer).as_shared_raw_pointer();
-    match machine.free_shared_raw(pointer) {
-        Ok(()) => {}
-        Err(HeapError::InvalidReference {
-            kind: HeapReferenceKind::SharedRaw,
-            ..
-        }) => {
-            return Err(Error::invalid_reference(ReferenceKind::SharedRaw));
-        }
-        Err(error) => return Err(Error::from(error)),
-    }
-
     Ok(())
 }
 

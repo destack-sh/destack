@@ -53,22 +53,7 @@ pub(crate) fn execute_address_raw_offset(
     let dest = instruction.a;
     let base = machine.load_word_at(instruction.b);
     let byte_offset = instruction_byte_offset(instruction);
-    let value = address::offset_raw(machine, base.as_raw_pointer(), byte_offset);
-    publish_offset_address(machine, dest, value);
-
-    Ok(())
-}
-
-/// Execute fixed-offset address on shared raw pointers.
-pub(crate) fn execute_address_shared_raw_offset(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let base = machine.load_word_at(instruction.b);
-    let byte_offset = instruction_byte_offset(instruction);
-
-    let value = address::offset_shared_raw(machine, base.as_shared_raw_pointer(), byte_offset);
+    let value = address::offset_raw(machine, base.as_address(), byte_offset);
     publish_offset_address(machine, dest, value);
 
     Ok(())
